@@ -1,0 +1,20 @@
+version: "3"
+services:
+  whisper:
+    build: ./whisper-container
+    network_mode: host
+    volumes:
+      - ./shared:/shared
+
+  llm:
+    build: ./llm-container
+    network_mode: host
+    volumes:
+      - ./shared:/shared
+
+  tts:
+    build: ./tts-container
+    network_mode: host
+    env_file: .env        # 👈 Add this line
+    volumes:
+      - ./shared:/shared

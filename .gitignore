@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# Distribution / packaging
+*.egg-info/
+*.egg
+
+# dotenv
+!docker/template.env
+**/*.env
+
+# IDE
+.vscode/*
+*.code-workspace
+.idea/
+**/*.ipynb_checkpoints
+
+# misc
+**/.DS_Store
+log*.txt
+scratch/
+scratch*.py
+**/*.nfs*
+
+.venv/*
+
+# heavy model files
+*/cache/*
+llm-container/models/qwen2.5-1.5b-instruct-q4_0.gguf
