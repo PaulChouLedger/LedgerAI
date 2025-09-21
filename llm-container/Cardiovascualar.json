@@ -1,0 +1,171 @@
+{
+  "chest_pain": {
+    "triggers": ["chest pain", "tightness in chest", "pressure in chest", "chest discomfort"],
+    "steps": [
+      "Can you describe the discomfort — is it sharp, heavy, or tight?",
+      "Does the pain spread anywhere, such as your arm, neck, jaw, or back?",
+      "Do you feel short of breath, sweaty, or unusually tired during these episodes?",
+      "Is the pain worse with movement or pressing on the chest?",
+      "Have you recently lifted anything heavy or strained yourself?"
+    ],
+    "keys": ["quality", "radiation", "assoc", "msk_movement", "msk_lifting"],
+    "valid_patterns": {
+      "quality": ["sharp", "heavy", "tight", "pressure", "dull", "yes", "no"],
+      "radiation": ["arm", "jaw", "neck", "back", "shoulder", "yes", "no"],
+      "assoc": ["shortness of breath", "breath", "sweat", "fatigue", "tired", "faint", "collapse", "yes", "no"],
+      "msk_movement": ["movement", "press", "palpation", "touch", "exercise", "yes", "no"],
+      "msk_lifting": ["lifting", "strain", "heavy", "exercise", "yes", "no"]
+    },
+    "flag_rules": {
+      "emergency": [{"any": ["severe", "collapse", "faint", "syncope", "blood"]}],
+      "urgent": [{"any": ["sharp", "sob", "radiation", "assoc"]}],
+      "non_urgent": [{"any": ["msk_movement", "msk_lifting"]}]
+    },
+    "outcomes": {
+      "emergency": "This may be a cardiac emergency. Please seek immediate care or call 911.",
+      "urgent": "Your symptoms need urgent medical evaluation. Please see a doctor as soon as possible.",
+      "non_urgent": "This doesn’t sound emergent, but follow up with your doctor soon."
+    },
+    "recap": "You described your chest pain as: {summary}."
+  },
+
+  "palpitations": {
+    "triggers": ["palpitations", "racing heart", "skipped beats", "fluttering heart"],
+    "steps": [
+      "When do you notice the palpitations?",
+      "Are they constant or do they come and go?",
+      "Do they occur with exercise, at rest, or at night?",
+      "Do you have chest pain, dizziness, or fainting with them?"
+    ],
+    "keys": ["onset", "pattern", "timing", "assoc"],
+    "valid_patterns": {
+      "onset": ["sudden", "gradual", "yes", "no"],
+      "pattern": ["constant", "intermittent", "come and go", "yes", "no"],
+      "timing": ["exercise", "rest", "night", "yes", "no"],
+      "assoc": ["chest pain", "dizziness", "faint", "yes", "no"]
+    },
+    "flag_rules": {
+      "emergency": [{"any": ["faint", "collapse", "chest pain"]}],
+      "urgent": [{"any": ["constant", "exercise", "assoc"]}],
+      "non_urgent": [{"any": ["intermittent", "rest"]}]
+    },
+    "outcomes": {
+      "emergency": "Palpitations with fainting or chest pain may be dangerous. Please seek immediate care or call 911.",
+      "urgent": "Your palpitations need urgent medical evaluation. Please see a doctor soon.",
+      "non_urgent": "Your palpitations may not be urgent, but follow up with your doctor is important."
+    },
+    "recap": "You described your palpitations as: {summary}."
+  },
+
+  "syncope": {
+    "triggers": ["syncope", "fainting", "passed out", "collapse"],
+    "steps": [
+      "What were you doing right before you passed out?",
+      "How long were you unconscious?",
+      "Did you have chest pain, palpitations, or seizure-like movements?",
+      "Did anyone notice jerking movements, tongue biting, or incontinence?"
+    ],
+    "keys": ["circumstance", "duration", "assoc", "seizure_features"],
+    "valid_patterns": {
+      "circumstance": ["standing", "sitting", "exertion", "yes", "no"],
+      "duration": ["seconds", "minutes", "long", "yes", "no"],
+      "assoc": ["chest pain", "palpitations", "yes", "no"],
+      "seizure_features": ["jerking", "incontinence", "tongue biting", "yes", "no"]
+    },
+    "flag_rules": {
+      "emergency": [{"any": ["seizure_features", "chest pain"]}],
+      "urgent": [{"any": ["palpitations", "exertion"]}],
+      "non_urgent": [{"any": ["standing", "yes", "no"]}]
+    },
+    "outcomes": {
+      "emergency": "This fainting episode may be life-threatening. Please seek immediate care or call 911.",
+      "urgent": "Your fainting requires urgent evaluation. Please see a doctor soon.",
+      "non_urgent": "Your fainting may be benign, but you should still follow up with your doctor."
+    },
+    "recap": "You described your fainting as: {summary}."
+  },
+
+  "leg_swelling": {
+    "triggers": ["leg swelling", "swollen legs", "ankle swelling", "puffy legs"],
+    "steps": [
+      "Is the swelling in one leg or both?",
+      "When did the swelling start?",
+      "Do you have pain, redness, or warmth in the leg?",
+      "Do you have shortness of breath or chest pain?"
+    ],
+    "keys": ["side", "onset", "local_features", "assoc"],
+    "valid_patterns": {
+      "side": ["one", "both", "left", "right", "yes", "no"],
+      "onset": ["sudden", "gradual", "days", "weeks", "yes", "no"],
+      "local_features": ["pain", "redness", "warmth", "yes", "no"],
+      "assoc": ["shortness of breath", "chest pain", "yes", "no"]
+    },
+    "flag_rules": {
+      "emergency": [{"any": ["shortness of breath", "chest pain"]}],
+      "urgent": [{"any": ["one", "pain", "redness", "warmth"]}],
+      "non_urgent": [{"any": ["both", "gradual"]}]
+    },
+    "outcomes": {
+      "emergency": "Your leg swelling with shortness of breath may be dangerous. Please seek immediate care or call 911.",
+      "urgent": "Your leg swelling may indicate a clot or vascular problem. Please see a doctor soon.",
+      "non_urgent": "Your leg swelling may be benign, but follow up with your doctor is advised."
+    },
+    "recap": "You described your leg swelling as: {summary}."
+  },
+
+  "leg_pain": {
+    "triggers": ["leg pain", "pain in my leg", "calf pain", "thigh pain"],
+    "steps": [
+      "Where in your leg is the pain located?",
+      "When did it start?",
+      "Do you have swelling, redness, or warmth in the leg?",
+      "Did you have recent trauma, long travel, or immobility?"
+    ],
+    "keys": ["location", "onset", "local_features", "risk_factors"],
+    "valid_patterns": {
+      "location": ["calf", "thigh", "ankle", "foot", "yes", "no"],
+      "onset": ["sudden", "gradual", "yes", "no"],
+      "local_features": ["swelling", "redness", "warmth", "yes", "no"],
+      "risk_factors": ["trauma", "travel", "immobility", "yes", "no"]
+    },
+    "flag_rules": {
+      "emergency": [{"any": ["shortness of breath", "chest pain"]}],
+      "urgent": [{"any": ["swelling", "redness", "warmth", "trauma"]}],
+      "non_urgent": [{"any": ["gradual", "no"]}]
+    },
+    "outcomes": {
+      "emergency": "Leg pain with chest symptoms may be life-threatening. Please seek immediate care or call 911.",
+      "urgent": "Your leg pain could suggest a clot or injury. Please see a doctor soon.",
+      "non_urgent": "Your leg pain does not sound emergent, but follow up with your doctor is recommended."
+    },
+    "recap": "You described your leg pain as: {summary}."
+  },
+
+  "dizziness": {
+    "triggers": ["dizzy", "dizziness", "lightheaded", "vertigo", "room spinning"],
+    "steps": [
+      "Do you feel lightheaded or like the room is spinning?",
+      "When did it start and how long does it last?",
+      "Do you have nausea, hearing changes, or trouble walking?",
+      "Have you fainted or lost consciousness?"
+    ],
+    "keys": ["type", "duration", "assoc", "loss_of_consciousness"],
+    "valid_patterns": {
+      "type": ["lightheaded", "spinning", "vertigo", "yes", "no"],
+      "duration": ["seconds", "minutes", "hours", "days", "yes", "no"],
+      "assoc": ["nausea", "hearing", "walking", "balance", "yes", "no"],
+      "loss_of_consciousness": ["yes", "no", "faint"]
+    },
+    "flag_rules": {
+      "emergency": [{"any": ["loss_of_consciousness", "severe imbalance"]}],
+      "urgent": [{"any": ["spinning", "hearing", "walking"]}],
+      "non_urgent": [{"any": ["lightheaded", "short"]}]
+    },
+    "outcomes": {
+      "emergency": "Your dizziness may indicate a stroke or severe condition. Please seek emergency care immediately.",
+      "urgent": "Your dizziness needs urgent evaluation. Please see a doctor soon.",
+      "non_urgent": "Your dizziness may not be urgent, but follow up with your doctor if it continues."
+    },
+    "recap": "You described your dizziness as: {summary}."
+  }
+}
