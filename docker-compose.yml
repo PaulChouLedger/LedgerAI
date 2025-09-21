@@ -55,6 +55,7 @@ services:
       - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
       - MODEL_PATH=${MODEL_PATH:-/models/qwen2.5-1.5b-instruct-q4_0.gguf}
       - CHAT_FORMAT=${CHAT_FORMAT:-qwen}
+      - N_CTX=${N_CTX:-1024}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11434/health", "||", "exit", "1"]
       interval: 30s

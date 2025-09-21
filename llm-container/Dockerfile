@@ -13,17 +13,18 @@ RUN pip3 install --no-cache-dir uv --ignore-installed --index-url https://pypi.o
 # Copy package files
 COPY pyproject.toml /app/
 COPY src/ /app/src/
-COPY models/mistral.gguf /models/mistral.gguf
+COPY models /models
 
-# Copy example models (others can be mounted at runtime)
-COPY models/qwen2.5-1.5b-instruct-q4_0.gguf /models/qwen2.5-1.5b-instruct-q4_0.gguf
-COPY models/smollm2-1.7b-instruct-q4_k_m.gguf /models/smollm2-1.7b-instruct-q4_k_m.gguf
-COPY models/DeepSeek-R1-Distill-Qwen-1.5B-Medical-COT.i1-Q4_K_M.gguf /models/DeepSeek-R1-Distill-Qwen-1.5B-Medical-COT.i1-Q4_K_M.gguf
+# Copy triage definitions and create state directory
+COPY src/aura_llm/*.json /app/triage_defs/
+RUN mkdir -p /app/state
 
 # === Environment defaults (can be overridden by .env or -e) ===
 ENV MODEL_PATH=/models/qwen2.5-1.5b-instruct-q4_0.gguf
 ENV CHAT_FORMAT=qwen
 ENV N_CTX=1024
+ENV TRIAGE_STATE_DIR=/app/state
+ENV TRIAGE_DEFINITIONS_DIR=/app/triage_defs
 
 # Install the package using uv
 RUN uv sync
