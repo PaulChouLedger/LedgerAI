@@ -3,18 +3,23 @@ FROM dustynv/piper-tts:r36.4.0
 
 WORKDIR /app
 
-# Copy REST API script into container
-COPY container_rest.py /app/container_rest.py
+# Install system dependencies
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Install uv package manager
+RUN pip3 install --no-cache-dir uv --ignore-installed --index-url https://pypi.org/simple
+
+# Copy package files
+COPY pyproject.toml /app/
+COPY src/ /app/src/
 # Copy .env into container
 COPY .env /app/.env
 # Ensure model + config are in the correct path inside the image
 COPY models /models
 
-# Install Flask for REST API
-RUN pip3 install --no-cache-dir --break-system-packages \
-    flask soundfile python-dotenv \
-    -i https://pypi.org/simple
+# Install the package using uv
+RUN uv sync
 
 EXPOSE 5002
 
-CMD ["python3", "/app/container_rest.py"]
+CMD ["uv", "run", "/app/src/aura_tts/container_rest.py"]

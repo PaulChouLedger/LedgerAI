@@ -2,8 +2,15 @@ FROM dustynv/whisper_trt:r36.3.0
 
 WORKDIR /app
 
-# Copy REST API
-COPY container_rest.py /app/container_rest.py
+# Install system dependencies
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Install uv package manager
+RUN pip3 install --no-cache-dir uv --ignore-installed --index-url https://pypi.org/simple
+
+# Copy package files
+COPY pyproject.toml /app/
+COPY src/ /app/src/
 #COPY cache/whisper /root/.cache/whisper
 #COPY cache/whisper_trt /root/.cache/whisper_trt
 
@@ -12,9 +19,8 @@ RUN rm -f /root/.cache/whisper_trt && mkdir -p /root/.cache/whisper_trt && \
     rm -f /root/.cache/whisper && mkdir -p /root/.cache/whisper && \
     sed -i 's/os.makedirs(_CACHE_DIR)/os.makedirs(_CACHE_DIR, exist_ok=True)/' /opt/whisper_trt/whisper_trt/cache.py
 
-# Install Flask and soundfile
-RUN pip3 install --break-system-packages --ignore-installed  --extra-index-url https://pypi.org/simple \
-    flask soundfile numpy==1.26.4 spicy
+# Install the package using uv
+RUN uv sync
 
 EXPOSE 5000
-CMD ["python3", "/app/container_rest.py"]
+CMD ["uv", "run", "/app/src/aura_whisper/container_rest.py"]

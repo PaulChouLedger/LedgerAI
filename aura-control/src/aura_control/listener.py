@@ -6,23 +6,17 @@ import numpy as np
 import soundfile as sf
 import sounddevice as sd
 import requests
-import subprocess
 from speaker import speak_llm_response, is_playing
-from pydub import AudioSegment
 
 # === Config ===
 SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
-SILENCE_TIMEOUT = 0.2
-VAD_THRESHOLD = 0.3
+SILENCE_TIMEOUT = 0.5
+VAD_THRESHOLD = 0.2
 MIN_AUDIO_SAMPLES = 8000
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
-CONTEXT_DEPTH = 6
-prompt_history = []
-
-WELCOME_AUDIO_PATH = os.path.expanduser("~/aura/assets/voice_samples/audio1.wav")
 
 # === Detect correct mic index ===
 def find_device_index():
@@ -58,18 +52,6 @@ def transcribe(audio):
         print(f"❌ Transcription error: {e}")
         return ""
 
-# === Welcome prompt (pause mic before playing) ===
-def play_welcome_prompt(stream):
-    try:
-        print("[Aura] 🔊 Playing welcome prompt...")
-        stream.stop()
-        subprocess.run(["aplay", WELCOME_AUDIO_PATH])
-        time.sleep(0.25)
-        stream.start()
-        print("[Aura] 🎤 Mic resumed after welcome prompt")
-    except Exception as e:
-        print(f"[Aura] ❌ Failed to play welcome prompt: {e}")
-
 # === Main Loop ===
 def listen():
     find_device_index()
@@ -77,9 +59,6 @@ def listen():
 
     with sd.InputStream(device=DEVICE_INDEX, channels=6, samplerate=SAMPLE_RATE,
                         blocksize=FRAME_SIZE, dtype="float32") as stream:
-        # ✅ Play welcome.wav before entering listening loop
-        play_welcome_prompt(stream)
-
         while True:
             if is_playing():
                 print("[Listener] ⏸️ Pausing mic during playback")
@@ -98,7 +77,7 @@ def listen():
                     break
 
                 audio_block, _ = stream.read(FRAME_SIZE)
-                channel_0 = audio_block[:, 0]
+                channel_0 = audio_block[:, 0]  # VAD only
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 print(f"[Debug] VAD prob: {vad_prob:.2f}")
                 if vad_prob > VAD_THRESHOLD:
@@ -113,7 +92,7 @@ def listen():
                     break
 
                 audio_block, _ = stream.read(FRAME_SIZE)
-                channel_0 = audio_block[:, 0]
+                channel_0 = audio_block[:, 0]  # VAD only
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 buffer.append(audio_block)
 
@@ -131,19 +110,13 @@ def listen():
                 continue
 
             full_audio = np.concatenate(buffer)
-            mono_mix = full_audio[:, 0]
+            mono_mix = full_audio[:, 0]  # ✅ Use only channel 0 (beamformed)
 
             if len(mono_mix) < MIN_AUDIO_SAMPLES:
                 print("⚠️ Skipped: too short")
                 continue
 
             text = transcribe(mono_mix)
-            if not text:
-                continue
+            if text:
+                speak_llm_response(text)
 
-            prompt_history.append(text)
-            if len(prompt_history) > CONTEXT_DEPTH:
-                prompt_history.pop(0)
-
-            context = "\n".join(prompt_history[:-1])
-            speak_llm_response(prompt=text, context=context)

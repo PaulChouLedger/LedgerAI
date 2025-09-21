@@ -1,17 +1,20 @@
-# RAPIDS container with cuML and sentence-transformers
-FROM cuml:r36.4.tegra-aarch64-cu126-22.04-cuda-python
+# Modern RAG container with cuDF, cuVS, and LlamaIndex
+FROM rapidsai/rapidsai:24.02-cuda12.0-runtime-ubuntu22.04
 
 WORKDIR /app
 
-COPY . /app
+# Install system dependencies
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
+# Install uv package manager
 RUN pip install --upgrade pip --break-system-packages && \
-    pip install --break-system-packages --ignore-installed \
-        sentence-transformers \
-        beautifulsoup4 \
-        lxml \
-        flask \
-        cuml-cu12 \
-        --extra-index-url=https://pypi.nvidia.com
+    pip install --break-system-packages uv --extra-index-url=https://pypi.nvidia.com
 
-CMD ["python3", "container_rest.py"]
+# Copy package files
+COPY pyproject.toml /app/
+COPY src/ /app/src/
+
+# Install the package using uv
+RUN uv sync
+
+CMD ["uv", "run", "/app/src/aura_rapids/container_rest.py"]

@@ -1,5 +1,3 @@
-# === speaker.py — Streaming TTS playback with ElevenLabs ===
-
 import os
 import re
 import time
@@ -8,164 +6,192 @@ import threading
 import subprocess
 from dotenv import load_dotenv
 from elevenlabs.client import ElevenLabs
-from state import set_playing, is_playing  # ✅ Global playback state
+from state import set_playing, is_playing
 
-# === Load environment ===
+# === Load API credentials ===
 load_dotenv()
 ELEVEN_API_KEY = os.getenv("ELEVEN_API_KEY")
 ELEVEN_VOICE_ID = os.getenv("ELEVEN_VOICE_ID")
 assert ELEVEN_API_KEY and ELEVEN_VOICE_ID, "Missing ElevenLabs credentials"
-
-# === ElevenLabs client ===
 client = ElevenLabs(api_key=ELEVEN_API_KEY)
 
-# === TTS Config ===
+# === Audio settings ===
 PCM_SAMPLE_RATE = 22050
 PCM_FORMAT = "pcm_22050"
-SENTENCE_QUEUE = queue.Queue()
+VOLUME_SET = False
+TTS_VOLUME = 90  # percent
 
-# === Dynamic Speech Control ===
+# Device identification
+DEVICE_NAME = "UACDemoV1.0"   # part of the USB device name from `aplay -l`
+ALSA_CONTROLS = ["PCM", "Speaker", "Master"]  # try these in order
+
+# === TTS config ===
+SENTENCE_QUEUE = queue.Queue()
+playback_lock = threading.Lock()
 USE_SSML = True
 INSERT_BREAKS = True
 INSERT_SENTENCE_PAUSE = True
 EMPHASIZE_WORDS = ["really", "important", "please", "must", "urgent"]
-
-# === Voice Modulation ===
-TTS_VOLUME = 85
 DEFAULT_EMOTION = "neutral"
 RATE = "100%"
 PITCH = "100%"
 
-# === Volume control (optional) ===
-def set_volume(percent=TTS_VOLUME):
+# === Detect ALSA card index dynamically ===
+def detect_card_index(device_name: str) -> int:
     try:
-        subprocess.run(
-            ["amixer", "-c", "1", "sset", "PCM", f"{percent}%"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
-    except Exception:
-        pass  # Ignore volume errors
+        output = subprocess.check_output(["aplay", "-l"], text=True)
+        for line in output.splitlines():
+            if device_name in line:
+                match = re.search(r"card (\d+):", line)
+                if match:
+                    return int(match.group(1))
+    except Exception as e:
+        print(f"[Speaker] ⚠️ Failed to detect ALSA card index: {e}")
+    return 0  # fallback
 
-# === Emotion Detection ===
+# === Set playback volume once ===
+def set_volume_once():
+    global VOLUME_SET
+    if not VOLUME_SET:
+        card_index = detect_card_index(DEVICE_NAME)
+        for ctrl in ALSA_CONTROLS:
+            try:
+                subprocess.run(
+                    ["amixer", "-c", str(card_index), "sset", ctrl, f"{TTS_VOLUME}%"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True
+                )
+                print(f"[Speaker] 🔊 Volume set to {TTS_VOLUME}% on card {card_index}:{ctrl}")
+                VOLUME_SET = True
+                return
+            except Exception:
+                continue
+        print("[Speaker] ⚠️ Could not set volume — check ALSA controls")
+
 def detect_emotion(text):
     lowered = text.lower()
-    if any(w in lowered for w in ["awesome", "great", "yay", "excited", "love", "happy", "cool"]):
+    if any(w in lowered for w in ["awesome", "great", "yay", "excited", "love"]):
         return "excited"
-    if any(w in lowered for w in ["sorry", "unfortunately", "apologize", "sad", "can't", "regret"]):
+    if any(w in lowered for w in ["sorry", "unfortunately", "regret", "sad"]):
         return "disappointed"
-    if "?" in text:
-        return "neutral"
     return DEFAULT_EMOTION
 
-# === SSML Wrapper ===
+def normalize_units(text):
+    return text.replace("°C", "degrees Celsius").replace("°F", "degrees Fahrenheit")
+
 def ssml_wrap(text):
     if not USE_SSML:
         return text
-
-    # Insert short breaks after commas/semicolons
     if INSERT_BREAKS:
         text = re.sub(r"([,;])", r"\1<break time='300ms'/>", text)
-
-    # Insert longer breaks after end of sentence
     if INSERT_SENTENCE_PAUSE:
         text = re.sub(r"([.?!])", r"\1<break time='600ms'/>", text)
-
-    # Emphasize selected words
     for word in EMPHASIZE_WORDS:
         text = re.sub(rf"\b({word})\b", r"<emphasis>\1</emphasis>", text, flags=re.IGNORECASE)
-
     emotion = detect_emotion(text)
     print(f"[Speaker] 🎭 Detected emotion: {emotion}")
-
     return (
-        f"<speak>"
-        f"<voice emotion='{emotion}'>"
-        f"<prosody rate='{RATE}' pitch='{PITCH}'>"
-        f"{text}"
-        f"</prosody>"
-        f"</voice>"
-        f"</speak>"
+        f"<speak><voice emotion='{emotion}'>"
+        f"<prosody rate='{RATE}' pitch='{PITCH}'>{text}</prosody>"
+        f"</voice></speak>"
     )
 
-# === Async queue fill ===
+def preprocess_for_tts(text):
+    return re.sub(r"<sentence_start>|<sentence_end>", "", text).strip()
+
 def enqueue_tts_chunk(text):
     if text and not re.match(r"^[\s.,!?]+$", text):
         SENTENCE_QUEUE.put(text.strip())
 
-# === Playback Thread ===
-def playback_loop():
-    while True:
-        sentence = SENTENCE_QUEUE.get()
-        if not sentence:
-            continue
-
-        print(f"[Speaker] 🔈 Speaking: \"{sentence}\"")
+# === TTS playback using aplay ===
+def tts_playback_thread(text):
+    with playback_lock:
         set_playing(True)
-        set_volume()
-
         try:
-            proc = subprocess.Popen(
-                ["paplay", "--raw", "--rate=22050", "--channels=1", "--format=s16le"],
-                stdin=subprocess.PIPE
+            stream = client.text_to_speech.convert(
+                text=ssml_wrap(normalize_units(text)),
+                voice_id=ELEVEN_VOICE_ID,
+                output_format=PCM_FORMAT,
+                voice_settings={
+                    "stability": 0.5,
+                    "similarity_boost": 0.0,
+                    "style": 0.0,
+                    "use_speaker_boost": False,
+                    "optimize_streaming_latency": True
+                }
             )
 
-            stream = client.text_to_speech.convert(
-                text=ssml_wrap(sentence),
-                voice_id=ELEVEN_VOICE_ID,
-                output_format=PCM_FORMAT
+            first_chunk = next(stream, None)
+            if not first_chunk:
+                raise RuntimeError("No audio received")
+
+            proc = subprocess.Popen(
+                ["aplay", "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
             )
 
             start = time.time()
+            proc.stdin.write(first_chunk)
+            proc.stdin.flush()
+            print(f"⏱️ TTS latency: {time.time() - start:.2f}s")
+
             for chunk in stream:
                 if chunk:
                     proc.stdin.write(chunk)
+                    proc.stdin.flush()
 
             proc.stdin.close()
             proc.wait()
-            print(f"⏱️ TTS latency: {time.time() - start:.2f}s")
 
         except Exception as e:
             print(f"[Speaker] ❌ TTS error: {e}")
         finally:
             set_playing(False)
 
-# === Stream LLM and queue chunks ===
-def speak_llm_response(prompt):
-    import requests
-    print(f"[LLM] ✅ Sending prompt to LLM container: {prompt}")
+# === Playback loop ===
+def playback_loop():
+    set_volume_once()
+    while True:
+        sentence = SENTENCE_QUEUE.get()
+        sentence = preprocess_for_tts(sentence)
+        if not sentence or sentence.lower() in {"uh", "hmm", "um", "<silence>"}:
+            print(f"[Speaker] ⚠️ Skipping filler: \"{sentence}\"")
+            continue
+        print(f"[Speaker] 🔈 Speaking: \"{sentence}\"")
+        threading.Thread(target=tts_playback_thread, args=(sentence,), daemon=True).start()
+        time.sleep(0.1)
 
+# === Stream LLM output ===
+def speak_llm_response(prompt, context=""):
+    import requests
+    print(f"[LLM] ✅ Prompt to LLM: {prompt}")
     try:
         response = requests.post(
             "http://localhost:11434/chat",
-            json={"prompt": prompt},
-            stream=True,
-            timeout=60
+            json={"prompt": prompt, "context": context},
+            stream=True, timeout=60
         )
-
         buffer = []
         for line in response.iter_lines(decode_unicode=True):
             token = line.strip()
             if not token:
                 continue
-
             print(f"[LLM] 🧠 {token}")
             buffer.append(token)
-
-            if token in {".", "!", "?"}:
-                chunk = " ".join(buffer).strip()
-                enqueue_tts_chunk(chunk)
+            ends = any(token.endswith(p) for p in [".", "!", "?"])
+            if ends or len(buffer) >= 12:
+                enqueue_tts_chunk(" ".join(buffer).strip())
                 buffer.clear()
-
         if buffer:
             enqueue_tts_chunk(" ".join(buffer).strip())
-
     except Exception as e:
-        print(f"[LLM] ❌ Error streaming: {e}")
+        print(f"[LLM] ❌ Streaming error: {e}")
 
-# === ElevenLabs Warm-Up ===
+# === Warmup ===
 def warm_up_tts():
-    print("[Speaker] 🔧 Warming up ElevenLabs with intro message...")
-    enqueue_tts_chunk("Welcome to Aura Vision, system initializing, please wait")
+    print("[Speaker] 🔧 Warming up...")
+    enqueue_tts_chunk("AuraVision is initializing, please wait.")
 
-# === Startup ===
+# === Start thread ===
 threading.Thread(target=playback_loop, daemon=True).start()

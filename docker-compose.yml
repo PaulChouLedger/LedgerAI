@@ -1,20 +1,165 @@
-version: "3"
+version: "3.8"
+
+# Production-ready Docker Compose for Aura Voice Assistant
+# Features: Health checks, restart policies, resource limits, logging
+
 services:
+  # Speech-to-Text Service
   whisper:
-    build: ./whisper-container
-    network_mode: host
+    build:
+      context: ./whisper-container
+      dockerfile: Dockerfile
+    container_name: aura-whisper
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
     volumes:
-      - ./shared:/shared
+      - ./shared:/shared:rw
+    environment:
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED:-1}
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+      - WHISPER_MODEL=${WHISPER_MODEL:-base.en}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # Language Model Service
   llm:
-    build: ./llm-container
-    network_mode: host
+    build:
+      context: ./llm-container
+      dockerfile: Dockerfile
+    container_name: aura-llm
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
     volumes:
-      - ./shared:/shared
+      - ./shared:/shared:rw
+    environment:
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED:-1}
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+      - MODEL_PATH=${MODEL_PATH:-/models/qwen2.5-1.5b-instruct-q4_0.gguf}
+      - CHAT_FORMAT=${CHAT_FORMAT:-qwen}
+      - N_CTX=${N_CTX:-1024}
+      - TRIAGE_STATE_DIR=${TRIAGE_STATE_DIR:-/app/state}
+      - TRIAGE_DEFINITIONS_DIR=${TRIAGE_DEFINITIONS_DIR:-/app/triage_defs}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '4.0'
+        reservations:
+          memory: 4G
+          cpus: '2.0'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # Text-to-Speech Service
   tts:
-    build: ./tts-container
-    network_mode: host
-    env_file: .env        # 👈 Add this line
+    build:
+      context: ./tts-container
+      dockerfile: Dockerfile
+    container_name: aura-tts
+    restart: unless-stopped
+    ports:
+      - "5002:5002"
     volumes:
-      - ./shared:/shared
+      - ./shared:/shared:rw
+    environment:
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED:-1}
+      - ELEVEN_API_KEY=${ELEVEN_API_KEY}
+      - ELEVEN_VOICE_ID=${ELEVEN_VOICE_ID}
+      - PIPER_MODEL_PATH=${PIPER_MODEL_PATH:-/models/en_US/en_US-amy-low.onnx}
+      - PIPER_CONFIG_PATH=${PIPER_CONFIG_PATH:-/models/en_US/en_US-amy-low.onnx.json}
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Vector Search/RAG Service
+  rapids:
+    build:
+      context: ./rapids-container
+      dockerfile: Dockerfile
+    container_name: aura-rapids
+    restart: unless-stopped
+    ports:
+      - "5003:5003"
+    volumes:
+      - ./shared:/shared:rw
+    environment:
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED:-1}
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+      # New RAG configuration
+      - CHUNK_SIZE=${CHUNK_SIZE:-512}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-32}
+      - TOP_K=${TOP_K:-3}
+      - SCORE_THRESHOLD=${SCORE_THRESHOLD:-0.7}
+      - LLM_URL=${LLM_URL:-http://localhost:11434}
+      - LLM_TIMEOUT=${LLM_TIMEOUT:-30}
+      - INPUT_DIR=${INPUT_DIR:-/shared/input}
+      - INDEX_PATH=${INDEX_PATH:-/shared/vector_index}
+      - DEBUG=${DEBUG:-false}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5003/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 6G
+          cpus: '3.0'
+        reservations:
+          memory: 3G
+          cpus: '1.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# No named volumes needed - using bind mounts and build-time model copying
