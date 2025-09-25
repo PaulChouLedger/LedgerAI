@@ -52,7 +52,9 @@ def rewrite(
         "For questions, NEVER use the name - just ask directly. "
         "For clarify questions, NEVER use the name. "
         "If the name has been used recently, avoid using it again even in intros/recaps. "
-        "IMPORTANT: Do NOT add redundant questions. If the text already asks about a symptom, do not add another question about the same symptom."
+        "IMPORTANT: Do NOT add redundant questions. If the text already asks about a symptom, do not add another question about the same symptom. "
+        "CRITICAL: For factual questions (age, timing, history, yes/no facts), preserve the exact meaning. "
+        "Do NOT change 'Are you older than 50?' to 'Do you feel older than 50?' - these have different meanings."
     )
 
     # Few-shot style hints per role
@@ -75,6 +77,30 @@ def rewrite(
             print(f"[NLG] ⚠️ Recent questions: {recent_questions}")
             print(f"[NLG] ⚠️ Current text: {text}")
             # Return original text without NLG processing to avoid redundancy
+            return text
+    
+    # Check for factual questions that should not be rephrased
+    factual_patterns = [
+        r"are you older than \d+",
+        r"are you over \d+", 
+        r"are you under \d+",
+        r"are you \d+ years old",
+        r"did the .* reach its worst",
+        r"was the .* preceded by",
+        r"do you have a history of",
+        r"have you had",
+        r"did you experience",
+        r"were you involved in",
+        r"is this the worst",
+        r"did this start",
+        r"has this been going on",
+        r"how long have you had"
+    ]
+    
+    text_lower = text.lower()
+    for pattern in factual_patterns:
+        if re.search(pattern, text_lower):
+            print(f"[NLG] 🔒 Preserving factual question: '{text}'")
             return text
 
     # Determine if we should use the name based on role and recent usage
