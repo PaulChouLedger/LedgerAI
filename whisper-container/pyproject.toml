@@ -15,6 +15,7 @@ dependencies = [
     "soundfile>=0.12.0",
     "numpy>=1.26.0",
     "scipy>=1.11.0",
+    "whisper_trt @ git+https://github.com/NVIDIA-AI-IOT/whisper_trt.git"
 ]
 
 [project.optional-dependencies]

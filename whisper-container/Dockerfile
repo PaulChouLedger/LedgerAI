@@ -20,8 +20,7 @@ RUN rm -f /root/.cache/whisper_trt && mkdir -p /root/.cache/whisper_trt && \
     sed -i 's/os.makedirs(_CACHE_DIR)/os.makedirs(_CACHE_DIR, exist_ok=True)/' /opt/whisper_trt/whisper_trt/cache.py
 
 # Install the package using uv
-# RUN uv sync
-RUN pip install .
+RUN uv sync
 
 EXPOSE 5000
-CMD ["python", "/app/src/aura_whisper/container_rest.py"]
+CMD ["uv", "run", "/app/src/aura_whisper/container_rest.py"]
