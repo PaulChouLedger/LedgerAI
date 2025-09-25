@@ -366,6 +366,7 @@ def chat():
     if any(k in prompt_norm for k in RESET_KEYWORDS):
         do_reset = True
     if not prompt: return jsonify({"error":"Missing prompt"}),400
+    print(f"[Aura-LLM] 🔍 Session ID: {session_id}, Prompt: '{prompt}', Reset: {do_reset}")
     state=load_state(session_id)
 
     if do_reset:
@@ -376,6 +377,7 @@ def chat():
                "updated_at":None,"phrasing_history":[]}
         save_state(state, session_id)
         print(f"[Aura-LLM] 🔄 Session reset for session_id: {session_id}")
+        print(f"[Aura-LLM] 🔄 Reset state: {state}")
         # If the user explicitly sent a reset command, acknowledge and stop
         if prompt_norm in RESET_KEYWORDS:
             def generate_reset():
@@ -388,6 +390,7 @@ def chat():
         save_state(state, session_id)
 
     if state.get("condition"):
+        print(f"[Aura-LLM] 🔍 Continuing triage with condition: {state.get('condition')}")
         cond=state["condition"]; idx=state["step_index"]
         steps=get_steps(cond,state)
         step_list=[s if isinstance(s,dict) else {"key":None,"question":str(s)} for s in steps]
@@ -456,6 +459,8 @@ def chat():
 
     # New triage or casual
     condition=detect_condition(prompt, session_id); state=load_state(session_id)
+    print(f"[Aura-LLM] 🔍 Loaded state after reset: {state}")
+    print(f"[Aura-LLM] 🔍 Detected condition: {condition}")
     def generate():
         nonlocal condition, prompt, state
         if not condition:
