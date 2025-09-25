@@ -28,6 +28,10 @@ def rewrite(
 
     if os.getenv("NLG_ENABLED", "1") not in ("1", "true", "TRUE", "yes"):
         return text
+    
+    print(f"[NLG] 🔄 Rewriting text: '{text}'")
+    print(f"[NLG] 🔄 Role: {role}, Context: {context}")
+    print(f"[NLG] 🔄 Phrasing history: {phrasing_history}")
 
     allowed = context.get("allowed_answers") or []
     name = context.get("name") or ""
@@ -47,7 +51,8 @@ def rewrite(
         "CRITICAL: Use the patient's name ONLY in intros and final recaps/outcomes. "
         "For questions, NEVER use the name - just ask directly. "
         "For clarify questions, NEVER use the name. "
-        "If the name has been used recently, avoid using it again even in intros/recaps."
+        "If the name has been used recently, avoid using it again even in intros/recaps. "
+        "IMPORTANT: Do NOT add redundant questions. If the text already asks about a symptom, do not add another question about the same symptom."
     )
 
     # Few-shot style hints per role
@@ -61,6 +66,16 @@ def rewrite(
 
     history = phrasing_history or []
     avoid = "; ".join(history[-5:]) if history else ""
+    
+    # Check for redundant questions in history
+    if role in ("question", "clarify") and history:
+        recent_questions = [h.lower() for h in history[-3:] if "?" in h]
+        if any("headache" in q for q in recent_questions) and "headache" in text.lower():
+            print(f"[NLG] ⚠️ Detected potential redundant headache question")
+            print(f"[NLG] ⚠️ Recent questions: {recent_questions}")
+            print(f"[NLG] ⚠️ Current text: {text}")
+            # Return original text without NLG processing to avoid redundancy
+            return text
 
     # Determine if we should use the name based on role and recent usage
     should_use_name = role in ("intro", "recap", "outcome") and name_count < 1
@@ -98,6 +113,7 @@ def rewrite(
                   .get("content", "")
         )
         text_out = (content or text).strip()
+        print(f"[NLG] 🔄 Raw NLG output: '{text_out}'")
         
         # Post-process to remove name if it shouldn't be used
         if not should_use_name and name and name.lower() in text_out.lower():
@@ -112,6 +128,7 @@ def rewrite(
         # Ensure question style for question/clarify
         if role in ("question","clarify") and not text_out.endswith(("?",".")):
             text_out += "?"
+        print(f"[NLG] ✅ Final NLG output: '{text_out}'")
         return text_out
     except Exception:
         return text
