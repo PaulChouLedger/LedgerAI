@@ -41,7 +41,36 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lowered = user_message.lower()
     if any(k in lowered for k in RESET_KEYWORDS):
         sessions[chat_id] = {"active": True, "history": []}
-        await update.message.reply_text("🔄 Session reset. Start again with your symptoms.")
+        # Forward reset to LLM container
+        try:
+            resp = requests.post(
+                AURA_CHAT_URL,
+                json={
+                    "prompt": user_message,
+                    "chat_id": str(chat_id),
+                    "reset": True
+                },
+                timeout=10
+            )
+            if resp.status_code == 200:
+                # Stream the reset response
+                reply_buffer = ""
+                for line in resp.iter_lines(decode_unicode=True):
+                    if not line:
+                        continue
+                    if "<sentence_start>" in line:
+                        reply_buffer = ""
+                    elif "<sentence_end>" in line:
+                        if reply_buffer.strip():
+                            await update.message.reply_text(reply_buffer.strip())
+                        reply_buffer = ""
+                    else:
+                        reply_buffer += line + " "
+            else:
+                await update.message.reply_text("🔄 Session reset. Start again with your symptoms.")
+        except Exception as e:
+            print(f"[Telegram] ❌ Reset error: {e}")
+            await update.message.reply_text("🔄 Session reset. Start again with your symptoms.")
         return
     if any(k in lowered for k in EXIT_KEYWORDS):
         sessions[chat_id]["active"] = False
