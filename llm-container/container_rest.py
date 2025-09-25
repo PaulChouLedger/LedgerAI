@@ -469,16 +469,25 @@ def chat():
                 print(f"[Aura-LLM] 💬 Processing casual conversation: '{prompt}'")
                 msgs=[{"role":"system","content":"I am AuraVision, your friendly personal assistant."},
                       {"role":"user","content":prompt}]
-            stream=llm.create_chat_completion(messages=msgs,stream=True)
-            buf=""
-            for ch in stream:
-                tok=ch.get("choices",[{}])[0].get("delta",{}).get("content","")
-                if not tok: continue; buf+=tok
-                if re.search(r"[.!?]['\")\]]?\s*$",buf):
-                    yield f"<sentence_start>\n{buf.strip()}\n<sentence_end>\n"; buf=""
-            # Yield any remaining content
-            if buf.strip():
-                yield f"<sentence_start>\n{buf.strip()}\n<sentence_end>\n"
+            try:
+                stream=llm.create_chat_completion(messages=msgs,stream=True)
+                buf=""
+                print(f"[Aura-LLM] 🔄 Starting casual mode response generation...")
+                for ch in stream:
+                    tok=ch.get("choices",[{}])[0].get("delta",{}).get("content","")
+                    if not tok: continue; buf+=tok
+                    print(f"[Aura-LLM] 🔄 Token: '{tok}' (buf: '{buf}')")
+                    if re.search(r"[.!?]['\")\]]?\s*$",buf):
+                        print(f"[Aura-LLM] 🔄 Yielding sentence: '{buf.strip()}'")
+                        yield f"<sentence_start>\n{buf.strip()}\n<sentence_end>\n"; buf=""
+                # Yield any remaining content
+                if buf.strip():
+                    print(f"[Aura-LLM] 🔄 Yielding remaining: '{buf.strip()}'")
+                    yield f"<sentence_start>\n{buf.strip()}\n<sentence_end>\n"
+                print(f"[Aura-LLM] 🔄 Casual mode response complete")
+            except Exception as e:
+                print(f"[Aura-LLM] ❌ Error in casual mode: {e}")
+                yield f"<sentence_start>\nHello! I'm AuraVision, your friendly personal assistant. How can I help you today?\n<sentence_end>\n"
             return
         steps=get_steps(condition,state)
         state.update({"condition":condition,"step_index":1,"answers":[],"flags":{},
