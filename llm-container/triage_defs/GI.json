@@ -1,0 +1,338 @@
+{
+  "abdominal_pain": {
+    "triggers": [
+      "abdominal pain",
+      "stomach ache",
+      "belly pain",
+      "gut pain",
+      "tummy ache",
+      "right upper quadrant abdominal pain",
+      "right lower quadrant abdominal pain",
+      "epigastric abdominal pain",
+      "left upper quadrant abdominal pain",
+      "left lower quadrant abdominal pain",
+      "diffuse abdominal pain"
+    ],
+    "intro": "{name}, I understand you’re experiencing abdominal pain. Let’s first figure out where it’s located.",
+    "priority_keys": ["location"],
+    "steps": [
+      {
+        "key": "location",
+        "question": "Where in your abdomen is the pain located?",
+        "recap_template": "Pain located in {answer}",
+        "answers": {
+          "right upper quadrant": "ruq_pathway",
+          "epigastric": "epigastric_pathway",
+          "right lower quadrant": "rlq_pathway",
+          "left lower quadrant": "llq_pathway",
+          "diffuse": "diffuse_pathway",
+          "left side": {
+            "followup_question": "You mentioned pain on the left side. Is it more in the upper abdomen (under the ribs) or the lower abdomen (near the pelvis)?",
+            "answers": {
+              "upper": "luq_pathway",
+              "lower": "llq_pathway"
+            }
+          },
+          "right side": {
+            "followup_question": "You mentioned pain on the right side. Is it more in the upper abdomen (under the ribs) or the lower abdomen (near the pelvis)?",
+            "answers": {
+              "upper": "ruq_pathway",
+              "lower": "rlq_pathway"
+            }
+          }
+        }
+      }
+    ],
+    "pathways": {
+      "ruq_pathway": {
+        "intro": "{name}, right upper quadrant pain can suggest gallbladder or liver problems. Let’s clarify.",
+        "priority_keys": ["jaundice", "fever"],
+        "steps": [
+          {
+            "key": "fever",
+            "question": "Do you have fever?",
+            "recap_template": "You {answer} fever",
+            "answers": {
+              "yes": "urgent",
+              "no": "non_urgent"
+            }
+          },
+          {
+            "key": "jaundice",
+            "question": "Have you noticed yellowing of the eyes or skin (jaundice)?",
+            "recap_template": "You {answer} jaundice",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "nausea",
+            "question": "Do you have nausea?",
+            "recap_template": "You {answer} nausea",
+            "answers": {
+              "yes": "urgent",
+              "no": "non_urgent"
+            }
+          },
+          {
+            "key": "vomiting",
+            "question": "Have you been vomiting?",
+            "recap_template": "You {answer} vomiting",
+            "answers": {
+              "yes": "urgent",
+              "no": "non_urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Right upper quadrant pain with jaundice and fever strongly suggests acute cholangitis (Charcot’s triad). This is a medical emergency — seek immediate emergency care.",
+          "urgent": "Right upper quadrant pain with fever, nausea, or vomiting may suggest acute cholecystitis and needs urgent evaluation.",
+          "non_urgent": "Mild right upper quadrant discomfort without systemic symptoms may be non-urgent but should be followed up."
+        }
+      },
+
+      "epigastric_pathway": {
+        "intro": "{name}, epigastric pain may be related to the stomach, pancreas, or ulcers. Let’s clarify.",
+        "priority_keys": ["hematemesis", "melena", "radiation_back"],
+        "steps": [
+          {
+            "key": "radiation_back",
+            "question": "Does the pain radiate to your back?",
+            "recap_template": "You {answer} radiation to the back",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vomiting",
+            "question": "Are you experiencing persistent vomiting?",
+            "recap_template": "You {answer} persistent vomiting",
+            "answers": {
+              "yes": "urgent",
+              "no": "non_urgent"
+            }
+          },
+          {
+            "key": "hematemesis",
+            "question": "Have you vomited blood (hematemesis)?",
+            "recap_template": "You {answer} vomiting blood",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "melena",
+            "question": "Have you noticed black or tarry stools (melena)?",
+            "recap_template": "You {answer} melena",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "nsaid_use",
+            "question": "Have you been using NSAIDs (like ibuprofen) frequently?",
+            "recap_template": "You {answer} frequent NSAID use",
+            "answers": {
+              "yes": "urgent",
+              "no": "non_urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Epigastric pain with hematemesis or melena suggests upper GI bleed. Pain radiating to the back may suggest pancreatitis. Seek emergency care immediately.",
+          "urgent": "Epigastric pain with vomiting or NSAID use may indicate ulcer or gastritis and needs urgent evaluation.",
+          "non_urgent": "Mild epigastric discomfort without risk factors may be non-urgent but should be monitored."
+        }
+      },
+
+      "rlq_pathway": {
+        "intro": "{name}, right lower quadrant pain often suggests appendicitis. Let’s clarify.",
+        "priority_keys": ["rebound"],
+        "steps": [
+          {
+            "key": "fever",
+            "question": "Do you have fever?",
+            "recap_template": "You {answer} fever",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "nausea",
+            "question": "Do you have nausea?",
+            "recap_template": "You {answer} nausea",
+            "answers": {
+              "yes": "urgent",
+              "no": "non_urgent"
+            }
+          },
+          {
+            "key": "vomiting",
+            "question": "Have you been vomiting?",
+            "recap_template": "You {answer} vomiting",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "rebound",
+            "question": "Is the pain worse when you press and release (rebound tenderness)?",
+            "recap_template": "You {answer} rebound tenderness",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Right lower quadrant pain with fever, rebound, or vomiting is highly concerning for appendicitis. Please seek emergency care immediately.",
+          "urgent": "Right lower quadrant pain without systemic signs should be evaluated urgently to rule out early appendicitis.",
+          "non_urgent": "Mild right lower quadrant discomfort may be non-urgent but should still be followed up."
+        }
+      },
+
+      "llq_pathway": {
+        "intro": "{name}, left lower quadrant pain often suggests diverticulitis. Let’s clarify.",
+        "priority_keys": ["peritonitis"],
+        "steps": [
+          {
+            "key": "fever",
+            "question": "Do you have fever?",
+            "recap_template": "You {answer} fever",
+            "answers": {
+              "yes": "urgent",
+              "no": "non_urgent"
+            }
+          },
+          {
+            "key": "bowel_changes",
+            "question": "Have you had recent changes in bowel movements (diarrhea or constipation)?",
+            "recap_template": "You {answer} bowel changes",
+            "answers": {
+              "diarrhea": "urgent",
+              "constipation": "urgent",
+              "no": "non_urgent"
+            }
+          },
+          {
+            "key": "peritonitis",
+            "question": "Is the pain severe and constant with guarding or rigidity?",
+            "recap_template": "You {answer} peritonitis signs",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Left lower quadrant pain with peritonitis signs may be a surgical emergency. Seek emergency care immediately.",
+          "urgent": "Left lower quadrant pain with fever or bowel changes suggests diverticulitis needing urgent evaluation.",
+          "non_urgent": "Mild left lower quadrant pain without red flags may not be urgent but should be followed up."
+        }
+      },
+
+      "luq_pathway": {
+        "intro": "{name}, left upper quadrant pain may be related to the spleen, stomach, or pancreas. Let’s clarify.",
+        "priority_keys": ["splenomegaly", "hemodynamic_instability"],
+        "steps": [
+          {
+            "key": "trauma",
+            "question": "Have you had any recent trauma or injury to your left side?",
+            "recap_template": "You {answer} recent trauma with left upper quadrant pain",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "splenomegaly",
+            "question": "Have you ever been told you have an enlarged spleen (splenomegaly) or blood disorders?",
+            "recap_template": "You {answer} history of splenomegaly with left upper quadrant pain",
+            "answers": {
+              "yes": "urgent",
+              "no": "non_urgent"
+            }
+          },
+          {
+            "key": "hemodynamic_instability",
+            "question": "Are you feeling lightheaded, faint, or noticing a rapid heartbeat?",
+            "recap_template": "You {answer} symptoms of hemodynamic instability with left upper quadrant pain",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "nausea",
+            "question": "Do you have nausea?",
+            "recap_template": "You {answer} nausea with left upper quadrant pain",
+            "answers": {
+              "yes": "urgent",
+              "no": "non_urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Left upper quadrant pain with trauma or hemodynamic instability may indicate splenic rupture or infarct. Please seek emergency care immediately.",
+          "urgent": "Left upper quadrant pain with splenomegaly or nausea should be evaluated urgently to rule out splenic infarct or hematologic causes.",
+          "non_urgent": "Mild left upper quadrant discomfort without systemic features may be non-urgent but should still be followed up."
+        }
+      },
+
+      "diffuse_pathway": {
+        "intro": "{name}, diffuse abdominal pain can signal obstruction, ischemia, or infection. Let’s clarify.",
+        "priority_keys": ["vomiting", "bloody_stool", "hematochezia"],
+        "steps": [
+          {
+            "key": "distension",
+            "question": "Is your abdomen distended or bloated?",
+            "recap_template": "You {answer} distension",
+            "answers": {
+              "yes": "urgent",
+              "no": "non_urgent"
+            }
+          },
+          {
+            "key": "vomiting",
+            "question": "Have you been vomiting repeatedly?",
+            "recap_template": "You {answer} vomiting",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "bloody_stool",
+            "question": "Have you noticed black or tarry stools (melena)?",
+            "recap_template": "You {answer} melena",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "hematochezia",
+            "question": "Have you noticed bright red blood in your stool (hematochezia)?",
+            "recap_template": "You {answer} hematochezia",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Diffuse abdominal pain with vomiting, melena, or hematochezia may indicate obstruction, ischemia, or GI bleed. Please seek emergency care immediately.",
+          "urgent": "Diffuse abdominal pain with distension but without severe features should be evaluated urgently.",
+          "non_urgent": "Mild diffuse abdominal discomfort may be non-urgent but should be monitored and followed up."
+        }
+      }
+    },
+    "recap": "{name}, {summary} Overall this is classified as {severity}."
+  }
+}

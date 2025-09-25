@@ -1,0 +1,67 @@
+{
+  "sharp": [
+    "stabbing",
+    "knife-like",
+    "piercing",
+    "stinging"
+  ],
+  "heavy": [
+    "weight",
+    "crushing",
+    "tightness",
+    "pressure",
+    "squeezing",
+    "constricting"
+  ],
+  "shortness of breath": [
+    "sob",
+    "short of breath",
+    "difficulty breathing",
+    "can’t breathe",
+    "can't breathe",
+    "hard to breathe",
+    "trouble breathing",
+    "breathless",
+    "dyspnea"
+  ],
+  "palpitations": [
+    "racing heart",
+    "fluttering",
+    "skipped beats",
+    "pounding heart",
+    "heart racing",
+    "fast heartbeat"
+  ],
+  "fainting": [
+    "syncope",
+    "collapse",
+    "passed out",
+    "blackout",
+    "lost consciousness",
+    "knocked out"
+  ],
+  "sweating": [
+    "sweaty",
+    "clammy",
+    "diaphoresis",
+    "perspiration",
+    "drenched"
+  ],
+  "fatigue": [
+    "tired",
+    "exhausted",
+    "worn out",
+    "weak",
+    "drained",
+    "lethargic"
+  ],
+  "radiation": [
+    "arm",
+    "neck",
+    "jaw",
+    "back",
+    "shoulder",
+    "left arm",
+    "right arm"
+  ]
+}

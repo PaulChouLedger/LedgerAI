@@ -1,0 +1,129 @@
+{
+  "abdominal pain": [
+    "stomach ache",
+    "belly pain",
+    "gut pain",
+    "tummy ache",
+    "stomach pain",
+    "bellyache",
+    "cramps",
+    "stomach cramps"
+  ],
+  "nausea": [
+    "queasy",
+    "sick to stomach",
+    "want to vomit",
+    "feeling nauseous",
+    "upset stomach"
+  ],
+  "vomiting": [
+    "throwing up",
+    "puking",
+    "emesis",
+    "projectile vomiting",
+    "vomit"
+  ],
+  "diarrhea": [
+    "loose stools",
+    "runs",
+    "frequent bowel movements",
+    "watery stool",
+    "bowel urgency"
+  ],
+  "constipation": [
+    "hard stools",
+    "difficulty passing stool",
+    "not going",
+    "no bowel movement",
+    "straining"
+  ],
+  "bloody stool": [
+    "blood in stool",
+    "rectal bleed",
+    "hematochezia",
+    "melena",
+    "dark stool",
+    "tarry stool",
+    "red stool"
+  ],
+  "jaundice": [
+    "yellow skin",
+    "yellow eyes",
+    "skin looks yellow",
+    "icterus"
+  ],
+  "ruq pain": [
+    "right upper quadrant pain",
+    "gallbladder pain",
+    "pain under ribs right side",
+    "upper right abdominal pain",
+    "liver pain",
+    "upper abdomen",
+    "upper stomach",
+    "pain in upper abdomen",
+    "pain in upper stomach"
+  ],
+  "rlq pain": [
+    "right lower quadrant pain",
+    "appendix pain",
+    "appendicitis pain",
+    "lower right abdominal pain",
+    "pain near right pelvis",
+    "right pelvic pain",
+    "lower abdomen right side",
+    "pain in right lower stomach"
+  ],
+  "luq pain": [
+    "left upper quadrant pain",
+    "spleen pain",
+    "stomach ulcer pain left side",
+    "upper left abdominal pain",
+    "pain under ribs left side",
+    "upper left stomach pain",
+    "pain in left upper abdomen",
+    "pain in left upper stomach"
+  ],
+  "llq pain": [
+    "left lower quadrant pain",
+    "diverticulitis pain",
+    "lower left abdominal pain",
+    "pain near left pelvis",
+    "left pelvic pain",
+    "lower abdomen left side",
+    "pain in left lower stomach"
+  ],
+  "epigastric pain": [
+    "pain in the middle upper stomach",
+    "center upper abdominal pain",
+    "top of abdomen",
+    "under breast bone",
+    "top of belly",
+    "heartburn pain",
+    "stomach ulcer pain",
+    "indigestion pain",
+    "epigastrium pain"
+  ],
+  "suprapubic pain": [
+    "pain above bladder",
+    "pain below belly button",
+    "pelvic pain",
+    "lower middle abdominal pain",
+    "pubic pain"
+  ],
+  "diffuse pain": [
+    "pain all over abdomen",
+    "generalized abdominal pain",
+    "whole stomach pain",
+    "all over stomach ache",
+    "general stomach cramps",
+    "widespread abdominal pain"
+  ],
+  "pancreatitis": [
+    "pancreas inflammation",
+    "epigastric pain radiating to back",
+    "severe upper abdominal pain",
+    "pain going to back",
+    "pancreas pain",
+    "upper abdomen pain radiating back"
+  ]
+}

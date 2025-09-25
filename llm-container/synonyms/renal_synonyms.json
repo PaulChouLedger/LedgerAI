@@ -1,0 +1,54 @@
+{
+  "flank pain": [
+    "side pain",
+    "kidney pain",
+    "loin pain",
+    "pain in side",
+    "back side pain",
+    "renal pain"
+  ],
+  "urinary retention": [
+    "can’t pee",
+    "unable to urinate",
+    "urine not coming",
+    "trouble peeing",
+    "blocked urine"
+  ],
+  "swelling": [
+    "edema",
+    "puffy ankles",
+    "leg swelling",
+    "fluid retention",
+    "ankle swelling",
+    "general swelling"
+  ],
+  "blood in urine": [
+    "hematuria",
+    "bloody urine",
+    "red urine",
+    "pink urine",
+    "urine with blood"
+  ],
+  "urinary frequency": [
+    "peeing often",
+    "frequent urination",
+    "going a lot",
+    "urinating frequently",
+    "constant urge to pee"
+  ],
+  "nausea": [
+    "queasy",
+    "sick to stomach",
+    "feeling nauseated",
+    "want to vomit",
+    "upset stomach"
+  ],
+  "fatigue": [
+    "tired",
+    "weakness",
+    "exhausted",
+    "low energy",
+    "worn out",
+    "feeling drained"
+  ]
+}

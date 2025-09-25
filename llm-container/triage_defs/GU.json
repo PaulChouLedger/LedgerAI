@@ -1,0 +1,263 @@
+{
+  "dysuria": {
+    "triggers": ["painful urination", "burning urination", "dysuria"],
+    "steps": [
+      {
+        "key": "duration",
+        "question": "How long have you had pain or burning with urination?",
+        "recap_template": "You reported dysuria for {answer}",
+        "answers": {
+          "sudden": "urgent",
+          "days": "urgent",
+          "weeks": "non_urgent"
+        }
+      },
+      {
+        "key": "assoc",
+        "question": "Do you have fever, flank pain, or blood in your urine?",
+        "recap_template": "You reported {answer} as associated symptoms",
+        "answers": {
+          "fever": "emergency",
+          "flank pain": "emergency",
+          "blood in urine": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Dysuria with fever or flank pain may indicate pyelonephritis. Seek emergency care immediately.",
+      "urgent": "Your dysuria requires urgent evaluation. Please see a doctor soon.",
+      "non_urgent": "Your dysuria may be mild, but follow up with your doctor is recommended."
+    },
+    "recap": "{summary}. Overall this is classified as {severity}."
+  },
+
+  "hematuria": {
+    "triggers": ["blood in urine", "hematuria", "red urine"],
+    "steps": [
+      {
+        "key": "amount",
+        "question": "How much blood did you notice in your urine?",
+        "recap_template": "You reported {answer} blood in urine",
+        "answers": {
+          "gross": "emergency",
+          "clots": "emergency",
+          "small": "urgent",
+          "streaks": "urgent"
+        }
+      },
+      {
+        "key": "pain",
+        "question": "Do you have pain or burning with urination?",
+        "recap_template": "You also reported {answer} with urination",
+        "answers": {
+          "severe": "emergency",
+          "mild": "urgent",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Blood in urine with clots or heavy bleeding may be dangerous. Seek emergency care immediately.",
+      "urgent": "Your hematuria requires urgent evaluation. Please see a doctor today.",
+      "non_urgent": "Your hematuria may not be emergent, but follow up is still needed."
+    },
+    "recap": "{summary}. Overall this is classified as {severity}."
+  },
+
+  "flank_pain": {
+    "triggers": ["flank pain", "side pain", "kidney pain", "renal colic"],
+    "steps": [
+      {
+        "key": "onset",
+        "question": "When did the flank pain start?",
+        "recap_template": "Pain started {answer}",
+        "answers": {
+          "sudden": "emergency",
+          "gradual": "urgent",
+          "days": "urgent"
+        }
+      },
+      {
+        "key": "assoc",
+        "question": "Do you have fever, nausea, or blood in your urine?",
+        "recap_template": "Associated symptoms: {answer}",
+        "answers": {
+          "fever": "emergency",
+          "blood": "urgent",
+          "nausea": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Flank pain with fever may indicate infected kidney stones. Seek emergency care immediately.",
+      "urgent": "Your flank pain requires urgent evaluation. Please see a doctor soon.",
+      "non_urgent": "Your flank pain may be mild, but follow up is important."
+    },
+    "recap": "{summary}. Overall this is classified as {severity}."
+  },
+
+  "urinary_retention": {
+    "triggers": ["urinary retention", "unable to urinate", "can't urinate"],
+    "steps": [
+      {
+        "key": "duration",
+        "question": "How long have you been unable to urinate?",
+        "recap_template": "You have been unable to urinate for {answer}",
+        "answers": {
+          "hours": "urgent",
+          "12+ hours": "emergency",
+          "days": "emergency"
+        }
+      },
+      {
+        "key": "assoc",
+        "question": "Do you have abdominal pain or distention?",
+        "recap_template": "You reported {answer} with retention",
+        "answers": {
+          "abdominal pain": "emergency",
+          "distention": "emergency",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Acute urinary retention can be dangerous. Please seek emergency care immediately.",
+      "urgent": "Your urinary retention requires urgent evaluation. Please see a doctor soon.",
+      "non_urgent": "Urinary retention should not be ignored. Please arrange medical follow-up."
+    },
+    "recap": "{summary}. Overall this is classified as {severity}."
+  },
+
+  "urinary_frequency": {
+    "triggers": ["urinary frequency", "urinating often", "polyuria", "urinary urgency"],
+    "steps": [
+      {
+        "key": "duration",
+        "question": "How long have you had increased urinary frequency?",
+        "recap_template": "Increased urinary frequency for {answer}",
+        "answers": {
+          "days": "urgent",
+          "weeks": "non_urgent"
+        }
+      },
+      {
+        "key": "assoc",
+        "question": "Do you have fever, pain with urination, or blood in urine?",
+        "recap_template": "You reported {answer}",
+        "answers": {
+          "fever": "emergency",
+          "pain": "urgent",
+          "blood": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Urinary frequency with fever may indicate infection. Please seek emergency care immediately.",
+      "urgent": "Your urinary symptoms require urgent evaluation. Please see a doctor soon.",
+      "non_urgent": "Your urinary frequency may be benign, but follow up with your doctor is advised."
+    },
+    "recap": "{summary}. Overall this is classified as {severity}."
+  },
+
+  "incontinence": {
+    "triggers": ["incontinence", "leaking urine", "urine leakage"],
+    "steps": [
+      {
+        "key": "duration",
+        "question": "How long have you been experiencing incontinence?",
+        "recap_template": "Incontinence duration is {answer}",
+        "answers": {
+          "sudden": "urgent",
+          "chronic": "non_urgent"
+        }
+      },
+      {
+        "key": "assoc",
+        "question": "Do you also have fever, back pain, or leg weakness?",
+        "recap_template": "You also reported {answer}",
+        "answers": {
+          "fever": "emergency",
+          "back pain": "emergency",
+          "weakness": "emergency",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Incontinence with neurological symptoms may indicate spinal cord compression. Please seek emergency care immediately.",
+      "urgent": "Your incontinence requires urgent medical attention. Please see a doctor soon.",
+      "non_urgent": "Your incontinence may not be emergent, but follow up with your doctor is advised."
+    },
+    "recap": "{summary}. Overall this is classified as {severity}."
+  },
+
+  "pelvic_pain": {
+    "triggers": ["pelvic pain", "pain in pelvis", "lower abdominal pain"],
+    "steps": [
+      {
+        "key": "onset",
+        "question": "When did the pelvic pain start?",
+        "recap_template": "Pelvic pain started {answer}",
+        "answers": {
+          "sudden": "emergency",
+          "gradual": "urgent",
+          "days": "urgent",
+          "weeks": "non_urgent"
+        }
+      },
+      {
+        "key": "assoc",
+        "question": "Do you have fever, discharge, or urinary symptoms?",
+        "recap_template": "Associated symptoms: {answer}",
+        "answers": {
+          "fever": "emergency",
+          "discharge": "urgent",
+          "urinary symptoms": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Pelvic pain with fever may indicate a serious infection. Please seek emergency care immediately.",
+      "urgent": "Your pelvic pain requires urgent evaluation. Please see a doctor soon.",
+      "non_urgent": "Your pelvic pain does not sound emergent, but follow up is recommended."
+    },
+    "recap": "{summary}. Overall this is classified as {severity}."
+  },
+
+  "testicular_pain": {
+    "triggers": ["testicular pain", "scrotal pain", "groin pain"],
+    "steps": [
+      {
+        "key": "onset",
+        "question": "When did the testicular pain start?",
+        "recap_template": "Testicular pain started {answer}",
+        "answers": {
+          "sudden": "emergency",
+          "gradual": "urgent",
+          "days": "urgent"
+        }
+      },
+      {
+        "key": "assoc",
+        "question": "Do you have swelling, redness, or fever?",
+        "recap_template": "You reported {answer} with testicular pain",
+        "answers": {
+          "swelling": "emergency",
+          "redness": "urgent",
+          "fever": "emergency",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Sudden testicular pain may be torsion and is an emergency. Please seek care immediately.",
+      "urgent": "Your testicular pain requires urgent evaluation. Please see a doctor soon.",
+      "non_urgent": "Mild testicular pain may not be emergent, but follow up is important."
+    },
+    "recap": "{summary}. Overall this is classified as {severity}."
+  }
+}

@@ -1,0 +1,194 @@
+{
+  "flank_pain": {
+    "triggers": ["flank pain", "pain in side", "kidney pain", "renal colic"],
+    "steps": [
+      {
+        "key": "side",
+        "question": "Which side is the pain on — left, right, or both?",
+        "recap_template": "The pain is on your {answer} side",
+        "answers": {
+          "both": "urgent",
+          "left": "urgent",
+          "right": "urgent"
+        }
+      },
+      {
+        "key": "severity",
+        "question": "How severe is the pain — mild, moderate, or severe?",
+        "recap_template": "You described the pain as {answer}",
+        "answers": {
+          "severe": "emergency",
+          "moderate": "urgent",
+          "mild": "non_urgent"
+        }
+      },
+      {
+        "key": "assoc",
+        "question": "Do you have fever, nausea, vomiting, or blood in your urine?",
+        "recap_template": "You reported {answer} with the pain",
+        "answers": {
+          "fever": "emergency",
+          "vomiting": "emergency",
+          "nausea": "urgent",
+          "blood in urine": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Your flank pain with severe symptoms may be a kidney infection or obstruction. Please seek emergency care immediately.",
+      "urgent": "Your flank pain requires urgent evaluation. Please see a doctor soon.",
+      "non_urgent": "Your flank pain appears less severe. Follow up with your doctor."
+    },
+    "recap": "{summary}. Overall this is classified as {severity}."
+  },
+
+  "hematuria": {
+    "triggers": ["blood in urine", "hematuria", "red urine"],
+    "steps": [
+      {
+        "key": "amount",
+        "question": "Was the urine completely red or just streaked with blood?",
+        "recap_template": "You described the blood in urine as {answer}",
+        "answers": {
+          "completely red": "emergency",
+          "streaked": "urgent",
+          "small amount": "non_urgent"
+        }
+      },
+      {
+        "key": "pain",
+        "question": "Do you have pain or burning with urination?",
+        "recap_template": "You reported {answer} with urination",
+        "answers": {
+          "severe pain": "urgent",
+          "burning": "urgent",
+          "mild": "non_urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "clots",
+        "question": "Have you passed any clots in the urine?",
+        "recap_template": "You reported {answer} clots",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Visible blood in urine with clots may be serious. Please seek emergency care.",
+      "urgent": "Your blood in urine requires urgent evaluation. Please see a doctor soon.",
+      "non_urgent": "Your blood in urine appears mild. Follow up with your doctor."
+    },
+    "recap": "{summary}. Overall this is classified as {severity}."
+  },
+
+  "urinary_retention": {
+    "triggers": ["urinary retention", "cannot urinate", "unable to pee", "blocked urine"],
+    "steps": [
+      {
+        "key": "duration",
+        "question": "How long have you been unable to urinate?",
+        "recap_template": "You have been unable to urinate for {answer}",
+        "answers": {
+          "over 12 hours": "emergency",
+          "6-12 hours": "urgent",
+          "less than 6 hours": "urgent"
+        }
+      },
+      {
+        "key": "symptoms",
+        "question": "Do you have severe lower abdominal pain or swelling?",
+        "recap_template": "You reported {answer} with retention",
+        "answers": {
+          "severe pain": "emergency",
+          "swelling": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Urinary retention with severe symptoms may require immediate catheterization. Please seek emergency care.",
+      "urgent": "Your urinary retention needs urgent evaluation. Please see a doctor today.",
+      "non_urgent": "Your urinary retention appears mild. Follow up with your doctor."
+    },
+    "recap": "{summary}. Overall this is classified as {severity}."
+  },
+
+  "uti": {
+    "triggers": ["urinary infection", "uti", "pain with urination", "burning urine"],
+    "steps": [
+      {
+        "key": "symptoms",
+        "question": "Do you have burning, frequency, or urgency when urinating?",
+        "recap_template": "You reported {answer} with urination",
+        "answers": {
+          "burning": "urgent",
+          "frequency": "urgent",
+          "urgency": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "fever",
+        "question": "Do you have fever or chills?",
+        "recap_template": "You reported {answer} with urinary tract infection symptoms",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "flank_pain",
+        "question": "Do you have flank pain or back pain with urination?",
+        "recap_template": "You reported {answer} with urinary tract infection symptoms",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Your UTI symptoms with fever or flank pain may indicate a kidney infection. Please seek emergency care.",
+      "urgent": "Your urinary symptoms suggest an infection that needs urgent evaluation. Please see a doctor.",
+      "non_urgent": "Your urinary symptoms are mild. Follow up with your doctor."
+    },
+    "recap": "{summary}. Overall this is classified as {severity}."
+  },
+
+  "kidney_failure": {
+    "triggers": ["kidney failure", "renal failure", "uremia"],
+    "steps": [
+      {
+        "key": "symptoms",
+        "question": "Do you have swelling, confusion, or decreased urine output?",
+        "recap_template": "You reported {answer} with kidney failure",
+        "answers": {
+          "confusion": "emergency",
+          "swelling": "urgent",
+          "decreased urine": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "associated",
+        "question": "Do you have chest pain, shortness of breath, or high potassium?",
+        "recap_template": "You reported {answer} associated with kidney failure",
+        "answers": {
+          "chest pain": "emergency",
+          "shortness of breath": "emergency",
+          "high potassium": "emergency",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Your kidney failure symptoms may be life-threatening. Please seek emergency care immediately.",
+      "urgent": "Your kidney failure requires urgent evaluation. Please see a doctor soon.",
+      "non_urgent": "Your kidney symptoms appear mild. Follow up with your doctor."
+    },
+    "recap": "{summary}. Overall this is classified as {severity}."
+  }
+}

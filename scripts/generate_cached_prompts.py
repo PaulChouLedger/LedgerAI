@@ -17,14 +17,21 @@ client = ElevenLabs(api_key=api_key)
 VOICE_ID = "iy0lEidUIpheWxyur2p8"
 VOICE_MODEL = "eleven_monolingual_v1"
 
+# === Voice settings ===
+VOICE_SETTINGS = {
+    "stability": 0.5,
+    "similarity_boost": 0.0,
+    "style": 0.0,
+    "use_speaker_boost": False
+}
+
 # === Output directory ===
 PROMPT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../assets/prompts"))
 os.makedirs(PROMPT_DIR, exist_ok=True)
 
 # === Prompts to generate ===
 prompts = {
-    "startup": "AuraVision is setting up, please wait while I initialize",
-    "welcome": "Welcome to AuraVision. How may I assist you?"
+    "audio3": "AuraVision, I see far, so you can see further"
 }
 
 # === Generate and save prompts ===
@@ -36,6 +43,7 @@ for name, text in prompts.items():
             voice_id=VOICE_ID,
             model_id=VOICE_MODEL,
             text=text,
+            voice_settings=VOICE_SETTINGS,
             optimize_streaming_latency=1
         )
 

@@ -1,0 +1,110 @@
+import os
+import re
+from typing import Callable, Dict, List, Literal, Optional
+
+Role = Literal["intro","question","clarify","recap","outcome"]
+
+def _fingerprint(text: str) -> str:
+    text = re.sub(r"\s+", " ", (text or "").strip()).lower()
+    return text[:120]
+
+def rewrite(
+    text: str,
+    role: Role,
+    context: Dict,
+    phrasing_history: Optional[List[str]],
+    chat_fn: Callable[[list, dict], Dict]
+) -> str:
+    """Paraphrase the given text with clinician tone while preserving facts.
+
+    - text: the sentence to rewrite
+    - role: where this text is used (intro, question, clarify, recap, outcome)
+    - context: may include { name, condition, pathway, key, allowed_answers }
+    - phrasing_history: prior short phrases to avoid repeating
+    - chat_fn: callable(messages, gen_kwargs) -> dict completion (non-stream)
+    """
+    if not text:
+        return text
+
+    if os.getenv("NLG_ENABLED", "1") not in ("1", "true", "TRUE", "yes"):
+        return text
+
+    allowed = context.get("allowed_answers") or []
+    name = context.get("name") or ""
+    
+    # Count name usage in recent history to reduce repetition
+    name_count = 0
+    if phrasing_history:
+        for phrase in phrasing_history[-5:]:  # Check last 5 phrases
+            if name and name.lower() in phrase.lower():
+                name_count += 1
+    
+    # Build prompt
+    system = (
+        "You are a clinician assistant. Rewrite the provided line to sound natural, concise, and empathetic. "
+        "Preserve clinical facts exactly. Avoid repetition and canned phrasing. "
+        "Do not add medical advice beyond what is given. Use second-person voice. "
+        "IMPORTANT: Use the patient's name ONLY in intros and final recaps/outcomes. "
+        "For questions, NEVER use the name - just ask directly. "
+        "For clarify questions, NEVER use the name."
+    )
+
+    # Few-shot style hints per role
+    role_hint = {
+        "intro": "Acknowledge briefly and set up the next step. Use name once at the start only.",
+        "question": "Ask the question directly and clearly. DO NOT use the patient's name.",
+        "clarify": "Ask a short follow-up to narrow the answer. DO NOT use the patient's name.",
+        "recap": "Summarize succinctly in a SOAP-like clinical tone. Use name once at start only.",
+        "outcome": "State the disposition plainly without extra advice. Use name once at start only."
+    }.get(role, "Write clearly and briefly.")
+
+    history = phrasing_history or []
+    avoid = "; ".join(history[-5:]) if history else ""
+
+    # Determine if we should use the name based on role and recent usage
+    should_use_name = role in ("intro", "recap", "outcome") and name_count < 2
+    
+    user_content = {
+        "text": text,
+        "role": role,
+        "name": name,
+        "should_use_name": should_use_name,
+        "name_used_recently": name_count > 1,
+        "condition": context.get("condition"),
+        "pathway": context.get("pathway"),
+        "key": context.get("key"),
+        "allowed_answers": allowed,
+        "style": role_hint,
+        "avoid_repeating_like": avoid,
+    }
+
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": str(user_content)}
+    ]
+
+    gen_kwargs = {
+        "temperature": float(os.getenv("NLG_TEMPERATURE", "0.5")),
+        "top_p": float(os.getenv("NLG_TOP_P", "0.85")),
+        "max_tokens": int(os.getenv("NLG_MAX_TOKENS", "128"))
+    }
+
+    try:
+        result = chat_fn(messages, gen_kwargs)
+        content = (
+            result.get("choices", [{}])[0]
+                  .get("message", {})
+                  .get("content", "")
+        )
+        text_out = (content or text).strip()
+        # Basic cleanup
+        text_out = re.sub(r"\s+([.,;:!?])", r"\1", text_out)
+        text_out = re.sub(r"\s{2,}", " ", text_out).strip()
+        # Ensure question style for question/clarify
+        if role in ("question","clarify") and not text_out.endswith(("?",".")):
+            text_out += "?"
+        return text_out
+    except Exception:
+        return text
+
+

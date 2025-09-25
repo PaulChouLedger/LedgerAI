@@ -1,0 +1,83 @@
+{
+  "headache": [
+    "head pain",
+    "migraine",
+    "ache in head",
+    "pressure in head",
+    "throbbing head",
+    "pounding head"
+  ],
+  "dizziness": [
+    "dizzy",
+    "lightheaded",
+    "vertigo",
+    "room spinning",
+    "imbalance",
+    "unsteady",
+    "off balance",
+    "woozy",
+    "about a minute",
+    "one minute",
+    "1 minute",
+    "a few seconds",
+    "seconds long",
+    "minutes long"
+  ],
+  "seizure": [
+    "fit",
+    "convulsion",
+    "episode",
+    "jerking",
+    "shaking",
+    "grand mal",
+    "tonic clonic",
+    "petit mal",
+    "absence seizure",
+    "epileptic attack"
+  ],
+  "weakness": [
+    "weak",
+    "loss of strength",
+    "can’t move",
+    "can't move",
+    "paralysis",
+    "limb weakness",
+    "arm weakness",
+    "leg weakness"
+  ],
+  "numbness": [
+    "tingling",
+    "pins and needles",
+    "loss of sensation",
+    "numb",
+    "no feeling",
+    "dead arm",
+    "dead leg"
+  ],
+  "confusion": [
+    "disoriented",
+    "can’t think",
+    "can't think",
+    "memory problem",
+    "not acting right",
+    "delirium",
+    "altered mental status"
+  ],
+  "speech difficulty": [
+    "slurred speech",
+    "trouble talking",
+    "can’t speak",
+    "can't speak",
+    "hard to talk",
+    "word salad",
+    "speech problem"
+  ],
+  "vision change": [
+    "blurry vision",
+    "double vision",
+    "vision loss",
+    "blindness",
+    "sudden blindness",
+    "loss of sight"
+  ]
+}

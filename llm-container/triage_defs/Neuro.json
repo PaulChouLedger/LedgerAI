@@ -1,0 +1,528 @@
+{
+  "stroke_suspected": {
+    "triggers": [
+      "stroke",
+      "tia",
+      "mini stroke",
+      "one sided weakness",
+      "one-sided weakness",
+      "face droop",
+      "facial droop",
+      "slurred speech",
+      "speech trouble",
+      "sudden vision loss",
+      "sudden blindness",
+      "sudden numbness",
+      "sudden weakness",
+      "ataxia",
+      "trouble walking"
+    ],
+    "intro": "{name}, your symptoms may suggest a stroke. Let me ask you some focused questions.",
+    "priority_keys": ["onset", "face", "arm_weakness", "speech", "speech_output", "vision_loss", "vision_double"],
+    "steps": [
+      {
+        "key": "onset",
+        "question": "When did the symptoms start (or when were you last known well)?",
+        "recap_template": "Symptoms began {answer}",
+        "answers": {
+          "within 4.5 hours": "emergency",
+          "within 6 hours": "emergency",
+          "today": "emergency",
+          "yesterday": "urgent",
+          "days ago": "urgent",
+          "unknown": "urgent"
+        }
+      },
+      {
+        "key": "face",
+        "question": "Is there facial droop on one side?",
+        "recap_template": "You {answer} facial droop",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "arm_weakness",
+        "question": "Is there weakness or drift in one arm?",
+        "recap_template": "You {answer} arm weakness",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "speech",
+        "question": "Is your speech slurred?",
+        "recap_template": "You {answer} slurred speech",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "speech_output",
+        "question": "Are you having trouble getting words out?",
+        "recap_template": "You {answer} trouble with word output",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "vision_loss",
+        "question": "Have you had sudden vision loss?",
+        "recap_template": "You {answer} sudden vision loss",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "vision_double",
+        "question": "Are you seeing double?",
+        "recap_template": "You {answer} double vision",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "These symptoms are highly concerning for acute stroke. Please seek emergency care immediately or call 911.",
+      "urgent": "Your neurological symptoms need urgent evaluation. Please see a doctor as soon as possible today.",
+      "non_urgent": "Your symptoms do not sound emergent, but follow up with your doctor promptly is recommended."
+    },
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+  },
+
+  "seizure": {
+    "triggers": [
+      "seizure",
+      "convulsion",
+      "jerking",
+      "shaking episode",
+      "postictal",
+      "unresponsive episode"
+    ],
+    "intro": "{name}, I understand you may have had a seizure. Let me clarify some details.",
+    "priority_keys": ["new_or_prior", "duration", "repeat", "tongue_biting", "incontinence", "cyanosis", "injury"],
+    "steps": [
+      {
+        "key": "new_or_prior",
+        "question": "Have you ever had a seizure before?",
+        "recap_template": "Seizure history is {answer}",
+        "answers": {
+          "first seizure": "emergency",
+          "new": "emergency",
+          "never before": "emergency",
+          "prior history": "urgent",
+          "epilepsy": "urgent",
+          "yes": "urgent",
+          "no": "emergency"
+        }
+      },
+      {
+        "key": "duration",
+        "question": "About how long did the event last?",
+        "recap_template": "Event duration is {answer}",
+        "answers": {
+          "over 5 minutes": "emergency",
+          "5 minutes": "emergency",
+          "2-5 minutes": "urgent",
+          "1 minute": "urgent",
+          "under 2 minutes": "urgent",
+          "seconds": "urgent"
+        }
+      },
+      {
+        "key": "repeat",
+        "question": "Have there been repeated events without fully returning to normal in between?",
+        "recap_template": "You {answer} repeated seizures without recovery",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "tongue_biting",
+        "question": "Did you bite your tongue during the event?",
+        "recap_template": "You {answer} tongue biting",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "incontinence",
+        "question": "Did you lose bladder control (incontinence)?",
+        "recap_template": "You {answer} incontinence",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "cyanosis",
+        "question": "Did you turn blue (cyanosis) during the event?",
+        "recap_template": "You {answer} cyanosis",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "injury",
+        "question": "Was there head injury or significant trauma during the event?",
+        "recap_template": "You {answer} head injury during the event",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "This may represent a life-threatening seizure condition. Please seek emergency care immediately or call 911.",
+      "urgent": "Your seizure-like episode needs urgent evaluation. Please see a doctor today.",
+      "non_urgent": "Your episode sounds lower risk, but follow up with your clinician promptly is advised."
+    },
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+  },
+
+  "focal_weakness_numbness": {
+    "triggers": [
+      "numbness",
+      "tingling",
+      "weakness",
+      "cant move arm",
+      "can't move arm",
+      "cant move leg",
+      "can't move leg",
+      "one sided numbness",
+      "one sided weakness"
+    ],
+    "intro": "{name}, I see you’ve developed focal weakness or numbness. Let me ask you a few questions.",
+    "priority_keys": ["distribution", "sudden"],
+    "steps": [
+      {
+        "key": "distribution",
+        "question": "Is it on one side of the body (face, arm, or leg) or on both sides?",
+        "recap_template": "Symptom distribution is {answer}",
+        "answers": {
+          "one side": "emergency",
+          "face": "emergency",
+          "arm": "emergency",
+          "leg": "emergency",
+          "both sides": "urgent"
+        }
+      },
+      {
+        "key": "sudden",
+        "question": "Did it start suddenly?",
+        "recap_template": "Sudden onset is {answer}",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "These symptoms are concerning for acute neurologic emergency. Please seek emergency care immediately.",
+      "urgent": "Your neurologic symptoms need urgent evaluation. Please see a doctor today.",
+      "non_urgent": "Your symptoms sound lower risk but follow up with your clinician is recommended."
+    },
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+  },
+
+  "confusion_ams": {
+    "triggers": [
+      "confused",
+      "confusion",
+      "altered",
+      "not acting right",
+      "disoriented",
+      "delirium"
+    ],
+    "intro": "{name}, I understand there has been confusion or altered mental status. Let’s clarify further.",
+    "priority_keys": ["onset", "stroke_signs", "weakness", "facial_droop"],
+    "steps": [
+      {
+        "key": "onset",
+        "question": "When did the confusion start?",
+        "recap_template": "Confusion began {answer}",
+        "answers": {
+          "sudden": "emergency",
+          "hours": "urgent",
+          "days": "urgent",
+          "weeks": "non_urgent"
+        }
+      },
+      {
+        "key": "stroke_signs",
+        "question": "Do you have slurred speech?",
+        "recap_template": "You {answer} slurred speech with confusion",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "weakness",
+        "question": "Do you have weakness?",
+        "recap_template": "You {answer} weakness with confusion",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "facial_droop",
+        "question": "Do you have facial droop?",
+        "recap_template": "You {answer} facial droop with confusion",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Acute confusion can be life-threatening. Please seek emergency care immediately.",
+      "urgent": "Your confusion requires urgent evaluation. Please see a doctor as soon as possible today.",
+      "non_urgent": "Your confusion may not be emergent, but follow up with your clinician is advised."
+    },
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+  },
+
+  "dizziness_vertigo": {
+    "triggers": [
+      "dizzy",
+      "dizziness",
+      "lightheaded",
+      "vertigo",
+      "room spinning",
+      "imbalance",
+      "trouble walking",
+      "unsteady"
+    ],
+    "intro": "{name}, I understand you’re experiencing dizziness. Let me clarify a few details.",
+    "priority_keys": ["vertigo", "lightheaded", "duration", "neuro_weakness", "neuro_doublevision", "neuro_speech", "hearing_loss", "ringing", "nausea"],
+    "steps": [
+      {
+        "key": "lightheaded",
+        "question": "Do you feel lightheaded?",
+        "recap_template": "You {answer} feeling lightheaded",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "vertigo",
+        "question": "Do you feel like the room is spinning?",
+        "recap_template": "You {answer} vertigo",
+        "answers": {
+          "yes": "non_urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "duration",
+        "question": "How long have these episodes lasted?",
+        "recap_template": "Episodes last {answer}",
+        "answers": {
+          "seconds": "non-urgent",
+          "1 minute": "non-urgent",
+          "minutes": "urgent",
+          "hours": "urgent",
+          "days": "urgent"
+        }
+      },
+      {
+        "key": "nausea",
+        "question": "Do you have nausea?",
+        "recap_template": "You {answer} nausea",
+        "answers": {
+          "yes": "non_urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "hearing_loss",
+        "question": "Do you have hearing loss?",
+        "recap_template": "You {answer} hearing loss",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "ringing",
+        "question": "Do you have ringing in the ears?",
+        "recap_template": "You {answer} ringing in your ears",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "neuro_weakness",
+        "question": "Do you also have weakness in any of your extremities?",
+        "recap_template": "You {answer} weakness in your extremities",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "neuro_doublevision",
+        "question": "Are you experiencing double vision?",
+        "recap_template": "You {answer} double vision",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "neuro_speech",
+        "question": "Are you having difficulty speaking?",
+        "recap_template": "You {answer} speech difficulty",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Your dizziness with neurologic signs may indicate stroke or another emergency. Please seek emergency care immediately.",
+      "urgent": "Your dizziness may need urgent evaluation. Please see a doctor soon.",
+      "non_urgent": "Your dizziness sounds lower risk, but follow up with your clinician is recommended."
+    },
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+  }
+  ,
+  "headache": {
+    "triggers": [
+      "headache",
+      "severe headache",
+      "worst headache",
+      "thunderclap headache",
+      "migraine",
+      "pounding head",
+      "splitting headache"
+    ],
+    "intro": "{name}, I understand you’re experiencing a headache. I’ll ask a few quick questions to assess for urgent features.",
+    "priority_keys": [
+      "sudden_max",
+      "worst_life",
+      "neck_stiffness",
+      "fever",
+      "neuro_symptoms",
+      "exertional_onset",
+      "head_injury"
+    ],
+    "steps": [
+      {
+        "key": "sudden_max",
+        "question": "Did the headache reach its worst within one minute (sudden severe onset)?",
+        "recap_template": "You {answer} sudden severe onset",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "worst_life",
+        "question": "Is this the worst headache of your life?",
+        "recap_template": "You {answer} worst headache of life",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "neck_stiffness",
+        "question": "Do you have neck stiffness or pain when bending your neck forward?",
+        "recap_template": "You {answer} neck stiffness",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "fever",
+        "question": "Do you have fever?",
+        "recap_template": "You {answer} fever",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "neuro_symptoms",
+        "question": "Do you have weakness, numbness, trouble speaking, or confusion?",
+        "recap_template": "You {answer} neurologic symptoms",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "vision_change",
+        "question": "Do you have new vision changes (blurred, double, or loss of vision)?",
+        "recap_template": "You {answer} vision changes",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "exertional_onset",
+        "question": "Did it start during exertion, coughing, or sexual activity?",
+        "recap_template": "You {answer} exertional onset",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "head_injury",
+        "question": "Was the headache preceded by a head injury?",
+        "recap_template": "You {answer} recent head injury",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "age_over_50",
+        "question": "Are you older than 50?",
+        "recap_template": "Age over 50 is {answer}",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "migraine_features",
+        "question": "Do you have nausea or sensitivity to light or sound?",
+        "recap_template": "You {answer} migraine features",
+        "answers": {
+          "nausea": "non_urgent",
+          "light sensitivity": "non_urgent", 
+          "sound sensitivity": "non_urgent",
+          "nausea and light sensitivity": "non_urgent",
+          "nausea and sound sensitivity": "non_urgent",
+          "light and sound sensitivity": "non_urgent",
+          "nausea and light and sound sensitivity": "non_urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Headache with sudden severe onset, neurologic symptoms, neck stiffness with fever, exertional onset, or head injury may indicate a serious condition. Please seek emergency care immediately.",
+      "urgent": "Your headache requires urgent medical evaluation to rule out serious causes. Please see a doctor soon.",
+      "non_urgent": "Your headache with migraine features (nausea, light/sound sensitivity) is likely a migraine. Rest in a dark, quiet room and consider over-the-counter pain relief. Follow up with your doctor if symptoms worsen or persist."
+    },
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+  }
+}
