@@ -41,6 +41,7 @@ def get_state_path(session_id: str | None):
 # === Load triage defs ===
 TRIAGE_DEFS = {}
 triage_dir = os.getenv("TRIAGE_DEFINITIONS_DIR", "/app/triage_defs")
+print(f"[Aura-LLM] 🔍 Loading triage definitions from: {triage_dir}")
 if os.path.isdir(triage_dir):
     for path in glob(os.path.join(triage_dir, "*.json")):
         try:
@@ -48,8 +49,12 @@ if os.path.isdir(triage_dir):
                 data = json.load(f)
                 TRIAGE_DEFS.update(data)
                 print(f"[Aura-LLM] ✅ Loaded triage defs: {os.path.basename(path)}")
+                print(f"[Aura-LLM] 🔍 Loaded conditions: {list(data.keys())}")
         except Exception as e:
             print(f"[Aura-LLM] ⚠️ Failed to load triage defs {path}: {e}")
+else:
+    print(f"[Aura-LLM] ❌ Triage definitions directory not found: {triage_dir}")
+print(f"[Aura-LLM] 🔍 Total loaded conditions: {len(TRIAGE_DEFS)}")
 
 # === State helpers ===
 def load_state(session_id: str | None = None):
@@ -123,9 +128,14 @@ def detect_condition(prompt, session_id: str | None = None):
         print(f"[Aura-LLM] 💬 Casual greeting detected: '{p}' -> no triage trigger")
         return None
         
+    print(f"[Aura-LLM] 🔍 Available triage conditions: {list(TRIAGE_DEFS.keys())}")
     for cond, data in TRIAGE_DEFS.items():
-        for trig in data.get("triggers", []):
-            if normalize_text(trig) in p:
+        triggers = data.get("triggers", [])
+        print(f"[Aura-LLM] 🔍 Condition '{cond}' has triggers: {triggers}")
+        for trig in triggers:
+            trig_norm = normalize_text(trig)
+            print(f"[Aura-LLM] 🔍 Checking trigger '{trig}' (normalized: '{trig_norm}') against prompt '{p}'")
+            if trig_norm in p:
                 print(f"[Aura-LLM] ✅ Matched trigger '{trig}' for '{cond}'")
                 return cond
     print(f"[Aura-LLM] ❌ No triage trigger matched for: '{p}'")
