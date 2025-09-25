@@ -89,8 +89,8 @@ def run_container(name, port, image, timeout=15):
 
     if name == "aura-whisper":
         cmd += [
-            "-v", f"{os.getcwd()}/cache/whisper:/root/.cache/whisper",
-            "-v", f"{os.getcwd()}/cache/whisper_trt:/root/.cache/whisper_trt"
+            "-v", f"{os.path.expanduser('~')}/LedgerAI/whisper-container/cache/whisper:/root/.cache/whisper",
+            "-v", f"{os.path.expanduser('~')}/LedgerAI/whisper-container/cache/whisper_trt:/root/.cache/whisper_trt"
         ]
 
     if name == "aura-memory":
