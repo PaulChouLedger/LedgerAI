@@ -120,7 +120,7 @@ def detect_condition(prompt, session_id: str | None = None):
     # Check for casual greetings first - don't trigger triage for these
     casual_greetings = ["hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]
     if any(greeting in p for greeting in casual_greetings):
-        print(f"[Aura-LLM] 💬 Casual greeting detected, no triage trigger")
+        print(f"[Aura-LLM] 💬 Casual greeting detected: '{p}' -> no triage trigger")
         return None
         
     for cond, data in TRIAGE_DEFS.items():
@@ -375,6 +375,7 @@ def chat():
                "active_pathway":None,"entered_pathway":False,
                "updated_at":None,"phrasing_history":[]}
         save_state(state, session_id)
+        print(f"[Aura-LLM] 🔄 Session reset for session_id: {session_id}")
         # If the user explicitly sent a reset command, acknowledge and stop
         if prompt_norm in RESET_KEYWORDS:
             def generate_reset():
@@ -461,9 +462,11 @@ def chat():
             # Check for casual greetings
             casual_greetings = ["hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]
             if any(greeting in prompt_norm for greeting in casual_greetings):
+                print(f"[Aura-LLM] 💬 Processing casual greeting: '{prompt}'")
                 msgs=[{"role":"system","content":"I am AuraVision, your friendly personal assistant. Respond warmly to greetings and ask how I can help."},
                       {"role":"user","content":prompt}]
             else:
+                print(f"[Aura-LLM] 💬 Processing casual conversation: '{prompt}'")
                 msgs=[{"role":"system","content":"I am AuraVision, your friendly personal assistant."},
                       {"role":"user","content":prompt}]
             stream=llm.create_chat_completion(messages=msgs,stream=True)
@@ -473,6 +476,9 @@ def chat():
                 if not tok: continue; buf+=tok
                 if re.search(r"[.!?]['\")\]]?\s*$",buf):
                     yield f"<sentence_start>\n{buf.strip()}\n<sentence_end>\n"; buf=""
+            # Yield any remaining content
+            if buf.strip():
+                yield f"<sentence_start>\n{buf.strip()}\n<sentence_end>\n"
             return
         steps=get_steps(condition,state)
         state.update({"condition":condition,"step_index":1,"answers":[],"flags":{},
