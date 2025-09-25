@@ -14,7 +14,7 @@ client = ElevenLabs(api_key=api_key)
 
 VOICE_ID = "iy0lEidUIpheWxyur2p8"
 MODEL_ID = "eleven_monolingual_v1"
-DEFAULT_OUTPUT_DIR = os.path.expanduser("~/aura/assets/voice_samples")
+DEFAULT_OUTPUT_DIR = os.path.expanduser("~/LedgerAI/assets/voice_samples")
 
 def save_tts_to_wav(text, filename="output.wav"):
     os.makedirs(DEFAULT_OUTPUT_DIR, exist_ok=True)

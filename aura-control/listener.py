@@ -22,7 +22,7 @@ DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
 prompt_history = []
 
-WELCOME_AUDIO_PATH = os.path.expanduser("~/aura/assets/voice_samples/audio1.wav")
+WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
 # === Detect correct mic index ===
 def find_device_index():

@@ -16,7 +16,7 @@ import speaker  # ✅ Starts TTS playback loop and queue
 os.environ["DISPLAY"] = ":0"
 
 # Load host .env (adjust path if needed)
-HOST_ENV = dotenv_values(os.path.expanduser("~/aura/llm-container/.env"))
+HOST_ENV = dotenv_values(os.path.expanduser("~/LedgerAI/llm-container/.env"))
 
 # === Graceful Exit on Ctrl+C ===
 def signal_handler(sig, frame):
@@ -96,10 +96,10 @@ def run_container(name, port, image, timeout=15):
     if name == "aura-memory":
         cmd += [
             "-p", "8000:8000",
-            "-v", f"{os.path.expanduser('~')}/aura/memory-container/models:/workspace/models",
-            "-v", f"{os.path.expanduser('~')}/aura/memory-container/memory_store:/workspace/memory_store",
-            "-v", f"{os.path.expanduser('~')}/aura/memory-container/data:/workspace/data",
-            "-v", f"{os.path.expanduser('~')}/aura/memory-container/rerank_models:/workspace/rerank_models"
+            "-v", f"{os.path.expanduser('~')}/LedgerAI/memory-container/models:/workspace/models",
+            "-v", f"{os.path.expanduser('~')}/LedgerAI/memory-container/memory_store:/workspace/memory_store",
+            "-v", f"{os.path.expanduser('~')}/LedgerAI/memory-container/data:/workspace/data",
+            "-v", f"{os.path.expanduser('~')}/LedgerAI/memory-container/rerank_models:/workspace/rerank_models"
         ]
 
     cmd.append(image)
