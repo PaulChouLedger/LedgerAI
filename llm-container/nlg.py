@@ -44,16 +44,17 @@ def rewrite(
         "You are a clinician assistant. Rewrite the provided line to sound natural, concise, and empathetic. "
         "Preserve clinical facts exactly. Avoid repetition and canned phrasing. "
         "Do not add medical advice beyond what is given. Use second-person voice. "
-        "IMPORTANT: Use the patient's name ONLY in intros and final recaps/outcomes. "
+        "CRITICAL: Use the patient's name ONLY in intros and final recaps/outcomes. "
         "For questions, NEVER use the name - just ask directly. "
-        "For clarify questions, NEVER use the name."
+        "For clarify questions, NEVER use the name. "
+        "If the name has been used recently, avoid using it again even in intros/recaps."
     )
 
     # Few-shot style hints per role
     role_hint = {
         "intro": "Acknowledge briefly and set up the next step. Use name once at the start only.",
-        "question": "Ask the question directly and clearly. DO NOT use the patient's name.",
-        "clarify": "Ask a short follow-up to narrow the answer. DO NOT use the patient's name.",
+        "question": "Ask the question directly and clearly. DO NOT use the patient's name. Start with 'Do you...' or 'Are you...'",
+        "clarify": "Ask a short follow-up to narrow the answer. DO NOT use the patient's name. Start with 'Do you...' or 'Are you...'",
         "recap": "Summarize succinctly in a SOAP-like clinical tone. Use name once at start only.",
         "outcome": "State the disposition plainly without extra advice. Use name once at start only."
     }.get(role, "Write clearly and briefly.")
@@ -62,7 +63,7 @@ def rewrite(
     avoid = "; ".join(history[-5:]) if history else ""
 
     # Determine if we should use the name based on role and recent usage
-    should_use_name = role in ("intro", "recap", "outcome") and name_count < 2
+    should_use_name = role in ("intro", "recap", "outcome") and name_count < 1
     
     user_content = {
         "text": text,
@@ -97,6 +98,14 @@ def rewrite(
                   .get("content", "")
         )
         text_out = (content or text).strip()
+        
+        # Post-process to remove name if it shouldn't be used
+        if not should_use_name and name and name.lower() in text_out.lower():
+            # Remove name from the beginning of the text
+            text_out = text_out.replace(f"{name}, ", "").replace(f"{name} ", "")
+            # Remove name from the middle/end
+            text_out = text_out.replace(f", {name}", "").replace(f" {name}", "")
+            print(f"[NLG] 🚫 Removed name '{name}' from text: '{text_out}'")
         # Basic cleanup
         text_out = re.sub(r"\s+([.,;:!?])", r"\1", text_out)
         text_out = re.sub(r"\s{2,}", " ", text_out).strip()
