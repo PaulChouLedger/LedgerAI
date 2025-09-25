@@ -36,11 +36,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Ensure user session exists
     if chat_id not in sessions:
         sessions[chat_id] = {"active": True, "history": []}
+    
+    print(f"[Telegram] 🔍 Session state for {chat_id}: {sessions[chat_id]}")
 
     # Handle reset/exit
     lowered = user_message.lower()
     if any(k in lowered for k in RESET_KEYWORDS):
         sessions[chat_id] = {"active": True, "history": []}
+        print(f"[Telegram] 🔄 Reset: Session state for {chat_id}: {sessions[chat_id]}")
         # Forward reset to LLM container
         try:
             resp = requests.post(
@@ -72,15 +75,31 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print(f"[Telegram] ❌ Reset error: {e}")
             await update.message.reply_text("🔄 Session reset. Start again with your symptoms.")
         return
-    if any(k in lowered for k in EXIT_KEYWORDS):
+    # Check for exit keywords as whole words only
+    import re
+    exit_pattern = r'\b(' + '|'.join(EXIT_KEYWORDS) + r')\b'
+    if re.search(exit_pattern, lowered):
+        matched_exits = re.findall(exit_pattern, lowered)
+        print(f"[Telegram] 🚪 Exit keyword detected: {matched_exits}")
         sessions[chat_id]["active"] = False
         await update.message.reply_text("✅ Triage ended. Send /start or 'reset' to begin again.")
         return
 
-    # If triage inactive, ignore until restarted
+    # If triage inactive, check if user is trying to start a new triage session
     if not sessions[chat_id]["active"]:
-        await update.message.reply_text("ℹ️ Triage not active. Send /start or 'reset' to begin.")
-        return
+        print(f"[Telegram] ⚠️ Session inactive for {chat_id}, checking for medical symptoms...")
+        # Check if the message contains medical symptoms that should trigger triage
+        medical_keywords = ["pain", "ache", "headache", "chest", "abdominal", "stomach", "nausea", "dizzy", "fever", "cough", "shortness", "breath", "weakness", "numbness", "vision", "hearing", "speech", "difficulty"]
+        if any(keyword in user_message.lower() for keyword in medical_keywords):
+            # Reactivate session for medical symptoms
+            sessions[chat_id]["active"] = True
+            sessions[chat_id]["history"] = []
+            print(f"[Telegram] 🔄 Reactivated session for medical symptoms: {user_message}")
+            print(f"[Telegram] 🔄 Reactivated session state: {sessions[chat_id]}")
+        else:
+            print(f"[Telegram] ❌ No medical symptoms detected, session remains inactive")
+            await update.message.reply_text("ℹ️ Triage not active. Send /start or 'reset' to begin.")
+            return
 
     # Store message in history (optional, can pass to Aura)
     sessions[chat_id]["history"].append(user_message)
