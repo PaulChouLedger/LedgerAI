@@ -471,19 +471,20 @@ def chat():
                       {"role":"user","content":prompt}]
             try:
                 stream=llm.create_chat_completion(messages=msgs,stream=True)
-                buf=""
+                casual_buf=""
                 print(f"[Aura-LLM] 🔄 Starting casual mode response generation...")
                 for ch in stream:
                     tok=ch.get("choices",[{}])[0].get("delta",{}).get("content","")
-                    if not tok: continue; buf+=tok
-                    print(f"[Aura-LLM] 🔄 Token: '{tok}' (buf: '{buf}')")
-                    if re.search(r"[.!?]['\")\]]?\s*$",buf):
-                        print(f"[Aura-LLM] 🔄 Yielding sentence: '{buf.strip()}'")
-                        yield f"<sentence_start>\n{buf.strip()}\n<sentence_end>\n"; buf=""
+                    if not tok: continue; 
+                    casual_buf+=tok
+                    print(f"[Aura-LLM] 🔄 Token: '{tok}' (casual_buf: '{casual_buf}')")
+                    if re.search(r"[.!?]['\")\]]?\s*$",casual_buf):
+                        print(f"[Aura-LLM] 🔄 Yielding sentence: '{casual_buf.strip()}'")
+                        yield f"<sentence_start>\n{casual_buf.strip()}\n<sentence_end>\n"; casual_buf=""
                 # Yield any remaining content
-                if buf.strip():
-                    print(f"[Aura-LLM] 🔄 Yielding remaining: '{buf.strip()}'")
-                    yield f"<sentence_start>\n{buf.strip()}\n<sentence_end>\n"
+                if casual_buf.strip():
+                    print(f"[Aura-LLM] 🔄 Yielding remaining: '{casual_buf.strip()}'")
+                    yield f"<sentence_start>\n{casual_buf.strip()}\n<sentence_end>\n"
                 print(f"[Aura-LLM] 🔄 Casual mode response complete")
             except Exception as e:
                 print(f"[Aura-LLM] ❌ Error in casual mode: {e}")
