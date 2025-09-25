@@ -103,7 +103,18 @@ def extract_name(prompt):
     m = re.search(r"(?:my name is|i am|i'm|my name's)\s+([A-Za-z .'-]+)", prompt, re.IGNORECASE)
     if not m: return None
     raw = m.group(1).strip()
-    raw = re.split(r"\b(having|with|experiencing|suffering|complaining|reporting)\b|,|\.|\band\b", raw, 1)[0].strip()
+    # Split on medical keywords or common separators, but be more careful with "and"
+    raw = re.split(r"\b(having|with|experiencing|suffering|complaining|reporting)\b|,|\.", raw, 1)[0].strip()
+    # Handle "and" more carefully - only split if it's followed by medical terms
+    if " and " in raw:
+        # Check if "and" is followed by medical terms
+        and_parts = raw.split(" and ", 1)
+        if len(and_parts) > 1:
+            after_and = and_parts[1].lower()
+            medical_after_and = any(term in after_and for term in ["pain", "ache", "headache", "chest", "abdominal", "stomach", "nausea", "dizzy", "fever", "cough"])
+            if medical_after_and:
+                raw = and_parts[0].strip()
+    
     parts = raw.split()
     if not parts or len(parts) > 3: return None
     blacklist = {"pain","cough","fever","dizziness","weakness","nausea","vomiting","abdominal","chest"}
@@ -117,9 +128,11 @@ def detect_condition(prompt, session_id: str | None = None):
     name = extract_name(prompt)
     if name:
         state = load_state(session_id)
+        print(f"[Aura-LLM] 🔍 Previous user name: {state.get('user_name')}")
         state["user_name"] = name
         save_state(state, session_id)
         print(f"[Aura-LLM] 👤 User name set: {name}")
+        print(f"[Aura-LLM] 🔍 Session state after name update: {state}")
     print(f"[Aura-LLM] 🔍 Normalized prompt: {p}")
     
     # Check for casual greetings first - don't trigger triage for these
@@ -388,6 +401,7 @@ def chat():
         save_state(state, session_id)
         print(f"[Aura-LLM] 🔄 Session reset for session_id: {session_id}")
         print(f"[Aura-LLM] 🔄 Reset state: {state}")
+        print(f"[Aura-LLM] 🔄 Preserved user name: {user}")
         # If the user explicitly sent a reset command, acknowledge and stop
         if prompt_norm in RESET_KEYWORDS:
             def generate_reset():
