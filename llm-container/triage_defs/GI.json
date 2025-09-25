@@ -334,5 +334,84 @@
       }
     },
     "recap": "{name}, {summary} Overall this is classified as {severity}."
+  },
+  "bloody_stool": {
+    "triggers": [
+      "bloody stool",
+      "bloody stools",
+      "blood in stool",
+      "blood in stools",
+      "rectal bleed",
+      "rectal bleeding",
+      "hematochezia",
+      "melena",
+      "dark stool",
+      "tarry stool",
+      "red stool",
+      "red stools"
+    ],
+    "intro": "{name}, I understand you're experiencing bloody stools. This requires immediate evaluation to determine the cause and severity.",
+    "priority_keys": [
+      "color",
+      "amount",
+      "pain",
+      "fever",
+      "dizziness"
+    ],
+    "steps": [
+      {
+        "key": "color",
+        "question": "What color is the blood - bright red, dark red, or black/tarry?",
+        "recap_template": "Blood color: {answer}",
+        "answers": {
+          "bright red": "urgent",
+          "dark red": "urgent", 
+          "black": "emergency",
+          "tarry": "emergency"
+        }
+      },
+      {
+        "key": "amount",
+        "question": "How much blood are you seeing - just streaks, small amounts, or large amounts?",
+        "recap_template": "Blood amount: {answer}",
+        "answers": {
+          "just streaks": "urgent",
+          "small amounts": "urgent",
+          "large amounts": "emergency"
+        }
+      },
+      {
+        "key": "pain",
+        "question": "Do you have any abdominal pain?",
+        "recap_template": "You {answer} abdominal pain",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "fever",
+        "question": "Do you have a fever?",
+        "recap_template": "You {answer} fever",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "dizziness",
+        "question": "Do you feel dizzy or lightheaded?",
+        "recap_template": "You {answer} dizziness",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Bloody stools with black/tarry appearance, large amounts of blood, abdominal pain, fever, or dizziness may indicate a serious GI bleed. Please seek emergency care immediately.",
+      "urgent": "Bloody stools require urgent medical evaluation to determine the cause and appropriate treatment. Please see a doctor soon."
+    },
+    "recap": "{name}, {summary} Overall this is classified as {severity}."
   }
 }
