@@ -338,22 +338,14 @@
   "bloody_stool": {
     "triggers": [
       "bloody stool",
-      "bloody stools",
       "blood in stool",
-      "blood in stools",
       "rectal bleed",
-      "rectal bleeding",
       "hematochezia",
       "melena",
+      "black stool",
       "dark stool",
       "tarry stool",
-      "red stool",
-      "red stools",
-      "black poop",
-      "black stool",
-      "black stools",
-      "dark poop",
-      "tarry poop"
+      "red stool"
     ],
     "intro": "{name}, I understand you're experiencing bloody stools. This requires immediate evaluation to determine the cause and severity.",
     "priority_keys": [
