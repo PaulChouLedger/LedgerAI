@@ -208,8 +208,41 @@ def detect_condition(prompt, session_id: str | None = None):
     return None
 
 # === Answer matching ===
+def normalize_yes_no_response(text):
+    """Normalize natural yes/no responses to standard yes/no"""
+    text_lower = text.lower().strip()
+    
+    # Positive responses
+    if any(phrase in text_lower for phrase in [
+        "yes", "yea", "yeah", "yep", "yup", "sure", "ok", "okay",
+        "i do", "i have", "i am", "i feel", "i experience",
+        "i do have", "i do feel", "i do experience",
+        "i have been", "i am having", "i am experiencing",
+        "i do have been", "i do have had", "i do have been having"
+    ]):
+        return "yes"
+    
+    # Negative responses  
+    if any(phrase in text_lower for phrase in [
+        "no", "nope", "nah", "not", "don't", "do not", "haven't", "have not",
+        "i don't", "i do not", "i haven't", "i have not",
+        "i don't have", "i do not have", "i don't feel", "i do not feel",
+        "i don't experience", "i do not experience", "i am not", "i'm not"
+    ]):
+        return "no"
+    
+    return text
+
 def match_answer_option(ans_norm, valid_map):
-    ans_tokens = set(tokenize(ans_norm))
+    # First try to normalize yes/no responses
+    normalized_response = normalize_yes_no_response(ans_norm)
+    if normalized_response in ["yes", "no"]:
+        # Check if the valid_map contains yes/no options
+        if "yes" in valid_map and "no" in valid_map:
+            print(f"[Aura-LLM] 🔄 Normalized '{ans_norm}' -> '{normalized_response}'")
+            return normalized_response, 1.0
+    
+    ans_tokens = set(tokenize(normalized_response))
     best, score = None, 0.0
     for opt in valid_map:
         opt_tokens = set(tokenize(opt))

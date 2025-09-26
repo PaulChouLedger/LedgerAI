@@ -54,7 +54,9 @@ def rewrite(
         "If the name has been used recently, avoid using it again even in intros/recaps. "
         "IMPORTANT: Do NOT add redundant questions. If the text already asks about a symptom, do not add another question about the same symptom. "
         "CRITICAL: For factual questions (age, timing, history, yes/no facts), preserve the exact meaning. "
-        "Do NOT change 'Are you older than 50?' to 'Do you feel older than 50?' - these have different meanings."
+        "Do NOT change 'Are you older than 50?' to 'Do you feel older than 50?' - these have different meanings. "
+        "IMPORTANT: Do NOT add professional titles like 'nurse', 'doctor', 'physician' unless they are in the original text. "
+        "Keep the language neutral and professional without adding unnecessary titles."
     )
 
     # Few-shot style hints per role
