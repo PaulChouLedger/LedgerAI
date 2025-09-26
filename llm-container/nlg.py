@@ -57,7 +57,8 @@ def rewrite(
         "Do NOT change 'Are you older than 50?' to 'Do you feel older than 50?' - these have different meanings. "
         "IMPORTANT: Do NOT add professional titles like 'nurse', 'doctor', 'physician' unless they are in the original text. "
         "Keep the language neutral and professional without adding unnecessary titles. "
-        "CRITICAL: Make questions clear and contextual. If a patient mentions 'dark stools', don't ask 'Do you have bloody stools?' - ask about the specific color or characteristics instead."
+        "CRITICAL: Make questions clear and contextual. If a patient mentions 'dark stools', don't ask 'Do you have bloody stools?' - ask about the specific color or characteristics instead. "
+        "FOR RECAPS: Preserve ALL clinical details including specific symptoms, denied symptoms, and clinical assessments. Do not summarize away important medical information."
     )
 
     # Few-shot style hints per role
@@ -65,7 +66,7 @@ def rewrite(
         "intro": "Acknowledge briefly and set up the next step. Use name once at the start only.",
         "question": "Ask the question directly and clearly. DO NOT use the patient's name. Start with 'Do you...' or 'Are you...'",
         "clarify": "Ask a short follow-up to narrow the answer. DO NOT use the patient's name. Start with 'Do you...' or 'Are you...'",
-        "recap": "Summarize succinctly in a SOAP-like clinical tone. Use name once at start only.",
+        "recap": "Summarize succinctly in a SOAP-like clinical tone. Use name once at start only. PRESERVE ALL CLINICAL DETAILS - do not remove specific symptoms, findings, or clinical assessments.",
         "outcome": "State the disposition plainly without extra advice. Use name once at start only."
     }.get(role, "Write clearly and briefly.")
 

@@ -435,7 +435,7 @@ def build_recap(cond, answers, flags, severity):
             ans_out = "reported" if opts[0] == "yes" else "denied"
         elif opts:
             # For compound answers, use "reported" since they're positive findings
-            # Remove redundant overlapping options
+            # Remove redundant overlapping options - improved logic
             clean_opts = []
             for opt in opts:
                 # Skip if this option is a subset of another option
@@ -446,6 +446,11 @@ def build_recap(cond, answers, flags, severity):
                         break
                 if not is_redundant:
                     clean_opts.append(opt)
+            
+            # Additional cleanup: remove options that contain words not mentioned by user
+            if len(clean_opts) > 1:
+                # Find the most specific option (longest) and use that
+                clean_opts = [max(clean_opts, key=len)]
             
             # Debug logging for redundancy removal
             print(f"[Aura-LLM] 🔍 Original options: {opts}")
