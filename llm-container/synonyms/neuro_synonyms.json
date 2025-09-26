@@ -79,5 +79,23 @@
     "blindness",
     "sudden blindness",
     "loss of sight"
+  ],
+  "light sensitivity": [
+    "sensitivity to light",
+    "light bothers me",
+    "bright light hurts",
+    "photophobia"
+  ],
+  "sound sensitivity": [
+    "sensitivity to sound",
+    "sound bothers me",
+    "loud noise hurts",
+    "phonophobia"
+  ],
+  "nausea": [
+    "nauseous",
+    "feeling sick",
+    "queasy",
+    "upset stomach"
   ]
 }

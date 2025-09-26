@@ -272,15 +272,20 @@ def match_all_options(ans_norm, valid_map):
     
     # Special handling for compound answers like "nausea and sensitivity to sound"
     if not matches and "and" in ans_norm:
+        print(f"[Aura-LLM] 🔍 Trying compound answer parsing for: '{ans_norm}'")
         # Try to match individual components
         components = [comp.strip() for comp in ans_norm.split("and")]
+        print(f"[Aura-LLM] 🔍 Components: {components}")
         for comp in components:
             comp_tokens = set(tokenize(comp))
+            print(f"[Aura-LLM] 🔍 Checking component '{comp}' -> tokens: {comp_tokens}")
             for opt in valid_map:
                 opt_tokens = set(tokenize(opt))
                 overlap = len(comp_tokens & opt_tokens) / float(len(opt_tokens)) if opt_tokens else 0
+                print(f"[Aura-LLM] 🔍 Component '{comp}' vs option '{opt}': overlap={overlap:.2f}")
                 if overlap >= MIN_MATCH and opt not in matches:
                     matches.append(opt)
+                    print(f"[Aura-LLM] ✅ Added match: '{opt}'")
     
     print(f"[Aura-LLM] 🔎 Multi-match: ans='{ans_norm}' -> opts={matches}")
     return matches
@@ -417,10 +422,12 @@ def build_recap(cond, answers, flags, severity):
         key, templ = s.get("key"), s.get("recap_template","{answer}")
         valid_map = s.get("answers", {})
         ans_norm = normalize_text(raw)
+        print(f"[Aura-LLM] 🔍 Recap: key='{key}', raw='{raw}', normalized='{ans_norm}'")
         opts = match_all_options(ans_norm, valid_map) or []
         if not opts:
             opt_single, _ = match_answer_option(ans_norm, valid_map)
             if opt_single: opts = [opt_single]
+        print(f"[Aura-LLM] 🔍 Recap: matched options={opts}")
         # Map yes/no to reported/denied; otherwise join multiple options
         if len(opts) == 1 and opts[0] in ("yes", "no"):
             ans_out = "reported" if opts[0] == "yes" else "denied"
@@ -436,6 +443,7 @@ def build_recap(cond, answers, flags, severity):
                 ans_out = "denied"
             else:
                 ans_out = raw
+        print(f"[Aura-LLM] 🔍 Recap: final answer='{ans_out}'")
         # Special handling for location steps - show actual location, not pathway names
         if key == "location":
             if ans_out.endswith("_pathway"):
