@@ -418,7 +418,10 @@
       "fever",
       "neuro_symptoms",
       "exertional_onset",
-      "head_injury"
+      "head_injury",
+      "nausea",
+      "light_sensitivity",
+      "sound_sensitivity"
     ],
     "steps": [
       {
@@ -503,17 +506,29 @@
         }
       },
       {
-        "key": "migraine_features",
-        "question": "Do you have nausea or sensitivity to light or sound?",
-        "recap_template": "You {answer} migraine features",
+        "key": "nausea",
+        "question": "Do you have nausea?",
+        "recap_template": "Nausea is {answer}",
         "answers": {
-          "nausea": "non_urgent",
-          "light sensitivity": "non_urgent", 
-          "sound sensitivity": "non_urgent",
-          "nausea and light sensitivity": "non_urgent",
-          "nausea and sound sensitivity": "non_urgent",
-          "light and sound sensitivity": "non_urgent",
-          "nausea and light and sound sensitivity": "non_urgent",
+          "yes": "non_urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "light_sensitivity",
+        "question": "Does the headache get worse with bright lights?",
+        "recap_template": "Headache worsens with bright lights is {answer}",
+        "answers": {
+          "yes": "non_urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "sound_sensitivity",
+        "question": "Does the headache get worse with loud sounds?",
+        "recap_template": "Headache worsens with loud sounds is {answer}",
+        "answers": {
+          "yes": "non_urgent",
           "no": "non_urgent"
         }
       }
