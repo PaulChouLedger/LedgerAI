@@ -120,14 +120,11 @@ def apply_synonym_expansion(text):
     
     # Apply synonym expansion
     expanded_text = text
-    print(f"[Aura-LLM] 🔄 Original text: '{text}'")
     for standard_term, variations in synonyms.items():
         for variation in variations:
             if variation.lower() in expanded_text.lower():
                 expanded_text = expanded_text.replace(variation, standard_term)
-                print(f"[Aura-LLM] 🔄 Expanded '{variation}' -> '{standard_term}'")
     
-    print(f"[Aura-LLM] 🔄 Final expanded text: '{expanded_text}'")
     return expanded_text
 
 def substitute_name(text, user_name):
@@ -207,19 +204,18 @@ def detect_condition(prompt, session_id: str | None = None):
     
     for cond, data in TRIAGE_DEFS.items():
         triggers = data.get("triggers", [])
-        print(f"[Aura-LLM] 🔍 Checking condition '{cond}' with triggers: {triggers}")
         for trig in triggers:
             trig_norm = normalize_text(trig)
             # Try exact match first
             if trig_norm in p_expanded:
-                print(f"[Aura-LLM] ✅ Exact match trigger '{trig}' for '{cond}'")
+                print(f"[Aura-LLM] ✅ Detected condition: {cond}")
                 return cond
             # Try fuzzy match with 0.6 threshold
             ans_tokens = set(tokenize(p_expanded))
             trig_tokens = set(tokenize(trig_norm))
             overlap = len(ans_tokens & trig_tokens) / float(len(trig_tokens)) if trig_tokens else 0
             if overlap >= MIN_MATCH:
-                print(f"[Aura-LLM] ✅ Fuzzy match trigger '{trig}' for '{cond}' (score: {overlap:.2f})")
+                print(f"[Aura-LLM] ✅ Detected condition: {cond}")
                 return cond
     return None
 
@@ -256,14 +252,12 @@ def normalize_yes_no_response(text):
 def match_answer_option(ans_norm, valid_map):
     # Apply synonym expansion to the answer
     ans_expanded = apply_synonym_expansion(ans_norm)
-    print(f"[Aura-LLM] 🔄 Answer expansion: '{ans_norm}' -> '{ans_expanded}'")
     
     # First try to normalize yes/no responses
     normalized_response = normalize_yes_no_response(ans_expanded)
     if normalized_response in ["yes", "no"]:
         # Check if the valid_map contains yes/no options
         if "yes" in valid_map and "no" in valid_map:
-            print(f"[Aura-LLM] 🔄 Normalized '{ans_expanded}' -> '{normalized_response}'")
             return normalized_response, 1.0
     
     ans_tokens = set(tokenize(ans_expanded))
@@ -272,13 +266,11 @@ def match_answer_option(ans_norm, valid_map):
         opt_tokens = set(tokenize(opt))
         overlap = len(ans_tokens & opt_tokens) / float(len(opt_tokens)) if opt_tokens else 0
         if overlap > score: best, score = opt, overlap
-    print(f"[Aura-LLM] 🔎 Fuzzy match: ans='{ans_expanded}' -> opt='{best}' score={score:.2f}")
     return best, score
 
 def match_all_options(ans_norm, valid_map):
     # Apply synonym expansion to the answer
     ans_expanded = apply_synonym_expansion(ans_norm)
-    print(f"[Aura-LLM] 🔄 Multi-option expansion: '{ans_norm}' -> '{ans_expanded}'")
     
     ans_tokens = set(tokenize(ans_expanded))
     matches = []
@@ -290,22 +282,16 @@ def match_all_options(ans_norm, valid_map):
     
     # Special handling for compound answers like "nausea and sensitivity to sound"
     if not matches and "and" in ans_expanded:
-        print(f"[Aura-LLM] 🔍 Trying compound answer parsing for: '{ans_expanded}'")
         # Try to match individual components
         components = [comp.strip() for comp in ans_expanded.split("and")]
-        print(f"[Aura-LLM] 🔍 Components: {components}")
         for comp in components:
             comp_tokens = set(tokenize(comp))
-            print(f"[Aura-LLM] 🔍 Checking component '{comp}' -> tokens: {comp_tokens}")
             for opt in valid_map:
                 opt_tokens = set(tokenize(opt))
                 overlap = len(comp_tokens & opt_tokens) / float(len(opt_tokens)) if opt_tokens else 0
-                print(f"[Aura-LLM] 🔍 Component '{comp}' vs option '{opt}': overlap={overlap:.2f}")
                 if overlap >= MIN_MATCH and opt not in matches:
                     matches.append(opt)
-                    print(f"[Aura-LLM] ✅ Added match: '{opt}'")
     
-    print(f"[Aura-LLM] 🔎 Multi-match: ans='{ans_norm}' -> opts={matches}")
     return matches
 
 def add_phrasing_fingerprint(state, text):
@@ -440,12 +426,10 @@ def build_recap(cond, answers, flags, severity):
         key, templ = s.get("key"), s.get("recap_template","{answer}")
         valid_map = s.get("answers", {})
         ans_norm = normalize_text(raw)
-        print(f"[Aura-LLM] 🔍 Recap: key='{key}', raw='{raw}', normalized='{ans_norm}'")
         opts = match_all_options(ans_norm, valid_map) or []
         if not opts:
             opt_single, _ = match_answer_option(ans_norm, valid_map)
             if opt_single: opts = [opt_single]
-        print(f"[Aura-LLM] 🔍 Recap: matched options={opts}")
         # Map yes/no to reported/denied; otherwise join multiple options
         if len(opts) == 1 and opts[0] in ("yes", "no"):
             ans_out = "reported" if opts[0] == "yes" else "denied"
@@ -461,7 +445,6 @@ def build_recap(cond, answers, flags, severity):
                 ans_out = "denied"
             else:
                 ans_out = raw
-        print(f"[Aura-LLM] 🔍 Recap: final answer='{ans_out}'")
         # Special handling for location steps - show actual location, not pathway names
         if key == "location":
             if ans_out.endswith("_pathway"):
