@@ -673,6 +673,7 @@ def chat():
 
     if state.get("condition"):
         print(f"[Aura-LLM] 🔍 Continuing triage with condition: {state.get('condition')}")
+        print(f"[Aura-LLM] 🔍 State: {state}")
         cond=state["condition"]; idx=state["step_index"]
         steps=get_steps(cond,state)
         step_list=[s if isinstance(s,dict) else {"key":None,"question":str(s)} for s in steps]
