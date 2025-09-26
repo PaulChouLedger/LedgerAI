@@ -120,12 +120,14 @@ def apply_synonym_expansion(text):
     
     # Apply synonym expansion
     expanded_text = text
+    print(f"[Aura-LLM] 🔄 Original text: '{text}'")
     for standard_term, variations in synonyms.items():
         for variation in variations:
             if variation.lower() in expanded_text.lower():
                 expanded_text = expanded_text.replace(variation, standard_term)
                 print(f"[Aura-LLM] 🔄 Expanded '{variation}' -> '{standard_term}'")
     
+    print(f"[Aura-LLM] 🔄 Final expanded text: '{expanded_text}'")
     return expanded_text
 
 def substitute_name(text, user_name):
