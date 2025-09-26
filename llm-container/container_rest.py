@@ -435,7 +435,22 @@ def build_recap(cond, answers, flags, severity):
             ans_out = "reported" if opts[0] == "yes" else "denied"
         elif opts:
             # For compound answers, use "reported" since they're positive findings
-            ans_out = f"reported {pretty_join(opts, 'and')}"
+            # Remove redundant overlapping options
+            clean_opts = []
+            for opt in opts:
+                # Skip if this option is a subset of another option
+                is_redundant = False
+                for other_opt in opts:
+                    if opt != other_opt and opt in other_opt:
+                        is_redundant = True
+                        break
+                if not is_redundant:
+                    clean_opts.append(opt)
+            
+            if clean_opts:
+                ans_out = f"reported {pretty_join(clean_opts, 'and')}"
+            else:
+                ans_out = f"reported {pretty_join(opts, 'and')}"
         else:
             # If no match found, check if it's a positive or negative response
             normalized = normalize_yes_no_response(raw)
