@@ -202,18 +202,42 @@
       "one sided weakness"
     ],
     "intro": "{name}, I see you’ve developed focal weakness or numbness. Let me ask you a few questions.",
-    "priority_keys": ["distribution", "sudden"],
+    "priority_keys": ["one_side", "face", "arm", "leg", "sudden"],
     "steps": [
       {
-        "key": "distribution",
-        "question": "Is it on one side of the body (face, arm, or leg) or on both sides?",
-        "recap_template": "Symptom distribution is {answer}",
+        "key": "one_side",
+        "question": "Is the weakness or numbness on one side of your body?",
+        "recap_template": "One-sided symptoms are {answer}",
         "answers": {
-          "one side": "emergency",
-          "face": "emergency",
-          "arm": "emergency",
-          "leg": "emergency",
-          "both sides": "urgent"
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "face",
+        "question": "Do you have weakness or numbness in your face?",
+        "recap_template": "Facial weakness or numbness is {answer}",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "arm",
+        "question": "Do you have weakness or numbness in your arm?",
+        "recap_template": "Arm weakness or numbness is {answer}",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "leg",
+        "question": "Do you have weakness or numbness in your leg?",
+        "recap_template": "Leg weakness or numbness is {answer}",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
         }
       },
       {
