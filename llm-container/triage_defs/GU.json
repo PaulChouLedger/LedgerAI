@@ -195,7 +195,7 @@
   },
 
   "pelvic_pain": {
-    "triggers": ["pelvic pain", "pain in pelvis", "lower abdominal pain"],
+    "triggers": ["pelvic pain", "pain in pelvis", "lower pelvic pain", "pelvic discomfort"],
     "steps": [
       {
         "key": "onset",
