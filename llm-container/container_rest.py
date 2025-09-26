@@ -123,7 +123,9 @@ def apply_synonym_expansion(text):
     for standard_term, variations in synonyms.items():
         for variation in variations:
             if variation.lower() in expanded_text.lower():
-                expanded_text = expanded_text.replace(variation, standard_term)
+                print(f"[Aura-LLM] 🔄 Synonym expansion: '{variation}' -> '{standard_term}'")
+                # Use case-insensitive replacement
+                expanded_text = re.sub(re.escape(variation), standard_term, expanded_text, flags=re.IGNORECASE)
     
     return expanded_text
 
@@ -204,8 +206,10 @@ def detect_condition(prompt, session_id: str | None = None):
     
     for cond, data in TRIAGE_DEFS.items():
         triggers = data.get("triggers", [])
+        print(f"[Aura-LLM] 🔍 Checking condition: {cond} with {len(triggers)} triggers")
         for trig in triggers:
             trig_norm = normalize_text(trig)
+            print(f"[Aura-LLM] 🔍 Checking trigger: '{trig}' -> '{trig_norm}'")
             # Try exact match first
             if trig_norm in p_expanded:
                 print(f"[Aura-LLM] ✅ Detected condition: {cond}")
@@ -214,6 +218,7 @@ def detect_condition(prompt, session_id: str | None = None):
             ans_tokens = set(tokenize(p_expanded))
             trig_tokens = set(tokenize(trig_norm))
             overlap = len(ans_tokens & trig_tokens) / float(len(trig_tokens)) if trig_tokens else 0
+            print(f"[Aura-LLM] 🔍 Fuzzy match: '{trig_norm}' vs '{p_expanded}' = {overlap:.2f} (threshold: {MIN_MATCH})")
             if overlap >= MIN_MATCH:
                 print(f"[Aura-LLM] ✅ Detected condition: {cond}")
                 return cond
