@@ -41,13 +41,14 @@
     "can't move",
     "can't move",
     "paralysis",
-    "limb weakness",
-    "arm weakness",
-    "leg weakness",
+    "limb weakness"
+  ],
+  "one sided weakness": [
     "weakness in arm",
     "weakness in one arm",
     "weak arm",
-    "one sided weakness",
+    "arm weakness",
+    "leg weakness",
     "one-sided weakness",
     "unilateral weakness",
     "weakness on my right side",
