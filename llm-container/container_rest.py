@@ -222,7 +222,16 @@ def normalize_yes_no_response(text):
     """Normalize natural yes/no responses to standard yes/no"""
     text_lower = text.lower().strip()
     
-    # Positive responses
+    # Check for negative responses FIRST (more specific patterns)
+    if any(phrase in text_lower for phrase in [
+        "no", "nope", "nah", "not", "don't", "do not", "haven't", "have not",
+        "i don't", "i do not", "i haven't", "i have not",
+        "i don't have", "i do not have", "i don't feel", "i do not feel",
+        "i don't experience", "i do not experience", "i am not", "i'm not"
+    ]):
+        return "no"
+    
+    # Then check for positive responses (less specific patterns)
     if any(phrase in text_lower for phrase in [
         "yes", "yea", "yeah", "yep", "yup", "sure", "ok", "okay",
         "i do", "i have", "i am", "i feel", "i experience",
@@ -231,15 +240,6 @@ def normalize_yes_no_response(text):
         "i do have been", "i do have had", "i do have been having"
     ]):
         return "yes"
-    
-    # Negative responses  
-    if any(phrase in text_lower for phrase in [
-        "no", "nope", "nah", "not", "don't", "do not", "haven't", "have not",
-        "i don't", "i do not", "i haven't", "i have not",
-        "i don't have", "i do not have", "i don't feel", "i do not feel",
-        "i don't experience", "i do not experience", "i am not", "i'm not"
-    ]):
-        return "no"
     
     return text
 
