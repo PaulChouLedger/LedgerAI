@@ -269,6 +269,19 @@ def match_all_options(ans_norm, valid_map):
         overlap = len(ans_tokens & opt_tokens) / float(len(opt_tokens)) if opt_tokens else 0
         if overlap >= MIN_MATCH:
             matches.append(opt)
+    
+    # Special handling for compound answers like "nausea and sensitivity to sound"
+    if not matches and "and" in ans_norm:
+        # Try to match individual components
+        components = [comp.strip() for comp in ans_norm.split("and")]
+        for comp in components:
+            comp_tokens = set(tokenize(comp))
+            for opt in valid_map:
+                opt_tokens = set(tokenize(opt))
+                overlap = len(comp_tokens & opt_tokens) / float(len(opt_tokens)) if opt_tokens else 0
+                if overlap >= MIN_MATCH and opt not in matches:
+                    matches.append(opt)
+    
     print(f"[Aura-LLM] 🔎 Multi-match: ans='{ans_norm}' -> opts={matches}")
     return matches
 
@@ -411,8 +424,18 @@ def build_recap(cond, answers, flags, severity):
         # Map yes/no to reported/denied; otherwise join multiple options
         if len(opts) == 1 and opts[0] in ("yes", "no"):
             ans_out = "reported" if opts[0] == "yes" else "denied"
+        elif opts:
+            # For compound answers, use "reported" since they're positive findings
+            ans_out = f"reported {pretty_join(opts, 'and')}"
         else:
-            ans_out = pretty_join(opts, "and") if opts else raw
+            # If no match found, check if it's a positive or negative response
+            normalized = normalize_yes_no_response(raw)
+            if normalized == "yes":
+                ans_out = f"reported {raw}"
+            elif normalized == "no":
+                ans_out = "denied"
+            else:
+                ans_out = raw
         # Special handling for location steps - show actual location, not pathway names
         if key == "location":
             if ans_out.endswith("_pathway"):
