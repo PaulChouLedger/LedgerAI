@@ -133,7 +133,13 @@ def substitute_name(text, user_name):
     if "{name}" in text:
         if user_name:
             return text.replace("{name}", user_name)
-        return text.replace("{name}, ", "").replace("{name}", "")
+        else:
+            # Remove {name} and clean up any resulting punctuation issues
+            text = text.replace("{name}, ", "").replace("{name}", "")
+            # Clean any leading stray punctuation (e.g., leading comma when name missing)
+            cleaned = re.sub(r"^[,;:\-]\s*", "", text)
+            cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+            return cleaned
     # Clean any leading stray punctuation (e.g., leading comma when name missing)
     cleaned = re.sub(r"^[,;:\-]\s*", "", text)
     cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()

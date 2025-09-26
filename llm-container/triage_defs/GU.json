@@ -196,6 +196,8 @@
 
   "pelvic_pain": {
     "triggers": ["pelvic pain", "pain in pelvis", "lower pelvic pain", "pelvic discomfort"],
+    "intro": "{name}, I understand you're experiencing pelvic pain. Let me ask you some specific questions to assess this.",
+    "priority_keys": ["onset", "assoc"],
     "steps": [
       {
         "key": "onset",

@@ -11,7 +11,13 @@
       "epigastric abdominal pain",
       "left upper quadrant abdominal pain",
       "left lower quadrant abdominal pain",
-      "diffuse abdominal pain"
+      "diffuse abdominal pain",
+      "lower abdomen pain",
+      "lower belly pain",
+      "lower stomach pain",
+      "pain in lower abdomen",
+      "pain in lower belly",
+      "pain in lower stomach"
     ],
     "intro": "{name}, I understand you’re experiencing abdominal pain. Let’s first figure out where it’s located.",
     "priority_keys": ["location"],
@@ -26,6 +32,15 @@
           "right lower quadrant": "rlq_pathway",
           "left lower quadrant": "llq_pathway",
           "diffuse": "diffuse_pathway",
+          "lower abdomen": {
+            "followup_question": "To help determine if this is related to your digestive system or reproductive/urinary system, do you have any of the following: changes in menstruation, urinary symptoms, or discharge?",
+            "answers": {
+              "menstrual changes": "pelvic_differentiation_pathway",
+              "urinary symptoms": "pelvic_differentiation_pathway", 
+              "discharge": "pelvic_differentiation_pathway",
+              "none of these": "lower_abdomen_gi_pathway"
+            }
+          },
           "left side": {
             "followup_question": "You mentioned pain on the left side. Is it more in the upper abdomen (under the ribs) or the lower abdomen (near the pelvis)?",
             "answers": {
@@ -330,6 +345,145 @@
           "emergency": "Diffuse abdominal pain with vomiting, melena, or hematochezia may indicate obstruction, ischemia, or GI bleed. Please seek emergency care immediately.",
           "urgent": "Diffuse abdominal pain with distension but without severe features should be evaluated urgently.",
           "non_urgent": "Mild diffuse abdominal discomfort may be non-urgent but should be monitored and followed up."
+        }
+      },
+
+      "pelvic_differentiation_pathway": {
+        "intro": "{name}, based on your symptoms, this may be related to your reproductive or urinary system rather than your digestive system. Let me ask some specific questions.",
+        "priority_keys": ["onset", "gender", "menstrual", "urinary", "discharge"],
+        "steps": [
+          {
+            "key": "onset",
+            "question": "When did the pain start?",
+            "recap_template": "Pain started {answer}",
+            "answers": {
+              "sudden": "emergency",
+              "gradual": "urgent",
+              "days": "urgent",
+              "weeks": "non_urgent"
+            }
+          },
+          {
+            "key": "gender",
+            "question": "Are you male or female?",
+            "recap_template": "Gender: {answer}",
+            "answers": {
+              "female": "female_pelvic_pathway",
+              "male": "male_pelvic_pathway"
+            }
+          }
+        ],
+        "pathways": {
+          "female_pelvic_pathway": {
+            "intro": "{name}, as a female, let me ask about reproductive health factors.",
+            "steps": [
+              {
+                "key": "menstrual",
+                "question": "Are you currently menstruating, or have you noticed any changes in your menstrual cycle?",
+                "recap_template": "Menstrual status: {answer}",
+                "answers": {
+                  "currently menstruating": "urgent",
+                  "missed period": "urgent",
+                  "irregular bleeding": "urgent",
+                  "normal cycle": "non_urgent"
+                }
+              },
+              {
+                "key": "urinary",
+                "question": "Do you have any urinary symptoms like burning, frequency, or urgency?",
+                "recap_template": "Urinary symptoms: {answer}",
+                "answers": {
+                  "yes": "urgent",
+                  "no": "non_urgent"
+                }
+              }
+            ],
+            "outcomes": {
+              "emergency": "Lower abdominal pain with reproductive or urinary symptoms may indicate a serious condition. Please seek emergency care immediately.",
+              "urgent": "Your symptoms require urgent evaluation. Please see a doctor soon.",
+              "non_urgent": "Your symptoms should be monitored and followed up with your doctor."
+            }
+          },
+          "male_pelvic_pathway": {
+            "intro": "{name}, as a male, let me ask about urinary and reproductive health factors.",
+            "steps": [
+              {
+                "key": "urinary",
+                "question": "Do you have any urinary symptoms like burning, frequency, urgency, or difficulty urinating?",
+                "recap_template": "Urinary symptoms: {answer}",
+                "answers": {
+                  "yes": "urgent",
+                  "no": "non_urgent"
+                }
+              },
+              {
+                "key": "testicular",
+                "question": "Do you have any testicular pain or swelling?",
+                "recap_template": "Testicular symptoms: {answer}",
+                "answers": {
+                  "yes": "emergency",
+                  "no": "non_urgent"
+                }
+              }
+            ],
+            "outcomes": {
+              "emergency": "Lower abdominal pain with testicular symptoms may indicate a serious condition. Please seek emergency care immediately.",
+              "urgent": "Your symptoms require urgent evaluation. Please see a doctor soon.",
+              "non_urgent": "Your symptoms should be monitored and followed up with your doctor."
+            }
+          }
+        }
+      },
+
+      "lower_abdomen_gi_pathway": {
+        "intro": "{name}, since you don't have reproductive or urinary symptoms, let's focus on digestive system causes of your lower abdominal pain.",
+        "priority_keys": ["onset", "bowel", "nausea", "fever"],
+        "steps": [
+          {
+            "key": "onset",
+            "question": "When did the pain start?",
+            "recap_template": "Pain started {answer}",
+            "answers": {
+              "sudden": "emergency",
+              "gradual": "urgent",
+              "days": "urgent",
+              "weeks": "non_urgent"
+            }
+          },
+          {
+            "key": "bowel",
+            "question": "Have you noticed any changes in your bowel movements, such as diarrhea, constipation, or blood in your stool?",
+            "recap_template": "Bowel changes: {answer}",
+            "answers": {
+              "blood in stool": "emergency",
+              "diarrhea": "urgent",
+              "constipation": "urgent",
+              "no changes": "non_urgent"
+            }
+          },
+          {
+            "key": "nausea",
+            "question": "Do you have nausea or vomiting?",
+            "recap_template": "Nausea/vomiting: {answer}",
+            "answers": {
+              "yes": "urgent",
+              "no": "non_urgent"
+            }
+          },
+          {
+            "key": "fever",
+            "question": "Do you have a fever?",
+            "recap_template": "Fever: {answer}",
+            "answers": {
+              "yes": "emergency",
+              "no": "non_urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Lower abdominal pain with blood in stool or fever may indicate a serious GI condition. Please seek emergency care immediately.",
+          "urgent": "Your lower abdominal pain with digestive symptoms requires urgent evaluation. Please see a doctor soon.",
+          "non_urgent": "Your lower abdominal pain should be monitored and followed up with your doctor."
         }
       }
     },
