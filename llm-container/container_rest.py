@@ -142,12 +142,22 @@ def detect_condition(prompt, session_id: str | None = None):
     if any(greeting in p for greeting in casual_greetings):
         print(f"[Aura-LLM] 💬 Casual greeting detected: '{p}' -> no triage trigger")
         return None
+    
+    # Apply synonym expansion for medical contexts
+    p_expanded = p
+    # Handle "burns when I pee" -> "burning urination" for UTI context
+    if "burns when" in p and ("pee" in p or "urinate" in p or "urination" in p):
+        p_expanded = p.replace("burns when", "burning urination")
+    elif "it burns when" in p and ("pee" in p or "urinate" in p or "urination" in p):
+        p_expanded = p.replace("it burns when", "burning urination")
+    elif "burning when" in p and ("pee" in p or "urinate" in p or "urination" in p):
+        p_expanded = p.replace("burning when", "burning urination")
         
     for cond, data in TRIAGE_DEFS.items():
         triggers = data.get("triggers", [])
         for trig in triggers:
             trig_norm = normalize_text(trig)
-            if trig_norm in p:
+            if trig_norm in p_expanded:
                 print(f"[Aura-LLM] ✅ Matched trigger '{trig}' for '{cond}'")
                 return cond
     return None

@@ -120,7 +120,7 @@
   },
 
   "burns": {
-    "triggers": ["burn", "burn injury", "skin burn"],
+    "triggers": ["burn injury", "skin burn", "thermal burn", "chemical burn", "scald", "hot water burn", "fire burn", "sunburn", "burned skin", "burned area"],
     "steps": [
       {
         "key": "extent",
