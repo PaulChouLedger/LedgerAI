@@ -44,8 +44,8 @@
       },
       {
         "key": "arm_weakness",
-        "question": "Is there weakness or drift in one arm?",
-        "recap_template": "You {answer} arm weakness",
+        "question": "Is there numbness in your arm as well?",
+        "recap_template": "You {answer} arm numbness",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
