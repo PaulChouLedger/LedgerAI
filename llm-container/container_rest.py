@@ -118,14 +118,22 @@ def apply_synonym_expansion(text):
             except Exception as e:
                 print(f"[Aura-LLM] ⚠️ Failed to load synonyms from {file_path}: {e}")
     
-    # Apply synonym expansion
+    # Apply synonym expansion - prioritize longer phrases first
     expanded_text = text
+    # Sort variations by length (longest first) to avoid partial replacements
+    all_variations = []
     for standard_term, variations in synonyms.items():
         for variation in variations:
-            if variation.lower() in expanded_text.lower():
-                print(f"[Aura-LLM] 🔄 Synonym expansion: '{variation}' -> '{standard_term}'")
-                # Use case-insensitive replacement
-                expanded_text = re.sub(re.escape(variation), standard_term, expanded_text, flags=re.IGNORECASE)
+            all_variations.append((len(variation), variation, standard_term))
+    
+    # Sort by length descending
+    all_variations.sort(key=lambda x: x[0], reverse=True)
+    
+    for length, variation, standard_term in all_variations:
+        if variation.lower() in expanded_text.lower():
+            print(f"[Aura-LLM] 🔄 Synonym expansion: '{variation}' -> '{standard_term}'")
+            # Use case-insensitive replacement
+            expanded_text = re.sub(re.escape(variation), standard_term, expanded_text, flags=re.IGNORECASE)
     
     return expanded_text
 
