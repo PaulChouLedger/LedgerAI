@@ -348,7 +348,12 @@
       "dark stool",
       "tarry stool",
       "red stool",
-      "red stools"
+      "red stools",
+      "black poop",
+      "black stool",
+      "black stools",
+      "dark poop",
+      "tarry poop"
     ],
     "intro": "{name}, I understand you're experiencing bloody stools. This requires immediate evaluation to determine the cause and severity.",
     "priority_keys": [
@@ -356,7 +361,10 @@
       "amount",
       "pain",
       "fever",
-      "dizziness"
+      "dizziness",
+      "nsaids",
+      "alcohol",
+      "epigastric_pain"
     ],
     "steps": [
       {
@@ -402,6 +410,33 @@
         "key": "dizziness",
         "question": "Do you feel dizzy or lightheaded?",
         "recap_template": "You {answer} dizziness",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "nsaids",
+        "question": "Have you taken any NSAIDs (aspirin, ibuprofen, naproxen) recently?",
+        "recap_template": "You {answer} NSAID use",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "alcohol",
+        "question": "Do you drink alcohol regularly or have you had alcohol recently?",
+        "recap_template": "You {answer} alcohol use",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "epigastric_pain",
+        "question": "Do you have any upper abdominal pain or discomfort?",
+        "recap_template": "You {answer} epigastric pain",
         "answers": {
           "yes": "emergency",
           "no": "urgent"
