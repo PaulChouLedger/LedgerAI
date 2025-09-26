@@ -107,7 +107,14 @@
   "jaundice": [
     "yellow skin",
     "yellow eyes",
+    "yellowing of skin",
+    "yellowing of eyes",
+    "yellow discoloration",
+    "yellow tint",
+    "yellowish skin",
+    "yellowish eyes",
     "skin looks yellow",
+    "eyes look yellow",
     "icterus"
   ],
   "ruq pain": [
@@ -164,9 +171,9 @@
   "suprapubic pain": [
     "pain above bladder",
     "pain below belly button",
-    "pelvic pain",
     "lower middle abdominal pain",
-    "pubic pain"
+    "pubic pain",
+    "suprapubic area pain"
   ],
   "diffuse pain": [
     "pain all over abdomen",
@@ -184,16 +191,28 @@
     "pancreas pain",
     "upper abdomen pain radiating back"
   ],
-  "jaundice": [
-    "yellow skin",
-    "yellow eyes",
-    "yellowing of skin",
-    "yellowing of eyes",
-    "yellow discoloration",
-    "yellow tint",
-    "yellowish skin",
-    "yellowish eyes",
-    "skin looks yellow",
-    "eyes look yellow"
+  "heartburn": [
+    "acid reflux",
+    "gastroesophageal reflux",
+    "gerd",
+    "burning in chest",
+    "chest burn",
+    "stomach acid",
+    "reflux"
+  ],
+  "bloating": [
+    "swollen belly",
+    "distended abdomen",
+    "full feeling",
+    "gas",
+    "abdominal distension",
+    "swollen stomach"
+  ],
+  "indigestion": [
+    "dyspepsia",
+    "upset stomach",
+    "stomach upset",
+    "digestive problems",
+    "stomach problems"
   ]
 }

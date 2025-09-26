@@ -244,25 +244,33 @@ def normalize_yes_no_response(text):
     return text
 
 def match_answer_option(ans_norm, valid_map):
+    # Apply synonym expansion to the answer
+    ans_expanded = apply_synonym_expansion(ans_norm)
+    print(f"[Aura-LLM] 🔄 Answer expansion: '{ans_norm}' -> '{ans_expanded}'")
+    
     # First try to normalize yes/no responses
-    normalized_response = normalize_yes_no_response(ans_norm)
+    normalized_response = normalize_yes_no_response(ans_expanded)
     if normalized_response in ["yes", "no"]:
         # Check if the valid_map contains yes/no options
         if "yes" in valid_map and "no" in valid_map:
-            print(f"[Aura-LLM] 🔄 Normalized '{ans_norm}' -> '{normalized_response}'")
+            print(f"[Aura-LLM] 🔄 Normalized '{ans_expanded}' -> '{normalized_response}'")
             return normalized_response, 1.0
     
-    ans_tokens = set(tokenize(normalized_response))
+    ans_tokens = set(tokenize(ans_expanded))
     best, score = None, 0.0
     for opt in valid_map:
         opt_tokens = set(tokenize(opt))
         overlap = len(ans_tokens & opt_tokens) / float(len(opt_tokens)) if opt_tokens else 0
         if overlap > score: best, score = opt, overlap
-    print(f"[Aura-LLM] 🔎 Fuzzy match: ans='{ans_norm}' -> opt='{best}' score={score:.2f}")
+    print(f"[Aura-LLM] 🔎 Fuzzy match: ans='{ans_expanded}' -> opt='{best}' score={score:.2f}")
     return best, score
 
 def match_all_options(ans_norm, valid_map):
-    ans_tokens = set(tokenize(ans_norm))
+    # Apply synonym expansion to the answer
+    ans_expanded = apply_synonym_expansion(ans_norm)
+    print(f"[Aura-LLM] 🔄 Multi-option expansion: '{ans_norm}' -> '{ans_expanded}'")
+    
+    ans_tokens = set(tokenize(ans_expanded))
     matches = []
     for opt in valid_map:
         opt_tokens = set(tokenize(opt))
@@ -271,10 +279,10 @@ def match_all_options(ans_norm, valid_map):
             matches.append(opt)
     
     # Special handling for compound answers like "nausea and sensitivity to sound"
-    if not matches and "and" in ans_norm:
-        print(f"[Aura-LLM] 🔍 Trying compound answer parsing for: '{ans_norm}'")
+    if not matches and "and" in ans_expanded:
+        print(f"[Aura-LLM] 🔍 Trying compound answer parsing for: '{ans_expanded}'")
         # Try to match individual components
-        components = [comp.strip() for comp in ans_norm.split("and")]
+        components = [comp.strip() for comp in ans_expanded.split("and")]
         print(f"[Aura-LLM] 🔍 Components: {components}")
         for comp in components:
             comp_tokens = set(tokenize(comp))
