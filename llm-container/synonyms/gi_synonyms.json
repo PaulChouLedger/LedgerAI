@@ -37,6 +37,13 @@
     "no bowel movement",
     "straining"
   ],
+  "stool": [
+    "poop",
+    "bowel movement",
+    "bm",
+    "feces",
+    "waste"
+  ],
   "bloody stool": [
     "blood in stool",
     "rectal bleed",
@@ -45,7 +52,13 @@
     "dark stool",
     "tarry stool",
     "red stool",
-    "bloody stools"
+    "bloody stools",
+    "bloody poop",
+    "blood in poop",
+    "black poop",
+    "dark poop",
+    "tarry poop",
+    "red poop"
   ],
   "jaundice": [
     "yellow skin",
