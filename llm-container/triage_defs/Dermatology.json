@@ -23,13 +23,29 @@
         }
       },
       {
-        "key": "assoc",
-        "question": "Do you have fever, swelling, or difficulty breathing with the rash?",
-        "recap_template": "You reported {answer} associated with the rash",
+        "key": "fever",
+        "question": "Do you have fever with the rash?",
+        "recap_template": "Fever with rash is {answer}",
         "answers": {
-          "fever": "urgent",
-          "difficulty breathing": "emergency",
-          "swelling": "emergency",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "swelling",
+        "question": "Do you have swelling with the rash?",
+        "recap_template": "Swelling with rash is {answer}",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "difficulty_breathing",
+        "question": "Do you have difficulty breathing with the rash?",
+        "recap_template": "Difficulty breathing with rash is {answer}",
+        "answers": {
+          "yes": "emergency",
           "no": "non_urgent"
         }
       }

@@ -3,14 +3,38 @@
     "triggers": ["low blood sugar", "hypoglycemia", "shaky", "sweating", "low sugar"],
     "steps": [
       {
-        "key": "symptoms",
-        "question": "Do you feel shaky, sweaty, confused, or weak?",
-        "recap_template": "You reported {answer} with low blood sugar",
+        "key": "shaky",
+        "question": "Do you feel shaky?",
+        "recap_template": "Shakiness is {answer}",
         "answers": {
-          "confused": "emergency",
-          "weak": "urgent",
-          "shaky": "urgent",
-          "sweating": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "sweating",
+        "question": "Do you feel sweaty?",
+        "recap_template": "Sweating is {answer}",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "confused",
+        "question": "Do you feel confused?",
+        "recap_template": "Confusion is {answer}",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "weak",
+        "question": "Do you feel weak?",
+        "recap_template": "Weakness is {answer}",
+        "answers": {
+          "yes": "urgent",
           "no": "non_urgent"
         }
       },
@@ -37,14 +61,38 @@
     "triggers": ["high blood sugar", "hyperglycemia", "diabetic ketoacidosis", "DKA", "HHS"],
     "steps": [
       {
-        "key": "symptoms",
-        "question": "Do you have nausea, vomiting, abdominal pain, or confusion?",
-        "recap_template": "You reported {answer} with high blood sugar",
+        "key": "nausea",
+        "question": "Do you have nausea?",
+        "recap_template": "Nausea is {answer}",
         "answers": {
-          "confusion": "emergency",
-          "abdominal pain": "emergency",
-          "vomiting": "emergency",
-          "nausea": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "vomiting",
+        "question": "Do you have vomiting?",
+        "recap_template": "Vomiting is {answer}",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "abdominal_pain",
+        "question": "Do you have abdominal pain?",
+        "recap_template": "Abdominal pain is {answer}",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "confusion",
+        "question": "Do you have confusion?",
+        "recap_template": "Confusion is {answer}",
+        "answers": {
+          "yes": "emergency",
           "no": "non_urgent"
         }
       },

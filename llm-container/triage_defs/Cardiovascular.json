@@ -2,7 +2,7 @@
   "chest_pain": {
     "triggers": ["chest pain", "tightness in chest", "pressure in chest", "chest discomfort"],
     "intro": "{name}, I’m sorry you’re experiencing chest pain. Let me ask you a few questions.",
-    "priority_keys": ["quality", "radiation", "exertion"],
+    "priority_keys": ["quality", "radiation", "exertion", "shortness_of_breath", "sweating", "fatigue", "fainting"],
     "steps": [
       {
         "key": "quality",
@@ -39,15 +39,39 @@
         }
       },
       {
-        "key": "assoc",
-        "question": "Do you feel short of breath, sweaty, or unusually tired during these episodes?",
-        "recap_template": "You reported {answer}",
+        "key": "shortness_of_breath",
+        "question": "Do you feel short of breath during these episodes?",
+        "recap_template": "Shortness of breath is {answer}",
         "answers": {
-          "shortness of breath": "emergency",
-          "sweating": "emergency",
-          "fatigue": "urgent",
-          "fainting": "emergency",
-          "collapse": "emergency"
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "sweating",
+        "question": "Do you feel sweaty during these episodes?",
+        "recap_template": "Sweating is {answer}",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "fatigue",
+        "question": "Do you feel unusually tired during these episodes?",
+        "recap_template": "Unusual fatigue is {answer}",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "fainting",
+        "question": "Have you fainted or collapsed during these episodes?",
+        "recap_template": "Fainting or collapse is {answer}",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
         }
       },
       {

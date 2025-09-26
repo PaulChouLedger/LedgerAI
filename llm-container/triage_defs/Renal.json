@@ -23,14 +23,38 @@
         }
       },
       {
-        "key": "assoc",
-        "question": "Do you have fever, nausea, vomiting, or blood in your urine?",
-        "recap_template": "You reported {answer} with the pain",
+        "key": "fever",
+        "question": "Do you have fever?",
+        "recap_template": "Fever is {answer}",
         "answers": {
-          "fever": "emergency",
-          "vomiting": "emergency",
-          "nausea": "urgent",
-          "blood in urine": "urgent",
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "nausea",
+        "question": "Do you have nausea?",
+        "recap_template": "Nausea is {answer}",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "vomiting",
+        "question": "Do you have vomiting?",
+        "recap_template": "Vomiting is {answer}",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "blood_in_urine",
+        "question": "Do you have blood in your urine?",
+        "recap_template": "Blood in urine is {answer}",
+        "answers": {
+          "yes": "urgent",
           "no": "non_urgent"
         }
       }
@@ -121,20 +145,45 @@
     "triggers": ["urinary infection", "uti", "pain with urination", "burning urine", "burns when I urinate", "it burns when I urinate", "burning when I pee", "pain when I pee", "stinging when I urinate", "discomfort when urinating"],
     "steps": [
       {
-        "key": "symptoms",
-        "question": "Do you have burning, frequency, or urgency when urinating?",
-        "recap_template": "You reported {answer} with urination",
+        "key": "burning",
+        "question": "Do you have burning when urinating?",
+        "recap_template": "Burning with urination is {answer}",
         "answers": {
-          "burning": "urgent",
-          "frequency": "urgent",
-          "urgency": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "frequency",
+        "question": "Do you have increased frequency of urination?",
+        "recap_template": "Increased frequency is {answer}",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "urgency",
+        "question": "Do you have urgency when urinating?",
+        "recap_template": "Urgency with urination is {answer}",
+        "answers": {
+          "yes": "urgent",
           "no": "non_urgent"
         }
       },
       {
         "key": "fever",
-        "question": "Do you have fever or chills?",
-        "recap_template": "You reported {answer} with urinary tract infection symptoms",
+        "question": "Do you have fever?",
+        "recap_template": "Fever is {answer}",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "chills",
+        "question": "Do you have chills?",
+        "recap_template": "Chills are {answer}",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -142,8 +191,17 @@
       },
       {
         "key": "flank_pain",
-        "question": "Do you have flank pain or back pain with urination?",
-        "recap_template": "You reported {answer} with urinary tract infection symptoms",
+        "question": "Do you have flank pain with urination?",
+        "recap_template": "Flank pain is {answer}",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "back_pain",
+        "question": "Do you have back pain with urination?",
+        "recap_template": "Back pain is {answer}",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"

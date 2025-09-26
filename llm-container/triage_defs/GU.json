@@ -197,7 +197,7 @@
   "pelvic_pain": {
     "triggers": ["pelvic pain", "pain in pelvis", "lower pelvic pain", "pelvic discomfort"],
     "intro": "{name}, I understand you're experiencing pelvic pain. Let me ask you some specific questions to assess this.",
-    "priority_keys": ["onset", "assoc"],
+    "priority_keys": ["onset", "fever", "discharge", "urinary_symptoms"],
     "steps": [
       {
         "key": "onset",
@@ -211,13 +211,29 @@
         }
       },
       {
-        "key": "assoc",
-        "question": "Do you have fever, discharge, or urinary symptoms?",
-        "recap_template": "Associated symptoms: {answer}",
+        "key": "fever",
+        "question": "Do you have fever?",
+        "recap_template": "Fever is {answer}",
         "answers": {
-          "fever": "emergency",
-          "discharge": "urgent",
-          "urinary symptoms": "urgent",
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "discharge",
+        "question": "Do you have any discharge?",
+        "recap_template": "Discharge is {answer}",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "urinary_symptoms",
+        "question": "Do you have any urinary symptoms like burning, frequency, or urgency?",
+        "recap_template": "Urinary symptoms are {answer}",
+        "answers": {
+          "yes": "urgent",
           "no": "non_urgent"
         }
       }

@@ -30,9 +30,18 @@
         }
       },
       {
-        "key": "assoc_fever",
-        "question": "Do you also have fever or chills?",
-        "recap_template": "You {answer} fever with shortness of breath",
+        "key": "fever",
+        "question": "Do you also have fever?",
+        "recap_template": "Fever with shortness of breath is {answer}",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "chills",
+        "question": "Do you also have chills?",
+        "recap_template": "Chills with shortness of breath is {answer}",
         "answers": {
           "yes": "urgent",
           "no": "non_urgent"
