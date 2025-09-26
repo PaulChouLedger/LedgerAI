@@ -542,9 +542,39 @@ def build_recap(cond, answers, flags, severity):
     print(f"[Aura-LLM] 🔍 Regular positives: {positives}")
     print(f"[Aura-LLM] 🔍 Regular negatives: {negatives}")
     
-    # Priority first, clinician-style phrasing without colons
+    # Extract main complaint from the first priority positive (the actual user complaint)
+    # This represents what the user actually reported, not the condition name
     if priority_positives:
-        parts.append("You reported key symptoms including " + pretty_join(priority_positives, "and") + ".")
+        # Use the first priority positive as the main complaint
+        main_complaint = priority_positives[0]
+    else:
+        # Fallback to condition name if no priority positives
+        main_complaint = cond.replace("_", " ").replace("suspected", "").strip()
+    
+    # Separate timing from other symptoms (excluding the main complaint)
+    timing_info = []
+    other_positives = []
+    for i, pos in enumerate(priority_positives):
+        if i == 0:
+            # Skip the first one as it's the main complaint
+            continue
+        if any(time_word in pos.lower() for time_word in ["began", "started", "ago", "hours", "days", "today", "yesterday"]):
+            timing_info.append(pos)
+        else:
+            other_positives.append(pos)
+    
+    # Build main recap sentence
+    if other_positives:
+        main_sentence = f"You reported {main_complaint} with associated {pretty_join(other_positives, 'and')}"
+    else:
+        main_sentence = f"You reported {main_complaint}"
+    
+    # Add timing if present
+    if timing_info:
+        main_sentence += f" starting {pretty_join(timing_info, 'and')}"
+    
+    parts.append(main_sentence + ".")
+    
     # Always include denied key symptoms - they're important for clinical assessment
     if priority_negatives:
         parts.append("You denied key symptoms of " + pretty_join(priority_negatives, "or") + ".")
