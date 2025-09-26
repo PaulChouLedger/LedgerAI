@@ -27,6 +27,7 @@
         "answers": {
           "within 4.5 hours": "emergency",
           "within 6 hours": "emergency",
+          "12 hours ago": "emergency",
           "today": "emergency",
           "yesterday": "urgent",
           "days ago": "urgent",
