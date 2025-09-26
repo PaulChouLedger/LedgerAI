@@ -5,7 +5,7 @@
       {
         "key": "side",
         "question": "Which side is the pain on — left, right, or both?",
-        "recap_template": "The pain is on your {answer} side",
+        "recap_template": "Pain location is {answer}",
         "answers": {
           "both": "urgent",
           "left": "urgent",
@@ -15,7 +15,7 @@
       {
         "key": "severity",
         "question": "How severe is the pain — mild, moderate, or severe?",
-        "recap_template": "You described the pain as {answer}",
+        "recap_template": "Pain severity is {answer}",
         "answers": {
           "severe": "emergency",
           "moderate": "urgent",

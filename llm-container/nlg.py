@@ -61,6 +61,7 @@ def rewrite(
         "If the original text is already clear and clinical, make minimal changes. "
         "CRITICAL: Make questions clear and contextual. If a patient mentions 'dark stools', don't ask 'Do you have bloody stools?' - ask about the specific color or characteristics instead. "
         "FOR RECAPS: Preserve ALL clinical details including specific symptoms, denied symptoms, and clinical assessments. Do not summarize away important medical information. "
+        "CRITICAL: NEVER add symptoms that are not mentioned in the original text. Do not hallucinate or invent symptoms like 'dark stools', 'nausea', or 'abdominal pain' unless they are explicitly stated. "
         "IMPORTANT: Do NOT add temporal references like 'today', 'now', 'currently', 'at this time' unless they are in the original text. Keep the language timeless and clinical."
     )
 

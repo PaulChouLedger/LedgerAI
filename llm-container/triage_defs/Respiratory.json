@@ -32,7 +32,7 @@
       {
         "key": "fever",
         "question": "Do you also have fever?",
-        "recap_template": "Fever with shortness of breath is {answer}",
+        "recap_template": "Fever is {answer}",
         "answers": {
           "yes": "urgent",
           "no": "non_urgent"
@@ -41,7 +41,7 @@
       {
         "key": "chills",
         "question": "Do you also have chills?",
-        "recap_template": "Chills with shortness of breath is {answer}",
+        "recap_template": "Chills are {answer}",
         "answers": {
           "yes": "urgent",
           "no": "non_urgent"

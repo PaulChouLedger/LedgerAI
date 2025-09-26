@@ -5,7 +5,7 @@
       {
         "key": "duration",
         "question": "How long have you had pain or burning with urination?",
-        "recap_template": "You reported dysuria for {answer}",
+        "recap_template": "Dysuria duration is {answer}",
         "answers": {
           "sudden": "urgent",
           "days": "urgent",
@@ -15,7 +15,7 @@
       {
         "key": "assoc",
         "question": "Do you have fever, flank pain, or blood in your urine?",
-        "recap_template": "You reported {answer} as associated symptoms",
+        "recap_template": "Associated symptoms are {answer}",
         "answers": {
           "fever": "emergency",
           "flank pain": "emergency",
@@ -38,7 +38,7 @@
       {
         "key": "amount",
         "question": "How much blood did you notice in your urine?",
-        "recap_template": "You reported {answer} blood in urine",
+        "recap_template": "Blood in urine is {answer}",
         "answers": {
           "gross": "emergency",
           "clots": "emergency",
@@ -49,7 +49,7 @@
       {
         "key": "pain",
         "question": "Do you have pain or burning with urination?",
-        "recap_template": "You also reported {answer} with urination",
+        "recap_template": "Urinary symptoms are {answer}",
         "answers": {
           "severe": "emergency",
           "mild": "urgent",

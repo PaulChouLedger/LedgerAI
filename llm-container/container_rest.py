@@ -471,10 +471,17 @@ def build_recap(cond, answers, flags, severity):
             print(f"[Aura-LLM] 🔍 Original options: {opts}")
             print(f"[Aura-LLM] 🔍 Clean options: {clean_opts}")
             
-            if clean_opts:
-                ans_out = f"reported {pretty_join(clean_opts, 'and')}"
+            # Special handling for timing questions - don't add "reported" prefix
+            if key in ["onset", "when", "timing", "duration"]:
+                if clean_opts:
+                    ans_out = pretty_join(clean_opts, 'and')
+                else:
+                    ans_out = pretty_join(opts, 'and')
             else:
-                ans_out = f"reported {pretty_join(opts, 'and')}"
+                if clean_opts:
+                    ans_out = f"reported {pretty_join(clean_opts, 'and')}"
+                else:
+                    ans_out = f"reported {pretty_join(opts, 'and')}"
         else:
             # If no match found, check if it's a positive or negative response
             normalized = normalize_yes_no_response(raw)

@@ -7,7 +7,7 @@
       {
         "key": "quality",
         "question": "Can you describe the discomfort — is it sharp, heavy, or tight?",
-        "recap_template": "You described your chest pain as {answer}",
+        "recap_template": "Chest pain quality is {answer}",
         "answers": {
           "heavy": "emergency",
           "tight": "emergency",
@@ -29,7 +29,7 @@
       {
         "key": "radiation",
         "question": "Does the pain spread anywhere, such as your arm, neck, jaw, or back?",
-        "recap_template": "The pain spreads into your {answer}",
+        "recap_template": "Pain radiation is {answer}",
         "answers": {
           "arm": "emergency",
           "neck": "emergency",
