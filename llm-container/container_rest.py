@@ -542,13 +542,28 @@ def build_recap(cond, answers, flags, severity):
     print(f"[Aura-LLM] 🔍 Regular positives: {positives}")
     print(f"[Aura-LLM] 🔍 Regular negatives: {negatives}")
     
-    # Extract main complaint from the first priority positive (the actual user complaint)
+    # Extract main complaint from the expanded prompt (already normalized and clean)
     # This represents what the user actually reported, not the condition name
-    if priority_positives:
-        # Use the first priority positive as the main complaint
+    expanded_prompt = state.get("expanded_prompt", "")
+    if expanded_prompt:
+        # Extract the main symptom from the expanded prompt
+        # Remove common prefixes and extract the core symptom
+        prompt_clean = expanded_prompt.lower()
+        # Remove common prefixes
+        for prefix in ["i have", "i'm experiencing", "i feel", "i got", "my", "i am having", "i am experiencing"]:
+            prompt_clean = prompt_clean.replace(prefix, "").strip()
+        # Remove common suffixes
+        for suffix in ["from", "since", "for", "that started", "which began", "starting"]:
+            if suffix in prompt_clean:
+                prompt_clean = prompt_clean.split(suffix)[0].strip()
+        # Clean up any remaining punctuation
+        prompt_clean = prompt_clean.rstrip(".,!?").strip()
+        main_complaint = prompt_clean
+    elif priority_positives:
+        # Fallback to first priority positive if no expanded prompt
         main_complaint = priority_positives[0]
     else:
-        # Fallback to condition name if no priority positives
+        # Final fallback to condition name
         main_complaint = cond.replace("_", " ").replace("suspected", "").strip()
     
     # Separate timing from other symptoms (excluding the main complaint)
@@ -760,9 +775,13 @@ def chat():
                 yield f"<sentence_start>\nHello! I'm AuraVision, your friendly personal assistant. How can I help you today?\n<sentence_end>\n"
             return
         steps=get_steps(condition,state)
+        # Get the expanded prompt from detect_condition
+        p_expanded = apply_synonym_expansion(normalize_text(prompt))
         state.update({"condition":condition,"step_index":1,"answers":[],"flags":{},
                       "last_key":steps[0].get("key"),"active_pathway":None,"entered_pathway":False,
-                      "phrasing_history":state.get("phrasing_history",[])})
+                      "phrasing_history":state.get("phrasing_history",[]),
+                      "original_complaint":prompt,
+                      "expanded_prompt":p_expanded})
         save_state(state, session_id)
         
         # Use NLG for intro and first question
