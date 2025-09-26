@@ -164,7 +164,8 @@
       "urgent": "Your adrenal symptoms need urgent medical attention. Please see your doctor promptly.",
       "non_urgent": "Your adrenal symptoms appear mild. Follow up with your doctor soon."
     },
-    "recap": "{summary}. Overall this is classified as {severity}."
+    "clinical_summary": "Your symptoms are suggestive of an endocrine condition that requires medical evaluation to rule out serious causes and determine appropriate treatment.",
+    "recap": "{summary}. {clinical_summary} Overall this is classified as {severity}."
   }
 }
 

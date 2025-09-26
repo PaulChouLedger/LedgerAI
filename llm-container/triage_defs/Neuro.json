@@ -523,6 +523,7 @@
       "urgent": "Your headache requires urgent medical evaluation to rule out serious causes. Please see a doctor soon.",
       "non_urgent": "Your headache with migraine features (nausea, light/sound sensitivity) is likely a migraine. Rest in a dark, quiet room and consider over-the-counter pain relief. Follow up with your doctor if symptoms worsen or persist."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "clinical_summary": "Your symptoms are suggestive of a neurological condition that requires medical evaluation to rule out serious causes and determine appropriate treatment.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   }
 }

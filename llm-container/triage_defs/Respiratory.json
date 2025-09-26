@@ -359,6 +359,7 @@
       "urgent": "Your apnea symptoms need urgent medical evaluation.",
       "non_urgent": "None."
     },
-    "recap": "{summary}. Overall this is classified as {severity}."
+    "clinical_summary": "Your symptoms are suggestive of a respiratory condition that requires medical evaluation to rule out serious causes and determine appropriate treatment.",
+    "recap": "{summary}. {clinical_summary} Overall this is classified as {severity}."
   }
 }

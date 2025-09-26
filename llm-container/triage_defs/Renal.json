@@ -189,6 +189,7 @@
       "urgent": "Your kidney failure requires urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Your kidney symptoms appear mild. Follow up with your doctor."
     },
-    "recap": "{summary}. Overall this is classified as {severity}."
+    "clinical_summary": "Your symptoms are suggestive of a renal condition that requires medical evaluation to rule out serious causes and determine appropriate treatment.",
+    "recap": "{summary}. {clinical_summary} Overall this is classified as {severity}."
   }
 }

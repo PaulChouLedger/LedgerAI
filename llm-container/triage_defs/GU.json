@@ -260,6 +260,7 @@
       "urgent": "Your testicular pain requires urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Mild testicular pain may not be emergent, but follow up is important."
     },
-    "recap": "{summary}. Overall this is classified as {severity}."
+    "clinical_summary": "Your symptoms are suggestive of a genitourinary condition that requires medical evaluation to rule out serious causes and determine appropriate treatment.",
+    "recap": "{summary}. {clinical_summary} Overall this is classified as {severity}."
   }
 }

@@ -385,6 +385,7 @@
       "urgent": "Your dizziness may need urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Mild dizziness without concerning features may be benign, but follow up with your doctor is advised."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "clinical_summary": "Your symptoms are suggestive of a cardiovascular condition that requires medical evaluation to rule out serious causes and determine appropriate treatment.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   }
 }

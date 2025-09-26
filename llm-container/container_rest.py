@@ -447,6 +447,10 @@ def build_recap(cond, answers, flags, severity):
                 if not is_redundant:
                     clean_opts.append(opt)
             
+            # Debug logging for redundancy removal
+            print(f"[Aura-LLM] 🔍 Original options: {opts}")
+            print(f"[Aura-LLM] 🔍 Clean options: {clean_opts}")
+            
             if clean_opts:
                 ans_out = f"reported {pretty_join(clean_opts, 'and')}"
             else:
@@ -525,9 +529,12 @@ def build_recap(cond, answers, flags, severity):
     summary = re.sub(r"([.!?]){2,}", r"\1", summary)
     summary = re.sub(r",\s+\.", ".", summary)
 
+    # Get clinical summary from JSON if available
+    clinical_summary = TRIAGE_DEFS[cond].get("clinical_summary", "")
+    
     recap_tpl = TRIAGE_DEFS[cond].get("recap","{summary} Overall this is classified as {severity}.")
     return substitute_name(
-        recap_tpl.format(summary=summary,severity=severity,name=state.get("user_name") or ""),
+        recap_tpl.format(summary=summary,severity=severity,clinical_summary=clinical_summary,name=state.get("user_name") or ""),
         state.get("user_name")
     )
 
