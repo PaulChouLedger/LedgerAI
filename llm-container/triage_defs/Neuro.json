@@ -194,7 +194,7 @@
       "unilateral weakness"
     ],
     "intro": "{name}, your symptoms may suggest a stroke. Let me ask you some focused questions.",
-    "priority_keys": ["onset", "face", "limb_involvement", "speech", "speech_output", "vision_loss", "vision_double"],
+    "priority_keys": ["onset", "limb_involvement", "face", "speech", "speech_output", "vision_loss", "vision_double"],
     "steps": [
       {
         "key": "onset",
@@ -211,15 +211,6 @@
         }
       },
       {
-        "key": "face",
-        "question": "Is there facial droop on one side?",
-        "recap_template": "You {answer} facial droop",
-        "answers": {
-          "yes": "emergency",
-          "no": "non_urgent"
-        }
-      },
-      {
         "key": "limb_involvement",
         "question": "Is the weakness in your arm, leg, or both?",
         "recap_template": "Weakness involves {answer}",
@@ -228,6 +219,15 @@
           "leg": "emergency",
           "both": "emergency",
           "arm and leg": "emergency"
+        }
+      },
+      {
+        "key": "face",
+        "question": "Is there facial droop on one side?",
+        "recap_template": "You {answer} facial droop",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
         }
       },
       {
