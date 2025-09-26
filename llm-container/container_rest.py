@@ -130,10 +130,12 @@ def apply_synonym_expansion(text):
     all_variations.sort(key=lambda x: x[0], reverse=True)
     
     for length, variation, standard_term in all_variations:
-        if variation.lower() in expanded_text.lower():
+        # Use word boundaries to avoid partial matches (e.g., "weak" in "weakness")
+        pattern = r'\b' + re.escape(variation) + r'\b'
+        if re.search(pattern, expanded_text, re.IGNORECASE):
             print(f"[Aura-LLM] 🔄 Synonym expansion: '{variation}' -> '{standard_term}'")
-            # Use case-insensitive replacement
-            expanded_text = re.sub(re.escape(variation), standard_term, expanded_text, flags=re.IGNORECASE)
+            # Use case-insensitive replacement with word boundaries
+            expanded_text = re.sub(pattern, standard_term, expanded_text, flags=re.IGNORECASE)
             # Stop after first match to avoid nested replacements
             break
     
