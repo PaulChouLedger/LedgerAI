@@ -376,8 +376,7 @@
       "can't move arm",
       "cant move leg",
       "can't move leg",
-      "one sided numbness",
-      "one sided weakness"
+      "one sided numbness"
     ],
     "intro": "{name}, I see you’ve developed focal weakness or numbness. Let me ask you a few questions.",
     "priority_keys": ["one_side", "face", "arm", "leg", "sudden"],
