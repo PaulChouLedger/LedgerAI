@@ -498,30 +498,23 @@ def chat():
             # Check for casual greetings
             casual_greetings = ["hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]
             if any(greeting in prompt_norm for greeting in casual_greetings):
-                print(f"[Aura-LLM] 💬 Processing casual greeting: '{prompt}'")
                 msgs=[{"role":"system","content":"I am AuraVision, your friendly personal assistant. Respond warmly to greetings and ask how I can help."},
                       {"role":"user","content":prompt}]
             else:
-                print(f"[Aura-LLM] 💬 Processing casual conversation: '{prompt}'")
                 msgs=[{"role":"system","content":"I am AuraVision, your friendly personal assistant."},
                       {"role":"user","content":prompt}]
             try:
                 stream=llm.create_chat_completion(messages=msgs,stream=True)
                 casual_buf=""
-                print(f"[Aura-LLM] 🔄 Starting casual mode response generation...")
                 for ch in stream:
                     tok=ch.get("choices",[{}])[0].get("delta",{}).get("content","")
                     if not tok: continue; 
                     casual_buf+=tok
-                    print(f"[Aura-LLM] 🔄 Token: '{tok}' (casual_buf: '{casual_buf}')")
                     if re.search(r"[.!?]['\")\]]?\s*$",casual_buf):
-                        print(f"[Aura-LLM] 🔄 Yielding sentence: '{casual_buf.strip()}'")
                         yield f"<sentence_start>\n{casual_buf.strip()}\n<sentence_end>\n"; casual_buf=""
                 # Yield any remaining content
                 if casual_buf.strip():
-                    print(f"[Aura-LLM] 🔄 Yielding remaining: '{casual_buf.strip()}'")
                     yield f"<sentence_start>\n{casual_buf.strip()}\n<sentence_end>\n"
-                print(f"[Aura-LLM] 🔄 Casual mode response complete")
             except Exception as e:
                 print(f"[Aura-LLM] ❌ Error in casual mode: {e}")
                 yield f"<sentence_start>\nHello! I'm AuraVision, your friendly personal assistant. How can I help you today?\n<sentence_end>\n"
