@@ -25,7 +25,7 @@
       }
     ],
     "outcomes": {
-      "emergency": "Dysuria with fever or flank pain may indicate pyelonephritis. Seek emergency care immediately.",
+      "emergency": "Dysuria with flank pain may indicate pyelonephritis. Seek emergency care immediately.",
       "urgent": "Your dysuria requires urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Your dysuria may be mild, but follow up with your doctor is recommended."
     },
@@ -91,7 +91,7 @@
       }
     ],
     "outcomes": {
-      "emergency": "Flank pain with fever may indicate infected kidney stones. Seek emergency care immediately.",
+      "emergency": "Flank pain may indicate infected kidney stones. Seek emergency care immediately.",
       "urgent": "Your flank pain requires urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Your flank pain may be mild, but follow up is important."
     },
@@ -155,7 +155,7 @@
       }
     ],
     "outcomes": {
-      "emergency": "Urinary frequency with fever may indicate infection. Please seek emergency care immediately.",
+      "emergency": "Urinary frequency may indicate infection. Please seek emergency care immediately.",
       "urgent": "Your urinary symptoms require urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Your urinary frequency may be benign, but follow up with your doctor is advised."
     },
@@ -221,7 +221,7 @@
       }
     ],
     "outcomes": {
-      "emergency": "Pelvic pain with fever may indicate a serious infection. Please seek emergency care immediately.",
+      "emergency": "Pelvic pain may indicate a serious infection. Please seek emergency care immediately.",
       "urgent": "Your pelvic pain requires urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Your pelvic pain does not sound emergent, but follow up is recommended."
     },

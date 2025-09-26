@@ -519,7 +519,7 @@
       }
     ],
     "outcomes": {
-      "emergency": "Headache with sudden severe onset, neurologic symptoms, neck stiffness with fever, exertional onset, or head injury may indicate a serious condition. Please seek emergency care immediately.",
+      "emergency": "Headache with sudden severe onset, neurologic symptoms, neck stiffness, exertional onset, or head injury may indicate a serious condition. Please seek emergency care immediately.",
       "urgent": "Your headache requires urgent medical evaluation to rule out serious causes. Please see a doctor soon.",
       "non_urgent": "Your headache with migraine features (nausea, light/sound sensitivity) is likely a migraine. Rest in a dark, quiet room and consider over-the-counter pain relief. Follow up with your doctor if symptoms worsen or persist."
     },

@@ -118,7 +118,7 @@
   },
 
   "uti": {
-    "triggers": ["urinary infection", "uti", "pain with urination", "burning urine"],
+    "triggers": ["urinary infection", "uti", "pain with urination", "burning urine", "burns when I urinate", "it burns when I urinate", "burning when I pee", "pain when I pee", "stinging when I urinate", "discomfort when urinating"],
     "steps": [
       {
         "key": "symptoms",
@@ -151,7 +151,7 @@
       }
     ],
     "outcomes": {
-      "emergency": "Your UTI symptoms with fever or flank pain may indicate a kidney infection. Please seek emergency care.",
+      "emergency": "Your UTI symptoms with flank pain may indicate a kidney infection. Please seek emergency care.",
       "urgent": "Your urinary symptoms suggest an infection that needs urgent evaluation. Please see a doctor.",
       "non_urgent": "Your urinary symptoms are mild. Follow up with your doctor."
     },

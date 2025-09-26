@@ -86,8 +86,8 @@
           }
         ],
         "outcomes": {
-          "emergency": "Right upper quadrant pain with jaundice and fever strongly suggests acute cholangitis (Charcot’s triad). This is a medical emergency — seek immediate emergency care.",
-          "urgent": "Right upper quadrant pain with fever, nausea, or vomiting may suggest acute cholecystitis and needs urgent evaluation.",
+          "emergency": "Right upper quadrant pain with jaundice strongly suggests acute cholangitis. This is a medical emergency — seek immediate emergency care.",
+          "urgent": "Right upper quadrant pain with nausea or vomiting may suggest acute cholecystitis and needs urgent evaluation.",
           "non_urgent": "Mild right upper quadrant discomfort without systemic symptoms may be non-urgent but should be followed up."
         }
       },
@@ -191,7 +191,7 @@
           }
         ],
         "outcomes": {
-          "emergency": "Right lower quadrant pain with fever, rebound, or vomiting is highly concerning for appendicitis. Please seek emergency care immediately.",
+          "emergency": "Right lower quadrant pain with rebound or vomiting is highly concerning for appendicitis. Please seek emergency care immediately.",
           "urgent": "Right lower quadrant pain without systemic signs should be evaluated urgently to rule out early appendicitis.",
           "non_urgent": "Mild right lower quadrant discomfort may be non-urgent but should still be followed up."
         }
@@ -409,7 +409,7 @@
       }
     ],
     "outcomes": {
-      "emergency": "Bloody stools with black/tarry appearance, large amounts of blood, abdominal pain, fever, or dizziness may indicate a serious GI bleed. Please seek emergency care immediately.",
+      "emergency": "Bloody stools with black/tarry appearance, large amounts of blood, abdominal pain, or dizziness may indicate a serious GI bleed. Please seek emergency care immediately.",
       "urgent": "Bloody stools require urgent medical evaluation to determine the cause and appropriate treatment. Please see a doctor soon."
     },
     "recap": "{name}, {summary} Overall this is classified as {severity}."
