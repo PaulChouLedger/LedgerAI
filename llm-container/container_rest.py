@@ -93,6 +93,41 @@ def normalize_text(t):
     return t.lower().translate(str.maketrans("", "", string.punctuation)).strip()
 def tokenize(t): return normalize_text(t).split()
 
+# === Synonym expansion ===
+def apply_synonym_expansion(text):
+    """Apply synonym expansion to normalize medical terms"""
+    # Load synonyms from all files
+    synonym_files = [
+        "/app/synonyms/gi_synonyms.json",
+        "/app/synonyms/gu_synonyms.json", 
+        "/app/synonyms/neuro_synonyms.json",
+        "/app/synonyms/cardio_synonyms.json",
+        "/app/synonyms/derm_synonyms.json",
+        "/app/synonyms/endocrine_synonyms.json",
+        "/app/synonyms/resp_synonyms.json",
+        "/app/synonyms/renal_synonyms.json"
+    ]
+    
+    synonyms = {}
+    for file_path in synonym_files:
+        if os.path.exists(file_path):
+            try:
+                with open(file_path, 'r') as f:
+                    file_synonyms = json.load(f)
+                    synonyms.update(file_synonyms)
+            except Exception as e:
+                print(f"[Aura-LLM] ⚠️ Failed to load synonyms from {file_path}: {e}")
+    
+    # Apply synonym expansion
+    expanded_text = text
+    for standard_term, variations in synonyms.items():
+        for variation in variations:
+            if variation.lower() in expanded_text.lower():
+                expanded_text = expanded_text.replace(variation, standard_term)
+                print(f"[Aura-LLM] 🔄 Expanded '{variation}' -> '{standard_term}'")
+    
+    return expanded_text
+
 def substitute_name(text, user_name):
     if not text: return text
     if "{name}" in text:
@@ -151,12 +186,22 @@ def detect_condition(prompt, session_id: str | None = None):
         print(f"[Aura-LLM] 💬 Casual greeting detected: '{p}' -> no triage trigger")
         return None
     
+    # Apply synonym expansion
+    p_expanded = apply_synonym_expansion(p)
+    print(f"[Aura-LLM] 🔄 Expanded prompt: '{p_expanded}'")
+    
     for cond, data in TRIAGE_DEFS.items():
         triggers = data.get("triggers", [])
         for trig in triggers:
             trig_norm = normalize_text(trig)
-            if trig_norm in p:
-                print(f"[Aura-LLM] ✅ Matched trigger '{trig}' for '{cond}'")
+            # Try exact match first
+            if trig_norm in p_expanded:
+                print(f"[Aura-LLM] ✅ Exact match trigger '{trig}' for '{cond}'")
+                return cond
+            # Try fuzzy match with 0.6 threshold
+            opt, score = match_answer_option(p_expanded, {trig: 1})
+            if opt and score >= MIN_MATCH:
+                print(f"[Aura-LLM] ✅ Fuzzy match trigger '{trig}' for '{cond}' (score: {score:.2f})")
                 return cond
     return None
 
