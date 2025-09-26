@@ -199,9 +199,11 @@ def detect_condition(prompt, session_id: str | None = None):
                 print(f"[Aura-LLM] ✅ Exact match trigger '{trig}' for '{cond}'")
                 return cond
             # Try fuzzy match with 0.6 threshold
-            opt, score = match_answer_option(p_expanded, {trig: 1})
-            if opt and score >= MIN_MATCH:
-                print(f"[Aura-LLM] ✅ Fuzzy match trigger '{trig}' for '{cond}' (score: {score:.2f})")
+            ans_tokens = set(tokenize(p_expanded))
+            trig_tokens = set(tokenize(trig_norm))
+            overlap = len(ans_tokens & trig_tokens) / float(len(trig_tokens)) if trig_tokens else 0
+            if overlap >= MIN_MATCH:
+                print(f"[Aura-LLM] ✅ Fuzzy match trigger '{trig}' for '{cond}' (score: {overlap:.2f})")
                 return cond
     return None
 

@@ -440,5 +440,84 @@
       "urgent": "Bloody stools require urgent medical evaluation to determine the cause and appropriate treatment. Please see a doctor soon."
     },
     "recap": "{name}, {summary} Overall this is classified as {severity}."
+  },
+
+  "jaundice": {
+    "triggers": [
+      "jaundice",
+      "yellow skin",
+      "yellow eyes",
+      "yellowing of skin",
+      "yellowing of eyes",
+      "yellow discoloration",
+      "yellow tint"
+    ],
+    "intro": "{name}, I understand you're experiencing jaundice (yellowing of the skin or eyes). This requires immediate evaluation to determine the cause.",
+    "priority_keys": [
+      "onset", "fever", "pain", "nausea", "vomiting", "dark_urine", "pale_stool"
+    ],
+    "steps": [
+      {
+        "key": "onset",
+        "question": "When did you first notice the yellowing?",
+        "recap_template": "Jaundice started {answer}",
+        "answers": {
+          "sudden": "emergency",
+          "gradual": "urgent",
+          "days": "urgent",
+          "weeks": "urgent"
+        }
+      },
+      {
+        "key": "fever",
+        "question": "Do you have fever?",
+        "recap_template": "You {answer} fever",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "pain",
+        "question": "Do you have abdominal pain, especially in the right upper area?",
+        "recap_template": "You {answer} abdominal pain",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "nausea",
+        "question": "Do you have nausea or vomiting?",
+        "recap_template": "You {answer} nausea or vomiting",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "dark_urine",
+        "question": "Is your urine darker than usual?",
+        "recap_template": "You {answer} dark urine",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "pale_stool",
+        "question": "Are your stools pale or clay-colored?",
+        "recap_template": "You {answer} pale stools",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Jaundice with fever, abdominal pain, nausea, dark urine, or pale stools may indicate acute liver or bile duct problems. Please seek emergency care immediately.",
+      "urgent": "Jaundice requires urgent medical evaluation to determine the cause and appropriate treatment. Please see a doctor soon."
+    },
+    "recap": "{name}, {summary} Overall this is classified as {severity}."
   }
 }
