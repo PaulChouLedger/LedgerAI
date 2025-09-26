@@ -476,6 +476,9 @@ def build_recap(cond, answers, flags, severity):
             line = f"You reported {tail} with {ans_out}"
         else:
             line = templ.format(answer=ans_out).strip()
+            
+        # Debug logging for recap generation
+        print(f"[Aura-LLM] 🔍 Recap step: key='{key}', ans_out='{ans_out}', line='{line}', is_priority={key in pk}")
 
         if key in pk:
             if "denied" in line.lower():
@@ -501,11 +504,18 @@ def build_recap(cond, answers, flags, severity):
     priority_positives = _dedup(priority_positives)
     priority_negatives = _dedup(priority_negatives)
 
+    # Debug logging for recap categorization
+    print(f"[Aura-LLM] 🔍 Recap categorization:")
+    print(f"[Aura-LLM] 🔍 Priority positives: {priority_positives}")
+    print(f"[Aura-LLM] 🔍 Priority negatives: {priority_negatives}")
+    print(f"[Aura-LLM] 🔍 Regular positives: {positives}")
+    print(f"[Aura-LLM] 🔍 Regular negatives: {negatives}")
+    
     # Priority first, clinician-style phrasing without colons
     if priority_positives:
         parts.append("You reported key symptoms including " + pretty_join(priority_positives, "and") + ".")
-    # Only include denied key symptoms if some key symptoms were reported
-    if priority_positives and priority_negatives:
+    # Always include denied key symptoms - they're important for clinical assessment
+    if priority_negatives:
         parts.append("You denied key symptoms of " + pretty_join(priority_negatives, "or") + ".")
     if positives: parts.append("You reported " + pretty_join(positives, "and") + ".")
     if negatives: parts.append("You denied " + pretty_join(negatives, "or") + ".")
