@@ -100,16 +100,12 @@ def substitute_name(text, user_name):
 
 # === Name extraction ===
 def extract_name(prompt):
-    print(f"[Aura-LLM] 🔍 Extracting name from: '{prompt}'")
     m = re.search(r"(?:my name is|i am|i'm|my name's)\s+([A-Za-z .'-]+)", prompt, re.IGNORECASE)
     if not m: 
-        print(f"[Aura-LLM] ❌ No name pattern found")
         return None
     raw = m.group(1).strip()
-    print(f"[Aura-LLM] 🔍 Raw name match: '{raw}'")
     # Split on medical keywords or common separators, but be more careful with "and"
     raw = re.split(r"\b(having|with|experiencing|suffering|complaining|reporting)\b|,|\.", raw, 1)[0].strip()
-    print(f"[Aura-LLM] 🔍 After medical split: '{raw}'")
     # Handle "and" more carefully - only split if it's followed by medical terms
     if " and " in raw:
         # Check if "and" is followed by medical terms
@@ -119,15 +115,12 @@ def extract_name(prompt):
             medical_after_and = any(term in after_and for term in ["pain", "ache", "headache", "chest", "abdominal", "stomach", "nausea", "dizzy", "fever", "cough"])
             if medical_after_and:
                 raw = and_parts[0].strip()
-                print(f"[Aura-LLM] 🔍 After 'and' split: '{raw}'")
     
     parts = raw.split()
     if not parts or len(parts) > 3: 
-        print(f"[Aura-LLM] ❌ Invalid name parts: {parts}")
         return None
     blacklist = {"pain","cough","fever","dizziness","weakness","nausea","vomiting","abdominal","chest"}
     if any(p.lower() in blacklist for p in parts): 
-        print(f"[Aura-LLM] ❌ Name contains blacklisted terms: {parts}")
         return None
     fixed = [p.capitalize() for p in parts]
     result = " ".join(fixed)
@@ -140,12 +133,9 @@ def detect_condition(prompt, session_id: str | None = None):
     name = extract_name(prompt)
     if name:
         state = load_state(session_id)
-        print(f"[Aura-LLM] 🔍 Previous user name: {state.get('user_name')}")
         state["user_name"] = name
         save_state(state, session_id)
         print(f"[Aura-LLM] 👤 User name set: {name}")
-        print(f"[Aura-LLM] 🔍 Session state after name update: {state}")
-    print(f"[Aura-LLM] 🔍 Normalized prompt: {p}")
     
     # Check for casual greetings first - don't trigger triage for these
     casual_greetings = ["hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]
@@ -153,17 +143,13 @@ def detect_condition(prompt, session_id: str | None = None):
         print(f"[Aura-LLM] 💬 Casual greeting detected: '{p}' -> no triage trigger")
         return None
         
-    print(f"[Aura-LLM] 🔍 Available triage conditions: {list(TRIAGE_DEFS.keys())}")
     for cond, data in TRIAGE_DEFS.items():
         triggers = data.get("triggers", [])
-        print(f"[Aura-LLM] 🔍 Condition '{cond}' has triggers: {triggers}")
         for trig in triggers:
             trig_norm = normalize_text(trig)
-            print(f"[Aura-LLM] 🔍 Checking trigger '{trig}' (normalized: '{trig_norm}') against prompt '{p}'")
             if trig_norm in p:
                 print(f"[Aura-LLM] ✅ Matched trigger '{trig}' for '{cond}'")
                 return cond
-    print(f"[Aura-LLM] ❌ No triage trigger matched for: '{p}'")
     return None
 
 # === Answer matching ===
@@ -401,7 +387,7 @@ def chat():
     if any(k in prompt_norm for k in RESET_KEYWORDS):
         do_reset = True
     if not prompt: return jsonify({"error":"Missing prompt"}),400
-    print(f"[Aura-LLM] 🔍 Session ID: {session_id}, Prompt: '{prompt}', Reset: {do_reset}")
+    print(f"[Aura-LLM] 💬 Session: {session_id}, Prompt: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}', Reset: {do_reset}")
     state=load_state(session_id)
 
     if do_reset:
@@ -495,9 +481,7 @@ def chat():
 
     # New triage or casual
     condition=detect_condition(prompt, session_id); state=load_state(session_id)
-    print(f"[Aura-LLM] 🔍 Loaded state after reset: {state}")
     print(f"[Aura-LLM] 🔍 Detected condition: {condition}")
-    print(f"[Aura-LLM] 🔍 Current user name in state: {state.get('user_name')}")
     def generate():
         nonlocal condition, prompt, state
         if not condition:
