@@ -84,7 +84,13 @@ def triage_is_stale(state, minutes=5):
         return False
 
 # === Utils ===
-def normalize_text(t): return t.lower().translate(str.maketrans("", "", string.punctuation)).strip()
+def normalize_text(t): 
+    # Remove emojis and other Unicode characters, keep only ASCII letters, numbers, and spaces
+    import re
+    # Remove emojis and non-ASCII characters
+    t = re.sub(r'[^\x00-\x7F]+', '', t)
+    # Remove punctuation and convert to lowercase
+    return t.lower().translate(str.maketrans("", "", string.punctuation)).strip()
 def tokenize(t): return normalize_text(t).split()
 
 def substitute_name(text, user_name):
@@ -130,6 +136,8 @@ def extract_name(prompt):
 # === Condition detection ===
 def detect_condition(prompt, session_id: str | None = None):
     p = normalize_text(prompt)
+    print(f"[Aura-LLM] 🔍 Original prompt: '{prompt}'")
+    print(f"[Aura-LLM] 🔍 Normalized prompt: '{p}'")
     name = extract_name(prompt)
     if name:
         state = load_state(session_id)
