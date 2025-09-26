@@ -57,6 +57,8 @@ def rewrite(
         "Do NOT change 'Are you older than 50?' to 'Do you feel older than 50?' - these have different meanings. "
         "IMPORTANT: Do NOT add professional titles like 'nurse', 'doctor', 'physician' unless they are in the original text. "
         "Keep the language neutral and professional without adding unnecessary titles. "
+        "CRITICAL: Do NOT add unnecessary words like 'acknowledge', 'understand', 'recognize' unless they improve clarity. "
+        "If the original text is already clear and clinical, make minimal changes. "
         "CRITICAL: Make questions clear and contextual. If a patient mentions 'dark stools', don't ask 'Do you have bloody stools?' - ask about the specific color or characteristics instead. "
         "FOR RECAPS: Preserve ALL clinical details including specific symptoms, denied symptoms, and clinical assessments. Do not summarize away important medical information. "
         "IMPORTANT: Do NOT add temporal references like 'today', 'now', 'currently', 'at this time' unless they are in the original text. Keep the language timeless and clinical."
