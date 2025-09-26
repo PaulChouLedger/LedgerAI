@@ -501,13 +501,14 @@
     "steps": [
       {
         "key": "color",
-        "question": "What color is the blood - bright red, dark red, or black/tarry?",
-        "recap_template": "Blood color: {answer}",
+        "question": "Is the dark color more black/tarry or more red/maroon?",
+        "recap_template": "Stool color: {answer}",
         "answers": {
-          "bright red": "urgent",
-          "dark red": "urgent", 
           "black": "emergency",
-          "tarry": "emergency"
+          "tarry": "emergency",
+          "red": "urgent",
+          "maroon": "urgent",
+          "bright red": "urgent"
         }
       },
       {

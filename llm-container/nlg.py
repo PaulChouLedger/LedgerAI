@@ -56,7 +56,8 @@ def rewrite(
         "CRITICAL: For factual questions (age, timing, history, yes/no facts), preserve the exact meaning. "
         "Do NOT change 'Are you older than 50?' to 'Do you feel older than 50?' - these have different meanings. "
         "IMPORTANT: Do NOT add professional titles like 'nurse', 'doctor', 'physician' unless they are in the original text. "
-        "Keep the language neutral and professional without adding unnecessary titles."
+        "Keep the language neutral and professional without adding unnecessary titles. "
+        "CRITICAL: Make questions clear and contextual. If a patient mentions 'dark stools', don't ask 'Do you have bloody stools?' - ask about the specific color or characteristics instead."
     )
 
     # Few-shot style hints per role
