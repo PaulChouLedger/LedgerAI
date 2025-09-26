@@ -28,7 +28,7 @@ llm = Llama(
     verbose=False,
 )
 
-MIN_MATCH = float(os.getenv("TRIAGE_MIN_MATCH", "0.6"))
+MIN_MATCH = float(os.getenv("TRIAGE_MIN_MATCH", "0.5"))
 
 STATE_DIR = os.getenv("TRIAGE_STATE_DIR", "/app/state")
 os.makedirs(STATE_DIR, exist_ok=True)

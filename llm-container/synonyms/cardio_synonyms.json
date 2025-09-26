@@ -56,12 +56,15 @@
     "lethargic"
   ],
   "radiation": [
-    "arm",
-    "neck",
-    "jaw",
-    "back",
-    "shoulder",
-    "left arm",
-    "right arm"
+    "spreads to arm",
+    "spreads to neck", 
+    "spreads to jaw",
+    "spreads to back",
+    "spreads to shoulder",
+    "radiates to arm",
+    "radiates to neck",
+    "radiates to jaw",
+    "radiates to back",
+    "radiates to shoulder"
   ]
 }

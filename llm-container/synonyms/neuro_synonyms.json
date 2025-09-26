@@ -38,12 +38,18 @@
   "weakness": [
     "weak",
     "loss of strength",
-    "can’t move",
+    "can't move",
     "can't move",
     "paralysis",
     "limb weakness",
     "arm weakness",
-    "leg weakness"
+    "leg weakness",
+    "weakness in arm",
+    "weakness in one arm",
+    "weak arm",
+    "one sided weakness",
+    "one-sided weakness",
+    "unilateral weakness"
   ],
   "numbness": [
     "tingling",
