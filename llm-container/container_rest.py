@@ -677,6 +677,8 @@ def chat():
         steps=get_steps(cond,state)
         step_list=[s if isinstance(s,dict) else {"key":None,"question":str(s)} for s in steps]
         cur_step=step_list[idx-1] if idx>0 else step_list[0]
+        print(f"[Aura-LLM] 🔍 Current step index: {idx}, Total steps: {len(step_list)}")
+        print(f"[Aura-LLM] 🔍 Step keys: {[s.get('key') for s in step_list]}")
         cur_key=state.get("last_key") or cur_step.get("key"); answer=prompt
 
         def generate():
@@ -712,6 +714,7 @@ def chat():
 
             if idx < len(step_list):
                 nxt=step_list[idx]; state.update({"step_index":idx+1,"last_key":nxt.get("key")}); save_state(state, session_id)
+                print(f"[Aura-LLM] 🔍 Asking step {idx+1}/{len(step_list)}: {nxt.get('key')} - {nxt.get('question')}")
                 raw_q = substitute_name(nxt.get('question',''),state.get('user_name'))
                 q = nlg_rewrite(raw_q, "question", {"name":state.get("user_name"),"condition":cond,"pathway":state.get("active_pathway"),"key":nxt.get('key'),"allowed_answers": list(nxt.get('answers',{}).keys())}, state.get("phrasing_history"), llm_chat_once)
                 add_phrasing_fingerprint(state, q)
