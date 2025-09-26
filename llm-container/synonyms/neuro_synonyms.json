@@ -43,22 +43,33 @@
     "paralysis",
     "limb weakness"
   ],
-  "one sided weakness": [
-    "weakness in arm",
-    "weakness in one arm",
+  "leg weakness": [
     "weakness in leg",
     "weakness in my leg",
+    "weak leg",
+    "lower extremity weakness",
+    "foot weakness",
+    "leg numbness",
+    "weakness in legs"
+  ],
+  "arm weakness": [
+    "weakness in arm",
+    "weakness in one arm",
     "weak arm",
-    "arm weakness",
-    "leg weakness",
-    "one-sided weakness",
-    "unilateral weakness",
+    "upper extremity weakness",
+    "hand weakness",
+    "arm numbness",
+    "weakness in arms"
+  ],
+  "one sided weakness": [
+    "right side weakness",
+    "left side weakness",
     "weakness on my right side",
     "weakness on my left side",
     "weakness on right side",
     "weakness on left side",
-    "right side weakness",
-    "left side weakness"
+    "one-sided weakness",
+    "unilateral weakness"
   ],
   "numbness": [
     "tingling",

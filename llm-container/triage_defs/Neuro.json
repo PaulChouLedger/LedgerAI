@@ -1,21 +1,105 @@
 {
-  "stroke_suspected": {
+  "stroke_leg_weakness": {
     "triggers": [
-      "stroke",
-      "tia",
-      "mini stroke",
-      "one sided weakness",
-      "one-sided weakness",
-      "face droop",
-      "facial droop",
-      "slurred speech",
-      "speech trouble",
-      "sudden vision loss",
-      "sudden blindness",
-      "sudden numbness",
-      "sudden weakness",
-      "ataxia",
-      "trouble walking"
+      "leg weakness",
+      "weakness in leg",
+      "weakness in my leg",
+      "weak leg",
+      "lower extremity weakness",
+      "foot weakness",
+      "leg numbness",
+      "weakness in legs"
+    ],
+    "intro": "{name}, your symptoms may suggest a stroke. Let me ask you some focused questions.",
+    "priority_keys": ["onset", "face", "leg_weakness", "speech", "speech_output", "vision_loss", "vision_double"],
+    "steps": [
+      {
+        "key": "onset",
+        "question": "When did the symptoms start (or when were you last known well)?",
+        "recap_template": "Symptoms began {answer}",
+        "answers": {
+          "within 4.5 hours": "emergency",
+          "within 6 hours": "emergency",
+          "12 hours ago": "emergency",
+          "today": "emergency",
+          "yesterday": "urgent",
+          "days ago": "urgent",
+          "unknown": "urgent"
+        }
+      },
+      {
+        "key": "face",
+        "question": "Is there facial droop on one side?",
+        "recap_template": "You {answer} facial droop",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "leg_weakness",
+        "question": "Is there numbness in your leg as well?",
+        "recap_template": "You {answer} leg numbness",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "speech",
+        "question": "Is your speech slurred?",
+        "recap_template": "You {answer} slurred speech",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "speech_output",
+        "question": "Are you having trouble getting words out?",
+        "recap_template": "You {answer} trouble with word output",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "vision_loss",
+        "question": "Have you had sudden vision loss?",
+        "recap_template": "You {answer} sudden vision loss",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "vision_double",
+        "question": "Are you seeing double?",
+        "recap_template": "You {answer} double vision",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "These symptoms are highly concerning for acute stroke. Please seek emergency care immediately or call 911.",
+      "urgent": "Your neurological symptoms need urgent evaluation. Please see a doctor as soon as possible today.",
+      "non_urgent": "Your symptoms do not sound emergent, but follow up with your doctor promptly is recommended."
+    },
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+  },
+
+  "stroke_arm_weakness": {
+    "triggers": [
+      "arm weakness",
+      "weakness in arm",
+      "weakness in one arm",
+      "weak arm",
+      "upper extremity weakness",
+      "hand weakness",
+      "arm numbness",
+      "weakness in arms"
     ],
     "intro": "{name}, your symptoms may suggest a stroke. Let me ask you some focused questions.",
     "priority_keys": ["onset", "face", "arm_weakness", "speech", "speech_output", "vision_loss", "vision_double"],
@@ -63,8 +147,8 @@
       },
       {
         "key": "speech_output",
-        "question": "Are you having trouble getting words out?",
-        "recap_template": "You {answer} trouble with word output",
+        "question": "Do you have trouble finding words or speaking clearly?",
+        "recap_template": "You {answer} speech difficulty",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -72,8 +156,8 @@
       },
       {
         "key": "vision_loss",
-        "question": "Have you had sudden vision loss?",
-        "recap_template": "You {answer} sudden vision loss",
+        "question": "Do you have sudden vision loss or blindness?",
+        "recap_template": "You {answer} vision loss",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -81,7 +165,7 @@
       },
       {
         "key": "vision_double",
-        "question": "Are you seeing double?",
+        "question": "Do you have double vision?",
         "recap_template": "You {answer} double vision",
         "answers": {
           "yes": "emergency",
@@ -90,9 +174,103 @@
       }
     ],
     "outcomes": {
-      "emergency": "These symptoms are highly concerning for acute stroke. Please seek emergency care immediately or call 911.",
-      "urgent": "Your neurological symptoms need urgent evaluation. Please see a doctor as soon as possible today.",
-      "non_urgent": "Your symptoms do not sound emergent, but follow up with your doctor promptly is recommended."
+      "emergency": "Your symptoms suggest a possible stroke. This requires immediate emergency evaluation. Call 911 or go to the nearest emergency room immediately.",
+      "urgent": "Your symptoms may indicate a stroke or transient ischemic attack (TIA). You should seek urgent medical evaluation within 24 hours.",
+      "non_urgent": "Your symptoms are concerning but may not be stroke-related. You should still see a healthcare provider for evaluation."
+    },
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+  },
+
+  "stroke_sided_weakness": {
+    "triggers": [
+      "right side weakness",
+      "left side weakness",
+      "weakness on my right side",
+      "weakness on my left side",
+      "weakness on right side",
+      "weakness on left side",
+      "one sided weakness",
+      "one-sided weakness",
+      "unilateral weakness"
+    ],
+    "intro": "{name}, your symptoms may suggest a stroke. Let me ask you some focused questions.",
+    "priority_keys": ["onset", "face", "limb_involvement", "speech", "speech_output", "vision_loss", "vision_double"],
+    "steps": [
+      {
+        "key": "onset",
+        "question": "When did the symptoms start (or when were you last known well)?",
+        "recap_template": "Symptoms began {answer}",
+        "answers": {
+          "within 4.5 hours": "emergency",
+          "within 6 hours": "emergency",
+          "12 hours ago": "emergency",
+          "today": "emergency",
+          "yesterday": "urgent",
+          "days ago": "urgent",
+          "unknown": "urgent"
+        }
+      },
+      {
+        "key": "face",
+        "question": "Is there facial droop on one side?",
+        "recap_template": "You {answer} facial droop",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "limb_involvement",
+        "question": "Is the weakness in your arm, leg, or both?",
+        "recap_template": "Weakness involves {answer}",
+        "answers": {
+          "arm": "emergency",
+          "leg": "emergency",
+          "both": "emergency",
+          "arm and leg": "emergency"
+        }
+      },
+      {
+        "key": "speech",
+        "question": "Is your speech slurred?",
+        "recap_template": "You {answer} slurred speech",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "speech_output",
+        "question": "Do you have trouble finding words or speaking clearly?",
+        "recap_template": "You {answer} speech difficulty",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "vision_loss",
+        "question": "Do you have sudden vision loss or blindness?",
+        "recap_template": "You {answer} vision loss",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "vision_double",
+        "question": "Do you have double vision?",
+        "recap_template": "You {answer} double vision",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Your symptoms suggest a possible stroke. This requires immediate emergency evaluation. Call 911 or go to the nearest emergency room immediately.",
+      "urgent": "Your symptoms may indicate a stroke or transient ischemic attack (TIA). You should seek urgent medical evaluation within 24 hours.",
+      "non_urgent": "Your symptoms are concerning but may not be stroke-related. You should still see a healthcare provider for evaluation."
     },
     "recap": "{name}, {summary}. Overall this is classified as {severity}."
   },
