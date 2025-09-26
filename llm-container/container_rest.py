@@ -543,6 +543,30 @@ def build_recap(cond, answers, flags, severity):
         state.get("user_name")
     )
 
+def split_recap_into_chunks(recap_text):
+    """Split recap text into smaller chunks for better TTS streaming"""
+    # Split on sentence boundaries (periods, exclamation marks, question marks)
+    sentences = re.split(r'(?<=[.!?])\s+', recap_text.strip())
+    
+    # Filter out empty sentences
+    sentences = [s.strip() for s in sentences if s.strip()]
+    
+    # If we have very long sentences, try to split on commas or semicolons
+    chunks = []
+    for sentence in sentences:
+        if len(sentence) > 150:  # If sentence is too long, split further
+            # Split on commas, semicolons, or "and" for very long sentences
+            sub_parts = re.split(r'(?<=[,;])\s+|\s+and\s+', sentence)
+            # Rejoin with "and" if we split on "and"
+            if len(sub_parts) > 1:
+                chunks.extend([part.strip() for part in sub_parts if part.strip()])
+            else:
+                chunks.append(sentence)
+        else:
+            chunks.append(sentence)
+    
+    return chunks
+
 # === Chat endpoint ===
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -633,7 +657,14 @@ def chat():
             recap=build_recap(cond,state["answers"],state["flags"],sev)
             recap_nlg = nlg_rewrite(recap, "recap", {"name":state.get("user_name"),"condition":cond,"pathway":state.get("active_pathway")}, state.get("phrasing_history"), llm_chat_once)
             add_phrasing_fingerprint(state, recap_nlg)
-            yield f"<sentence_start>\n{recap_nlg}\n<sentence_end>\n"
+            
+            # Split recap into chunks for better TTS streaming
+            recap_chunks = split_recap_into_chunks(recap_nlg)
+            print(f"[Aura-LLM] 🔄 Streaming recap in {len(recap_chunks)} chunks for better TTS latency")
+            for chunk in recap_chunks:
+                if chunk.strip():
+                    yield f"<sentence_start>\n{chunk.strip()}\n<sentence_end>\n"
+            
             raw_out = substitute_name(outcomes.get(sev,'Follow up with a doctor.'),state.get('user_name'))
             out_nlg = nlg_rewrite(raw_out, "outcome", {"name":state.get("user_name"),"condition":cond,"pathway":state.get("active_pathway")}, state.get("phrasing_history"), llm_chat_once)
             add_phrasing_fingerprint(state, out_nlg)
