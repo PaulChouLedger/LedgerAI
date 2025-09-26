@@ -161,9 +161,15 @@ def extract_name(prompt):
         and_parts = raw.split(" and ", 1)
         if len(and_parts) > 1:
             after_and = and_parts[1].lower()
-            medical_after_and = any(term in after_and for term in ["pain", "ache", "headache", "chest", "abdominal", "stomach", "nausea", "dizzy", "fever", "cough"])
+            medical_after_and = any(term in after_and for term in ["pain", "ache", "headache", "chest", "abdominal", "stomach", "nausea", "dizzy", "fever", "cough", "having", "experiencing", "suffering"])
             if medical_after_and:
                 raw = and_parts[0].strip()
+    
+    # Also handle "I'm" patterns
+    if " i'm " in raw.lower() or raw.lower().endswith(" i'm"):
+        raw = raw.split(" i'm", 1)[0].strip()
+    if " im " in raw.lower() or raw.lower().endswith(" im"):
+        raw = raw.split(" im", 1)[0].strip()
     
     parts = raw.split()
     if not parts or len(parts) > 3: 
@@ -229,6 +235,10 @@ def normalize_yes_no_response(text):
         "i don't have", "i do not have", "i don't feel", "i do not feel",
         "i don't experience", "i do not experience", "i am not", "i'm not"
     ]):
+        return "no"
+    
+    # Check for specific negative patterns that might be confused with positive
+    if text_lower in ["i dont", "i don't", "i do not", "i havent", "i haven't", "i have not"]:
         return "no"
     
     # Then check for positive responses (less specific patterns)
