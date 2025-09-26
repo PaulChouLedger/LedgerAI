@@ -7,7 +7,25 @@
     "stomach pain",
     "bellyache",
     "cramps",
-    "stomach cramps"
+    "stomach cramps",
+    "right upper quadrant abdominal pain",
+    "right lower quadrant abdominal pain",
+    "epigastric abdominal pain",
+    "left upper quadrant abdominal pain",
+    "left lower quadrant abdominal pain",
+    "diffuse abdominal pain",
+    "lower abdomen pain",
+    "lower belly pain",
+    "lower stomach pain",
+    "pain in lower abdomen",
+    "pain in lower belly",
+    "pain in lower stomach",
+    "upper abdomen pain",
+    "upper belly pain",
+    "upper stomach pain",
+    "pain in upper abdomen",
+    "pain in upper belly",
+    "pain in upper stomach"
   ],
   "nausea": [
     "queasy",
@@ -161,5 +179,17 @@
     "pain going to back",
     "pancreas pain",
     "upper abdomen pain radiating back"
+  ],
+  "jaundice": [
+    "yellow skin",
+    "yellow eyes",
+    "yellowing of skin",
+    "yellowing of eyes",
+    "yellow discoloration",
+    "yellow tint",
+    "yellowish skin",
+    "yellowish eyes",
+    "skin looks yellow",
+    "eyes look yellow"
   ]
 }

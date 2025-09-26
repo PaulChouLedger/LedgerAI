@@ -5,19 +5,7 @@
       "stomach ache",
       "belly pain",
       "gut pain",
-      "tummy ache",
-      "right upper quadrant abdominal pain",
-      "right lower quadrant abdominal pain",
-      "epigastric abdominal pain",
-      "left upper quadrant abdominal pain",
-      "left lower quadrant abdominal pain",
-      "diffuse abdominal pain",
-      "lower abdomen pain",
-      "lower belly pain",
-      "lower stomach pain",
-      "pain in lower abdomen",
-      "pain in lower belly",
-      "pain in lower stomach"
+      "tummy ache"
     ],
     "intro": "{name}, I understand you’re experiencing abdominal pain. Let’s first figure out where it’s located.",
     "priority_keys": ["location"],
@@ -492,14 +480,12 @@
   "bloody_stool": {
     "triggers": [
       "bloody stool",
-      "blood in stool",
       "rectal bleed",
       "hematochezia",
       "melena",
       "black stool",
       "dark stool",
-      "tarry stool",
-      "red stool"
+      "tarry stool"
     ],
     "intro": "{name}, I understand you're experiencing bloody stools. This requires immediate evaluation to determine the cause and severity.",
     "priority_keys": [
@@ -600,11 +586,7 @@
     "triggers": [
       "jaundice",
       "yellow skin",
-      "yellow eyes",
-      "yellowing of skin",
-      "yellowing of eyes",
-      "yellow discoloration",
-      "yellow tint"
+      "yellow eyes"
     ],
     "intro": "{name}, I understand you're experiencing jaundice (yellowing of the skin or eyes). This requires immediate evaluation to determine the cause.",
     "priority_keys": [

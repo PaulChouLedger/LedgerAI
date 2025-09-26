@@ -195,9 +195,11 @@ def detect_condition(prompt, session_id: str | None = None):
     # Apply synonym expansion
     p_expanded = apply_synonym_expansion(p)
     print(f"[Aura-LLM] 🔄 Expanded prompt: '{p_expanded}'")
+    print(f"[Aura-LLM] 🔍 Checking for triage triggers in: '{p_expanded}'")
     
     for cond, data in TRIAGE_DEFS.items():
         triggers = data.get("triggers", [])
+        print(f"[Aura-LLM] 🔍 Checking condition '{cond}' with triggers: {triggers}")
         for trig in triggers:
             trig_norm = normalize_text(trig)
             # Try exact match first
