@@ -46,7 +46,7 @@ def rewrite(
     # Build prompt
     system = (
         "You are a medical assistant. Your task is to rewrite the provided text to sound natural and professional while preserving all clinical facts exactly. "
-        "IMPORTANT: You must rewrite the text, not just provide instructions. Return the actual rewritten text, not meta-instructions. "
+        "CRITICAL: You must return ONLY the rewritten text. Do not include any instructions, meta-commentary, or explanations. "
         "Preserve clinical facts exactly. Avoid repetition and canned phrasing. "
         "Do not add medical advice beyond what is given. Use second-person voice. "
         "CRITICAL: Use the patient's name ONLY in intros and final recaps/outcomes. "
@@ -125,10 +125,10 @@ Text to rewrite: "{text}"
 
 Role: {role}
 Style: {role_hint}
-Name: {name if should_use_name else "Do not use"}
+Name: {name if should_use_name else "None"}
 Avoid repeating: {avoid}
 
-Rewrite the text above to be natural and professional while preserving all clinical facts exactly. Return only the rewritten text, not instructions.
+Rewrite the text above to be natural and professional while preserving all clinical facts exactly. Return only the rewritten text, not instructions or meta-commentary.
 """
 
     messages = [
