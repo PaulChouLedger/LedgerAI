@@ -8,27 +8,13 @@
       "tummy ache"
     ],
     "intro": "{name}, I understand you're experiencing abdominal pain. Let's first figure out where it's located.",
-    "priority_keys": ["onset", "location", "fever", "jaundice", "nausea", "vomiting", "radiation_back", "hematemesis", "melena", "nsaid_use", "rebound", "bowel_changes", "peritonitis", "trauma", "splenomegaly", "hemodynamic_instability", "distension", "bloody_stool", "hematochezia", "gender", "menstrual", "urinary", "discharge", "testicular"],
+    "priority_keys": ["location", "onset", "fever", "jaundice", "nausea", "vomiting", "radiation_back", "hematemesis", "melena", "nsaid_use", "rebound", "bowel_changes", "peritonitis", "trauma", "splenomegaly", "hemodynamic_instability", "distension", "bloody_stool", "hematochezia", "gender", "menstrual", "urinary", "discharge", "testicular"],
     "main_complaint_override": "location_specific",
     "steps": [
       {
-        "key": "onset",
-        "question": "When did the abdominal pain start?",
-        "recap_template": "Pain began {answer}",
-        "answers": {
-          "within the last hour": "emergency",
-          "within the last few hours": "emergency",
-          "today": "urgent",
-          "yesterday": "urgent",
-          "a few days ago": "urgent",
-          "a week ago": "non_urgent",
-          "unknown": "urgent"
-        }
-      },
-      {
         "key": "location",
         "question": "Where in your abdomen is the pain located?",
-        "recap_template": "You have pain located in {answer}",
+        "recap_template": "You have {answer} abdominal pain",
         "answers": {
           "right upper quadrant": "ruq_pathway",
           "epigastric": "epigastric_pathway",
@@ -58,6 +44,20 @@
               "lower": "rlq_pathway"
             }
           }
+        }
+      },
+      {
+        "key": "onset",
+        "question": "When did the abdominal pain start?",
+        "recap_template": "Pain began {answer}",
+        "answers": {
+          "within the last hour": "emergency",
+          "within the last few hours": "emergency",
+          "today": "urgent",
+          "yesterday": "urgent",
+          "a few days ago": "urgent",
+          "a week ago": "non_urgent",
+          "unknown": "urgent"
         }
       }
     ],

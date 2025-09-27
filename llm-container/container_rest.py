@@ -235,6 +235,33 @@ def detect_condition(prompt, session_id: str | None = None):
     return None
 
 # === Answer matching ===
+def match_answer_option(prompt, answers):
+    """Match user input against answer options with fuzzy matching"""
+    # Apply synonym expansion to the user input
+    prompt_expanded = apply_synonym_expansion(prompt)
+    
+    best_match = None
+    best_score = 0
+    
+    for option in answers.keys():
+        option_norm = normalize_text(option)
+        
+        # Try exact match first
+        if option_norm in prompt_expanded:
+            return option, 1.0
+            
+        # Try fuzzy match
+        prompt_tokens = set(tokenize(prompt_expanded))
+        option_tokens = set(tokenize(option_norm))
+        
+        if option_tokens:
+            overlap = len(prompt_tokens & option_tokens) / float(len(option_tokens))
+            if overlap > best_score:
+                best_score = overlap
+                best_match = option
+    
+    return best_match, best_score
+
 def normalize_yes_no_response(text):
     """Normalize natural yes/no responses to standard yes/no"""
     text_lower = text.lower().strip()
@@ -545,7 +572,7 @@ def build_recap(cond, answers, flags, severity):
     if main_complaint_override == "location_specific" and priority_positives:
         # Look for location-specific complaint in priority positives
         for pos in priority_positives:
-            if "pain located in" in pos.lower() or "pain on" in pos.lower() or "located in" in pos.lower():
+            if "pain located in" in pos.lower() or "pain on" in pos.lower() or "located in" in pos.lower() or "abdominal pain" in pos.lower():
                 main_complaint = pos
                 break
         if not main_complaint:
