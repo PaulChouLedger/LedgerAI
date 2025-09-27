@@ -695,8 +695,8 @@
         "question": "When did the headache start?",
         "recap_template": "starting {answer}",
         "answers": {
-          "within the last hour": "emergency",
-          "within the last few hours": "emergency",
+          "within the last hour": "urgent",
+          "within the last few hours": "urgent",
           "today": "urgent",
           "yesterday": "urgent",
           "a few days ago": "urgent",
