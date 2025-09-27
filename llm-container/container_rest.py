@@ -217,6 +217,16 @@ def detect_condition(prompt, session_id: str | None = None):
     print(f"[Aura-LLM] 🔄 Expanded prompt: '{p_expanded}'")
     print(f"[Aura-LLM] 🔍 Checking for triage triggers in: '{p_expanded}'")
     
+    # Initialize detailed symptoms array for main complaint tracking
+    state = load_state(session_id)
+    if "detailed_symptoms" not in state:
+        state["detailed_symptoms"] = []
+    # Add the initial expanded prompt to the array
+    if p_expanded and p_expanded not in state["detailed_symptoms"]:
+        state["detailed_symptoms"].append(p_expanded)
+        print(f"[Aura-LLM] 📝 Detailed symptoms array: {state['detailed_symptoms']}")
+    save_state(state, session_id)
+    
     for cond, data in TRIAGE_DEFS.items():
         triggers = data.get("triggers", [])
         for trig in triggers:
@@ -392,6 +402,36 @@ def update_flags_from_answer(cond, key, ans, state):
             # Store the clarify answer for potential use in recap building
             # The similarity-based main complaint selection will handle finding the most detailed match
             state["clarify_answer"] = opt
+            
+            # Add pathway-specific detailed symptom to the array
+            if sev == "ruq_pathway":
+                detailed_symptom = "right upper quadrant abdominal pain"
+            elif sev == "rlq_pathway":
+                detailed_symptom = "right lower quadrant abdominal pain"
+            elif sev == "luq_pathway":
+                detailed_symptom = "left upper quadrant abdominal pain"
+            elif sev == "llq_pathway":
+                detailed_symptom = "left lower quadrant abdominal pain"
+            elif sev == "epigastric_pathway":
+                detailed_symptom = "epigastric abdominal pain"
+            elif sev == "diffuse_pathway":
+                detailed_symptom = "diffuse abdominal pain"
+            elif sev == "lower_abdomen_gi_pathway":
+                detailed_symptom = "lower abdomen abdominal pain"
+            elif sev == "pelvic_differentiation_pathway":
+                detailed_symptom = "lower abdomen abdominal pain"
+            else:
+                # Generic pathway handling - extract condition and pathway name
+                cond_name = state.get("condition", "").replace("_", " ")
+                pathway_name = sev.replace("_pathway", "").replace("_", " ")
+                detailed_symptom = f"{pathway_name} {cond_name}"
+            
+            # Add to detailed symptoms array
+            if "detailed_symptoms" not in state:
+                state["detailed_symptoms"] = []
+            if detailed_symptom not in state["detailed_symptoms"]:
+                state["detailed_symptoms"].append(detailed_symptom)
+                print(f"[Aura-LLM] 📝 Detailed symptoms array: {state['detailed_symptoms']}")
                 
         state.pop("pending_clarify", None)
         return
@@ -572,33 +612,32 @@ def build_recap(cond, answers, flags, severity):
     print(f"[Aura-LLM] 🔍 Regular positives: {positives}")
     print(f"[Aura-LLM] 🔍 Regular negatives: {negatives}")
     
-    # Extract main complaint using similarity-based approach
+    # Extract main complaint using detailed symptoms array
     # Find the most detailed and similar symptom to the original complaint
     original_complaint = state.get("original_complaint", "").lower()
-    expanded_prompt = state.get("expanded_prompt", "").lower()
+    detailed_symptoms = state.get("detailed_symptoms", [])
+    print(f"[Aura-LLM] 📝 Final detailed symptoms array: {detailed_symptoms}")
     
     main_complaint = None
     best_score = 0
     
-    if priority_positives and (original_complaint or expanded_prompt):
-        # Use expanded prompt if available, otherwise original complaint
-        reference_text = expanded_prompt if expanded_prompt else original_complaint
-        
-        for pos in priority_positives:
-            pos_lower = pos.lower()
+    if detailed_symptoms and original_complaint:
+        # Use the detailed symptoms array to find the best match
+        for symptom in detailed_symptoms:
+            symptom_lower = symptom.lower()
             # Calculate similarity score based on word overlap
-            reference_words = set(reference_text.split())
-            pos_words = set(pos_lower.split())
+            original_words = set(original_complaint.split())
+            symptom_words = set(symptom_lower.split())
             
             # Count overlapping words
-            overlap = len(reference_words.intersection(pos_words))
+            overlap = len(original_words.intersection(symptom_words))
             # Prefer longer matches (more detailed)
-            length_bonus = len(pos_words) * 0.1
+            length_bonus = len(symptom_words) * 0.1
             score = overlap + length_bonus
             
             if score > best_score:
                 best_score = score
-                main_complaint = pos
+                main_complaint = symptom
     
     # Fallback to condition name if no good match
     if not main_complaint:
