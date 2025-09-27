@@ -63,8 +63,22 @@
     "pathways": {
       "ruq_pathway": {
         "intro": "{name}, right upper quadrant pain can suggest gallbladder or liver problems. Let's clarify.",
-        "priority_keys": ["fever", "jaundice", "nausea"],
+        "priority_keys": ["onset", "fever", "jaundice", "nausea"],
         "steps": [
+          {
+            "key": "onset",
+            "question": "When did the right upper quadrant pain start?",
+            "recap_template": "Pain began {answer}",
+            "answers": {
+              "within the last hour": "emergency",
+              "within the last few hours": "emergency",
+              "today": "urgent",
+              "yesterday": "urgent",
+              "a few days ago": "urgent",
+              "a week ago": "non_urgent",
+              "unknown": "urgent"
+            }
+          },
           {
             "key": "fever",
             "question": "Do you have fever?",

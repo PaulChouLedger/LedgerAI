@@ -756,7 +756,7 @@ def chat():
         state={"condition":None,"step_index":0,"answers":[],"flags":{},
                "last_key":None,"user_name":user,
                "active_pathway":None,"entered_pathway":False,
-               "updated_at":None,"phrasing_history":[]}
+               "updated_at":None,"phrasing_history":[],"detailed_symptoms":[]}
         save_state(state, session_id)
         print(f"[Aura-LLM] 🔄 Session reset for session_id: {session_id}")
         print(f"[Aura-LLM] 🔄 Reset state: {state}")
@@ -888,7 +888,8 @@ def chat():
                       "last_key":steps[0].get("key"),"active_pathway":None,"entered_pathway":False,
                       "phrasing_history":state.get("phrasing_history",[]),
                       "original_complaint":prompt,
-                      "expanded_prompt":p_expanded})
+                      "expanded_prompt":p_expanded,
+                      "detailed_symptoms":state.get("detailed_symptoms", [])})
         save_state(state, session_id)
         
         # Use NLG for intro and first question
