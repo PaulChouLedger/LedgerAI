@@ -451,13 +451,26 @@ def build_recap(cond, answers, flags, severity):
     steps = get_steps(cond, state)
     pk = TRIAGE_DEFS[cond].get("priority_keys", [])
 
+    positives, negatives, priority_positives, priority_negatives = [], [], [], []
+    
     if state.get("active_pathway") and "pathways" in TRIAGE_DEFS[cond]:
         path = TRIAGE_DEFS[cond]["pathways"][state["active_pathway"]]
         steps = path.get("steps", steps)
         pk = path.get("priority_keys", pk)
         print(f"[Aura-LLM] 📝 Recap built from pathway: {state['active_pathway']}")
-
-    positives, negatives, priority_positives, priority_negatives = [], [], [], []
+        
+        # For pathways, include the location from the main condition
+        main_steps = get_steps(cond, {})  # Get main condition steps without state
+        main_answers = state.get("answers", [])
+        for main_step, main_answer in zip(main_steps, main_answers):
+            if isinstance(main_step, dict) and main_step.get("key") == "location":
+                # Add the location answer to the pathway recap
+                location_template = main_step.get("recap_template", "You have {answer} abdominal pain")
+                location_line = location_template.format(answer=main_answer)
+                # Insert at the beginning of priority_positives
+                if location_line not in priority_positives:
+                    priority_positives.insert(0, location_line)
+                break
     def _strip_prefix(text: str) -> str:
         # Remove leading "You reported/denied" (case-insensitive), extra spaces, and trailing punctuation
         t = re.sub(r"(?i)^\s*you\s+(reported|denied)\s+", "", text or "").strip()

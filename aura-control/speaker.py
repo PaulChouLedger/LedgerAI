@@ -169,7 +169,7 @@ def speak_llm_response(prompt, context=""):
     try:
         response = requests.post(
             "http://localhost:11434/chat",
-            json={"prompt": prompt, "context": context},
+            json={"prompt": prompt, "context": context, "chat_id": "voice_session"},
             stream=True, timeout=60
         )
         buffer = []
