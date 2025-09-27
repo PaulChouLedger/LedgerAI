@@ -56,7 +56,7 @@
       "urgent": "Your rash needs urgent evaluation, especially with fever or widespread involvement.",
       "non_urgent": "Your rash may be mild. Please follow up with your doctor for evaluation."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "allergic_reaction": {
@@ -89,7 +89,7 @@
       "urgent": "Your allergic reaction needs urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Your allergic symptoms may be mild. Please follow up with your doctor."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "skin_infection": {
@@ -133,7 +133,7 @@
       "urgent": "Your skin infection requires urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Your skin infection appears mild. Please follow up with your doctor."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "burns": {
@@ -174,7 +174,7 @@
       "urgent": "Your burn needs urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Mild burns may be managed conservatively. Please follow up with your doctor."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "wounds": {

@@ -69,7 +69,7 @@
       "urgent": "Your low blood sugar should be addressed urgently. Take glucose and see a doctor promptly.",
       "non_urgent": "Your symptoms are mild. Continue monitoring and follow up with your doctor."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "hyperglycemia_dka_hhs": {
@@ -135,7 +135,7 @@
       "urgent": "Your high blood sugar needs urgent evaluation. Please contact your doctor promptly.",
       "non_urgent": "Your high blood sugar may be mild. Please monitor closely and follow up with your doctor."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "thyroid_storm": {
@@ -159,7 +159,7 @@
       "urgent": "Not applicable.",
       "non_urgent": "Your symptoms do not suggest thyroid storm at this time. Follow up with your doctor."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "myxedema_coma": {
@@ -192,7 +192,7 @@
       "urgent": "Not applicable.",
       "non_urgent": "Your symptoms do not suggest myxedema coma. Please follow up with your doctor."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "adrenal_insufficiency": {

@@ -388,6 +388,11 @@ def update_flags_from_answer(cond, key, ans, state):
             state["last_key"] = None
             state["entered_pathway"] = False
             print(f"[Aura-LLM] 🔀 Clarify routed → {sev}")
+            
+            # Store the clarify answer for potential use in recap building
+            # The similarity-based main complaint selection will handle finding the most detailed match
+            state["clarify_answer"] = opt
+                
         state.pop("pending_clarify", None)
         return
     steps = get_steps(cond, state)
@@ -451,26 +456,14 @@ def build_recap(cond, answers, flags, severity):
     steps = get_steps(cond, state)
     pk = TRIAGE_DEFS[cond].get("priority_keys", [])
 
-    positives, negatives, priority_positives, priority_negatives = [], [], [], []
-    
     if state.get("active_pathway") and "pathways" in TRIAGE_DEFS[cond]:
         path = TRIAGE_DEFS[cond]["pathways"][state["active_pathway"]]
         steps = path.get("steps", steps)
         pk = path.get("priority_keys", pk)
         print(f"[Aura-LLM] 📝 Recap built from pathway: {state['active_pathway']}")
         
-        # For pathways, include the location from the main condition
-        main_steps = get_steps(cond, {})  # Get main condition steps without state
-        main_answers = state.get("answers", [])
-        for main_step, main_answer in zip(main_steps, main_answers):
-            if isinstance(main_step, dict) and main_step.get("key") == "location":
-                # Add the location answer to the pathway recap
-                location_template = main_step.get("recap_template", "You have {answer} abdominal pain")
-                location_line = location_template.format(answer=main_answer)
-                # Insert at the beginning of priority_positives
-                if location_line not in priority_positives:
-                    priority_positives.insert(0, location_line)
-                break
+
+    positives, negatives, priority_positives, priority_negatives = [], [], [], []
     def _strip_prefix(text: str) -> str:
         # Remove leading "You reported/denied" (case-insensitive), extra spaces, and trailing punctuation
         t = re.sub(r"(?i)^\s*you\s+(reported|denied)\s+", "", text or "").strip()
@@ -579,54 +572,35 @@ def build_recap(cond, answers, flags, severity):
     print(f"[Aura-LLM] 🔍 Regular positives: {positives}")
     print(f"[Aura-LLM] 🔍 Regular negatives: {negatives}")
     
-    # Extract main complaint - check for organ-specific override first
-    main_complaint_override = TRIAGE_DEFS[cond].get("main_complaint_override")
+    # Extract main complaint using similarity-based approach
+    # Find the most detailed and similar symptom to the original complaint
+    original_complaint = state.get("original_complaint", "").lower()
+    expanded_prompt = state.get("expanded_prompt", "").lower()
+    
     main_complaint = None
-    if main_complaint_override == "location_specific" and priority_positives:
-        # Look for location-specific complaint in priority positives
+    best_score = 0
+    
+    if priority_positives and (original_complaint or expanded_prompt):
+        # Use expanded prompt if available, otherwise original complaint
+        reference_text = expanded_prompt if expanded_prompt else original_complaint
+        
         for pos in priority_positives:
-            if "pain located in" in pos.lower() or "pain on" in pos.lower() or "located in" in pos.lower() or "abdominal pain" in pos.lower():
+            pos_lower = pos.lower()
+            # Calculate similarity score based on word overlap
+            reference_words = set(reference_text.split())
+            pos_words = set(pos_lower.split())
+            
+            # Count overlapping words
+            overlap = len(reference_words.intersection(pos_words))
+            # Prefer longer matches (more detailed)
+            length_bonus = len(pos_words) * 0.1
+            score = overlap + length_bonus
+            
+            if score > best_score:
+                best_score = score
                 main_complaint = pos
-                break
-        if not main_complaint:
-            # Fallback to first priority positive if no location found
-            main_complaint = priority_positives[0]
     
-    if not main_complaint:
-        # Use the most detailed symptom that matches the original complaint
-        # This ensures the main complaint is the most specific version of what the user initially reported
-        original_complaint = state.get("original_complaint", "").lower()
-        if priority_positives and original_complaint:
-            # Find the most detailed symptom that matches the original complaint
-            best_match = None
-            best_score = 0
-            
-            for pos in priority_positives:
-                pos_lower = pos.lower()
-                # Calculate similarity score based on word overlap
-                original_words = set(original_complaint.split())
-                pos_words = set(pos_lower.split())
-                
-                # Count overlapping words
-                overlap = len(original_words.intersection(pos_words))
-                # Prefer longer matches (more detailed)
-                length_bonus = len(pos_words) * 0.1
-                score = overlap + length_bonus
-                
-                if score > best_score:
-                    best_score = score
-                    best_match = pos
-            
-            if best_match:
-                main_complaint = best_match
-            else:
-                # Fallback to condition name if no good match
-                main_complaint = cond.replace("_", " ").replace("suspected", "").strip()
-        else:
-            # Fallback to condition name if no priority positives or original complaint
-            main_complaint = cond.replace("_", " ").replace("suspected", "").strip()
-    
-    # Ensure main_complaint is always defined
+    # Fallback to condition name if no good match
     if not main_complaint:
         main_complaint = cond.replace("_", " ").replace("suspected", "").strip()
     
@@ -641,8 +615,11 @@ def build_recap(cond, answers, flags, severity):
         is_timing = False
         pos_lower = pos.lower()
         
+        # Skip simple yes/no answers - they're not timing
+        if pos_lower in ["yes", "no", "reported yes", "reported no", "denied"]:
+            is_timing = False
         # Check for timing patterns at the beginning
-        if any(pos_lower.startswith(time_word) for time_word in ["symptoms began", "pain began", "swelling began", "dizziness began", "episode occurred"]):
+        elif any(pos_lower.startswith(time_word) for time_word in ["symptoms began", "pain began", "swelling began", "dizziness began", "episode occurred"]):
             is_timing = True
         # Check for time words at the end
         elif any(pos_lower.endswith(time_word) for time_word in ["ago", "hours ago", "days ago", "today", "yesterday"]):

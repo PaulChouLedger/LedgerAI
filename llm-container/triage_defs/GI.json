@@ -9,7 +9,6 @@
     ],
     "intro": "{name}, I understand you're experiencing abdominal pain. Let's first figure out where it's located.",
     "priority_keys": ["location", "onset", "fever", "jaundice", "nausea", "vomiting", "radiation_back", "hematemesis", "melena", "nsaid_use", "rebound", "bowel_changes", "peritonitis", "trauma", "splenomegaly", "hemodynamic_instability", "distension", "bloody_stool", "hematochezia", "gender", "menstrual", "urinary", "discharge", "testicular"],
-    "main_complaint_override": "location_specific",
     "steps": [
       {
         "key": "location",
@@ -490,7 +489,7 @@
         }
       }
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
   "bloody_stool": {
     "triggers": [
@@ -595,7 +594,7 @@
       "emergency": "Bloody stools with black/tarry appearance, large amounts of blood, abdominal pain, or dizziness may indicate a serious GI bleed. Please seek emergency care immediately.",
       "urgent": "Bloody stools require urgent medical evaluation to determine the cause and appropriate treatment. Please see a doctor soon."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "jaundice": {

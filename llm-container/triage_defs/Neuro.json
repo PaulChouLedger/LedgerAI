@@ -97,7 +97,7 @@
       "urgent": "Your neurological symptoms need urgent evaluation. Please see a doctor as soon as possible today.",
       "non_urgent": "Your symptoms do not sound emergent, but follow up with your doctor promptly is recommended."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "stroke_arm_weakness": {
@@ -198,7 +198,7 @@
       "urgent": "Your symptoms may indicate a stroke or transient ischemic attack (TIA). You should seek urgent medical evaluation within 24 hours.",
       "non_urgent": "Your symptoms are concerning but may not be stroke-related. You should still see a healthcare provider for evaluation."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "stroke_sided_weakness": {
@@ -301,7 +301,7 @@
       "urgent": "Your symptoms may indicate a stroke or transient ischemic attack (TIA). You should seek urgent medical evaluation within 24 hours.",
       "non_urgent": "Your symptoms are concerning but may not be stroke-related. You should still see a healthcare provider for evaluation."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "seizure": {
@@ -394,7 +394,7 @@
       "urgent": "Your seizure-like episode needs urgent evaluation. Please see a doctor today.",
       "non_urgent": "Your episode sounds lower risk, but follow up with your clinician promptly is advised."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "focal_weakness_numbness": {
@@ -461,7 +461,7 @@
       "urgent": "Your neurologic symptoms need urgent evaluation. Please see a doctor today.",
       "non_urgent": "Your symptoms sound lower risk but follow up with your clinician is recommended."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "confusion_ams": {
@@ -520,7 +520,7 @@
       "urgent": "Your confusion requires urgent evaluation. Please see a doctor as soon as possible today.",
       "non_urgent": "Your confusion may not be emergent, but follow up with your clinician is advised."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "dizziness_vertigo": {
@@ -627,7 +627,7 @@
       "urgent": "Your dizziness may need urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Your dizziness sounds lower risk, but follow up with your clinician is recommended."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   }
   ,
   "headache": {

@@ -79,7 +79,7 @@
       "urgent": "Your flank pain requires urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Your flank pain appears less severe. Follow up with your doctor."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "hematuria": {
@@ -121,7 +121,7 @@
       "urgent": "Your blood in urine requires urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Your blood in urine appears mild. Follow up with your doctor."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "urinary_retention": {
@@ -153,7 +153,7 @@
       "urgent": "Your urinary retention needs urgent evaluation. Please see a doctor today.",
       "non_urgent": "Your urinary retention appears mild. Follow up with your doctor."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "uti": {
@@ -228,7 +228,7 @@
       "urgent": "Your urinary symptoms suggest an infection that needs urgent evaluation. Please see a doctor.",
       "non_urgent": "Your urinary symptoms are mild. Follow up with your doctor."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "kidney_failure": {

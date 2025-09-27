@@ -29,7 +29,7 @@
       "urgent": "Your dysuria requires urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Your dysuria may be mild, but follow up with your doctor is recommended."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "hematuria": {
@@ -62,7 +62,7 @@
       "urgent": "Your hematuria requires urgent evaluation. Please see a doctor today.",
       "non_urgent": "Your hematuria may not be emergent, but follow up is still needed."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "flank_pain": {
@@ -95,7 +95,7 @@
       "urgent": "Your flank pain requires urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Your flank pain may be mild, but follow up is important."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "urinary_retention": {
@@ -127,7 +127,7 @@
       "urgent": "Your urinary retention requires urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Urinary retention should not be ignored. Please arrange medical follow-up."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "urinary_frequency": {
@@ -159,7 +159,7 @@
       "urgent": "Your urinary symptoms require urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Your urinary frequency may be benign, but follow up with your doctor is advised."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "incontinence": {
@@ -191,7 +191,7 @@
       "urgent": "Your incontinence requires urgent medical attention. Please see a doctor soon.",
       "non_urgent": "Your incontinence may not be emergent, but follow up with your doctor is advised."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "pelvic_pain": {
@@ -243,7 +243,7 @@
       "urgent": "Your pelvic pain requires urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Your pelvic pain does not sound emergent, but follow up is recommended."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "testicular_pain": {
