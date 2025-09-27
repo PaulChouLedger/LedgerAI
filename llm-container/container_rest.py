@@ -533,6 +533,8 @@ def classify_response(cond, flags):
 # === Recap ===
 def pretty_join(parts, conj="and"):
     if not parts: return ""
+    # Normalize spaces in each part to prevent multiple spaces
+    parts = [re.sub(r'\s+', ' ', part.strip()) for part in parts]
     if len(parts) == 1: return parts[0]
     if len(parts) == 2: return f"{parts[0]} {conj} {parts[1]}"
     return ", ".join(parts[:-1]) + f", {conj} {parts[-1]}"
@@ -748,7 +750,8 @@ def build_recap(cond, answers, flags, severity, session_id=None):
     if positives: parts.append("You also reported " + pretty_join(positives, "and") + ".")
     if negatives: parts.append("You denied " + pretty_join(negatives, "or") + ".")
     summary = " ".join(parts).strip()
-    # Cleanup: collapse duplicate punctuation, fix spaces before punctuation, tidy capitalization after commas
+    # Cleanup: normalize spaces, collapse duplicate punctuation, fix spaces before punctuation, tidy capitalization after commas
+    summary = re.sub(r"\s+", " ", summary)  # Normalize multiple spaces to single space
     summary = re.sub(r"\s+([.,;:])", r"\1", summary)
     summary = re.sub(r"([.!?]){2,}", r"\1", summary)
     summary = re.sub(r",\s+\.", ".", summary)
