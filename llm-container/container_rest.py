@@ -474,6 +474,7 @@ def update_flags_from_answer(cond, key, ans, state, session_id=None):
                 return
 
             # Normal pathway
+            print(f"[Aura-LLM] 🔍 Checking pathway routing: sev={sev}, type={type(sev)}, ends_with_pathway={isinstance(sev, str) and sev.endswith('_pathway')}")
             if isinstance(sev, str) and sev.endswith("_pathway"):
                 state["active_pathway"] = sev
                 state["step_index"] = 0
@@ -482,6 +483,7 @@ def update_flags_from_answer(cond, key, ans, state, session_id=None):
                 state["entered_pathway"] = False
                 print(f"[Aura-LLM] 🔀 Pathway selected: {sev}")
             else:
+                print(f"[Aura-LLM] 🔍 Not a pathway, setting flag: {key}={sev}")
                 state["flags"].setdefault(cond, {})[key] = sev
 
 # === Classification ===
