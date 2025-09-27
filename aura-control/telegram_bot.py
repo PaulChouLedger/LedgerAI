@@ -144,6 +144,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if triage_completed:
             sessions[chat_id] = {"active": True, "history": []}
             print(f"[Telegram] 🔄 Auto-reset after triage completion for {chat_id}: {sessions[chat_id]}")
+            # Also send a reset command to LLM container to clear its state
+            try:
+                requests.post(
+                    AURA_CHAT_URL,
+                    json={
+                        "prompt": "reset",
+                        "chat_id": str(chat_id),
+                        "reset": True
+                    },
+                    timeout=5
+                )
+                print(f"[Telegram] 🔄 Sent reset command to LLM container for {chat_id}")
+            except Exception as e:
+                print(f"[Telegram] ⚠️ Failed to reset LLM container: {e}")
 
     except Exception as e:
         print(f"[Telegram] ❌ Error: {e}")

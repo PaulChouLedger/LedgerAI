@@ -73,7 +73,9 @@ def rewrite(
         "FOR PATHWAY INTROS: Make them natural and varied. Use diverse approaches like 'Let me ask about X', 'I need to know more about X', 'Tell me about X', 'Now I need to know about X', 'Let's check for X', or simply ask the first question directly. "
         "AVOID THESE OVERUSED PHRASES: 'can suggest', 'Let's clarify', 'Let's check', 'We need to know'. Use fresh, varied language instead. "
         "CRITICAL: Do NOT repeat the same phrase multiple times. If you find yourself repeating text, stop and provide a single, clear version. "
-        "ABSOLUTELY FORBIDDEN: Do not repeat the same sentence or phrase more than once. Each sentence should be unique and add new information."
+        "ABSOLUTELY FORBIDDEN: Do not repeat the same sentence or phrase more than once. Each sentence should be unique and add new information. "
+        "EXTREME ANTI-REPETITION: If you detect that you are repeating the same text pattern (like 'left lower quadrant pain with fever or bowel changes suggests diverticulitis'), STOP immediately and provide a completely different formulation. "
+        "FOR OUTCOMES: Keep it brief and single. Do not repeat the same diagnostic phrase multiple times. One clear statement is sufficient."
     )
 
     # Few-shot style hints per role
@@ -82,7 +84,7 @@ def rewrite(
         "question": "Rewrite the question to be clear and direct. Do not use the patient's name. Keep it concise and clinical. Vary vocabulary to avoid repetition.",
         "clarify": "Rewrite as a short, clear follow-up question. Do not use the patient's name. Start with 'Do you...' or 'Are you...'",
         "recap": "Rewrite as a clinical summary. Use the name once at start only if provided. Preserve all clinical details exactly.",
-        "outcome": "Rewrite as a clear disposition statement. Use the name once at start only if provided. Do not repeat symptoms already mentioned."
+        "outcome": "Rewrite as a clear disposition statement. Use the name once at start only if provided. Do not repeat symptoms already mentioned. Keep it brief - one clear sentence only. Never repeat the same phrase multiple times."
     }.get(role, "Rewrite clearly and briefly.")
 
     history = phrasing_history or []
@@ -104,6 +106,15 @@ def rewrite(
         print(f"[NLG] ⚠️ Original text: {text}")
         # Force more varied rewriting by adding extra context
         user_content += f"\n\nIMPORTANT: The original text uses repetitive 'suggest...clarify' pattern. Rewrite it completely differently - use varied vocabulary and fresh phrasing."
+    
+    # Check for repetitive outcome patterns
+    if role == "outcome":
+        # Count occurrences of key phrases to detect repetition
+        text_lower = text.lower()
+        if "suggests" in text_lower and text_lower.count("suggests") > 1:
+            print(f"[NLG] ⚠️ Detected repetitive 'suggests' pattern in outcome")
+            print(f"[NLG] ⚠️ Original text: {text}")
+            user_content += f"\n\nCRITICAL: The original text repeats diagnostic phrases. Rewrite as ONE clear, brief statement without repetition."
     
     # Check for factual questions that should not be rephrased
     factual_patterns = [

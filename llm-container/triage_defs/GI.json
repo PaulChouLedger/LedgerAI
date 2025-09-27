@@ -48,7 +48,7 @@
       {
         "key": "onset",
         "question": "When did the abdominal pain start?",
-        "recap_template": "Onset was {answer}",
+        "recap_template": "starting {answer}",
         "answers": {
           "within the last hour": "emergency",
           "within the last few hours": "emergency",
@@ -68,7 +68,7 @@
           {
             "key": "onset",
             "question": "When did the right upper quadrant pain start?",
-            "recap_template": "Onset was {answer}",
+            "recap_template": "starting {answer}",
             "answers": {
               "within the last hour": "emergency",
               "within the last few hours": "emergency",

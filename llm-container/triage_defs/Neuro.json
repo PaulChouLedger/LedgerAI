@@ -693,7 +693,7 @@
       {
         "key": "onset",
         "question": "When did the headache start?",
-        "recap_template": "Headache onset was {answer}",
+        "recap_template": "starting {answer}",
         "answers": {
           "within the last hour": "emergency",
           "within the last few hours": "emergency",
@@ -724,7 +724,7 @@
       },
       {
         "key": "light_sensitivity",
-        "question": "Does the headache get worse with bright lights?",
+        "question": "Does the headache intensify with bright lights?",
         "recap_template": "You {answer} light sensitivity",
         "answers": {
           "yes": "urgent",
