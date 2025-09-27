@@ -230,7 +230,7 @@
 
       "llq_pathway": {
         "intro": "{name}, left lower quadrant pain often suggests diverticulitis. Let's clarify.",
-        "priority_keys": ["peritonitis"],
+        "priority_keys": ["fever", "bowel_changes", "peritonitis"],
         "steps": [
           {
             "key": "fever",

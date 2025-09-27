@@ -69,14 +69,16 @@ def rewrite(
         "CRITICAL: Do NOT add markdown formatting like **bold**, *italics*, or other formatting unless it is in the original text. Keep the output clean and plain text. NEVER use **, *, or any markdown syntax. Output must be plain text only. "
         "IMPORTANT: Preserve anatomical terms exactly. Do NOT change 'both' to 'both sides' when referring to limbs. Keep 'arm', 'leg', 'both' as specified in the original text. "
         "CRITICAL: Vary your vocabulary - avoid repetitive words like 'affected', 'suggest', 'concerning' in rapid succession. Use synonyms and varied phrasing. "
-        "FOR PATHWAY INTROS: Make them natural and varied. Instead of 'X can suggest Y. Let's clarify', use diverse approaches like 'Let me ask about X', 'I need to know more about X', 'Tell me about X', or simply ask the first question directly. "
+        "ABSOLUTELY FORBIDDEN: Never use 'X can suggest Y. Let's clarify' pattern - this is repetitive and robotic. "
+        "FOR PATHWAY INTROS: Make them natural and varied. Use diverse approaches like 'Let me ask about X', 'I need to know more about X', 'Tell me about X', 'Now I need to know about X', 'Let's check for X', or simply ask the first question directly. "
+        "AVOID THESE OVERUSED PHRASES: 'can suggest', 'Let's clarify', 'Let's check', 'We need to know'. Use fresh, varied language instead. "
         "CRITICAL: Do NOT repeat the same phrase multiple times. If you find yourself repeating text, stop and provide a single, clear version. "
         "ABSOLUTELY FORBIDDEN: Do not repeat the same sentence or phrase more than once. Each sentence should be unique and add new information."
     )
 
     # Few-shot style hints per role
     role_hint = {
-        "intro": "Rewrite to acknowledge the patient and transition to the next step naturally. Use the name once at the start only if provided. For pathway intros, vary the approach - avoid repetitive 'X can suggest Y. Let's clarify' patterns.",
+        "intro": "Rewrite to acknowledge the patient and transition to the next step naturally. Use the name once at the start only if provided. For pathway intros, vary the approach - NEVER use 'X can suggest Y. Let's clarify'. Use fresh phrases like 'Let me ask about X', 'Tell me about X', or ask directly.",
         "question": "Rewrite the question to be clear and direct. Do not use the patient's name. Keep it concise and clinical. Vary vocabulary to avoid repetition.",
         "clarify": "Rewrite as a short, clear follow-up question. Do not use the patient's name. Start with 'Do you...' or 'Are you...'",
         "recap": "Rewrite as a clinical summary. Use the name once at start only if provided. Preserve all clinical details exactly.",
@@ -95,6 +97,13 @@ def rewrite(
             print(f"[NLG] ⚠️ Current text: {text}")
             # Return original text without NLG processing to avoid redundancy
             return text
+    
+    # Check for repetitive pathway intro patterns
+    if role == "intro" and "suggest" in text.lower() and "clarify" in text.lower():
+        print(f"[NLG] ⚠️ Detected repetitive 'suggest...clarify' pattern in intro")
+        print(f"[NLG] ⚠️ Original text: {text}")
+        # Force more varied rewriting by adding extra context
+        user_content += f"\n\nIMPORTANT: The original text uses repetitive 'suggest...clarify' pattern. Rewrite it completely differently - use varied vocabulary and fresh phrasing."
     
     # Check for factual questions that should not be rephrased
     factual_patterns = [
