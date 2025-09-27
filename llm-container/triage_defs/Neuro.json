@@ -11,8 +11,18 @@
       "weakness in legs"
     ],
     "intro": "{name}, your symptoms may suggest a stroke. Let me ask you some focused questions.",
-    "priority_keys": ["onset", "face", "leg_weakness", "speech", "speech_output", "vision_loss", "vision_double"],
+    "priority_keys": ["side", "onset", "face", "leg_weakness", "speech", "speech_output", "vision_loss", "vision_double"],
     "steps": [
+      {
+        "key": "side",
+        "question": "Which leg is affected - right, left, or both?",
+        "recap_template": "Weakness involves {answer} leg",
+        "answers": {
+          "right": "emergency",
+          "left": "emergency",
+          "both": "emergency"
+        }
+      },
       {
         "key": "onset",
         "question": "When did the symptoms start (or when were you last known well)?",
@@ -102,8 +112,18 @@
       "weakness in arms"
     ],
     "intro": "{name}, your symptoms may suggest a stroke. Let me ask you some focused questions.",
-    "priority_keys": ["onset", "face", "arm_weakness", "speech", "speech_output", "vision_loss", "vision_double"],
+    "priority_keys": ["side", "onset", "face", "arm_weakness", "speech", "speech_output", "vision_loss", "vision_double"],
     "steps": [
+      {
+        "key": "side",
+        "question": "Which arm is affected - right, left, or both?",
+        "recap_template": "Weakness involves {answer} arm",
+        "answers": {
+          "right": "emergency",
+          "left": "emergency",
+          "both": "emergency"
+        }
+      },
       {
         "key": "onset",
         "question": "When did the symptoms start (or when were you last known well)?",
