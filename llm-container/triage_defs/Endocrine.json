@@ -1,11 +1,12 @@
 {
   "hypoglycemia": {
     "triggers": ["low blood sugar", "hypoglycemia", "shaky", "sweating", "low sugar"],
+    "priority_keys": ["shaky", "sweating", "confusion", "hunger", "weakness"],
     "steps": [
       {
         "key": "shaky",
         "question": "Do you feel shaky?",
-        "recap_template": "Shakiness is {answer}",
+        "recap_template": "You {answer} shakiness",
         "answers": {
           "yes": "urgent",
           "no": "non_urgent"
@@ -14,7 +15,7 @@
       {
         "key": "sweating",
         "question": "Do you feel sweaty?",
-        "recap_template": "Sweating is {answer}",
+        "recap_template": "You {answer} sweating",
         "answers": {
           "yes": "urgent",
           "no": "non_urgent"
@@ -23,7 +24,7 @@
       {
         "key": "confused",
         "question": "Do you feel confused?",
-        "recap_template": "Confusion is {answer}",
+        "recap_template": "You {answer} confusion",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -32,7 +33,7 @@
       {
         "key": "weak",
         "question": "Do you feel weak?",
-        "recap_template": "Weakness is {answer}",
+        "recap_template": "You {answer} weakness",
         "answers": {
           "yes": "urgent",
           "no": "non_urgent"
@@ -63,7 +64,7 @@
       {
         "key": "nausea",
         "question": "Do you have nausea?",
-        "recap_template": "Nausea is {answer}",
+        "recap_template": "You {answer} nausea",
         "answers": {
           "yes": "urgent",
           "no": "non_urgent"
@@ -72,7 +73,7 @@
       {
         "key": "vomiting",
         "question": "Do you have vomiting?",
-        "recap_template": "Vomiting is {answer}",
+        "recap_template": "You {answer} vomiting",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -81,7 +82,7 @@
       {
         "key": "abdominal_pain",
         "question": "Do you have abdominal pain?",
-        "recap_template": "Abdominal pain is {answer}",
+        "recap_template": "You {answer} abdominal pain",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -90,7 +91,7 @@
       {
         "key": "confusion",
         "question": "Do you have confusion?",
-        "recap_template": "Confusion is {answer}",
+        "recap_template": "You {answer} confusion",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"

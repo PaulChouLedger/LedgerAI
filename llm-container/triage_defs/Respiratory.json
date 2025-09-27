@@ -1,6 +1,7 @@
 {
   "shortness_of_breath": {
     "triggers": ["shortness of breath", "sob", "difficulty breathing", "can't breathe"],
+    "priority_keys": ["onset", "exertion", "chest_pain", "fever", "cough"],
     "steps": [
       {
         "key": "onset",
@@ -32,7 +33,7 @@
       {
         "key": "fever",
         "question": "Do you also have fever?",
-        "recap_template": "Fever is {answer}",
+        "recap_template": "You {answer} fever",
         "answers": {
           "yes": "urgent",
           "no": "non_urgent"
@@ -41,7 +42,7 @@
       {
         "key": "chills",
         "question": "Do you also have chills?",
-        "recap_template": "Chills are {answer}",
+        "recap_template": "You {answer} chills",
         "answers": {
           "yes": "urgent",
           "no": "non_urgent"

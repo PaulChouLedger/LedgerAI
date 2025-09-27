@@ -1,11 +1,12 @@
 {
   "flank_pain": {
     "triggers": ["flank pain", "pain in side", "kidney pain", "renal colic"],
+    "priority_keys": ["side", "severity", "radiation", "fever", "nausea", "hematuria"],
     "steps": [
       {
         "key": "side",
         "question": "Which side is the pain on — left, right, or both?",
-        "recap_template": "Pain location is {answer}",
+        "recap_template": "You have pain on {answer} side",
         "answers": {
           "both": "urgent",
           "left": "urgent",
@@ -15,7 +16,7 @@
       {
         "key": "severity",
         "question": "How severe is the pain — mild, moderate, or severe?",
-        "recap_template": "Pain severity is {answer}",
+        "recap_template": "You have {answer} pain",
         "answers": {
           "severe": "emergency",
           "moderate": "urgent",
@@ -25,7 +26,7 @@
       {
         "key": "fever",
         "question": "Do you have fever?",
-        "recap_template": "Fever is {answer}",
+        "recap_template": "You {answer} fever",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -34,7 +35,7 @@
       {
         "key": "nausea",
         "question": "Do you have nausea?",
-        "recap_template": "Nausea is {answer}",
+        "recap_template": "You {answer} nausea",
         "answers": {
           "yes": "urgent",
           "no": "non_urgent"
@@ -43,7 +44,7 @@
       {
         "key": "vomiting",
         "question": "Do you have vomiting?",
-        "recap_template": "Vomiting is {answer}",
+        "recap_template": "You {answer} vomiting",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -52,7 +53,7 @@
       {
         "key": "blood_in_urine",
         "question": "Do you have blood in your urine?",
-        "recap_template": "Blood in urine is {answer}",
+        "recap_template": "You {answer} blood in urine",
         "answers": {
           "yes": "urgent",
           "no": "non_urgent"
@@ -147,7 +148,7 @@
       {
         "key": "burning",
         "question": "Do you have burning when urinating?",
-        "recap_template": "Burning with urination is {answer}",
+        "recap_template": "You {answer} burning with urination",
         "answers": {
           "yes": "urgent",
           "no": "non_urgent"
@@ -156,7 +157,7 @@
       {
         "key": "frequency",
         "question": "Do you have increased frequency of urination?",
-        "recap_template": "Increased frequency is {answer}",
+        "recap_template": "You {answer} increased frequency",
         "answers": {
           "yes": "urgent",
           "no": "non_urgent"
@@ -165,7 +166,7 @@
       {
         "key": "urgency",
         "question": "Do you have urgency when urinating?",
-        "recap_template": "Urgency with urination is {answer}",
+        "recap_template": "You {answer} urgency with urination",
         "answers": {
           "yes": "urgent",
           "no": "non_urgent"
@@ -174,7 +175,7 @@
       {
         "key": "fever",
         "question": "Do you have fever?",
-        "recap_template": "Fever is {answer}",
+        "recap_template": "You {answer} fever",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -183,7 +184,7 @@
       {
         "key": "chills",
         "question": "Do you have chills?",
-        "recap_template": "Chills are {answer}",
+        "recap_template": "You {answer} chills",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -192,7 +193,7 @@
       {
         "key": "flank_pain",
         "question": "Do you have flank pain with urination?",
-        "recap_template": "Flank pain is {answer}",
+        "recap_template": "You {answer} flank pain",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -201,7 +202,7 @@
       {
         "key": "back_pain",
         "question": "Do you have back pain with urination?",
-        "recap_template": "Back pain is {answer}",
+        "recap_template": "You {answer} back pain",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"

@@ -1,11 +1,12 @@
 {
   "rash": {
     "triggers": ["rash", "skin rash", "spots on skin", "skin lesions"],
+    "priority_keys": ["onset", "distribution", "fever", "pain", "spreading"],
     "steps": [
       {
         "key": "onset",
         "question": "When did the rash first appear?",
-        "recap_template": "Rash onset is {answer}",
+        "recap_template": "Rash started {answer}",
         "answers": {
           "sudden": "urgent",
           "gradual": "non_urgent",
@@ -16,7 +17,7 @@
       {
         "key": "distribution",
         "question": "Is the rash localized to one area or spread across the body?",
-        "recap_template": "Rash distribution is {answer}",
+        "recap_template": "You have {answer} rash distribution",
         "answers": {
           "generalized": "urgent",
           "localized": "non_urgent"
@@ -25,7 +26,7 @@
       {
         "key": "fever",
         "question": "Do you have fever with the rash?",
-        "recap_template": "Fever is {answer}",
+        "recap_template": "You {answer} fever",
         "answers": {
           "yes": "urgent",
           "no": "non_urgent"
@@ -34,7 +35,7 @@
       {
         "key": "swelling",
         "question": "Do you have swelling with the rash?",
-        "recap_template": "Swelling is {answer}",
+        "recap_template": "You {answer} swelling",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -43,7 +44,7 @@
       {
         "key": "difficulty_breathing",
         "question": "Do you have difficulty breathing with the rash?",
-        "recap_template": "Difficulty breathing is {answer}",
+        "recap_template": "You {answer} difficulty breathing",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"

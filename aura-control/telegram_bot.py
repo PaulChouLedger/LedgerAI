@@ -42,6 +42,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Handle reset/exit
     lowered = user_message.lower()
     if any(k in lowered for k in RESET_KEYWORDS):
+        # Clear both Telegram session and LLM container state
         sessions[chat_id] = {"active": True, "history": []}
         print(f"[Telegram] 🔄 Reset: Session state for {chat_id}: {sessions[chat_id]}")
         # Forward reset to LLM container
@@ -123,6 +124,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Collect streamed sentences
         reply_buffer = ""
+        triage_completed = False
         for line in resp.iter_lines(decode_unicode=True):
             if not line:
                 continue
@@ -131,9 +133,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif "<sentence_end>" in line:
                 if reply_buffer.strip():
                     await update.message.reply_text(reply_buffer.strip())
+                    # Check if this looks like a triage completion (outcome/recap)
+                    if any(phrase in reply_buffer.lower() for phrase in ["classified as", "seek emergency", "call 911", "see a doctor", "medical evaluation"]):
+                        triage_completed = True
                 reply_buffer = ""
             else:
                 reply_buffer += line + " "
+        
+        # Clear session state after triage completion
+        if triage_completed:
+            sessions[chat_id] = {"active": True, "history": []}
+            print(f"[Telegram] 🔄 Auto-reset after triage completion for {chat_id}: {sessions[chat_id]}")
 
     except Exception as e:
         print(f"[Telegram] ❌ Error: {e}")

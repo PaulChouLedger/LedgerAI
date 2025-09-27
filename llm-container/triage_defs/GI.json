@@ -13,7 +13,7 @@
       {
         "key": "location",
         "question": "Where in your abdomen is the pain located?",
-        "recap_template": "Pain located in {answer}",
+        "recap_template": "You have pain located in {answer}",
         "answers": {
           "right upper quadrant": "ruq_pathway",
           "epigastric": "epigastric_pathway",
@@ -49,7 +49,7 @@
     "pathways": {
       "ruq_pathway": {
         "intro": "{name}, right upper quadrant pain can suggest gallbladder or liver problems. Let’s clarify.",
-        "priority_keys": ["jaundice", "fever"],
+        "priority_keys": ["fever", "jaundice", "nausea"],
         "steps": [
           {
             "key": "fever",
@@ -354,7 +354,7 @@
           {
             "key": "gender",
             "question": "Are you male or female?",
-            "recap_template": "Gender: {answer}",
+            "recap_template": "You are {answer}",
             "answers": {
               "female": "female_pelvic_pathway",
               "male": "male_pelvic_pathway"
@@ -368,7 +368,7 @@
               {
                 "key": "menstrual",
                 "question": "Are you currently menstruating, or have you noticed any changes in your menstrual cycle?",
-                "recap_template": "Menstrual status: {answer}",
+                "recap_template": "You {answer} menstrual changes",
                 "answers": {
                   "currently menstruating": "urgent",
                   "missed period": "urgent",
@@ -379,7 +379,7 @@
               {
                 "key": "urinary",
                 "question": "Do you have any urinary symptoms like burning, frequency, or urgency?",
-                "recap_template": "Urinary symptoms: {answer}",
+                "recap_template": "You {answer} urinary symptoms",
                 "answers": {
                   "yes": "urgent",
                   "no": "non_urgent"
@@ -398,7 +398,7 @@
               {
                 "key": "urinary",
                 "question": "Do you have any urinary symptoms like burning, frequency, urgency, or difficulty urinating?",
-                "recap_template": "Urinary symptoms: {answer}",
+                "recap_template": "You {answer} urinary symptoms",
                 "answers": {
                   "yes": "urgent",
                   "no": "non_urgent"
@@ -407,7 +407,7 @@
               {
                 "key": "testicular",
                 "question": "Do you have any testicular pain or swelling?",
-                "recap_template": "Testicular symptoms: {answer}",
+                "recap_template": "You {answer} testicular symptoms",
                 "answers": {
                   "yes": "emergency",
                   "no": "non_urgent"
@@ -441,7 +441,7 @@
           {
             "key": "bowel",
             "question": "Have you noticed any changes in your bowel movements, such as diarrhea, constipation, or blood in your stool?",
-            "recap_template": "Bowel changes: {answer}",
+            "recap_template": "You {answer} bowel changes",
             "answers": {
               "blood in stool": "emergency",
               "diarrhea": "urgent",
@@ -452,7 +452,7 @@
           {
             "key": "nausea",
             "question": "Do you have nausea or vomiting?",
-            "recap_template": "Nausea/vomiting: {answer}",
+            "recap_template": "You {answer} nausea or vomiting",
             "answers": {
               "yes": "urgent",
               "no": "non_urgent"
@@ -461,7 +461,7 @@
           {
             "key": "fever",
             "question": "Do you have a fever?",
-            "recap_template": "Fever: {answer}",
+            "recap_template": "You {answer} fever",
             "answers": {
               "yes": "emergency",
               "no": "non_urgent"
@@ -502,7 +502,7 @@
       {
         "key": "color",
         "question": "Is the dark color more black/tarry or more red/maroon?",
-        "recap_template": "Stool color: {answer}",
+        "recap_template": "You have {answer} stool color",
         "answers": {
           "black": "emergency",
           "tarry": "emergency",
@@ -514,7 +514,7 @@
       {
         "key": "amount",
         "question": "How much blood are you seeing - just streaks, small amounts, or large amounts?",
-        "recap_template": "Blood amount: {answer}",
+        "recap_template": "You have {answer} blood amount",
         "answers": {
           "just streaks": "urgent",
           "small amounts": "urgent",
