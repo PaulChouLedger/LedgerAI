@@ -128,9 +128,10 @@
     "outcomes": {
       "emergency": "This may be a cardiac emergency. Please seek immediate care or call 911.",
       "urgent": "Your symptoms need urgent medical evaluation. Please see a doctor as soon as possible.",
-      "non_urgent": "This doesn’t sound emergent, but follow up with your doctor soon."
+      "non_urgent": "This doesn't sound emergent, but follow up with your doctor soon."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "clinical_summary": "Your symptoms are concerning for a heart attack or major cardiac event.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "palpitations": {
@@ -181,7 +182,7 @@
       "urgent": "Your palpitations need urgent medical evaluation. Please see a doctor soon.",
       "non_urgent": "Your palpitations may not be urgent, but follow up with your doctor is important."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "syncope": {
@@ -237,7 +238,7 @@
       "urgent": "Your fainting requires urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Your fainting may be benign, but you should still follow up with your doctor."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "leg_swelling": {
@@ -284,7 +285,7 @@
       "urgent": "Leg swelling in one leg may suggest a clot. Please see a doctor soon.",
       "non_urgent": "Leg swelling may be benign, but follow up with your doctor is advised."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "leg_pain": {
@@ -333,7 +334,7 @@
       "urgent": "Leg pain in the calf or thigh may suggest a clot. Please see a doctor soon.",
       "non_urgent": "Leg pain in the ankle or foot may be benign, but follow up with your doctor is advised."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "hypertension": {
@@ -358,7 +359,7 @@
       "urgent": "Headache with high blood pressure needs urgent evaluation. Please see a doctor soon.",
       "non_urgent": "High blood pressure without symptoms may be monitored, but follow up with your doctor is advised."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "bradycardia": {
@@ -383,7 +384,7 @@
       "urgent": "Bradycardia with dizziness or fatigue requires urgent evaluation.",
       "non_urgent": "Slow heart rate without symptoms may be benign but should be followed up."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "tachycardia": {
@@ -408,7 +409,7 @@
       "urgent": "Tachycardia with mild symptoms should be evaluated urgently.",
       "non_urgent": "Fast heart rate without symptoms may not be urgent, but follow up with your doctor is advised."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "edema": {
@@ -432,7 +433,7 @@
       "urgent": "Swelling with other concerning symptoms may need urgent evaluation.",
       "non_urgent": "Mild swelling may be non-urgent but should be checked by your doctor."
     },
-    "recap": "{name}, {summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "dizziness": {
