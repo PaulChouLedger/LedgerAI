@@ -16,11 +16,10 @@ FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.2
 VAD_THRESHOLD = 0.3
+MIC_GAIN = 2.0  # Adjust this to increase microphone sensitivity
 MIN_AUDIO_SAMPLES = 8000
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
-CONTEXT_DEPTH = 6
-prompt_history = []
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
@@ -98,6 +97,8 @@ def listen():
                     break
 
                 audio_block, _ = stream.read(FRAME_SIZE)
+                # Apply gain to increase microphone sensitivity
+                audio_block = audio_block * MIC_GAIN
                 channel_0 = audio_block[:, 0]
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 print(f"[Debug] VAD prob: {vad_prob:.2f}")
@@ -113,6 +114,8 @@ def listen():
                     break
 
                 audio_block, _ = stream.read(FRAME_SIZE)
+                # Apply gain to increase microphone sensitivity
+                audio_block = audio_block * MIC_GAIN
                 channel_0 = audio_block[:, 0]
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 buffer.append(audio_block)
