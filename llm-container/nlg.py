@@ -63,7 +63,8 @@ def rewrite(
         "FOR RECAPS: Preserve ALL clinical details including specific symptoms, denied symptoms, and clinical assessments. Do not summarize away important medical information. "
         "CRITICAL: NEVER add symptoms that are not mentioned in the original text. Do not hallucinate or invent symptoms like 'dark stools', 'nausea', or 'abdominal pain' unless they are explicitly stated. "
         "IMPORTANT: Do NOT add temporal references like 'today', 'now', 'currently', 'at this time' unless they are in the original text. Keep the language timeless and clinical. "
-        "CRITICAL: Do NOT add markdown formatting like **bold**, *italics*, or other formatting unless it is in the original text. Keep the output clean and plain text. NEVER use **, *, or any markdown syntax. Output must be plain text only."
+        "CRITICAL: Do NOT add markdown formatting like **bold**, *italics*, or other formatting unless it is in the original text. Keep the output clean and plain text. NEVER use **, *, or any markdown syntax. Output must be plain text only. "
+        "IMPORTANT: Preserve anatomical terms exactly. Do NOT change 'both' to 'both sides' when referring to limbs. Keep 'arm', 'leg', 'both' as specified in the original text."
     )
 
     # Few-shot style hints per role
