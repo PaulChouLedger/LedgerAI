@@ -437,11 +437,18 @@ def update_flags_from_answer(cond, key, ans, state, session_id=None):
         state.pop("pending_clarify", None)
         return
     steps = get_steps(cond, state)
+    print(f"[Aura-LLM] 🔍 update_flags_from_answer: cond={cond}, key={key}, ans={ans}")
+    print(f"[Aura-LLM] 🔍 Steps: {steps}")
     for s in steps:
         if isinstance(s, dict) and s.get("key") == key:
+            print(f"[Aura-LLM] 🔍 Found matching step: {s}")
             opt, score = match_answer_option(ans_norm, s.get("answers", {}))
-            if not opt or score < MIN_MATCH: return
+            print(f"[Aura-LLM] 🔍 Matched option: {opt}, score: {score}")
+            if not opt or score < MIN_MATCH: 
+                print(f"[Aura-LLM] ❌ No valid match found")
+                return
             sev = s["answers"][opt]
+            print(f"[Aura-LLM] 🔍 Severity/pathway: {sev}")
 
             # Inline clarify object with followup_question
             if isinstance(sev, dict) and sev.get("followup_question"):
