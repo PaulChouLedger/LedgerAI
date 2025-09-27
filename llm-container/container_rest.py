@@ -656,9 +656,13 @@ def build_recap(cond, answers, flags, severity, session_id=None):
             
             # Count overlapping words
             overlap = len(original_words.intersection(symptom_words))
-            # Prefer longer matches (more detailed)
-            length_bonus = len(symptom_words) * 0.1
-            score = overlap + length_bonus
+            # Prefer longer matches (more detailed) - increase weight for specificity
+            length_bonus = len(symptom_words) * 0.3
+            # Bonus for anatomical specificity (arm, leg, side, etc.)
+            anatomical_bonus = 0
+            if any(word in symptom_lower for word in ['arm', 'leg', 'side', 'right', 'left', 'upper', 'lower']):
+                anatomical_bonus = 2.0
+            score = overlap + length_bonus + anatomical_bonus
             
             if score > best_score:
                 best_score = score

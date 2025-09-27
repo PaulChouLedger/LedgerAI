@@ -133,7 +133,7 @@
           },
           {
             "key": "face",
-            "question": "Do you have facial droop or numbness?",
+            "question": "Do you have facial droop or facial numbness?",
             "recap_template": "You {answer} facial droop or numbness",
             "answers": {
               "yes": "emergency",
@@ -160,7 +160,7 @@
           },
           {
             "key": "vision_loss",
-            "question": "Do you have sudden vision loss or double vision?",
+            "question": "Do you have sudden vision loss?",
             "recap_template": "You {answer} vision problems",
             "answers": {
               "yes": "emergency",
@@ -204,7 +204,7 @@
           },
           {
             "key": "face",
-            "question": "Do you have facial droop or numbness?",
+            "question": "Do you have facial droop or facial numbness?",
             "recap_template": "You {answer} facial droop or numbness",
             "answers": {
               "yes": "emergency",
@@ -231,7 +231,7 @@
           },
           {
             "key": "vision_loss",
-            "question": "Do you have sudden vision loss or double vision?",
+            "question": "Do you have sudden vision loss?",
             "recap_template": "You {answer} vision problems",
             "answers": {
               "yes": "emergency",
@@ -275,7 +275,7 @@
           },
           {
             "key": "face",
-            "question": "Do you have facial droop or numbness?",
+            "question": "Do you have facial droop or facial numbness?",
             "recap_template": "You {answer} facial droop or numbness",
             "answers": {
               "yes": "emergency",
@@ -302,7 +302,7 @@
           },
           {
             "key": "vision_loss",
-            "question": "Do you have sudden vision loss or double vision?",
+            "question": "Do you have sudden vision loss?",
             "recap_template": "You {answer} vision problems",
             "answers": {
               "yes": "emergency",
@@ -346,7 +346,7 @@
           },
           {
             "key": "face",
-            "question": "Do you have facial droop or numbness?",
+            "question": "Do you have facial droop or facial numbness?",
             "recap_template": "You {answer} facial droop or numbness",
             "answers": {
               "yes": "emergency",
@@ -373,7 +373,7 @@
           },
           {
             "key": "vision_loss",
-            "question": "Do you have sudden vision loss or double vision?",
+            "question": "Do you have sudden vision loss?",
             "recap_template": "You {answer} vision problems",
             "answers": {
               "yes": "emergency",
@@ -417,7 +417,7 @@
           },
           {
             "key": "face",
-            "question": "Do you have facial droop or numbness?",
+            "question": "Do you have facial droop or facial numbness?",
             "recap_template": "You {answer} facial droop or numbness",
             "answers": {
               "yes": "emergency",
@@ -444,7 +444,7 @@
           },
           {
             "key": "vision_loss",
-            "question": "Do you have sudden vision loss or double vision?",
+            "question": "Do you have sudden vision loss?",
             "recap_template": "You {answer} vision problems",
             "answers": {
               "yes": "emergency",
@@ -488,7 +488,7 @@
           },
           {
             "key": "face",
-            "question": "Do you have facial droop or numbness?",
+            "question": "Do you have facial droop or facial numbness?",
             "recap_template": "You {answer} facial droop or numbness",
             "answers": {
               "yes": "emergency",
@@ -515,7 +515,7 @@
           },
           {
             "key": "vision_loss",
-            "question": "Do you have sudden vision loss or double vision?",
+            "question": "Do you have sudden vision loss?",
             "recap_template": "You {answer} vision problems",
             "answers": {
               "yes": "emergency",
@@ -550,7 +550,8 @@
             "answers": {
               "arm": "right_arm_weakness",
               "leg": "right_leg_weakness",
-              "both": "right_side_weakness_both"
+              "both": "right_side_weakness_both",
+              "arm and leg": "right_side_weakness_both"
             }
           },
           {
@@ -569,7 +570,7 @@
           },
           {
             "key": "face",
-            "question": "Do you have facial droop or numbness?",
+            "question": "Do you have facial droop or facial numbness?",
             "recap_template": "You {answer} facial droop or numbness",
             "answers": {
               "yes": "emergency",
@@ -587,7 +588,7 @@
           },
           {
             "key": "vision_loss",
-            "question": "Do you have sudden vision loss or double vision?",
+            "question": "Do you have sudden vision loss?",
             "recap_template": "You {answer} vision problems",
             "answers": {
               "yes": "emergency",
@@ -631,7 +632,7 @@
           },
           {
             "key": "face",
-            "question": "Do you have facial droop or numbness?",
+            "question": "Do you have facial droop or facial numbness?",
             "recap_template": "You {answer} facial droop or numbness",
             "answers": {
               "yes": "emergency",
@@ -649,7 +650,7 @@
           },
           {
             "key": "vision_loss",
-            "question": "Do you have sudden vision loss or double vision?",
+            "question": "Do you have sudden vision loss?",
             "recap_template": "You {answer} vision problems",
             "answers": {
               "yes": "emergency",
@@ -684,7 +685,8 @@
             "answers": {
               "arm": "left_arm_weakness",
               "leg": "left_leg_weakness",
-              "both": "left_side_weakness_both"
+              "both": "left_side_weakness_both",
+              "arm and leg": "left_side_weakness_both"
             }
           },
           {
@@ -703,7 +705,7 @@
           },
           {
             "key": "face",
-            "question": "Do you have facial droop or numbness?",
+            "question": "Do you have facial droop or facial numbness?",
             "recap_template": "You {answer} facial droop or numbness",
             "answers": {
               "yes": "emergency",
@@ -721,7 +723,7 @@
           },
           {
             "key": "vision_loss",
-            "question": "Do you have sudden vision loss or double vision?",
+            "question": "Do you have sudden vision loss?",
             "recap_template": "You {answer} vision problems",
             "answers": {
               "yes": "emergency",
@@ -765,7 +767,7 @@
           },
           {
             "key": "face",
-            "question": "Do you have facial droop or numbness?",
+            "question": "Do you have facial droop or facial numbness?",
             "recap_template": "You {answer} facial droop or numbness",
             "answers": {
               "yes": "emergency",
@@ -783,7 +785,7 @@
           },
           {
             "key": "vision_loss",
-            "question": "Do you have sudden vision loss or double vision?",
+            "question": "Do you have sudden vision loss?",
             "recap_template": "You {answer} vision problems",
             "answers": {
               "yes": "emergency",
