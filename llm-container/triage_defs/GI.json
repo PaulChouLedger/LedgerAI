@@ -48,7 +48,7 @@
       {
         "key": "onset",
         "question": "When did the abdominal pain start?",
-        "recap_template": "Pain began {answer}",
+        "recap_template": "Onset was {answer}",
         "answers": {
           "within the last hour": "emergency",
           "within the last few hours": "emergency",
@@ -63,12 +63,12 @@
     "pathways": {
       "ruq_pathway": {
         "intro": "{name}, right upper quadrant pain can suggest gallbladder or liver problems. Let's clarify.",
-        "priority_keys": ["onset", "fever", "jaundice", "nausea"],
+        "priority_keys": ["onset", "fever", "jaundice"],
         "steps": [
           {
             "key": "onset",
             "question": "When did the right upper quadrant pain start?",
-            "recap_template": "Pain began {answer}",
+            "recap_template": "Onset was {answer}",
             "answers": {
               "within the last hour": "emergency",
               "within the last few hours": "emergency",

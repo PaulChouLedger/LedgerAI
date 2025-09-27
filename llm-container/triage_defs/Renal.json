@@ -6,7 +6,7 @@
       {
         "key": "onset",
         "question": "When did the flank pain start?",
-        "recap_template": "Pain began {answer}",
+        "recap_template": "Pain onset was {answer}",
         "answers": {
           "within the last hour": "emergency",
           "within the last few hours": "emergency",

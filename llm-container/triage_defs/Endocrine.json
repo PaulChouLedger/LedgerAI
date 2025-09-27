@@ -6,7 +6,7 @@
       {
         "key": "onset",
         "question": "When did the low blood sugar symptoms start?",
-        "recap_template": "Symptoms began {answer}",
+        "recap_template": "Onset was {answer}",
         "answers": {
           "within the last hour": "emergency",
           "within the last few hours": "emergency",
