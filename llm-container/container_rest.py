@@ -316,8 +316,29 @@ def match_answer_option(ans_norm, valid_map):
     best, score = None, 0.0
     for opt in valid_map:
         opt_tokens = set(tokenize(opt))
-        overlap = len(ans_tokens & opt_tokens) / float(len(opt_tokens)) if opt_tokens else 0
-        if overlap > score: best, score = opt, overlap
+        overlap = len(ans_tokens & opt_tokens)
+        
+        # Calculate score with length preference for more specific matches
+        if overlap > 0:
+            # Base score is the overlap ratio
+            base_score = overlap / float(len(opt_tokens)) if opt_tokens else 0
+            # Bonus for longer matches (more specific) - multiply by length
+            length_bonus = len(opt_tokens) * 0.1
+            # Bonus for exact matches or very high overlap
+            if overlap == len(ans_tokens) and overlap == len(opt_tokens):
+                exact_bonus = 0.5  # Exact match bonus
+            elif overlap == len(opt_tokens):
+                exact_bonus = 0.3  # Answer contains all option tokens
+            else:
+                exact_bonus = 0
+                
+            final_score = base_score + length_bonus + exact_bonus
+        else:
+            final_score = 0
+            
+        if final_score > score: 
+            best, score = opt, final_score
+            
     return best, score
 
 def match_all_options(ans_norm, valid_map):
