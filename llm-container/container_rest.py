@@ -496,15 +496,13 @@ def build_recap(cond, answers, flags, severity):
             # Extract the pathway name without "_pathway" suffix for display
             display_name = ans_out.replace("_pathway", "").replace("_", " ").title()
             line = templ.format(answer=display_name).strip()
-        else:
-            # Use the raw answer for display
-            line = templ.format(answer=raw).strip()
-        # If template is of the form "You {answer} X" and ans_out is not reported/denied,
-        # rewrite to "You reported X with ans_out" for better readability
         elif re.match(r"^\s*You\s+\{answer\}\s+", templ, flags=re.IGNORECASE) and ans_out not in ("reported", "denied"):
+            # If template is of the form "You {answer} X" and ans_out is not reported/denied,
+            # rewrite to "You reported X with ans_out" for better readability
             tail = re.sub(r"^\s*You\s+\{answer\}\s+", "", templ, flags=re.IGNORECASE).strip()
             line = f"You reported {tail} with {ans_out}"
         else:
+            # Use the raw answer for display
             line = templ.format(answer=ans_out).strip()
             
         # Debug logging for recap generation
