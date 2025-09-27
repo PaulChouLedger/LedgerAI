@@ -109,7 +109,9 @@
               "left": "left_side_weakness"
             }
           }
-        ]
+        ],
+        "clinical_summary": "Your symptoms suggest focal weakness that may be related to a stroke or other neurological condition requiring medical evaluation.",
+        "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
       },
       "right_arm_weakness": {
         "intro": "{name}, right arm weakness can suggest a stroke. Let's clarify.",
@@ -180,7 +182,7 @@
           "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
           "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
         },
-        "clinical_summary": "Your symptoms are concerning for acute stroke or other neurological emergency."
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting the right arm, requiring immediate medical evaluation."
       },
       "left_arm_weakness": {
         "intro": "{name}, left arm weakness can suggest a stroke. Let's clarify.",
@@ -251,7 +253,7 @@
           "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
           "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
         },
-        "clinical_summary": "Your symptoms are concerning for acute stroke or other neurological emergency."
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting the left arm, requiring immediate medical evaluation."
       },
       "both_arm_weakness": {
         "intro": "{name}, weakness in both arms can suggest a stroke. Let's clarify.",
@@ -322,7 +324,7 @@
           "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
           "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
         },
-        "clinical_summary": "Your symptoms are concerning for acute stroke or other neurological emergency."
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting both arms, requiring immediate medical evaluation."
       },
       "right_leg_weakness": {
         "intro": "{name}, right leg weakness can suggest a stroke. Let's clarify.",
@@ -393,7 +395,7 @@
           "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
           "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
         },
-        "clinical_summary": "Your symptoms are concerning for acute stroke or other neurological emergency."
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting the right leg, requiring immediate medical evaluation."
       },
       "left_leg_weakness": {
         "intro": "{name}, left leg weakness can suggest a stroke. Let's clarify.",
@@ -464,7 +466,7 @@
           "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
           "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
         },
-        "clinical_summary": "Your symptoms are concerning for acute stroke or other neurological emergency."
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting the left leg, requiring immediate medical evaluation."
       },
       "both_leg_weakness": {
         "intro": "{name}, weakness in both legs can suggest a stroke. Let's clarify.",
@@ -535,7 +537,7 @@
           "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
           "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
         },
-        "clinical_summary": "Your symptoms are concerning for acute stroke or other neurological emergency."
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting both legs, requiring immediate medical evaluation."
       },
       "right_side_weakness": {
         "intro": "{name}, right side weakness can suggest a stroke. Let's clarify.",
@@ -607,7 +609,7 @@
           "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
           "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
         },
-        "clinical_summary": "Your symptoms are concerning for acute stroke or other neurological emergency."
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting the right side, requiring immediate medical evaluation."
       },
       "right_side_weakness_both": {
         "intro": "{name}, right side weakness affecting both arm and leg can suggest a stroke. Let's clarify.",
@@ -669,7 +671,7 @@
           "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
           "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
         },
-        "clinical_summary": "Your symptoms are concerning for acute stroke or other neurological emergency."
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting the right side (both limbs), requiring immediate medical evaluation."
       },
       "left_side_weakness": {
         "intro": "{name}, left side weakness can suggest a stroke. Let's clarify.",
@@ -741,7 +743,7 @@
           "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
           "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
         },
-        "clinical_summary": "Your symptoms are concerning for acute stroke or other neurological emergency."
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting the left side, requiring immediate medical evaluation."
       },
       "left_side_weakness_both": {
         "intro": "{name}, left side weakness affecting both arm and leg can suggest a stroke. Let's clarify.",
@@ -803,7 +805,7 @@
           "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
           "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
         },
-        "clinical_summary": "Your symptoms are concerning for acute stroke or other neurological emergency."
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting the left side (both limbs), requiring immediate medical evaluation."
       }
     },
     "outcomes": {
