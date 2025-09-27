@@ -429,8 +429,6 @@ def build_recap(cond, answers, flags, severity):
         steps = path.get("steps", steps)
         pk = path.get("priority_keys", pk)
         print(f"[Aura-LLM] 📝 Recap built from pathway: {state['active_pathway']}")
-        print(f"[Aura-LLM] 📝 Pathway steps: {[s.get('key') for s in steps]}")
-        print(f"[Aura-LLM] 📝 Pathway priority keys: {pk}")
 
     positives, negatives, priority_positives, priority_negatives = [], [], [], []
     def _strip_prefix(text: str) -> str:
@@ -542,22 +540,21 @@ def build_recap(cond, answers, flags, severity):
     print(f"[Aura-LLM] 🔍 Priority negatives: {priority_negatives}")
     print(f"[Aura-LLM] 🔍 Regular positives: {positives}")
     print(f"[Aura-LLM] 🔍 Regular negatives: {negatives}")
-    print(f"[Aura-LLM] 🔍 Main complaint: {main_complaint}")
-    print(f"[Aura-LLM] 🔍 Other positives: {other_positives}")
-    print(f"[Aura-LLM] 🔍 Timing info: {timing_info}")
     
     # Extract main complaint - check for organ-specific override first
     main_complaint_override = TRIAGE_DEFS[cond].get("main_complaint_override")
+    main_complaint = None
     if main_complaint_override == "location_specific" and priority_positives:
         # Look for location-specific complaint in priority positives
         for pos in priority_positives:
             if "pain located in" in pos.lower() or "pain on" in pos.lower():
                 main_complaint = pos
                 break
-        else:
+        if not main_complaint:
             # Fallback to first priority positive if no location found
             main_complaint = priority_positives[0]
-    else:
+    
+    if not main_complaint:
         # Extract main complaint from the expanded prompt (already normalized and clean)
         # This represents what the user actually reported, not the condition name
         expanded_prompt = state.get("expanded_prompt", "")
@@ -581,6 +578,12 @@ def build_recap(cond, answers, flags, severity):
         else:
             # Final fallback to condition name
             main_complaint = cond.replace("_", " ").replace("suspected", "").strip()
+    
+    # Ensure main_complaint is always defined
+    if not main_complaint:
+        main_complaint = cond.replace("_", " ").replace("suspected", "").strip()
+    
+    print(f"[Aura-LLM] 🔍 Main complaint: {main_complaint}")
     
     # Separate timing from other symptoms (excluding the main complaint)
     timing_info = []
