@@ -45,7 +45,8 @@ def rewrite(
     
     # Build prompt
     system = (
-        "You are a clinician assistant. Rewrite the provided line to sound natural, concise, and empathetic. "
+        "You are a medical assistant. Your task is to rewrite the provided text to sound natural and professional while preserving all clinical facts exactly. "
+        "IMPORTANT: You must rewrite the text, not just provide instructions. Return the actual rewritten text, not meta-instructions. "
         "Preserve clinical facts exactly. Avoid repetition and canned phrasing. "
         "Do not add medical advice beyond what is given. Use second-person voice. "
         "CRITICAL: Use the patient's name ONLY in intros and final recaps/outcomes. "
@@ -66,17 +67,18 @@ def rewrite(
         "CRITICAL: NEVER add demographic information like age, gender, or other personal details unless they are explicitly mentioned in the original text. Do not invent ages like '50 years old' or other demographic facts. "
         "IMPORTANT: Do NOT add temporal references like 'today', 'now', 'currently', 'at this time' unless they are in the original text. Keep the language timeless and clinical. "
         "CRITICAL: Do NOT add markdown formatting like **bold**, *italics*, or other formatting unless it is in the original text. Keep the output clean and plain text. NEVER use **, *, or any markdown syntax. Output must be plain text only. "
-        "IMPORTANT: Preserve anatomical terms exactly. Do NOT change 'both' to 'both sides' when referring to limbs. Keep 'arm', 'leg', 'both' as specified in the original text."
+        "IMPORTANT: Preserve anatomical terms exactly. Do NOT change 'both' to 'both sides' when referring to limbs. Keep 'arm', 'leg', 'both' as specified in the original text. "
+        "CRITICAL: Do NOT repeat the same phrase multiple times. If you find yourself repeating text, stop and provide a single, clear version."
     )
 
     # Few-shot style hints per role
     role_hint = {
-        "intro": "Acknowledge briefly and set up the next step. Use name once at the start only.",
-        "question": "Ask the question directly and clearly. DO NOT use the patient's name. Keep it concise - if the original question is already clear, make minimal changes. Avoid making simple questions wordy.",
-        "clarify": "Ask a short follow-up to narrow the answer. DO NOT use the patient's name. Start with 'Do you...' or 'Are you...'",
-        "recap": "Summarize succinctly in a SOAP-like clinical tone. Use name once at start only. PRESERVE ALL CLINICAL DETAILS - do not remove specific symptoms, findings, or clinical assessments.",
-        "outcome": "State the disposition plainly without extra advice. Use name once at start only. Do NOT add recap information or repeat symptoms already mentioned in the outcome text."
-    }.get(role, "Write clearly and briefly.")
+        "intro": "Rewrite to acknowledge the patient and transition to the next step naturally. Use the name once at the start only if provided.",
+        "question": "Rewrite the question to be clear and direct. Do not use the patient's name. Keep it concise and clinical.",
+        "clarify": "Rewrite as a short, clear follow-up question. Do not use the patient's name. Start with 'Do you...' or 'Are you...'",
+        "recap": "Rewrite as a clinical summary. Use the name once at start only if provided. Preserve all clinical details exactly.",
+        "outcome": "Rewrite as a clear disposition statement. Use the name once at start only if provided. Do not repeat symptoms already mentioned."
+    }.get(role, "Rewrite clearly and briefly.")
 
     history = phrasing_history or []
     avoid = "; ".join(history[-5:]) if history else ""
@@ -118,19 +120,16 @@ def rewrite(
     # Determine if we should use the name based on role and recent usage
     should_use_name = role in ("intro", "recap", "outcome") and name_count < 1
     
-    user_content = {
-        "text": text,
-        "role": role,
-        "name": name,
-        "should_use_name": should_use_name,
-        "name_used_recently": name_count > 1,
-        "condition": context.get("condition"),
-        "pathway": context.get("pathway"),
-        "key": context.get("key"),
-        "allowed_answers": allowed,
-        "style": role_hint,
-        "avoid_repeating_like": avoid,
-    }
+    user_content = f"""
+Text to rewrite: "{text}"
+
+Role: {role}
+Style: {role_hint}
+Name: {name if should_use_name else "Do not use"}
+Avoid repeating: {avoid}
+
+Rewrite the text above to be natural and professional while preserving all clinical facts exactly. Return only the rewritten text, not instructions.
+"""
 
     messages = [
         {"role": "system", "content": system},
