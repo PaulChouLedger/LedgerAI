@@ -473,9 +473,11 @@ def update_flags_from_answer(cond, key, ans, state, session_id=None):
                     print(f"[Aura-LLM] 🔀 Clarify routed → {sev}")
                 return
 
-            # Normal pathway
-            print(f"[Aura-LLM] 🔍 Checking pathway routing: sev={sev}, type={type(sev)}, ends_with_pathway={isinstance(sev, str) and sev.endswith('_pathway')}")
-            if isinstance(sev, str) and sev.endswith("_pathway"):
+            # Normal pathway - check if it's a pathway by looking in the pathways section
+            print(f"[Aura-LLM] 🔍 Checking pathway routing: sev={sev}, type={type(sev)}")
+            is_pathway = isinstance(sev, str) and "pathways" in TRIAGE_DEFS[cond] and sev in TRIAGE_DEFS[cond]["pathways"]
+            print(f"[Aura-LLM] 🔍 Is pathway: {is_pathway}")
+            if is_pathway:
                 state["active_pathway"] = sev
                 state["step_index"] = 0
                 state["answers"] = []
