@@ -7,8 +7,9 @@
       "gut pain",
       "tummy ache"
     ],
-    "intro": "{name}, I understand you’re experiencing abdominal pain. Let’s first figure out where it’s located.",
-    "priority_keys": ["location"],
+    "intro": "{name}, I understand you're experiencing abdominal pain. Let's first figure out where it's located.",
+    "priority_keys": ["location", "fever", "jaundice", "nausea", "vomiting", "radiation_back", "hematemesis", "melena", "nsaid_use", "rebound", "bowel_changes", "peritonitis", "trauma", "splenomegaly", "hemodynamic_instability", "distension", "bloody_stool", "hematochezia", "onset", "gender", "menstrual", "urinary", "discharge", "testicular"],
+    "main_complaint_override": "location_specific",
     "steps": [
       {
         "key": "location",

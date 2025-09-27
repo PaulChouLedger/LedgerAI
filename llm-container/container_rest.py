@@ -429,6 +429,8 @@ def build_recap(cond, answers, flags, severity):
         steps = path.get("steps", steps)
         pk = path.get("priority_keys", pk)
         print(f"[Aura-LLM] 📝 Recap built from pathway: {state['active_pathway']}")
+        print(f"[Aura-LLM] 📝 Pathway steps: {[s.get('key') for s in steps]}")
+        print(f"[Aura-LLM] 📝 Pathway priority keys: {pk}")
 
     positives, negatives, priority_positives, priority_negatives = [], [], [], []
     def _strip_prefix(text: str) -> str:
@@ -491,15 +493,14 @@ def build_recap(cond, answers, flags, severity):
                 ans_out = "denied"
             else:
                 ans_out = raw
-        # Special handling for location steps - show actual location, not pathway names
-        if key == "location":
-            if ans_out.endswith("_pathway"):
-                # Extract the pathway name without "_pathway" suffix for display
-                display_name = ans_out.replace("_pathway", "").replace("_", " ").title()
-                line = templ.format(answer=display_name).strip()
-            else:
-                # Use the raw answer for location (e.g., "left lower quadrant")
-                line = templ.format(answer=raw).strip()
+        # Handle pathway routing - show actual answer, not pathway names
+        if ans_out.endswith("_pathway"):
+            # Extract the pathway name without "_pathway" suffix for display
+            display_name = ans_out.replace("_pathway", "").replace("_", " ").title()
+            line = templ.format(answer=display_name).strip()
+        else:
+            # Use the raw answer for display
+            line = templ.format(answer=raw).strip()
         # If template is of the form "You {answer} X" and ans_out is not reported/denied,
         # rewrite to "You reported X with ans_out" for better readability
         elif re.match(r"^\s*You\s+\{answer\}\s+", templ, flags=re.IGNORECASE) and ans_out not in ("reported", "denied"):
@@ -541,37 +542,52 @@ def build_recap(cond, answers, flags, severity):
     print(f"[Aura-LLM] 🔍 Priority negatives: {priority_negatives}")
     print(f"[Aura-LLM] 🔍 Regular positives: {positives}")
     print(f"[Aura-LLM] 🔍 Regular negatives: {negatives}")
+    print(f"[Aura-LLM] 🔍 Main complaint: {main_complaint}")
+    print(f"[Aura-LLM] 🔍 Other positives: {other_positives}")
+    print(f"[Aura-LLM] 🔍 Timing info: {timing_info}")
     
-    # Extract main complaint from the expanded prompt (already normalized and clean)
-    # This represents what the user actually reported, not the condition name
-    expanded_prompt = state.get("expanded_prompt", "")
-    if expanded_prompt:
-        # Extract the main symptom from the expanded prompt
-        # Remove common prefixes and extract the core symptom
-        prompt_clean = expanded_prompt.lower()
-        # Remove common prefixes
-        for prefix in ["i have", "i'm experiencing", "i feel", "i got", "my", "i am having", "i am experiencing"]:
-            prompt_clean = prompt_clean.replace(prefix, "").strip()
-        # Remove common suffixes
-        for suffix in ["from", "since", "for", "that started", "which began", "starting"]:
-            if suffix in prompt_clean:
-                prompt_clean = prompt_clean.split(suffix)[0].strip()
-        # Clean up any remaining punctuation
-        prompt_clean = prompt_clean.rstrip(".,!?").strip()
-        main_complaint = prompt_clean
-    elif priority_positives:
-        # Fallback to first priority positive if no expanded prompt
-        main_complaint = priority_positives[0]
+    # Extract main complaint - check for organ-specific override first
+    main_complaint_override = TRIAGE_DEFS[cond].get("main_complaint_override")
+    if main_complaint_override == "location_specific" and priority_positives:
+        # Look for location-specific complaint in priority positives
+        for pos in priority_positives:
+            if "pain located in" in pos.lower() or "pain on" in pos.lower():
+                main_complaint = pos
+                break
+        else:
+            # Fallback to first priority positive if no location found
+            main_complaint = priority_positives[0]
     else:
-        # Final fallback to condition name
-        main_complaint = cond.replace("_", " ").replace("suspected", "").strip()
+        # Extract main complaint from the expanded prompt (already normalized and clean)
+        # This represents what the user actually reported, not the condition name
+        expanded_prompt = state.get("expanded_prompt", "")
+        if expanded_prompt:
+            # Extract the main symptom from the expanded prompt
+            # Remove common prefixes and extract the core symptom
+            prompt_clean = expanded_prompt.lower()
+            # Remove common prefixes
+            for prefix in ["i have", "i'm experiencing", "i feel", "i got", "my", "i am having", "i am experiencing"]:
+                prompt_clean = prompt_clean.replace(prefix, "").strip()
+            # Remove common suffixes
+            for suffix in ["from", "since", "for", "that started", "which began", "starting"]:
+                if suffix in prompt_clean:
+                    prompt_clean = prompt_clean.split(suffix)[0].strip()
+            # Clean up any remaining punctuation
+            prompt_clean = prompt_clean.rstrip(".,!?").strip()
+            main_complaint = prompt_clean
+        elif priority_positives:
+            # Fallback to first priority positive if no expanded prompt
+            main_complaint = priority_positives[0]
+        else:
+            # Final fallback to condition name
+            main_complaint = cond.replace("_", " ").replace("suspected", "").strip()
     
     # Separate timing from other symptoms (excluding the main complaint)
     timing_info = []
     other_positives = []
-    for i, pos in enumerate(priority_positives):
-        if i == 0:
-            # Skip the first one as it's the main complaint
+    for pos in priority_positives:
+        # Skip the main complaint (could be first item or location-specific complaint)
+        if pos == main_complaint:
             continue
         if any(time_word in pos.lower() for time_word in ["began", "started", "ago", "hours", "days", "today", "yesterday"]):
             timing_info.append(pos)
