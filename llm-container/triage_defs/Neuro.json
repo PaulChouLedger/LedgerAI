@@ -16,7 +16,7 @@
       {
         "key": "side",
         "question": "Which leg is affected - right, left, or both?",
-        "recap_template": "Weakness involves {answer} leg",
+        "recap_template": "You have {answer} leg weakness",
         "answers": {
           "right": "emergency",
           "left": "emergency",
@@ -117,7 +117,7 @@
       {
         "key": "side",
         "question": "Which arm is affected - right, left, or both?",
-        "recap_template": "Weakness involves {answer} arm",
+        "recap_template": "You have {answer} arm weakness",
         "answers": {
           "right": "emergency",
           "left": "emergency",
@@ -233,7 +233,7 @@
       {
         "key": "limb_involvement",
         "question": "Is the weakness in your arm, leg, or both?",
-        "recap_template": "Weakness involves {answer}",
+        "recap_template": "You have {answer} weakness",
         "answers": {
           "arm": "emergency",
           "leg": "emergency",

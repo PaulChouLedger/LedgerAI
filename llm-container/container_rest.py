@@ -553,39 +553,42 @@ def build_recap(cond, answers, flags, severity):
             main_complaint = priority_positives[0]
     
     if not main_complaint:
-        # Extract main complaint from the expanded prompt (already normalized and clean)
-        # This represents what the user actually reported, not the condition name
-        expanded_prompt = state.get("expanded_prompt", "")
-        if expanded_prompt:
-            # Extract the main symptom from the expanded prompt
-            # Remove common prefixes and extract the core symptom
-            prompt_clean = expanded_prompt.lower()
-            # Remove common prefixes
-            for prefix in ["i have", "i'm experiencing", "i feel", "i got", "my", "i am having", "i am experiencing"]:
-                prompt_clean = prompt_clean.replace(prefix, "").strip()
-            # Remove common suffixes
-            for suffix in ["from", "since", "for", "that started", "which began", "starting"]:
-                if suffix in prompt_clean:
-                    prompt_clean = prompt_clean.split(suffix)[0].strip()
-            # Clean up any remaining punctuation
-            prompt_clean = prompt_clean.rstrip(".,!?").strip()
-            main_complaint = prompt_clean
-        elif priority_positives:
-            # Fallback to first priority positive if no expanded prompt
-            main_complaint = priority_positives[0]
+        # Use the most detailed symptom that matches the original complaint
+        # This ensures the main complaint is the most specific version of what the user initially reported
+        original_complaint = state.get("original_complaint", "").lower()
+        if priority_positives and original_complaint:
+            # Find the most detailed symptom that matches the original complaint
+            best_match = None
+            best_score = 0
+            
+            for pos in priority_positives:
+                pos_lower = pos.lower()
+                # Calculate similarity score based on word overlap
+                original_words = set(original_complaint.split())
+                pos_words = set(pos_lower.split())
+                
+                # Count overlapping words
+                overlap = len(original_words.intersection(pos_words))
+                # Prefer longer matches (more detailed)
+                length_bonus = len(pos_words) * 0.1
+                score = overlap + length_bonus
+                
+                if score > best_score:
+                    best_score = score
+                    best_match = pos
+            
+            if best_match:
+                main_complaint = best_match
+            else:
+                # Fallback to condition name if no good match
+                main_complaint = cond.replace("_", " ").replace("suspected", "").strip()
         else:
-            # Final fallback to condition name
+            # Fallback to condition name if no priority positives or original complaint
             main_complaint = cond.replace("_", " ").replace("suspected", "").strip()
     
     # Ensure main_complaint is always defined
     if not main_complaint:
         main_complaint = cond.replace("_", " ").replace("suspected", "").strip()
-    
-    print(f"[Aura-LLM] 🔍 Main complaint: {main_complaint}")
-    print(f"[Aura-LLM] 🔍 Main complaint override: {main_complaint_override}")
-    print(f"[Aura-LLM] 🔍 Priority positives for location detection: {priority_positives}")
-    print(f"[Aura-LLM] 🔍 Expanded prompt: {state.get('expanded_prompt', '')}")
-    print(f"[Aura-LLM] 🔍 Original complaint: {state.get('original_complaint', '')}")
     
     # Separate timing from other symptoms (excluding the main complaint)
     timing_info = []
@@ -594,10 +597,33 @@ def build_recap(cond, answers, flags, severity):
         # Skip the main complaint (could be first item or location-specific complaint)
         if pos == main_complaint:
             continue
-        if any(time_word in pos.lower() for time_word in ["began", "started", "ago", "hours", "days", "today", "yesterday"]):
+        # Check if this is timing information (starts with time words or contains time patterns)
+        is_timing = False
+        pos_lower = pos.lower()
+        
+        # Check for timing patterns at the beginning
+        if any(pos_lower.startswith(time_word) for time_word in ["symptoms began", "pain began", "swelling began", "dizziness began", "episode occurred"]):
+            is_timing = True
+        # Check for time words at the end
+        elif any(pos_lower.endswith(time_word) for time_word in ["ago", "hours ago", "days ago", "today", "yesterday"]):
+            is_timing = True
+        # Check for specific timing patterns
+        elif any(time_pattern in pos_lower for time_pattern in ["within the last", "a few days ago", "a week ago"]):
+            is_timing = True
+            
+        if is_timing:
             timing_info.append(pos)
         else:
             other_positives.append(pos)
+    
+    # Debug logging after timing separation
+    print(f"[Aura-LLM] 🔍 Main complaint: {main_complaint}")
+    print(f"[Aura-LLM] 🔍 Main complaint override: {main_complaint_override}")
+    print(f"[Aura-LLM] 🔍 Priority positives for location detection: {priority_positives}")
+    print(f"[Aura-LLM] 🔍 Expanded prompt: {state.get('expanded_prompt', '')}")
+    print(f"[Aura-LLM] 🔍 Original complaint: {state.get('original_complaint', '')}")
+    print(f"[Aura-LLM] 🔍 Timing info: {timing_info}")
+    print(f"[Aura-LLM] 🔍 Other positives: {other_positives}")
     
     # Build main recap sentence
     if other_positives:
