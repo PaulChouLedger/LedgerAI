@@ -68,7 +68,8 @@ def rewrite(
         "IMPORTANT: Do NOT add temporal references like 'today', 'now', 'currently', 'at this time' unless they are in the original text. Keep the language timeless and clinical. "
         "CRITICAL: Do NOT add markdown formatting like **bold**, *italics*, or other formatting unless it is in the original text. Keep the output clean and plain text. NEVER use **, *, or any markdown syntax. Output must be plain text only. "
         "IMPORTANT: Preserve anatomical terms exactly. Do NOT change 'both' to 'both sides' when referring to limbs. Keep 'arm', 'leg', 'both' as specified in the original text. "
-        "CRITICAL: Do NOT repeat the same phrase multiple times. If you find yourself repeating text, stop and provide a single, clear version."
+        "CRITICAL: Do NOT repeat the same phrase multiple times. If you find yourself repeating text, stop and provide a single, clear version. "
+        "ABSOLUTELY FORBIDDEN: Do not repeat the same sentence or phrase more than once. Each sentence should be unique and add new information."
     )
 
     # Few-shot style hints per role

@@ -696,7 +696,7 @@ def build_recap(cond, answers, flags, severity, session_id=None):
     # Always include denied key symptoms - they're important for clinical assessment
     if priority_negatives:
         parts.append("You denied key symptoms of " + pretty_join(priority_negatives, "or") + ".")
-    if positives: parts.append("You reported " + pretty_join(positives, "and") + ".")
+    if positives: parts.append("You also reported " + pretty_join(positives, "and") + ".")
     if negatives: parts.append("You denied " + pretty_join(negatives, "or") + ".")
     summary = " ".join(parts).strip()
     # Cleanup: collapse duplicate punctuation, fix spaces before punctuation, tidy capitalization after commas
