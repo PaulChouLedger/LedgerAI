@@ -15,9 +15,9 @@ SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.2
-VAD_THRESHOLD = 0.25  # Lower threshold for better speech detection
+VAD_THRESHOLD = 0.35  # Higher threshold to filter out background noise
 MIC_GAIN = 10.0  # Adjust this to increase microphone sensitivity
-MIN_AUDIO_SAMPLES = 8000
+MIN_SPEECH_DURATION = 0.5  # Minimum speech duration in seconds to prevent noise triggers
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
@@ -103,7 +103,9 @@ def listen():
                 audio_block = audio_block * MIC_GAIN
                 channel_0 = audio_block[:, 0]
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
-                print(f"[Debug] VAD prob: {vad_prob:.2f}")
+                # Reduce debug output for performance
+                if vad_prob > 0.1:  # Only log significant VAD activity
+                    print(f"[Debug] VAD prob: {vad_prob:.2f}")
                 if vad_prob > VAD_THRESHOLD:
                     print(f"[VAD] 🔊 Speech started (prob={vad_prob:.2f})")
                     buffer.append(audio_block)
@@ -151,8 +153,12 @@ def listen():
             b, a = signal.butter(4, high, btype='high')
             mono_mix = signal.filtfilt(b, a, mono_mix)
 
-            if len(mono_mix) < MIN_AUDIO_SAMPLES:
-                print("⚠️ Skipped: too short")
+            # Check audio duration
+            audio_duration = len(mono_mix) / SAMPLE_RATE
+            if audio_duration < MIN_SPEECH_DURATION:
+                print(f"⚠️ Skipped: too short (duration: {audio_duration:.2f}s)")
+                # Reset VAD state after failed detection to prevent noise loops
+                time.sleep(0.1)  # Brief pause to let VAD reset
                 continue
 
             text = transcribe(mono_mix)
