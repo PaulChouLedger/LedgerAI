@@ -11,11 +11,11 @@ from speaker import speak_llm_response, is_playing
 from pydub import AudioSegment
 
 # === Config ===
-SAMPLE_RATE = 16000
+SAMPLE_RATE = 22050  # Higher quality for better transcription
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.2
-VAD_THRESHOLD = 0.3
+VAD_THRESHOLD = 0.25  # Lower threshold for better speech detection
 MIC_GAIN = 2.0  # Adjust this to increase microphone sensitivity
 MIN_AUDIO_SAMPLES = 8000
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
@@ -137,6 +137,19 @@ def listen():
 
             full_audio = np.concatenate(buffer)
             mono_mix = full_audio[:, 0]
+            
+            # Audio preprocessing for better transcription
+            # Normalize volume
+            max_val = np.max(np.abs(mono_mix))
+            if max_val > 0:
+                mono_mix = mono_mix / max_val * 0.95
+            
+            # Apply high-pass filter to remove low-frequency noise
+            from scipy import signal
+            nyquist = SAMPLE_RATE / 2
+            high = 300 / nyquist  # Remove frequencies below 300Hz
+            b, a = signal.butter(4, high, btype='high')
+            mono_mix = signal.filtfilt(b, a, mono_mix)
 
             if len(mono_mix) < MIN_AUDIO_SAMPLES:
                 print("⚠️ Skipped: too short")

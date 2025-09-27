@@ -7,7 +7,7 @@ import tempfile
 import os
 
 app = Flask(__name__)
-model = load_trt_model("base.en")  # Supported models: "base.en", "small.en", etc.
+model = load_trt_model("small.en")  # Supported models: "base.en", "small.en", etc.
 
 def preprocess_audio(path, target_sr=16000):
     audio, sr = sf.read(path)
