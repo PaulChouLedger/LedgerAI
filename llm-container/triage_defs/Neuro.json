@@ -49,7 +49,7 @@
       {
         "key": "leg_weakness",
         "question": "Is there numbness in your leg as well?",
-        "recap_template": "You {answer} leg weakness",
+        "recap_template": "You {answer} leg numbness",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -150,7 +150,7 @@
       {
         "key": "arm_weakness",
         "question": "Is there numbness in your arm as well?",
-        "recap_template": "You {answer} arm weakness",
+        "recap_template": "You {answer} arm numbness",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
