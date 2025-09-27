@@ -674,7 +674,6 @@ def build_recap(cond, answers, flags, severity):
     
     # Debug logging after timing separation
     print(f"[Aura-LLM] 🔍 Main complaint: {main_complaint}")
-    print(f"[Aura-LLM] 🔍 Main complaint override: {main_complaint_override}")
     print(f"[Aura-LLM] 🔍 Priority positives for location detection: {priority_positives}")
     print(f"[Aura-LLM] 🔍 Expanded prompt: {state.get('expanded_prompt', '')}")
     print(f"[Aura-LLM] 🔍 Original complaint: {state.get('original_complaint', '')}")
