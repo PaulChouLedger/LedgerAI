@@ -39,7 +39,7 @@
       {
         "key": "leg_weakness",
         "question": "Is there numbness in your leg as well?",
-        "recap_template": "You {answer} leg numbness",
+        "recap_template": "You {answer} leg weakness",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -57,7 +57,7 @@
       {
         "key": "speech_output",
         "question": "Are you having trouble getting words out?",
-        "recap_template": "You {answer} trouble with word output",
+        "recap_template": "You {answer} trouble finding words",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -130,7 +130,7 @@
       {
         "key": "arm_weakness",
         "question": "Is there numbness in your arm as well?",
-        "recap_template": "You {answer} arm numbness",
+        "recap_template": "You {answer} arm weakness",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
