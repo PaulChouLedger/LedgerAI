@@ -432,6 +432,7 @@ def update_flags_from_answer(cond, key, ans, state):
             if detailed_symptom not in state["detailed_symptoms"]:
                 state["detailed_symptoms"].append(detailed_symptom)
                 print(f"[Aura-LLM] 📝 Detailed symptoms array: {state['detailed_symptoms']}")
+                save_state(state, session_id)
                 
         state.pop("pending_clarify", None)
         return
