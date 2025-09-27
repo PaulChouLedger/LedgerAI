@@ -186,7 +186,7 @@ def extract_name(prompt):
     parts = raw.split()
     if not parts or len(parts) > 3: 
         return None
-    blacklist = {"pain","cough","fever","dizziness","weakness","nausea","vomiting","abdominal","chest"}
+    blacklist = {"pain","cough","fever","dizziness","weakness","nausea","vomiting","abdominal","chest","done","finished","complete","over"}
     if any(p.lower() in blacklist for p in parts): 
         return None
     fixed = [p.capitalize() for p in parts]
@@ -384,7 +384,7 @@ def is_valid_answer(cond, key, ans, state):
             return opt and score >= MIN_MATCH
     return False
 
-def update_flags_from_answer(cond, key, ans, state):
+def update_flags_from_answer(cond, key, ans, state, session_id=None):
     ans_norm = normalize_text(ans)
     # Handle inline clarify answers first
     if key and key.startswith("clarify_") and state.get("pending_clarify") and state["pending_clarify"].get("key") == key:
@@ -788,7 +788,7 @@ def chat():
             if cur_key and not is_valid_answer(cond,cur_key,answer,state):
                 yield f"<sentence_start>\nI didn't quite catch that. {substitute_name(cur_step.get('question',''),state.get('user_name'))}\n<sentence_end>\n"; return
             state["answers"].append(answer)
-            if cur_key: update_flags_from_answer(cond,cur_key,answer,state); save_state(state, session_id)
+            if cur_key: update_flags_from_answer(cond,cur_key,answer,state,session_id); save_state(state, session_id)
 
             # Ask queued inline clarify question
             if state.get("pending_clarify") and state.get("last_key") == state["pending_clarify"].get("key"):
