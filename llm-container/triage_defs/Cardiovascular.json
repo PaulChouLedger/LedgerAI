@@ -21,7 +21,7 @@
       {
         "key": "quality",
         "question": "Can you describe the discomfort — is it sharp, heavy, or tight?",
-        "recap_template": "You have {answer} chest pain quality",
+        "recap_template": "You have {answer} chest pain",
         "answers": {
           "heavy": "emergency",
           "tight": "emergency",

@@ -64,23 +64,8 @@
     "pathways": {
       "ruq_pathway": {
         "intro": "{name}, right upper quadrant pain can suggest gallbladder or liver problems. Let's clarify.",
-        "priority_keys": ["location", "fever", "jaundice", "nausea"],
+        "priority_keys": ["fever", "jaundice", "nausea"],
         "steps": [
-          {
-            "key": "location",
-            "question": "Where in your abdomen is the pain located?",
-            "recap_template": "You have pain located in {answer}",
-            "answers": {
-              "right upper quadrant": "emergency",
-              "epigastric": "emergency",
-              "right lower quadrant": "emergency",
-              "left lower quadrant": "emergency",
-              "diffuse": "emergency",
-              "lower abdomen": "emergency",
-              "left side": "emergency",
-              "right side": "emergency"
-            }
-          },
           {
             "key": "fever",
             "question": "Do you have fever?",
@@ -127,23 +112,8 @@
 
       "epigastric_pathway": {
         "intro": "{name}, epigastric pain may be related to the stomach, pancreas, or ulcers. Let's clarify.",
-        "priority_keys": ["location", "hematemesis", "melena", "radiation_back"],
+        "priority_keys": ["hematemesis", "melena", "radiation_back"],
         "steps": [
-          {
-            "key": "location",
-            "question": "Where in your abdomen is the pain located?",
-            "recap_template": "You have pain located in {answer}",
-            "answers": {
-              "right upper quadrant": "emergency",
-              "epigastric": "emergency",
-              "right lower quadrant": "emergency",
-              "left lower quadrant": "emergency",
-              "diffuse": "emergency",
-              "lower abdomen": "emergency",
-              "left side": "emergency",
-              "right side": "emergency"
-            }
-          },
           {
             "key": "radiation_back",
             "question": "Does the pain radiate to your back?",
@@ -199,23 +169,8 @@
 
       "rlq_pathway": {
         "intro": "{name}, right lower quadrant pain often suggests appendicitis. Let's clarify.",
-        "priority_keys": ["location", "rebound"],
+        "priority_keys": ["rebound"],
         "steps": [
-          {
-            "key": "location",
-            "question": "Where in your abdomen is the pain located?",
-            "recap_template": "You have pain located in {answer}",
-            "answers": {
-              "right upper quadrant": "emergency",
-              "epigastric": "emergency",
-              "right lower quadrant": "emergency",
-              "left lower quadrant": "emergency",
-              "diffuse": "emergency",
-              "lower abdomen": "emergency",
-              "left side": "emergency",
-              "right side": "emergency"
-            }
-          },
           {
             "key": "fever",
             "question": "Do you have fever?",
@@ -262,23 +217,8 @@
 
       "llq_pathway": {
         "intro": "{name}, left lower quadrant pain often suggests diverticulitis. Let's clarify.",
-        "priority_keys": ["location", "peritonitis"],
+        "priority_keys": ["peritonitis"],
         "steps": [
-          {
-            "key": "location",
-            "question": "Where in your abdomen is the pain located?",
-            "recap_template": "You have pain located in {answer}",
-            "answers": {
-              "right upper quadrant": "emergency",
-              "epigastric": "emergency",
-              "right lower quadrant": "emergency",
-              "left lower quadrant": "emergency",
-              "diffuse": "emergency",
-              "lower abdomen": "emergency",
-              "left side": "emergency",
-              "right side": "emergency"
-            }
-          },
           {
             "key": "fever",
             "question": "Do you have fever?",
@@ -365,23 +305,8 @@
 
       "diffuse_pathway": {
         "intro": "{name}, diffuse abdominal pain can signal obstruction, ischemia, or infection. Let's clarify.",
-        "priority_keys": ["location", "vomiting", "bloody_stool", "hematochezia"],
+        "priority_keys": ["vomiting", "bloody_stool", "hematochezia"],
         "steps": [
-          {
-            "key": "location",
-            "question": "Where in your abdomen is the pain located?",
-            "recap_template": "You have pain located in {answer}",
-            "answers": {
-              "right upper quadrant": "emergency",
-              "epigastric": "emergency",
-              "right lower quadrant": "emergency",
-              "left lower quadrant": "emergency",
-              "diffuse": "emergency",
-              "lower abdomen": "emergency",
-              "left side": "emergency",
-              "right side": "emergency"
-            }
-          },
           {
             "key": "distension",
             "question": "Is your abdomen distended or bloated?",
