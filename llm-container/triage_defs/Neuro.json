@@ -194,7 +194,7 @@
       "unilateral weakness"
     ],
     "intro": "{name}, your symptoms may suggest a stroke. Let me ask you some focused questions.",
-    "priority_keys": ["onset", "limb_involvement", "face", "speech", "speech_output", "vision_loss", "vision_double"],
+    "priority_keys": ["onset", "limb_involvement", "numbness", "face", "speech", "speech_output", "vision_loss", "vision_double"],
     "steps": [
       {
         "key": "onset",
@@ -219,6 +219,15 @@
           "leg": "emergency",
           "both": "emergency",
           "arm and leg": "emergency"
+        }
+      },
+      {
+        "key": "numbness",
+        "question": "Do you have numbness in the same arm, leg, or both?",
+        "recap_template": "You {answer} numbness",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
         }
       },
       {

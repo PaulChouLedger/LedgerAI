@@ -158,6 +158,7 @@ def substitute_name(text, user_name):
     cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
     return cleaned
 
+
 # === Name extraction ===
 def extract_name(prompt):
     m = re.search(r"(?:my name is|i am|i'm|my name's)\s+([A-Za-z .'-]+)", prompt, re.IGNORECASE)
@@ -685,7 +686,7 @@ def chat():
         def generate():
             nonlocal state,cond,idx,cur_step,cur_key,answer
             if cur_key and not is_valid_answer(cond,cur_key,answer,state):
-                yield f"<sentence_start>\nI didn’t quite catch that. {substitute_name(cur_step.get('question',''),state.get('user_name'))}\n<sentence_end>\n"; return
+                yield f"<sentence_start>\nI didn't quite catch that. {substitute_name(cur_step.get('question',''),state.get('user_name'))}\n<sentence_end>\n"; return
             state["answers"].append(answer)
             if cur_key: update_flags_from_answer(cond,cur_key,answer,state); save_state(state, session_id)
 
