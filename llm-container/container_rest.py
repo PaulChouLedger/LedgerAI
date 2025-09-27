@@ -219,21 +219,18 @@ def detect_condition(prompt, session_id: str | None = None):
     
     for cond, data in TRIAGE_DEFS.items():
         triggers = data.get("triggers", [])
-        print(f"[Aura-LLM] 🔍 Checking condition: {cond} with {len(triggers)} triggers")
         for trig in triggers:
             trig_norm = normalize_text(trig)
-            print(f"[Aura-LLM] 🔍 Checking trigger: '{trig}' -> '{trig_norm}'")
             # Try exact match first
             if trig_norm in p_expanded:
-                print(f"[Aura-LLM] ✅ Detected condition: {cond}")
+                print(f"[Aura-LLM] ✅ Detected condition: {cond} (exact match: '{trig}')")
                 return cond
             # Try fuzzy match with 0.6 threshold
             ans_tokens = set(tokenize(p_expanded))
             trig_tokens = set(tokenize(trig_norm))
             overlap = len(ans_tokens & trig_tokens) / float(len(trig_tokens)) if trig_tokens else 0
-            print(f"[Aura-LLM] 🔍 Fuzzy match: '{trig_norm}' vs '{p_expanded}' = {overlap:.2f} (threshold: {MIN_MATCH})")
             if overlap >= MIN_MATCH:
-                print(f"[Aura-LLM] ✅ Detected condition: {cond}")
+                print(f"[Aura-LLM] ✅ Detected condition: {cond} (fuzzy match: '{trig}' = {overlap:.2f})")
                 return cond
     return None
 
