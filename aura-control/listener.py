@@ -20,6 +20,8 @@ MIC_GAIN = 2.0  # Adjust this to increase microphone sensitivity
 MIN_AUDIO_SAMPLES = 8000
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
+CONTEXT_DEPTH = 6
+prompt_history = []
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
