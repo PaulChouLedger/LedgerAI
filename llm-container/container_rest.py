@@ -484,6 +484,19 @@ def update_flags_from_answer(cond, key, ans, state, session_id=None):
                 state["last_key"] = None
                 state["entered_pathway"] = False
                 print(f"[Aura-LLM] 🔀 Pathway selected: {sev}")
+                
+                # Add detailed symptom for pathway - generic approach
+                if "detailed_symptoms" not in state:
+                    state["detailed_symptoms"] = []
+                
+                # Create detailed symptom using generic pathway name
+                pathway_name = sev.replace("_", " ")
+                detailed_symptom = pathway_name
+                
+                if detailed_symptom not in state["detailed_symptoms"]:
+                    state["detailed_symptoms"].append(detailed_symptom)
+                    print(f"[Aura-LLM] 📝 Detailed symptoms array: {state['detailed_symptoms']}")
+                    save_state(state, session_id)
             else:
                 print(f"[Aura-LLM] 🔍 Not a pathway, setting flag: {key}={sev}")
                 state["flags"].setdefault(cond, {})[key] = sev

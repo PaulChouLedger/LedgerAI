@@ -113,7 +113,7 @@
       },
       "right_arm_weakness": {
         "intro": "{name}, right arm weakness can suggest a stroke. Let's clarify.",
-        "priority_keys": ["onset", "face", "arm_weakness", "speech", "speech_output", "vision_loss", "vision_double"],
+        "priority_keys": ["onset", "face", "arm_weakness", "speech", "vision_loss", "vision_double"],
         "steps": [
           {
             "key": "onset",
@@ -157,15 +157,6 @@
             }
           },
           {
-            "key": "speech_output",
-            "question": "Can you repeat this phrase clearly: 'The early bird catches the worm'?",
-            "recap_template": "You {answer} clear speech",
-            "answers": {
-              "yes": "urgent",
-              "no": "emergency"
-            }
-          },
-          {
             "key": "vision_loss",
             "question": "Do you have sudden vision loss or double vision?",
             "recap_template": "You {answer} vision problems",
@@ -193,7 +184,7 @@
       },
       "left_arm_weakness": {
         "intro": "{name}, left arm weakness can suggest a stroke. Let's clarify.",
-        "priority_keys": ["onset", "face", "arm_weakness", "speech", "speech_output", "vision_loss", "vision_double"],
+        "priority_keys": ["onset", "face", "arm_weakness", "speech", "vision_loss", "vision_double"],
         "steps": [
           {
             "key": "onset",
@@ -237,15 +228,6 @@
             }
           },
           {
-            "key": "speech_output",
-            "question": "Can you repeat this phrase clearly: 'The early bird catches the worm'?",
-            "recap_template": "You {answer} clear speech",
-            "answers": {
-              "yes": "urgent",
-              "no": "emergency"
-            }
-          },
-          {
             "key": "vision_loss",
             "question": "Do you have sudden vision loss or double vision?",
             "recap_template": "You {answer} vision problems",
@@ -273,7 +255,7 @@
       },
       "both_arm_weakness": {
         "intro": "{name}, weakness in both arms can suggest a stroke. Let's clarify.",
-        "priority_keys": ["onset", "face", "arm_weakness", "speech", "speech_output", "vision_loss", "vision_double"],
+        "priority_keys": ["onset", "face", "arm_weakness", "speech", "vision_loss", "vision_double"],
         "steps": [
           {
             "key": "onset",
@@ -317,15 +299,6 @@
             }
           },
           {
-            "key": "speech_output",
-            "question": "Can you repeat this phrase clearly: 'The early bird catches the worm'?",
-            "recap_template": "You {answer} clear speech",
-            "answers": {
-              "yes": "urgent",
-              "no": "emergency"
-            }
-          },
-          {
             "key": "vision_loss",
             "question": "Do you have sudden vision loss or double vision?",
             "recap_template": "You {answer} vision problems",
@@ -353,7 +326,7 @@
       },
       "right_leg_weakness": {
         "intro": "{name}, right leg weakness can suggest a stroke. Let's clarify.",
-        "priority_keys": ["onset", "face", "leg_weakness", "speech", "speech_output", "vision_loss", "vision_double"],
+        "priority_keys": ["onset", "face", "leg_weakness", "speech", "vision_loss", "vision_double"],
         "steps": [
           {
             "key": "onset",
@@ -397,15 +370,6 @@
             }
           },
           {
-            "key": "speech_output",
-            "question": "Can you repeat this phrase clearly: 'The early bird catches the worm'?",
-            "recap_template": "You {answer} clear speech",
-            "answers": {
-              "yes": "urgent",
-              "no": "emergency"
-            }
-          },
-          {
             "key": "vision_loss",
             "question": "Do you have sudden vision loss or double vision?",
             "recap_template": "You {answer} vision problems",
@@ -433,7 +397,7 @@
       },
       "left_leg_weakness": {
         "intro": "{name}, left leg weakness can suggest a stroke. Let's clarify.",
-        "priority_keys": ["onset", "face", "leg_weakness", "speech", "speech_output", "vision_loss", "vision_double"],
+        "priority_keys": ["onset", "face", "leg_weakness", "speech", "vision_loss", "vision_double"],
         "steps": [
           {
             "key": "onset",
@@ -477,15 +441,6 @@
             }
           },
           {
-            "key": "speech_output",
-            "question": "Can you repeat this phrase clearly: 'The early bird catches the worm'?",
-            "recap_template": "You {answer} clear speech",
-            "answers": {
-              "yes": "urgent",
-              "no": "emergency"
-            }
-          },
-          {
             "key": "vision_loss",
             "question": "Do you have sudden vision loss or double vision?",
             "recap_template": "You {answer} vision problems",
@@ -513,7 +468,7 @@
       },
       "both_leg_weakness": {
         "intro": "{name}, weakness in both legs can suggest a stroke. Let's clarify.",
-        "priority_keys": ["onset", "face", "leg_weakness", "speech", "speech_output", "vision_loss", "vision_double"],
+        "priority_keys": ["onset", "face", "leg_weakness", "speech", "vision_loss", "vision_double"],
         "steps": [
           {
             "key": "onset",
@@ -557,15 +512,6 @@
             }
           },
           {
-            "key": "speech_output",
-            "question": "Can you repeat this phrase clearly: 'The early bird catches the worm'?",
-            "recap_template": "You {answer} clear speech",
-            "answers": {
-              "yes": "urgent",
-              "no": "emergency"
-            }
-          },
-          {
             "key": "vision_loss",
             "question": "Do you have sudden vision loss or double vision?",
             "recap_template": "You {answer} vision problems",
@@ -593,8 +539,18 @@
       },
       "right_side_weakness": {
         "intro": "{name}, right side weakness can suggest a stroke. Let's clarify.",
-        "priority_keys": ["onset", "numbness", "face", "speech", "speech_output", "vision_loss", "vision_double"],
+        "priority_keys": ["limb_involvement", "onset", "face", "speech", "vision_loss", "vision_double"],
         "steps": [
+          {
+            "key": "limb_involvement",
+            "question": "Is the weakness in your arm, leg, or both?",
+            "recap_template": "You have {answer} weakness",
+            "answers": {
+              "arm": "right_arm_weakness",
+              "leg": "right_leg_weakness",
+              "both": "right_side_weakness_both"
+            }
+          },
           {
             "key": "onset",
             "question": "When did the right side weakness start?",
@@ -607,15 +563,6 @@
               "a few days ago": "urgent",
               "a week ago": "non_urgent",
               "unknown": "urgent"
-            }
-          },
-          {
-            "key": "numbness",
-            "question": "Do you have numbness on your right side as well?",
-            "recap_template": "You {answer} right side numbness",
-            "answers": {
-              "yes": "emergency",
-              "no": "urgent"
             }
           },
           {
@@ -634,15 +581,6 @@
             "answers": {
               "yes": "emergency",
               "no": "urgent"
-            }
-          },
-          {
-            "key": "speech_output",
-            "question": "Can you repeat this phrase clearly: 'The early bird catches the worm'?",
-            "recap_template": "You {answer} clear speech",
-            "answers": {
-              "yes": "urgent",
-              "no": "emergency"
             }
           },
           {
@@ -671,13 +609,13 @@
         },
         "clinical_summary": "Your symptoms are concerning for acute stroke or other neurological emergency."
       },
-      "left_side_weakness": {
-        "intro": "{name}, left side weakness can suggest a stroke. Let's clarify.",
-        "priority_keys": ["onset", "numbness", "face", "speech", "speech_output", "vision_loss", "vision_double"],
+      "right_side_weakness_both": {
+        "intro": "{name}, right side weakness affecting both arm and leg can suggest a stroke. Let's clarify.",
+        "priority_keys": ["onset", "face", "speech", "vision_loss", "vision_double"],
         "steps": [
           {
             "key": "onset",
-            "question": "When did the left side weakness start?",
+            "question": "When did the right side weakness start?",
             "recap_template": "Onset was {answer}",
             "answers": {
               "within the last hour": "emergency",
@@ -687,15 +625,6 @@
               "a few days ago": "urgent",
               "a week ago": "non_urgent",
               "unknown": "urgent"
-            }
-          },
-          {
-            "key": "numbness",
-            "question": "Do you have numbness on your left side as well?",
-            "recap_template": "You {answer} left side numbness",
-            "answers": {
-              "yes": "emergency",
-              "no": "urgent"
             }
           },
           {
@@ -717,12 +646,137 @@
             }
           },
           {
-            "key": "speech_output",
-            "question": "Can you repeat this phrase clearly: 'The early bird catches the worm'?",
-            "recap_template": "You {answer} clear speech",
+            "key": "vision_loss",
+            "question": "Do you have sudden vision loss or double vision?",
+            "recap_template": "You {answer} vision problems",
             "answers": {
-              "yes": "urgent",
-              "no": "emergency"
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_double",
+            "question": "Do you see double when looking straight ahead?",
+            "recap_template": "You {answer} double vision",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcome": {
+          "emergency": "Your symptoms are highly concerning for acute stroke. Please seek emergency care immediately or call 911.",
+          "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
+          "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
+        },
+        "clinical_summary": "Your symptoms are concerning for acute stroke or other neurological emergency."
+      },
+      "left_side_weakness": {
+        "intro": "{name}, left side weakness can suggest a stroke. Let's clarify.",
+        "priority_keys": ["limb_involvement", "onset", "face", "speech", "vision_loss", "vision_double"],
+        "steps": [
+          {
+            "key": "limb_involvement",
+            "question": "Is the weakness in your arm, leg, or both?",
+            "recap_template": "You have {answer} weakness",
+            "answers": {
+              "arm": "left_arm_weakness",
+              "leg": "left_leg_weakness",
+              "both": "left_side_weakness_both"
+            }
+          },
+          {
+            "key": "onset",
+            "question": "When did the left side weakness start?",
+            "recap_template": "Onset was {answer}",
+            "answers": {
+              "within the last hour": "emergency",
+              "within the last few hours": "emergency",
+              "today": "emergency",
+              "yesterday": "urgent",
+              "a few days ago": "urgent",
+              "a week ago": "non_urgent",
+              "unknown": "urgent"
+            }
+          },
+          {
+            "key": "face",
+            "question": "Do you have facial droop or numbness?",
+            "recap_template": "You {answer} facial droop or numbness",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "speech",
+            "question": "Do you have slurred speech or trouble finding words?",
+            "recap_template": "You {answer} speech problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_loss",
+            "question": "Do you have sudden vision loss or double vision?",
+            "recap_template": "You {answer} vision problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_double",
+            "question": "Do you see double when looking straight ahead?",
+            "recap_template": "You {answer} double vision",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Your symptoms are highly concerning for acute stroke. Please seek emergency care immediately or call 911.",
+          "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
+          "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
+        },
+        "clinical_summary": "Your symptoms are concerning for acute stroke or other neurological emergency."
+      },
+      "left_side_weakness_both": {
+        "intro": "{name}, left side weakness affecting both arm and leg can suggest a stroke. Let's clarify.",
+        "priority_keys": ["onset", "face", "speech", "vision_loss", "vision_double"],
+        "steps": [
+          {
+            "key": "onset",
+            "question": "When did the left side weakness start?",
+            "recap_template": "Onset was {answer}",
+            "answers": {
+              "within the last hour": "emergency",
+              "within the last few hours": "emergency",
+              "today": "emergency",
+              "yesterday": "urgent",
+              "a few days ago": "urgent",
+              "a week ago": "non_urgent",
+              "unknown": "urgent"
+            }
+          },
+          {
+            "key": "face",
+            "question": "Do you have facial droop or numbness?",
+            "recap_template": "You {answer} facial droop or numbness",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "speech",
+            "question": "Do you have slurred speech or trouble finding words?",
+            "recap_template": "You {answer} speech problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
             }
           },
           {
