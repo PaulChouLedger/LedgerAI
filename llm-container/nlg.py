@@ -59,6 +59,7 @@ def rewrite(
         "Keep the language neutral and professional without adding unnecessary titles. "
         "CRITICAL: Do NOT add unnecessary words like 'acknowledge', 'understand', 'recognize' unless they improve clarity. "
         "If the original text is already clear and clinical, make minimal changes. "
+        "IMPORTANT: For questions, if the original is already clear and direct, return it unchanged. Do not make simple questions more complex or wordy. "
         "CRITICAL: Make questions clear and contextual. If a patient mentions 'dark stools', don't ask 'Do you have bloody stools?' - ask about the specific color or characteristics instead. "
         "FOR RECAPS: Preserve ALL clinical details including specific symptoms, denied symptoms, and clinical assessments. Do not summarize away important medical information. "
         "CRITICAL: NEVER add symptoms that are not mentioned in the original text. Do not hallucinate or invent symptoms like 'dark stools', 'nausea', or 'abdominal pain' unless they are explicitly stated. "
@@ -71,10 +72,10 @@ def rewrite(
     # Few-shot style hints per role
     role_hint = {
         "intro": "Acknowledge briefly and set up the next step. Use name once at the start only.",
-        "question": "Ask the question directly and clearly. DO NOT use the patient's name. Start with 'Do you...' or 'Are you...'",
+        "question": "Ask the question directly and clearly. DO NOT use the patient's name. Keep it concise - if the original question is already clear, make minimal changes. Avoid making simple questions wordy.",
         "clarify": "Ask a short follow-up to narrow the answer. DO NOT use the patient's name. Start with 'Do you...' or 'Are you...'",
         "recap": "Summarize succinctly in a SOAP-like clinical tone. Use name once at start only. PRESERVE ALL CLINICAL DETAILS - do not remove specific symptoms, findings, or clinical assessments.",
-        "outcome": "State the disposition plainly without extra advice. Use name once at start only."
+        "outcome": "State the disposition plainly without extra advice. Use name once at start only. Do NOT add recap information or repeat symptoms already mentioned in the outcome text."
     }.get(role, "Write clearly and briefly.")
 
     history = phrasing_history or []
