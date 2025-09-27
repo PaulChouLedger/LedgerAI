@@ -492,8 +492,8 @@ def pretty_join(parts, conj="and"):
     if len(parts) == 2: return f"{parts[0]} {conj} {parts[1]}"
     return ", ".join(parts[:-1]) + f", {conj} {parts[-1]}"
 
-def build_recap(cond, answers, flags, severity):
-    state = load_state()
+def build_recap(cond, answers, flags, severity, session_id=None):
+    state = load_state(session_id)
     steps = get_steps(cond, state)
     pk = TRIAGE_DEFS[cond].get("priority_keys", [])
 
@@ -828,7 +828,7 @@ def chat():
             if active and "pathways" in path and active in path["pathways"]:
                 outcomes=path["pathways"][active].get("outcomes",outcomes)
                 print(f"[Aura-LLM] 🎯 Outcome taken from pathway: {active}")
-            recap=build_recap(cond,state["answers"],state["flags"],sev)
+            recap=build_recap(cond,state["answers"],state["flags"],sev,session_id)
             recap_nlg = nlg_rewrite(recap, "recap", {"name":state.get("user_name"),"condition":cond,"pathway":state.get("active_pathway")}, state.get("phrasing_history"), llm_chat_once)
             add_phrasing_fingerprint(state, recap_nlg)
             
