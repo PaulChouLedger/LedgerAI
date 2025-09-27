@@ -1,8 +1,22 @@
 {
   "hypoglycemia": {
     "triggers": ["low blood sugar", "hypoglycemia", "shaky", "sweating", "low sugar"],
-    "priority_keys": ["shaky", "sweating", "confusion", "hunger", "weakness"],
+    "priority_keys": ["onset", "shaky", "sweating", "confusion", "hunger", "weakness"],
     "steps": [
+      {
+        "key": "onset",
+        "question": "When did the low blood sugar symptoms start?",
+        "recap_template": "Symptoms began {answer}",
+        "answers": {
+          "within the last hour": "emergency",
+          "within the last few hours": "emergency",
+          "today": "urgent",
+          "yesterday": "urgent",
+          "a few days ago": "urgent",
+          "a week ago": "non_urgent",
+          "unknown": "urgent"
+        }
+      },
       {
         "key": "shaky",
         "question": "Do you feel shaky?",
@@ -55,7 +69,7 @@
       "urgent": "Your low blood sugar should be addressed urgently. Take glucose and see a doctor promptly.",
       "non_urgent": "Your symptoms are mild. Continue monitoring and follow up with your doctor."
     },
-    "recap": "{summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
   },
 
   "hyperglycemia_dka_hhs": {
@@ -121,7 +135,7 @@
       "urgent": "Your high blood sugar needs urgent evaluation. Please contact your doctor promptly.",
       "non_urgent": "Your high blood sugar may be mild. Please monitor closely and follow up with your doctor."
     },
-    "recap": "{summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
   },
 
   "thyroid_storm": {
@@ -145,7 +159,7 @@
       "urgent": "Not applicable.",
       "non_urgent": "Your symptoms do not suggest thyroid storm at this time. Follow up with your doctor."
     },
-    "recap": "{summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
   },
 
   "myxedema_coma": {
@@ -178,7 +192,7 @@
       "urgent": "Not applicable.",
       "non_urgent": "Your symptoms do not suggest myxedema coma. Please follow up with your doctor."
     },
-    "recap": "{summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
   },
 
   "adrenal_insufficiency": {
@@ -214,7 +228,7 @@
       "non_urgent": "Your adrenal symptoms appear mild. Follow up with your doctor soon."
     },
     "clinical_summary": "Your symptoms are suggestive of an endocrine condition that requires medical evaluation to rule out serious causes and determine appropriate treatment.",
-    "recap": "{summary}. {clinical_summary} Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   }
 }
 

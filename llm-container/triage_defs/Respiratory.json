@@ -54,7 +54,7 @@
       "urgent": "Your shortness of breath requires urgent medical evaluation. Please see a doctor soon.",
       "non_urgent": "Your shortness of breath may not be emergent, but follow up with your doctor."
     },
-    "recap": "{summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
   },
 
   "cough": {
@@ -102,7 +102,7 @@
       "urgent": "Your cough needs urgent evaluation. Please see a doctor.",
       "non_urgent": "Your cough does not sound emergent but follow up with your doctor is advised."
     },
-    "recap": "{summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
   },
 
   "hemoptysis": {
@@ -141,7 +141,7 @@
       "urgent": "Coughing blood, even in small amounts, requires urgent medical evaluation.",
       "non_urgent": "None."
     },
-    "recap": "{summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
   },
 
   "wheezing": {
@@ -180,7 +180,7 @@
       "urgent": "Your wheezing requires urgent medical evaluation.",
       "non_urgent": "None."
     },
-    "recap": "{summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
   },
 
   "chest_tightness": {
@@ -210,7 +210,7 @@
       "urgent": "Your chest tightness requires urgent medical evaluation.",
       "non_urgent": "Your chest tightness may not be emergent, but follow up is advised."
     },
-    "recap": "{summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
   },
 
   "pneumonia": {
@@ -249,7 +249,7 @@
       "urgent": "Your symptoms suggest pneumonia and need urgent evaluation.",
       "non_urgent": "None."
     },
-    "recap": "{summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
   },
 
   "uri": {
@@ -279,7 +279,7 @@
       "urgent": "Your cold symptoms with fever or shortness of breath require urgent care.",
       "non_urgent": "Your URI symptoms are not emergent, but monitor and follow up if they worsen."
     },
-    "recap": "{summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
   },
 
   "pleuritic_pain": {
@@ -309,7 +309,7 @@
       "urgent": "Your pleuritic pain requires urgent evaluation.",
       "non_urgent": "Your pleuritic pain may not be emergent, but follow up is advised."
     },
-    "recap": "{summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
   },
 
   "stridor": {
@@ -339,7 +339,7 @@
       "urgent": "Your stridor requires urgent evaluation.",
       "non_urgent": "None."
     },
-    "recap": "{summary}. Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. Overall this is classified as {severity}."
   },
 
   "apnea": {
@@ -370,6 +370,6 @@
       "non_urgent": "None."
     },
     "clinical_summary": "Your symptoms are suggestive of a respiratory condition that requires medical evaluation to rule out serious causes and determine appropriate treatment.",
-    "recap": "{summary}. {clinical_summary} Overall this is classified as {severity}."
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   }
 }

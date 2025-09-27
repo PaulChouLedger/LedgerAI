@@ -545,7 +545,7 @@ def build_recap(cond, answers, flags, severity):
     if main_complaint_override == "location_specific" and priority_positives:
         # Look for location-specific complaint in priority positives
         for pos in priority_positives:
-            if "pain located in" in pos.lower() or "pain on" in pos.lower():
+            if "pain located in" in pos.lower() or "pain on" in pos.lower() or "located in" in pos.lower():
                 main_complaint = pos
                 break
         if not main_complaint:
@@ -582,6 +582,10 @@ def build_recap(cond, answers, flags, severity):
         main_complaint = cond.replace("_", " ").replace("suspected", "").strip()
     
     print(f"[Aura-LLM] 🔍 Main complaint: {main_complaint}")
+    print(f"[Aura-LLM] 🔍 Main complaint override: {main_complaint_override}")
+    print(f"[Aura-LLM] 🔍 Priority positives for location detection: {priority_positives}")
+    print(f"[Aura-LLM] 🔍 Expanded prompt: {state.get('expanded_prompt', '')}")
+    print(f"[Aura-LLM] 🔍 Original complaint: {state.get('original_complaint', '')}")
     
     # Separate timing from other symptoms (excluding the main complaint)
     timing_info = []

@@ -2,12 +2,26 @@
   "chest_pain": {
     "triggers": ["chest pain", "tightness in chest", "pressure in chest", "chest discomfort"],
     "intro": "{name}, I’m sorry you’re experiencing chest pain. Let me ask you a few questions.",
-    "priority_keys": ["quality", "radiation", "exertion", "shortness_of_breath", "sweating", "fatigue", "fainting"],
+    "priority_keys": ["onset", "quality", "radiation", "exertion", "shortness_of_breath", "sweating", "fatigue", "fainting"],
     "steps": [
+      {
+        "key": "onset",
+        "question": "When did the chest pain start?",
+        "recap_template": "Symptoms began {answer}",
+        "answers": {
+          "within the last hour": "emergency",
+          "within the last few hours": "emergency",
+          "today": "urgent",
+          "yesterday": "urgent",
+          "a few days ago": "urgent",
+          "a week ago": "non_urgent",
+          "unknown": "urgent"
+        }
+      },
       {
         "key": "quality",
         "question": "Can you describe the discomfort — is it sharp, heavy, or tight?",
-        "recap_template": "Chest pain quality is {answer}",
+        "recap_template": "You have {answer} chest pain quality",
         "answers": {
           "heavy": "emergency",
           "tight": "emergency",
@@ -29,7 +43,7 @@
       {
         "key": "radiation",
         "question": "Does the pain spread anywhere, such as your arm, neck, jaw, or back?",
-        "recap_template": "Pain radiation is {answer}",
+        "recap_template": "You have {answer} pain radiation",
         "answers": {
           "arm": "emergency",
           "neck": "emergency",
@@ -41,7 +55,7 @@
       {
         "key": "shortness_of_breath",
         "question": "Do you feel short of breath during these episodes?",
-        "recap_template": "Shortness of breath is {answer}",
+        "recap_template": "You have {answer} shortness of breath",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -50,7 +64,7 @@
       {
         "key": "sweating",
         "question": "Do you feel sweaty during these episodes?",
-        "recap_template": "Sweating is {answer}",
+        "recap_template": "You have {answer} sweating",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -59,7 +73,7 @@
       {
         "key": "fatigue",
         "question": "Do you feel unusually tired during these episodes?",
-        "recap_template": "Unusual fatigue is {answer}",
+        "recap_template": "You have {answer} unusual fatigue",
         "answers": {
           "yes": "urgent",
           "no": "non_urgent"
@@ -68,7 +82,7 @@
       {
         "key": "fainting",
         "question": "Have you fainted or collapsed during these episodes?",
-        "recap_template": "Fainting or collapse is {answer}",
+        "recap_template": "You have {answer} fainting or collapse",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -173,8 +187,22 @@
   "syncope": {
     "triggers": ["syncope", "fainting", "passed out", "collapse"],
     "intro": "{name}, I see you’ve had a fainting episode. Let me ask you a few clarifying questions.",
-    "priority_keys": ["circumstance", "duration"],
+    "priority_keys": ["onset", "circumstance", "duration"],
     "steps": [
+      {
+        "key": "onset",
+        "question": "When did the fainting episode occur?",
+        "recap_template": "Episode occurred {answer}",
+        "answers": {
+          "within the last hour": "emergency",
+          "within the last few hours": "emergency",
+          "today": "urgent",
+          "yesterday": "urgent",
+          "a few days ago": "urgent",
+          "a week ago": "non_urgent",
+          "unknown": "urgent"
+        }
+      },
       {
         "key": "circumstance",
         "question": "What were you doing right before you passed out?",
@@ -215,8 +243,22 @@
   "leg_swelling": {
     "triggers": ["leg swelling", "swollen legs", "ankle swelling", "puffy legs"],
     "intro": "{name}, I understand you’re having swelling in your legs. Let me ask you some questions.",
-    "priority_keys": ["side"],
+    "priority_keys": ["onset", "side"],
     "steps": [
+      {
+        "key": "onset",
+        "question": "When did the leg swelling start?",
+        "recap_template": "Swelling began {answer}",
+        "answers": {
+          "within the last hour": "emergency",
+          "within the last few hours": "emergency",
+          "today": "urgent",
+          "yesterday": "urgent",
+          "a few days ago": "urgent",
+          "a week ago": "non_urgent",
+          "unknown": "urgent"
+        }
+      },
       {
         "key": "side",
         "question": "Is the swelling in one leg or both?",
@@ -248,8 +290,22 @@
   "leg_pain": {
     "triggers": ["leg pain", "pain in my leg", "calf pain", "thigh pain"],
     "intro": "{name}, I understand you’re experiencing leg pain. Let me ask you some clarifying questions.",
-    "priority_keys": ["location"],
+    "priority_keys": ["onset", "location"],
     "steps": [
+      {
+        "key": "onset",
+        "question": "When did the leg pain start?",
+        "recap_template": "Pain began {answer}",
+        "answers": {
+          "within the last hour": "emergency",
+          "within the last few hours": "emergency",
+          "today": "urgent",
+          "yesterday": "urgent",
+          "a few days ago": "urgent",
+          "a week ago": "non_urgent",
+          "unknown": "urgent"
+        }
+      },
       {
         "key": "location",
         "question": "Where in your leg is the pain located?",
@@ -382,8 +438,22 @@
   "dizziness": {
     "triggers": ["dizzy", "dizziness", "lightheaded", "feeling faint"],
     "intro": "{name}, I understand you’ve been feeling dizzy. Let me ask you a few clarifying questions.",
-    "priority_keys": ["syncope"],
+    "priority_keys": ["onset", "syncope"],
     "steps": [
+      {
+        "key": "onset",
+        "question": "When did the dizziness start?",
+        "recap_template": "Dizziness began {answer}",
+        "answers": {
+          "within the last hour": "emergency",
+          "within the last few hours": "emergency",
+          "today": "urgent",
+          "yesterday": "urgent",
+          "a few days ago": "urgent",
+          "a week ago": "non_urgent",
+          "unknown": "urgent"
+        }
+      },
       {
         "key": "syncope",
         "question": "Have you fainted or lost consciousness?",
