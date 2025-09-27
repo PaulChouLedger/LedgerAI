@@ -11,7 +11,7 @@ from speaker import speak_llm_response, is_playing
 from pydub import AudioSegment
 
 # === Config ===
-SAMPLE_RATE = 22050  # Higher quality for better transcription
+SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.2
