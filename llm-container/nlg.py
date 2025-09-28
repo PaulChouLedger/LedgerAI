@@ -191,10 +191,14 @@ Rewrite the text above to be natural and professional while preserving all clini
         
         # Post-process to remove name if it shouldn't be used
         if not should_use_name and name and name.lower() in text_out.lower():
-            # Remove name from the beginning of the text
-            text_out = text_out.replace(f"{name}, ", "").replace(f"{name} ", "")
-            # Remove name from the middle/end
-            text_out = text_out.replace(f", {name}", "").replace(f" {name}", "")
+            # Remove name from the beginning of the text (with comma)
+            text_out = re.sub(rf"^{re.escape(name)},\s*", "", text_out, flags=re.IGNORECASE)
+            # Remove name from the beginning of the text (without comma)
+            text_out = re.sub(rf"^{re.escape(name)}\s+", "", text_out, flags=re.IGNORECASE)
+            # Remove "You reported your name is [name]" pattern
+            text_out = re.sub(rf"You reported your name is {re.escape(name)}", "You reported", text_out, flags=re.IGNORECASE)
+            # Remove "You reported [name]" pattern
+            text_out = re.sub(rf"You reported {re.escape(name)}", "You reported", text_out, flags=re.IGNORECASE)
             print(f"[NLG] 🚫 Removed name '{name}' from text: '{text_out}'")
         # Basic cleanup
         text_out = re.sub(r"\s+([.,;:!?])", r"\1", text_out)

@@ -777,11 +777,16 @@ def split_recap_into_chunks(recap_text):
     chunks = []
     for sentence in sentences:
         if len(sentence) > 150:  # If sentence is too long, split further
+            print(f"[Aura-LLM] 🔍 Splitting long sentence: '{sentence}'")
             # Split on commas, semicolons, or "and" for very long sentences
             sub_parts = re.split(r'(?<=[,;])\s+|\s+and\s+', sentence)
+            print(f"[Aura-LLM] 🔍 Sub parts after split: {sub_parts}")
             # Rejoin with "and" if we split on "and"
             if len(sub_parts) > 1:
-                chunks.extend([part.strip() for part in sub_parts if part.strip()])
+                # Normalize spaces in each part to prevent multiple spaces
+                normalized_parts = [re.sub(r'\s+', ' ', part.strip()) for part in sub_parts if part.strip()]
+                print(f"[Aura-LLM] 🔍 Normalized parts: {normalized_parts}")
+                chunks.extend(normalized_parts)
             else:
                 chunks.append(sentence)
         else:
@@ -885,7 +890,9 @@ def chat():
             add_phrasing_fingerprint(state, recap_nlg)
             
             # Split recap into chunks for better TTS streaming
+            print(f"[Aura-LLM] 🔍 Original recap_nlg: '{recap_nlg}'")
             recap_chunks = split_recap_into_chunks(recap_nlg)
+            print(f"[Aura-LLM] 🔍 Recap chunks: {recap_chunks}")
             print(f"[Aura-LLM] 🔄 Streaming recap in {len(recap_chunks)} chunks for better TTS latency")
             for chunk in recap_chunks:
                 if chunk.strip():
@@ -898,7 +905,8 @@ def chat():
             user=state.get("user_name")
             state.update({"condition":None,"step_index":0,"answers":[],"flags":{},
                           "last_key":None,"user_name":user,
-                          "active_pathway":None,"entered_pathway":False})
+                          "active_pathway":None,"entered_pathway":False,
+                          "detailed_symptoms":[],"original_complaint":None,"expanded_prompt":None})
             save_state(state, session_id)
 
         return Response(stream_with_context(generate()),mimetype="text/plain")
