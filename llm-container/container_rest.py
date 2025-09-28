@@ -207,10 +207,18 @@ def detect_condition(prompt, session_id: str | None = None):
         print(f"[Aura-LLM] 👤 User name set: {name}")
     
     # Check for casual greetings first - don't trigger triage for these
+    # Only block if it's JUST a greeting without any medical content
     casual_greetings = ["hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]
     if any(greeting in p for greeting in casual_greetings):
-        print(f"[Aura-LLM] 💬 Casual greeting detected: '{p}' -> no triage trigger")
-        return None
+        # Check if there are any medical symptoms mentioned
+        medical_keywords = ["pain", "hurt", "ache", "symptom", "problem", "issue", "concern", "worried", "sick", "ill", "unwell"]
+        has_medical_content = any(keyword in p for keyword in medical_keywords)
+        
+        if not has_medical_content:
+            print(f"[Aura-LLM] 💬 Casual greeting detected: '{p}' -> no triage trigger")
+            return None
+        else:
+            print(f"[Aura-LLM] 💬 Greeting with medical content detected: '{p}' -> proceeding with triage")
     
     # Apply synonym expansion
     p_expanded = apply_synonym_expansion(p)
