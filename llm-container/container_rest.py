@@ -222,13 +222,8 @@ def detect_condition(prompt, session_id: str | None = None):
     if "detailed_symptoms" not in state:
         state["detailed_symptoms"] = []
     
-    # Use detailed_symptom from JSON if available, otherwise use expanded prompt
-    if condition and condition in TRIAGE_DEFS and "detailed_symptom" in TRIAGE_DEFS[condition]:
-        detailed_symptom = TRIAGE_DEFS[condition]["detailed_symptom"]
-        if detailed_symptom not in state["detailed_symptoms"]:
-            state["detailed_symptoms"].append(detailed_symptom)
-            print(f"[Aura-LLM] 📝 Detailed symptoms array: {state['detailed_symptoms']}")
-    elif p_expanded and p_expanded not in state["detailed_symptoms"]:
+    # Add the initial expanded prompt to the array
+    if p_expanded and p_expanded not in state["detailed_symptoms"]:
         state["detailed_symptoms"].append(p_expanded)
         print(f"[Aura-LLM] 📝 Detailed symptoms array: {state['detailed_symptoms']}")
     
@@ -241,6 +236,13 @@ def detect_condition(prompt, session_id: str | None = None):
             # Try exact match first
             if trig_norm in p_expanded:
                 print(f"[Aura-LLM] ✅ Detected condition: {cond} (exact match: '{trig}')")
+                # Use detailed_symptom from JSON if available, otherwise use expanded prompt
+                if "detailed_symptom" in TRIAGE_DEFS[cond]:
+                    detailed_symptom = TRIAGE_DEFS[cond]["detailed_symptom"]
+                    if detailed_symptom not in state["detailed_symptoms"]:
+                        state["detailed_symptoms"].append(detailed_symptom)
+                        print(f"[Aura-LLM] 📝 Detailed symptoms array: {state['detailed_symptoms']}")
+                        save_state(state, session_id)
                 return cond
             # Try fuzzy match with 0.6 threshold
             ans_tokens = set(tokenize(p_expanded))
@@ -248,6 +250,13 @@ def detect_condition(prompt, session_id: str | None = None):
             overlap = len(ans_tokens & trig_tokens) / float(len(trig_tokens)) if trig_tokens else 0
             if overlap >= MIN_MATCH:
                 print(f"[Aura-LLM] ✅ Detected condition: {cond} (fuzzy match: '{trig}' = {overlap:.2f})")
+                # Use detailed_symptom from JSON if available, otherwise use expanded prompt
+                if "detailed_symptom" in TRIAGE_DEFS[cond]:
+                    detailed_symptom = TRIAGE_DEFS[cond]["detailed_symptom"]
+                    if detailed_symptom not in state["detailed_symptoms"]:
+                        state["detailed_symptoms"].append(detailed_symptom)
+                        print(f"[Aura-LLM] 📝 Detailed symptoms array: {state['detailed_symptoms']}")
+                        save_state(state, session_id)
                 return cond
     return None
 
