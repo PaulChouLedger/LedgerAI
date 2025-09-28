@@ -100,35 +100,6 @@ def rewrite(
             # Return original text without NLG processing to avoid redundancy
             return text
     
-    # Check for repetitive pathway intro patterns
-    if role == "intro" and "suggest" in text.lower() and "clarify" in text.lower():
-        print(f"[NLG] ⚠️ Detected repetitive 'suggest...clarify' pattern in intro")
-        print(f"[NLG] ⚠️ Original text: {text}")
-        # Force more varied rewriting by adding extra context
-        user_content += f"\n\nIMPORTANT: The original text uses repetitive 'suggest...clarify' pattern. Rewrite it completely differently - use varied vocabulary and fresh phrasing."
-    
-    # Check for repetitive "during these episodes" pattern
-    if role == "question" and "during these episodes" in text.lower():
-        recent_questions = [h.lower() for h in history[-3:] if "during these episodes" in h]
-        if len(recent_questions) >= 2:  # If we've used this phrase recently
-            print(f"[NLG] ⚠️ Detected repetitive 'during these episodes' pattern")
-            print(f"[NLG] ⚠️ Recent questions: {recent_questions}")
-            user_content += f"\n\nIMPORTANT: Avoid using 'during these episodes' as it's been used repeatedly. Rewrite with different phrasing like 'Do you experience...' or 'Have you noticed...'"
-    
-    # Check for repetitive outcome patterns
-    if role == "outcome":
-        # Count occurrences of key phrases to detect repetition
-        text_lower = text.lower()
-        if "suggests" in text_lower and text_lower.count("suggests") > 1:
-            print(f"[NLG] ⚠️ Detected repetitive 'suggests' pattern in outcome")
-            print(f"[NLG] ⚠️ Original text: {text}")
-            user_content += f"\n\nCRITICAL: The original text repeats diagnostic phrases. Rewrite as ONE clear, brief statement without repetition."
-        
-        # Check for repetitive emergency messaging
-        if ("cardiac emergency" in text_lower or "call 911" in text_lower) and any("emergency" in h.lower() for h in history[-2:]):
-            print(f"[NLG] ⚠️ Detected repetitive emergency messaging")
-            print(f"[NLG] ⚠️ Original text: {text}")
-            user_content += f"\n\nIMPORTANT: The previous outcome already mentioned emergency care. Rewrite to avoid repetition - focus on a single, clear directive."
     
     # Check for factual questions that should not be rephrased
     factual_patterns = [
@@ -167,6 +138,31 @@ Avoid repeating: {avoid}
 
 Rewrite the text above to be natural and professional while preserving all clinical facts exactly. Return only the rewritten text, not instructions or meta-commentary.
 """
+
+    # Check for repetitive patterns and add context
+    if role == "intro" and "suggest" in text.lower() and "clarify" in text.lower():
+        print(f"[NLG] ⚠️ Detected repetitive 'suggest...clarify' pattern in intro")
+        print(f"[NLG] ⚠️ Original text: {text}")
+        user_content += f"\n\nIMPORTANT: The original text uses repetitive 'suggest...clarify' pattern. Rewrite it completely differently - use varied vocabulary and fresh phrasing."
+    
+    if role == "question" and "during these episodes" in text.lower():
+        recent_questions = [h.lower() for h in history[-3:] if "during these episodes" in h]
+        if len(recent_questions) >= 2:  # If we've used this phrase recently
+            print(f"[NLG] ⚠️ Detected repetitive 'during these episodes' pattern")
+            print(f"[NLG] ⚠️ Recent questions: {recent_questions}")
+            user_content += f"\n\nIMPORTANT: Avoid using 'during these episodes' as it's been used repeatedly. Rewrite with different phrasing like 'Do you experience...' or 'Have you noticed...'"
+    
+    if role == "outcome":
+        text_lower = text.lower()
+        if "suggests" in text_lower and text_lower.count("suggests") > 1:
+            print(f"[NLG] ⚠️ Detected repetitive 'suggests' pattern in outcome")
+            print(f"[NLG] ⚠️ Original text: {text}")
+            user_content += f"\n\nCRITICAL: The original text repeats diagnostic phrases. Rewrite as ONE clear, brief statement without repetition."
+        
+        if ("cardiac emergency" in text_lower or "call 911" in text_lower) and any("emergency" in h.lower() for h in history[-2:]):
+            print(f"[NLG] ⚠️ Detected repetitive emergency messaging")
+            print(f"[NLG] ⚠️ Original text: {text}")
+            user_content += f"\n\nIMPORTANT: The previous outcome already mentioned emergency care. Rewrite to avoid repetition - focus on a single, clear directive."
 
     messages = [
         {"role": "system", "content": system},
