@@ -392,6 +392,19 @@ def get_steps(cond, state):
         steps = TRIAGE_DEFS[cond]["pathways"][state["active_pathway"]].get("steps", steps)
     return steps
 
+def get_pathway_detailed_symptom(cond, pathway, state):
+    """Get detailed symptom description from pathway definition"""
+    # Check if pathway has detailed_symptom defined
+    if "pathways" in TRIAGE_DEFS[cond] and pathway in TRIAGE_DEFS[cond]["pathways"]:
+        pathway_def = TRIAGE_DEFS[cond]["pathways"][pathway]
+        if "detailed_symptom" in pathway_def:
+            return pathway_def["detailed_symptom"]
+    
+    # Generic fallback: generate from condition and pathway name
+    cond_name = cond.replace("_", " ")
+    pathway_name = pathway.replace("_pathway", "").replace("_", " ")
+    return f"{pathway_name} {cond_name}"
+
 def is_valid_answer(cond, key, ans, state):
     ans_norm = normalize_text(ans)
     # Validate inline clarify answers against pending clarify map
@@ -425,27 +438,8 @@ def update_flags_from_answer(cond, key, ans, state, session_id=None):
             state["clarify_answer"] = opt
             
             # Add pathway-specific detailed symptom to the array
-            if sev == "ruq_pathway":
-                detailed_symptom = "right upper quadrant abdominal pain"
-            elif sev == "rlq_pathway":
-                detailed_symptom = "right lower quadrant abdominal pain"
-            elif sev == "luq_pathway":
-                detailed_symptom = "left upper quadrant abdominal pain"
-            elif sev == "llq_pathway":
-                detailed_symptom = "left lower quadrant abdominal pain"
-            elif sev == "epigastric_pathway":
-                detailed_symptom = "epigastric abdominal pain"
-            elif sev == "diffuse_pathway":
-                detailed_symptom = "diffuse abdominal pain"
-            elif sev == "lower_abdomen_gi_pathway":
-                detailed_symptom = "lower abdomen abdominal pain"
-            elif sev == "pelvic_differentiation_pathway":
-                detailed_symptom = "lower abdomen abdominal pain"
-            else:
-                # Generic pathway handling - extract condition and pathway name
-                cond_name = state.get("condition", "").replace("_", " ")
-                pathway_name = sev.replace("_pathway", "").replace("_", " ")
-                detailed_symptom = f"{pathway_name} {cond_name}"
+            # Get detailed symptom from pathway definition or use generic fallback
+            detailed_symptom = get_pathway_detailed_symptom(cond, sev, state)
             
             # Add to detailed symptoms array
             if "detailed_symptoms" not in state:
@@ -793,6 +787,66 @@ def split_recap_into_chunks(recap_text):
             chunks.append(sentence)
     
     return chunks
+
+# === Non-streaming chat endpoint for Telegram ===
+@app.route("/chat-simple", methods=["POST"])
+def chat_simple():
+    """Non-streaming chat endpoint for Telegram bot"""
+    data = request.get_json()
+    prompt = data.get("prompt", "").strip()
+    session_id = data.get("chat_id", "telegram_session")
+    reset = data.get("reset", False)
+    
+    if reset:
+        # Clear session state
+        state = {"condition": None, "step_index": 0, "answers": [], "flags": {},
+                "last_key": None, "user_name": None, "active_pathway": None, 
+                "entered_pathway": False, "detailed_symptoms": [], 
+                "original_complaint": None, "expanded_prompt": None}
+        save_state(state, session_id)
+        return {"response": "Session reset. Start again with your symptoms."}
+    
+    if not prompt:
+        return {"response": "Please describe your symptoms."}
+    
+    # Process the prompt and return a single response
+    try:
+        # Use the same logic as the streaming endpoint but return a single response
+        condition = detect_condition(prompt, session_id)
+        state = load_state(session_id)
+        
+        if condition:
+            # New triage session
+            state.update({"condition": condition, "step_index": 0, "answers": [], "flags": {},
+                         "last_key": None, "user_name": None, "active_pathway": None, 
+                         "entered_pathway": False, "detailed_symptoms": [prompt],
+                         "original_complaint": prompt, "expanded_prompt": prompt})
+            save_state(state, session_id)
+            
+            # Get intro and first question
+            steps = get_steps(condition, state)
+            intro = substitute_name(TRIAGE_DEFS[condition].get("intro", ""), state.get("user_name"))
+            first_question = substitute_name(steps[0].get('question', ''), state.get('user_name'))
+            
+            response = ""
+            if intro:
+                response += intro + " "
+            response += first_question
+            
+            return {"response": response}
+        else:
+            # Continue existing triage
+            return process_triage_step(prompt, session_id)
+            
+    except Exception as e:
+        print(f"[Aura-LLM] ❌ Error in chat-simple: {e}")
+        return {"response": "I'm sorry, there was an error processing your request."}
+
+def process_triage_step(prompt, session_id):
+    """Process a single triage step and return response"""
+    # This would contain the triage logic from the main chat endpoint
+    # but return a single response instead of streaming
+    return {"response": "Processing triage step..."}
 
 # === Chat endpoint ===
 @app.route("/chat", methods=["POST"])

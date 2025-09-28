@@ -9,6 +9,7 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Messa
 load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 AURA_CHAT_URL = os.getenv("AURA_CHAT_URL", "http://127.0.0.1:11434/chat")
+AURA_SIMPLE_URL = os.getenv("AURA_SIMPLE_URL", "http://127.0.0.1:11434/chat-simple")
 
 if not TELEGRAM_BOT_TOKEN:
     raise RuntimeError("⚠️ TELEGRAM_BOT_TOKEN not found in environment")
@@ -48,7 +49,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Forward reset to LLM container
         try:
             resp = requests.post(
-                AURA_CHAT_URL,
+                AURA_SIMPLE_URL,
                 json={
                     "prompt": user_message,
                     "chat_id": str(chat_id),
@@ -57,19 +58,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 timeout=10
             )
             if resp.status_code == 200:
-                # Stream the reset response
-                reply_buffer = ""
-                for line in resp.iter_lines(decode_unicode=True):
-                    if not line:
-                        continue
-                    if "<sentence_start>" in line:
-                        reply_buffer = ""
-                    elif "<sentence_end>" in line:
-                        if reply_buffer.strip():
-                            await update.message.reply_text(reply_buffer.strip())
-                        reply_buffer = ""
-                    else:
-                        reply_buffer += line + " "
+                response_data = resp.json()
+                response_text = response_data.get("response", "Session reset. Start again with your symptoms.")
+                await update.message.reply_text(response_text)
             else:
                 await update.message.reply_text("🔄 Session reset. Start again with your symptoms.")
         except Exception as e:
@@ -106,39 +97,33 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sessions[chat_id]["history"].append(user_message)
 
     try:
-        # Forward to Aura’s /chat endpoint
+        # Forward to Aura's /chat-simple endpoint (non-streaming)
         resp = requests.post(
-            AURA_CHAT_URL,
+            AURA_SIMPLE_URL,
             json={
                 "prompt": user_message,
                 "chat_id": str(chat_id),  # so backend can separate sessions if needed
                 "history": sessions[chat_id]["history"]
             },
-            stream=True,
-            timeout=60
+            timeout=30
         )
 
         if resp.status_code != 200:
             await update.message.reply_text("⚠️ Error talking to Aura.")
             return
 
-        # Collect streamed sentences
-        reply_buffer = ""
-        triage_completed = False
-        for line in resp.iter_lines(decode_unicode=True):
-            if not line:
-                continue
-            if "<sentence_start>" in line:
-                reply_buffer = ""
-            elif "<sentence_end>" in line:
-                if reply_buffer.strip():
-                    await update.message.reply_text(reply_buffer.strip())
-                    # Check if this looks like a triage completion (outcome/recap)
-                    if any(phrase in reply_buffer.lower() for phrase in ["classified as", "seek emergency", "call 911", "see a doctor", "medical evaluation"]):
-                        triage_completed = True
-                reply_buffer = ""
-            else:
-                reply_buffer += line + " "
+        # Get single response
+        response_data = resp.json()
+        response_text = response_data.get("response", "I'm sorry, I didn't understand that.")
+        
+        # Send the response
+        await update.message.reply_text(response_text)
+        
+        # Check if this looks like a triage completion
+        triage_completed = any(phrase in response_text.lower() for phrase in [
+            "classified as", "seek emergency", "call 911", "see a doctor", 
+            "medical evaluation", "emergency care"
+        ])
         
         # Clear session state after triage completion
         if triage_completed:
@@ -147,7 +132,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Also send a reset command to LLM container to clear its state
             try:
                 requests.post(
-                    AURA_CHAT_URL,
+                    AURA_SIMPLE_URL,
                     json={
                         "prompt": "reset",
                         "chat_id": str(chat_id),

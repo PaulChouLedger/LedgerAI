@@ -203,6 +203,15 @@ Rewrite the text above to be natural and professional while preserving all clini
         # Basic cleanup
         text_out = re.sub(r"\s+([.,;:!?])", r"\1", text_out)
         text_out = re.sub(r"\s{2,}", " ", text_out).strip()
+        
+        # Clean up awkward emergency messaging
+        if role == "outcome":
+            # Fix redundant "if your symptoms concern" phrasing
+            text_out = re.sub(r"if your symptoms concern a serious condition such as", "for serious conditions such as", text_out, flags=re.IGNORECASE)
+            text_out = re.sub(r"if your symptoms are concerning for", "for", text_out, flags=re.IGNORECASE)
+            # Simplify emergency messaging
+            text_out = re.sub(r"Please seek immediate emergency care or call 911 for", "Please seek immediate emergency care or call 911 for", text_out)
+            text_out = re.sub(r"Please seek immediate care or call 911 for", "Please seek immediate emergency care or call 911 for", text_out)
         # Ensure question style for question/clarify
         if role in ("question","clarify") and not text_out.endswith(("?",".")):
             text_out += "?"
