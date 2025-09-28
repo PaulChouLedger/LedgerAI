@@ -63,6 +63,7 @@
     "pathways": {
       "ruq_pathway": {
         "intro": "{name}, right upper quadrant pain can suggest gallbladder or liver problems. Let's clarify.",
+        "detailed_symptom": "right upper quadrant abdominal pain",
         "priority_keys": ["onset", "fever", "jaundice"],
         "steps": [
           {
@@ -125,6 +126,7 @@
 
       "epigastric_pathway": {
         "intro": "{name}, epigastric pain may be related to the stomach, pancreas, or ulcers. Let's clarify.",
+        "detailed_symptom": "epigastric abdominal pain",
         "priority_keys": ["hematemesis", "melena", "radiation_back"],
         "steps": [
           {
@@ -182,6 +184,7 @@
 
       "rlq_pathway": {
         "intro": "{name}, right lower quadrant pain often suggests appendicitis. Let's clarify.",
+        "detailed_symptom": "right lower quadrant abdominal pain",
         "priority_keys": ["rebound"],
         "steps": [
           {
@@ -230,6 +233,7 @@
 
       "llq_pathway": {
         "intro": "{name}, left lower quadrant pain often suggests diverticulitis. Let's clarify.",
+        "detailed_symptom": "left lower quadrant abdominal pain",
         "priority_keys": ["fever", "bowel_changes", "peritonitis"],
         "steps": [
           {
@@ -269,7 +273,8 @@
       },
 
       "luq_pathway": {
-        "intro": "{name}, left upper quadrant pain may be related to the spleen, stomach, or pancreas. Let’s clarify.",
+        "intro": "{name}, left upper quadrant pain may be related to the spleen, stomach, or pancreas. Let's clarify.",
+        "detailed_symptom": "left upper quadrant abdominal pain",
         "priority_keys": ["splenomegaly", "hemodynamic_instability"],
         "steps": [
           {
@@ -318,6 +323,7 @@
 
       "diffuse_pathway": {
         "intro": "{name}, diffuse abdominal pain can signal obstruction, ischemia, or infection. Let's clarify.",
+        "detailed_symptom": "diffuse abdominal pain",
         "priority_keys": ["vomiting", "bloody_stool", "hematochezia"],
         "steps": [
           {
@@ -365,6 +371,7 @@
       },
 
       "pelvic_differentiation_pathway": {
+        "detailed_symptom": "lower abdomen abdominal pain",
         "intro": "{name}, based on your symptoms, this may be related to your reproductive or urinary system rather than your digestive system. Let me ask some specific questions.",
         "priority_keys": ["onset", "gender", "menstrual", "urinary", "discharge"],
         "steps": [
@@ -453,6 +460,7 @@
 
       "lower_abdomen_gi_pathway": {
         "intro": "{name}, since you don't have reproductive or urinary symptoms, let's focus on digestive system causes of your lower abdominal pain.",
+        "detailed_symptom": "lower abdomen abdominal pain",
         "priority_keys": ["onset", "bowel", "nausea", "fever"],
         "steps": [
           {
