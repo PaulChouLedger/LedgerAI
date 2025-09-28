@@ -526,8 +526,20 @@ def update_flags_from_answer(cond, key, ans, state, session_id=None):
             if not opt or score < MIN_MATCH: 
                 print(f"[Aura-LLM] ❌ No valid match found")
                 return
-            sev = s["answers"][opt]
-            print(f"[Aura-LLM] 🔍 Severity/pathway: {sev}")
+            
+            # Handle empty answers dictionary (generic onset questions)
+            if not s["answers"] or opt not in s["answers"]:
+                # Use generic onset answers for empty dictionaries
+                if key == "onset":
+                    generic_answers = get_generic_onset_answers()
+                    sev = generic_answers.get(opt, "urgent")  # Default to urgent if not found
+                    print(f"[Aura-LLM] 🔍 Using generic onset mapping: {opt} -> {sev}")
+                else:
+                    print(f"[Aura-LLM] ❌ No answers defined for key: {key}")
+                    return
+            else:
+                sev = s["answers"][opt]
+                print(f"[Aura-LLM] 🔍 Severity/pathway: {sev}")
 
             # Inline clarify object with followup_question
             if isinstance(sev, dict) and sev.get("followup_question"):
