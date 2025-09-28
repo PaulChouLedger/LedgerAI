@@ -135,10 +135,7 @@
         "key": "onset",
         "question": "When did the palpitations begin?",
         "recap_template": "Palpitation onset was {answer}",
-        "answers": {
-          "sudden": "urgent",
-          "gradual": "non_urgent"
-        }
+        "answers": {}
       },
       {
         "key": "pattern",
