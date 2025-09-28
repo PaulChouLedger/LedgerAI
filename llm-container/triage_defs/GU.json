@@ -72,11 +72,7 @@
         "key": "onset",
         "question": "When did the flank pain start?",
         "recap_template": "Pain started {answer}",
-        "answers": {
-          "sudden": "emergency",
-          "gradual": "urgent",
-          "days": "urgent"
-        }
+        "answers": {}
       },
       {
         "key": "assoc",
@@ -203,12 +199,7 @@
         "key": "onset",
         "question": "When did the pelvic pain start?",
         "recap_template": "Pelvic pain started {answer}",
-        "answers": {
-          "sudden": "emergency",
-          "gradual": "urgent",
-          "days": "urgent",
-          "weeks": "non_urgent"
-        }
+        "answers": {}
       },
       {
         "key": "fever",
@@ -253,11 +244,7 @@
         "key": "onset",
         "question": "When did the testicular pain start?",
         "recap_template": "Testicular pain started {answer}",
-        "answers": {
-          "sudden": "emergency",
-          "gradual": "urgent",
-          "days": "urgent"
-        }
+        "answers": {}
       },
       {
         "key": "assoc",

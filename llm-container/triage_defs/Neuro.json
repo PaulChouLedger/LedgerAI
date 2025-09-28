@@ -51,15 +51,7 @@
             "key": "onset",
             "question": "When did the generalized weakness start?",
             "recap_template": "Weakness onset was {answer}",
-            "answers": {
-              "within the last hour": "emergency",
-              "within the last few hours": "emergency",
-              "today": "urgent",
-              "yesterday": "urgent",
-              "a few days ago": "urgent",
-              "a week ago": "non_urgent",
-              "unknown": "urgent"
-            }
+            "answers": {}
           },
           {
             "key": "fever",
@@ -121,15 +113,7 @@
             "key": "onset",
             "question": "When did the right arm weakness start?",
             "recap_template": "Onset was {answer}",
-            "answers": {
-              "within the last hour": "emergency",
-              "within the last few hours": "emergency",
-              "today": "emergency",
-              "yesterday": "urgent",
-              "a few days ago": "urgent",
-              "a week ago": "non_urgent",
-              "unknown": "urgent"
-            }
+            "answers": {}
           },
           {
             "key": "face",
@@ -192,15 +176,7 @@
             "key": "onset",
             "question": "When did the left arm weakness start?",
             "recap_template": "Onset was {answer}",
-            "answers": {
-              "within the last hour": "emergency",
-              "within the last few hours": "emergency",
-              "today": "emergency",
-              "yesterday": "urgent",
-              "a few days ago": "urgent",
-              "a week ago": "non_urgent",
-              "unknown": "urgent"
-            }
+            "answers": {}
           },
           {
             "key": "face",
@@ -263,15 +239,7 @@
             "key": "onset",
             "question": "When did the right leg weakness start?",
             "recap_template": "Onset was {answer}",
-            "answers": {
-              "within the last hour": "emergency",
-              "within the last few hours": "emergency",
-              "today": "emergency",
-              "yesterday": "urgent",
-              "a few days ago": "urgent",
-              "a week ago": "non_urgent",
-              "unknown": "urgent"
-            }
+            "answers": {}
           },
           {
             "key": "face",
@@ -334,15 +302,7 @@
             "key": "onset",
             "question": "When did the left leg weakness start?",
             "recap_template": "Onset was {answer}",
-            "answers": {
-              "within the last hour": "emergency",
-              "within the last few hours": "emergency",
-              "today": "emergency",
-              "yesterday": "urgent",
-              "a few days ago": "urgent",
-              "a week ago": "non_urgent",
-              "unknown": "urgent"
-            }
+            "answers": {}
           },
           {
             "key": "face",
@@ -416,15 +376,7 @@
             "key": "onset",
             "question": "When did the right side weakness start?",
             "recap_template": "Onset was {answer}",
-            "answers": {
-              "within the last hour": "emergency",
-              "within the last few hours": "emergency",
-              "today": "emergency",
-              "yesterday": "urgent",
-              "a few days ago": "urgent",
-              "a week ago": "non_urgent",
-              "unknown": "urgent"
-            }
+            "answers": {}
           },
           {
             "key": "face",
@@ -478,15 +430,7 @@
             "key": "onset",
             "question": "When did the right side weakness start?",
             "recap_template": "Onset was {answer}",
-            "answers": {
-              "within the last hour": "emergency",
-              "within the last few hours": "emergency",
-              "today": "emergency",
-              "yesterday": "urgent",
-              "a few days ago": "urgent",
-              "a week ago": "non_urgent",
-              "unknown": "urgent"
-            }
+            "answers": {}
           },
           {
             "key": "face",
@@ -551,15 +495,7 @@
             "key": "onset",
             "question": "When did the left side weakness start?",
             "recap_template": "Onset was {answer}",
-            "answers": {
-              "within the last hour": "emergency",
-              "within the last few hours": "emergency",
-              "today": "emergency",
-              "yesterday": "urgent",
-              "a few days ago": "urgent",
-              "a week ago": "non_urgent",
-              "unknown": "urgent"
-            }
+            "answers": {}
           },
           {
             "key": "face",
@@ -613,15 +549,7 @@
             "key": "onset",
             "question": "When did the left side weakness start?",
             "recap_template": "Onset was {answer}",
-            "answers": {
-              "within the last hour": "emergency",
-              "within the last few hours": "emergency",
-              "today": "emergency",
-              "yesterday": "urgent",
-              "a few days ago": "urgent",
-              "a week ago": "non_urgent",
-              "unknown": "urgent"
-            }
+            "answers": {}
           },
           {
             "key": "face",
@@ -694,15 +622,7 @@
         "key": "onset",
         "question": "When did the headache start?",
         "recap_template": "starting {answer}",
-        "answers": {
-          "within the last hour": "urgent",
-          "within the last few hours": "urgent",
-          "today": "urgent",
-          "yesterday": "urgent",
-          "a few days ago": "urgent",
-          "a week ago": "non_urgent",
-          "unknown": "urgent"
-        }
+        "answers": {}
       },
       {
         "key": "severity",
@@ -828,15 +748,7 @@
             "key": "onset",
             "question": "When did the generalized numbness start?",
             "recap_template": "Numbness onset was {answer}",
-            "answers": {
-              "within the last hour": "emergency",
-              "within the last few hours": "emergency",
-              "today": "urgent",
-              "yesterday": "urgent",
-              "a few days ago": "urgent",
-              "a week ago": "non_urgent",
-              "unknown": "urgent"
-            }
+            "answers": {}
           },
           {
             "key": "fever",
@@ -906,15 +818,7 @@
             "key": "onset",
             "question": "When did the numbness start?",
             "recap_template": "Numbness onset was {answer}",
-            "answers": {
-              "within the last hour": "emergency",
-              "within the last few hours": "emergency",
-              "today": "urgent",
-              "yesterday": "urgent",
-              "a few days ago": "urgent",
-              "a week ago": "non_urgent",
-              "unknown": "urgent"
-            }
+            "answers": {}
           },
           {
             "key": "weakness",
@@ -969,15 +873,7 @@
             "key": "onset",
             "question": "When did the numbness start?",
             "recap_template": "Numbness onset was {answer}",
-            "answers": {
-              "within the last hour": "emergency",
-              "within the last few hours": "emergency",
-              "today": "urgent",
-              "yesterday": "urgent",
-              "a few days ago": "urgent",
-              "a week ago": "non_urgent",
-              "unknown": "urgent"
-            }
+            "answers": {}
           },
           {
             "key": "weakness",
@@ -1022,15 +918,7 @@
             "key": "onset",
             "question": "When did the right arm numbness start?",
             "recap_template": "Right arm numbness onset was {answer}",
-            "answers": {
-              "within the last hour": "emergency",
-              "within the last few hours": "emergency",
-              "today": "urgent",
-              "yesterday": "urgent",
-              "a few days ago": "urgent",
-              "a week ago": "non_urgent",
-              "unknown": "urgent"
-            }
+            "answers": {}
           },
           {
             "key": "weakness",
@@ -1075,15 +963,7 @@
             "key": "onset",
             "question": "When did the left arm numbness start?",
             "recap_template": "Left arm numbness onset was {answer}",
-            "answers": {
-              "within the last hour": "emergency",
-              "within the last few hours": "emergency",
-              "today": "urgent",
-              "yesterday": "urgent",
-              "a few days ago": "urgent",
-              "a week ago": "non_urgent",
-              "unknown": "urgent"
-            }
+            "answers": {}
           },
           {
             "key": "weakness",
@@ -1128,15 +1008,7 @@
             "key": "onset",
             "question": "When did the right leg numbness start?",
             "recap_template": "Right leg numbness onset was {answer}",
-            "answers": {
-              "within the last hour": "emergency",
-              "within the last few hours": "emergency",
-              "today": "urgent",
-              "yesterday": "urgent",
-              "a few days ago": "urgent",
-              "a week ago": "non_urgent",
-              "unknown": "urgent"
-            }
+            "answers": {}
           },
           {
             "key": "weakness",
@@ -1181,15 +1053,7 @@
             "key": "onset",
             "question": "When did the left leg numbness start?",
             "recap_template": "Left leg numbness onset was {answer}",
-            "answers": {
-              "within the last hour": "emergency",
-              "within the last few hours": "emergency",
-              "today": "urgent",
-              "yesterday": "urgent",
-              "a few days ago": "urgent",
-              "a week ago": "non_urgent",
-              "unknown": "urgent"
-            }
+            "answers": {}
           },
           {
             "key": "weakness",

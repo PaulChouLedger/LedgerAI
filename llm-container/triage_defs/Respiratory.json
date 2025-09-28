@@ -5,12 +5,9 @@
     "steps": [
       {
         "key": "onset",
-        "question": "Did the shortness of breath come on suddenly?",
-        "recap_template": "You {answer} sudden shortness of breath",
-        "answers": {
-          "yes": "emergency",
-          "no": "urgent"
-        }
+        "question": "When did the shortness of breath start?",
+        "recap_template": "Shortness of breath started {answer}",
+        "answers": {}
       },
       {
         "key": "exertion",
@@ -158,12 +155,9 @@
       },
       {
         "key": "onset",
-        "question": "Did the wheezing start suddenly?",
-        "recap_template": "You {answer} sudden onset wheezing",
-        "answers": {
-          "yes": "emergency",
-          "no": "urgent"
-        }
+        "question": "When did the wheezing start?",
+        "recap_template": "Wheezing started {answer}",
+        "answers": {}
       },
       {
         "key": "relief",

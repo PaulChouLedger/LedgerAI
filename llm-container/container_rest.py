@@ -301,7 +301,62 @@ def normalize_yes_no_response(text):
     
     return text
 
-def match_answer_option(ans_norm, valid_map, use_synonyms=True):
+def get_generic_onset_answers():
+    """Get standard onset answers that apply to all conditions"""
+    return {
+        "within the last hour": "emergency",
+        "within the last few hours": "emergency", 
+        "today": "urgent",
+        "yesterday": "urgent",
+        "a few days ago": "urgent",
+        "a week ago": "non_urgent",
+        "unknown": "urgent"
+    }
+
+def match_flexible_time(ans_expanded, valid_map):
+    """Match flexible time patterns like '3 hours ago', '5 days ago', etc."""
+    import re
+    
+    # Pattern to match numerical time expressions
+    time_pattern = r'(\d+)\s*(minute|hour|day|week|month)s?\s*ago'
+    match = re.search(time_pattern, ans_expanded, re.IGNORECASE)
+    
+    if not match:
+        return None
+    
+    number = int(match.group(1))
+    unit = match.group(2).lower()
+    
+    # Map time units to severity based on duration
+    if unit in ['minute', 'hour']:
+        # Minutes and hours are emergency
+        if unit == 'minute' or (unit == 'hour' and number <= 6):
+            return "within the last hour", 1.0
+        elif unit == 'hour' and number <= 12:
+            return "within the last few hours", 1.0
+        else:
+            return "today", 1.0
+    elif unit == 'day':
+        # Days are urgent
+        if number == 1:
+            return "yesterday", 1.0
+        elif number <= 7:
+            return "a few days ago", 1.0
+        else:
+            return "a week ago", 1.0
+    elif unit == 'week':
+        # Weeks are non-urgent
+        if number == 1:
+            return "a week ago", 1.0
+        else:
+            return "last week", 1.0
+    elif unit == 'month':
+        # Months are non-urgent
+        return "last week", 1.0
+    
+    return None
+
+def match_answer_option(ans_norm, valid_map, use_synonyms=True, key=None):
     # Apply synonym expansion to the answer (skip for pending_clarify)
     ans_expanded = apply_synonym_expansion(ans_norm) if use_synonyms else ans_norm
     
@@ -311,6 +366,15 @@ def match_answer_option(ans_norm, valid_map, use_synonyms=True):
         # Check if the valid_map contains yes/no options
         if "yes" in valid_map and "no" in valid_map:
             return normalized_response, 1.0
+    
+    # For onset questions, use generic onset answers if not explicitly defined
+    if key == "onset" and (not valid_map or len(valid_map) == 0):
+        valid_map = get_generic_onset_answers()
+    
+    # Check for flexible time patterns (e.g., "3 hours ago", "5 days ago", "2 weeks ago")
+    time_match = match_flexible_time(ans_expanded, valid_map)
+    if time_match:
+        return time_match
     
     ans_tokens = set(tokenize(ans_expanded))
     best, score = None, 0.0
@@ -409,12 +473,12 @@ def is_valid_answer(cond, key, ans, state):
     ans_norm = normalize_text(ans)
     # Validate inline clarify answers against pending clarify map
     if key and key.startswith("clarify_") and state.get("pending_clarify") and state["pending_clarify"].get("key") == key:
-        opt, score = match_answer_option(ans_norm, state["pending_clarify"].get("answers", {}), use_synonyms=False)
+        opt, score = match_answer_option(ans_norm, state["pending_clarify"].get("answers", {}), use_synonyms=False, key=key)
         return opt and score >= MIN_MATCH
     steps = get_steps(cond, state)
     for s in steps:
         if isinstance(s, dict) and s.get("key") == key:
-            opt, score = match_answer_option(ans_norm, s.get("answers", {}))
+            opt, score = match_answer_option(ans_norm, s.get("answers", {}), key=key)
             return opt and score >= MIN_MATCH
     return False
 
@@ -422,7 +486,7 @@ def update_flags_from_answer(cond, key, ans, state, session_id=None):
     ans_norm = normalize_text(ans)
     # Handle inline clarify answers first
     if key and key.startswith("clarify_") and state.get("pending_clarify") and state["pending_clarify"].get("key") == key:
-        opt, score = match_answer_option(ans_norm, state["pending_clarify"].get("answers", {}), use_synonyms=False)
+        opt, score = match_answer_option(ans_norm, state["pending_clarify"].get("answers", {}), use_synonyms=False, key=key)
         if not opt or score < MIN_MATCH: return
         sev = state["pending_clarify"]["answers"][opt]
         if isinstance(sev, str) and sev.endswith("_pathway"):
@@ -457,7 +521,7 @@ def update_flags_from_answer(cond, key, ans, state, session_id=None):
     for s in steps:
         if isinstance(s, dict) and s.get("key") == key:
             print(f"[Aura-LLM] 🔍 Found matching step: {s}")
-            opt, score = match_answer_option(ans_norm, s.get("answers", {}))
+            opt, score = match_answer_option(ans_norm, s.get("answers", {}), key=key)
             print(f"[Aura-LLM] 🔍 Matched option: {opt}, score: {score}")
             if not opt or score < MIN_MATCH: 
                 print(f"[Aura-LLM] ❌ No valid match found")
@@ -558,7 +622,7 @@ def build_recap(cond, answers, flags, severity, session_id=None):
         ans_norm = normalize_text(raw)
         opts = match_all_options(ans_norm, valid_map) or []
         if not opts:
-            opt_single, _ = match_answer_option(ans_norm, valid_map)
+            opt_single, _ = match_answer_option(ans_norm, valid_map, key=key)
             if opt_single: opts = [opt_single]
         # Map yes/no to reported/denied; otherwise join multiple options
         if len(opts) == 1 and opts[0] in ("yes", "no"):

@@ -8,15 +8,7 @@
         "key": "onset",
         "question": "When did the chest pain start?",
         "recap_template": "Onset was {answer}",
-        "answers": {
-          "within the last hour": "emergency",
-          "within the last few hours": "emergency",
-          "today": "urgent",
-          "yesterday": "urgent",
-          "a few days ago": "urgent",
-          "a week ago": "non_urgent",
-          "unknown": "urgent"
-        }
+        "answers": {}
       },
       {
         "key": "quality",
@@ -194,15 +186,7 @@
         "key": "onset",
         "question": "When did the fainting episode occur?",
         "recap_template": "Episode occurred {answer}",
-        "answers": {
-          "within the last hour": "emergency",
-          "within the last few hours": "emergency",
-          "today": "urgent",
-          "yesterday": "urgent",
-          "a few days ago": "urgent",
-          "a week ago": "non_urgent",
-          "unknown": "urgent"
-        }
+        "answers": {}
       },
       {
         "key": "circumstance",
@@ -250,15 +234,7 @@
         "key": "onset",
         "question": "When did the leg swelling start?",
         "recap_template": "Swelling onset was {answer}",
-        "answers": {
-          "within the last hour": "emergency",
-          "within the last few hours": "emergency",
-          "today": "urgent",
-          "yesterday": "urgent",
-          "a few days ago": "urgent",
-          "a week ago": "non_urgent",
-          "unknown": "urgent"
-        }
+        "answers": {}
       },
       {
         "key": "side",
@@ -297,15 +273,7 @@
         "key": "onset",
         "question": "When did the leg pain start?",
         "recap_template": "Pain onset was {answer}",
-        "answers": {
-          "within the last hour": "emergency",
-          "within the last few hours": "emergency",
-          "today": "urgent",
-          "yesterday": "urgent",
-          "a few days ago": "urgent",
-          "a week ago": "non_urgent",
-          "unknown": "urgent"
-        }
+        "answers": {}
       },
       {
         "key": "location",
@@ -445,15 +413,7 @@
         "key": "onset",
         "question": "When did the dizziness start?",
         "recap_template": "Dizziness onset was {answer}",
-        "answers": {
-          "within the last hour": "emergency",
-          "within the last few hours": "emergency",
-          "today": "urgent",
-          "yesterday": "urgent",
-          "a few days ago": "urgent",
-          "a week ago": "non_urgent",
-          "unknown": "urgent"
-        }
+        "answers": {}
       },
       {
         "key": "syncope",

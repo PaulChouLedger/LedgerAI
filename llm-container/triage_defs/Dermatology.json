@@ -7,12 +7,7 @@
         "key": "onset",
         "question": "When did the rash first appear?",
         "recap_template": "Rash started {answer}",
-        "answers": {
-          "sudden": "urgent",
-          "gradual": "non_urgent",
-          "days": "non_urgent",
-          "weeks": "non_urgent"
-        }
+        "answers": {}
       },
       {
         "key": "distribution",

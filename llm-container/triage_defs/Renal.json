@@ -7,15 +7,7 @@
         "key": "onset",
         "question": "When did the flank pain start?",
         "recap_template": "Pain onset was {answer}",
-        "answers": {
-          "within the last hour": "emergency",
-          "within the last few hours": "emergency",
-          "today": "urgent",
-          "yesterday": "urgent",
-          "a few days ago": "urgent",
-          "a week ago": "non_urgent",
-          "unknown": "urgent"
-        }
+        "answers": {}
       },
       {
         "key": "side",

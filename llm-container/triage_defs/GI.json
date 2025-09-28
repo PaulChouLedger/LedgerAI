@@ -49,15 +49,7 @@
         "key": "onset",
         "question": "When did the abdominal pain start?",
         "recap_template": "starting {answer}",
-        "answers": {
-          "within the last hour": "emergency",
-          "within the last few hours": "emergency",
-          "today": "urgent",
-          "yesterday": "urgent",
-          "a few days ago": "urgent",
-          "a week ago": "non_urgent",
-          "unknown": "urgent"
-        }
+        "answers": {}
       }
     ],
     "pathways": {
@@ -70,15 +62,7 @@
             "key": "onset",
             "question": "When did the right upper quadrant pain start?",
             "recap_template": "starting {answer}",
-            "answers": {
-              "within the last hour": "emergency",
-              "within the last few hours": "emergency",
-              "today": "urgent",
-              "yesterday": "urgent",
-              "a few days ago": "urgent",
-              "a week ago": "non_urgent",
-              "unknown": "urgent"
-            }
+            "answers": {}
           },
           {
             "key": "fever",
