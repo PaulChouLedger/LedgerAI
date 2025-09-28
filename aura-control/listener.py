@@ -16,7 +16,7 @@ FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.2
 VAD_THRESHOLD = 0.25  # Balanced threshold - filters noise but catches initial words
-MIC_GAIN = 10.0  # Adjust this to increase microphone sensitivity
+MIC_GAIN = 3.0  # Moderate amplification - avoid distortion
 MIN_SPEECH_DURATION = 0.25  # Minimum speech duration in seconds to prevent noise triggers
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -146,15 +146,18 @@ def listen():
             if max_val > 0:
                 mono_mix = mono_mix / max_val * 0.95
             
-            # Apply high-pass filter to remove low-frequency noise
-            from scipy import signal
-            nyquist = SAMPLE_RATE / 2
-            high = 300 / nyquist  # Remove frequencies below 300Hz
-            b, a = signal.butter(4, high, btype='high')
-            mono_mix = signal.filtfilt(b, a, mono_mix)
+            # Apply high-pass filter to remove low-frequency noise (temporarily disabled for debugging)
+            # from scipy import signal
+            # nyquist = SAMPLE_RATE / 2
+            # high = 300 / nyquist  # Remove frequencies below 300Hz
+            # b, a = signal.butter(4, high, btype='high')
+            # mono_mix = signal.filtfilt(b, a, mono_mix)
 
             # Check audio duration
             audio_duration = len(mono_mix) / SAMPLE_RATE
+            print(f"[Debug] Audio duration: {audio_duration:.2f}s, samples: {len(mono_mix)}")
+            print(f"[Debug] Audio amplitude range: [{np.min(mono_mix):.3f}, {np.max(mono_mix):.3f}]")
+            
             if audio_duration < MIN_SPEECH_DURATION:
                 print(f"⚠️ Skipped: too short (duration: {audio_duration:.2f}s)")
                 # Reset VAD state after failed detection to prevent noise loops
