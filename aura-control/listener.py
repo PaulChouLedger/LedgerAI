@@ -18,6 +18,8 @@ SILENCE_TIMEOUT = 0.2
 VAD_THRESHOLD = 0.25  # Balanced threshold - filters noise but catches initial words
 MIC_GAIN = 4.5  # Increased gain - good amplitude range, no clipping detected
 MIN_SPEECH_DURATION = 0.25  # Minimum speech duration in seconds to prevent noise triggers
+VAD_RESET_THRESHOLD = 0.20  # If VAD stays below this for too long, reset
+VAD_RESET_COUNT = 10  # Number of consecutive low VAD readings before reset
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
@@ -92,6 +94,7 @@ def listen():
 
             buffer = []
             silence_start = None
+            low_vad_count = 0  # Counter for consecutive low VAD readings
 
             # === Wait for speech ===
             while True:
@@ -103,6 +106,19 @@ def listen():
                 audio_block = audio_block * MIC_GAIN
                 channel_0 = audio_block[:, 0]
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
+                
+                # Track consecutive low VAD readings
+                if vad_prob < VAD_RESET_THRESHOLD:
+                    low_vad_count += 1
+                    # Reset VAD state if stuck in background noise
+                    if low_vad_count >= VAD_RESET_COUNT:
+                        print(f"[VAD] 🔄 Resetting VAD after {low_vad_count} consecutive low readings")
+                        low_vad_count = 0
+                        time.sleep(0.1)  # Brief pause to reset VAD state
+                        continue
+                else:
+                    low_vad_count = 0  # Reset counter on higher VAD readings
+                
                 # Reduce debug output for performance
                 if vad_prob > 0.1:  # Only log significant VAD activity
                     print(f"[Debug] VAD prob: {vad_prob:.2f}")
