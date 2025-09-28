@@ -541,7 +541,6 @@ def update_flags_from_answer(cond, key, ans, state, session_id=None):
         return
     steps = get_steps(cond, state)
     print(f"[Aura-LLM] 🔍 update_flags_from_answer: cond={cond}, key={key}, ans={ans}")
-    print(f"[Aura-LLM] 🔍 Steps: {steps}")
     for s in steps:
         if isinstance(s, dict) and s.get("key") == key:
             print(f"[Aura-LLM] 🔍 Found matching step: {s}")

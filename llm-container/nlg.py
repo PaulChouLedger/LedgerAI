@@ -152,6 +152,11 @@ Rewrite the text above to be natural and professional while preserving all clini
             print(f"[NLG] ⚠️ Recent questions: {recent_questions}")
             user_content += f"\n\nIMPORTANT: Avoid using 'during these episodes' as it's been used repeatedly. Rewrite with different phrasing like 'Do you experience...', 'Have you noticed...', 'Are you experiencing...', or 'Do you have...'"
     
+    # More aggressive prevention - always avoid "during these episodes" in questions
+    if role == "question" and "during these episodes" in text.lower():
+        print(f"[NLG] ⚠️ Detected 'during these episodes' in question - forcing rewrite")
+        user_content += f"\n\nCRITICAL: The original text contains 'during these episodes' which is repetitive. You MUST rewrite this completely differently. Use phrases like 'Do you experience...', 'Have you noticed...', 'Are you experiencing...', 'Do you have...', 'Have you felt...', or 'Do you notice...'"
+    
     if role == "outcome":
         text_lower = text.lower()
         if "suggests" in text_lower and text_lower.count("suggests") > 1:
