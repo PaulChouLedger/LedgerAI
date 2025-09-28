@@ -867,24 +867,36 @@ def split_recap_into_chunks(recap_text):
     # Filter out empty sentences
     sentences = [s.strip() for s in sentences if s.strip()]
     
-    # If we have very long sentences, try to split on commas or semicolons
+    # Group sentences together to create fewer, larger chunks (max 5 chunks)
     chunks = []
+    current_chunk = ""
+    
     for sentence in sentences:
-        if len(sentence) > 150:  # If sentence is too long, split further
-            print(f"[Aura-LLM] 🔍 Splitting long sentence: '{sentence}'")
-            # Split on commas, semicolons, or "and" for very long sentences
-            sub_parts = re.split(r'(?<=[,;])\s+|\s+and\s+', sentence)
-            print(f"[Aura-LLM] 🔍 Sub parts after split: {sub_parts}")
-            # Rejoin with "and" if we split on "and"
-            if len(sub_parts) > 1:
-                # Normalize spaces in each part to prevent multiple spaces
-                normalized_parts = [re.sub(r'\s+', ' ', part.strip()) for part in sub_parts if part.strip()]
-                print(f"[Aura-LLM] 🔍 Normalized parts: {normalized_parts}")
-                chunks.extend(normalized_parts)
-            else:
-                chunks.append(sentence)
+        # If adding this sentence would make the chunk too long, start a new chunk
+        if current_chunk and len(current_chunk + " " + sentence) > 200:
+            chunks.append(current_chunk.strip())
+            current_chunk = sentence
         else:
-            chunks.append(sentence)
+            if current_chunk:
+                current_chunk += " " + sentence
+            else:
+                current_chunk = sentence
+    
+    # Add the last chunk if it exists
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+    
+    # If we still have too many chunks, combine them further
+    if len(chunks) > 5:
+        # Combine chunks to get down to 5 or fewer
+        combined_chunks = []
+        chunk_size = len(chunks) // 5 + (1 if len(chunks) % 5 > 0 else 0)
+        
+        for i in range(0, len(chunks), chunk_size):
+            group = chunks[i:i + chunk_size]
+            combined_chunks.append(" ".join(group))
+        
+        chunks = combined_chunks
     
     return chunks
 
@@ -990,8 +1002,6 @@ def chat():
         steps=get_steps(cond,state)
         step_list=[s if isinstance(s,dict) else {"key":None,"question":str(s)} for s in steps]
         cur_step=step_list[idx-1] if idx>0 else step_list[0]
-        print(f"[Aura-LLM] 🔍 Current step index: {idx}, Total steps: {len(step_list)}")
-        print(f"[Aura-LLM] 🔍 Step keys: {[s.get('key') for s in step_list]}")
         cur_key=state.get("last_key") or cur_step.get("key"); answer=prompt
 
         def generate():

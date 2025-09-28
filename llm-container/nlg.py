@@ -147,10 +147,10 @@ Rewrite the text above to be natural and professional while preserving all clini
     
     if role == "question" and "during these episodes" in text.lower():
         recent_questions = [h.lower() for h in history[-3:] if "during these episodes" in h]
-        if len(recent_questions) >= 2:  # If we've used this phrase recently
+        if len(recent_questions) >= 1:  # If we've used this phrase recently
             print(f"[NLG] ⚠️ Detected repetitive 'during these episodes' pattern")
             print(f"[NLG] ⚠️ Recent questions: {recent_questions}")
-            user_content += f"\n\nIMPORTANT: Avoid using 'during these episodes' as it's been used repeatedly. Rewrite with different phrasing like 'Do you experience...' or 'Have you noticed...'"
+            user_content += f"\n\nIMPORTANT: Avoid using 'during these episodes' as it's been used repeatedly. Rewrite with different phrasing like 'Do you experience...', 'Have you noticed...', 'Are you experiencing...', or 'Do you have...'"
     
     if role == "outcome":
         text_lower = text.lower()
