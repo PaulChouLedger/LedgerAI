@@ -1,8 +1,9 @@
 {
   "chest_pain": {
     "triggers": ["chest pain", "tightness in chest", "pressure in chest", "chest discomfort"],
-    "intro": "{name}, I’m sorry you’re experiencing chest pain. Let me ask you a few questions.",
+    "intro": "{name}, I'm sorry you're experiencing chest pain. Let me ask you a few questions.",
     "priority_keys": ["onset", "quality", "radiation", "exertion", "shortness_of_breath", "sweating", "fatigue", "fainting"],
+    "detailed_symptom": "chest pain",
     "steps": [
       {
         "key": "onset",
@@ -172,13 +173,15 @@
       "urgent": "Your palpitations need urgent medical evaluation. Please see a doctor soon.",
       "non_urgent": "Your palpitations may not be urgent, but follow up with your doctor is important."
     },
+    "clinical_summary": "Your symptoms are concerning for a cardiac arrhythmia or other heart condition.",
     "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "syncope": {
     "triggers": ["syncope", "fainting", "passed out", "collapse"],
-    "intro": "{name}, I see you’ve had a fainting episode. Let me ask you a few clarifying questions.",
+    "intro": "{name}, I see you've had a fainting episode. Let me ask you a few clarifying questions.",
     "priority_keys": ["onset", "circumstance", "duration"],
+    "detailed_symptom": "fainting",
     "steps": [
       {
         "key": "onset",
@@ -220,13 +223,15 @@
       "urgent": "Your fainting requires urgent evaluation. Please see a doctor soon.",
       "non_urgent": "Your fainting may be benign, but you should still follow up with your doctor."
     },
+    "clinical_summary": "Your symptoms are concerning for a cardiovascular or neurological condition that requires medical evaluation.",
     "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "leg_swelling": {
     "triggers": ["leg swelling", "swollen legs", "ankle swelling", "puffy legs"],
-    "intro": "{name}, I understand you’re having swelling in your legs. Let me ask you some questions.",
+    "intro": "{name}, I understand you're having swelling in your legs. Let me ask you some questions.",
     "priority_keys": ["onset", "side"],
+    "detailed_symptom": "leg swelling",
     "steps": [
       {
         "key": "onset",
@@ -259,13 +264,15 @@
       "urgent": "Leg swelling in one leg may suggest a clot. Please see a doctor soon.",
       "non_urgent": "Leg swelling may be benign, but follow up with your doctor is advised."
     },
+    "clinical_summary": "Your symptoms are concerning for a cardiovascular or circulatory condition that requires medical evaluation.",
     "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "leg_pain": {
     "triggers": ["leg pain", "pain in my leg", "calf pain", "thigh pain"],
-    "intro": "{name}, I understand you’re experiencing leg pain. Let me ask you some clarifying questions.",
+    "intro": "{name}, I understand you're experiencing leg pain. Let me ask you some clarifying questions.",
     "priority_keys": ["onset", "location"],
+    "detailed_symptom": "leg pain",
     "steps": [
       {
         "key": "onset",
@@ -300,13 +307,15 @@
       "urgent": "Leg pain in the calf or thigh may suggest a clot. Please see a doctor soon.",
       "non_urgent": "Leg pain in the ankle or foot may be benign, but follow up with your doctor is advised."
     },
+    "clinical_summary": "Your symptoms are concerning for a cardiovascular or circulatory condition that requires medical evaluation.",
     "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "hypertension": {
     "triggers": ["high blood pressure", "hypertension"],
-    "intro": "{name}, I see you’ve had concerns about high blood pressure. Let me clarify some details.",
+    "intro": "{name}, I see you've had concerns about high blood pressure. Let me clarify some details.",
     "priority_keys": ["symptoms"],
+    "detailed_symptom": "high blood pressure",
     "steps": [
       {
         "key": "symptoms",
@@ -325,13 +334,15 @@
       "urgent": "Headache with high blood pressure needs urgent evaluation. Please see a doctor soon.",
       "non_urgent": "High blood pressure without symptoms may be monitored, but follow up with your doctor is advised."
     },
+    "clinical_summary": "Your symptoms are concerning for a cardiovascular condition that requires medical evaluation.",
     "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "bradycardia": {
     "triggers": ["slow heart rate", "bradycardia"],
-    "intro": "{name}, I understand your heart rate has been slow. Let’s review your symptoms.",
+    "intro": "{name}, I understand your heart rate has been slow. Let's review your symptoms.",
     "priority_keys": ["assoc"],
+    "detailed_symptom": "slow heart rate",
     "steps": [
       {
         "key": "assoc",
@@ -350,13 +361,15 @@
       "urgent": "Bradycardia with dizziness or fatigue requires urgent evaluation.",
       "non_urgent": "Slow heart rate without symptoms may be benign but should be followed up."
     },
+    "clinical_summary": "Your symptoms are concerning for a cardiovascular condition that requires medical evaluation.",
     "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "tachycardia": {
     "triggers": ["fast heart rate", "tachycardia"],
-    "intro": "{name}, I see your heart rate has been fast. Let’s clarify some details.",
+    "intro": "{name}, I see your heart rate has been fast. Let's clarify some details.",
     "priority_keys": ["assoc"],
+    "detailed_symptom": "fast heart rate",
     "steps": [
       {
         "key": "assoc",
@@ -375,6 +388,7 @@
       "urgent": "Tachycardia with mild symptoms should be evaluated urgently.",
       "non_urgent": "Fast heart rate without symptoms may not be urgent, but follow up with your doctor is advised."
     },
+    "clinical_summary": "Your symptoms are concerning for a cardiovascular condition that requires medical evaluation.",
     "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
@@ -382,6 +396,7 @@
     "triggers": ["edema", "swelling", "fluid buildup"],
     "intro": "{name}, I see you have swelling from fluid retention. Let me ask you some questions.",
     "priority_keys": ["assoc"],
+    "detailed_symptom": "swelling",
     "steps": [
       {
         "key": "assoc",
@@ -399,13 +414,15 @@
       "urgent": "Swelling with other concerning symptoms may need urgent evaluation.",
       "non_urgent": "Mild swelling may be non-urgent but should be checked by your doctor."
     },
+    "clinical_summary": "Your symptoms are concerning for a cardiovascular or circulatory condition that requires medical evaluation.",
     "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   },
 
   "dizziness": {
     "triggers": ["dizzy", "dizziness", "lightheaded", "feeling faint"],
-    "intro": "{name}, I understand you’ve been feeling dizzy. Let me ask you a few clarifying questions.",
+    "intro": "{name}, I understand you've been feeling dizzy. Let me ask you a few clarifying questions.",
     "priority_keys": ["onset", "syncope"],
+    "detailed_symptom": "dizziness",
     "steps": [
       {
         "key": "onset",

@@ -221,10 +221,17 @@ def detect_condition(prompt, session_id: str | None = None):
     state = load_state(session_id)
     if "detailed_symptoms" not in state:
         state["detailed_symptoms"] = []
-    # Add the initial expanded prompt to the array
-    if p_expanded and p_expanded not in state["detailed_symptoms"]:
+    
+    # Use detailed_symptom from JSON if available, otherwise use expanded prompt
+    if condition and condition in TRIAGE_DEFS and "detailed_symptom" in TRIAGE_DEFS[condition]:
+        detailed_symptom = TRIAGE_DEFS[condition]["detailed_symptom"]
+        if detailed_symptom not in state["detailed_symptoms"]:
+            state["detailed_symptoms"].append(detailed_symptom)
+            print(f"[Aura-LLM] 📝 Detailed symptoms array: {state['detailed_symptoms']}")
+    elif p_expanded and p_expanded not in state["detailed_symptoms"]:
         state["detailed_symptoms"].append(p_expanded)
         print(f"[Aura-LLM] 📝 Detailed symptoms array: {state['detailed_symptoms']}")
+    
     save_state(state, session_id)
     
     for cond, data in TRIAGE_DEFS.items():
