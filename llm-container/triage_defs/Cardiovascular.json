@@ -128,19 +128,20 @@
 
   "palpitations": {
     "triggers": ["palpitations", "racing heart", "skipped beats", "fluttering heart"],
-    "intro": "{name}, I understand you’re experiencing palpitations. Let me ask you a few questions.",
+    "intro": "{name}, I understand you're experiencing palpitations. Let me ask you a few questions.",
     "priority_keys": ["onset"],
+    "detailed_symptom": "palpitations",
     "steps": [
       {
         "key": "onset",
         "question": "When did the palpitations begin?",
-        "recap_template": "Palpitation onset was {answer}",
+        "recap_template": "Palpitations started {answer}",
         "answers": {}
       },
       {
         "key": "pattern",
         "question": "Are the palpitations constant?",
-        "recap_template": "You {answer} constant palpitations",
+        "recap_template": "You have {answer} constant palpitations",
         "answers": {
           "yes": "urgent",
           "no": "non_urgent"
@@ -149,7 +150,7 @@
       {
         "key": "timing_exercise",
         "question": "Do they occur with exercise?",
-        "recap_template": "You {answer} palpitations with exercise",
+        "recap_template": "You have {answer} palpitations with exercise",
         "answers": {
           "yes": "emergency",
           "no": "non_urgent"
@@ -158,7 +159,7 @@
       {
         "key": "assoc",
         "question": "Do you have chest pain, dizziness, or fainting with them?",
-        "recap_template": "You reported {answer} with palpitations",
+        "recap_template": "You have {answer} with palpitations",
         "answers": {
           "chest pain": "emergency",
           "dizziness": "urgent",
