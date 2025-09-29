@@ -58,21 +58,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 stream=True
             )
             if resp.status_code == 200:
-                # Collect all streaming responses
+                # Collect all streaming responses (same logic as TTS)
                 response_parts = []
-                for line in resp.iter_lines():
-                    if line:
-                        line_str = line.decode('utf-8')
-                        if line_str.startswith('data: '):
-                            try:
-                                import json
-                                data = json.loads(line_str[6:])
-                                if 'content' in data:
-                                    response_parts.append(data['content'])
-                            except:
-                                pass
+                for line in resp.iter_lines(decode_unicode=True):
+                    token = line.strip()
+                    if not token:
+                        continue
+                    response_parts.append(token)
                 
-                response_text = ''.join(response_parts) if response_parts else "Session reset. Start again with your symptoms."
+                response_text = ' '.join(response_parts) if response_parts else "Session reset. Start again with your symptoms."
                 await update.message.reply_text(response_text)
             else:
                 await update.message.reply_text("🔄 Session reset. Start again with your symptoms.")
@@ -131,19 +125,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Collect all streaming responses (same logic as TTS)
         response_parts = []
-        for line in resp.iter_lines():
-            if line:
-                line_str = line.decode('utf-8')
-                if line_str.startswith('data: '):
-                    try:
-                        import json
-                        data = json.loads(line_str[6:])
-                        if 'content' in data:
-                            response_parts.append(data['content'])
-                    except:
-                        pass
+        for line in resp.iter_lines(decode_unicode=True):
+            token = line.strip()
+            if not token:
+                continue
+            response_parts.append(token)
         
-        response_text = ''.join(response_parts) if response_parts else "I'm sorry, I didn't understand that."
+        response_text = ' '.join(response_parts) if response_parts else "I'm sorry, I didn't understand that."
         
         # Debug: Log the response to help diagnose issues
         print(f"[Telegram] 📤 Response to {chat_id}: {response_text[:100]}...")
