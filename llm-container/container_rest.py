@@ -1011,12 +1011,10 @@ def process_triage_step(prompt, session_id):
         else:
             # Triage is complete, generate final recap
             try:
-                recap = build_recap(state["condition"], state.get("answers", []), 
-                                  state.get("flags", {}), "emergency", session_id)
-                
-                # Get outcome
-                severity = classify_response(state["condition"], state.get("flags", {}))
-                path = TRIAGE_DEFS[state["condition"]]
+                # Use the same logic as the voice interface
+                cond = state["condition"]
+                sev = classify_response(cond, state["flags"])
+                path = TRIAGE_DEFS[cond]
                 active = state.get("active_pathway")
                 outcomes = path.get("outcomes", {})
                 
@@ -1024,7 +1022,11 @@ def process_triage_step(prompt, session_id):
                     outcomes = path["pathways"][active].get("outcomes", outcomes)
                     print(f"[Aura-LLM] 🎯 Outcome taken from pathway: {active}")
                 
-                raw_outcome = outcomes.get(severity, 'Follow up with a doctor.')
+                # Generate recap using the same logic as voice interface
+                recap = build_recap(cond, state["answers"], state["flags"], sev, session_id)
+                
+                # Get outcome
+                raw_outcome = outcomes.get(sev, 'Follow up with a doctor.')
                 outcome = substitute_name(raw_outcome, state.get("user_name"))
                 
                 # Combine recap and outcome
