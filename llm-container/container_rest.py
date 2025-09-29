@@ -6,13 +6,16 @@
 from flask import Flask, request, jsonify, stream_with_context, Response
 from llama_cpp import Llama
 from dotenv import load_dotenv
-import os, re, json, string
+import os, re, json, string, threading
 from datetime import datetime, timedelta
 from glob import glob
 from nlg import rewrite as nlg_rewrite
 
 app = Flask(__name__)
 load_dotenv()
+
+# === Thread Safety ===
+llm_lock = threading.Lock()
 
 # === Model Config ===
 MODEL_PATH = os.getenv("MODEL_PATH", "/models/qwen2.5-1.5b-instruct-q4_0.gguf")
@@ -503,12 +506,14 @@ def add_phrasing_fingerprint(state, text):
             state["phrasing_history"] = state["phrasing_history"][-10:]
 
 def llm_chat_once(messages, gen_kwargs):
-    """Non-stream single completion via llama_cpp."""
-    try:
-        resp = llm.create_chat_completion(messages=messages, **{k: v for k, v in gen_kwargs.items() if v is not None})
-        return resp
-    except Exception as e:
-        return {"choices":[{"message":{"content":""}}]}
+    """Non-stream single completion via llama_cpp with thread safety."""
+    with llm_lock:
+        try:
+            resp = llm.create_chat_completion(messages=messages, **{k: v for k, v in gen_kwargs.items() if v is not None})
+            return resp
+        except Exception as e:
+            print(f"[LLM] ❌ Error in llm_chat_once: {e}")
+            return {"choices":[{"message":{"content":""}}]}
 
 def get_steps(cond, state):
     steps = TRIAGE_DEFS[cond].get("steps", [])
