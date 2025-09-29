@@ -1010,23 +1010,39 @@ def process_triage_step(prompt, session_id):
             return {"response": final_question}
         else:
             # Triage is complete, generate final recap
-            recap = build_recap(state["condition"], state.get("answers", []), 
-                              state.get("flags", {}), "emergency", session_id)
-            
-            # Get outcome
-            outcome = get_outcome(state["condition"], state.get("flags", {}))
-            
-            # Combine recap and outcome
-            response = f"{recap}\n\n{outcome}"
-            
-            # Reset session after completion
-            state = {"condition": None, "step_index": 0, "answers": [], "flags": {},
-                    "last_key": None, "user_name": state.get("user_name"), "active_pathway": None, 
-                    "entered_pathway": False, "detailed_symptoms": [], 
-                    "original_complaint": None, "expanded_prompt": None}
-            save_state(state, session_id)
-            
-            return {"response": response}
+            try:
+                recap = build_recap(state["condition"], state.get("answers", []), 
+                                  state.get("flags", {}), "emergency", session_id)
+                
+                # Get outcome
+                severity = classify_response(state["condition"], state.get("flags", {}))
+                path = TRIAGE_DEFS[state["condition"]]
+                active = state.get("active_pathway")
+                outcomes = path.get("outcomes", {})
+                
+                if active and "pathways" in path and active in path["pathways"]:
+                    outcomes = path["pathways"][active].get("outcomes", outcomes)
+                    print(f"[Aura-LLM] 🎯 Outcome taken from pathway: {active}")
+                
+                raw_outcome = outcomes.get(severity, 'Follow up with a doctor.')
+                outcome = substitute_name(raw_outcome, state.get("user_name"))
+                
+                # Combine recap and outcome
+                response = f"{recap}\n\n{outcome}"
+                
+                # Reset session after completion
+                state = {"condition": None, "step_index": 0, "answers": [], "flags": {},
+                        "last_key": None, "user_name": state.get("user_name"), "active_pathway": None, 
+                        "entered_pathway": False, "detailed_symptoms": [], 
+                        "original_complaint": None, "expanded_prompt": None}
+                save_state(state, session_id)
+                
+                return {"response": response}
+                
+            except Exception as e:
+                print(f"[Aura-LLM] ❌ Error generating recap: {e}")
+                # Fallback response
+                return {"response": f"Based on your symptoms, please seek medical attention. Your chest pain with associated symptoms requires evaluation by a healthcare provider."}
             
     except Exception as e:
         print(f"[Aura-LLM] ❌ Error in process_triage_step: {e}")
