@@ -1011,7 +1011,7 @@ def process_triage_step(prompt, session_id):
         else:
             # Triage is complete, generate final recap
             try:
-                # Use the same logic as the voice interface
+                # Use the EXACT same logic as the voice interface
                 cond = state["condition"]
                 sev = classify_response(cond, state["flags"])
                 path = TRIAGE_DEFS[cond]
@@ -1022,15 +1022,32 @@ def process_triage_step(prompt, session_id):
                     outcomes = path["pathways"][active].get("outcomes", outcomes)
                     print(f"[Aura-LLM] 🎯 Outcome taken from pathway: {active}")
                 
-                # Generate recap using the same logic as voice interface
+                # Generate recap using the EXACT same logic as voice interface
                 recap = build_recap(cond, state["answers"], state["flags"], sev, session_id)
                 
-                # Get outcome
+                # Apply NLG rewriting to recap (same as voice interface)
+                from nlg import rewrite
+                recap_nlg = rewrite(recap, "recap", {
+                    "name": state.get("user_name"),
+                    "condition": cond,
+                    "pathway": state.get("active_pathway")
+                }, state.get("phrasing_history", []), 
+                lambda messages, gen_kwargs: {"content": recap})  # Simple fallback
+                
+                # Get outcome (same as voice interface)
                 raw_outcome = outcomes.get(sev, 'Follow up with a doctor.')
                 outcome = substitute_name(raw_outcome, state.get("user_name"))
                 
+                # Apply NLG rewriting to outcome (same as voice interface)
+                outcome_nlg = rewrite(outcome, "outcome", {
+                    "name": state.get("user_name"),
+                    "condition": cond,
+                    "pathway": state.get("active_pathway")
+                }, state.get("phrasing_history", []),
+                lambda messages, gen_kwargs: {"content": outcome})  # Simple fallback
+                
                 # Combine recap and outcome
-                response = f"{recap}\n\n{outcome}"
+                response = f"{recap_nlg}\n\n{outcome_nlg}"
                 
                 # Reset session after completion
                 state = {"condition": None, "step_index": 0, "answers": [], "flags": {},
