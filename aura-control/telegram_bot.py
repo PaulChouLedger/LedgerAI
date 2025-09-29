@@ -67,6 +67,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     response_parts.append(token)
                 
                 response_text = ' '.join(response_parts) if response_parts else "Session reset. Start again with your symptoms."
+                
+                # Remove sentence tags for Telegram display
+                import re
+                response_text = re.sub(r'<sentence_start>|<sentence_end>', '', response_text)
+                response_text = re.sub(r'\s+', ' ', response_text).strip()  # Normalize spaces
+                
                 await update.message.reply_text(response_text)
             else:
                 await update.message.reply_text("🔄 Session reset. Start again with your symptoms.")
@@ -132,6 +138,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             response_parts.append(token)
         
         response_text = ' '.join(response_parts) if response_parts else "I'm sorry, I didn't understand that."
+        
+        # Remove sentence tags for Telegram display
+        import re
+        response_text = re.sub(r'<sentence_start>|<sentence_end>', '', response_text)
+        response_text = re.sub(r'\s+', ' ', response_text).strip()  # Normalize spaces
         
         # Debug: Log the response to help diagnose issues
         print(f"[Telegram] 📤 Response to {chat_id}: {response_text[:100]}...")
