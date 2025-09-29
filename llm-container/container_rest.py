@@ -165,6 +165,42 @@ def extract_name(prompt):
     if not m: 
         return None
     raw = m.group(1).strip()
+    
+    # Check if the extracted text matches any medical terms in synonym files
+    # This is more dynamic than a hardcoded list
+    raw_lower = raw.lower()
+    
+    # Load all synonym files to check against
+    import os
+    import json
+    
+    synonym_files = [
+        "synonyms/cardio_synonyms.json",
+        "synonyms/derm_synonyms.json", 
+        "synonyms/endocrine_synonyms.json",
+        "synonyms/gi_synonyms.json",
+        "synonyms/gu_synonyms.json",
+        "synonyms/neuro_synonyms.json",
+        "synonyms/renal_synonyms.json",
+        "synonyms/resp_synonyms.json"
+    ]
+    
+    # Check if the extracted text matches any medical terms
+    for synonym_file in synonym_files:
+        try:
+            file_path = os.path.join("triage_defs", synonym_file)
+            if os.path.exists(file_path):
+                with open(file_path, 'r') as f:
+                    synonyms = json.load(f)
+                    # Check if any key or value in the synonyms matches
+                    for key, values in synonyms.items():
+                        if (raw_lower == key.lower() or 
+                            any(raw_lower == val.lower() for val in values) or
+                            any(raw_lower in val.lower() for val in values)):
+                            return None  # This is a medical term, not a name
+        except Exception:
+            continue  # Skip if file doesn't exist or can't be read
+    
     # Split on medical keywords or common separators, but be more careful with "and"
     raw = re.split(r"\b(having|with|experiencing|suffering|complaining|reporting)\b|,|\.", raw, 1)[0].strip()
     # Handle "and" more carefully - only split if it's followed by medical terms

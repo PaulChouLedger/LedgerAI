@@ -427,7 +427,7 @@
       {
         "key": "onset",
         "question": "When did the dizziness start?",
-        "recap_template": "Dizziness onset was {answer}",
+        "recap_template": "starting {answer}",
         "answers": {}
       },
       {
