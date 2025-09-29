@@ -955,9 +955,67 @@ def chat_simple():
 
 def process_triage_step(prompt, session_id):
     """Process a single triage step and return response"""
-    # This would contain the triage logic from the main chat endpoint
-    # but return a single response instead of streaming
-    return {"response": "Processing triage step..."}
+    state = load_state(session_id)
+    
+    if not state.get("condition"):
+        return {"response": "Please describe your symptoms to begin triage."}
+    
+    # Process the answer and get the next question
+    try:
+        # Update flags from the answer
+        update_flags_from_answer(state["condition"], state.get("last_key"), prompt, state, session_id)
+        
+        # Get the next step
+        steps = get_steps(state["condition"], state)
+        current_step_index = state.get("step_index", 0)
+        
+        if current_step_index < len(steps):
+            # Get the current step
+            current_step = steps[current_step_index]
+            question = current_step.get("question", "")
+            
+            # Apply NLG rewriting if needed
+            from nlg import rewrite
+            rewritten_question = rewrite(
+                question,
+                "question",
+                {
+                    "name": state.get("user_name"),
+                    "condition": state["condition"],
+                    "key": current_step.get("key"),
+                    "allowed_answers": list(current_step.get("answers", {}).keys())
+                },
+                state.get("phrasing_history", []),
+                lambda messages, gen_kwargs: {"content": question}  # Simple fallback
+            )
+            
+            # Substitute name in the question
+            final_question = substitute_name(rewritten_question, state.get("user_name"))
+            
+            return {"response": final_question}
+        else:
+            # Triage is complete, generate final recap
+            recap = build_recap(state["condition"], state.get("answers", []), 
+                              state.get("flags", {}), "emergency", session_id)
+            
+            # Get outcome
+            outcome = get_outcome(state["condition"], state.get("flags", {}))
+            
+            # Combine recap and outcome
+            response = f"{recap}\n\n{outcome}"
+            
+            # Reset session after completion
+            state = {"condition": None, "step_index": 0, "answers": [], "flags": {},
+                    "last_key": None, "user_name": state.get("user_name"), "active_pathway": None, 
+                    "entered_pathway": False, "detailed_symptoms": [], 
+                    "original_complaint": None, "expanded_prompt": None}
+            save_state(state, session_id)
+            
+            return {"response": response}
+            
+    except Exception as e:
+        print(f"[Aura-LLM] ❌ Error in process_triage_step: {e}")
+        return {"response": "I'm sorry, there was an error processing your response."}
 
 # === Chat endpoint ===
 @app.route("/chat", methods=["POST"])
