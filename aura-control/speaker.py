@@ -28,6 +28,7 @@ ALSA_CONTROLS = ["PCM", "Speaker", "Master"]  # try these in order
 # === TTS config ===
 SENTENCE_QUEUE = queue.Queue()
 playback_lock = threading.Lock()
+TTS_TOKEN_LIMIT = int(os.getenv("TTS_TOKEN_LIMIT", "15"))  # Max tokens before forcing sentence split
 USE_SSML = True
 INSERT_BREAKS = True
 INSERT_SENTENCE_PAUSE = True
@@ -180,7 +181,8 @@ def speak_llm_response(prompt, context=""):
             print(f"[LLM] 🧠 {token}")
             buffer.append(token)
             ends = any(token.endswith(p) for p in [".", "!", "?"])
-            if ends or len(buffer) >= 12:
+            # Prioritize sentence endings, only split on token count if buffer is very long
+            if ends or len(buffer) >= TTS_TOKEN_LIMIT:
                 enqueue_tts_chunk(" ".join(buffer).strip())
                 buffer.clear()
         if buffer:
