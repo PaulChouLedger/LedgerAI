@@ -208,7 +208,7 @@ def detect_condition(prompt, session_id: str | None = None):
     
     # Check for casual greetings first - don't trigger triage for these
     # Only block if it's JUST a greeting without any medical content
-    casual_greetings = ["hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]
+    casual_greetings = ["hello", "hi", "hey", "good morning", "good afternoon", "good evening", "hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]
     if any(greeting in p for greeting in casual_greetings):
         # Check if there are any medical symptoms mentioned
         medical_keywords = ["pain", "hurt", "ache", "symptom", "problem", "issue", "concern", "worried", "sick", "ill", "unwell"]
@@ -945,9 +945,20 @@ def chat_simple():
             response += first_question
             
             return {"response": response}
-        else:
+        elif state.get("condition"):
             # Continue existing triage
             return process_triage_step(prompt, session_id)
+        else:
+            # Casual conversation - no triage active
+            casual_responses = [
+                "Hello! How can I help you today?",
+                "Hi there! What can I do for you?",
+                "Good to see you! How are you feeling?",
+                "Hello! I'm here to help with any medical concerns you might have.",
+                "Hi! Feel free to describe any symptoms you're experiencing."
+            ]
+            import random
+            return {"response": random.choice(casual_responses)}
             
     except Exception as e:
         print(f"[Aura-LLM] ❌ Error in chat-simple: {e}")
@@ -965,13 +976,17 @@ def process_triage_step(prompt, session_id):
         # Update flags from the answer
         update_flags_from_answer(state["condition"], state.get("last_key"), prompt, state, session_id)
         
+        # Advance to the next step
+        current_step_index = state.get("step_index", 0)
+        state["step_index"] = current_step_index + 1
+        save_state(state, session_id)
+        
         # Get the next step
         steps = get_steps(state["condition"], state)
-        current_step_index = state.get("step_index", 0)
         
-        if current_step_index < len(steps):
+        if state["step_index"] < len(steps):
             # Get the current step
-            current_step = steps[current_step_index]
+            current_step = steps[state["step_index"]]
             question = current_step.get("question", "")
             
             # Apply NLG rewriting if needed
