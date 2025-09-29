@@ -369,7 +369,9 @@
               "arm": "right_arm_weakness",
               "leg": "right_leg_weakness",
               "both": "right_side_weakness_both",
-              "arm and leg": "right_side_weakness_both"
+              "arm and leg": "right_side_weakness_both",
+              "no": "no_weakness",
+              "none": "no_weakness"
             }
           },
           {
@@ -488,7 +490,9 @@
               "arm": "left_arm_weakness",
               "leg": "left_leg_weakness",
               "both": "left_side_weakness_both",
-              "arm and leg": "left_side_weakness_both"
+              "arm and leg": "left_side_weakness_both",
+              "no": "no_weakness",
+              "none": "no_weakness"
             }
           },
           {
@@ -811,7 +815,9 @@
             "answers": {
               "arm": "right_arm_numbness",
               "leg": "right_leg_numbness",
-              "both": "right_side_numbness"
+              "both": "right_side_numbness",
+              "no": "no_numbness",
+              "none": "no_numbness"
             }
           },
           {
@@ -866,7 +872,9 @@
             "answers": {
               "arm": "left_arm_numbness",
               "leg": "left_leg_numbness",
-              "both": "left_side_numbness"
+              "both": "left_side_numbness",
+              "no": "no_numbness",
+              "none": "no_numbness"
             }
           },
           {

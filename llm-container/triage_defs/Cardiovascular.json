@@ -42,7 +42,9 @@
           "neck": "emergency",
           "jaw": "emergency",
           "back": "emergency",
-          "shoulder": "emergency"
+          "shoulder": "emergency",
+          "no": "non_urgent",
+          "none": "non_urgent"
         }
       },
       {
@@ -164,7 +166,9 @@
         "answers": {
           "chest pain": "emergency",
           "dizziness": "urgent",
-          "fainting": "emergency"
+          "fainting": "emergency",
+          "no": "non_urgent",
+          "none": "non_urgent"
         }
       }
     ],
@@ -446,7 +450,9 @@
         "answers": {
           "chest pain": "emergency",
           "palpitations": "urgent",
-          "no": "non_urgent"
+          "no": "non_urgent",
+          "neither": "non_urgent",
+          "none": "non_urgent"
         }
       }
     ],

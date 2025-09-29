@@ -188,7 +188,7 @@ def extract_name(prompt):
     # Check if the extracted text matches any medical terms
     for synonym_file in synonym_files:
         try:
-            file_path = os.path.join("triage_defs", synonym_file)
+            file_path = os.path.join("synonyms", synonym_file)
             if os.path.exists(file_path):
                 with open(file_path, 'r') as f:
                     synonyms = json.load(f)
