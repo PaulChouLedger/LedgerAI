@@ -15,10 +15,10 @@ SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.2
-VAD_THRESHOLD = 0.25  # Balanced threshold - filters noise but catches initial words
+VAD_THRESHOLD = 0.20  # Lowered threshold to detect quieter speech
 MIC_GAIN = 5.0  # Increased gain - good amplitude range, no clipping detected
 MIN_SPEECH_DURATION = 0.25  # Minimum speech duration in seconds to prevent noise triggers
-VAD_RESET_THRESHOLD = 0.20
+VAD_RESET_THRESHOLD = 0.15
 # If VAD stays below this for too long, reset
 VAD_RESET_COUNT = 10  # Number of consecutive low VAD readings before reset
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"

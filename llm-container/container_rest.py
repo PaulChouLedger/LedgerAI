@@ -1024,6 +1024,9 @@ def process_triage_step(prompt, session_id):
     
     # Process the answer and get the next question
     try:
+        # Add answer to state (same as voice interface)
+        state["answers"].append(prompt)
+        
         # Update flags from the answer
         update_flags_from_answer(state["condition"], state.get("last_key"), prompt, state, session_id)
         
