@@ -17,7 +17,7 @@ FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.2
 VAD_THRESHOLD = 0.30  # Lowered threshold to detect quieter speech
 MIC_GAIN = 2.0 # Increased gain - good amplitude range, no clipping detected
-MIN_SPEECH_DURATION = 0.25  # Minimum speech duration in seconds to prevent noise triggers
+MIN_SPEECH_DURATION = 0.20  # Minimum speech duration in seconds to prevent noise triggers
 VAD_RESET_THRESHOLD = 0.2
 # If VAD stays below this for too long, reset
 VAD_RESET_COUNT = 10  # Base number of consecutive low VAD readings before reset
