@@ -47,7 +47,7 @@
       },
       {
         "key": "shortness_of_breath",
-        "question": "Do you feel short of breath during these episodes?",
+        "question": "Do you experience shortness of breath?",
         "recap_template": "You have {answer} shortness of breath",
         "answers": {
           "yes": "emergency",
@@ -56,7 +56,7 @@
       },
       {
         "key": "sweating",
-        "question": "Do you feel sweaty during these episodes?",
+        "question": "Are you experiencing sweating?",
         "recap_template": "You have {answer} sweating",
         "answers": {
           "yes": "emergency",
@@ -65,7 +65,7 @@
       },
       {
         "key": "fatigue",
-        "question": "Do you feel unusually tired during these episodes?",
+        "question": "Do you feel unusually tired?",
         "recap_template": "You have {answer} unusual fatigue",
         "answers": {
           "yes": "urgent",
@@ -74,7 +74,7 @@
       },
       {
         "key": "fainting",
-        "question": "Have you fainted or collapsed during these episodes?",
+        "question": "Have you fainted or collapsed?",
         "recap_template": "You have {answer} fainting or collapse",
         "answers": {
           "yes": "emergency",
