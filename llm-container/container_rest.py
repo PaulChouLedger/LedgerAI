@@ -752,18 +752,41 @@ def build_recap(cond, answers, flags, severity, session_id=None):
             tail = re.sub(r"^\s*You\s+\{answer\}\s+", "", templ, flags=re.IGNORECASE).strip()
             line = f"You reported {tail} with {ans_out}"
         else:
-            # Use the raw answer for display
-            line = templ.format(answer=ans_out).strip()
+            # Handle special cases for denial answers
+            if ans_out.lower() in ["none", "no", "neither"]:
+                # For denial answers, we need to determine what was being asked about
+                # Look at the question text to determine what was denied
+                question_text = s.get("question", "").lower()
+                if "chest pain" in question_text and "palpitations" in question_text:
+                    line = "denied chest pain and palpitations"
+                elif "chest pain" in question_text:
+                    line = "denied chest pain"
+                elif "palpitations" in question_text:
+                    line = "denied palpitations"
+                elif "shortness of breath" in question_text:
+                    line = "denied shortness of breath"
+                elif "fainting" in question_text or "faint" in question_text:
+                    line = "denied fainting"
+                elif "dizziness" in question_text:
+                    line = "denied dizziness"
+                else:
+                    line = f"denied {ans_out}"
+            else:
+                # Use the raw answer for display
+                line = templ.format(answer=ans_out).strip()
             
         # Debug logging for recap generation
         print(f"[Aura-LLM] 🔍 Recap step: key='{key}', ans_out='{ans_out}', line='{line}', is_priority={key in pk}")
 
+        # Check if this is a denial (none, no, neither answers)
+        is_negative = "denied" in line.lower() or ans_out.lower() in ["none", "no", "neither"]
+        
         if key in pk:
-            if "denied" in line.lower():
+            if is_negative:
                 priority_negatives.append(_strip_prefix(line))
             else:
                 priority_positives.append(_strip_prefix(line))
-        elif "denied" in line.lower():
+        elif is_negative:
             negatives.append(_strip_prefix(line))
         else:
             positives.append(_strip_prefix(line))
@@ -869,25 +892,48 @@ def build_recap(cond, answers, flags, severity, session_id=None):
     
     # Add timing if present
     if timing_info:
-        main_sentence += f" starting {pretty_join(timing_info, 'and')}"
+        # Check if timing already has "starting" in it
+        timing_str = pretty_join(timing_info, 'and')
+        if not timing_str.lower().startswith("starting"):
+            main_sentence += f" starting {timing_str}"
+        else:
+            main_sentence += f" {timing_str}"
     
     parts.append(main_sentence + ".")
-    
-    # Always include denied key symptoms - they're important for clinical assessment
-    if priority_negatives:
-        parts.append("You denied key symptoms of " + pretty_join(priority_negatives, "or") + ".")
     
     # Clean up positives to avoid redundancy with main complaint
     clean_positives = []
     for pos in positives:
         # Skip if this positive is already covered in the main complaint or other_positives
         if pos != main_complaint and pos not in other_positives:
-            clean_positives.append(pos)
+            # Skip if it's "none", "no", "neither" - these should be in negatives
+            pos_lower = pos.lower()
+            if pos_lower not in ["none", "no", "neither", "reported none", "reported no", "reported neither"]:
+                clean_positives.append(pos)
     
-    if clean_positives: 
-        parts.append("You also reported " + pretty_join(clean_positives, "and") + ".")
-    if negatives: 
-        parts.append("You denied " + pretty_join(negatives, "or") + ".")
+    if clean_positives:
+        # Remove "reported" prefix if it's already in the text
+        clean_positives_text = []
+        for pos in clean_positives:
+            if pos.lower().startswith("reported "):
+                clean_positives_text.append(pos[9:])  # Remove "reported " prefix
+            else:
+                clean_positives_text.append(pos)
+        parts.append("You also reported " + pretty_join(clean_positives_text, "and") + ".")
+    
+    # Handle denied symptoms - combine priority and regular negatives
+    all_negatives = priority_negatives + negatives
+    if all_negatives:
+        # Clean up the negative descriptions to be more specific
+        clean_negatives = []
+        for neg in all_negatives:
+            # Remove "denied" prefix if present and clean up the text
+            neg_clean = neg.lower().replace("denied", "").replace("you", "").strip()
+            if neg_clean and neg_clean not in ["none", "no", "neither"]:
+                clean_negatives.append(neg_clean)
+        
+        if clean_negatives:
+            parts.append("You denied " + pretty_join(clean_negatives, "and") + ".")
     summary = " ".join(parts).strip()
     # Cleanup: normalize spaces, collapse duplicate punctuation, fix spaces before punctuation, tidy capitalization after commas
     summary = re.sub(r"\s+", " ", summary)  # Normalize multiple spaces to single space

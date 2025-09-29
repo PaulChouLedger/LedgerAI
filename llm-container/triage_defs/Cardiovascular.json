@@ -431,7 +431,7 @@
       {
         "key": "onset",
         "question": "When did the dizziness start?",
-        "recap_template": "starting {answer}",
+        "recap_template": "{answer}",
         "answers": {}
       },
       {
@@ -446,7 +446,7 @@
       {
         "key": "assoc",
         "question": "Do you have chest pain or palpitations with the dizziness?",
-        "recap_template": "You reported {answer} with dizziness",
+        "recap_template": "{answer}",
         "answers": {
           "chest pain": "emergency",
           "palpitations": "urgent",
