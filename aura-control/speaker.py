@@ -19,7 +19,7 @@ client = ElevenLabs(api_key=ELEVEN_API_KEY)
 PCM_SAMPLE_RATE = 22050
 PCM_FORMAT = "pcm_22050"
 VOLUME_SET = False
-TTS_VOLUME = 70  # percent
+TTS_VOLUME = 100  # percent
 
 # Device identification
 DEVICE_NAME = "UACDemoV1.0"   # part of the USB device name from `aplay -l`
@@ -180,9 +180,15 @@ def speak_llm_response(prompt, context=""):
                 continue
             print(f"[LLM] 🧠 {token}")
             buffer.append(token)
+            # Check for sentence endings, but avoid splitting on abbreviations/initials
             ends = any(token.endswith(p) for p in [".", "!", "?"])
-            # Prioritize sentence endings, only split on token count if buffer is very long
-            if ends or len(buffer) >= TTS_TOKEN_LIMIT:
+            # Don't split on single letters followed by period (initials like "K.")
+            is_initial = len(token) == 2 and token.endswith('.') and token[0].isupper()
+            # Don't split on common abbreviations
+            is_abbreviation = token.lower() in ['mr.', 'mrs.', 'dr.', 'prof.', 'st.', 'ave.', 'blvd.', 'inc.', 'ltd.', 'corp.', 'etc.', 'vs.', 'jr.', 'sr.']
+            
+            # Only split if it's a real sentence ending (not an initial or abbreviation)
+            if (ends and not is_initial and not is_abbreviation) or len(buffer) >= TTS_TOKEN_LIMIT:
                 enqueue_tts_chunk(" ".join(buffer).strip())
                 buffer.clear()
         if buffer:
