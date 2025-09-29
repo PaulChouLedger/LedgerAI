@@ -92,6 +92,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print(f"[Telegram] ❌ No medical symptoms detected, session remains inactive")
             await update.message.reply_text("ℹ️ Triage not active. Send /start or 'reset' to begin.")
             return
+    
+    # If session is active, all messages should be processed (including greetings during triage)
+    print(f"[Telegram] ✅ Session active for {chat_id}, processing message: {user_message}")
 
     # Store message in history (optional, can pass to Aura)
     sessions[chat_id]["history"].append(user_message)
@@ -115,6 +118,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Get single response
         response_data = resp.json()
         response_text = response_data.get("response", "I'm sorry, I didn't understand that.")
+        
+        # Debug: Log the response to help diagnose issues
+        print(f"[Telegram] 📤 Response to {chat_id}: {response_text[:100]}...")
         
         # Send the response
         await update.message.reply_text(response_text)
