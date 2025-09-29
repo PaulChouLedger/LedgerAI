@@ -20,7 +20,8 @@ MIC_GAIN = 5.0  # Increased gain - good amplitude range, no clipping detected
 MIN_SPEECH_DURATION = 0.25  # Minimum speech duration in seconds to prevent noise triggers
 VAD_RESET_THRESHOLD = 0.2
 # If VAD stays below this for too long, reset
-VAD_RESET_COUNT = 10  # Number of consecutive low VAD readings before reset
+VAD_RESET_COUNT = 10  # Base number of consecutive low VAD readings before reset
+VAD_RESET_MULTIPLIER = 5  # Multiply by this to get actual reset threshold (50 readings)
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
@@ -111,8 +112,10 @@ def listen():
                 # Track consecutive low VAD readings
                 if vad_prob < VAD_RESET_THRESHOLD:
                     low_vad_count += 1
-                    # Reset VAD state if stuck in background noise
-                    if low_vad_count >= VAD_RESET_COUNT:
+                    # Only reset VAD if we've been in low VAD for a very long time
+                    # This prevents resetting during natural speech pauses
+                    # 50 readings = ~1.6 seconds of continuous low VAD
+                    if low_vad_count >= VAD_RESET_COUNT * VAD_RESET_MULTIPLIER:  # 50 consecutive low readings
                         print(f"[VAD] 🔄 Resetting VAD after {low_vad_count} consecutive low readings")
                         low_vad_count = 0
                         time.sleep(0.1)  # Brief pause to reset VAD state
