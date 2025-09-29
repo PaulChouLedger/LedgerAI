@@ -922,47 +922,98 @@ def chat_simple():
     
     # Process the prompt and return a single response
     try:
-        # Use the same logic as the streaming endpoint but return a single response
-        condition = detect_condition(prompt, session_id)
         state = load_state(session_id)
         
-        if condition:
-            # New triage session
-            state.update({"condition": condition, "step_index": 0, "answers": [], "flags": {},
-                         "last_key": None, "user_name": None, "active_pathway": None, 
-                         "entered_pathway": False, "detailed_symptoms": [prompt],
-                         "original_complaint": prompt, "expanded_prompt": prompt})
-            save_state(state, session_id)
-            
-            # Get intro and first question
-            steps = get_steps(condition, state)
-            intro = substitute_name(TRIAGE_DEFS[condition].get("intro", ""), state.get("user_name"))
-            first_question = substitute_name(steps[0].get('question', ''), state.get('user_name'))
-            
-            response = ""
-            if intro:
-                response += intro + " "
-            response += first_question
-            
-            return {"response": response}
-        elif state.get("condition"):
-            # Continue existing triage
+        # Check if there's an active triage session first
+        if state.get("condition"):
+            # Continue existing triage - don't detect new conditions
             return process_triage_step(prompt, session_id)
         else:
-            # Casual conversation - no triage active
-            casual_responses = [
-                "Hello! How can I help you today?",
-                "Hi there! What can I do for you?",
-                "Good to see you! How are you feeling?",
-                "Hello! I'm here to help with any medical concerns you might have.",
-                "Hi! Feel free to describe any symptoms you're experiencing."
-            ]
-            import random
-            return {"response": random.choice(casual_responses)}
+            # No active triage - check for new conditions
+            condition = detect_condition(prompt, session_id)
+            
+            if condition:
+                # New triage session
+                state.update({"condition": condition, "step_index": 0, "answers": [], "flags": {},
+                             "last_key": None, "user_name": None, "active_pathway": None, 
+                             "entered_pathway": False, "detailed_symptoms": [prompt],
+                             "original_complaint": prompt, "expanded_prompt": prompt})
+                save_state(state, session_id)
+                
+                # Get intro and first question
+                steps = get_steps(condition, state)
+                intro = substitute_name(TRIAGE_DEFS[condition].get("intro", ""), state.get("user_name"))
+                first_question = substitute_name(steps[0].get('question', ''), state.get('user_name'))
+                
+                response = ""
+                if intro:
+                    response += intro + " "
+                response += first_question
+                
+                return {"response": response}
+            else:
+                # Casual conversation - no triage active
+                casual_responses = [
+                    "Hello! How can I help you today?",
+                    "Hi there! What can I do for you?",
+                    "Good to see you! How are you feeling?",
+                    "Hello! I'm here to help with any medical concerns you might have.",
+                    "Hi! Feel free to describe any symptoms you're experiencing."
+                ]
+                import random
+                return {"response": random.choice(casual_responses)}
             
     except Exception as e:
         print(f"[Aura-LLM] ❌ Error in chat-simple: {e}")
         return {"response": "I'm sorry, there was an error processing your request."}
+
+def generate_triage_completion(state, session_id):
+    """Generate triage completion recap and outcome - shared between voice and Telegram"""
+    cond = state["condition"]
+    sev = classify_response(cond, state["flags"])
+    path = TRIAGE_DEFS[cond]
+    active = state.get("active_pathway")
+    outcomes = path.get("outcomes", {})
+    
+    if active and "pathways" in path and active in path["pathways"]:
+        outcomes = path["pathways"][active].get("outcomes", outcomes)
+        print(f"[Aura-LLM] 🎯 Outcome taken from pathway: {active}")
+    
+    # Generate recap using the same logic as voice interface
+    recap = build_recap(cond, state["answers"], state["flags"], sev, session_id)
+    
+    # Apply NLG rewriting to recap (same as voice interface)
+    from nlg import rewrite
+    recap_nlg = rewrite(recap, "recap", {
+        "name": state.get("user_name"),
+        "condition": cond,
+        "pathway": state.get("active_pathway")
+    }, state.get("phrasing_history", []), 
+    lambda messages, gen_kwargs: {"content": recap})  # Simple fallback
+    
+    # Get outcome (same as voice interface)
+    raw_outcome = outcomes.get(sev, 'Follow up with a doctor.')
+    outcome = substitute_name(raw_outcome, state.get("user_name"))
+    
+    # Apply NLG rewriting to outcome (same as voice interface)
+    outcome_nlg = rewrite(outcome, "outcome", {
+        "name": state.get("user_name"),
+        "condition": cond,
+        "pathway": state.get("active_pathway")
+    }, state.get("phrasing_history", []),
+    lambda messages, gen_kwargs: {"content": outcome})  # Simple fallback
+    
+    # Combine recap and outcome
+    response = f"{recap_nlg}\n\n{outcome_nlg}"
+    
+    # Reset session after completion
+    state = {"condition": None, "step_index": 0, "answers": [], "flags": {},
+            "last_key": None, "user_name": state.get("user_name"), "active_pathway": None, 
+            "entered_pathway": False, "detailed_symptoms": [], 
+            "original_complaint": None, "expanded_prompt": None}
+    save_state(state, session_id)
+    
+    return response
 
 def process_triage_step(prompt, session_id):
     """Process a single triage step and return response"""
@@ -1010,58 +1061,16 @@ def process_triage_step(prompt, session_id):
             return {"response": final_question}
         else:
             # Triage is complete, generate final recap
+            # Use the EXACT same logic as the voice interface by calling the same function
             try:
-                # Use the EXACT same logic as the voice interface
-                cond = state["condition"]
-                sev = classify_response(cond, state["flags"])
-                path = TRIAGE_DEFS[cond]
-                active = state.get("active_pathway")
-                outcomes = path.get("outcomes", {})
-                
-                if active and "pathways" in path and active in path["pathways"]:
-                    outcomes = path["pathways"][active].get("outcomes", outcomes)
-                    print(f"[Aura-LLM] 🎯 Outcome taken from pathway: {active}")
-                
-                # Generate recap using the EXACT same logic as voice interface
-                recap = build_recap(cond, state["answers"], state["flags"], sev, session_id)
-                
-                # Apply NLG rewriting to recap (same as voice interface)
-                from nlg import rewrite
-                recap_nlg = rewrite(recap, "recap", {
-                    "name": state.get("user_name"),
-                    "condition": cond,
-                    "pathway": state.get("active_pathway")
-                }, state.get("phrasing_history", []), 
-                lambda messages, gen_kwargs: {"content": recap})  # Simple fallback
-                
-                # Get outcome (same as voice interface)
-                raw_outcome = outcomes.get(sev, 'Follow up with a doctor.')
-                outcome = substitute_name(raw_outcome, state.get("user_name"))
-                
-                # Apply NLG rewriting to outcome (same as voice interface)
-                outcome_nlg = rewrite(outcome, "outcome", {
-                    "name": state.get("user_name"),
-                    "condition": cond,
-                    "pathway": state.get("active_pathway")
-                }, state.get("phrasing_history", []),
-                lambda messages, gen_kwargs: {"content": outcome})  # Simple fallback
-                
-                # Combine recap and outcome
-                response = f"{recap_nlg}\n\n{outcome_nlg}"
-                
-                # Reset session after completion
-                state = {"condition": None, "step_index": 0, "answers": [], "flags": {},
-                        "last_key": None, "user_name": state.get("user_name"), "active_pathway": None, 
-                        "entered_pathway": False, "detailed_symptoms": [], 
-                        "original_complaint": None, "expanded_prompt": None}
-                save_state(state, session_id)
-                
+                # Call the same completion logic as the voice interface
+                response = generate_triage_completion(state, session_id)
                 return {"response": response}
                 
             except Exception as e:
                 print(f"[Aura-LLM] ❌ Error generating recap: {e}")
                 # Fallback response
-                return {"response": f"Based on your symptoms, please seek medical attention. Your chest pain with associated symptoms requires evaluation by a healthcare provider."}
+                return {"response": f"Based on your symptoms, please seek medical attention. Your symptoms require evaluation by a healthcare provider."}
             
     except Exception as e:
         print(f"[Aura-LLM] ❌ Error in process_triage_step: {e}")
