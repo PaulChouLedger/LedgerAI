@@ -9,7 +9,6 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Messa
 load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 AURA_CHAT_URL = os.getenv("AURA_CHAT_URL", "http://127.0.0.1:11434/chat")
-AURA_SIMPLE_URL = os.getenv("AURA_SIMPLE_URL", "http://127.0.0.1:11434/chat-simple")
 
 if not TELEGRAM_BOT_TOKEN:
     raise RuntimeError("⚠️ TELEGRAM_BOT_TOKEN not found in environment")
@@ -46,20 +45,34 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Clear both Telegram session and LLM container state
         sessions[chat_id] = {"active": True, "history": []}
         print(f"[Telegram] 🔄 Reset: Session state for {chat_id}: {sessions[chat_id]}")
-        # Forward reset to LLM container
+        # Forward reset to LLM container using streaming endpoint
         try:
             resp = requests.post(
-                AURA_SIMPLE_URL,
+                AURA_CHAT_URL,
                 json={
                     "prompt": user_message,
                     "chat_id": str(chat_id),
                     "reset": True
                 },
-                timeout=10
+                timeout=10,
+                stream=True
             )
             if resp.status_code == 200:
-                response_data = resp.json()
-                response_text = response_data.get("response", "Session reset. Start again with your symptoms.")
+                # Collect all streaming responses
+                response_parts = []
+                for line in resp.iter_lines():
+                    if line:
+                        line_str = line.decode('utf-8')
+                        if line_str.startswith('data: '):
+                            try:
+                                import json
+                                data = json.loads(line_str[6:])
+                                if 'content' in data:
+                                    response_parts.append(data['content'])
+                            except:
+                                pass
+                
+                response_text = ''.join(response_parts) if response_parts else "Session reset. Start again with your symptoms."
                 await update.message.reply_text(response_text)
             else:
                 await update.message.reply_text("🔄 Session reset. Start again with your symptoms.")
@@ -100,24 +113,37 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sessions[chat_id]["history"].append(user_message)
 
     try:
-        # Forward to Aura's /chat-simple endpoint (non-streaming)
+        # Forward to Aura's streaming endpoint (same as TTS)
         resp = requests.post(
-            AURA_SIMPLE_URL,
+            AURA_CHAT_URL,
             json={
                 "prompt": user_message,
                 "chat_id": str(chat_id),  # so backend can separate sessions if needed
                 "history": sessions[chat_id]["history"]
             },
-            timeout=30
+            timeout=30,
+            stream=True
         )
 
         if resp.status_code != 200:
             await update.message.reply_text("⚠️ Error talking to Aura.")
             return
 
-        # Get single response
-        response_data = resp.json()
-        response_text = response_data.get("response", "I'm sorry, I didn't understand that.")
+        # Collect all streaming responses (same logic as TTS)
+        response_parts = []
+        for line in resp.iter_lines():
+            if line:
+                line_str = line.decode('utf-8')
+                if line_str.startswith('data: '):
+                    try:
+                        import json
+                        data = json.loads(line_str[6:])
+                        if 'content' in data:
+                            response_parts.append(data['content'])
+                    except:
+                        pass
+        
+        response_text = ''.join(response_parts) if response_parts else "I'm sorry, I didn't understand that."
         
         # Debug: Log the response to help diagnose issues
         print(f"[Telegram] 📤 Response to {chat_id}: {response_text[:100]}...")
@@ -138,13 +164,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Also send a reset command to LLM container to clear its state
             try:
                 requests.post(
-                    AURA_SIMPLE_URL,
+                    AURA_CHAT_URL,
                     json={
                         "prompt": "reset",
                         "chat_id": str(chat_id),
                         "reset": True
                     },
-                    timeout=5
+                    timeout=5,
+                    stream=True
                 )
                 print(f"[Telegram] 🔄 Sent reset command to LLM container for {chat_id}")
             except Exception as e:
