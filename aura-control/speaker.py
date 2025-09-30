@@ -100,8 +100,12 @@ def preprocess_for_tts(text):
     return re.sub(r"<sentence_start>|<sentence_end>", "", text).strip()
 
 def enqueue_tts_chunk(text):
+    print(f"[TTS Debug] Enqueueing: '{text}'")
     if text and not re.match(r"^[\s.,!?]+$", text):
         SENTENCE_QUEUE.put(text.strip())
+        print(f"[TTS Debug] Added to queue: '{text.strip()}'")
+    else:
+        print(f"[TTS Debug] Skipped (empty or filler): '{text}'")
 
 # === TTS playback using aplay ===
 def tts_playback_thread(text, tts_start_time):
@@ -187,6 +191,9 @@ def speak_llm_response(prompt, context=""):
             print(f"[LLM] 🧠 {token}")
             buffer.append(token)
             
+            # Debug: Show buffer state
+            print(f"[TTS Debug] Token: '{token}', Buffer: {buffer}")
+            
             # Count total words in buffer for accurate limit checking
             total_words = sum(len(t.split()) for t in buffer)
             
@@ -217,7 +224,9 @@ def speak_llm_response(prompt, context=""):
             should_split = (ends and not is_initial and not is_abbreviation and not is_name_continuation and not is_following_initial) or total_words >= TTS_TOKEN_LIMIT
             
             if should_split:
-                enqueue_tts_chunk(" ".join(buffer).strip())
+                chunk_text = " ".join(buffer).strip()
+                print(f"[TTS Debug] SPLITTING! Chunk: '{chunk_text}'")
+                enqueue_tts_chunk(chunk_text)
                 buffer.clear()
         if buffer:
             enqueue_tts_chunk(" ".join(buffer).strip())
