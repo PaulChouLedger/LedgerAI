@@ -223,13 +223,29 @@ def speak_llm_response(prompt, context=""):
             # OR if it's following an initial (like "Rowling." after "J.K.")
             should_split = (ends and not is_initial and not is_abbreviation and not is_name_continuation and not is_following_initial) or total_words >= TTS_TOKEN_LIMIT
             
+            # Special case: if current token is just a name (like "Rowling.") and previous sentence ended with initials,
+            # merge them together
+            if (len(buffer) > 1 and 
+                buffer[-2].endswith('J.K.') and 
+                token == 'Rowling.' and 
+                len(token) > 2):
+                print(f"[TTS Debug] MERGING: Detected J.K. Rowling pattern, merging tokens")
+                # Don't split, let it continue to build the full name
+                should_split = False
+            
             if should_split:
                 chunk_text = " ".join(buffer).strip()
-                print(f"[TTS Debug] SPLITTING! Chunk: '{chunk_text}'")
-                enqueue_tts_chunk(chunk_text)
+                # Remove sentence tags before TTS
+                clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
+                print(f"[TTS Debug] SPLITTING! Chunk: '{chunk_text}' -> Clean: '{clean_text}'")
+                if clean_text:
+                    enqueue_tts_chunk(clean_text)
                 buffer.clear()
         if buffer:
-            enqueue_tts_chunk(" ".join(buffer).strip())
+            chunk_text = " ".join(buffer).strip()
+            clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
+            if clean_text:
+                enqueue_tts_chunk(clean_text)
     except Exception as e:
         print(f"[LLM] ❌ Streaming error: {e}")
 
