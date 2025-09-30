@@ -10,16 +10,8 @@ from datetime import datetime, timedelta
 from glob import glob
 from nlg import rewrite as nlg_rewrite
 
-# Try TensorRT-LLM first, fallback to llama-cpp
-try:
-    from tensorrt_llm.runtime import ModelConfig, SamplingConfig
-    from tensorrt_llm.runtime import PYTHON_BINDINGS
-    TENSORRT_AVAILABLE = True
-    print("[TensorRT-LLM] ✅ TensorRT-LLM available")
-except ImportError:
-    TENSORRT_AVAILABLE = False
-    print("[TensorRT-LLM] ❌ TensorRT-LLM not available, using llama-cpp")
-    from llama_cpp import Llama
+# Use optimized llama-cpp with performance settings
+from llama_cpp import Llama
 
 app = Flask(__name__)
 load_dotenv()
@@ -31,36 +23,22 @@ llm_lock = threading.Lock()
 MODEL_PATH = os.getenv("MODEL_PATH", "/models/qwen2.5-1.5b-instruct-q4_0.gguf")
 N_CTX = int(os.getenv("N_CTX", "2048"))
 
-if TENSORRT_AVAILABLE:
-    # TensorRT-LLM initialization
-    print("[TensorRT-LLM] Initializing TensorRT-LLM model...")
-    try:
-        # Load model configuration
-        model_config = ModelConfig.from_json_file(f"{MODEL_PATH}/config.json")
-        sampling_config = SamplingConfig()
-        
-        # Initialize TensorRT-LLM model
-        llm = PYTHON_BINDINGS.Model.from_config(model_config)
-        print("[TensorRT-LLM] ✅ Model loaded successfully")
-    except Exception as e:
-        print(f"[TensorRT-LLM] ❌ Failed to load TensorRT-LLM model: {e}")
-        print("[TensorRT-LLM] Falling back to llama-cpp...")
-        TENSORRT_AVAILABLE = False
-
-if not TENSORRT_AVAILABLE:
-    # Fallback to llama-cpp
-    print("[llama-cpp] Initializing llama-cpp model...")
-    llm = Llama(
-        model_path=MODEL_PATH,
-        n_ctx=N_CTX,
-        n_gpu_layers=32,
-        n_threads=4,
-        chat_format=os.getenv("CHAT_FORMAT", "qwen"),
-        use_mlock=True,
-        use_mmap=True,
-        verbose=False,
-    )
-    print("[llama-cpp] ✅ Model loaded successfully")
+# Optimized llama-cpp initialization for Jetson
+print("[Optimized llama-cpp] Initializing optimized model...")
+llm = Llama(
+    model_path=MODEL_PATH,
+    n_ctx=N_CTX,
+    n_gpu_layers=64,  # More GPU layers for better performance
+    n_threads=8,      # More threads for Jetson
+    chat_format=os.getenv("CHAT_FORMAT", "qwen"),
+    use_mlock=True,
+    use_mmap=True,
+    verbose=False,
+    # Performance optimizations
+    n_batch=512,      # Larger batch size
+    n_predict=2048,   # Larger prediction context
+)
+print("[Optimized llama-cpp] ✅ Model loaded with performance optimizations")
 
 MIN_MATCH = float(os.getenv("TRIAGE_MIN_MATCH", "0.6"))
 
@@ -537,44 +515,14 @@ def add_phrasing_fingerprint(state, text):
             state["phrasing_history"] = state["phrasing_history"][-10:]
 
 def llm_chat_once(messages, gen_kwargs):
-    """Non-stream single completion with TensorRT-LLM or llama_cpp with thread safety."""
+    """Optimized single completion with thread safety."""
     with llm_lock:
         try:
-            if TENSORRT_AVAILABLE:
-                # TensorRT-LLM inference
-                # Convert messages to prompt format
-                prompt = format_messages_for_tensorrt(messages)
-                
-                # Run inference
-                output = llm.generate(
-                    prompt,
-                    sampling_config=sampling_config,
-                    **{k: v for k, v in gen_kwargs.items() if v is not None}
-                )
-                
-                return {"choices": [{"message": {"content": output}}]}
-            else:
-                # llama-cpp inference
-                resp = llm.create_chat_completion(messages=messages, **{k: v for k, v in gen_kwargs.items() if v is not None})
-                return resp
+            resp = llm.create_chat_completion(messages=messages, **{k: v for k, v in gen_kwargs.items() if v is not None})
+            return resp
         except Exception as e:
             print(f"[LLM] ❌ Error in llm_chat_once: {e}")
             return {"choices":[{"message":{"content":""}}]}
-
-def format_messages_for_tensorrt(messages):
-    """Convert chat messages to prompt format for TensorRT-LLM"""
-    prompt = ""
-    for message in messages:
-        role = message["role"]
-        content = message["content"]
-        if role == "system":
-            prompt += f"System: {content}\n"
-        elif role == "user":
-            prompt += f"User: {content}\n"
-        elif role == "assistant":
-            prompt += f"Assistant: {content}\n"
-    prompt += "Assistant: "
-    return prompt
 
 def get_steps(cond, state):
     steps = TRIAGE_DEFS[cond].get("steps", [])
@@ -1367,34 +1315,18 @@ def chat():
                 msgs=[{"role":"system","content":"I am AuraVision, your friendly personal assistant."},
                       {"role":"user","content":prompt}]
             try:
-                if TENSORRT_AVAILABLE:
-                    # TensorRT-LLM streaming (simulate streaming for now)
-                    prompt = format_messages_for_tensorrt(msgs)
-                    output = llm.generate(prompt, sampling_config=sampling_config)
-                    # Split output into tokens for streaming effect
-                    tokens = output.split()
-                    casual_buf = ""
-                    for token in tokens:
-                        casual_buf += token + " "
-                        if re.search(r"[.!?]['\")\]]?\s*$", casual_buf):
-                            yield f"<sentence_start>\n{casual_buf.strip()}\n<sentence_end>\n"
-                            casual_buf = ""
-                    # Yield any remaining content
-                    if casual_buf.strip():
-                        yield f"<sentence_start>\n{casual_buf.strip()}\n<sentence_end>\n"
-                else:
-                    # llama-cpp streaming
-                    stream=llm.create_chat_completion(messages=msgs,stream=True)
-                    casual_buf=""
-                    for ch in stream:
-                        tok=ch.get("choices",[{}])[0].get("delta",{}).get("content","")
-                        if not tok: continue; 
-                        casual_buf+=tok
-                        if re.search(r"[.!?]['\")\]]?\s*$",casual_buf):
-                            yield f"<sentence_start>\n{casual_buf.strip()}\n<sentence_end>\n"; casual_buf=""
-                    # Yield any remaining content
-                    if casual_buf.strip():
-                        yield f"<sentence_start>\n{casual_buf.strip()}\n<sentence_end>\n"
+                # Optimized llama-cpp streaming
+                stream=llm.create_chat_completion(messages=msgs,stream=True)
+                casual_buf=""
+                for ch in stream:
+                    tok=ch.get("choices",[{}])[0].get("delta",{}).get("content","")
+                    if not tok: continue; 
+                    casual_buf+=tok
+                    if re.search(r"[.!?]['\")\]]?\s*$",casual_buf):
+                        yield f"<sentence_start>\n{casual_buf.strip()}\n<sentence_end>\n"; casual_buf=""
+                # Yield any remaining content
+                if casual_buf.strip():
+                    yield f"<sentence_start>\n{casual_buf.strip()}\n<sentence_end>\n"
             except Exception as e:
                 print(f"[Aura-LLM] ❌ Error in casual mode: {e}")
                 yield f"<sentence_start>\nHello! I'm AuraVision, your friendly personal assistant. How can I help you today?\n<sentence_end>\n"

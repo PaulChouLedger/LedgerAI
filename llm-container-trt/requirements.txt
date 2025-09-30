@@ -1,5 +1,5 @@
 flask
-tensorrt-llm
+# tensorrt-llm  # Will install via pip if available
 torch
 transformers
 numpy

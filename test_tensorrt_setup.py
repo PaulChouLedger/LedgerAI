@@ -55,15 +55,15 @@ def main():
     
     print("\n📊 Results Summary:")
     print("=" * 50)
-    print(f"llama-cpp (port 11434): {'✅ Working' if llama_cpp_success else '❌ Failed'}")
-    print(f"TensorRT-LLM (port 11435): {'✅ Working' if tensorrt_success else '❌ Failed'}")
+    print(f"aura-llm (port 11434): {'✅ Working' if llama_cpp_success else '❌ Failed'}")
+    print(f"aura-llm-trt (port 11435): {'✅ Working' if tensorrt_success else '❌ Failed'}")
     
     if llama_cpp_success and tensorrt_success:
-        print("\n🎉 Both endpoints are working! You can now test performance comparison.")
+        print("\n🎉 Both aura-llm containers are working! You can now test performance comparison.")
     elif llama_cpp_success:
-        print("\n⚠️ Only llama-cpp is working. TensorRT-LLM may need model conversion.")
+        print("\n⚠️ Only aura-llm is working. aura-llm-trt may need model conversion.")
     else:
-        print("\n❌ Neither endpoint is working. Check your Docker containers.")
+        print("\n❌ Neither container is working. Check your Docker containers.")
 
 if __name__ == "__main__":
     main()

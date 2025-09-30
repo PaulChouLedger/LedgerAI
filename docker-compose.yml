@@ -7,13 +7,14 @@ services:
       - ./shared:/shared
 
   llm:
-    build: ./llm-container
+    image: aura-llm
     network_mode: host
     volumes:
       - ./shared:/shared
 
   llm-trt:
     build: ./llm-container-trt
+    image: aura-llm-trt
     network_mode: host
     ports:
       - "11435:11434"  # Different port for TensorRT-LLM
