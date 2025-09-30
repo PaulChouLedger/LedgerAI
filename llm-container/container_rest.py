@@ -957,8 +957,25 @@ def build_recap(cond, answers, flags, severity, session_id=None):
 
 def split_recap_into_chunks(recap_text):
     """Split recap text into smaller chunks for better TTS streaming"""
-    # Split on sentence boundaries (periods, exclamation marks, question marks)
-    sentences = re.split(r'(?<=[.!?])\s+', recap_text.strip())
+    # Split on sentence boundaries, but avoid splitting on initials/abbreviations
+    # Use a more sophisticated approach to handle J.K. Rowling, Dr. Smith, etc.
+    
+    # First, protect initials and abbreviations by temporarily replacing them
+    protected_text = recap_text
+    
+    # Protect initials pattern (A.B., J.K., etc.)
+    initials_pattern = r'\b[A-Z]\.(?:[A-Z]\.)*'
+    initials_matches = re.findall(initials_pattern, protected_text)
+    for i, match in enumerate(initials_matches):
+        protected_text = protected_text.replace(match, f"__INITIALS_{i}__")
+    
+    # Now split on sentence boundaries
+    sentences = re.split(r'(?<=[.!?])\s+', protected_text.strip())
+    
+    # Restore the initials
+    for i, match in enumerate(initials_matches):
+        for j, sentence in enumerate(sentences):
+            sentences[j] = sentence.replace(f"__INITIALS_{i}__", match)
     
     # Filter out empty sentences
     sentences = [s.strip() for s in sentences if s.strip()]
