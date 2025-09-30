@@ -104,7 +104,7 @@ def enqueue_tts_chunk(text):
         SENTENCE_QUEUE.put(text.strip())
 
 # === TTS playback using aplay ===
-def tts_playback_thread(text):
+def tts_playback_thread(text, tts_start_time):
     with playback_lock:
         set_playing(True)
         try:
@@ -162,7 +162,7 @@ def playback_loop():
             print(f"[Speaker] ⚠️ Skipping filler: \"{sentence}\"")
             continue
         print(f"[Speaker] 🔈 Speaking: \"{sentence}\"")
-        threading.Thread(target=tts_playback_thread, args=(sentence,), daemon=True).start()
+        threading.Thread(target=tts_playback_thread, args=(sentence, tts_start_time), daemon=True).start()
         time.sleep(0.1)
 
 # === Stream LLM output ===
@@ -207,6 +207,10 @@ def speak_llm_response(prompt, context=""):
             # treat it as a name continuation to prevent splitting
             prev_token_was_initial = len(buffer) > 0 and len(buffer[-1]) == 2 and buffer[-1].endswith('.') and buffer[-1][0].isupper()
             is_following_initial = prev_token_was_initial and token.endswith('.') and len(token) > 2
+            
+            # Debug logging
+            if prev_token_was_initial:
+                print(f"[TTS Debug] Previous token was initial: '{buffer[-1]}', current: '{token}', is_following_initial: {is_following_initial}")
             
             # Don't split if current token is an initial/abbreviation OR if it looks like a name continuation
             # OR if it's following an initial (like "Rowling." after "J.K.")
