@@ -187,8 +187,17 @@ def speak_llm_response(prompt, context=""):
             # Don't split on common abbreviations
             is_abbreviation = token.lower() in ['mr.', 'mrs.', 'dr.', 'prof.', 'st.', 'ave.', 'blvd.', 'inc.', 'ltd.', 'corp.', 'etc.', 'vs.', 'jr.', 'sr.']
             
-            # Only split if it's a real sentence ending (not an initial or abbreviation)
-            if (ends and not is_initial and not is_abbreviation) or len(buffer) >= TTS_TOKEN_LIMIT:
+            # Check if the previous token was an initial or abbreviation
+            prev_token_was_abbrev = False
+            if len(buffer) > 1:
+                prev_token = buffer[-2] if len(buffer) >= 2 else ""
+                prev_was_initial = len(prev_token) == 2 and prev_token.endswith('.') and prev_token[0].isupper()
+                prev_was_abbrev = prev_token.lower() in ['mr.', 'mrs.', 'dr.', 'prof.', 'st.', 'ave.', 'blvd.', 'inc.', 'ltd.', 'corp.', 'etc.', 'vs.', 'jr.', 'sr.']
+                prev_token_was_abbrev = prev_was_initial or prev_was_abbrev
+            
+            # Don't split if current token is an initial/abbreviation OR if previous token was an initial/abbreviation
+            # This prevents splitting "J.K. Rowling." into separate sentences
+            if (ends and not is_initial and not is_abbreviation and not prev_token_was_abbrev) or len(buffer) >= TTS_TOKEN_LIMIT:
                 enqueue_tts_chunk(" ".join(buffer).strip())
                 buffer.clear()
         if buffer:
