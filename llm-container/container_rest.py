@@ -23,15 +23,12 @@ N_CTX = int(os.getenv("N_CTX", "2048"))
 llm = Llama(
     model_path=MODEL_PATH,
     n_ctx=N_CTX,
-    n_gpu_layers=32,  # Keep at 32 for Jetson Orin NX (16GB) - max supported
-    n_threads=6,      # Optimized for Jetson (was 4, but 8 might be too much)
+    n_gpu_layers=32,
+    n_threads=4,
     chat_format=os.getenv("CHAT_FORMAT", "qwen"),
     use_mlock=True,
     use_mmap=True,
     verbose=False,
-    # Jetson-optimized settings
-    n_batch=256,      # Smaller batch size for Jetson memory constraints
-    n_predict=1024,   # Reasonable prediction context for Jetson
 )
 
 MIN_MATCH = float(os.getenv("TRIAGE_MIN_MATCH", "0.6"))
