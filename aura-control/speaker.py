@@ -255,6 +255,7 @@ def playback_loop():
 
 # === Stream LLM output ===
 def speak_llm_response(prompt, context=""):
+    global pending_initials
     import requests
     print(f"[LLM] ✅ Prompt to LLM: {prompt}")
     
