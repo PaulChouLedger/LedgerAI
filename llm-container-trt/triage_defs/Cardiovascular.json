@@ -1,0 +1,467 @@
+{
+  "chest_pain": {
+    "triggers": ["chest pain", "tightness in chest", "pressure in chest", "chest discomfort"],
+    "intro": "{name}, I'm sorry you're experiencing chest pain. Let me ask you a few questions.",
+    "priority_keys": ["onset", "quality", "radiation", "exertion", "shortness_of_breath", "sweating", "fatigue", "fainting"],
+    "detailed_symptom": "chest pain",
+    "steps": [
+      {
+        "key": "onset",
+        "question": "When did the chest pain start?",
+        "recap_template": "Onset was {answer}",
+        "answers": {}
+      },
+      {
+        "key": "quality",
+        "question": "Can you describe the discomfort — is it sharp, heavy, or tight?",
+        "recap_template": "You have {answer} chest pain",
+        "answers": {
+          "heavy": "emergency",
+          "tight": "emergency",
+          "pressure": "emergency",
+          "crushing": "emergency",
+          "sharp": "urgent",
+          "dull": "urgent"
+        }
+      },
+      {
+        "key": "exertion",
+        "question": "Is the pain worse with exertion, such as walking or climbing stairs?",
+        "recap_template": "You {answer} pain worse with exertion",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "radiation",
+        "question": "Does the pain spread anywhere, such as your arm, neck, jaw, or back?",
+        "recap_template": "You have {answer} pain radiation",
+        "answers": {
+          "arm": "emergency",
+          "neck": "emergency",
+          "jaw": "emergency",
+          "back": "emergency",
+          "shoulder": "emergency",
+          "no": "non_urgent",
+          "none": "non_urgent"
+        }
+      },
+      {
+        "key": "shortness_of_breath",
+        "question": "Do you experience shortness of breath?",
+        "recap_template": "You have {answer} shortness of breath",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "sweating",
+        "question": "Are you experiencing sweating?",
+        "recap_template": "You have {answer} sweating",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "fatigue",
+        "question": "Do you feel unusually tired?",
+        "recap_template": "You have {answer} unusual fatigue",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "fainting",
+        "question": "Have you fainted or collapsed?",
+        "recap_template": "You have {answer} fainting or collapse",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "msk_movement",
+        "question": "Is the pain worse with movement, like moving your arm?",
+        "recap_template": "You {answer} pain worse with movement",
+        "answers": {
+          "yes": "non_urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "msk_pressing",
+        "question": "Is the pain worse when pressing on the chest?",
+        "recap_template": "You {answer} pain worse when pressing on the chest",
+        "answers": {
+          "yes": "non_urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "msk_lifting",
+        "question": "Have you recently lifted anything heavy?",
+        "recap_template": "You {answer} recent heavy lifting",
+        "answers": {
+          "yes": "non_urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "msk_strain",
+        "question": "Have you recently strained yourself physically?",
+        "recap_template": "You {answer} recent physical strain",
+        "answers": {
+          "yes": "non_urgent",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "This may be a cardiac emergency. Please seek immediate care or call 911.",
+      "urgent": "Your symptoms need urgent medical evaluation. Please see a doctor as soon as possible.",
+      "non_urgent": "This doesn't sound emergent, but follow up with your doctor soon."
+    },
+    "clinical_summary": "Your symptoms are concerning for a heart attack or major cardiac event.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "palpitations": {
+    "triggers": ["palpitations", "racing heart", "skipped beats", "fluttering heart"],
+    "intro": "{name}, I understand you're experiencing palpitations. Let me ask you a few questions.",
+    "priority_keys": ["onset"],
+    "detailed_symptom": "palpitations",
+    "steps": [
+      {
+        "key": "onset",
+        "question": "When did the palpitations begin?",
+        "recap_template": "Palpitations started {answer}",
+        "answers": {}
+      },
+      {
+        "key": "pattern",
+        "question": "Are the palpitations constant?",
+        "recap_template": "You have {answer} constant palpitations",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "timing_exercise",
+        "question": "Do they occur with exercise?",
+        "recap_template": "You have {answer} palpitations with exercise",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "assoc",
+        "question": "Do you have chest pain, dizziness, or fainting with them?",
+        "recap_template": "You have {answer} with palpitations",
+        "answers": {
+          "chest pain": "emergency",
+          "dizziness": "urgent",
+          "fainting": "emergency",
+          "no": "non_urgent",
+          "none": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Palpitations with fainting or chest pain may be dangerous. Please seek immediate care or call 911.",
+      "urgent": "Your palpitations need urgent medical evaluation. Please see a doctor soon.",
+      "non_urgent": "Your palpitations may not be urgent, but follow up with your doctor is important."
+    },
+    "clinical_summary": "Your symptoms are concerning for a cardiac arrhythmia or other heart condition.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "syncope": {
+    "triggers": ["syncope", "fainting", "passed out", "collapse"],
+    "intro": "{name}, I see you've had a fainting episode. Let me ask you a few clarifying questions.",
+    "priority_keys": ["onset", "circumstance", "duration"],
+    "detailed_symptom": "fainting",
+    "steps": [
+      {
+        "key": "onset",
+        "question": "When did the fainting episode occur?",
+        "recap_template": "Episode occurred {answer}",
+        "answers": {}
+      },
+      {
+        "key": "circumstance",
+        "question": "What were you doing right before you passed out?",
+        "recap_template": "You passed out while {answer}",
+        "answers": {
+          "exertion": "emergency",
+          "standing": "urgent",
+          "sitting": "non_urgent"
+        }
+      },
+      {
+        "key": "duration",
+        "question": "How long were you unconscious?",
+        "recap_template": "You were unconscious for {answer}",
+        "answers": {
+          "minutes": "emergency",
+          "seconds": "urgent"
+        }
+      },
+      {
+        "key": "assoc_chest",
+        "question": "Did you have chest pain with the episode?",
+        "recap_template": "You {answer} chest pain during the episode",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "This fainting episode may be life-threatening. Please seek immediate care or call 911.",
+      "urgent": "Your fainting requires urgent evaluation. Please see a doctor soon.",
+      "non_urgent": "Your fainting may be benign, but you should still follow up with your doctor."
+    },
+    "clinical_summary": "Your symptoms are concerning for a cardiovascular or neurological condition that requires medical evaluation.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "leg_swelling": {
+    "triggers": ["leg swelling", "swollen legs", "ankle swelling", "puffy legs"],
+    "intro": "{name}, I understand you're having swelling in your legs. Let me ask you some questions.",
+    "priority_keys": ["onset", "side"],
+    "detailed_symptom": "leg swelling",
+    "steps": [
+      {
+        "key": "onset",
+        "question": "When did the leg swelling start?",
+        "recap_template": "Swelling onset was {answer}",
+        "answers": {}
+      },
+      {
+        "key": "side",
+        "question": "Is the swelling in one leg or both?",
+        "recap_template": "You reported swelling in {answer}",
+        "answers": {
+          "one leg": "urgent",
+          "both legs": "non_urgent"
+        }
+      },
+      {
+        "key": "assoc",
+        "question": "Do you also have chest pain or shortness of breath?",
+        "recap_template": "You reported {answer} with leg swelling",
+        "answers": {
+          "chest pain": "emergency",
+          "shortness of breath": "emergency",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Leg swelling with chest pain or shortness of breath may be dangerous. Please seek immediate care or call 911.",
+      "urgent": "Leg swelling in one leg may suggest a clot. Please see a doctor soon.",
+      "non_urgent": "Leg swelling may be benign, but follow up with your doctor is advised."
+    },
+    "clinical_summary": "Your symptoms are concerning for a cardiovascular or circulatory condition that requires medical evaluation.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "leg_pain": {
+    "triggers": ["leg pain", "pain in my leg", "calf pain", "thigh pain"],
+    "intro": "{name}, I understand you're experiencing leg pain. Let me ask you some clarifying questions.",
+    "priority_keys": ["onset", "location"],
+    "detailed_symptom": "leg pain",
+    "steps": [
+      {
+        "key": "onset",
+        "question": "When did the leg pain start?",
+        "recap_template": "Pain onset was {answer}",
+        "answers": {}
+      },
+      {
+        "key": "location",
+        "question": "Where in your leg is the pain located?",
+        "recap_template": "You located the pain in your {answer}",
+        "answers": {
+          "calf": "urgent",
+          "thigh": "urgent",
+          "ankle": "non_urgent",
+          "foot": "non_urgent"
+        }
+      },
+      {
+        "key": "assoc",
+        "question": "Do you also have chest pain or shortness of breath?",
+        "recap_template": "You reported {answer} with leg pain",
+        "answers": {
+          "chest pain": "emergency",
+          "shortness of breath": "emergency",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Leg pain with chest pain or shortness of breath may be life-threatening. Please seek immediate care or call 911.",
+      "urgent": "Leg pain in the calf or thigh may suggest a clot. Please see a doctor soon.",
+      "non_urgent": "Leg pain in the ankle or foot may be benign, but follow up with your doctor is advised."
+    },
+    "clinical_summary": "Your symptoms are concerning for a cardiovascular or circulatory condition that requires medical evaluation.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "hypertension": {
+    "triggers": ["high blood pressure", "hypertension"],
+    "intro": "{name}, I see you've had concerns about high blood pressure. Let me clarify some details.",
+    "priority_keys": ["symptoms"],
+    "detailed_symptom": "high blood pressure",
+    "steps": [
+      {
+        "key": "symptoms",
+        "question": "Do you have headache, vision changes, or chest pain?",
+        "recap_template": "You reported {answer} with high blood pressure",
+        "answers": {
+          "chest pain": "emergency",
+          "vision changes": "emergency",
+          "headache": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "High blood pressure with chest pain or vision changes may be dangerous. Please seek immediate care or call 911.",
+      "urgent": "Headache with high blood pressure needs urgent evaluation. Please see a doctor soon.",
+      "non_urgent": "High blood pressure without symptoms may be monitored, but follow up with your doctor is advised."
+    },
+    "clinical_summary": "Your symptoms are concerning for a cardiovascular condition that requires medical evaluation.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "bradycardia": {
+    "triggers": ["slow heart rate", "bradycardia"],
+    "intro": "{name}, I understand your heart rate has been slow. Let's review your symptoms.",
+    "priority_keys": ["assoc"],
+    "detailed_symptom": "slow heart rate",
+    "steps": [
+      {
+        "key": "assoc",
+        "question": "Do you feel dizzy, faint, or extremely tired?",
+        "recap_template": "You reported {answer} with slow heart rate",
+        "answers": {
+          "faint": "emergency",
+          "dizzy": "urgent",
+          "tired": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Bradycardia with fainting may be life-threatening. Please seek immediate care or call 911.",
+      "urgent": "Bradycardia with dizziness or fatigue requires urgent evaluation.",
+      "non_urgent": "Slow heart rate without symptoms may be benign but should be followed up."
+    },
+    "clinical_summary": "Your symptoms are concerning for a cardiovascular condition that requires medical evaluation.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "tachycardia": {
+    "triggers": ["fast heart rate", "tachycardia"],
+    "intro": "{name}, I see your heart rate has been fast. Let's clarify some details.",
+    "priority_keys": ["assoc"],
+    "detailed_symptom": "fast heart rate",
+    "steps": [
+      {
+        "key": "assoc",
+        "question": "Do you have chest pain, shortness of breath, or fainting?",
+        "recap_template": "You reported {answer} with fast heart rate",
+        "answers": {
+          "chest pain": "emergency",
+          "shortness of breath": "emergency",
+          "faint": "emergency",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Tachycardia with chest pain, fainting, or shortness of breath may be dangerous. Please seek immediate care or call 911.",
+      "urgent": "Tachycardia with mild symptoms should be evaluated urgently.",
+      "non_urgent": "Fast heart rate without symptoms may not be urgent, but follow up with your doctor is advised."
+    },
+    "clinical_summary": "Your symptoms are concerning for a cardiovascular condition that requires medical evaluation.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "edema": {
+    "triggers": ["edema", "swelling", "fluid buildup"],
+    "intro": "{name}, I see you have swelling from fluid retention. Let me ask you some questions.",
+    "priority_keys": ["assoc"],
+    "detailed_symptom": "swelling",
+    "steps": [
+      {
+        "key": "assoc",
+        "question": "Do you have shortness of breath or chest pain?",
+        "recap_template": "You reported {answer} with swelling",
+        "answers": {
+          "shortness of breath": "emergency",
+          "chest pain": "emergency",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Swelling with shortness of breath or chest pain may be dangerous. Please seek immediate care or call 911.",
+      "urgent": "Swelling with other concerning symptoms may need urgent evaluation.",
+      "non_urgent": "Mild swelling may be non-urgent but should be checked by your doctor."
+    },
+    "clinical_summary": "Your symptoms are concerning for a cardiovascular or circulatory condition that requires medical evaluation.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "dizziness": {
+    "triggers": ["dizzy", "dizziness", "lightheaded", "feeling faint"],
+    "intro": "{name}, I understand you've been feeling dizzy. Let me ask you a few clarifying questions.",
+    "priority_keys": ["onset", "syncope"],
+    "detailed_symptom": "dizziness",
+    "steps": [
+      {
+        "key": "onset",
+        "question": "When did the dizziness start?",
+        "recap_template": "{answer}",
+        "answers": {}
+      },
+      {
+        "key": "syncope",
+        "question": "Have you fainted or lost consciousness?",
+        "recap_template": "You {answer} loss of consciousness",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "assoc",
+        "question": "Do you have chest pain or palpitations with the dizziness?",
+        "recap_template": "{answer}",
+        "answers": {
+          "chest pain": "emergency",
+          "palpitations": "urgent",
+          "no": "non_urgent",
+          "neither": "non_urgent",
+          "none": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Dizziness with chest pain or fainting may be a cardiac emergency. Please seek immediate care or call 911.",
+      "urgent": "Your dizziness may need urgent evaluation. Please see a doctor soon.",
+      "non_urgent": "Mild dizziness without concerning features may be benign, but follow up with your doctor is advised."
+    },
+    "clinical_summary": "Your symptoms are suggestive of a cardiovascular condition that requires medical evaluation to rule out serious causes and determine appropriate treatment.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  }
+}

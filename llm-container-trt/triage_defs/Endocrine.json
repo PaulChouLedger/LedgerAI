@@ -1,0 +1,226 @@
+{
+  "hypoglycemia": {
+    "triggers": ["low blood sugar", "hypoglycemia", "shaky", "sweating", "low sugar"],
+    "priority_keys": ["onset", "shaky", "sweating", "confusion", "hunger", "weakness"],
+    "steps": [
+      {
+        "key": "onset",
+        "question": "When did the low blood sugar symptoms start?",
+        "recap_template": "Onset was {answer}",
+        "answers": {}
+      },
+      {
+        "key": "shaky",
+        "question": "Do you feel shaky?",
+        "recap_template": "You {answer} shakiness",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "sweating",
+        "question": "Do you feel sweaty?",
+        "recap_template": "You {answer} sweating",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "confused",
+        "question": "Do you feel confused?",
+        "recap_template": "You {answer} confusion",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "weak",
+        "question": "Do you feel weak?",
+        "recap_template": "You {answer} weakness",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "glucose",
+        "question": "Do you know your blood sugar level right now?",
+        "recap_template": "Your glucose was reported as {answer}",
+        "answers": {
+          "<54": "emergency",
+          "54-70": "urgent",
+          ">70": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Severe hypoglycemia with confusion or very low sugar can be life-threatening. Please seek emergency care immediately.",
+      "urgent": "Your low blood sugar should be addressed urgently. Take glucose and see a doctor promptly.",
+      "non_urgent": "Your symptoms are mild. Continue monitoring and follow up with your doctor."
+    },
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "hyperglycemia_dka_hhs": {
+    "triggers": ["high blood sugar", "hyperglycemia", "diabetic ketoacidosis", "DKA", "HHS"],
+    "steps": [
+      {
+        "key": "nausea",
+        "question": "Do you have nausea?",
+        "recap_template": "You {answer} nausea",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "vomiting",
+        "question": "Do you have vomiting?",
+        "recap_template": "You {answer} vomiting",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "abdominal_pain",
+        "question": "Do you have abdominal pain?",
+        "recap_template": "You {answer} abdominal pain",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "confusion",
+        "question": "Do you have confusion?",
+        "recap_template": "You {answer} confusion",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "hydration",
+        "question": "Are you excessively thirsty or urinating more than usual?",
+        "recap_template": "You reported {answer} related to hydration",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "breathing",
+        "question": "Do you have deep or rapid breathing?",
+        "recap_template": "You reported {answer} in breathing pattern",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Your high blood sugar with concerning symptoms may indicate DKA or HHS. Please seek emergency care immediately.",
+      "urgent": "Your high blood sugar needs urgent evaluation. Please contact your doctor promptly.",
+      "non_urgent": "Your high blood sugar may be mild. Please monitor closely and follow up with your doctor."
+    },
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "thyroid_storm": {
+    "triggers": ["thyroid storm", "severe hyperthyroidism", "very fast heart rate with thyroid disease"],
+    "steps": [
+      {
+        "key": "symptoms",
+        "question": "Are you experiencing high fever, confusion, or very rapid heartbeat?",
+        "recap_template": "You reported {answer} in thyroid storm context",
+        "answers": {
+          "confusion": "emergency",
+          "fever": "emergency",
+          "rapid heartbeat": "emergency",
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "This may be thyroid storm, a life-threatening condition. Please seek emergency care immediately.",
+      "urgent": "Not applicable.",
+      "non_urgent": "Your symptoms do not suggest thyroid storm at this time. Follow up with your doctor."
+    },
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "myxedema_coma": {
+    "triggers": ["myxedema coma", "severe hypothyroidism", "unconscious low thyroid"],
+    "steps": [
+      {
+        "key": "symptoms",
+        "question": "Is the patient drowsy, confused, or difficult to wake?",
+        "recap_template": "You reported {answer} suggesting altered mental status",
+        "answers": {
+          "drowsy": "emergency",
+          "confused": "emergency",
+          "unconscious": "emergency",
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "temperature",
+        "question": "Do you have very low body temperature (hypothermia)?",
+        "recap_template": "You reported {answer} for body temperature",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "This presentation may indicate myxedema coma, a life-threatening condition. Please seek emergency care immediately.",
+      "urgent": "Not applicable.",
+      "non_urgent": "Your symptoms do not suggest myxedema coma. Please follow up with your doctor."
+    },
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "adrenal_insufficiency": {
+    "triggers": ["adrenal insufficiency", "addison's disease crisis", "low cortisol"],
+    "steps": [
+      {
+        "key": "symptoms",
+        "question": "Are you experiencing severe weakness, low blood pressure, or fainting?",
+        "recap_template": "You reported {answer} in adrenal insufficiency context",
+        "answers": {
+          "fainting": "emergency",
+          "low blood pressure": "emergency",
+          "weakness": "urgent",
+          "severe weakness": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "assoc",
+        "question": "Do you have abdominal pain, vomiting, or confusion?",
+        "recap_template": "You reported {answer} as associated symptoms",
+        "answers": {
+          "confusion": "emergency",
+          "vomiting": "emergency",
+          "abdominal pain": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "This presentation may indicate adrenal crisis. Please seek emergency care immediately.",
+      "urgent": "Your adrenal symptoms need urgent medical attention. Please see your doctor promptly.",
+      "non_urgent": "Your adrenal symptoms appear mild. Follow up with your doctor soon."
+    },
+    "clinical_summary": "Your symptoms are suggestive of an endocrine condition that requires medical evaluation to rule out serious causes and determine appropriate treatment.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  }
+}
+

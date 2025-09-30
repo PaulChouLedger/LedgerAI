@@ -1,0 +1,1110 @@
+{
+  "weakness": {
+    "triggers": [
+      "weakness",
+      "arm weakness",
+      "leg weakness",
+      "weakness in arm",
+      "weakness in leg",
+      "weakness in one arm",
+      "weakness in my leg",
+      "weak arm",
+      "weak leg",
+      "upper extremity weakness",
+      "lower extremity weakness",
+      "hand weakness",
+      "foot weakness",
+      "arm numbness",
+      "leg numbness",
+      "weakness in arms",
+      "weakness in legs",
+      "right side weakness",
+      "left side weakness",
+      "weakness on my right side",
+      "weakness on my left side",
+      "one sided weakness",
+      "hemiparesis",
+      "right sided weakness",
+      "left sided weakness"
+    ],
+    "intro": "{name}, I understand you're experiencing weakness. Let me ask you some questions to help assess this.",
+    "priority_keys": ["distribution"],
+    "steps": [
+      {
+        "key": "distribution",
+        "question": "Is the weakness generalized throughout your body or limited to one side?",
+        "recap_template": "You have {answer} weakness",
+        "answers": {
+          "generalized": "generalized_weakness",
+          "one side": "focal_weakness",
+          "one sided": "focal_weakness",
+          "specific side": "focal_weakness"
+        }
+      }
+    ],
+    "pathways": {
+      "generalized_weakness": {
+        "intro": "{name}, generalized weakness can have many causes. Let me ask you some questions.",
+        "priority_keys": ["onset", "fever", "fatigue", "muscle_aches"],
+        "steps": [
+          {
+            "key": "onset",
+            "question": "When did the generalized weakness start?",
+            "recap_template": "Weakness onset was {answer}",
+            "answers": {}
+          },
+          {
+            "key": "fever",
+            "question": "Do you have fever?",
+            "recap_template": "You {answer} fever",
+            "answers": {
+              "yes": "urgent",
+              "no": "non_urgent"
+            }
+          },
+          {
+            "key": "fatigue",
+            "question": "Do you feel extremely tired or fatigued?",
+            "recap_template": "You {answer} extreme fatigue",
+            "answers": {
+              "yes": "urgent",
+              "no": "non_urgent"
+            }
+          },
+          {
+            "key": "muscle_aches",
+            "question": "Do you have muscle aches or body pain?",
+            "recap_template": "You {answer} muscle aches",
+            "answers": {
+              "yes": "urgent",
+              "no": "non_urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Your generalized weakness with sudden onset may be serious. Please seek emergency care immediately.",
+          "urgent": "Your generalized weakness requires urgent medical evaluation. Please see a doctor soon.",
+          "non_urgent": "Your generalized weakness may be due to various causes. Please follow up with your doctor."
+        },
+        "clinical_summary": "Your symptoms suggest generalized weakness that requires medical evaluation to determine the underlying cause."
+      },
+      "focal_weakness": {
+        "intro": "{name}, one-sided weakness can suggest a stroke. Let's clarify which side and what's affected.",
+        "priority_keys": ["side"],
+        "steps": [
+          {
+            "key": "side",
+            "question": "Which side is affected - right or left?",
+            "recap_template": "You have {answer} side weakness",
+            "answers": {
+              "right": "right_side_weakness",
+              "left": "left_side_weakness"
+            }
+          }
+        ],
+        "clinical_summary": "Your symptoms suggest focal weakness that may be related to a stroke or other neurological condition requiring medical evaluation.",
+        "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+      },
+      "right_arm_weakness": {
+        "intro": "{name}, right arm weakness can suggest a stroke. Let's clarify.",
+        "priority_keys": ["onset", "face", "arm_weakness", "speech", "vision_loss", "vision_double"],
+        "steps": [
+          {
+            "key": "onset",
+            "question": "When did the right arm weakness start?",
+            "recap_template": "Onset was {answer}",
+            "answers": {}
+          },
+          {
+            "key": "face",
+            "question": "Do you have facial droop or facial numbness?",
+            "recap_template": "You {answer} facial droop or numbness",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "arm_weakness",
+            "question": "Is there numbness in your right arm as well?",
+            "recap_template": "You {answer} right arm numbness",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "speech",
+            "question": "Do you have slurred speech or trouble finding words?",
+            "recap_template": "You {answer} speech problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_loss",
+            "question": "Do you have sudden vision loss?",
+            "recap_template": "You {answer} vision problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_double",
+            "question": "Do you see double when looking straight ahead?",
+            "recap_template": "You {answer} double vision",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Your symptoms are highly concerning for acute stroke. Please seek emergency care immediately or call 911.",
+          "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
+          "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
+        },
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting the right arm, requiring immediate medical evaluation."
+      },
+      "left_arm_weakness": {
+        "intro": "{name}, left arm weakness can suggest a stroke. Let's clarify.",
+        "priority_keys": ["onset", "face", "arm_weakness", "speech", "vision_loss", "vision_double"],
+        "steps": [
+          {
+            "key": "onset",
+            "question": "When did the left arm weakness start?",
+            "recap_template": "Onset was {answer}",
+            "answers": {}
+          },
+          {
+            "key": "face",
+            "question": "Do you have facial droop or facial numbness?",
+            "recap_template": "You {answer} facial droop or numbness",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "arm_weakness",
+            "question": "Is there numbness in your left arm as well?",
+            "recap_template": "You {answer} left arm numbness",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "speech",
+            "question": "Do you have slurred speech or trouble finding words?",
+            "recap_template": "You {answer} speech problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_loss",
+            "question": "Do you have sudden vision loss?",
+            "recap_template": "You {answer} vision problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_double",
+            "question": "Do you see double when looking straight ahead?",
+            "recap_template": "You {answer} double vision",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Your symptoms are highly concerning for acute stroke. Please seek emergency care immediately or call 911.",
+          "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
+          "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
+        },
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting the left arm, requiring immediate medical evaluation."
+      },
+      "right_leg_weakness": {
+        "intro": "{name}, right leg weakness can suggest a stroke. Let's clarify.",
+        "priority_keys": ["onset", "face", "leg_weakness", "speech", "vision_loss", "vision_double"],
+        "steps": [
+          {
+            "key": "onset",
+            "question": "When did the right leg weakness start?",
+            "recap_template": "Onset was {answer}",
+            "answers": {}
+          },
+          {
+            "key": "face",
+            "question": "Do you have facial droop or facial numbness?",
+            "recap_template": "You {answer} facial droop or numbness",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "leg_weakness",
+            "question": "Is there numbness in your right leg as well?",
+            "recap_template": "You {answer} right leg numbness",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "speech",
+            "question": "Do you have slurred speech or trouble finding words?",
+            "recap_template": "You {answer} speech problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_loss",
+            "question": "Do you have sudden vision loss?",
+            "recap_template": "You {answer} vision problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_double",
+            "question": "Do you see double when looking straight ahead?",
+            "recap_template": "You {answer} double vision",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Your symptoms are highly concerning for acute stroke. Please seek emergency care immediately or call 911.",
+          "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
+          "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
+        },
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting the right leg, requiring immediate medical evaluation."
+      },
+      "left_leg_weakness": {
+        "intro": "{name}, left leg weakness can suggest a stroke. Let's clarify.",
+        "priority_keys": ["onset", "face", "leg_weakness", "speech", "vision_loss", "vision_double"],
+        "steps": [
+          {
+            "key": "onset",
+            "question": "When did the left leg weakness start?",
+            "recap_template": "Onset was {answer}",
+            "answers": {}
+          },
+          {
+            "key": "face",
+            "question": "Do you have facial droop or facial numbness?",
+            "recap_template": "You {answer} facial droop or numbness",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "leg_weakness",
+            "question": "Is there numbness in your left leg as well?",
+            "recap_template": "You {answer} left leg numbness",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "speech",
+            "question": "Do you have slurred speech or trouble finding words?",
+            "recap_template": "You {answer} speech problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_loss",
+            "question": "Do you have sudden vision loss?",
+            "recap_template": "You {answer} vision problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_double",
+            "question": "Do you see double when looking straight ahead?",
+            "recap_template": "You {answer} double vision",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Your symptoms are highly concerning for acute stroke. Please seek emergency care immediately or call 911.",
+          "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
+          "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
+        },
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting the left leg, requiring immediate medical evaluation."
+      },
+      "right_side_weakness": {
+        "intro": "{name}, right side weakness can suggest a stroke. Let's clarify.",
+        "priority_keys": ["limb_involvement", "onset", "face", "speech", "vision_loss", "vision_double"],
+        "steps": [
+          {
+            "key": "limb_involvement",
+            "question": "Is the weakness in your arm, leg, or both?",
+            "recap_template": "You have {answer} weakness",
+            "answers": {
+              "arm": "right_arm_weakness",
+              "leg": "right_leg_weakness",
+              "both": "right_side_weakness_both",
+              "arm and leg": "right_side_weakness_both",
+              "no": "no_weakness",
+              "none": "no_weakness"
+            }
+          },
+          {
+            "key": "onset",
+            "question": "When did the right side weakness start?",
+            "recap_template": "Onset was {answer}",
+            "answers": {}
+          },
+          {
+            "key": "face",
+            "question": "Do you have facial droop or facial numbness?",
+            "recap_template": "You {answer} facial droop or numbness",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "speech",
+            "question": "Do you have slurred speech or trouble finding words?",
+            "recap_template": "You {answer} speech problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_loss",
+            "question": "Do you have sudden vision loss?",
+            "recap_template": "You {answer} vision problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_double",
+            "question": "Do you see double when looking straight ahead?",
+            "recap_template": "You {answer} double vision",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Your symptoms are highly concerning for acute stroke. Please seek emergency care immediately or call 911.",
+          "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
+          "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
+        },
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting the right side, requiring immediate medical evaluation."
+      },
+      "right_side_weakness_both": {
+        "intro": "{name}, right side weakness affecting both arm and leg can suggest a stroke. Let's clarify.",
+        "priority_keys": ["onset", "face", "speech", "vision_loss", "vision_double"],
+        "steps": [
+          {
+            "key": "onset",
+            "question": "When did the right side weakness start?",
+            "recap_template": "Onset was {answer}",
+            "answers": {}
+          },
+          {
+            "key": "face",
+            "question": "Do you have facial droop or facial numbness?",
+            "recap_template": "You {answer} facial droop or numbness",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "speech",
+            "question": "Do you have slurred speech or trouble finding words?",
+            "recap_template": "You {answer} speech problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_loss",
+            "question": "Do you have sudden vision loss?",
+            "recap_template": "You {answer} vision problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_double",
+            "question": "Do you see double when looking straight ahead?",
+            "recap_template": "You {answer} double vision",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcome": {
+          "emergency": "Your symptoms are highly concerning for acute stroke. Please seek emergency care immediately or call 911.",
+          "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
+          "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
+        },
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting the right side (both limbs), requiring immediate medical evaluation."
+      },
+      "left_side_weakness": {
+        "intro": "{name}, left side weakness can suggest a stroke. Let's clarify.",
+        "priority_keys": ["limb_involvement", "onset", "face", "speech", "vision_loss", "vision_double"],
+        "steps": [
+          {
+            "key": "limb_involvement",
+            "question": "Is the weakness in your arm, leg, or both?",
+            "recap_template": "You have {answer} weakness",
+            "answers": {
+              "arm": "left_arm_weakness",
+              "leg": "left_leg_weakness",
+              "both": "left_side_weakness_both",
+              "arm and leg": "left_side_weakness_both",
+              "no": "no_weakness",
+              "none": "no_weakness"
+            }
+          },
+          {
+            "key": "onset",
+            "question": "When did the left side weakness start?",
+            "recap_template": "Onset was {answer}",
+            "answers": {}
+          },
+          {
+            "key": "face",
+            "question": "Do you have facial droop or facial numbness?",
+            "recap_template": "You {answer} facial droop or numbness",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "speech",
+            "question": "Do you have slurred speech or trouble finding words?",
+            "recap_template": "You {answer} speech problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_loss",
+            "question": "Do you have sudden vision loss?",
+            "recap_template": "You {answer} vision problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_double",
+            "question": "Do you see double when looking straight ahead?",
+            "recap_template": "You {answer} double vision",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Your symptoms are highly concerning for acute stroke. Please seek emergency care immediately or call 911.",
+          "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
+          "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
+        },
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting the left side, requiring immediate medical evaluation."
+      },
+      "left_side_weakness_both": {
+        "intro": "{name}, left side weakness affecting both arm and leg can suggest a stroke. Let's clarify.",
+        "priority_keys": ["onset", "face", "speech", "vision_loss", "vision_double"],
+        "steps": [
+          {
+            "key": "onset",
+            "question": "When did the left side weakness start?",
+            "recap_template": "Onset was {answer}",
+            "answers": {}
+          },
+          {
+            "key": "face",
+            "question": "Do you have facial droop or facial numbness?",
+            "recap_template": "You {answer} facial droop or numbness",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "speech",
+            "question": "Do you have slurred speech or trouble finding words?",
+            "recap_template": "You {answer} speech problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_loss",
+            "question": "Do you have sudden vision loss?",
+            "recap_template": "You {answer} vision problems",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "vision_double",
+            "question": "Do you see double when looking straight ahead?",
+            "recap_template": "You {answer} double vision",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Your symptoms are highly concerning for acute stroke. Please seek emergency care immediately or call 911.",
+          "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
+          "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
+        },
+        "clinical_summary": "Your symptoms are concerning for acute stroke affecting the left side (both limbs), requiring immediate medical evaluation."
+      }
+    },
+    "outcomes": {
+      "emergency": "Your symptoms are highly concerning for acute stroke. Please seek emergency care immediately or call 911.",
+      "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
+      "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
+    }
+  },
+
+  "headache": {
+    "triggers": [
+      "headache",
+      "head pain",
+      "migraine",
+      "head ache",
+      "head hurts",
+      "pain in head",
+      "severe headache",
+      "worst headache",
+      "thunderclap headache"
+    ],
+    "intro": "{name}, I understand you're experiencing a headache. Let me ask you some questions to help assess the situation.",
+    "priority_keys": ["onset", "severity", "nausea", "light_sensitivity", "sound_sensitivity", "fever", "neck_stiffness", "vision_changes"],
+    "steps": [
+      {
+        "key": "onset",
+        "question": "When did the headache start?",
+        "recap_template": "starting {answer}",
+        "answers": {}
+      },
+      {
+        "key": "severity",
+        "question": "Is this the worst headache you've ever had?",
+        "recap_template": "You {answer} worst headache ever",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "nausea",
+        "question": "Do you have nausea?",
+        "recap_template": "You {answer} nausea",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "light_sensitivity",
+        "question": "Does the headache intensify with bright lights?",
+        "recap_template": "You {answer} light sensitivity",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "sound_sensitivity",
+        "question": "Does the headache get worse with loud sounds?",
+        "recap_template": "You {answer} sound sensitivity",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "fever",
+        "question": "Do you have fever?",
+        "recap_template": "You {answer} fever",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "neck_stiffness",
+        "question": "Do you have neck stiffness or pain when moving your neck?",
+        "recap_template": "You {answer} neck stiffness",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "vision_changes",
+        "question": "Do you have vision changes, double vision, or trouble seeing?",
+        "recap_template": "You {answer} vision changes",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Your symptoms are concerning for a serious condition like meningitis, stroke, or brain hemorrhage. Please seek emergency care immediately or call 911.",
+      "urgent": "Your symptoms may suggest a migraine or other neurological condition. Please seek urgent medical evaluation.",
+      "non_urgent": "Your symptoms may be tension-type headache. Consider over-the-counter pain relief and follow up if symptoms worsen."
+    },
+    "clinical_summary": "Your symptoms are concerning for a neurological condition requiring medical evaluation.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "numbness": {
+    "triggers": [
+      "numbness",
+      "arm numbness",
+      "leg numbness",
+      "numbness in arm",
+      "numbness in leg",
+      "numbness in one arm",
+      "numbness in my leg",
+      "numb arm",
+      "numb leg",
+      "upper extremity numbness",
+      "lower extremity numbness",
+      "hand numbness",
+      "foot numbness",
+      "weakness and numbness",
+      "numbness and weakness",
+      "numbness in arms",
+      "numbness in legs",
+      "right side numbness",
+      "left side numbness",
+      "numbness on my right side",
+      "numbness on my left side",
+      "one sided numbness",
+      "right sided numbness",
+      "left sided numbness"
+    ],
+    "intro": "{name}, I understand you're experiencing numbness. Let me ask you some questions to help assess this.",
+    "priority_keys": ["distribution"],
+    "steps": [
+      {
+        "key": "distribution",
+        "question": "Is the numbness generalized throughout your body or limited to one side?",
+        "recap_template": "You have {answer} numbness",
+        "answers": {
+          "generalized": "generalized_numbness",
+          "one side": "focal_numbness",
+          "one sided": "focal_numbness",
+          "specific side": "focal_numbness"
+        }
+      }
+    ],
+    "pathways": {
+      "generalized_numbness": {
+        "intro": "{name}, generalized numbness can have many causes. Let me ask you some questions.",
+        "priority_keys": ["onset", "fever", "fatigue", "muscle_aches"],
+        "steps": [
+          {
+            "key": "onset",
+            "question": "When did the generalized numbness start?",
+            "recap_template": "Numbness onset was {answer}",
+            "answers": {}
+          },
+          {
+            "key": "fever",
+            "question": "Do you have fever?",
+            "recap_template": "You {answer} fever",
+            "answers": {
+              "yes": "urgent",
+              "no": "non_urgent"
+            }
+          },
+          {
+            "key": "fatigue",
+            "question": "Do you feel extremely tired or fatigued?",
+            "recap_template": "You {answer} extreme fatigue",
+            "answers": {
+              "yes": "urgent",
+              "no": "non_urgent"
+            }
+          },
+          {
+            "key": "muscle_aches",
+            "question": "Do you have muscle aches or body pain?",
+            "recap_template": "You {answer} muscle aches",
+            "answers": {
+              "yes": "urgent",
+              "no": "non_urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Your generalized numbness with sudden onset may be serious. Please seek emergency care immediately.",
+          "urgent": "Your generalized numbness requires urgent medical evaluation. Please see a doctor soon.",
+          "non_urgent": "Your generalized numbness may be due to various causes. Please follow up with your doctor."
+        },
+        "clinical_summary": "Your symptoms suggest generalized numbness that requires medical evaluation to determine the underlying cause."
+      },
+      "focal_numbness": {
+        "intro": "{name}, one-sided numbness can suggest a stroke. Let's clarify which side and what's affected.",
+        "priority_keys": ["side"],
+        "steps": [
+          {
+            "key": "side",
+            "question": "Which side is affected - right or left?",
+            "recap_template": "You have {answer} side numbness",
+            "answers": {
+              "right": "right_side_numbness",
+              "left": "left_side_numbness"
+            }
+          }
+        ]
+      },
+      "right_side_numbness": {
+        "intro": "{name}, right-sided numbness can suggest a stroke. Let's assess the severity and associated symptoms.",
+        "priority_keys": ["limb_involvement", "onset", "weakness", "facial_droop", "speech"],
+        "steps": [
+          {
+            "key": "limb_involvement",
+            "question": "Is the numbness in your arm, leg, or both?",
+            "recap_template": "You have right {answer} numbness",
+            "answers": {
+              "arm": "right_arm_numbness",
+              "leg": "right_leg_numbness",
+              "both": "right_side_numbness",
+              "no": "no_numbness",
+              "none": "no_numbness"
+            }
+          },
+          {
+            "key": "onset",
+            "question": "When did the numbness start?",
+            "recap_template": "Numbness onset was {answer}",
+            "answers": {}
+          },
+          {
+            "key": "weakness",
+            "question": "Do you also have weakness on the right side?",
+            "recap_template": "You {answer} right-sided weakness",
+            "answers": {
+              "yes": "urgent",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "facial_droop",
+            "question": "Do you notice any facial drooping or asymmetry?",
+            "recap_template": "You {answer} facial drooping",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "speech",
+            "question": "Are you having any difficulty speaking or understanding speech?",
+            "recap_template": "You {answer} speech difficulties",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Your right-sided numbness with sudden onset and associated symptoms is highly concerning for stroke. Please seek emergency care immediately or call 911.",
+          "urgent": "Your right-sided numbness requires urgent medical evaluation to rule out stroke or other neurological conditions.",
+          "non_urgent": "Your right-sided numbness should be evaluated by a healthcare provider."
+        },
+        "clinical_summary": "Your symptoms suggest right-sided numbness that may be related to a stroke or other neurological condition requiring medical evaluation."
+      },
+      "left_side_numbness": {
+        "intro": "{name}, left-sided numbness can suggest a stroke. Let's assess the severity and associated symptoms.",
+        "priority_keys": ["limb_involvement", "onset", "weakness", "facial_droop", "speech"],
+        "steps": [
+          {
+            "key": "limb_involvement",
+            "question": "Is the numbness in your arm, leg, or both?",
+            "recap_template": "You have left {answer} numbness",
+            "answers": {
+              "arm": "left_arm_numbness",
+              "leg": "left_leg_numbness",
+              "both": "left_side_numbness",
+              "no": "no_numbness",
+              "none": "no_numbness"
+            }
+          },
+          {
+            "key": "onset",
+            "question": "When did the numbness start?",
+            "recap_template": "Numbness onset was {answer}",
+            "answers": {}
+          },
+          {
+            "key": "weakness",
+            "question": "Do you also have weakness on the left side?",
+            "recap_template": "You {answer} left-sided weakness",
+            "answers": {
+              "yes": "urgent",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "facial_droop",
+            "question": "Do you notice any facial drooping or asymmetry?",
+            "recap_template": "You {answer} facial drooping",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "speech",
+            "question": "Are you having any difficulty speaking or understanding speech?",
+            "recap_template": "You {answer} speech difficulties",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Your left-sided numbness with sudden onset and associated symptoms is highly concerning for stroke. Please seek emergency care immediately or call 911.",
+          "urgent": "Your left-sided numbness requires urgent medical evaluation to rule out stroke or other neurological conditions.",
+          "non_urgent": "Your left-sided numbness should be evaluated by a healthcare provider."
+        },
+        "clinical_summary": "Your symptoms suggest left-sided numbness that may be related to a stroke or other neurological condition requiring medical evaluation."
+      },
+      "right_arm_numbness": {
+        "intro": "{name}, right arm numbness can suggest a stroke. Let's assess the severity and associated symptoms.",
+        "priority_keys": ["onset", "weakness", "facial_droop", "speech"],
+        "steps": [
+          {
+            "key": "onset",
+            "question": "When did the right arm numbness start?",
+            "recap_template": "Right arm numbness onset was {answer}",
+            "answers": {}
+          },
+          {
+            "key": "weakness",
+            "question": "Do you also have weakness in your right arm?",
+            "recap_template": "You {answer} right arm weakness",
+            "answers": {
+              "yes": "urgent",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "facial_droop",
+            "question": "Do you notice any facial drooping or asymmetry?",
+            "recap_template": "You {answer} facial drooping",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "speech",
+            "question": "Are you having any difficulty speaking or understanding speech?",
+            "recap_template": "You {answer} speech difficulties",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Your right arm numbness with sudden onset and associated symptoms is highly concerning for stroke. Please seek emergency care immediately or call 911.",
+          "urgent": "Your right arm numbness requires urgent medical evaluation to rule out stroke or other neurological conditions.",
+          "non_urgent": "Your right arm numbness should be evaluated by a healthcare provider."
+        },
+        "clinical_summary": "Your symptoms suggest right arm numbness that may be related to a stroke or other neurological condition requiring medical evaluation."
+      },
+      "left_arm_numbness": {
+        "intro": "{name}, left arm numbness can suggest a stroke. Let's assess the severity and associated symptoms.",
+        "priority_keys": ["onset", "weakness", "facial_droop", "speech"],
+        "steps": [
+          {
+            "key": "onset",
+            "question": "When did the left arm numbness start?",
+            "recap_template": "Left arm numbness onset was {answer}",
+            "answers": {}
+          },
+          {
+            "key": "weakness",
+            "question": "Do you also have weakness in your left arm?",
+            "recap_template": "You {answer} left arm weakness",
+            "answers": {
+              "yes": "urgent",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "facial_droop",
+            "question": "Do you notice any facial drooping or asymmetry?",
+            "recap_template": "You {answer} facial drooping",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "speech",
+            "question": "Are you having any difficulty speaking or understanding speech?",
+            "recap_template": "You {answer} speech difficulties",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Your left arm numbness with sudden onset and associated symptoms is highly concerning for stroke. Please seek emergency care immediately or call 911.",
+          "urgent": "Your left arm numbness requires urgent medical evaluation to rule out stroke or other neurological conditions.",
+          "non_urgent": "Your left arm numbness should be evaluated by a healthcare provider."
+        },
+        "clinical_summary": "Your symptoms suggest left arm numbness that may be related to a stroke or other neurological condition requiring medical evaluation."
+      },
+      "right_leg_numbness": {
+        "intro": "{name}, right leg numbness can suggest a stroke. Let's assess the severity and associated symptoms.",
+        "priority_keys": ["onset", "weakness", "facial_droop", "speech"],
+        "steps": [
+          {
+            "key": "onset",
+            "question": "When did the right leg numbness start?",
+            "recap_template": "Right leg numbness onset was {answer}",
+            "answers": {}
+          },
+          {
+            "key": "weakness",
+            "question": "Do you also have weakness in your right leg?",
+            "recap_template": "You {answer} right leg weakness",
+            "answers": {
+              "yes": "urgent",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "facial_droop",
+            "question": "Do you notice any facial drooping or asymmetry?",
+            "recap_template": "You {answer} facial drooping",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "speech",
+            "question": "Are you having any difficulty speaking or understanding speech?",
+            "recap_template": "You {answer} speech difficulties",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Your right leg numbness with sudden onset and associated symptoms is highly concerning for stroke. Please seek emergency care immediately or call 911.",
+          "urgent": "Your right leg numbness requires urgent medical evaluation to rule out stroke or other neurological conditions.",
+          "non_urgent": "Your right leg numbness should be evaluated by a healthcare provider."
+        },
+        "clinical_summary": "Your symptoms suggest right leg numbness that may be related to a stroke or other neurological condition requiring medical evaluation."
+      },
+      "left_leg_numbness": {
+        "intro": "{name}, left leg numbness can suggest a stroke. Let's assess the severity and associated symptoms.",
+        "priority_keys": ["onset", "weakness", "facial_droop", "speech"],
+        "steps": [
+          {
+            "key": "onset",
+            "question": "When did the left leg numbness start?",
+            "recap_template": "Left leg numbness onset was {answer}",
+            "answers": {}
+          },
+          {
+            "key": "weakness",
+            "question": "Do you also have weakness in your left leg?",
+            "recap_template": "You {answer} left leg weakness",
+            "answers": {
+              "yes": "urgent",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "facial_droop",
+            "question": "Do you notice any facial drooping or asymmetry?",
+            "recap_template": "You {answer} facial drooping",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          },
+          {
+            "key": "speech",
+            "question": "Are you having any difficulty speaking or understanding speech?",
+            "recap_template": "You {answer} speech difficulties",
+            "answers": {
+              "yes": "emergency",
+              "no": "urgent"
+            }
+          }
+        ],
+        "outcomes": {
+          "emergency": "Your left leg numbness with sudden onset and associated symptoms is highly concerning for stroke. Please seek emergency care immediately or call 911.",
+          "urgent": "Your left leg numbness requires urgent medical evaluation to rule out stroke or other neurological conditions.",
+          "non_urgent": "Your left leg numbness should be evaluated by a healthcare provider."
+        },
+        "clinical_summary": "Your symptoms suggest left leg numbness that may be related to a stroke or other neurological condition requiring medical evaluation."
+      }
+    },
+    "outcomes": {
+      "emergency": "Your symptoms are highly concerning for acute stroke. Please seek emergency care immediately or call 911.",
+      "urgent": "Your symptoms may suggest a stroke or other neurological condition. Please seek urgent medical evaluation.",
+      "non_urgent": "Your symptoms should be evaluated by a healthcare provider to rule out neurological causes."
+    },
+    "clinical_summary": "Your symptoms suggest numbness that may be related to a stroke or other neurological condition requiring medical evaluation.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  }
+}

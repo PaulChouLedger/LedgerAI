@@ -1,0 +1,59 @@
+{
+  "weight loss": [
+    "lost weight",
+    "losing weight",
+    "unintentional weight loss",
+    "dropping pounds",
+    "slimming down"
+  ],
+  "weight gain": [
+    "gained weight",
+    "put on weight",
+    "increased weight",
+    "heavier",
+    "added pounds"
+  ],
+  "fatigue": [
+    "tired",
+    "exhausted",
+    "low energy",
+    "worn out",
+    "drained",
+    "sluggish"
+  ],
+  "thirst": [
+    "polydipsia",
+    "very thirsty",
+    "excessive thirst",
+    "drinking a lot",
+    "unquenchable thirst"
+  ],
+  "urination": [
+    "polyuria",
+    "peeing a lot",
+    "frequent urination",
+    "passing urine often",
+    "excess urine"
+  ],
+  "heat intolerance": [
+    "overheated",
+    "can’t tolerate heat",
+    "sensitive to heat",
+    "hot all the time",
+    "heat sensitive"
+  ],
+  "cold intolerance": [
+    "always cold",
+    "can’t tolerate cold",
+    "sensitive to cold",
+    "cold all the time",
+    "cold sensitive"
+  ],
+  "sweating": [
+    "excessive sweat",
+    "night sweats",
+    "sweating a lot",
+    "too much sweat",
+    "sweaty"
+  ]
+}

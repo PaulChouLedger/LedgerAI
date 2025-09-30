@@ -1,0 +1,369 @@
+{
+  "shortness_of_breath": {
+    "triggers": ["shortness of breath", "sob", "difficulty breathing", "can't breathe"],
+    "priority_keys": ["onset", "exertion", "chest_pain", "fever", "cough"],
+    "steps": [
+      {
+        "key": "onset",
+        "question": "When did the shortness of breath start?",
+        "recap_template": "Shortness of breath started {answer}",
+        "answers": {}
+      },
+      {
+        "key": "exertion",
+        "question": "Is it worse with exertion such as walking or climbing stairs?",
+        "recap_template": "You {answer} shortness of breath with exertion",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "assoc_chest",
+        "question": "Do you also have chest pain?",
+        "recap_template": "You {answer} chest pain with shortness of breath",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "fever",
+        "question": "Do you also have fever?",
+        "recap_template": "You {answer} fever",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "chills",
+        "question": "Do you also have chills?",
+        "recap_template": "You {answer} chills",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Sudden or severe shortness of breath may be life-threatening. Seek emergency care immediately.",
+      "urgent": "Your shortness of breath requires urgent medical evaluation. Please see a doctor soon.",
+      "non_urgent": "Your shortness of breath may not be emergent, but follow up with your doctor."
+    },
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "cough": {
+    "triggers": ["cough", "coughing"],
+    "steps": [
+      {
+        "key": "duration",
+        "question": "Has the cough lasted more than 3 weeks?",
+        "recap_template": "You {answer} cough longer than 3 weeks",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "sputum",
+        "question": "Do you cough up phlegm?",
+        "recap_template": "You {answer} productive cough",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "blood",
+        "question": "Do you cough up blood?",
+        "recap_template": "You {answer} blood in sputum",
+        "answers": {
+          "yes": "emergency",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "assoc_fever",
+        "question": "Do you also have fever?",
+        "recap_template": "You {answer} fever with cough",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Coughing up blood is an emergency. Please seek immediate care.",
+      "urgent": "Your cough needs urgent evaluation. Please see a doctor.",
+      "non_urgent": "Your cough does not sound emergent but follow up with your doctor is advised."
+    },
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "hemoptysis": {
+    "triggers": ["hemoptysis", "coughing blood", "blood in sputum"],
+    "steps": [
+      {
+        "key": "amount",
+        "question": "Is it more than a few teaspoons of blood?",
+        "recap_template": "You {answer} large volume hemoptysis",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "assoc_sob",
+        "question": "Do you also have shortness of breath?",
+        "recap_template": "You {answer} shortness of breath with hemoptysis",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "assoc_fever",
+        "question": "Do you also have fever or weight loss?",
+        "recap_template": "You {answer} systemic symptoms with hemoptysis",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Coughing up a large volume of blood is an emergency. Seek immediate care.",
+      "urgent": "Coughing blood, even in small amounts, requires urgent medical evaluation.",
+      "non_urgent": "None."
+    },
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "wheezing": {
+    "triggers": ["wheezing", "whistling breathing", "asthma"],
+    "steps": [
+      {
+        "key": "severity",
+        "question": "Are you struggling to speak in full sentences?",
+        "recap_template": "You {answer} difficulty speaking with wheezing",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "onset",
+        "question": "When did the wheezing start?",
+        "recap_template": "Wheezing started {answer}",
+        "answers": {}
+      },
+      {
+        "key": "relief",
+        "question": "Does it improve with your inhaler or medication?",
+        "recap_template": "You {answer} relief with inhaler",
+        "answers": {
+          "yes": "urgent",
+          "no": "emergency"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Severe wheezing or inability to speak may be life-threatening. Call emergency services immediately.",
+      "urgent": "Your wheezing requires urgent medical evaluation.",
+      "non_urgent": "None."
+    },
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "chest_tightness": {
+    "triggers": ["chest tightness", "tight chest"],
+    "steps": [
+      {
+        "key": "assoc_sob",
+        "question": "Do you also have shortness of breath?",
+        "recap_template": "You {answer} shortness of breath with chest tightness",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "assoc_wheeze",
+        "question": "Do you also have wheezing?",
+        "recap_template": "You {answer} wheezing with chest tightness",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Chest tightness with shortness of breath may be life-threatening. Seek emergency care.",
+      "urgent": "Your chest tightness requires urgent medical evaluation.",
+      "non_urgent": "Your chest tightness may not be emergent, but follow up is advised."
+    },
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "pneumonia": {
+    "triggers": ["pneumonia", "lung infection", "chest infection"],
+    "steps": [
+      {
+        "key": "fever",
+        "question": "Do you have fever?",
+        "recap_template": "You {answer} fever",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "sputum",
+        "question": "Are you coughing up colored sputum?",
+        "recap_template": "You {answer} productive cough with sputum",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "sob",
+        "question": "Do you have shortness of breath?",
+        "recap_template": "You {answer} shortness of breath with pneumonia",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Pneumonia with shortness of breath may be severe. Please seek immediate care.",
+      "urgent": "Your symptoms suggest pneumonia and need urgent evaluation.",
+      "non_urgent": "None."
+    },
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "uri": {
+    "triggers": ["cold", "upper respiratory infection", "runny nose"],
+    "steps": [
+      {
+        "key": "fever",
+        "question": "Do you have fever?",
+        "recap_template": "You {answer} fever",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "sob",
+        "question": "Do you have shortness of breath?",
+        "recap_template": "You {answer} shortness of breath with upper respiratory infection symptoms",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "None.",
+      "urgent": "Your cold symptoms with fever or shortness of breath require urgent care.",
+      "non_urgent": "Your URI symptoms are not emergent, but monitor and follow up if they worsen."
+    },
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "pleuritic_pain": {
+    "triggers": ["pleuritic pain", "pleurisy", "pain with breathing"],
+    "steps": [
+      {
+        "key": "sharp",
+        "question": "Is the pain sharp and worse when you breathe in?",
+        "recap_template": "You {answer} sharp pleuritic pain",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "assoc_sob",
+        "question": "Do you also have shortness of breath?",
+        "recap_template": "You {answer} shortness of breath with pleuritic pain",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Pleuritic pain with shortness of breath may indicate PE or pneumonia. Seek emergency care.",
+      "urgent": "Your pleuritic pain requires urgent evaluation.",
+      "non_urgent": "Your pleuritic pain may not be emergent, but follow up is advised."
+    },
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "stridor": {
+    "triggers": ["stridor", "noisy breathing", "airway obstruction"],
+    "steps": [
+      {
+        "key": "rest",
+        "question": "Is the noisy breathing present at rest?",
+        "recap_template": "You {answer} stridor at rest",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "assoc_sob",
+        "question": "Do you also have shortness of breath?",
+        "recap_template": "You {answer} shortness of breath with stridor",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Stridor at rest or with shortness of breath is life-threatening. Seek emergency care immediately.",
+      "urgent": "Your stridor requires urgent evaluation.",
+      "non_urgent": "None."
+    },
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "apnea": {
+    "triggers": ["apnea", "stop breathing", "not breathing"],
+    "steps": [
+      {
+        "key": "observed",
+        "question": "Has anyone observed you stop breathing?",
+        "recap_template": "You {answer} observed apnea",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "assoc_daytime",
+        "question": "Do you feel very sleepy during the day?",
+        "recap_template": "You {answer} daytime sleepiness",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Stopping breathing is an emergency. Seek immediate care.",
+      "urgent": "Your apnea symptoms need urgent medical evaluation.",
+      "non_urgent": "None."
+    },
+    "clinical_summary": "Your symptoms are suggestive of a respiratory condition that requires medical evaluation to rule out serious causes and determine appropriate treatment.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  }
+}

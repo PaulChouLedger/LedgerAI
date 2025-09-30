@@ -12,6 +12,14 @@ services:
     volumes:
       - ./shared:/shared
 
+  llm-trt:
+    build: ./llm-container-trt
+    network_mode: host
+    ports:
+      - "11435:11434"  # Different port for TensorRT-LLM
+    volumes:
+      - ./shared:/shared
+
   tts:
     build: ./tts-container
     network_mode: host

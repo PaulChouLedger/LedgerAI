@@ -201,11 +201,6 @@ def speak_llm_response(prompt, context=""):
             # This prevents splitting "J.K. Rowling." into separate sentences
             should_split = (ends and not is_initial and not is_abbreviation and not is_name_continuation) or total_words >= TTS_TOKEN_LIMIT
             
-            # Debug: Check why it's not splitting when it should
-            if total_words >= TTS_TOKEN_LIMIT and not should_split:
-                print(f"[TTS Debug] WHY NOT SPLITTING? ends={ends}, is_initial={is_initial}, is_abbreviation={is_abbreviation}, is_name_continuation={is_name_continuation}")
-                print(f"[TTS Debug] Token word count: {len(token.split())}, Token: '{token}'")
-            
             if should_split:
                 enqueue_tts_chunk(" ".join(buffer).strip())
                 buffer.clear()
