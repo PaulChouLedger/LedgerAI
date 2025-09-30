@@ -181,12 +181,8 @@ def speak_llm_response(prompt, context=""):
             print(f"[LLM] 🧠 {token}")
             buffer.append(token)
             
-            # Debug logging
+            # Count total words in buffer for accurate limit checking
             total_words = sum(len(t.split()) for t in buffer)
-            print(f"[TTS Debug] Buffer lines: {len(buffer)}, Word limit: {TTS_TOKEN_LIMIT}")
-            print(f"[TTS Debug] Current token: '{token}'")
-            print(f"[TTS Debug] Token word count: {len(token.split())}")
-            print(f"[TTS Debug] Total words in buffer: {total_words}")
             
             # Check for sentence endings, but avoid splitting on abbreviations/initials
             ends = any(token.endswith(p) for p in [".", "!", "?"])
@@ -201,15 +197,16 @@ def speak_llm_response(prompt, context=""):
                                  len(token) > 2 and len(token.split()) == 1 and 
                                  not token.lower() in ['the.', 'and.', 'or.', 'but.', 'for.', 'nor.', 'yet.', 'so.'])
             
-            print(f"[TTS Debug] ends={ends}, is_initial={is_initial}, is_abbreviation={is_abbreviation}, is_name_continuation={is_name_continuation}")
-            
             # Don't split if current token is an initial/abbreviation OR if it looks like a name continuation
             # This prevents splitting "J.K. Rowling." into separate sentences
             should_split = (ends and not is_initial and not is_abbreviation and not is_name_continuation) or total_words >= TTS_TOKEN_LIMIT
-            print(f"[TTS Debug] Should split: {should_split}")
+            
+            # Debug: Check why it's not splitting when it should
+            if total_words >= TTS_TOKEN_LIMIT and not should_split:
+                print(f"[TTS Debug] WHY NOT SPLITTING? ends={ends}, is_initial={is_initial}, is_abbreviation={is_abbreviation}, is_name_continuation={is_name_continuation}")
+                print(f"[TTS Debug] Token word count: {len(token.split())}, Token: '{token}'")
             
             if should_split:
-                print(f"[TTS Debug] SPLITTING! Reason: ends={ends}, word_limit={total_words >= TTS_TOKEN_LIMIT}")
                 enqueue_tts_chunk(" ".join(buffer).strip())
                 buffer.clear()
         if buffer:
