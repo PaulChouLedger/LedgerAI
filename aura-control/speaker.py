@@ -347,6 +347,23 @@ def speak_llm_response(prompt, context=""):
                 if clean_text:
                     enqueue_tts_chunk(clean_text)
                 buffer.clear()
+            else:
+                # Check if we have a pending initials and current token is a name
+                if (pending_initials and 
+                    token.endswith('.') and 
+                    len(token) > 2 and 
+                    len(token.split()) == 1 and 
+                    token[0].isupper() and 
+                    not token.lower() in ['the.', 'and.', 'or.', 'but.', 'for.', 'nor.', 'yet.', 'so.']):
+                    
+                    # Merge the pending initials with this name
+                    merged_text = pending_initials + " " + token
+                    print(f"[TTS Debug] MERGED: '{pending_initials}' + '{token}' = '{merged_text}'")
+                    pending_initials = None
+                    if merged_text and not re.match(r"^[\s.,!?]+$", merged_text):
+                        SENTENCE_QUEUE.put(merged_text.strip())
+                        print(f"[TTS Debug] Added merged to queue: '{merged_text.strip()}'")
+                    buffer.clear()
         if buffer:
             chunk_text = " ".join(buffer).strip()
             clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
