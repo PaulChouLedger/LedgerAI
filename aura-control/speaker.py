@@ -166,6 +166,8 @@ def playback_loop():
             print(f"[Speaker] ⚠️ Skipping filler: \"{sentence}\"")
             continue
         print(f"[Speaker] 🔈 Speaking: \"{sentence}\"")
+        # Use current time as tts_start_time for playback loop
+        tts_start_time = time.time()
         threading.Thread(target=tts_playback_thread, args=(sentence, tts_start_time), daemon=True).start()
         time.sleep(0.1)
 
@@ -234,12 +236,15 @@ def speak_llm_response(prompt, context=""):
                 
                 # Check if previous sentence ends with initials pattern (A.B. or A.B.C.)
                 prev_sentence = buffer[-2]
+                print(f"[TTS Debug] Checking pattern: prev='{prev_sentence}', current='{token}'")
                 # Look for initials pattern: single letters followed by periods
                 initials_pattern = r'\b[A-Z]\.(?:[A-Z]\.)*\s*$'
                 if re.search(initials_pattern, prev_sentence):
                     print(f"[TTS Debug] MERGING: Detected initials + name pattern: '{prev_sentence}' + '{token}'")
                     # Don't split, let it continue to build the full name
                     should_split = False
+                else:
+                    print(f"[TTS Debug] No initials pattern found in: '{prev_sentence}'")
             
             if should_split:
                 chunk_text = " ".join(buffer).strip()
