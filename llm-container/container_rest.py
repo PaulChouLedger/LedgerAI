@@ -23,12 +23,15 @@ N_CTX = int(os.getenv("N_CTX", "2048"))
 llm = Llama(
     model_path=MODEL_PATH,
     n_ctx=N_CTX,
-    n_gpu_layers=32,
-    n_threads=4,
+    n_gpu_layers=64,  # Increased from 32 for better GPU utilization
+    n_threads=8,      # Increased from 4 for better CPU utilization
     chat_format=os.getenv("CHAT_FORMAT", "qwen"),
     use_mlock=True,
     use_mmap=True,
     verbose=False,
+    # Performance optimizations for Jetson
+    n_batch=512,      # Larger batch size for better throughput
+    n_predict=2048,   # Larger prediction context
 )
 
 MIN_MATCH = float(os.getenv("TRIAGE_MIN_MATCH", "0.6"))

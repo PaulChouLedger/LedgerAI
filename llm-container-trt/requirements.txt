@@ -1,5 +1,0 @@
-flask
-# tensorrt-llm  # Will install via pip if available
-torch
-transformers
-numpy
