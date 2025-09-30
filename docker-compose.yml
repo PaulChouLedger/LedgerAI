@@ -118,11 +118,11 @@ services:
         max-file: "3"
 
   # Vector Search/RAG Service
-  rapids:
+  rag:
     build:
-      context: ./rapids-container
+      context: ./rag-container
       dockerfile: Dockerfile
-    container_name: aura-rapids
+    container_name: aura-rag
     restart: unless-stopped
     ports:
       - "5003:5003"

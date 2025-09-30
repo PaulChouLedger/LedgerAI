@@ -32,7 +32,7 @@ Aura is a real-time voice assistant system built with a microservices architectu
 - **Models**: en_US-amy-low voice model (Piper fallback)
 - **Status**: **Dead code** - not launched or used in main application
 
-### 4. RAPIDS Container (Vector Search/RAG)
+### 4. RAG Container (Vector Search/RAG)
 - **Port**: 5003
 - **Purpose**: Provides document context via vector similarity search and RAG
 - **Technology**: Modern RAG stack with cuDF, cuVS, LlamaIndex, and GPU embeddings
@@ -51,7 +51,7 @@ Aura is a real-time voice assistant system built with a microservices architectu
 The `aura-control` directory contains the main orchestrating application that:
 
 ### Components:
-- **`main.py`**: Entry point and container health monitoring (Whisper + RAPIDS + LLM)
+- **`main.py`**: Entry point and container health monitoring (Whisper + RAG + LLM)
 - **`aura_gui.py`**: PyQt5 GUI with "aura eye" visual indicator
 - **`listener.py`**: Real-time audio input with 6-channel VAD and Silero VAD
 - **`speaker.py`**: ElevenLabs TTS with RAG integration and LLM fallback
@@ -91,7 +91,7 @@ The `aura-control` directory contains the main orchestrating application that:
 │    ├─ HTTP POST /transcribe                             │
 │    └─ Whisper Model (distil-small.en)                   │
 │                                                         │
-│ 3. RAG Processing (rapids-container) [Primary]          │
+│ 3. RAG Processing (rag-container) [Primary]             │
 │    ├─ HTTP POST /rag                                    │
 │    ├─ Document Chunking (cuDF)                          │
 │    ├─ GPU Embeddings (HuggingFace Transformers)         │
@@ -139,7 +139,7 @@ The Aura system uses a sophisticated multi-threaded design orchestrated by `main
 1. **Container Management Thread** (`start_services()`)
    - **Purpose**: Monitors Docker container health and warm-up
    - **Responsibilities**:
-     - Health checks for Whisper, RAPIDS, and LLM containers
+     - Health checks for Whisper, RAG, and LLM containers
      - Warm-up procedures for RAG and LLM services
      - Start other background services
    - **Lifecycle**: Runs once during startup, then exits
@@ -226,7 +226,7 @@ if is_playing():
 ```python
 # RAG query → TTS queue → Audio output
 speak_llm_response(text)  # Main thread
-├─ Attempts RAG query (rapids-container)
+├─ Attempts RAG query (rag-container)
 ├─ Falls back to direct LLM if RAG fails
 ├─ Enqueues complete sentences
 └─ TTS thread processes queue asynchronously
@@ -253,12 +253,12 @@ speak_llm_response(text)  # Main thread
 1. **GUI Launch**: PyQt5 interface with pulsing "aura eye" visual
 2. **Container Health Monitoring**: 
    - Check Whisper container (port 5000)
-   - Check RAPIDS container (port 5003) 
+   - Check RAG container (port 5003) 
    - Check LLM container (port 11434)
    - Health checks via HTTP endpoints (10s timeout)
 3. **Service Initialization**:
    - TTS warm-up (ElevenLabs API test)
-   - RAG warm-up (health check to rapids-container)
+   - RAG warm-up (health check to rag-container)
    - LLM warm-up (test prompt to Qwen model)
    - Fingerprint monitor (wake word detection - stub)
    - Audio listener (6-channel VAD + conversation loop)
@@ -314,16 +314,16 @@ speak_llm_response(text)  # Main thread
 - **TTS Architecture**: Dual system (ElevenLabs cloud + Piper local) but only cloud used
 - **Audio Processing**: 6-channel input with beamformed channel 0 for VAD/transcription
 - **State Management**: Global state coordination between listener and speaker modules
-- **RAG Architecture**: Clean separation with dedicated rapids-container microservice
+- **RAG Architecture**: Clean separation with dedicated rag-container microservice
 
 ## RAG System Architecture
 
-The new RAG implementation in `rapids-container` provides a modern, GPU-accelerated document retrieval and response generation system.
+The new RAG implementation in `rag-container` provides a modern, GPU-accelerated document retrieval and response generation system.
 
 ### RAG Components:
 
 #### **Document Processing** (`document_processor.py`):
-- **Technology**: RAPIDS cuDF for GPU-accelerated text processing
+- **Technology**: cuDF for GPU-accelerated text processing
 - **Features**: 
   - Intelligent chunking with sentence boundary detection
   - Configurable chunk size (default: 512 tokens)
@@ -343,7 +343,7 @@ The new RAG implementation in `rapids-container` provides a modern, GPU-accelera
 - **Output**: 384-dimensional embedding vectors
 
 #### **Vector Store** (`vector_store.py`):
-- **Technology**: RAPIDS cuVS for GPU-accelerated vector search
+- **Technology**: cuVS for GPU-accelerated vector search
 - **Features**:
   - Approximate Nearest Neighbor (ANN) search
   - Metadata storage alongside vectors
@@ -407,7 +407,7 @@ class AuraRAGConfig:
 
 ### Performance Characteristics:
 
-- **GPU Acceleration**: All vector operations on GPU via RAPIDS
+- **GPU Acceleration**: All vector operations on GPU via cuDF/cuVS
 - **Batch Processing**: Efficient embedding generation
 - **Persistent Storage**: Index survives container restarts
 - **Configurable Quality**: Tunable similarity thresholds and chunk sizes

@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "aura-rapids"
+name = "aura-rag"
 version = "0.1.0"
-description = "Aura RAPIDS microservice for vector search and RAG"
+description = "Aura RAG microservice for vector search and RAG"
 authors = [
     {name = "Aura Team", email = "placeholder@aura.com"},
 ]
@@ -34,4 +34,4 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/aura_rapids"]
+packages = ["src/aura_rag"]

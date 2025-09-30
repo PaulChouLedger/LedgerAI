@@ -1,6 +1,6 @@
 """
 Simple chat utilities for Aura voice assistant.
-RAG processing is now handled by the rapids-container service.
+RAG processing is now handled by the rag-container service.
 """
 import re
 from collections import deque

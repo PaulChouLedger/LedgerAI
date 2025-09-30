@@ -63,10 +63,10 @@ def warm_up_rag():
 def start_services():
     # Check if containers are running (managed by docker-compose)
     whisper_ok = wait_for_container("http://localhost:5000", "aura-whisper", timeout=10)
-    rapids_ok = wait_for_container("http://localhost:5003", "aura-rapids", timeout=10)
+    rag_ok = wait_for_container("http://localhost:5003", "aura-rag", timeout=10)
     llm_ok = wait_for_container("http://localhost:11434", "aura-llm", timeout=10)
 
-    if whisper_ok and rapids_ok and llm_ok:
+    if whisper_ok and rag_ok and llm_ok:
         warm_up_llm()
         warm_up_rag()
         print("[Aura] 🔍 Starting fingerprint monitor...")

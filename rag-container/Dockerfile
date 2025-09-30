@@ -17,4 +17,4 @@ COPY src/ /app/src/
 # Install the package using uv
 RUN uv sync
 
-CMD ["uv", "run", "/app/src/aura_rapids/container_rest.py"]
+CMD ["uv", "run", "/app/src/aura_rag/container_rest.py"]

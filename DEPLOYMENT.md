@@ -36,7 +36,7 @@ docker-compose ps
 curl http://localhost:5000/health  # Whisper
 curl http://localhost:5001/health  # LLM
 curl http://localhost:5002/health  # TTS
-curl http://localhost:5003/health  # RAPIDS
+curl http://localhost:5003/health  # RAG
 ```
 
 ## Environment Variables

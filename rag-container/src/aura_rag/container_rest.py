@@ -43,7 +43,7 @@ def health():
         stats = rag_engine.get_stats()
         return jsonify({
             "status": "healthy", 
-            "service": "aura-rapids",
+            "service": "aura-rag",
             "stats": stats
         }), 200
     except Exception as e:
@@ -131,5 +131,5 @@ if __name__ == "__main__":
     initialize_rag()
     
     # Start Flask app
-    print("Starting Aura RAPIDS RAG service on port 5003...")
+    print("Starting Aura RAG service on port 5003...")
     app.run(host="0.0.0.0", port=5003, debug=False)

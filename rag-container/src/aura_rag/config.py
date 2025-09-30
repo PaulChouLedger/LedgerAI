@@ -1,5 +1,5 @@
 """
-Configuration module for Aura RAPIDS RAG system.
+Configuration module for Aura RAG system.
 Uses Pydantic for validation and type safety.
 Only the most critical performance knobs are exposed.
 """

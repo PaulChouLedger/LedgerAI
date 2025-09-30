@@ -1,4 +1,4 @@
-# Aura RAPIDS RAG Service
+# Aura RAG Service
 
 Modern, GPU-accelerated RAG (Retrieval-Augmented Generation) service using cuDF, cuVS, and LlamaIndex.
 
