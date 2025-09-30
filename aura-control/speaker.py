@@ -132,14 +132,12 @@ def tts_playback_thread(text):
                 stderr=subprocess.DEVNULL
             )
 
-            start = time.time()
+            # Calculate TTS latency from transcription end to TTS initiation
+            tts_latency = time.time() - tts_start_time
+            print(f"⏱️ TTS latency: {tts_latency:.2f}s")
+            
             proc.stdin.write(first_chunk)
             proc.stdin.flush()
-            
-            # Wait a moment for TTS to actually start processing
-            time.sleep(0.1)
-            latency = time.time() - start
-            print(f"⏱️ TTS latency: {latency:.2f}s")
 
             for chunk in stream:
                 if chunk:
@@ -171,6 +169,10 @@ def playback_loop():
 def speak_llm_response(prompt, context=""):
     import requests
     print(f"[LLM] ✅ Prompt to LLM: {prompt}")
+    
+    # Start TTS latency measurement
+    tts_start_time = time.time()
+    
     try:
         response = requests.post(
             "http://localhost:11434/chat",
@@ -207,7 +209,7 @@ def speak_llm_response(prompt, context=""):
             is_following_initial = prev_token_was_initial and token.endswith('.') and len(token) > 2
             
             # Don't split if current token is an initial/abbreviation OR if it looks like a name continuation
-            # This prevents splitting "J.K. Rowling." into separate sentences
+            # OR if it's following an initial (like "Rowling." after "J.K.")
             should_split = (ends and not is_initial and not is_abbreviation and not is_name_continuation and not is_following_initial) or total_words >= TTS_TOKEN_LIMIT
             
             if should_split:
