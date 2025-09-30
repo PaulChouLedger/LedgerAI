@@ -184,6 +184,8 @@ def speak_llm_response(prompt, context=""):
             # Debug logging
             print(f"[TTS Debug] Buffer length: {len(buffer)}, Token limit: {TTS_TOKEN_LIMIT}")
             print(f"[TTS Debug] Current token: '{token}'")
+            print(f"[TTS Debug] Token word count: {len(token.split())}")
+            print(f"[TTS Debug] Total words in buffer: {sum(len(t.split()) for t in buffer)}")
             
             # Check for sentence endings, but avoid splitting on abbreviations/initials
             ends = any(token.endswith(p) for p in [".", "!", "?"])
@@ -192,9 +194,11 @@ def speak_llm_response(prompt, context=""):
             # Don't split on common abbreviations
             is_abbreviation = token.lower() in ['mr.', 'mrs.', 'dr.', 'prof.', 'st.', 'ave.', 'blvd.', 'inc.', 'ltd.', 'corp.', 'etc.', 'vs.', 'jr.', 'sr.']
             
-            # Check if this looks like a name continuation (capitalized word ending with period)
+            # Check if this looks like a name continuation (single capitalized word ending with period)
+            # Only match single words, not full sentences
             is_name_continuation = (token[0].isupper() and token.endswith('.') and 
-                                 len(token) > 2 and not token.lower() in ['the.', 'and.', 'or.', 'but.', 'for.', 'nor.', 'yet.', 'so.'])
+                                 len(token) > 2 and len(token.split()) == 1 and 
+                                 not token.lower() in ['the.', 'and.', 'or.', 'but.', 'for.', 'nor.', 'yet.', 'so.'])
             
             print(f"[TTS Debug] ends={ends}, is_initial={is_initial}, is_abbreviation={is_abbreviation}, is_name_continuation={is_name_continuation}")
             
