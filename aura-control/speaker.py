@@ -182,10 +182,11 @@ def speak_llm_response(prompt, context=""):
             buffer.append(token)
             
             # Debug logging
-            print(f"[TTS Debug] Buffer length: {len(buffer)}, Token limit: {TTS_TOKEN_LIMIT}")
+            total_words = sum(len(t.split()) for t in buffer)
+            print(f"[TTS Debug] Buffer lines: {len(buffer)}, Word limit: {TTS_TOKEN_LIMIT}")
             print(f"[TTS Debug] Current token: '{token}'")
             print(f"[TTS Debug] Token word count: {len(token.split())}")
-            print(f"[TTS Debug] Total words in buffer: {sum(len(t.split()) for t in buffer)}")
+            print(f"[TTS Debug] Total words in buffer: {total_words}")
             
             # Check for sentence endings, but avoid splitting on abbreviations/initials
             ends = any(token.endswith(p) for p in [".", "!", "?"])
@@ -201,9 +202,6 @@ def speak_llm_response(prompt, context=""):
                                  not token.lower() in ['the.', 'and.', 'or.', 'but.', 'for.', 'nor.', 'yet.', 'so.'])
             
             print(f"[TTS Debug] ends={ends}, is_initial={is_initial}, is_abbreviation={is_abbreviation}, is_name_continuation={is_name_continuation}")
-            
-            # Count total words in buffer instead of lines
-            total_words = sum(len(t.split()) for t in buffer)
             
             # Don't split if current token is an initial/abbreviation OR if it looks like a name continuation
             # This prevents splitting "J.K. Rowling." into separate sentences
