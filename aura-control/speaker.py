@@ -100,12 +100,39 @@ def preprocess_for_tts(text):
     return re.sub(r"<sentence_start>|<sentence_end>", "", text).strip()
 
 def enqueue_tts_chunk(text):
+    global pending_initials
+    
     print(f"[TTS Debug] Enqueueing: '{text}'")
+    
+    # Check if this should be merged with pending initials
+    if pending_initials:
+        # Check if current text is a name that should be merged
+        if (text.endswith('.') and 
+            len(text) > 2 and 
+            len(text.split()) == 1 and 
+            text[0].isupper() and 
+            not text.lower() in ['the.', 'and.', 'or.', 'but.', 'for.', 'nor.', 'yet.', 'so.']):
+            
+            # Merge the pending initials with this name
+            merged_text = pending_initials + " " + text
+            print(f"[TTS Debug] MERGED: '{pending_initials}' + '{text}' = '{merged_text}'")
+            pending_initials = None
+            if merged_text and not re.match(r"^[\s.,!?]+$", merged_text):
+                SENTENCE_QUEUE.put(merged_text.strip())
+                print(f"[TTS Debug] Added merged to queue: '{merged_text.strip()}'")
+            return
+    
+    # Check if this text ends with initials
+    initials_pattern = r'\b[A-Z]\.(?:[A-Z]\.)*\s*$'
+    if re.search(initials_pattern, text):
+        print(f"[TTS Debug] PENDING: Text ends with initials: '{text}'")
+        pending_initials = text
+        return  # Don't enqueue this yet, wait for the name
+    
+    # Normal enqueue
     if text and not re.match(r"^[\s.,!?]+$", text):
-        # Post-process to merge any initials + name patterns that might have been split
-        processed_text = merge_initials_with_names(text)
-        SENTENCE_QUEUE.put(processed_text.strip())
-        print(f"[TTS Debug] Added to queue: '{processed_text.strip()}'")
+        SENTENCE_QUEUE.put(text.strip())
+        print(f"[TTS Debug] Added to queue: '{text.strip()}'")
     else:
         print(f"[TTS Debug] Skipped (empty or filler): '{text}'")
 
