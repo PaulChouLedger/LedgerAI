@@ -135,7 +135,11 @@ def tts_playback_thread(text):
             start = time.time()
             proc.stdin.write(first_chunk)
             proc.stdin.flush()
-            print(f"⏱️ TTS latency: {time.time() - start:.2f}s")
+            
+            # Wait a moment for TTS to actually start processing
+            time.sleep(0.1)
+            latency = time.time() - start
+            print(f"⏱️ TTS latency: {latency:.2f}s")
 
             for chunk in stream:
                 if chunk:
@@ -197,9 +201,14 @@ def speak_llm_response(prompt, context=""):
                                  len(token) > 2 and len(token.split()) == 1 and 
                                  not token.lower() in ['the.', 'and.', 'or.', 'but.', 'for.', 'nor.', 'yet.', 'so.'])
             
+            # Special case: if previous token was an initial (like "J.K.") and current token ends with period,
+            # treat it as a name continuation to prevent splitting
+            prev_token_was_initial = len(buffer) > 0 and len(buffer[-1]) == 2 and buffer[-1].endswith('.') and buffer[-1][0].isupper()
+            is_following_initial = prev_token_was_initial and token.endswith('.') and len(token) > 2
+            
             # Don't split if current token is an initial/abbreviation OR if it looks like a name continuation
             # This prevents splitting "J.K. Rowling." into separate sentences
-            should_split = (ends and not is_initial and not is_abbreviation and not is_name_continuation) or total_words >= TTS_TOKEN_LIMIT
+            should_split = (ends and not is_initial and not is_abbreviation and not is_name_continuation and not is_following_initial) or total_words >= TTS_TOKEN_LIMIT
             
             if should_split:
                 enqueue_tts_chunk(" ".join(buffer).strip())
