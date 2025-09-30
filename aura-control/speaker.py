@@ -223,15 +223,23 @@ def speak_llm_response(prompt, context=""):
             # OR if it's following an initial (like "Rowling." after "J.K.")
             should_split = (ends and not is_initial and not is_abbreviation and not is_name_continuation and not is_following_initial) or total_words >= TTS_TOKEN_LIMIT
             
-            # Special case: if current token is just a name (like "Rowling.") and previous sentence ended with initials,
-            # merge them together
+            # Dynamic pattern: detect if current token is a name following initials
+            # Pattern: "A.B." or "A.B.C." followed by "Name."
             if (len(buffer) > 1 and 
-                buffer[-2].endswith('J.K.') and 
-                token == 'Rowling.' and 
-                len(token) > 2):
-                print(f"[TTS Debug] MERGING: Detected J.K. Rowling pattern, merging tokens")
-                # Don't split, let it continue to build the full name
-                should_split = False
+                token.endswith('.') and 
+                len(token) > 2 and 
+                len(token.split()) == 1 and  # Single word
+                token[0].isupper() and  # Capitalized
+                not token.lower() in ['the.', 'and.', 'or.', 'but.', 'for.', 'nor.', 'yet.', 'so.']):  # Not common words
+                
+                # Check if previous sentence ends with initials pattern (A.B. or A.B.C.)
+                prev_sentence = buffer[-2]
+                # Look for initials pattern: single letters followed by periods
+                initials_pattern = r'\b[A-Z]\.(?:[A-Z]\.)*\s*$'
+                if re.search(initials_pattern, prev_sentence):
+                    print(f"[TTS Debug] MERGING: Detected initials + name pattern: '{prev_sentence}' + '{token}'")
+                    # Don't split, let it continue to build the full name
+                    should_split = False
             
             if should_split:
                 chunk_text = " ".join(buffer).strip()
