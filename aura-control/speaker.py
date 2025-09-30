@@ -180,6 +180,11 @@ def speak_llm_response(prompt, context=""):
                 continue
             print(f"[LLM] 🧠 {token}")
             buffer.append(token)
+            
+            # Debug logging
+            print(f"[TTS Debug] Buffer length: {len(buffer)}, Token limit: {TTS_TOKEN_LIMIT}")
+            print(f"[TTS Debug] Current token: '{token}'")
+            
             # Check for sentence endings, but avoid splitting on abbreviations/initials
             ends = any(token.endswith(p) for p in [".", "!", "?"])
             # Don't split on single letters followed by period (initials like "K.")
@@ -187,17 +192,19 @@ def speak_llm_response(prompt, context=""):
             # Don't split on common abbreviations
             is_abbreviation = token.lower() in ['mr.', 'mrs.', 'dr.', 'prof.', 'st.', 'ave.', 'blvd.', 'inc.', 'ltd.', 'corp.', 'etc.', 'vs.', 'jr.', 'sr.']
             
-            # Check if the previous token was an initial or abbreviation
-            prev_token_was_abbrev = False
-            if len(buffer) > 1:
-                prev_token = buffer[-2] if len(buffer) >= 2 else ""
-                prev_was_initial = len(prev_token) == 2 and prev_token.endswith('.') and prev_token[0].isupper()
-                prev_was_abbrev = prev_token.lower() in ['mr.', 'mrs.', 'dr.', 'prof.', 'st.', 'ave.', 'blvd.', 'inc.', 'ltd.', 'corp.', 'etc.', 'vs.', 'jr.', 'sr.']
-                prev_token_was_abbrev = prev_was_initial or prev_was_abbrev
+            # Check if this looks like a name continuation (capitalized word ending with period)
+            is_name_continuation = (token[0].isupper() and token.endswith('.') and 
+                                 len(token) > 2 and not token.lower() in ['the.', 'and.', 'or.', 'but.', 'for.', 'nor.', 'yet.', 'so.'])
             
-            # Don't split if current token is an initial/abbreviation OR if previous token was an initial/abbreviation
+            print(f"[TTS Debug] ends={ends}, is_initial={is_initial}, is_abbreviation={is_abbreviation}, is_name_continuation={is_name_continuation}")
+            
+            # Don't split if current token is an initial/abbreviation OR if it looks like a name continuation
             # This prevents splitting "J.K. Rowling." into separate sentences
-            if (ends and not is_initial and not is_abbreviation and not prev_token_was_abbrev) or len(buffer) >= TTS_TOKEN_LIMIT:
+            should_split = (ends and not is_initial and not is_abbreviation and not is_name_continuation) or len(buffer) >= TTS_TOKEN_LIMIT
+            print(f"[TTS Debug] Should split: {should_split}")
+            
+            if should_split:
+                print(f"[TTS Debug] SPLITTING! Reason: ends={ends}, token_limit={len(buffer) >= TTS_TOKEN_LIMIT}")
                 enqueue_tts_chunk(" ".join(buffer).strip())
                 buffer.clear()
         if buffer:
