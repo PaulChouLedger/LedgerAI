@@ -166,12 +166,12 @@ def listen():
             if max_val > 0:
                 mono_mix = mono_mix / max_val * 0.95
             
-            # Apply high-pass filter to remove low-frequency noise (temporarily disabled for debugging)
-            # from scipy import signal
-            # nyquist = SAMPLE_RATE / 2
-            # high = 300 / nyquist  # Remove frequencies below 300Hz
-            # b, a = signal.butter(4, high, btype='high')
-            # mono_mix = signal.filtfilt(b, a, mono_mix)
+            # Apply high-pass filter to remove low-frequency noise
+            from scipy import signal
+            nyquist = SAMPLE_RATE / 2
+            high = 300 / nyquist  # Remove frequencies below 300Hz
+            b, a = signal.butter(4, high, btype='high')
+            mono_mix = signal.filtfilt(b, a, mono_mix)
 
             # Check audio duration
             audio_duration = len(mono_mix) / SAMPLE_RATE
