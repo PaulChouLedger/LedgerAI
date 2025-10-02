@@ -80,6 +80,17 @@ def transcribe():
         timing_stats["min_transcription_time"] = min(timing_stats["min_transcription_time"], transcription_time)
         timing_stats["max_transcription_time"] = max(timing_stats["max_transcription_time"], transcription_time)
         
+        # Print timing information to console (like transcription tuner)
+        print(f"[Whisper] ⏱️ TIMING METRICS:")
+        print(f"  📥 Request to completion: {total_time:.3f}s")
+        print(f"  📁 File processing: {file_processing_time:.3f}s")
+        print(f"  🔧 Audio preprocessing: {preprocessing_time:.3f}s")
+        print(f"  🧠 Model transcription: {transcription_time:.3f}s")
+        print(f"  📊 Audio duration: {audio_duration:.3f}s")
+        print(f"  ⚡ Efficiency RTF: {efficiency:.2f}x")
+        print(f"  📝 Transcribed: \"{text}\"")
+        print()  # Empty line for readability
+        
         # Clean up temp file
         os.remove(tmp_path)
         
