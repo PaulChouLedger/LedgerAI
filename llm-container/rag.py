@@ -102,12 +102,17 @@ class AuraRAG:
         start_time = time.time()
         
         # Encode query
-        query_embedding = self.encoder.encode([query])[0]
+        query_embedding = self.encoder.encode([query])
+        if len(query_embedding.shape) == 1:
+            query_embedding = query_embedding.reshape(1, -1)
+        elif query_embedding.shape[0] > 1:
+            query_embedding = query_embedding[0:1]  # Take first embedding
+        
+        # Ensure correct dtype for FAISS
+        query_embedding = np.array(query_embedding, dtype=np.float32)
         
         # Search FAISS index
-        distances, indices = self.index.search(
-            query_embedding.reshape(1, -1).astype('float32'), k
-        )
+        distances, indices = self.index.search(query_embedding, k)
         
         # Format results
         results = []
