@@ -11,6 +11,17 @@ from datetime import datetime, timedelta
 from glob import glob
 from nlg import rewrite as nlg_rewrite
 
+# Import RAG module
+try:
+    import sys
+    sys.path.append('/Users/rcabello/Documents/GitHub/LedgerAI/aura-control')
+    from rag import get_rag, search_medical_info
+    RAG_AVAILABLE = True
+    print("[Aura-LLM] ✅ RAG module loaded")
+except ImportError as e:
+    print(f"[Aura-LLM] ⚠️ RAG module not available: {e}")
+    RAG_AVAILABLE = False
+
 app = Flask(__name__)
 load_dotenv()
 
@@ -1362,6 +1373,47 @@ def chat():
         yield f"<sentence_start>\n{q_nlg}\n<sentence_end>\n"
 
     return Response(stream_with_context(generate()),mimetype="text/plain")
+
+# === RAG Endpoints ===
+@app.route("/rag/search", methods=["POST"])
+def rag_search():
+    """Search medical information using RAG"""
+    if not RAG_AVAILABLE:
+        return jsonify({"error": "RAG module not available"}), 500
+    
+    try:
+        data = request.get_json()
+        query = data.get("query", "").strip()
+        k = data.get("k", 3)
+        
+        if not query:
+            return jsonify({"error": "Query is required"}), 400
+        
+        # Search medical information
+        augmented_prompt = search_medical_info(query, k)
+        
+        return jsonify({
+            "query": query,
+            "augmented_prompt": augmented_prompt,
+            "k": k
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/rag/stats", methods=["GET"])
+def rag_stats():
+    """Get RAG system statistics"""
+    if not RAG_AVAILABLE:
+        return jsonify({"error": "RAG module not available"}), 500
+    
+    try:
+        from rag import get_rag
+        rag = get_rag()
+        stats = rag.get_stats()
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__=="__main__":
     print("[Aura-LLM] 🚑 Aura triage running with clarify routing, SOAP recap, debug logs, and casual mode")
