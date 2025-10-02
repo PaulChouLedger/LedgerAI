@@ -3,12 +3,17 @@ Aura RAG Module - FAISS-GPU based retrieval for medical triage
 Optimized for Jetson Orin NX with GPU acceleration
 """
 
+import os
 import numpy as np
 import faiss
-import os
-from sentence_transformers import SentenceTransformer
 from typing import List, Dict, Any
 import time
+
+# Force CPU-only mode for Jetson compatibility
+os.environ['CUDA_VISIBLE_DEVICES'] = ''
+os.environ['OMP_NUM_THREADS'] = '4'
+
+from sentence_transformers import SentenceTransformer
 
 class AuraRAG:
     def __init__(self, 
@@ -60,9 +65,17 @@ class AuraRAG:
         else:
             raise FileNotFoundError(f"Document chunks not found: {self.chunks_path}")
         
-        # Load sentence transformer
-        self.encoder = SentenceTransformer(self.model_name)
-        print(f"[RAG] ✅ Loaded encoder: {self.model_name}")
+        # Load sentence transformer (force CPU for Jetson compatibility)
+        import torch
+        
+        # Force CPU-only mode to avoid Jetson GPU tensor issues
+        torch.set_num_threads(4)  # Optimize for Jetson CPU
+        device = 'cpu'
+        
+        self.encoder = SentenceTransformer(self.model_name, device=device)
+        # Ensure model is on CPU
+        self.encoder = self.encoder.to('cpu')
+        print(f"[RAG] ✅ Loaded encoder: {self.model_name} (device: {device}, threads: 4)")
         
         # Check GPU availability (FAISS-GPU not available on ARM64/Jetson)
         try:
@@ -103,25 +116,24 @@ class AuraRAG:
         """
         start_time = time.time()
         
-        # Encode query with error handling
+        # Encode query with robust error handling
         try:
+            # Simple CPU-only encoding
             query_embedding = self.encoder.encode([query], convert_to_numpy=True)
             print(f"[RAG] 🔍 Query embedding shape: {query_embedding.shape}, type: {type(query_embedding)}")
             
-            # Handle different output formats
-            if isinstance(query_embedding, list):
-                query_embedding = np.array(query_embedding, dtype=np.float32)
-            elif not isinstance(query_embedding, np.ndarray):
-                query_embedding = np.array(query_embedding, dtype=np.float32)
+            # Ensure numpy array
+            if not isinstance(query_embedding, np.ndarray):
+                query_embedding = np.array(query_embedding)
+            
+            # Ensure float32 dtype for FAISS compatibility
+            query_embedding = query_embedding.astype(np.float32)
             
             # Ensure 2D array for FAISS
             if len(query_embedding.shape) == 1:
                 query_embedding = query_embedding.reshape(1, -1)
             elif query_embedding.shape[0] > 1:
                 query_embedding = query_embedding[0:1]  # Take first embedding
-            
-            # Ensure float32 dtype
-            query_embedding = query_embedding.astype(np.float32)
             
             print(f"[RAG] 🔍 Final embedding shape: {query_embedding.shape}, dtype: {query_embedding.dtype}")
             
