@@ -21,21 +21,33 @@ class QuickWhisperBenchmark:
         self.results = {}
         
     def create_test_audio(self, duration=3.0, sample_rate=16000):
-        """Create synthetic test audio"""
+        """Create realistic test audio with speech-like characteristics"""
         t = np.linspace(0, duration, int(sample_rate * duration))
         
-        # Create speech-like audio with multiple frequencies
-        audio = (np.sin(2 * np.pi * 200 * t) * 0.3 + 
-                np.sin(2 * np.pi * 400 * t) * 0.2 +
-                np.sin(2 * np.pi * 800 * t) * 0.1 +
-                np.sin(2 * np.pi * 1200 * t) * 0.05)
+        # Create more realistic speech-like audio
+        # Mix multiple formants (speech frequency bands)
+        audio = (np.sin(2 * np.pi * 200 * t) * 0.4 +  # F0 (fundamental)
+                np.sin(2 * np.pi * 400 * t) * 0.3 +   # F1 (first formant)
+                np.sin(2 * np.pi * 800 * t) * 0.2 +   # F2 (second formant)
+                np.sin(2 * np.pi * 1200 * t) * 0.1 +  # F3 (third formant)
+                np.sin(2 * np.pi * 2000 * t) * 0.05)  # F4 (fourth formant)
         
-        # Add some noise and modulation
-        audio += np.random.normal(0, 0.02, len(audio))
-        audio *= (1 + 0.1 * np.sin(2 * np.pi * 5 * t))  # Slow modulation
+        # Add speech-like modulation (vibrato, tremolo)
+        vibrato = 1 + 0.1 * np.sin(2 * np.pi * 6 * t)  # 6Hz vibrato
+        tremolo = 1 + 0.2 * np.sin(2 * np.pi * 3 * t)  # 3Hz tremolo
+        audio *= vibrato * tremolo
         
-        # Normalize
-        audio = audio / np.max(np.abs(audio)) * 0.8
+        # Add realistic noise floor
+        noise = np.random.normal(0, 0.05, len(audio))
+        audio += noise
+        
+        # Add speech pauses (silence periods)
+        pause_start = int(len(audio) * 0.3)
+        pause_end = int(len(audio) * 0.4)
+        audio[pause_start:pause_end] *= 0.1  # 10% silence
+        
+        # Normalize to speech levels
+        audio = audio / np.max(np.abs(audio)) * 0.7
         
         return audio.astype(np.float32)
     
@@ -116,14 +128,24 @@ class QuickWhisperBenchmark:
     def benchmark_with_real_audio(self, audio_files=None):
         """Benchmark with real audio files if available"""
         if audio_files is None:
-            # Look for existing audio files
-            audio_files = []
-            for root, dirs, files in os.walk("."):
-                for file in files:
+        # Look for existing audio files in common locations
+        audio_files = []
+        search_paths = [
+            "assets/voice_samples",
+            "assets/prompts", 
+            "data/fillers",
+            "shared"
+        ]
+        
+        for search_path in search_paths:
+            if os.path.exists(search_path):
+                for file in os.listdir(search_path):
                     if file.endswith(('.wav', '.mp3', '.flac')):
-                        audio_files.append(os.path.join(root, file))
-                        if len(audio_files) >= 5:  # Limit to 5 files
+                        audio_files.append(os.path.join(search_path, file))
+                        if len(audio_files) >= 3:  # Limit to 3 files
                             break
+            if len(audio_files) >= 3:
+                break
         
         if not audio_files:
             print("⚠️ No real audio files found, using synthetic audio only")
