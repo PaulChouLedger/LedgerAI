@@ -16,12 +16,23 @@ def test_rag_system():
         # Import the RAG module
         from rag import smart_search_medical_info
         
-        # Test queries
+        # Test queries - Dynamic RAG will decide based on:
+        # 1. Query intent analysis (informational vs conversational)
+        # 2. Document relevance (word overlap with actual content)
+        # 3. Confidence scoring (how sure we are about the intent)
         test_queries = [
-            "Who is Bob Corella?",
-            "What is AuraVision?",
-            "Tell me about LedgerAI",
-            "What are the medical features?"
+            "Who is Bob Corella?",  # Informational query - will check document relevance
+            "Who is Liam Hugo?",    # Informational query - will check document relevance  
+            "What is AuraVision?",  # Informational query - likely in documents
+            "Tell me about LedgerAI",  # High-confidence informational request
+            "What are chest pain symptoms?",  # Informational medical query
+            "How to treat headaches?",  # Informational medical query
+            "Hello Aura",  # Greeting - will skip RAG
+            "What causes fever?",  # Informational medical query
+            "How are you today?",  # Conversational - will skip RAG
+            "Explain quantum computing",  # Informational but may not be in documents
+            "Show me the latest research",  # Informational request
+            "Thanks for helping"  # Conversational - will skip RAG
         ]
         
         for query in test_queries:

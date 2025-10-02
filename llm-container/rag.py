@@ -166,9 +166,97 @@ class AuraRAG:
         
         return results
     
+    def _analyze_query_intent(self, query: str) -> dict:
+        """
+        Analyze query intent using dynamic patterns and NLP techniques
+        
+        Args:
+            query: User query string
+            
+        Returns:
+            Dictionary with intent analysis results
+        """
+        query_lower = query.lower().strip()
+        words = query_lower.split()
+        
+        # Basic query characteristics
+        analysis = {
+            'word_count': len(words),
+            'has_question_word': any(w in words for w in ['what', 'who', 'where', 'when', 'why', 'how', 'which']),
+            'is_greeting': False,
+            'is_conversational': False,
+            'is_informational': False,
+            'confidence': 0.0
+        }
+        
+        # Detect greetings and conversational patterns
+        greeting_patterns = ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening']
+        conversational_patterns = ['how are you', 'what\'s up', 'thanks', 'thank you', 'bye', 'goodbye']
+        
+        if any(pattern in query_lower for pattern in greeting_patterns + conversational_patterns):
+            analysis['is_greeting'] = True
+            analysis['is_conversational'] = True
+            analysis['confidence'] = 0.9
+            return analysis
+        
+        # Detect informational queries (questions seeking factual information)
+        informational_starters = ['what is', 'who is', 'who was', 'tell me about', 'explain', 'describe']
+        if any(query_lower.startswith(starter) for starter in informational_starters):
+            analysis['is_informational'] = True
+            analysis['confidence'] = 0.8
+        
+        # Check for question words and patterns
+        if analysis['has_question_word']:
+            analysis['is_informational'] = True
+            analysis['confidence'] = max(analysis['confidence'], 0.6)
+        
+        # Detect imperative/request patterns
+        imperative_patterns = ['tell me', 'explain', 'describe', 'show me', 'give me']
+        if any(pattern in query_lower for pattern in imperative_patterns):
+            analysis['is_informational'] = True
+            analysis['confidence'] = max(analysis['confidence'], 0.7)
+        
+        return analysis
+    
+    def _has_document_relevance(self, query: str) -> float:
+        """
+        Dynamically assess if query might be relevant to available documents
+        Uses a lightweight similarity check against document content
+        
+        Args:
+            query: User query string
+            
+        Returns:
+            Relevance score (0.0 to 1.0)
+        """
+        if not hasattr(self, 'chunks') or self.chunks is None:
+            return 0.0
+        
+        query_words = set(query.lower().split())
+        
+        # Sample a subset of chunks for efficiency (first 50 chunks)
+        sample_chunks = self.chunks[:min(50, len(self.chunks))]
+        
+        relevance_scores = []
+        for chunk in sample_chunks:
+            chunk_words = set(chunk.lower().split())
+            
+            # Calculate word overlap
+            overlap = len(query_words.intersection(chunk_words))
+            if overlap > 0:
+                # Normalize by query length
+                score = overlap / len(query_words)
+                relevance_scores.append(score)
+        
+        # Return average relevance if any matches found
+        if relevance_scores:
+            return sum(relevance_scores) / len(relevance_scores)
+        
+        return 0.0
+    
     def should_use_rag(self, query: str) -> bool:
         """
-        Determine if RAG should be used for this query based on content analysis
+        Dynamically determine if RAG should be used based on query analysis
         
         Args:
             query: User query string
@@ -176,37 +264,35 @@ class AuraRAG:
         Returns:
             Boolean indicating if RAG should be used
         """
-        query_lower = query.lower()
-        
-        # Skip RAG for very short queries or greetings
+        # Skip very short queries
         if len(query.split()) < 2:
+            print(f"[RAG] 🚫 Query too short: '{query}'")
             return False
-            
-        # Skip RAG for obvious greetings/casual conversation
-        casual_patterns = [
-            "hello", "hi", "hey", "good morning", "good afternoon", "good evening",
-            "how are you", "what's up", "thanks", "thank you", "bye", "goodbye"
-        ]
         
-        if any(pattern in query_lower for pattern in casual_patterns):
+        # Analyze query intent
+        intent = self._analyze_query_intent(query)
+        print(f"[RAG] 🔍 Intent analysis: {intent}")
+        
+        # Skip greetings and casual conversation
+        if intent['is_greeting'] or intent['is_conversational']:
+            print(f"[RAG] 🚫 Casual conversation detected: '{query}'")
             return False
-            
-        # Use RAG for medical, scientific, or factual questions
-        rag_indicators = [
-            "what is", "who is", "who was", "what are", "how does", "why does",
-            "explain", "describe", "tell me about", "information about",
-            "symptoms", "treatment", "disease", "condition", "medical", "health",
-            "doctor", "patient", "diagnosis", "medicine", "drug", "medication"
-        ]
         
-        if any(indicator in query_lower for indicator in rag_indicators):
+        # Use RAG for informational queries with high confidence
+        if intent['is_informational'] and intent['confidence'] >= 0.6:
+            print(f"[RAG] ✅ High-confidence informational query: '{query}'")
             return True
-            
-        # Default to using RAG for questions (contains question words)
-        question_words = ["what", "who", "where", "when", "why", "how", "which"]
-        if any(word in query_lower for word in question_words):
-            return True
-            
+        
+        # For borderline cases, check document relevance
+        if intent['confidence'] >= 0.4:
+            doc_relevance = self._has_document_relevance(query)
+            print(f"[RAG] 🔍 Document relevance score: {doc_relevance:.3f}")
+            if doc_relevance > 0.1:  # Found some word overlap with documents
+                print(f"[RAG] ✅ Document relevance found: '{query}'")
+                return True
+        
+        # Default to not using RAG for unclear intent
+        print(f"[RAG] 🚫 Unclear intent, skipping RAG: '{query}'")
         return False
     
     def smart_retrieve(self, query: str, k: int = 3) -> tuple[bool, List[Dict[str, Any]]]:
@@ -257,13 +343,13 @@ class AuraRAG:
         context = "\n".join(context_parts)
         
         # Create augmented prompt
-        augmented_prompt = f"""Based on the following medical information:
+        augmented_prompt = f"""Based on the following information:
 
 {context}
 
 Please answer this question: {user_query}
 
-Provide a helpful, accurate response based on the medical information above."""
+Provide a helpful, accurate response based on the information above."""
         
         return augmented_prompt
     

@@ -264,7 +264,7 @@ def detect_condition(prompt, session_id: str | None = None):
         
         if not has_medical_content:
             print(f"[Aura-LLM] 💬 Casual greeting detected: '{p}' -> no triage trigger")
-            return None
+        return None
         else:
             print(f"[Aura-LLM] 💬 Greeting with medical content detected: '{p}' -> proceeding with triage")
     
@@ -284,7 +284,7 @@ def detect_condition(prompt, session_id: str | None = None):
         print(f"[Aura-LLM] 📝 Detailed symptoms array: {state['detailed_symptoms']}")
     
     save_state(state, session_id)
-    
+        
     for cond, data in TRIAGE_DEFS.items():
         triggers = data.get("triggers", [])
         for trig in triggers:
@@ -517,12 +517,12 @@ def add_phrasing_fingerprint(state, text):
 def llm_chat_once(messages, gen_kwargs):
     """Non-stream single completion via llama_cpp with thread safety."""
     with llm_lock:
-        try:
-            resp = llm.create_chat_completion(messages=messages, **{k: v for k, v in gen_kwargs.items() if v is not None})
-            return resp
-        except Exception as e:
+    try:
+        resp = llm.create_chat_completion(messages=messages, **{k: v for k, v in gen_kwargs.items() if v is not None})
+        return resp
+    except Exception as e:
             print(f"[LLM] ❌ Error in llm_chat_once: {e}")
-            return {"choices":[{"message":{"content":""}}]}
+        return {"choices":[{"message":{"content":""}}]}
 
 def get_steps(cond, state):
     steps = TRIAGE_DEFS[cond].get("steps", [])
@@ -611,7 +611,7 @@ def update_flags_from_answer(cond, key, ans, state, session_id=None):
                     print(f"[Aura-LLM] ❌ No answers defined for key: {key}")
                     return
             else:
-                sev = s["answers"][opt]
+            sev = s["answers"][opt]
                 print(f"[Aura-LLM] 🔍 Severity/pathway: {sev}")
 
             # Inline clarify object with followup_question
@@ -739,7 +739,7 @@ def build_recap(cond, answers, flags, severity, session_id=None):
             if key in ["onset", "when", "timing", "duration"]:
                 if clean_opts:
                     ans_out = pretty_join(clean_opts, 'and')
-                else:
+        else:
                     ans_out = pretty_join(opts, 'and')
             else:
                 if clean_opts:
@@ -756,13 +756,13 @@ def build_recap(cond, answers, flags, severity, session_id=None):
             else:
                 ans_out = raw
         # Handle pathway routing - show actual answer, not pathway names
-        if ans_out.endswith("_pathway"):
-            # Extract the pathway name without "_pathway" suffix for display
-            display_name = ans_out.replace("_pathway", "").replace("_", " ").title()
-            line = templ.format(answer=display_name).strip()
+            if ans_out.endswith("_pathway"):
+                # Extract the pathway name without "_pathway" suffix for display
+                display_name = ans_out.replace("_pathway", "").replace("_", " ").title()
+                line = templ.format(answer=display_name).strip()
         elif re.match(r"^\s*You\s+\{answer\}\s+", templ, flags=re.IGNORECASE) and ans_out not in ("reported", "denied"):
-            # If template is of the form "You {answer} X" and ans_out is not reported/denied,
-            # rewrite to "You reported X with ans_out" for better readability
+        # If template is of the form "You {answer} X" and ans_out is not reported/denied,
+        # rewrite to "You reported X with ans_out" for better readability
             tail = re.sub(r"^\s*You\s+\{answer\}\s+", "", templ, flags=re.IGNORECASE).strip()
             line = f"You reported {tail} with {ans_out}"
         else:
@@ -787,14 +787,14 @@ def build_recap(cond, answers, flags, severity, session_id=None):
                     line = f"denied {ans_out}"
             else:
                 # Use the raw answer for display
-                line = templ.format(answer=ans_out).strip()
+            line = templ.format(answer=ans_out).strip()
             
         # Debug logging for recap generation
         print(f"[Aura-LLM] 🔍 Recap step: key='{key}', ans_out='{ans_out}', line='{line}', is_priority={key in pk}")
 
         # Check if this is a denial (none, no, neither answers)
         is_negative = "denied" in line.lower() or ans_out.lower() in ["none", "no", "neither"]
-        
+
         if key in pk:
             if is_negative:
                 priority_negatives.append(_strip_prefix(line))
@@ -957,7 +957,7 @@ def build_recap(cond, answers, flags, severity, session_id=None):
 
     # Get clinical summary from JSON if available
     clinical_summary = TRIAGE_DEFS[cond].get("clinical_summary", "")
-    
+
     recap_tpl = TRIAGE_DEFS[cond].get("recap","{summary} Overall this is classified as {severity}.")
     return substitute_name(
         recap_tpl.format(summary=summary,severity=severity,clinical_summary=clinical_summary,name=state.get("user_name") or ""),
@@ -1341,22 +1341,22 @@ def chat():
             
             # Prepare system message based on whether RAG was used
             if used_rag:
-                system_msg = "I am AuraVision, your medical assistant. Use the provided medical information to give accurate, helpful responses. If the information doesn't fully answer the question, say so and provide what context you can."
+                system_msg = "I am AuraVision, your personal assistant. Use the provided information to give accurate, helpful responses. Answer based on the context provided, and if the information doesn't fully answer the question, say so clearly."
             else:
-                # Check for casual greetings
-                casual_greetings = ["hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]
-                if any(greeting in prompt_norm for greeting in casual_greetings):
+            # Check for casual greetings
+            casual_greetings = ["hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]
+            if any(greeting in prompt_norm for greeting in casual_greetings):
                     system_msg = "I am AuraVision, your friendly personal assistant. Respond warmly to greetings and ask how I can help."
-                else:
+            else:
                     system_msg = "I am AuraVision, your friendly personal assistant."
             
             msgs = [{"role": "system", "content": system_msg}, {"role": "user", "content": final_prompt}]
             
             try:
-                stream=llm.create_chat_completion(messages=msgs,stream=True)
+            stream=llm.create_chat_completion(messages=msgs,stream=True)
                 casual_buf=""
-                for ch in stream:
-                    tok=ch.get("choices",[{}])[0].get("delta",{}).get("content","")
+            for ch in stream:
+                tok=ch.get("choices",[{}])[0].get("delta",{}).get("content","")
                     if not tok: continue; 
                     casual_buf+=tok
                     if re.search(r"[.!?]['\")\]]?\s*$",casual_buf):
