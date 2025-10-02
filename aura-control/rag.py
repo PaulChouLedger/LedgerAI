@@ -101,15 +101,31 @@ class AuraRAG:
         """
         start_time = time.time()
         
-        # Encode query
-        query_embedding = self.encoder.encode([query])
-        if len(query_embedding.shape) == 1:
-            query_embedding = query_embedding.reshape(1, -1)
-        elif query_embedding.shape[0] > 1:
-            query_embedding = query_embedding[0:1]  # Take first embedding
-        
-        # Ensure correct dtype for FAISS
-        query_embedding = np.array(query_embedding, dtype=np.float32)
+        # Encode query with error handling
+        try:
+            query_embedding = self.encoder.encode([query], convert_to_numpy=True)
+            print(f"[RAG] 🔍 Query embedding shape: {query_embedding.shape}, type: {type(query_embedding)}")
+            
+            # Handle different output formats
+            if isinstance(query_embedding, list):
+                query_embedding = np.array(query_embedding, dtype=np.float32)
+            elif not isinstance(query_embedding, np.ndarray):
+                query_embedding = np.array(query_embedding, dtype=np.float32)
+            
+            # Ensure 2D array for FAISS
+            if len(query_embedding.shape) == 1:
+                query_embedding = query_embedding.reshape(1, -1)
+            elif query_embedding.shape[0] > 1:
+                query_embedding = query_embedding[0:1]  # Take first embedding
+            
+            # Ensure float32 dtype
+            query_embedding = query_embedding.astype(np.float32)
+            
+            print(f"[RAG] 🔍 Final embedding shape: {query_embedding.shape}, dtype: {query_embedding.dtype}")
+            
+        except Exception as e:
+            print(f"[RAG] ❌ Encoding error: {e}")
+            raise Exception(f"Failed to encode query: {e}")
         
         # Search FAISS index
         distances, indices = self.index.search(query_embedding, k)
