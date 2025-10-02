@@ -13,8 +13,6 @@ from nlg import rewrite as nlg_rewrite
 
 # Import RAG module
 try:
-    import sys
-    sys.path.append('/Users/rcabello/Documents/GitHub/LedgerAI/aura-control')
     from rag import get_rag, search_medical_info
     RAG_AVAILABLE = True
     print("[Aura-LLM] ✅ RAG module loaded")

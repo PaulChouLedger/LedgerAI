@@ -19,6 +19,20 @@ COPY models/qwen2.5-1.5b-instruct-q4_0.gguf /models/qwen2.5-1.5b-instruct-q4_0.g
 # Install Python dependencies
 RUN pip3 install --no-cache-dir --ignore-installed flask python-dotenv --index-url https://pypi.org/simple
 
+# Install FAISS and RAG dependencies using conda (better ARM64 support)
+RUN apt-get update && apt-get install -y wget && \
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O miniconda.sh && \
+    bash miniconda.sh -b -p /opt/conda && \
+    rm miniconda.sh && \
+    /opt/conda/bin/conda install -c conda-forge faiss-cpu numpy sentence-transformers -y && \
+    /opt/conda/bin/conda clean -a
+
+# Add conda to PATH
+ENV PATH="/opt/conda/bin:$PATH"
+
+# Copy RAG module (will be copied from build context)
+COPY rag.py /app/rag.py
+
 # === Environment defaults (can be overridden by .env or -e) ===
 ENV MODEL_PATH=/models/qwen2.5-1.5b-instruct-q4_0.gguf
 ENV CHAT_FORMAT=qwen
