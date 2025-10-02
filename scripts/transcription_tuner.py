@@ -68,6 +68,7 @@ def transcribe_from_microphone():
         full_audio = []
         recording = False
         start_time = time.time()
+        silence_detected_time = None  # Track when silence is first detected
 
         with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32",
                             blocksize=FRAME_SIZE, device=device_index) as stream:
@@ -86,16 +87,19 @@ def transcribe_from_microphone():
                         recording = True
                         full_audio = [chunk]
                         silence_start = None
+                        silence_detected_time = None  # Reset silence detection time
                         start_time = time.time()
                     else:
                         full_audio.append(chunk)
                         silence_start = None
+                        silence_detected_time = None  # Reset silence detection time
                 else:
                     print(f"[Tuner] ⚪️ Silence Detected (confidence={vad_prob:.2f})")
                     if recording:
                         full_audio.append(chunk)
                         if silence_start is None:
                             silence_start = time.time()
+                            silence_detected_time = time.time()  # Record when silence is first detected
                         elif time.time() - silence_start > SILENCE_DURATION:
                             print("[Tuner] 🔇 Silence threshold reached → Ending transcription.")
                             break
@@ -108,12 +112,40 @@ def transcribe_from_microphone():
             print("[Tuner] ❌ No speech captured.\n")
             continue
 
+        # Start transcription timing
+        transcription_start_time = time.time()
+        
         audio_data = np.concatenate(full_audio).astype(np.float16)
         t0 = time.time()
         segments, _ = whisper_model.transcribe(audio_data, language="en", beam_size=5)
-        print(f"[Tuner] ⏱ Whisper latency: {time.time() - t0:.2f}s")
+        whisper_latency = time.time() - t0
+        
+        # Complete transcription timing
+        transcription_end_time = time.time()
+        
         text = " ".join([s.text.strip() for s in segments if s.text.strip()])
-        print(f"[Tuner] 📜 Transcribed Text: \"{text}\"\n" if text else "[Tuner] ❌ No text detected.\n")
+        
+        # Calculate comprehensive timing metrics
+        if silence_detected_time:
+            silence_to_transcription_time = transcription_start_time - silence_detected_time
+            silence_to_completion_time = transcription_end_time - silence_detected_time
+        else:
+            silence_to_transcription_time = 0
+            silence_to_completion_time = 0
+        
+        # Print comprehensive timing information
+        print(f"[Tuner] ⏱️ TIMING METRICS:")
+        print(f"  🔇 Silence detected to transcription start: {silence_to_transcription_time:.3f}s")
+        print(f"  🎯 Silence detected to completion: {silence_to_completion_time:.3f}s")
+        print(f"  🧠 Whisper processing latency: {whisper_latency:.3f}s")
+        print(f"  📊 Total audio duration: {len(audio_data) / SAMPLE_RATE:.3f}s")
+        
+        if text:
+            print(f"[Tuner] 📜 Transcribed Text: \"{text}\"")
+        else:
+            print("[Tuner] ❌ No text detected.")
+        
+        print()  # Empty line for readability
 
 if __name__ == "__main__":
     transcribe_from_microphone()
