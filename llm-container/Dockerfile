@@ -16,19 +16,14 @@ COPY models/qwen2.5-1.5b-instruct-q4_0.gguf /models/qwen2.5-1.5b-instruct-q4_0.g
 #COPY models/smollm2-1.7b-instruct-q4_k_m.gguf /models/smollm2-1.7b-instruct-q4_k_m.gguf
 #COPY models/DeepSeek-R1-Distill-Qwen-1.5B-Medical-COT.i1-Q4_K_M.gguf /models/DeepSeek-R1-Distill-Qwen-1.5B-Medical-COT.i1-Q4_K_M.gguf
 
-# Install Python dependencies
-RUN pip3 install --no-cache-dir --ignore-installed flask python-dotenv --index-url https://pypi.org/simple
-
-# Install FAISS and RAG dependencies using conda (better ARM64 support)
-RUN apt-get update && apt-get install -y wget && \
-    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh -O miniconda.sh && \
-    bash miniconda.sh -b -p /opt/conda && \
-    rm miniconda.sh && \
-    /opt/conda/bin/conda install -c conda-forge faiss-cpu numpy sentence-transformers -y && \
-    /opt/conda/bin/conda clean -a
-
-# Add conda to PATH
-ENV PATH="/opt/conda/bin:$PATH"
+# Install Python dependencies (including RAG dependencies)
+RUN pip3 install --no-cache-dir --ignore-installed \
+    flask \
+    python-dotenv \
+    faiss-cpu==1.7.4 \
+    numpy \
+    sentence-transformers \
+    --index-url https://pypi.org/simple
 
 # Copy RAG module (will be copied from build context)
 COPY rag.py /app/rag.py

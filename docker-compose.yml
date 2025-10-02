@@ -7,10 +7,11 @@ services:
       - ./shared:/shared
 
   llm:
-    image: aura-llm
+    image: aura-llm-rag
     network_mode: host
     volumes:
       - ./shared:/shared
+      - ./data:/app/data  # Mount embeddings data
 
   llm-trt:
     build: ./llm-container-trt
