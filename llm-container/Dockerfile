@@ -25,8 +25,9 @@ RUN pip3 install --no-cache-dir --ignore-installed \
     sentence-transformers \
     --index-url https://pypi.org/simple
 
-# Copy RAG module (will be copied from build context)
+# Copy RAG module and debug script
 COPY rag.py /app/rag.py
+COPY debug_rag.py /app/debug_rag.py
 
 # === Environment defaults (can be overridden by .env or -e) ===
 ENV MODEL_PATH=/models/qwen2.5-1.5b-instruct-q4_0.gguf
