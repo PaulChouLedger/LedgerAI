@@ -33,8 +33,8 @@ make -j$(nproc)
 make install
 
 # === Copy to /usr/local ===
-sudo cp -r ${install_dir}/* /usr/local/
-sudo ldconfig
+cp -r ${install_dir}/* /usr/local/
+ldconfig
 
 # === Build Python wheel ===
 cd ${CTRANSLATE_SOURCE}/python
