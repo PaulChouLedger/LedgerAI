@@ -14,7 +14,8 @@ class AuraRAG:
     def __init__(self, 
                  index_path: str = "data/embeddings/index.faiss",
                  chunks_path: str = "data/embeddings/doc_chunks.npy",
-                 model_name: str = "all-MiniLM-L6-v2"):
+                 model_name: str = "all-MiniLM-L6-v2",
+                 relevance_threshold: float = 0.3):
         """
         Initialize Aura RAG system with FAISS-GPU
         
@@ -26,6 +27,7 @@ class AuraRAG:
         self.index_path = index_path
         self.chunks_path = chunks_path
         self.model_name = model_name
+        self.relevance_threshold = relevance_threshold
         
         # Initialize components
         self.index = None
@@ -130,22 +132,94 @@ class AuraRAG:
         # Search FAISS index
         distances, indices = self.index.search(query_embedding, k)
         
-        # Format results
+        # Format results with relevance filtering
         results = []
         for i, (distance, idx) in enumerate(zip(distances[0], indices[0])):
             if idx < len(self.chunks):
                 chunk = self.chunks[idx]
-                results.append({
-                    'chunk': chunk,
-                    'score': float(1.0 / (1.0 + distance)),  # Convert distance to similarity
-                    'rank': i + 1,
-                    'distance': float(distance)
-                })
+                # Convert L2 distance to similarity score (0-1 range)
+                similarity_score = float(1.0 / (1.0 + distance))
+                
+                # Only include results above relevance threshold
+                if similarity_score >= self.relevance_threshold:
+                    results.append({
+                        'chunk': chunk,
+                        'score': similarity_score,
+                        'rank': i + 1,
+                        'distance': float(distance)
+                    })
         
         retrieval_time = time.time() - start_time
         print(f"[RAG] 🔍 Retrieved {len(results)} chunks in {retrieval_time:.3f}s")
         
         return results
+    
+    def should_use_rag(self, query: str) -> bool:
+        """
+        Determine if RAG should be used for this query based on content analysis
+        
+        Args:
+            query: User query string
+            
+        Returns:
+            Boolean indicating if RAG should be used
+        """
+        query_lower = query.lower()
+        
+        # Skip RAG for very short queries or greetings
+        if len(query.split()) < 2:
+            return False
+            
+        # Skip RAG for obvious greetings/casual conversation
+        casual_patterns = [
+            "hello", "hi", "hey", "good morning", "good afternoon", "good evening",
+            "how are you", "what's up", "thanks", "thank you", "bye", "goodbye"
+        ]
+        
+        if any(pattern in query_lower for pattern in casual_patterns):
+            return False
+            
+        # Use RAG for medical, scientific, or factual questions
+        rag_indicators = [
+            "what is", "who is", "who was", "what are", "how does", "why does",
+            "explain", "describe", "tell me about", "information about",
+            "symptoms", "treatment", "disease", "condition", "medical", "health",
+            "doctor", "patient", "diagnosis", "medicine", "drug", "medication"
+        ]
+        
+        if any(indicator in query_lower for indicator in rag_indicators):
+            return True
+            
+        # Default to using RAG for questions (contains question words)
+        question_words = ["what", "who", "where", "when", "why", "how", "which"]
+        if any(word in query_lower for word in question_words):
+            return True
+            
+        return False
+    
+    def smart_retrieve(self, query: str, k: int = 3) -> tuple[bool, List[Dict[str, Any]]]:
+        """
+        Smart retrieval that decides whether to use RAG and returns results
+        
+        Args:
+            query: User query string
+            k: Number of chunks to retrieve
+            
+        Returns:
+            Tuple of (should_use_rag, results)
+        """
+        if not self.should_use_rag(query):
+            return False, []
+            
+        results = self.retrieve(query, k)
+        
+        # If no results meet the relevance threshold, don't use RAG
+        if not results:
+            print(f"[RAG] 🚫 No relevant results found for query: '{query}'")
+            return False, []
+            
+        print(f"[RAG] ✅ Found {len(results)} relevant results for query: '{query}'")
+        return True, results
     
     def augment_prompt(self, user_query: str, context_chunks: List[Dict[str, Any]]) -> str:
         """
@@ -233,6 +307,26 @@ def search_medical_info(query: str, k: int = 3) -> str:
     """
     rag = get_rag()
     return rag.search_and_augment(query, k)
+
+def smart_search_medical_info(query: str, k: int = 3) -> tuple[bool, str]:
+    """
+    Smart wrapper that decides whether to use RAG and returns augmented prompt
+    
+    Args:
+        query: User query string
+        k: Number of chunks to retrieve
+        
+    Returns:
+        Tuple of (used_rag, prompt) where prompt is either augmented or original
+    """
+    rag = get_rag()
+    should_use, results = rag.smart_retrieve(query, k)
+    
+    if should_use and results:
+        augmented_prompt = rag.augment_prompt(query, results)
+        return True, augmented_prompt
+    else:
+        return False, query
 
 # Test function
 def test_rag():

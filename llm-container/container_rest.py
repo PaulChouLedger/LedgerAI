@@ -13,7 +13,7 @@ from nlg import rewrite as nlg_rewrite
 
 # Import RAG module
 try:
-    from rag import get_rag, search_medical_info
+    from rag import get_rag, search_medical_info, smart_search_medical_info
     RAG_AVAILABLE = True
     print("[Aura-LLM] ✅ RAG module loaded")
 except ImportError as e:
@@ -1323,14 +1323,35 @@ def chat():
     def generate():
         nonlocal condition, prompt, state
         if not condition:
-            # Check for casual greetings
-            casual_greetings = ["hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]
-            if any(greeting in prompt_norm for greeting in casual_greetings):
-                msgs=[{"role":"system","content":"I am AuraVision, your friendly personal assistant. Respond warmly to greetings and ask how I can help."},
-                      {"role":"user","content":prompt}]
+            # Try RAG first for non-triage queries
+            used_rag = False
+            final_prompt = prompt
+            
+            if RAG_AVAILABLE:
+                try:
+                    used_rag, final_prompt = smart_search_medical_info(prompt, k=3)
+                    if used_rag:
+                        print(f"[Aura-LLM] 🔍 Using RAG for query: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}'")
+                    else:
+                        print(f"[Aura-LLM] 💬 Using regular chat for query: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}'")
+                except Exception as e:
+                    print(f"[Aura-LLM] ⚠️ RAG error, falling back to regular chat: {e}")
+                    used_rag = False
+                    final_prompt = prompt
+            
+            # Prepare system message based on whether RAG was used
+            if used_rag:
+                system_msg = "I am AuraVision, your medical assistant. Use the provided medical information to give accurate, helpful responses. If the information doesn't fully answer the question, say so and provide what context you can."
             else:
-                msgs=[{"role":"system","content":"I am AuraVision, your friendly personal assistant."},
-                      {"role":"user","content":prompt}]
+                # Check for casual greetings
+                casual_greetings = ["hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]
+                if any(greeting in prompt_norm for greeting in casual_greetings):
+                    system_msg = "I am AuraVision, your friendly personal assistant. Respond warmly to greetings and ask how I can help."
+                else:
+                    system_msg = "I am AuraVision, your friendly personal assistant."
+            
+            msgs = [{"role": "system", "content": system_msg}, {"role": "user", "content": final_prompt}]
+            
             try:
                 stream=llm.create_chat_completion(messages=msgs,stream=True)
                 casual_buf=""
