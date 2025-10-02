@@ -5,8 +5,8 @@ WORKDIR /app
 # Copy REST API
 COPY container_rest.py /app/container_rest.py
 
-# Copy build script from scripts directory
-COPY scripts/build_ctranslate2.sh /app/build_ctranslate2.sh
+# Copy build script
+COPY build_ctranslate2.sh /app/build_ctranslate2.sh
 
 # Install faster-whisper and dependencies
 RUN pip3 install --break-system-packages --ignore-installed --no-cache-dir --index-url https://pypi.org/simple \
