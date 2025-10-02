@@ -84,7 +84,8 @@ def run_container(name, port, image, timeout=15):
         cmd += [
             "-e", f"MODEL_PATH={model_path}",
             "-e", f"CHAT_FORMAT={chat_format}",
-            "-e", f"N_CTX={n_ctx}"
+            "-e", f"N_CTX={n_ctx}",
+            "-v", f"{os.path.expanduser('~')}/LedgerAI/data:/app/data"  # Mount embeddings data
         ]
 
     if name == "aura-whisper":
@@ -93,14 +94,6 @@ def run_container(name, port, image, timeout=15):
             "-v", f"{os.path.expanduser('~')}/LedgerAI/whisper-container/cache/whisper_trt:/root/.cache/whisper_trt"
         ]
 
-    if name == "aura-memory":
-        cmd += [
-            "-p", "8000:8000",
-            "-v", f"{os.path.expanduser('~')}/LedgerAI/memory-container/models:/workspace/models",
-            "-v", f"{os.path.expanduser('~')}/LedgerAI/memory-container/memory_store:/workspace/memory_store",
-            "-v", f"{os.path.expanduser('~')}/LedgerAI/memory-container/data:/workspace/data",
-            "-v", f"{os.path.expanduser('~')}/LedgerAI/memory-container/rerank_models:/workspace/rerank_models"
-        ]
 
     cmd.append(image)
 
@@ -128,6 +121,32 @@ def warm_up_llm():
     except Exception as e:
         print(f"[Aura] ⚠️ LLM warm-up failed: {e}")
 
+# === RAG warm-up ===
+def warm_up_rag():
+    try:
+        print("[Aura] 🔍 Warming up RAG system...")
+        # Test RAG stats
+        stats_response = requests.get("http://localhost:11434/rag/stats", timeout=5)
+        if stats_response.status_code == 200:
+            stats = stats_response.json()
+            print(f"[Aura] ✅ RAG loaded: {stats.get('chunks_loaded', 0)} medical documents")
+        else:
+            print("[Aura] ⚠️ RAG stats endpoint not available")
+            
+        # Test RAG search
+        search_response = requests.post(
+            "http://localhost:11434/rag/search",
+            json={"query": "test", "k": 1},
+            timeout=10
+        )
+        if search_response.status_code == 200:
+            print("[Aura] ✅ RAG search working")
+        else:
+            print("[Aura] ⚠️ RAG search endpoint not working")
+            
+    except Exception as e:
+        print(f"[Aura] ⚠️ RAG warm-up failed: {e}")
+
 # === Start services after GUI is ready ===
 def start_services():
     TIMEOUT = 10  # unified timeout for all containers
@@ -137,17 +156,14 @@ def start_services():
         print("[Aura] ❌ Whisper container failed. Aborting.")
         return
 
-#    memory_ok = run_container("aura-memory", 8000, "aura-memory:latest", timeout=TIMEOUT)
-#    if not memory_ok:
-#        print("[Aura] ❌ Memory container failed. Aborting.")
-#        return
 
-    llm_ok = run_container("aura-llm", 11434, "aura-llm:latest", timeout=TIMEOUT)
+    llm_ok = run_container("aura-llm", 11434, "aura-llm-rag:latest", timeout=TIMEOUT)
     if not llm_ok:
         print("[Aura] ❌ LLM container failed. Aborting.")
         return
 
     warm_up_llm()
+    warm_up_rag()
     print("[Aura] 🎙️ Starting listener...")
     threading.Thread(target=listen, daemon=True).start()
 
