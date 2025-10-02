@@ -13,18 +13,3 @@ services:
       - ./shared:/shared
       - ./data:/app/data  # Mount embeddings data
 
-  llm-trt:
-    build: ./llm-container-trt
-    image: aura-llm-trt
-    network_mode: host
-    ports:
-      - "11435:11434"  # Different port for TensorRT-LLM
-    volumes:
-      - ./shared:/shared
-
-  tts:
-    build: ./tts-container
-    network_mode: host
-    env_file: .env        # 👈 Add this line
-    volumes:
-      - ./shared:/shared
