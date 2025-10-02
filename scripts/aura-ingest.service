@@ -1,0 +1,18 @@
+[Unit]
+Description=Aura Auto-Ingest Pipeline
+After=network.target
+
+[Service]
+Type=simple
+User=aura
+Group=aura
+WorkingDirectory=/home/aura/LedgerAI
+Environment=PATH=/home/aura/miniconda3/envs/aura-env/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/aura/miniconda3/envs/aura-env/bin/python scripts/auto_ingest.py --continuous --interval 30
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -85,7 +85,7 @@ def run_container(name, port, image, timeout=15):
             "-e", f"MODEL_PATH={model_path}",
             "-e", f"CHAT_FORMAT={chat_format}",
             "-e", f"N_CTX={n_ctx}",
-            "-v", f"{os.path.expanduser('~')}/LedgerAI/data:/app/data"  # Mount embeddings data
+            "-v", f"{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))}:/app/data"  # Mount embeddings data
         ]
 
     if name == "aura-whisper":

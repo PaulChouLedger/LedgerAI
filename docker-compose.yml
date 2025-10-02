@@ -11,4 +11,5 @@ services:
     volumes:
       - ./shared:/shared
       - ./data:/app/data  # Mount embeddings data
+    working_dir: /app
 
