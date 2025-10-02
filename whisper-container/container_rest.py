@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from whisper_trt import load_trt_model
+from faster_whisper import WhisperModel
 import soundfile as sf
 import numpy as np
 import scipy.signal
@@ -8,7 +8,8 @@ import os
 import time
 
 app = Flask(__name__)
-model = load_trt_model("small.en")  # Supported models: "base.en", "small.en", etc.
+# Use faster-whisper with same model as transcription tuner
+model = WhisperModel("distil-small.en", device="cuda", compute_type="float16")
 
 # Timing statistics tracking
 timing_stats = {
@@ -58,9 +59,10 @@ def transcribe():
         audio = preprocess_audio(tmp_path)
         preprocessing_time = time.time() - preprocessing_start
         
-        # Time model transcription
+        # Time model transcription (using faster-whisper like transcription tuner)
         transcription_start = time.time()
-        text = model.transcribe(audio)
+        segments, _ = model.transcribe(audio, language="en", beam_size=5)
+        text = " ".join([s.text.strip() for s in segments if s.text.strip()])
         transcription_time = time.time() - transcription_start
         
         # Calculate total processing time
@@ -118,7 +120,7 @@ def health():
     if timing_stats["total_requests"] == 0:
         return jsonify({
             "status": "healthy",
-            "model": "small.en",
+            "model": "distil-small.en",
             "requests_processed": 0,
             "message": "No requests processed yet"
         })
@@ -130,7 +132,7 @@ def health():
     
     return jsonify({
         "status": "healthy",
-        "model": "small.en",
+        "model": "distil-small.en",
         "requests_processed": timing_stats["total_requests"],
         "timing_stats": {
             "avg_processing_time": round(avg_processing_time, 3),
