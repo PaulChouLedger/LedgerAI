@@ -20,8 +20,8 @@ COPY models/qwen2.5-1.5b-instruct-q4_0.gguf /models/qwen2.5-1.5b-instruct-q4_0.g
 RUN pip3 install --no-cache-dir --ignore-installed \
     flask \
     python-dotenv \
+    numpy==1.24.4 \
     faiss-cpu==1.7.4 \
-    numpy \
     sentence-transformers \
     --index-url https://pypi.org/simple
 
