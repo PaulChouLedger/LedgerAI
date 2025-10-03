@@ -14,6 +14,7 @@ from nlg import rewrite as nlg_rewrite
 # RAG module - completely disabled during startup
 RAG_AVAILABLE = False
 RAG_INITIALIZED = False
+print("[Aura-LLM] 🚫 RAG module DISABLED during startup")
 
 def initialize_rag_safely():
     """Initialize RAG system safely after LLM is loaded"""
@@ -1340,6 +1341,7 @@ def chat():
             used_rag = False
             final_prompt = prompt
             
+            print(f"[Aura-LLM] 🔍 RAG status: AVAILABLE={RAG_AVAILABLE}, INITIALIZED={RAG_INITIALIZED}")
             if RAG_AVAILABLE and RAG_INITIALIZED:
                 try:
                     used_rag, final_prompt = smart_search_medical_info(prompt, k=3)
