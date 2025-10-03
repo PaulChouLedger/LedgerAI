@@ -139,8 +139,7 @@ def warm_up_llm():
 def initialize_rag_delayed():
     """Initialize RAG system after core services are stable"""
     try:
-        print("[Aura] 🔍 Delayed RAG initialization starting...")
-        time.sleep(5)  # Wait for core services to be fully stable
+        print("[Aura] 🔍 RAG initialization starting...")
         
         print("[Aura] 🔍 Initializing RAG system...")
         
@@ -238,13 +237,13 @@ def start_services():
         print("[Aura] ❌ LLM warm-up failed. Aborting.")
         return
     
-    # Step 5: Start listener (after core services are ready)
+    # Step 5: Initialize RAG immediately after LLM warm-up
+    print("[Aura] 🔍 Initializing RAG system...")
+    initialize_rag_delayed()  # Run synchronously, not in thread
+    
+    # Step 6: Start listener (after RAG is initialized)
     print("[Aura] 🎙️ Starting listener...")
     threading.Thread(target=listen, daemon=True).start()
-    
-    # Step 6: Initialize RAG after core services are stable
-    print("[Aura] 🔍 Initializing RAG system...")
-    threading.Thread(target=initialize_rag_delayed, daemon=True).start()
     
     print("[Aura] ✅ Core services started successfully!")
 
