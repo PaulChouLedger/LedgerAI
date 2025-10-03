@@ -33,6 +33,21 @@ except Exception as e:
 
 # Load TensorRT model - no fallbacks
 print("[Whisper] 🔧 Loading TensorRT model with memory protection...")
+print(f"[Whisper] 🔍 Cache directories:")
+print(f"[Whisper] 🔍 /root/.cache/whisper: {os.path.exists('/root/.cache/whisper')}")
+print(f"[Whisper] 🔍 /root/.cache/whisper_trt: {os.path.exists('/root/.cache/whisper_trt')}")
+if os.path.exists('/root/.cache/whisper'):
+    print(f"[Whisper] 🔍 Whisper cache contents: {os.listdir('/root/.cache/whisper')}")
+if os.path.exists('/root/.cache/whisper_trt'):
+    print(f"[Whisper] 🔍 WhisperTRT cache contents: {os.listdir('/root/.cache/whisper_trt')}")
+
+# Check if we can find the cached model files
+import glob
+whisper_files = glob.glob('/root/.cache/whisper/*.pt')
+whisper_trt_files = glob.glob('/root/.cache/whisper_trt/*.pth')
+print(f"[Whisper] 🔍 Found whisper files: {whisper_files}")
+print(f"[Whisper] 🔍 Found whisper_trt files: {whisper_trt_files}")
+
 model = load_trt_model("base.en")
 print("[Whisper] ✅ TensorRT model loaded successfully")
 
