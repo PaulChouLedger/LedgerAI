@@ -100,7 +100,14 @@ def run_container(name, port, image, timeout=15):
     cmd.append(image)
 
     for attempt in range(3):
-        subprocess.Popen(cmd)
+        print(f"[Aura] 🚀 Running command: {' '.join(cmd)}")
+        try:
+            # Start container in background
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            print(f"[Aura] 🚀 Container started with PID: {process.pid}")
+        except Exception as e:
+            print(f"[Aura] ⚠️ Container command error: {e}")
+        
         # Use appropriate health check endpoint
         if name == "aura-whisper":
             health_url = f"http://localhost:{port}/health"
@@ -224,6 +231,16 @@ def start_services():
     
     # Step 1: Start Whisper container first (TensorRT)
     print("[Aura] 🎤 Starting Whisper container (TensorRT)...")
+    print("[Aura] 🔍 Checking if whisper container exists...")
+    try:
+        result = subprocess.run(["docker", "ps", "-a", "--filter", "name=aura-whisper", "--format", "{{.Names}}"], 
+                              capture_output=True, text=True)
+        if "aura-whisper" in result.stdout:
+            print("[Aura] 🔍 Found existing aura-whisper container, removing...")
+            subprocess.run(["docker", "rm", "-f", "aura-whisper"])
+    except:
+        pass
+    
     whisper_ok = run_container("aura-whisper", 5000, "aura-whisper:latest", timeout=30)
     if not whisper_ok:
         print("[Aura] ❌ Whisper container failed. Aborting.")

@@ -13,6 +13,9 @@ os.environ['TRT_LOGGER_VERBOSITY'] = '1'
 os.environ['MALLOC_CHECK_'] = '0'  # Disable malloc debugging
 os.environ['PYTHONMALLOC'] = 'malloc'  # Use system malloc
 os.environ['PYTHONUNBUFFERED'] = '1'
+os.environ['PYTHONHASHSEED'] = '0'  # Fix hash randomization
+os.environ['PYTHONDONTWRITEBYTECODE'] = '1'  # Disable .pyc files
+os.environ['PYTHONIOENCODING'] = 'utf-8'  # Fix encoding issues
 
 app = Flask(__name__)
 
@@ -23,10 +26,13 @@ print("[Whisper] 🔧 Setting up TensorRT environment...")
 # Clear any existing CUDA context and set memory limits
 try:
     import torch
+    import gc
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()  # Clear IPC resources
         # Set memory fraction to prevent OOM
-        torch.cuda.set_per_process_memory_fraction(0.8)
+        torch.cuda.set_per_process_memory_fraction(0.7)  # Reduced from 0.8
+        gc.collect()  # Force garbage collection
         print("[Whisper] 🔧 Cleared CUDA cache and set memory limit")
 except Exception as e:
     print(f"[Whisper] ⚠️ CUDA setup warning: {e}")
@@ -50,6 +56,24 @@ print(f"[Whisper] 🔍 Found whisper_trt files: {whisper_trt_files}")
 
 model = load_trt_model("base.en")
 print("[Whisper] ✅ TensorRT model loaded successfully")
+
+# Add cleanup function for graceful shutdown
+import atexit
+import signal
+
+def cleanup():
+    print("[Whisper] 🧹 Cleaning up resources...")
+    try:
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+        gc.collect()
+    except:
+        pass
+
+atexit.register(cleanup)
+signal.signal(signal.SIGTERM, lambda s, f: cleanup())
+signal.signal(signal.SIGINT, lambda s, f: cleanup())
 
 # Timing statistics tracking
 timing_stats = {
