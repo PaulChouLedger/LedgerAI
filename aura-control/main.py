@@ -87,11 +87,12 @@ def run_container(name, port, image, timeout=15):
             "-e", f"N_CTX={n_ctx}",
             "-v", f"{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))}:/app/data"  # Mount embeddings data
         ]
-
-    if name == "aura-whisper":
+    elif name == "aura-whisper":
+        # Mount whisper cache directories for faster startup
+        whisper_cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'whisper-container', 'cache'))
         cmd += [
-            "-v", f"{os.path.expanduser('~')}/LedgerAI/whisper-container/cache/whisper:/root/.cache/whisper",
-            "-v", f"{os.path.expanduser('~')}/LedgerAI/whisper-container/cache/whisper_trt:/root/.cache/whisper_trt"
+            "-v", f"{whisper_cache_dir}/whisper:/root/.cache/whisper",
+            "-v", f"{whisper_cache_dir}/whisper_trt:/root/.cache/whisper_trt"
         ]
 
 
@@ -214,9 +215,9 @@ def start_services():
     
     print("[Aura] 🚀 Starting Aura services...")
     
-    # Step 1: Start Whisper container first
+    # Step 1: Start Whisper container first (TensorRT needs more time)
     print("[Aura] 🎤 Starting Whisper container...")
-    whisper_ok = run_container("aura-whisper", 5000, "aura-whisper:latest", timeout=TIMEOUT)
+    whisper_ok = run_container("aura-whisper", 5000, "aura-whisper:latest", timeout=30)  # Increased timeout for TensorRT
     if not whisper_ok:
         print("[Aura] ❌ Whisper container failed. Aborting.")
         return
