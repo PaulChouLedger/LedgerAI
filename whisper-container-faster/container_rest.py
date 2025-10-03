@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from whisper_trt import load_trt_model
+from faster_whisper import WhisperModel
 import soundfile as sf
 import numpy as np
 import scipy.signal
@@ -8,8 +8,10 @@ import os
 import time
 
 app = Flask(__name__)
-# Load TensorRT optimized model
-model = load_trt_model("base.en")
+# Use faster-whisper with same model as transcription tuner
+# Set cache directory to avoid re-downloading models
+cache_dir = "/app/cache/whisper"
+model = WhisperModel("distil-small.en", device="cuda", compute_type="float16", download_root=cache_dir)
 
 # Timing statistics tracking
 timing_stats = {
