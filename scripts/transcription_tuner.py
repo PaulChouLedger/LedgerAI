@@ -114,7 +114,8 @@ def transcribe_from_microphone():
 
         # Start transcription timing
         transcription_start_time = time.time()
-        print(f"[Tuner] 🚀 TRANSCRIPTION PROCESSING START: {time.strftime('%H:%M:%S.%f')[:-3]}")
+        start_timestamp = time.strftime('%H:%M:%S.%f')
+        print(f"[Tuner] 🚀 TRANSCRIPTION PROCESSING START: {start_timestamp}")
         
         audio_data = np.concatenate(full_audio).astype(np.float16)
         t0 = time.time()
@@ -123,7 +124,8 @@ def transcribe_from_microphone():
         
         # Complete transcription timing
         transcription_end_time = time.time()
-        print(f"[Tuner] ✅ TRANSCRIPTION PROCESSING END: {time.strftime('%H:%M:%S.%f')[:-3]}")
+        end_timestamp = time.strftime('%H:%M:%S.%f')
+        print(f"[Tuner] ✅ TRANSCRIPTION PROCESSING END: {end_timestamp}")
         
         text = " ".join([s.text.strip() for s in segments if s.text.strip()])
         
