@@ -11,10 +11,9 @@ from datetime import datetime, timedelta
 from glob import glob
 from nlg import rewrite as nlg_rewrite
 
-# RAG module - completely disabled during startup
+# RAG module - will be initialized after LLM warm-up
 RAG_AVAILABLE = False
 RAG_INITIALIZED = False
-print("[Aura-LLM] 🚫 RAG module DISABLED during startup - VERSION 2.0 - NO RAG LOADING")
 
 # RAG functions (loaded only when RAG is initialized)
 get_rag_fn = None

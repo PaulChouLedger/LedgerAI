@@ -48,19 +48,14 @@ def stream_container_logs(name):
 # === Health check for container via HTTP ===
 def wait_for_container(url, name, timeout=15):
     print(f"[Aura] ⏳ Waiting for {name} to respond (timeout {timeout}s)...")
-    for i in range(timeout * 10):
+    for _ in range(timeout * 10):
         try:
             response = requests.get(url, timeout=1)
-            print(f"[Aura] 🔍 Health check attempt {i+1}: status={response.status_code}")
-            if response.status_code == 200:
-                print(f"[Aura] ✅ {name} is online and healthy.")
+            if response.status_code in (200, 404):
+                print(f"[Aura] ✅ {name} is online.")
                 return True
-            elif response.status_code == 404:
-                print(f"[Aura] ⚠️ {name} is online but endpoint not found.")
-                return True
-        except requests.exceptions.RequestException as e:
-            if i % 10 == 0:  # Print every 10 attempts (1 second)
-                print(f"[Aura] 🔍 Health check attempt {i+1}: {e}")
+        except requests.exceptions.RequestException:
+            pass
         time.sleep(0.1)
     print(f"[Aura] ❌ Timeout waiting for {name}.")
     return False
@@ -105,11 +100,9 @@ def run_container(name, port, image, timeout=15):
     cmd.append(image)
 
     for attempt in range(3):
-        print(f"[Aura] 🚀 Running command: {' '.join(cmd)}")
         try:
             # Start container in background
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            print(f"[Aura] 🚀 Container started with PID: {process.pid}")
+            subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except Exception as e:
             print(f"[Aura] ⚠️ Container command error: {e}")
         
@@ -117,7 +110,6 @@ def run_container(name, port, image, timeout=15):
         if name == "aura-whisper":
             health_url = f"http://localhost:{port}/health"
             # Give TensorRT container extra time to initialize
-            print(f"[Aura] ⏳ Waiting 5s for {name} to initialize...")
             time.sleep(5)
         else:
             health_url = f"http://localhost:{port}"
@@ -238,16 +230,7 @@ def start_services():
     print("[Aura] 🚀 Starting Aura services...")
     
     # Step 1: Start Whisper container first (TensorRT)
-    print("[Aura] 🎤 Starting Whisper container (TensorRT)...")
-    print("[Aura] 🔍 Checking if whisper container exists...")
-    try:
-        result = subprocess.run(["docker", "ps", "-a", "--filter", "name=aura-whisper", "--format", "{{.Names}}"], 
-                              capture_output=True, text=True)
-        if "aura-whisper" in result.stdout:
-            print("[Aura] 🔍 Found existing aura-whisper container, removing...")
-            subprocess.run(["docker", "rm", "-f", "aura-whisper"])
-    except:
-        pass
+    print("[Aura] 🎤 Starting Whisper container...")
     
     whisper_ok = run_container("aura-whisper", 5000, "aura-whisper:latest", timeout=10)
     if not whisper_ok:
