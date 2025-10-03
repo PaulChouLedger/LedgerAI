@@ -14,7 +14,7 @@ from nlg import rewrite as nlg_rewrite
 # RAG module - completely disabled during startup
 RAG_AVAILABLE = False
 RAG_INITIALIZED = False
-print("[Aura-LLM] 🚫 RAG module DISABLED during startup")
+print("[Aura-LLM] 🚫 RAG module DISABLED during startup - VERSION 2.0 - NO RAG LOADING")
 
 # RAG functions (loaded only when RAG is initialized)
 get_rag_fn = None

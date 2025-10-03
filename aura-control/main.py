@@ -224,7 +224,7 @@ def start_services():
     
     # Step 2: Start LLM container
     print("[Aura] 🧠 Starting LLM container...")
-    llm_ok = run_container("aura-llm", 11434, "aura-llm-rag:latest", timeout=TIMEOUT)
+    llm_ok = run_container("aura-llm", 11434, "aura-llm:latest", timeout=TIMEOUT)
     if not llm_ok:
         print("[Aura] ❌ LLM container failed. Aborting.")
         return
