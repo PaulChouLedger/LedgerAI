@@ -1336,11 +1336,11 @@ def chat():
     def generate():
         nonlocal condition, prompt, state
         if not condition:
-            # Try RAG first for non-triage queries
+            # Try RAG first for non-triage queries (only if RAG is initialized)
             used_rag = False
             final_prompt = prompt
             
-            if RAG_AVAILABLE:
+            if RAG_AVAILABLE and RAG_INITIALIZED:
                 try:
                     used_rag, final_prompt = smart_search_medical_info(prompt, k=3)
                     if used_rag:
@@ -1351,6 +1351,8 @@ def chat():
                     print(f"[Aura-LLM] ⚠️ RAG error, falling back to regular chat: {e}")
                     used_rag = False
                     final_prompt = prompt
+            else:
+                print(f"[Aura-LLM] 💬 Using regular chat for query: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}' (RAG not available)")
             
             # Prepare system message based on whether RAG was used
             if used_rag:
@@ -1410,8 +1412,8 @@ def chat():
 @app.route("/rag/search", methods=["POST"])
 def rag_search():
     """Search medical information using RAG"""
-    if not RAG_AVAILABLE:
-        return jsonify({"error": "RAG module not available"}), 500
+    if not RAG_AVAILABLE or not RAG_INITIALIZED:
+        return jsonify({"error": "RAG module not available or not initialized"}), 500
     
     try:
         data = request.get_json()
@@ -1448,8 +1450,8 @@ def rag_init():
 @app.route("/rag/stats", methods=["GET"])
 def rag_stats():
     """Get RAG system statistics"""
-    if not RAG_AVAILABLE:
-        return jsonify({"error": "RAG module not available"}), 500
+    if not RAG_AVAILABLE or not RAG_INITIALIZED:
+        return jsonify({"error": "RAG module not available or not initialized"}), 500
     
     try:
         from rag import get_rag
