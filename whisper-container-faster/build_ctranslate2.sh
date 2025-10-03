@@ -43,4 +43,3 @@ python3 setup.py bdist_wheel --dist-dir /tmp
 
 # === Install locally ===
 pip install --force-reinstall /tmp/ctranslate2*.whl
-pip install "numpy==1.24.4"

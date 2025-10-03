@@ -1,10 +1,13 @@
+import os
+# Set NumPy compatibility before importing
+os.environ['NUMPY_DISABLE_ABI_COMPATIBILITY'] = '1'
+
 from flask import Flask, request, jsonify
 from faster_whisper import WhisperModel
 import soundfile as sf
 import numpy as np
 import scipy.signal
 import tempfile
-import os
 import time
 
 app = Flask(__name__)
