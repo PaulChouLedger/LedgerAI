@@ -1351,7 +1351,9 @@ def chat():
             final_prompt = prompt
             
             print(f"[Aura-LLM] 🔍 RAG status: AVAILABLE={RAG_AVAILABLE}, INITIALIZED={RAG_INITIALIZED}")
+            print(f"[Aura-LLM] 🔍 RAG functions: get_rag_fn={get_rag_fn is not None}, search_medical_info_fn={search_medical_info_fn is not None}, smart_search_medical_info_fn={smart_search_medical_info_fn is not None}")
             if RAG_AVAILABLE and RAG_INITIALIZED and smart_search_medical_info_fn:
+                print(f"[Aura-LLM] 🔍 About to call smart_search_medical_info_fn")
                 try:
                     used_rag, final_prompt = smart_search_medical_info_fn(prompt, k=3)
                     if used_rag:
