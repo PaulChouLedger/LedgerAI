@@ -140,7 +140,7 @@ def initialize_rag_delayed():
     """Initialize RAG system after core services are stable"""
     try:
         print("[Aura] 🔍 Delayed RAG initialization starting...")
-        time.sleep(10)  # Wait for core services to be fully stable
+        time.sleep(5)  # Wait for core services to be fully stable
         
         print("[Aura] 🔍 Initializing RAG system...")
         
@@ -215,27 +215,27 @@ def start_services():
     
     print("[Aura] 🚀 Starting Aura services...")
     
-    # Step 1: Start LLM container first (most critical)
+    # Step 1: Start Whisper container first
+    print("[Aura] 🎤 Starting Whisper container...")
+    whisper_ok = run_container("aura-whisper", 5000, "aura-whisper:latest", timeout=TIMEOUT)
+    if not whisper_ok:
+        print("[Aura] ❌ Whisper container failed. Aborting.")
+        return
+    
+    # Step 2: Start LLM container
     print("[Aura] 🧠 Starting LLM container...")
     llm_ok = run_container("aura-llm", 11434, "aura-llm-rag:latest", timeout=TIMEOUT)
     if not llm_ok:
         print("[Aura] ❌ LLM container failed. Aborting.")
         return
     
-    # Step 2: Wait for LLM to be fully ready
+    # Step 3: Wait for LLM to be fully ready
     print("[Aura] ⏳ Waiting for LLM to initialize...")
-    time.sleep(5)  # Give LLM time to load model
+    time.sleep(10)  # Give LLM more time to load model
     
-    # Step 3: Warm up LLM (without RAG first)
+    # Step 4: Warm up LLM (without RAG first)
     if not warm_up_llm():
         print("[Aura] ❌ LLM warm-up failed. Aborting.")
-        return
-    
-    # Step 4: Start Whisper container
-    print("[Aura] 🎤 Starting Whisper container...")
-    whisper_ok = run_container("aura-whisper", 5000, "aura-whisper:latest", timeout=TIMEOUT)
-    if not whisper_ok:
-        print("[Aura] ❌ Whisper container failed. Aborting.")
         return
     
     # Step 5: Start listener (after core services are ready)

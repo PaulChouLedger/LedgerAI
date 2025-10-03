@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from glob import glob
 from nlg import rewrite as nlg_rewrite
 
-# Import RAG module with delayed initialization
+# RAG module - completely disabled during startup
 RAG_AVAILABLE = False
 RAG_INITIALIZED = False
 
