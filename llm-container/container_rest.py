@@ -634,7 +634,7 @@ def update_flags_from_answer(cond, key, ans, state, session_id=None):
                     print(f"[Aura-LLM] ❌ No answers defined for key: {key}")
                     return
             else:
-            sev = s["answers"][opt]
+                sev = s["answers"][opt]
                 print(f"[Aura-LLM] 🔍 Severity/pathway: {sev}")
 
             # Inline clarify object with followup_question
