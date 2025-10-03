@@ -92,7 +92,8 @@ def run_container(name, port, image, timeout=15):
         whisper_cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'whisper-container', 'cache'))
         cmd += [
             "-v", f"{whisper_cache_dir}/whisper:/root/.cache/whisper",
-            "-v", f"{whisper_cache_dir}/whisper_trt:/root/.cache/whisper_trt"
+            "-v", f"{whisper_cache_dir}/whisper_trt:/root/.cache/whisper_trt",
+            "--gpus", "all"  # Add GPU support for TensorRT
         ]
 
 
