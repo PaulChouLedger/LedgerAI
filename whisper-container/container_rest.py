@@ -7,9 +7,28 @@ import tempfile
 import os
 import time
 
+# TensorRT optimizations
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['TRT_LOGGER_VERBOSITY'] = '1'
+
 app = Flask(__name__)
-# Load TensorRT optimized model
+
+# Load TensorRT optimized model with memory management
+print("[Whisper] 🔧 Loading TensorRT model...")
+print("[Whisper] 🔧 Setting up TensorRT environment...")
+
+# Clear any existing CUDA context
+try:
+    import torch
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        print("[Whisper] 🔧 Cleared CUDA cache")
+except:
+    pass
+
+# Load model with explicit memory management
 model = load_trt_model("base.en")
+print("[Whisper] ✅ TensorRT model loaded successfully")
 
 # Timing statistics tracking
 timing_stats = {

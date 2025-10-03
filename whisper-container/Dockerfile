@@ -16,5 +16,14 @@ RUN rm -f /root/.cache/whisper_trt && mkdir -p /root/.cache/whisper_trt && \
 RUN pip3 install --break-system-packages --ignore-installed --no-cache-dir --index-url https://pypi.org/simple \
     flask soundfile numpy==1.26.4 scipy
 
+# Set memory optimization environment variables for TensorRT
+ENV PYTHONUNBUFFERED=1
+ENV OMP_NUM_THREADS=4
+ENV MKL_NUM_THREADS=4
+ENV CUDA_VISIBLE_DEVICES=0
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+ENV TRT_LOGGER_VERBOSITY=1
+
 EXPOSE 5000
 CMD ["python3", "/app/container_rest.py"]
