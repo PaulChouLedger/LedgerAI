@@ -4,8 +4,6 @@ WORKDIR /app
 
 # Copy REST API
 COPY container_rest.py /app/container_rest.py
-#COPY cache/whisper /root/.cache/whisper
-#COPY cache/whisper_trt /root/.cache/whisper_trt
 
 # Patch both whisper_trt and OpenAI whisper cache dirs
 RUN rm -f /root/.cache/whisper_trt && mkdir -p /root/.cache/whisper_trt && \
@@ -24,6 +22,9 @@ ENV CUDA_VISIBLE_DEVICES=0
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
 ENV TRT_LOGGER_VERBOSITY=1
+ENV MALLOC_CHECK_=0
+ENV PYTHONMALLOC=malloc
+ENV LD_PRELOAD=""
 
 EXPOSE 5000
 CMD ["python3", "/app/container_rest.py"]

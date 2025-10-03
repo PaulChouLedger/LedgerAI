@@ -7,9 +7,12 @@ import tempfile
 import os
 import time
 
-# TensorRT optimizations
+# TensorRT optimizations and memory fixes
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 os.environ['TRT_LOGGER_VERBOSITY'] = '1'
+os.environ['MALLOC_CHECK_'] = '0'  # Disable malloc debugging
+os.environ['PYTHONMALLOC'] = 'malloc'  # Use system malloc
+os.environ['PYTHONUNBUFFERED'] = '1'
 
 app = Flask(__name__)
 
@@ -17,16 +20,19 @@ app = Flask(__name__)
 print("[Whisper] 🔧 Loading TensorRT model...")
 print("[Whisper] 🔧 Setting up TensorRT environment...")
 
-# Clear any existing CUDA context
+# Clear any existing CUDA context and set memory limits
 try:
     import torch
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
-        print("[Whisper] 🔧 Cleared CUDA cache")
-except:
-    pass
+        # Set memory fraction to prevent OOM
+        torch.cuda.set_per_process_memory_fraction(0.8)
+        print("[Whisper] 🔧 Cleared CUDA cache and set memory limit")
+except Exception as e:
+    print(f"[Whisper] ⚠️ CUDA setup warning: {e}")
 
-# Load model with explicit memory management
+# Load TensorRT model - no fallbacks
+print("[Whisper] 🔧 Loading TensorRT model with memory protection...")
 model = load_trt_model("base.en")
 print("[Whisper] ✅ TensorRT model loaded successfully")
 

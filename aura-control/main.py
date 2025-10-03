@@ -100,7 +100,13 @@ def run_container(name, port, image, timeout=15):
 
     for attempt in range(3):
         subprocess.Popen(cmd)
-        if wait_for_container(f"http://localhost:{port}", name, timeout=timeout):
+        # Use appropriate health check endpoint
+        if name == "aura-whisper":
+            health_url = f"http://localhost:{port}/health"
+        else:
+            health_url = f"http://localhost:{port}"
+        
+        if wait_for_container(health_url, name, timeout=timeout):
             stream_container_logs(name)
             return True
         print(f"[Aura] 🔁 Retry {attempt + 1}/3 for {name}")
@@ -215,9 +221,9 @@ def start_services():
     
     print("[Aura] 🚀 Starting Aura services...")
     
-    # Step 1: Start Whisper container first (TensorRT needs more time)
-    print("[Aura] 🎤 Starting Whisper container...")
-    whisper_ok = run_container("aura-whisper", 5000, "aura-whisper:latest", timeout=30)  # Increased timeout for TensorRT
+    # Step 1: Start Whisper container first (TensorRT)
+    print("[Aura] 🎤 Starting Whisper container (TensorRT)...")
+    whisper_ok = run_container("aura-whisper", 5000, "aura-whisper:latest", timeout=30)
     if not whisper_ok:
         print("[Aura] ❌ Whisper container failed. Aborting.")
         return
