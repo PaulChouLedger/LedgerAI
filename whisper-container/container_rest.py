@@ -59,10 +59,10 @@ def transcribe():
         audio = preprocess_audio(tmp_path)
         preprocessing_time = time.time() - preprocessing_start
         
-        # Time model transcription (using faster-whisper like transcription tuner)
+        # Time model transcription (using whisper_trt API)
         transcription_start = time.time()
-        segments, _ = model.transcribe(audio, language="en", beam_size=5)
-        text = " ".join([s.text.strip() for s in segments if s.text.strip()])
+        result = model.transcribe(audio)
+        text = result["text"].strip()
         transcription_time = time.time() - transcription_start
         
         # Calculate total processing time
