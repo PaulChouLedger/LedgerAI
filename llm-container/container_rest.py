@@ -16,14 +16,23 @@ RAG_AVAILABLE = False
 RAG_INITIALIZED = False
 print("[Aura-LLM] 🚫 RAG module DISABLED during startup")
 
+# RAG functions (loaded only when RAG is initialized)
+get_rag_fn = None
+search_medical_info_fn = None
+smart_search_medical_info_fn = None
+
 def initialize_rag_safely():
     """Initialize RAG system safely after LLM is loaded"""
-    global RAG_AVAILABLE, RAG_INITIALIZED
+    global RAG_AVAILABLE, RAG_INITIALIZED, get_rag_fn, search_medical_info_fn, smart_search_medical_info_fn
     try:
         print("[Aura-LLM] 🔍 Initializing RAG system...")
         time.sleep(5)  # Wait for LLM to be fully loaded
         
         from rag import get_rag, search_medical_info, smart_search_medical_info
+        get_rag_fn = get_rag
+        search_medical_info_fn = search_medical_info
+        smart_search_medical_info_fn = smart_search_medical_info
+        
         RAG_AVAILABLE = True
         RAG_INITIALIZED = True
         print("[Aura-LLM] ✅ RAG module loaded and initialized")
@@ -1342,9 +1351,9 @@ def chat():
             final_prompt = prompt
             
             print(f"[Aura-LLM] 🔍 RAG status: AVAILABLE={RAG_AVAILABLE}, INITIALIZED={RAG_INITIALIZED}")
-            if RAG_AVAILABLE and RAG_INITIALIZED:
+            if RAG_AVAILABLE and RAG_INITIALIZED and smart_search_medical_info_fn:
                 try:
-                    used_rag, final_prompt = smart_search_medical_info(prompt, k=3)
+                    used_rag, final_prompt = smart_search_medical_info_fn(prompt, k=3)
                     if used_rag:
                         print(f"[Aura-LLM] 🔍 Using RAG for query: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}'")
                     else:
@@ -1414,7 +1423,7 @@ def chat():
 @app.route("/rag/search", methods=["POST"])
 def rag_search():
     """Search medical information using RAG"""
-    if not RAG_AVAILABLE or not RAG_INITIALIZED:
+    if not RAG_AVAILABLE or not RAG_INITIALIZED or not search_medical_info_fn:
         return jsonify({"error": "RAG module not available or not initialized"}), 500
     
     try:
@@ -1426,7 +1435,7 @@ def rag_search():
             return jsonify({"error": "Query is required"}), 400
         
         # Search medical information
-        augmented_prompt = search_medical_info(query, k)
+        augmented_prompt = search_medical_info_fn(query, k)
         
         return jsonify({
             "query": query,
@@ -1452,12 +1461,11 @@ def rag_init():
 @app.route("/rag/stats", methods=["GET"])
 def rag_stats():
     """Get RAG system statistics"""
-    if not RAG_AVAILABLE or not RAG_INITIALIZED:
+    if not RAG_AVAILABLE or not RAG_INITIALIZED or not get_rag_fn:
         return jsonify({"error": "RAG module not available or not initialized"}), 500
     
     try:
-        from rag import get_rag
-        rag = get_rag()
+        rag = get_rag_fn()
         stats = rag.get_stats()
         return jsonify(stats)
     except Exception as e:
