@@ -540,12 +540,12 @@ def add_phrasing_fingerprint(state, text):
 def llm_chat_once(messages, gen_kwargs):
     """Non-stream single completion via llama_cpp with thread safety."""
     with llm_lock:
-    try:
-        resp = llm.create_chat_completion(messages=messages, **{k: v for k, v in gen_kwargs.items() if v is not None})
-        return resp
-    except Exception as e:
+        try:
+            resp = llm.create_chat_completion(messages=messages, **{k: v for k, v in gen_kwargs.items() if v is not None})
+            return resp
+        except Exception as e:
             print(f"[LLM] ❌ Error in llm_chat_once: {e}")
-        return {"choices":[{"message":{"content":""}}]}
+            return {"choices":[{"message":{"content":""}}]}
 
 def get_steps(cond, state):
     steps = TRIAGE_DEFS[cond].get("steps", [])
