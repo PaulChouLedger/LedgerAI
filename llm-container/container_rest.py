@@ -762,7 +762,7 @@ def build_recap(cond, answers, flags, severity, session_id=None):
             if key in ["onset", "when", "timing", "duration"]:
                 if clean_opts:
                     ans_out = pretty_join(clean_opts, 'and')
-        else:
+                else:
                     ans_out = pretty_join(opts, 'and')
             else:
                 if clean_opts:
@@ -779,10 +779,10 @@ def build_recap(cond, answers, flags, severity, session_id=None):
             else:
                 ans_out = raw
         # Handle pathway routing - show actual answer, not pathway names
-            if ans_out.endswith("_pathway"):
-                # Extract the pathway name without "_pathway" suffix for display
-                display_name = ans_out.replace("_pathway", "").replace("_", " ").title()
-                line = templ.format(answer=display_name).strip()
+        if ans_out.endswith("_pathway"):
+            # Extract the pathway name without "_pathway" suffix for display
+            display_name = ans_out.replace("_pathway", "").replace("_", " ").title()
+            line = templ.format(answer=display_name).strip()
         elif re.match(r"^\s*You\s+\{answer\}\s+", templ, flags=re.IGNORECASE) and ans_out not in ("reported", "denied"):
         # If template is of the form "You {answer} X" and ans_out is not reported/denied,
         # rewrite to "You reported X with ans_out" for better readability
@@ -810,7 +810,7 @@ def build_recap(cond, answers, flags, severity, session_id=None):
                     line = f"denied {ans_out}"
             else:
                 # Use the raw answer for display
-            line = templ.format(answer=ans_out).strip()
+                line = templ.format(answer=ans_out).strip()
             
         # Debug logging for recap generation
         print(f"[Aura-LLM] 🔍 Recap step: key='{key}', ans_out='{ans_out}', line='{line}', is_priority={key in pk}")
@@ -1371,20 +1371,20 @@ def chat():
             if used_rag:
                 system_msg = "I am AuraVision, your personal assistant. Use the provided information to give accurate, helpful responses. Answer based on the context provided, and if the information doesn't fully answer the question, say so clearly."
             else:
-            # Check for casual greetings
-            casual_greetings = ["hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]
-            if any(greeting in prompt_norm for greeting in casual_greetings):
+                # Check for casual greetings
+                casual_greetings = ["hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]
+                if any(greeting in prompt_norm for greeting in casual_greetings):
                     system_msg = "I am AuraVision, your friendly personal assistant. Respond warmly to greetings and ask how I can help."
-            else:
+                else:
                     system_msg = "I am AuraVision, your friendly personal assistant."
             
             msgs = [{"role": "system", "content": system_msg}, {"role": "user", "content": final_prompt}]
             
             try:
-            stream=llm.create_chat_completion(messages=msgs,stream=True)
+                stream=llm.create_chat_completion(messages=msgs,stream=True)
                 casual_buf=""
-            for ch in stream:
-                tok=ch.get("choices",[{}])[0].get("delta",{}).get("content","")
+                for ch in stream:
+                    tok=ch.get("choices",[{}])[0].get("delta",{}).get("content","")
                     if not tok: continue; 
                     casual_buf+=tok
                     if re.search(r"[.!?]['\")\]]?\s*$",casual_buf):
