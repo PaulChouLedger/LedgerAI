@@ -75,11 +75,14 @@ class AuraRAG:
         
         # Load sentence transformer (force CPU for Jetson compatibility)
         try:
+            # Set environment variables before importing torch
+            os.environ['OMP_NUM_THREADS'] = '4'
+            os.environ['MKL_NUM_THREADS'] = '4'
+            
             import torch
             
             # Force CPU-only mode to avoid Jetson GPU tensor issues
             torch.set_num_threads(4)  # Optimize for Jetson CPU
-            torch.set_num_interop_threads(4)
             device = 'cpu'
             
             # Additional safety measures
@@ -135,6 +138,11 @@ class AuraRAG:
             List of relevant document chunks with metadata
         """
         start_time = time.time()
+        
+        # Check if encoder is available
+        if self.encoder is None:
+            print("[RAG] ⚠️ Encoder not available, cannot perform semantic search")
+            return []
         
         # Encode query with robust error handling
         try:
