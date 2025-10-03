@@ -48,14 +48,19 @@ def stream_container_logs(name):
 # === Health check for container via HTTP ===
 def wait_for_container(url, name, timeout=15):
     print(f"[Aura] ⏳ Waiting for {name} to respond (timeout {timeout}s)...")
-    for _ in range(timeout * 10):
+    for i in range(timeout * 10):
         try:
             response = requests.get(url, timeout=1)
-            if response.status_code in (200, 404):
-                print(f"[Aura] ✅ {name} is online.")
+            print(f"[Aura] 🔍 Health check attempt {i+1}: status={response.status_code}")
+            if response.status_code == 200:
+                print(f"[Aura] ✅ {name} is online and healthy.")
                 return True
-        except requests.exceptions.RequestException:
-            pass
+            elif response.status_code == 404:
+                print(f"[Aura] ⚠️ {name} is online but endpoint not found.")
+                return True
+        except requests.exceptions.RequestException as e:
+            if i % 10 == 0:  # Print every 10 attempts (1 second)
+                print(f"[Aura] 🔍 Health check attempt {i+1}: {e}")
         time.sleep(0.1)
     print(f"[Aura] ❌ Timeout waiting for {name}.")
     return False
@@ -111,6 +116,9 @@ def run_container(name, port, image, timeout=15):
         # Use appropriate health check endpoint
         if name == "aura-whisper":
             health_url = f"http://localhost:{port}/health"
+            # Give TensorRT container extra time to initialize
+            print(f"[Aura] ⏳ Waiting 5s for {name} to initialize...")
+            time.sleep(5)
         else:
             health_url = f"http://localhost:{port}"
         
@@ -225,7 +233,7 @@ def warm_up_rag():
 
 # === Start services after GUI is ready ===
 def start_services():
-    TIMEOUT = 15  # Increased timeout for container startup
+    TIMEOUT = 10  # Reduced timeout for faster startup
     
     print("[Aura] 🚀 Starting Aura services...")
     
@@ -241,7 +249,7 @@ def start_services():
     except:
         pass
     
-    whisper_ok = run_container("aura-whisper", 5000, "aura-whisper:latest", timeout=30)
+    whisper_ok = run_container("aura-whisper", 5000, "aura-whisper:latest", timeout=10)
     if not whisper_ok:
         print("[Aura] ❌ Whisper container failed. Aborting.")
         return
