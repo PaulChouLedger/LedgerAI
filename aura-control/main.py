@@ -116,56 +116,105 @@ def warm_up_tts():
 def warm_up_llm():
     try:
         print("[Aura] 🧠 Warming up LLM...")
-        requests.post("http://localhost:11434/chat", json={"prompt": "..."}, timeout=5)
-        print("[Aura] ✅ LLM warm-up complete.")
+        # Try multiple times with increasing timeout
+        for attempt in range(3):
+            try:
+                response = requests.post("http://localhost:11434/chat", 
+                                       json={"prompt": "Hello"}, 
+                                       timeout=10 + (attempt * 5))
+                if response.status_code == 200:
+                    print("[Aura] ✅ LLM warm-up complete.")
+                    return True
+            except requests.exceptions.RequestException as e:
+                print(f"[Aura] ⚠️ LLM warm-up attempt {attempt + 1} failed: {e}")
+                if attempt < 2:
+                    time.sleep(3)
+        print("[Aura] ⚠️ LLM warm-up failed after 3 attempts")
+        return False
     except Exception as e:
         print(f"[Aura] ⚠️ LLM warm-up failed: {e}")
+        return False
 
 # === RAG warm-up ===
 def warm_up_rag():
     try:
         print("[Aura] 🔍 Warming up RAG system...")
-        # Test RAG stats
-        stats_response = requests.get("http://localhost:11434/rag/stats", timeout=5)
-        if stats_response.status_code == 200:
-            stats = stats_response.json()
-            print(f"[Aura] ✅ RAG loaded: {stats.get('chunks_loaded', 0)} medical documents")
+        
+        # Test RAG stats with retries
+        for attempt in range(3):
+            try:
+                stats_response = requests.get("http://localhost:11434/rag/stats", timeout=10)
+                if stats_response.status_code == 200:
+                    stats = stats_response.json()
+                    print(f"[Aura] ✅ RAG loaded: {stats.get('chunks_loaded', 0)} medical documents")
+                    break
+                else:
+                    print(f"[Aura] ⚠️ RAG stats attempt {attempt + 1} failed: {stats_response.status_code}")
+            except requests.exceptions.RequestException as e:
+                print(f"[Aura] ⚠️ RAG stats attempt {attempt + 1} failed: {e}")
+                if attempt < 2:
+                    time.sleep(2)
         else:
-            print("[Aura] ⚠️ RAG stats endpoint not available")
+            print("[Aura] ⚠️ RAG stats endpoint not available after 3 attempts")
             
-        # Test RAG search
-        search_response = requests.post(
-            "http://localhost:11434/rag/search",
-            json={"query": "test", "k": 1},
-            timeout=10
-        )
-        if search_response.status_code == 200:
-            print("[Aura] ✅ RAG search working")
+        # Test RAG search with retries
+        for attempt in range(3):
+            try:
+                search_response = requests.post(
+                    "http://localhost:11434/rag/search",
+                    json={"query": "test", "k": 1},
+                    timeout=15
+                )
+                if search_response.status_code == 200:
+                    print("[Aura] ✅ RAG search working")
+                    break
+                else:
+                    print(f"[Aura] ⚠️ RAG search attempt {attempt + 1} failed: {search_response.status_code}")
+            except requests.exceptions.RequestException as e:
+                print(f"[Aura] ⚠️ RAG search attempt {attempt + 1} failed: {e}")
+                if attempt < 2:
+                    time.sleep(2)
         else:
-            print("[Aura] ⚠️ RAG search endpoint not working")
+            print("[Aura] ⚠️ RAG search endpoint not working after 3 attempts")
             
     except Exception as e:
         print(f"[Aura] ⚠️ RAG warm-up failed: {e}")
 
 # === Start services after GUI is ready ===
 def start_services():
-    TIMEOUT = 10  # unified timeout for all containers
-
-    whisper_ok = run_container("aura-whisper", 5000, "aura-whisper:latest", timeout=TIMEOUT)
-    if not whisper_ok:
-        print("[Aura] ❌ Whisper container failed. Aborting.")
-        return
-
-
+    TIMEOUT = 15  # Increased timeout for container startup
+    
+    print("[Aura] 🚀 Starting Aura services...")
+    
+    # Step 1: Start LLM container first (most critical)
+    print("[Aura] 🧠 Starting LLM container...")
     llm_ok = run_container("aura-llm", 11434, "aura-llm-rag:latest", timeout=TIMEOUT)
     if not llm_ok:
         print("[Aura] ❌ LLM container failed. Aborting.")
         return
-
+    
+    # Step 2: Wait for LLM to be fully ready
+    print("[Aura] ⏳ Waiting for LLM to initialize...")
+    time.sleep(5)  # Give LLM time to load model
+    
+    # Step 3: Warm up LLM
     warm_up_llm()
+    
+    # Step 4: Start Whisper container
+    print("[Aura] 🎤 Starting Whisper container...")
+    whisper_ok = run_container("aura-whisper", 5000, "aura-whisper:latest", timeout=TIMEOUT)
+    if not whisper_ok:
+        print("[Aura] ❌ Whisper container failed. Aborting.")
+        return
+    
+    # Step 5: Warm up RAG (after LLM is ready)
     warm_up_rag()
+    
+    # Step 6: Start listener (last, after all services are ready)
     print("[Aura] 🎙️ Starting listener...")
     threading.Thread(target=listen, daemon=True).start()
+    
+    print("[Aura] ✅ All services started successfully!")
 
 # === Main Entrypoint ===
 def main():

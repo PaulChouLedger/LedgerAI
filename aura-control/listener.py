@@ -15,13 +15,13 @@ SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.2
-VAD_THRESHOLD = 0.30  # Lowered threshold to detect quieter speech
+VAD_THRESHOLD = 0.35  # Slightly higher threshold to reduce false triggers
 MIC_GAIN = 4.5 # Increased gain - good amplitude range, no clipping detected
 MIN_SPEECH_DURATION = 0.20  # Minimum speech duration in seconds to prevent noise triggers
-VAD_RESET_THRESHOLD = 0.2
+VAD_RESET_THRESHOLD = 0.15  # Lower threshold for reset
 # If VAD stays below this for too long, reset
-VAD_RESET_COUNT = 10  # Base number of consecutive low VAD readings before reset
-VAD_RESET_MULTIPLIER = 5  # Multiply by this to get actual reset threshold (50 readings)
+VAD_RESET_COUNT = 20  # Base number of consecutive low VAD readings before reset
+VAD_RESET_MULTIPLIER = 3  # Multiply by this to get actual reset threshold (60 readings)
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
