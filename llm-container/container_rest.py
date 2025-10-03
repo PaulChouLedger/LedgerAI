@@ -287,7 +287,7 @@ def detect_condition(prompt, session_id: str | None = None):
         
         if not has_medical_content:
             print(f"[Aura-LLM] 💬 Casual greeting detected: '{p}' -> no triage trigger")
-        return None
+            return None
         else:
             print(f"[Aura-LLM] 💬 Greeting with medical content detected: '{p}' -> proceeding with triage")
     
