@@ -61,9 +61,21 @@ def transcribe():
         
         # Time model transcription (using whisper_trt API)
         transcription_start = time.time()
+        start_timestamp = time.strftime('%H:%M:%S') + f".{int((transcription_start % 1) * 1000000):06d}"
+        print(f"[Whisper] 🚀 TRANSCRIPTION PROCESSING START: {start_timestamp}")
+        
+        print(f"[Whisper] 🔍 Audio data shape: {audio.shape}, duration: {len(audio) / 16000:.3f}s")
+        print(f"[Whisper] 🧠 Starting WhisperTRT transcription at {time.time():.6f}")
+        
         result = model.transcribe(audio)
         text = result["text"].strip()
-        transcription_time = time.time() - transcription_start
+        
+        transcription_end = time.time()
+        end_timestamp = time.strftime('%H:%M:%S') + f".{int((transcription_end % 1) * 1000000):06d}"
+        print(f"[Whisper] ✅ TRANSCRIPTION PROCESSING END: {end_timestamp}")
+        
+        transcription_time = transcription_end - transcription_start
+        print(f"[Whisper] 🧠 WhisperTRT transcription completed at {transcription_end:.6f}, latency: {transcription_time:.6f}s")
         
         # Calculate total processing time
         total_time = time.time() - request_start_time
@@ -87,10 +99,10 @@ def transcribe():
         print(f"  📥 Request to completion: {total_time:.3f}s")
         print(f"  📁 File processing: {file_processing_time:.3f}s")
         print(f"  🔧 Audio preprocessing: {preprocessing_time:.3f}s")
-        print(f"  🧠 Model transcription: {transcription_time:.3f}s")
-        print(f"  📊 Audio duration: {audio_duration:.3f}s")
+        print(f"  🧠 WhisperTRT processing latency: {transcription_time:.3f}s")
+        print(f"  📊 Total audio duration: {audio_duration:.3f}s")
         print(f"  ⚡ Efficiency RTF: {efficiency:.2f}x")
-        print(f"  📝 Transcribed: \"{text}\"")
+        print(f"[Whisper] 📜 Transcribed Text: \"{text}\"")
         print()  # Empty line for readability
         
         # Clean up temp file

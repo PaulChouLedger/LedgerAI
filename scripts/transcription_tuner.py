@@ -114,17 +114,22 @@ def transcribe_from_microphone():
 
         # Start transcription timing
         transcription_start_time = time.time()
-        start_timestamp = time.strftime('%H:%M:%S.%f')
+        start_timestamp = time.strftime('%H:%M:%S') + f".{int((transcription_start_time % 1) * 1000000):06d}"
         print(f"[Tuner] 🚀 TRANSCRIPTION PROCESSING START: {start_timestamp}")
         
         audio_data = np.concatenate(full_audio).astype(np.float16)
+        print(f"[Tuner] 🔍 Audio data shape: {audio_data.shape}, duration: {len(audio_data) / SAMPLE_RATE:.3f}s")
+        
         t0 = time.time()
+        print(f"[Tuner] 🧠 Starting Whisper transcription at {time.time():.6f}")
         segments, _ = whisper_model.transcribe(audio_data, language="en", beam_size=5)
-        whisper_latency = time.time() - t0
+        t1 = time.time()
+        whisper_latency = t1 - t0
+        print(f"[Tuner] 🧠 Whisper transcription completed at {t1:.6f}, latency: {whisper_latency:.6f}s")
         
         # Complete transcription timing
         transcription_end_time = time.time()
-        end_timestamp = time.strftime('%H:%M:%S.%f')
+        end_timestamp = time.strftime('%H:%M:%S') + f".{int((transcription_end_time % 1) * 1000000):06d}"
         print(f"[Tuner] ✅ TRANSCRIPTION PROCESSING END: {end_timestamp}")
         
         text = " ".join([s.text.strip() for s in segments if s.text.strip()])
