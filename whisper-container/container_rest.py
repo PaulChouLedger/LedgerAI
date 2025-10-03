@@ -9,7 +9,9 @@ import time
 
 app = Flask(__name__)
 # Use faster-whisper with same model as transcription tuner
-model = WhisperModel("distil-small.en", device="cuda", compute_type="float16")
+# Set cache directory to avoid re-downloading models
+cache_dir = "/app/cache/whisper"
+model = WhisperModel("distil-small.en", device="cuda", compute_type="float16", download_root=cache_dir)
 
 # Timing statistics tracking
 timing_stats = {

@@ -16,5 +16,8 @@ RUN pip3 install --break-system-packages --ignore-installed --no-cache-dir --ind
 RUN chmod +x /app/build_ctranslate2.sh && \
     /app/build_ctranslate2.sh
 
+# Create cache directory
+RUN mkdir -p /app/cache/whisper
+
 EXPOSE 5000
 CMD ["python3", "/app/container_rest.py"]

@@ -4,6 +4,7 @@ services:
     network_mode: host
     volumes:
       - ./shared:/shared
+      - ./whisper-container/cache:/app/cache  # Mount whisper model cache
 
   llm:
     image: aura-llm-rag
