@@ -13,6 +13,14 @@ import time
 os.environ['CUDA_VISIBLE_DEVICES'] = ''
 os.environ['OMP_NUM_THREADS'] = '4'
 
+# Additional PyTorch isolation
+os.environ['TORCH_USE_CUDA_DSA'] = '0'
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
+
+import torch
+torch.set_num_threads(4)
+torch.set_num_interop_threads(4)
+
 from sentence_transformers import SentenceTransformer
 
 class AuraRAG:
@@ -66,16 +74,28 @@ class AuraRAG:
             raise FileNotFoundError(f"Document chunks not found: {self.chunks_path}")
         
         # Load sentence transformer (force CPU for Jetson compatibility)
-        import torch
-        
-        # Force CPU-only mode to avoid Jetson GPU tensor issues
-        torch.set_num_threads(4)  # Optimize for Jetson CPU
-        device = 'cpu'
-        
-        self.encoder = SentenceTransformer(self.model_name, device=device)
-        # Ensure model is on CPU
-        self.encoder = self.encoder.to('cpu')
-        print(f"[RAG] ✅ Loaded encoder: {self.model_name} (device: {device}, threads: 4)")
+        try:
+            import torch
+            
+            # Force CPU-only mode to avoid Jetson GPU tensor issues
+            torch.set_num_threads(4)  # Optimize for Jetson CPU
+            torch.set_num_interop_threads(4)
+            device = 'cpu'
+            
+            # Additional safety measures
+            torch.backends.cudnn.enabled = False
+            torch.backends.cuda.matmul.allow_tf32 = False
+            
+            self.encoder = SentenceTransformer(self.model_name, device=device)
+            # Ensure model is on CPU
+            self.encoder = self.encoder.to('cpu')
+            print(f"[RAG] ✅ Loaded encoder: {self.model_name} (device: {device}, threads: 4)")
+            
+        except Exception as e:
+            print(f"[RAG] ❌ Failed to load sentence transformer: {e}")
+            # Fallback: create a dummy encoder that returns zeros
+            self.encoder = None
+            print("[RAG] ⚠️ Using fallback encoder (no semantic search)")
         
         # Check GPU availability (FAISS-GPU not available on ARM64/Jetson)
         try:
@@ -141,8 +161,12 @@ class AuraRAG:
             print(f"[RAG] ❌ Encoding error: {e}")
             raise Exception(f"Failed to encode query: {e}")
         
-        # Search FAISS index
-        distances, indices = self.index.search(query_embedding, k)
+        # Search FAISS index with error handling
+        try:
+            distances, indices = self.index.search(query_embedding, k)
+        except Exception as e:
+            print(f"[RAG] ❌ FAISS search error: {e}")
+            return []
         
         # Format results with relevance filtering
         results = []

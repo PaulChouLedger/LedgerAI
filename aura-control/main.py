@@ -136,11 +136,36 @@ def warm_up_llm():
         return False
 
 # === RAG warm-up ===
-def warm_up_rag():
+def initialize_rag_delayed():
+    """Initialize RAG system after core services are stable"""
     try:
-        print("[Aura] 🔍 Warming up RAG system...")
+        print("[Aura] 🔍 Delayed RAG initialization starting...")
+        time.sleep(10)  # Wait for core services to be fully stable
         
-        # Test RAG stats with retries
+        print("[Aura] 🔍 Initializing RAG system...")
+        
+        # Initialize RAG system
+        for attempt in range(3):
+            try:
+                init_response = requests.post("http://localhost:11434/rag/init", timeout=30)
+                if init_response.status_code == 200:
+                    result = init_response.json()
+                    if result.get("status") == "success":
+                        print("[Aura] ✅ RAG system initialized successfully")
+                        break
+                    else:
+                        print(f"[Aura] ⚠️ RAG init attempt {attempt + 1} failed: {result.get('message')}")
+                else:
+                    print(f"[Aura] ⚠️ RAG init attempt {attempt + 1} failed: {init_response.status_code}")
+            except requests.exceptions.RequestException as e:
+                print(f"[Aura] ⚠️ RAG init attempt {attempt + 1} failed: {e}")
+                if attempt < 2:
+                    time.sleep(5)
+        else:
+            print("[Aura] ⚠️ RAG initialization failed after 3 attempts")
+            return
+        
+        # Test RAG stats
         for attempt in range(3):
             try:
                 stats_response = requests.get("http://localhost:11434/rag/stats", timeout=10)
@@ -157,7 +182,7 @@ def warm_up_rag():
         else:
             print("[Aura] ⚠️ RAG stats endpoint not available after 3 attempts")
             
-        # Test RAG search with retries
+        # Test RAG search
         for attempt in range(3):
             try:
                 search_response = requests.post(
@@ -178,7 +203,11 @@ def warm_up_rag():
             print("[Aura] ⚠️ RAG search endpoint not working after 3 attempts")
             
     except Exception as e:
-        print(f"[Aura] ⚠️ RAG warm-up failed: {e}")
+        print(f"[Aura] ⚠️ Delayed RAG initialization failed: {e}")
+
+def warm_up_rag():
+    """Legacy function - now calls delayed initialization"""
+    initialize_rag_delayed()
 
 # === Start services after GUI is ready ===
 def start_services():
@@ -197,8 +226,10 @@ def start_services():
     print("[Aura] ⏳ Waiting for LLM to initialize...")
     time.sleep(5)  # Give LLM time to load model
     
-    # Step 3: Warm up LLM
-    warm_up_llm()
+    # Step 3: Warm up LLM (without RAG first)
+    if not warm_up_llm():
+        print("[Aura] ❌ LLM warm-up failed. Aborting.")
+        return
     
     # Step 4: Start Whisper container
     print("[Aura] 🎤 Starting Whisper container...")
@@ -207,14 +238,15 @@ def start_services():
         print("[Aura] ❌ Whisper container failed. Aborting.")
         return
     
-    # Step 5: Warm up RAG (after LLM is ready)
-    warm_up_rag()
-    
-    # Step 6: Start listener (last, after all services are ready)
+    # Step 5: Start listener (after core services are ready)
     print("[Aura] 🎙️ Starting listener...")
     threading.Thread(target=listen, daemon=True).start()
     
-    print("[Aura] ✅ All services started successfully!")
+    # Step 6: Initialize RAG after core services are stable
+    print("[Aura] 🔍 Initializing RAG system...")
+    threading.Thread(target=initialize_rag_delayed, daemon=True).start()
+    
+    print("[Aura] ✅ Core services started successfully!")
 
 # === Main Entrypoint ===
 def main():

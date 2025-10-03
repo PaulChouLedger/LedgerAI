@@ -11,14 +11,27 @@ from datetime import datetime, timedelta
 from glob import glob
 from nlg import rewrite as nlg_rewrite
 
-# Import RAG module
-try:
-    from rag import get_rag, search_medical_info, smart_search_medical_info
-    RAG_AVAILABLE = True
-    print("[Aura-LLM] ✅ RAG module loaded")
-except ImportError as e:
-    print(f"[Aura-LLM] ⚠️ RAG module not available: {e}")
-    RAG_AVAILABLE = False
+# Import RAG module with delayed initialization
+RAG_AVAILABLE = False
+RAG_INITIALIZED = False
+
+def initialize_rag_safely():
+    """Initialize RAG system safely after LLM is loaded"""
+    global RAG_AVAILABLE, RAG_INITIALIZED
+    try:
+        print("[Aura-LLM] 🔍 Initializing RAG system...")
+        time.sleep(5)  # Wait for LLM to be fully loaded
+        
+        from rag import get_rag, search_medical_info, smart_search_medical_info
+        RAG_AVAILABLE = True
+        RAG_INITIALIZED = True
+        print("[Aura-LLM] ✅ RAG module loaded and initialized")
+    except ImportError as e:
+        print(f"[Aura-LLM] ⚠️ RAG module not available: {e}")
+        RAG_AVAILABLE = False
+    except Exception as e:
+        print(f"[Aura-LLM] ❌ RAG initialization failed: {e}")
+        RAG_AVAILABLE = False
 
 app = Flask(__name__)
 load_dotenv()
@@ -1417,6 +1430,18 @@ def rag_search():
             "k": k
         })
         
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/rag/init", methods=["POST"])
+def rag_init():
+    """Initialize RAG system"""
+    try:
+        initialize_rag_safely()
+        if RAG_AVAILABLE:
+            return jsonify({"status": "success", "message": "RAG initialized"})
+        else:
+            return jsonify({"status": "failed", "message": "RAG initialization failed"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
