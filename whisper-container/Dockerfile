@@ -19,5 +19,10 @@ RUN chmod +x /app/build_ctranslate2.sh && \
 # Create cache directory
 RUN mkdir -p /app/cache/whisper
 
+# Set CUDA environment variables
+ENV CUDA_VISIBLE_DEVICES=0
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
 EXPOSE 5000
 CMD ["python3", "/app/container_rest.py"]
