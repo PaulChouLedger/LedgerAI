@@ -33,9 +33,11 @@ class FileUploadDialog(QDialog):
         self.setWindowTitle("Document Upload - AuraVision")
         # Test with smaller size first
         self.setFixedSize(800, 800)  # Smaller size for testing
-        self.setWindowFlags(Qt.FramelessWindowHint)  # Remove title bar but allow normal positioning
+        self.setWindowFlags(Qt.Window | Qt.WindowStaysOnTopHint)  # Normal window with stay on top
         self.move(100, 100)  # Position away from edge
-        print("[Upload] 📐 Dialog size set to 1080x1080, positioned at (0,0)")
+        print("[Upload] 📐 Dialog size set to 800x800, positioned at (100,100)")
+        self.raise_()  # Bring to front
+        self.activateWindow()  # Activate the window
         self.show()  # Show the dialog
         print("[Upload] 👁️ Dialog should now be visible")
         self.setStyleSheet("""
@@ -43,7 +45,7 @@ class FileUploadDialog(QDialog):
                 background-color: #1a1a1a;
                 color: white;
                 border-radius: 400px;  /* Circle for 800x800 */
-                border: 5px solid #4CAF50;  /* Green border for visibility */
+                border: 10px solid #4CAF50;  /* Thicker green border for visibility */
             }
             QLabel {
                 color: white;
@@ -592,10 +594,28 @@ class UploadWorker(QThread):
         
         self.finished.emit(success_count, error_count)
 
+# Global variable to prevent multiple dialogs
+_current_dialog = None
+
 def show_upload_dialog():
     """Show the file upload dialog"""
+    global _current_dialog
+    
+    # Prevent multiple dialogs
+    if _current_dialog is not None:
+        print("[Upload] ⚠️ Dialog already open, bringing to front...")
+        _current_dialog.raise_()
+        _current_dialog.activateWindow()
+        return
+    
     print("[Upload] 🚀 Opening upload dialog...")
-    dialog = FileUploadDialog()
-    print("[Upload] 📱 Dialog created, showing...")
-    dialog.exec_()
-    print("[Upload] ✅ Dialog closed")
+    
+    try:
+        _current_dialog = FileUploadDialog()
+        print("[Upload] 📱 Dialog created, showing...")
+        _current_dialog.exec_()
+        print("[Upload] ✅ Dialog closed")
+    except Exception as e:
+        print(f"[Upload] ❌ Dialog error: {e}")
+    finally:
+        _current_dialog = None

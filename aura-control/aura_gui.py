@@ -60,7 +60,8 @@ class AuraGUI(QMainWindow):
                 background-color: rgba(25, 25, 25, 200);
             }
         """)
-        self.upload_btn.clicked.connect(show_upload_dialog)
+        # Add debounce to prevent multiple rapid clicks
+        self.upload_btn.clicked.connect(self._debounced_upload_click)
         layout.addWidget(self.upload_btn)
         
         main_widget.setLayout(layout)
@@ -110,6 +111,24 @@ class AuraGUI(QMainWindow):
             self.close()
         else:
             super().keyPressEvent(event)
+    
+    def _debounced_upload_click(self):
+        """Debounced upload button click to prevent multiple rapid clicks"""
+        # Disable button temporarily to prevent rapid clicking
+        self.upload_btn.setEnabled(False)
+        self.upload_btn.setText("⏳ Opening...")
+        
+        # Use QTimer to re-enable button after a short delay
+        from PyQt5.QtCore import QTimer
+        QTimer.singleShot(1000, self._reenable_upload_button)
+        
+        # Show upload dialog
+        show_upload_dialog()
+    
+    def _reenable_upload_button(self):
+        """Re-enable upload button after debounce delay"""
+        self.upload_btn.setEnabled(True)
+        self.upload_btn.setText("📄 Upload Documents")
 
 # === GUI Control ===
 def launch_gui():
