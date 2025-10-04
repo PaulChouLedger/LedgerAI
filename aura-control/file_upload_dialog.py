@@ -12,12 +12,25 @@ from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont
 import requests
 import json
+import socket
+import webbrowser
+
+def get_local_ip():
+    """Get the local IP address"""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except:
+        return "127.0.0.1"
 
 class FileUploadDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Document Upload - AuraVision")
-        self.setFixedSize(600, 500)
+        self.setFixedSize(900, 700)  # Much larger dialog
         self.setStyleSheet("""
             QDialog {
                 background-color: #1a1a1a;
@@ -28,17 +41,30 @@ class FileUploadDialog(QDialog):
                 font-size: 12px;
             }
             QPushButton {
-                background-color: #2d2d2d;
-                border: 1px solid #555;
-                padding: 8px;
+                background-color: #4CAF50;
+                border: none;
+                padding: 15px 25px;
                 color: white;
-                border-radius: 4px;
+                border-radius: 8px;
+                font-weight: bold;
+                font-size: 14px;
+                min-height: 50px;
+                min-width: 120px;
             }
             QPushButton:hover {
-                background-color: #3d3d3d;
+                background-color: #45a049;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.3);
             }
             QPushButton:pressed {
-                background-color: #1d1d1d;
+                background-color: #3d8b40;
+                transform: translateY(0px);
+            }
+            QPushButton:disabled {
+                background-color: #666;
+                color: #999;
+                transform: none;
+                box-shadow: none;
             }
             QTextEdit {
                 background-color: #2d2d2d;
@@ -84,10 +110,12 @@ class FileUploadDialog(QDialog):
         file_layout = QHBoxLayout()
         
         self.file_list = QListWidget()
-        self.file_list.setMaximumHeight(150)
+        self.file_list.setMaximumHeight(250)  # Increased height
+        self.file_list.setMinimumHeight(200)
         file_layout.addWidget(self.file_list)
         
         button_layout = QVBoxLayout()
+        button_layout.setSpacing(15)  # Add spacing between buttons
         
         self.select_files_btn = QPushButton("📁 Select Files")
         self.select_files_btn.clicked.connect(self.select_files)
@@ -100,6 +128,10 @@ class FileUploadDialog(QDialog):
         self.gdrive_btn = QPushButton("☁️ Google Drive")
         self.gdrive_btn.clicked.connect(self.add_google_drive)
         button_layout.addWidget(self.gdrive_btn)
+        
+        self.qr_btn = QPushButton("📱 Show QR Code")
+        self.qr_btn.clicked.connect(self.show_qr_code)
+        button_layout.addWidget(self.qr_btn)
         
         self.clear_btn = QPushButton("🗑️ Clear All")
         self.clear_btn.clicked.connect(self.clear_files)
@@ -115,20 +147,51 @@ class FileUploadDialog(QDialog):
         
         # Status log
         self.status_log = QTextEdit()
-        self.status_log.setMaximumHeight(120)
+        self.status_log.setMaximumHeight(150)  # Increased height
+        self.status_log.setMinimumHeight(120)
+        self.status_log.setReadOnly(True)
         self.status_log.setPlaceholderText("Upload status will appear here...")
         layout.addWidget(self.status_log)
         
         # Action buttons
         button_layout = QHBoxLayout()
+        button_layout.setSpacing(20)  # Add spacing between buttons
         
         self.upload_btn = QPushButton("🚀 Upload & Process")
         self.upload_btn.clicked.connect(self.upload_files)
         self.upload_btn.setEnabled(False)
+        self.upload_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                font-size: 16px;
+                padding: 20px 30px;
+                min-height: 60px;
+                min-width: 200px;
+            }
+            QPushButton:hover {
+                background-color: #1976D2;
+            }
+            QPushButton:disabled {
+                background-color: #666;
+                color: #999;
+            }
+        """)
         button_layout.addWidget(self.upload_btn)
         
         self.close_btn = QPushButton("❌ Close")
         self.close_btn.clicked.connect(self.close)
+        self.close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f44336;
+                font-size: 16px;
+                padding: 20px 30px;
+                min-height: 60px;
+                min-width: 150px;
+            }
+            QPushButton:hover {
+                background-color: #d32f2f;
+            }
+        """)
         button_layout.addWidget(self.close_btn)
         
         layout.addLayout(button_layout)
@@ -257,6 +320,96 @@ class FileUploadDialog(QDialog):
             "This feature will be implemented in a future update.\n"
             "For now, use the 'Share Link' option."
         )
+    
+    def show_qr_code(self):
+        """Show QR code for web upload interface"""
+        local_ip = get_local_ip()
+        upload_url = f"http://{local_ip}:5001"
+        
+        # Check if upload server is running
+        try:
+            response = requests.get(f"{upload_url}/api/status", timeout=2)
+            if response.status_code == 200:
+                # Server is running, show QR code
+                qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=400x400&data={upload_url}"
+                
+                # Create a new dialog to show QR code
+                qr_dialog = QDialog(self)
+                qr_dialog.setWindowTitle("📱 Mobile Upload QR Code")
+                qr_dialog.setFixedSize(500, 650)  # Bigger QR dialog
+                qr_dialog.setStyleSheet("""
+                    QDialog {
+                        background-color: #1a1a1a;
+                        color: white;
+                    }
+                    QLabel {
+                        color: white;
+                        font-size: 12px;
+                    }
+                    QPushButton {
+                        background-color: #4CAF50;
+                        color: white;
+                        border: none;
+                        padding: 10px;
+                        border-radius: 5px;
+                        font-weight: bold;
+                    }
+                    QPushButton:hover {
+                        background-color: #45a049;
+                    }
+                """)
+                
+                layout = QVBoxLayout()
+                
+                # Title
+                title = QLabel("📱 Mobile Upload Interface")
+                title.setFont(QFont("Arial", 16, QFont.Bold))
+                title.setAlignment(Qt.AlignCenter)
+                layout.addWidget(title)
+                
+                # Instructions
+                instructions = QLabel("Scan this QR code with your phone to upload files:")
+                instructions.setAlignment(Qt.AlignCenter)
+                instructions.setStyleSheet("color: #aaa; font-size: 12px; margin: 10px;")
+                layout.addWidget(instructions)
+                
+                # QR Code (using a label with HTML to display image)
+                qr_label = QLabel()
+                qr_label.setAlignment(Qt.AlignCenter)
+                qr_label.setStyleSheet("border: 2px solid #333; border-radius: 10px; margin: 10px;")
+                qr_label.setText(f'<img src="{qr_url}" width="400" height="400">')
+                layout.addWidget(qr_label)
+                
+                # URL
+                url_label = QLabel(f"🌐 {upload_url}")
+                url_label.setAlignment(Qt.AlignCenter)
+                url_label.setStyleSheet("color: #4CAF50; font-size: 14px; font-weight: bold; margin: 10px;")
+                layout.addWidget(url_label)
+                
+                # Buttons
+                button_layout = QHBoxLayout()
+                
+                open_btn = QPushButton("🌐 Open in Browser")
+                open_btn.clicked.connect(lambda: webbrowser.open(upload_url))
+                button_layout.addWidget(open_btn)
+                
+                close_btn = QPushButton("❌ Close")
+                close_btn.clicked.connect(qr_dialog.accept)
+                button_layout.addWidget(close_btn)
+                
+                layout.addLayout(button_layout)
+                qr_dialog.setLayout(layout)
+                qr_dialog.exec_()
+                
+            else:
+                QMessageBox.warning(self, "Upload Server", "Upload server is not responding properly.")
+        except requests.exceptions.RequestException:
+            QMessageBox.warning(self, "Upload Server", 
+                              "Upload server is not running.\n\n"
+                              "To enable web upload:\n"
+                              "1. Install Flask: pip install flask\n"
+                              "2. Restart Aura system\n"
+                              "3. The upload server will start automatically")
     
     def clear_files(self):
         """Clear all selected files"""
