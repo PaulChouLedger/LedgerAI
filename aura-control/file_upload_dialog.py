@@ -42,12 +42,17 @@ class FileUploadDialog(QDialog):
         self.raise_()  # Bring to front
         self.activateWindow()  # Activate the window
         self.show()  # Show the dialog
-        print("[Upload] 👁️ Dialog should now be visible and centered")
+        
+        # Debug: Print dialog dimensions and position
+        print(f"[Upload] 📐 Dialog geometry: {self.geometry()}")
+        print(f"[Upload] 📐 Dialog size: {self.size()}")
+        print(f"[Upload] 📐 Dialog position: {self.pos()}")
+        print("[Upload] 👁️ Dialog should now be visible with red border")
         self.setStyleSheet("""
             QDialog {
                 background-color: transparent;  /* Transparent background */
                 color: white;
-                border: none;  /* No border for full screen */
+                border: 5px solid #ff0000;  /* Red border to see screen edges */
             }
             QLabel {
                 color: white;
