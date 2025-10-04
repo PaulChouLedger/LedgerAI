@@ -7,7 +7,7 @@ import urllib.parse
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                              QPushButton, QFileDialog, QTextEdit, QProgressBar,
                              QMessageBox, QListWidget, QListWidgetItem, QInputDialog,
-                             QLineEdit, QWidget)
+                             QLineEdit, QWidget, QApplication)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont
 import requests
