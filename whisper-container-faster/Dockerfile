@@ -1,24 +1,29 @@
-# Use NVIDIA PyTorch base image (includes PyTorch and CUDA)
-FROM nvcr.io/nvidia/pytorch:23.10-py3
+#---
+# name: faster-whisper
+# group: audio
+# depends: [ctranslate2, onnxruntime, huggingface_hub, numpy]
+# requires: '>=34.1.0'
+# test: test.py
+# notes: Faster Whisper transcription with CTranslate2 (https://github.com/SYSTRAN/faster-whisper)
+#---
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG FORCE_BUILD=off \
+    FASTER_WHISPER_VERSION \
+    FASTER_WHISPER_BRANCH
 
 WORKDIR /app
 
-# Copy REST API and build script
+# Copy REST API and official dustynv scripts
 COPY container_rest.py /app/container_rest.py
-COPY build_ctranslate2.sh /app/build_ctranslate2.sh
+COPY *.sh /tmp/faster-whisper/
 
-# Install system dependencies for CTranslate2
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    cmake \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+# Install faster-whisper using the official dustynv method
+RUN /tmp/faster-whisper/install.sh || /tmp/faster-whisper/build.sh
 
-# Build CTranslate2 from source
-RUN chmod +x /app/build_ctranslate2.sh && /app/build_ctranslate2.sh
-
-# Install faster-whisper and REST API dependencies
-RUN pip3 install faster-whisper flask soundfile scipy
+# Install REST API dependencies
+RUN pip3 install flask soundfile scipy
 
 # Create cache directories
 RUN mkdir -p /app/cache/whisper /root/.cache/huggingface
