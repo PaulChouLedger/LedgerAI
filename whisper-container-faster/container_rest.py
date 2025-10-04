@@ -14,7 +14,14 @@ app = Flask(__name__)
 # Use faster-whisper with same model as transcription tuner
 # Set cache directory to avoid re-downloading models
 cache_dir = "/app/cache/whisper"
-model = WhisperModel("distil-small.en", device="cuda", compute_type="float16", download_root=cache_dir)
+print(f"[Whisper] 🚀 Loading faster-whisper model: distil-small.en")
+print(f"[Whisper] 📁 Cache directory: {cache_dir}")
+try:
+    model = WhisperModel("distil-small.en", device="cuda", compute_type="float16", download_root=cache_dir)
+    print(f"[Whisper] ✅ Model loaded successfully")
+except Exception as e:
+    print(f"[Whisper] ❌ Model loading failed: {e}")
+    raise
 
 # Timing statistics tracking
 timing_stats = {
@@ -66,8 +73,18 @@ def transcribe():
         
         # Time model transcription (using faster-whisper like transcription tuner)
         transcription_start = time.time()
+        print(f"[Whisper] 🧠 Starting transcription at {transcription_start:.6f}")
         segments, _ = model.transcribe(audio, language="en", beam_size=5)
-        text = " ".join([s.text.strip() for s in segments if s.text.strip()])
+        print(f"[Whisper] 🧠 Transcription completed, processing segments...")
+        
+        # Debug: Check segments
+        segment_list = list(segments)
+        print(f"[Whisper] 🔍 Found {len(segment_list)} segments")
+        for i, segment in enumerate(segment_list):
+            print(f"[Whisper] 🔍 Segment {i}: '{segment.text}' (start={segment.start:.2f}, end={segment.end:.2f})")
+        
+        text = " ".join([s.text.strip() for s in segment_list if s.text.strip()])
+        print(f"[Whisper] 📝 Final text: '{text}'")
         transcription_time = time.time() - transcription_start
         
         # Calculate total processing time
