@@ -53,6 +53,7 @@ class FileUploadDialog(QDialog):
                 background-color: transparent;  /* Transparent background */
                 color: white;
                 border: 5px solid #ff0000;  /* Red border to see screen edges */
+                border-radius: 540px;  /* Circular border to match 5-inch screen */
             }
             QLabel {
                 color: white;
