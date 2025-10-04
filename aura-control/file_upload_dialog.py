@@ -105,11 +105,11 @@ class FileUploadDialog(QDialog):
         
         # Create circular content container
         content_widget = QWidget()
-        content_widget.setFixedSize(990, 990)  # 10% bigger (900 * 1.1 = 990)
+        content_widget.setFixedSize(1089, 1089)  # Another 10% bigger (990 * 1.1 = 1089)
         content_widget.setStyleSheet("""
             QWidget {
                 background-color: #1a1a1a;
-                border-radius: 495px;  /* Perfect circle for 990x990 */
+                border-radius: 544px;  /* Perfect circle for 1089x1089 */
                 border: 3px solid #4CAF50;  /* Green border for visibility */
             }
         """)
@@ -121,22 +121,22 @@ class FileUploadDialog(QDialog):
         
         # Create layout for circular content
         self.content_layout = QVBoxLayout()
-        self.content_layout.setContentsMargins(100, 100, 100, 100)  # Larger margins for bigger circle
-        self.content_layout.setSpacing(25)  # More spacing for content
+        self.content_layout.setContentsMargins(120, 120, 120, 120)  # Even larger margins for bigger circle
+        self.content_layout.setSpacing(30)  # More spacing for content
         
         # Title with close button for full screen
         title_layout = QHBoxLayout()
         
-        # Close button in top-right - smaller and more square
+        # Close button moved towards center - more square
         close_btn = QPushButton("✕")
-        close_btn.setFixedSize(30, 30)  # Smaller and more square
+        close_btn.setFixedSize(35, 35)  # Slightly bigger and perfectly square
         close_btn.setStyleSheet("""
             QPushButton {
                 background-color: #f44336;
                 color: white;
                 border: none;
-                border-radius: 15px;  /* More square-like */
-                font-size: 14px;
+                border-radius: 8px;  /* More square-like (less rounded) */
+                font-size: 16px;
                 font-weight: bold;
             }
             QPushButton:hover {
@@ -161,7 +161,7 @@ class FileUploadDialog(QDialog):
         
         # Invisible spacer to balance the close button
         invisible_spacer = QLabel("")
-        invisible_spacer.setFixedSize(30, 30)  # Match the smaller close button
+        invisible_spacer.setFixedSize(35, 35)  # Match the new close button size
         title_layout.addWidget(invisible_spacer)
         
         self.content_layout.addLayout(title_layout)
@@ -177,9 +177,9 @@ class FileUploadDialog(QDialog):
         file_layout.setSpacing(20)
         
         self.file_list = QListWidget()
-        self.file_list.setMaximumHeight(250)  # Increased for larger circle
-        self.file_list.setMinimumHeight(200)
-        self.file_list.setMaximumWidth(450)  # Increased width for larger circle
+        self.file_list.setMaximumHeight(280)  # Increased for even larger circle
+        self.file_list.setMinimumHeight(230)
+        self.file_list.setMaximumWidth(500)  # Increased width for even larger circle
         file_layout.addWidget(self.file_list)
         
         button_layout = QVBoxLayout()
@@ -213,11 +213,11 @@ class FileUploadDialog(QDialog):
         self.progress_bar.setVisible(False)
         self.content_layout.addWidget(self.progress_bar)
         
-        # Status log - increased for larger circle
+        # Status log - increased for even larger circle
         self.status_log = QTextEdit()
-        self.status_log.setMaximumHeight(120)  # Increased for larger circle
-        self.status_log.setMinimumHeight(100)
-        self.status_log.setMaximumWidth(550)  # Increased width for larger circle
+        self.status_log.setMaximumHeight(140)  # Increased for even larger circle
+        self.status_log.setMinimumHeight(120)
+        self.status_log.setMaximumWidth(600)  # Increased width for even larger circle
         self.status_log.setReadOnly(True)
         self.status_log.setPlaceholderText("Upload status will appear here...")
         self.status_log.setStyleSheet("border-radius: 15px; font-size: 11px;")
