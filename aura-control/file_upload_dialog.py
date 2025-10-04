@@ -218,7 +218,6 @@ class FileUploadDialog(QDialog):
                 background-color: rgba(28, 28, 30, 0.95);
                 border-radius: 490px;
                 border: none;
-                backdrop-filter: blur(20px);
             }
         """)
         
@@ -558,35 +557,69 @@ class FileUploadDialog(QDialog):
             response = requests.get(f"{upload_url}/api/status", timeout=2)
             if response.status_code == 200:
                 # Server is running, show QR code - optimized for circular screen
-                qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={upload_url}"
+                # Generate QR code locally instead of using external API
+                try:
+                    import qrcode
+                    from PIL import Image
+                    import io
+                    
+                    # Create QR code
+                    qr = qrcode.QRCode(
+                        version=1,
+                        error_correction=qrcode.constants.ERROR_CORRECT_L,
+                        box_size=10,
+                        border=4,
+                    )
+                    qr.add_data(upload_url)
+                    qr.make(fit=True)
+                    
+                    # Create QR code image
+                    qr_image = qr.make_image(fill_color="black", back_color="white")
+                    
+                    # Convert to QPixmap
+                    from PyQt5.QtGui import QPixmap
+                    import tempfile
+                    
+                    # Save to temporary file
+                    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+                        qr_image.save(tmp_file.name)
+                        qr_pixmap = QPixmap(tmp_file.name)
+                        os.unlink(tmp_file.name)  # Clean up temp file
+                        
+                except ImportError:
+                    QMessageBox.warning(self, "QR Code", "QR code library not available. Please install: pip install qrcode[pil]")
+                    return
                 
                 # Create a new dialog to show QR code - full screen for circular screen
                 qr_dialog = QDialog(self)
                 qr_dialog.setWindowTitle("📱 Mobile Upload QR Code")
                 qr_dialog.setFixedSize(1080, 1080)  # Full screen for circular screen
                 qr_dialog.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # Full screen
-                qr_dialog.showMaximized()  # Ensure it fills the screen
                 qr_dialog.setStyleSheet("""
                     QDialog {
-                        background-color: #1a1a1a;
+                        background-color: rgba(28, 28, 30, 0.95);
                         color: white;
-                        border-radius: 540px;  /* Perfect circle for 1080x1080 */
-                        border: none;  /* No border for full screen */
+                        border-radius: 540px;
+                        border: none;
                     }
                     QLabel {
                         color: white;
                         font-size: 12px;
                     }
                     QPushButton {
-                        background-color: #4CAF50;
+                        background-color: #007AFF;
                         color: white;
+                        font-weight: 500;
                         border: none;
-                        padding: 10px;
-                        border-radius: 5px;
-                        font-weight: bold;
+                        padding: 12px 20px;
+                        border-radius: 20px;
+                        font-size: 13px;
                     }
                     QPushButton:hover {
-                        background-color: #45a049;
+                        background-color: #0056CC;
+                    }
+                    QPushButton:pressed {
+                        background-color: #004499;
                     }
                 """)
                 
@@ -596,28 +629,35 @@ class FileUploadDialog(QDialog):
                 
                 # Title - compact for circular screen
                 title = QLabel("📱 Mobile Upload")
-                title.setFont(QFont("Arial", 14, QFont.Bold))
+                title.setFont(QFont("Arial", 16, QFont.Bold))
                 title.setAlignment(Qt.AlignCenter)
-                title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;")
+                title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 15px; font-size: 16px;")
                 layout.addWidget(title)
                 
                 # Instructions - compact
                 instructions = QLabel("Scan QR code with your phone:")
                 instructions.setAlignment(Qt.AlignCenter)
-                instructions.setStyleSheet("color: #aaa; font-size: 11px; margin: 5px;")
+                instructions.setStyleSheet("color: #8e8e93; font-size: 13px; margin: 8px;")
                 layout.addWidget(instructions)
                 
-                # QR Code (using a label with HTML to display image)
+                # QR Code (display the generated QR code)
                 qr_label = QLabel()
                 qr_label.setAlignment(Qt.AlignCenter)
-                qr_label.setStyleSheet("border: 2px solid #333; border-radius: 10px; margin: 10px;")
-                qr_label.setText(f'<img src="{qr_url}" width="300" height="300">')
+                qr_label.setStyleSheet("""
+                    QLabel {
+                        background-color: rgba(44, 44, 46, 0.8);
+                        border-radius: 15px;
+                        border: none;
+                        padding: 20px;
+                    }
+                """)
+                qr_label.setPixmap(qr_pixmap.scaled(300, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation))
                 layout.addWidget(qr_label)
                 
                 # URL
                 url_label = QLabel(f"🌐 {upload_url}")
                 url_label.setAlignment(Qt.AlignCenter)
-                url_label.setStyleSheet("color: #4CAF50; font-size: 14px; font-weight: bold; margin: 10px;")
+                url_label.setStyleSheet("color: #007AFF; font-size: 14px; font-weight: 500; margin: 10px;")
                 layout.addWidget(url_label)
                 
                 # Buttons
@@ -633,6 +673,22 @@ class FileUploadDialog(QDialog):
                 
                 layout.addLayout(button_layout)
                 qr_dialog.setLayout(layout)
+                
+                # Center the QR dialog using the same method as main dialog
+                qr_dialog.show()
+                QApplication.processEvents()
+                
+                # Center dynamically
+                from PyQt5.QtWidgets import QDesktopWidget
+                screen = QDesktopWidget().screenGeometry()
+                x = (screen.width() - 1080) // 2
+                y = (screen.height() - 1080) // 2
+                x = max(0, x)
+                y = max(0, y)
+                qr_dialog.move(x, y)
+                qr_dialog.raise_()
+                qr_dialog.activateWindow()
+                
                 qr_dialog.exec_()
                 
             else:
