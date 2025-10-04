@@ -3,9 +3,11 @@
 import os
 import sys
 import shutil
+import urllib.parse
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                              QPushButton, QFileDialog, QTextEdit, QProgressBar,
-                             QMessageBox, QListWidget, QListWidgetItem)
+                             QMessageBox, QListWidget, QListWidgetItem, QInputDialog,
+                             QLineEdit)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont
 import requests
@@ -91,6 +93,14 @@ class FileUploadDialog(QDialog):
         self.select_files_btn.clicked.connect(self.select_files)
         button_layout.addWidget(self.select_files_btn)
         
+        self.url_btn = QPushButton("🌐 Add URL")
+        self.url_btn.clicked.connect(self.add_url)
+        button_layout.addWidget(self.url_btn)
+        
+        self.gdrive_btn = QPushButton("☁️ Google Drive")
+        self.gdrive_btn.clicked.connect(self.add_google_drive)
+        button_layout.addWidget(self.gdrive_btn)
+        
         self.clear_btn = QPushButton("🗑️ Clear All")
         self.clear_btn.clicked.connect(self.clear_files)
         button_layout.addWidget(self.clear_btn)
@@ -145,6 +155,108 @@ class FileUploadDialog(QDialog):
             
             self.upload_btn.setEnabled(len(self.uploaded_files) > 0)
             self.log_status(f"Selected {len(files)} file(s)")
+    
+    def add_url(self):
+        """Add document from URL"""
+        url, ok = QInputDialog.getText(
+            self, 
+            "Add Document from URL", 
+            "Enter document URL:",
+            text="https://"
+        )
+        
+        if ok and url.strip():
+            if not url.startswith(('http://', 'https://')):
+                url = 'https://' + url
+            
+            # Add to list immediately
+            self.uploaded_files.append(url)
+            filename = os.path.basename(urllib.parse.urlparse(url).path) or "document"
+            if not filename or '.' not in filename:
+                filename += ".pdf"  # Default extension
+            
+            item = QListWidgetItem(f"🌐 {filename} ({url[:50]}...)")
+            item.setData(Qt.UserRole, url)
+            self.file_list.addItem(item)
+            
+            self.upload_btn.setEnabled(len(self.uploaded_files) > 0)
+            self.log_status(f"Added URL: {url}")
+    
+    def add_google_drive(self):
+        """Add document from Google Drive"""
+        # Show options for Google Drive integration
+        options = [
+            "📋 Paste Google Drive Share Link",
+            "🔑 Authenticate with Google Drive API",
+            "📁 Browse Google Drive (requires auth)"
+        ]
+        
+        option, ok = QInputDialog.getItem(
+            self,
+            "Google Drive Integration",
+            "Choose how to access Google Drive:",
+            options,
+            0,
+            False
+        )
+        
+        if ok and option:
+            if "Share Link" in option:
+                self.add_google_drive_link()
+            elif "Authenticate" in option:
+                self.authenticate_google_drive()
+            elif "Browse" in option:
+                self.browse_google_drive()
+    
+    def add_google_drive_link(self):
+        """Add document from Google Drive share link"""
+        url, ok = QInputDialog.getText(
+            self,
+            "Google Drive Share Link",
+            "Paste Google Drive share link:",
+            text="https://drive.google.com/file/d/"
+        )
+        
+        if ok and url.strip():
+            # Convert Google Drive share link to direct download link
+            if "drive.google.com/file/d/" in url:
+                file_id = url.split("drive.google.com/file/d/")[1].split("/")[0]
+                direct_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+                
+                self.uploaded_files.append(direct_url)
+                filename = f"gdrive_document_{file_id[:8]}.pdf"
+                
+                item = QListWidgetItem(f"☁️ {filename} (Google Drive)")
+                item.setData(Qt.UserRole, direct_url)
+                self.file_list.addItem(item)
+                
+                self.upload_btn.setEnabled(len(self.uploaded_files) > 0)
+                self.log_status(f"Added Google Drive file: {filename}")
+            else:
+                QMessageBox.warning(self, "Invalid Link", "Please provide a valid Google Drive share link.")
+    
+    def authenticate_google_drive(self):
+        """Authenticate with Google Drive API"""
+        QMessageBox.information(
+            self,
+            "Google Drive Authentication",
+            "Google Drive API authentication requires:\n\n"
+            "1. Google Cloud Console project\n"
+            "2. Drive API enabled\n"
+            "3. OAuth2 credentials\n\n"
+            "This feature will be implemented in a future update.\n"
+            "For now, use the 'Share Link' option."
+        )
+    
+    def browse_google_drive(self):
+        """Browse Google Drive files"""
+        QMessageBox.information(
+            self,
+            "Google Drive Browser",
+            "Google Drive file browser requires authentication.\n\n"
+            "This feature will be implemented in a future update.\n"
+            "For now, use the 'Share Link' option."
+        )
     
     def clear_files(self):
         """Clear all selected files"""
@@ -223,17 +335,43 @@ class UploadWorker(QThread):
         
         for i, file_path in enumerate(self.files):
             try:
-                filename = os.path.basename(file_path)
-                dest_path = os.path.join(input_dir, filename)
-                
-                # Copy file to data/input
-                shutil.copy2(file_path, dest_path)
-                
-                self.status.emit(f"📄 Copied {filename} to data/input")
-                success_count += 1
+                if file_path.startswith(('http://', 'https://')):
+                    # Download from URL
+                    self.status.emit(f"🌐 Downloading from URL...")
+                    response = requests.get(file_path, timeout=30, stream=True)
+                    response.raise_for_status()
+                    
+                    # Get filename from URL or use default
+                    filename = os.path.basename(urllib.parse.urlparse(file_path).path)
+                    if not filename or '.' not in filename:
+                        # Try to get filename from Content-Disposition header
+                        content_disposition = response.headers.get('Content-Disposition', '')
+                        if 'filename=' in content_disposition:
+                            filename = content_disposition.split('filename=')[1].strip('"')
+                        else:
+                            filename = "downloaded_document.pdf"
+                    
+                    dest_path = os.path.join(input_dir, filename)
+                    
+                    # Download file
+                    with open(dest_path, 'wb') as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            f.write(chunk)
+                    
+                    self.status.emit(f"🌐 Downloaded {filename} from URL")
+                    success_count += 1
+                    
+                else:
+                    # Copy local file
+                    filename = os.path.basename(file_path)
+                    dest_path = os.path.join(input_dir, filename)
+                    
+                    shutil.copy2(file_path, dest_path)
+                    self.status.emit(f"📄 Copied {filename} to data/input")
+                    success_count += 1
                 
             except Exception as e:
-                self.status.emit(f"❌ Error copying {os.path.basename(file_path)}: {str(e)}")
+                self.status.emit(f"❌ Error processing {file_path}: {str(e)}")
                 error_count += 1
             
             self.progress.emit(i + 1)
