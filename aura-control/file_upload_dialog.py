@@ -35,17 +35,9 @@ class FileUploadDialog(QDialog):
         self.setFixedSize(1080, 1080)  # Full screen size
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # Frameless, stay on top
         
-        # Center the dialog on screen
-        screen = self.screen()
-        if screen:
-            screen_geometry = screen.availableGeometry()
-            x = (screen_geometry.width() - 1080) // 2
-            y = (screen_geometry.height() - 1080) // 2
-            self.move(x, y)
-            print(f"[Upload] 📐 Dialog centered at ({x},{y}) on {screen_geometry.width()}x{screen_geometry.height()} screen")
-        else:
-            self.move(0, 0)  # Fallback to top-left corner
-            print("[Upload] 📐 Dialog positioned at (0,0) - fallback")
+        # For 1080x1080 circular screen, position at origin to fill entire screen
+        self.move(0, 0)
+        print("[Upload] 📐 Dialog positioned at (0,0) to fill 1080x1080 screen")
             
         self.raise_()  # Bring to front
         self.activateWindow()  # Activate the window
