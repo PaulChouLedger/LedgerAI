@@ -3,8 +3,9 @@
 import os
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QGraphicsOpacityEffect
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtGui import QPixmap, QKeySequence
 from PyQt5.QtCore import Qt, QTimer
+from file_upload_dialog import show_upload_dialog
 
 _app = None
 _window = None
@@ -43,6 +44,9 @@ class AuraGUI(QMainWindow):
         self.timer = QTimer()
         self.timer.timeout.connect(self.animate_pulse)
         self.timer.start(100)
+        
+        # Enable keyboard focus for shortcuts
+        self.setFocusPolicy(Qt.StrongFocus)
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -64,6 +68,17 @@ class AuraGUI(QMainWindow):
             self.opacity_effect.setOpacity(self.opacity)
         else:
             self.opacity_effect.setOpacity(1.0)
+    
+    def keyPressEvent(self, event):
+        """Handle keyboard shortcuts"""
+        if event.key() == Qt.Key_U and event.modifiers() == Qt.ControlModifier:
+            # Ctrl+U: Open upload dialog
+            show_upload_dialog()
+        elif event.key() == Qt.Key_Escape:
+            # Escape: Close GUI
+            self.close()
+        else:
+            super().keyPressEvent(event)
 
 # === GUI Control ===
 def launch_gui():

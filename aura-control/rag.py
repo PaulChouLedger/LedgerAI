@@ -12,8 +12,8 @@ import time
 
 class AuraRAG:
     def __init__(self, 
-                 index_path: str = "data/embeddings/index.faiss",
-                 chunks_path: str = "data/embeddings/doc_chunks.npy",
+                 index_path: str = None,
+                 chunks_path: str = None,
                  model_name: str = "all-MiniLM-L6-v2"):
         """
         Initialize Aura RAG system with FAISS-GPU
@@ -23,8 +23,17 @@ class AuraRAG:
             chunks_path: Path to document chunks numpy file
             model_name: Sentence transformer model name
         """
-        self.index_path = index_path
-        self.chunks_path = chunks_path
+        # Set default paths relative to project root
+        if index_path is None:
+            self.index_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'embeddings', 'index.faiss')
+        else:
+            self.index_path = index_path
+            
+        if chunks_path is None:
+            self.chunks_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'embeddings', 'doc_chunks.npy')
+        else:
+            self.chunks_path = chunks_path
+            
         self.model_name = model_name
         
         # Initialize components
