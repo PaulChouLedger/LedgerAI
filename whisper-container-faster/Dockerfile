@@ -3,8 +3,8 @@ FROM dustynv/faster-whisper:r36.4.0-cu128-24.04
 
 # Set build arguments for compatibility
 ARG FORCE_BUILD=off
-ARG FASTER_WHISPER_VERSION
-ARG FASTER_WHISPER_BRANCH
+ARG FASTER_WHISPER_VERSION=latest
+ARG FASTER_WHISPER_BRANCH=main
 
 WORKDIR /app
 
