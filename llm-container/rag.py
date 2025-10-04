@@ -192,6 +192,12 @@ class AuraRAG:
                         'rank': i + 1,
                         'distance': float(distance)
                     })
+                    
+                    # Debug: Show actual chunk content
+                    print(f"[RAG] 📄 Chunk {i+1} (score: {similarity_score:.3f}):")
+                    print(f"[RAG] 📄 Content: {chunk[:200]}{'...' if len(chunk) > 200 else ''}")
+                    print(f"[RAG] 📄 Full content: {chunk}")
+                    print(f"[RAG] 📄 ---")
         
         retrieval_time = time.time() - start_time
         print(f"[RAG] 🔍 Retrieved {len(results)} chunks in {retrieval_time:.3f}s")
