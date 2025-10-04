@@ -105,11 +105,11 @@ class FileUploadDialog(QDialog):
         
         # Create circular content container
         content_widget = QWidget()
-        content_widget.setFixedSize(1089, 1089)  # Another 10% bigger (990 * 1.1 = 1089)
+        content_widget.setFixedSize(980, 980)  # Decreased back 10% (1089 * 0.9 = 980)
         content_widget.setStyleSheet("""
             QWidget {
                 background-color: #1a1a1a;
-                border-radius: 544px;  /* Perfect circle for 1089x1089 */
+                border-radius: 490px;  /* Perfect circle for 980x980 */
                 border: 3px solid #4CAF50;  /* Green border for visibility */
             }
         """)
@@ -121,22 +121,22 @@ class FileUploadDialog(QDialog):
         
         # Create layout for circular content
         self.content_layout = QVBoxLayout()
-        self.content_layout.setContentsMargins(120, 120, 120, 120)  # Even larger margins for bigger circle
-        self.content_layout.setSpacing(30)  # More spacing for content
+        self.content_layout.setContentsMargins(100, 100, 100, 100)  # Adjusted margins for smaller circle
+        self.content_layout.setSpacing(25)  # Adjusted spacing for smaller circle
         
         # Title with close button for full screen
         title_layout = QHBoxLayout()
         
-        # Close button moved towards center - more square
+        # Close button - perfect square
         close_btn = QPushButton("✕")
-        close_btn.setFixedSize(35, 35)  # Slightly bigger and perfectly square
+        close_btn.setFixedSize(30, 30)  # Perfect square
         close_btn.setStyleSheet("""
             QPushButton {
                 background-color: #f44336;
                 color: white;
                 border: none;
-                border-radius: 8px;  /* More square-like (less rounded) */
-                font-size: 16px;
+                border-radius: 3px;  /* Very square-like (minimal rounding) */
+                font-size: 14px;
                 font-weight: bold;
             }
             QPushButton:hover {
@@ -161,7 +161,7 @@ class FileUploadDialog(QDialog):
         
         # Invisible spacer to balance the close button
         invisible_spacer = QLabel("")
-        invisible_spacer.setFixedSize(35, 35)  # Match the new close button size
+        invisible_spacer.setFixedSize(30, 30)  # Match the perfect square close button
         title_layout.addWidget(invisible_spacer)
         
         self.content_layout.addLayout(title_layout)
