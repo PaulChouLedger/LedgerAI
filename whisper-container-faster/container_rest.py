@@ -37,6 +37,12 @@ else:
 
 # Initialize CUDA properly before loading model
 import torch
+import os
+
+# Set additional environment variables for cuDNN
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+os.environ['TORCH_USE_CUDA_DSA'] = '0'
+
 print(f"[Whisper] 🔍 CUDA available: {torch.cuda.is_available()}")
 if torch.cuda.is_available():
     print(f"[Whisper] 🔍 GPU device: {torch.cuda.get_device_name(0)}")
@@ -44,16 +50,28 @@ if torch.cuda.is_available():
     print(f"[Whisper] 🔍 cuDNN version: {torch.backends.cudnn.version()}")
     
     # Initialize CUDA context properly
-    torch.cuda.init()
-    torch.cuda.set_device(0)
-    
-    # Set cuDNN settings for better compatibility
-    torch.backends.cudnn.enabled = True
-    torch.backends.cudnn.benchmark = True
-    torch.backends.cudnn.deterministic = False
-    
-    print(f"[Whisper] 🔍 CUDA initialized successfully")
+    try:
+        torch.cuda.init()
+        torch.cuda.set_device(0)
+        
+        # Set cuDNN settings for better compatibility
+        torch.backends.cudnn.enabled = True
+        torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.deterministic = False
+        
+        # Test cuDNN with a simple operation
+        test_tensor = torch.randn(1, 1, 1, 1).cuda()
+        torch.backends.cudnn.conv2d(test_tensor, test_tensor)
+        print(f"[Whisper] 🔍 CUDA and cuDNN initialized successfully")
+    except Exception as e:
+        print(f"[Whisper] ❌ CUDA initialization failed: {e}")
+        print(f"[Whisper] 💥 FATAL: CUDA initialization failed - GPU is required")
+        raise RuntimeError("CUDA initialization failed - GPU is required for this container")
+else:
+    print(f"[Whisper] 💥 FATAL: CUDA not available - GPU is required")
+    raise RuntimeError("CUDA not available - GPU is required for this container")
 
+# Load GPU model - NO CPU FALLBACK
 try:
     model = WhisperModel("distil-small.en", device="cuda", compute_type="float16", download_root=cache_dir)
     print(f"[Whisper] ✅ GPU model loaded successfully")
@@ -65,7 +83,8 @@ except Exception as e:
         print(f"[Whisper] ✅ GPU model loaded with default cache")
     except Exception as e2:
         print(f"[Whisper] ❌ GPU model loading failed with default cache: {e2}")
-        raise
+        print(f"[Whisper] 💥 FATAL: GPU required - no CPU fallback available")
+        raise RuntimeError("GPU initialization failed - GPU is required for this container")
 
 # Timing statistics tracking
 timing_stats = {

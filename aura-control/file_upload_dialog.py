@@ -38,15 +38,21 @@ class FileUploadDialog(QDialog):
         # Center the dialog on the actual screen
         screen = self.screen()
         if screen:
-            screen_geometry = screen.availableGeometry()
+            # Use geometry() instead of availableGeometry() to get full screen dimensions
+            screen_geometry = screen.geometry()
+            print(f"[Upload] 🔍 Screen geometry: {screen_geometry}")
+            print(f"[Upload] 🔍 Screen size: {screen_geometry.width()}x{screen_geometry.height()}")
+            
             # Calculate center position for 1080x1080 dialog
             x = (screen_geometry.width() - 1080) // 2
             y = (screen_geometry.height() - 1080) // 2
+            print(f"[Upload] 🔍 Calculated position: ({x},{y})")
+            
             # Ensure we don't go negative
             x = max(0, x)
             y = max(0, y)
             self.move(x, y)
-            print(f"[Upload] 📐 Dialog centered at ({x},{y}) on {screen_geometry.width()}x{screen_geometry.height()} screen")
+            print(f"[Upload] 📐 Dialog positioned at ({x},{y}) on {screen_geometry.width()}x{screen_geometry.height()} screen")
         else:
             # Fallback to origin if screen detection fails
             self.move(0, 0)
@@ -146,29 +152,10 @@ class FileUploadDialog(QDialog):
         self.content_layout.setContentsMargins(100, 100, 100, 100)  # Adjusted margins for smaller circle
         self.content_layout.setSpacing(25)  # Adjusted spacing for smaller circle
         
-        # Title with close button for full screen
+        # Title centered (no close button)
         title_layout = QHBoxLayout()
         
-        # Close button - perfect square
-        close_btn = QPushButton("✕")
-        close_btn.setFixedSize(30, 30)  # Perfect square
-        close_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f44336;
-                color: white;
-                border: none;
-                border-radius: 3px;  /* Very square-like (minimal rounding) */
-                font-size: 14px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #d32f2f;
-            }
-        """)
-        close_btn.clicked.connect(self.close)
-        title_layout.addWidget(close_btn)
-        
-        # Spacer to push title to center
+        # Spacer to center title
         title_layout.addStretch()
         
         # Title
@@ -180,11 +167,6 @@ class FileUploadDialog(QDialog):
         
         # Spacer to balance layout
         title_layout.addStretch()
-        
-        # Invisible spacer to balance the close button
-        invisible_spacer = QLabel("")
-        invisible_spacer.setFixedSize(30, 30)  # Match the perfect square close button
-        title_layout.addWidget(invisible_spacer)
         
         self.content_layout.addLayout(title_layout)
         

@@ -1,4 +1,5 @@
-FROM nvcr.io/nvidia/pytorch:23.10-py3
+# Try a more recent base image with better cuDNN support
+FROM nvcr.io/nvidia/pytorch:24.02-py3
 
 WORKDIR /app
 
@@ -11,6 +12,18 @@ COPY build_ctranslate2.sh /app/build_ctranslate2.sh
 # Install faster-whisper and dependencies
 RUN pip3 install --break-system-packages --ignore-installed --no-cache-dir --index-url https://pypi.org/simple \
     faster-whisper flask soundfile numpy==1.24.4 "scipy<1.11"
+
+# Install additional CUDA/cuDNN packages if needed
+RUN pip3 install --break-system-packages --no-cache-dir \
+    nvidia-cudnn-cu12 \
+    nvidia-cublas-cu12 \
+    nvidia-cusparse-cu12 \
+    nvidia-cufft-cu12 \
+    nvidia-curand-cu12 \
+    nvidia-cusolver-cu12 \
+    nvidia-cusparse-cu12 \
+    nvidia-nccl-cu12 \
+    nvidia-nvtx-cu12 || echo "Some CUDA packages may not be available"
 
 # Build CTranslate2 for optimal performance
 RUN chmod +x /app/build_ctranslate2.sh && \
@@ -34,6 +47,15 @@ ENV CUDNN_VERSION=8.9.0
 
 # Set NumPy compatibility
 ENV NUMPY_DISABLE_ABI_COMPATIBILITY=1
+
+# Check cuDNN installation and PyTorch CUDA support
+RUN python3 -c "import torch; print('CUDA available:', torch.cuda.is_available()); print('cuDNN version:', torch.backends.cudnn.version()); print('PyTorch version:', torch.__version__); print('CUDA version:', torch.version.cuda)"
+
+# Check if cuDNN libraries are available
+RUN find /usr -name "*cudnn*" -type f 2>/dev/null | head -10 || echo "No cuDNN libraries found"
+
+# Check CUDA installation
+RUN nvcc --version || echo "nvcc not found"
 
 EXPOSE 5000
 CMD ["python3", "/app/container_rest.py"]
