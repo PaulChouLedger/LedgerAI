@@ -160,6 +160,18 @@ def run_container(name, port, image, timeout=15):
             stream_container_logs(name)
             return True
         print(f"[Aura] 🔁 Retry {attempt + 1}/3 for {name}")
+        
+        # Check if container is actually running
+        try:
+            result = subprocess.run(["docker", "ps", "--filter", f"name={name}", "--format", "{{.Status}}"], 
+                                capture_output=True, text=True, timeout=5)
+            if result.returncode == 0 and result.stdout.strip():
+                print(f"[Aura] 🔍 Container {name} is running but not responding: {result.stdout.strip()}")
+            else:
+                print(f"[Aura] 🔍 Container {name} is not running")
+        except Exception as e:
+            print(f"[Aura] 🔍 Could not check container status: {e}")
+        
         remove_existing_container(name)
         time.sleep(2)
 
@@ -276,7 +288,10 @@ def start_services():
     # Step 1: Start Whisper container (configurable)
     print(f"[Aura] 🎤 Starting Whisper container ({whisper_config['description']})...")
     
-    whisper_ok = run_container("aura-whisper", 5000, whisper_config["image"], timeout=10)
+    # Use longer timeout for TensorRT container
+    whisper_timeout = 30 if WHISPER_TYPE == "tensorrt" else 10
+    print(f"[Aura] ⏱️ Using {whisper_timeout}s timeout for {whisper_config['description']}")
+    whisper_ok = run_container("aura-whisper", 5000, whisper_config["image"], timeout=whisper_timeout)
     if not whisper_ok:
         print("[Aura] ❌ Whisper container failed. Aborting.")
         return
