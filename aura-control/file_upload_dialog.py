@@ -34,12 +34,23 @@ class FileUploadDialog(QDialog):
         # Full screen for 5-inch 1080x1080 circular screen
         self.setFixedSize(1080, 1080)  # Full screen size
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # Frameless, stay on top
-        self.move(0, 0)  # Position at top-left corner
-        print("[Upload] 📐 Dialog size set to 1080x1080, positioned at (0,0)")
+        
+        # Center the dialog on screen
+        screen = self.screen()
+        if screen:
+            screen_geometry = screen.availableGeometry()
+            x = (screen_geometry.width() - 1080) // 2
+            y = (screen_geometry.height() - 1080) // 2
+            self.move(x, y)
+            print(f"[Upload] 📐 Dialog centered at ({x},{y}) on {screen_geometry.width()}x{screen_geometry.height()} screen")
+        else:
+            self.move(0, 0)  # Fallback to top-left corner
+            print("[Upload] 📐 Dialog positioned at (0,0) - fallback")
+            
         self.raise_()  # Bring to front
         self.activateWindow()  # Activate the window
         self.show()  # Show the dialog
-        print("[Upload] 👁️ Dialog should now be visible")
+        print("[Upload] 👁️ Dialog should now be visible and centered")
         self.setStyleSheet("""
             QDialog {
                 background-color: transparent;  /* Transparent background */
@@ -114,10 +125,10 @@ class FileUploadDialog(QDialog):
             }
         """)
         
-        # Center the circular content
-        main_layout.addStretch()
+        # Center the circular content with equal spacing
+        main_layout.addStretch(1)
         main_layout.addWidget(content_widget, 0, Qt.AlignCenter)
-        main_layout.addStretch()
+        main_layout.addStretch(1)
         
         # Create layout for circular content
         self.content_layout = QVBoxLayout()
