@@ -7,7 +7,7 @@ WORKDIR /app
 COPY container_rest.py /app/container_rest.py
 
 # Install REST API dependencies
-RUN pip3 install flask soundfile scipy
+RUN pip3 install --ignore-installed flask soundfile scipy
 
 # Create cache directories
 RUN mkdir -p /app/cache/whisper /root/.cache/huggingface
