@@ -146,7 +146,11 @@ class FileUploadDialog(QDialog):
         """Capture mouse/touch coordinates for debugging"""
         x, y = event.x(), event.y()
         self.touch_coordinates.append((x, y))
-        print(f"[Upload] 🖱️ Touch at: ({x}, {y})")
+        
+        # Make output more prominent
+        print("=" * 60)
+        print(f"[Upload] 🖱️ TOUCH DETECTED!")
+        print(f"[Upload] 📍 Dialog-relative coordinates: ({x}, {y})")
         print(f"[Upload] 📐 Dialog size: {self.width()} x {self.height()}")
         print(f"[Upload] 📐 Dialog position: ({self.x()}, {self.y()})")
         
@@ -156,17 +160,29 @@ class FileUploadDialog(QDialog):
         offset_x = x - dialog_center_x
         offset_y = y - dialog_center_y
         print(f"[Upload] 📐 Dialog center: ({dialog_center_x}, {dialog_center_y})")
-        print(f"[Upload] 📐 Offset from center: ({offset_x}, {offset_y})")
+        print(f"[Upload] 📐 Offset from dialog center: ({offset_x}, {offset_y})")
         
         # Calculate screen coordinates
         screen_x = self.x() + x
         screen_y = self.y() + y
-        print(f"[Upload] 📐 Screen coordinates: ({screen_x}, {screen_y})")
+        print(f"[Upload] 🌍 ABSOLUTE SCREEN COORDINATES: ({screen_x}, {screen_y})")
         
-        # If this looks like the screen center, suggest new position
+        # Check if this is near the dialog center
         if abs(offset_x) < 50 and abs(offset_y) < 50:
-            print(f"[Upload] 🎯 This might be the screen center!")
-            print(f"[Upload] 💡 Suggested dialog position: ({x - 540}, {y - 540})")
+            print(f"[Upload] 🎯 TOUCHED DIALOG CENTER!")
+            print(f"[Upload] 💡 Screen center should be around: ({screen_x}, {screen_y})")
+            print(f"[Upload] 💡 Dialog should be positioned at: ({screen_x - 540}, {screen_y - 540})")
+        
+        # Check if this is near the screen center (assuming 1080x1080 screen)
+        screen_center_x, screen_center_y = 540, 540
+        screen_offset_x = screen_x - screen_center_x
+        screen_offset_y = screen_y - screen_center_y
+        if abs(screen_offset_x) < 50 and abs(screen_offset_y) < 50:
+            print(f"[Upload] 🎯 TOUCHED SCREEN CENTER!")
+            print(f"[Upload] 📊 Screen offset from center: ({screen_offset_x}, {screen_offset_y})")
+        
+        print("=" * 60)
+        print()
         
         super().mousePressEvent(event)
         

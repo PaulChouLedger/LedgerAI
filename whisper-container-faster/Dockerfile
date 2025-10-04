@@ -7,7 +7,7 @@ WORKDIR /app
 COPY container_rest.py /app/container_rest.py
 
 # Install only Flask for the REST API (soundfile already included)
-RUN pip3 install flask
+RUN pip3 install --index-url https://pypi.org/simple flask
 
 # Create cache directory
 RUN mkdir -p /app/cache/whisper
