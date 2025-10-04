@@ -34,7 +34,6 @@ class FileUploadDialog(QDialog):
         # Full screen for 5-inch 1080x1080 circular screen
         self.setFixedSize(1080, 1080)  # Full screen size
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # Frameless, stay on top
-        self.setAttribute(Qt.WA_TranslucentBackground)  # Make background transparent
         self.move(0, 0)  # Position at top-left corner
         print("[Upload] 📐 Dialog size set to 1080x1080, positioned at (0,0)")
         self.raise_()  # Bring to front
@@ -43,9 +42,8 @@ class FileUploadDialog(QDialog):
         print("[Upload] 👁️ Dialog should now be visible")
         self.setStyleSheet("""
             QDialog {
-                background-color: #1a1a1a;
+                background-color: transparent;  /* Transparent background */
                 color: white;
-                border-radius: 540px;  /* Perfect circle for 1080x1080 */
                 border: none;  /* No border for full screen */
             }
             QLabel {
@@ -100,9 +98,31 @@ class FileUploadDialog(QDialog):
         self.uploaded_files = []
         
     def setup_ui(self):
-        layout = QVBoxLayout()
-        layout.setContentsMargins(100, 100, 100, 100)  # Margins for circular screen
-        layout.setSpacing(20)  # Spacing for full screen
+        # Create main layout with no margins for full screen
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)  # No margins for full screen
+        main_layout.setSpacing(0)
+        
+        # Create circular content container
+        content_widget = QWidget()
+        content_widget.setFixedSize(800, 800)  # Circular content area
+        content_widget.setStyleSheet("""
+            QWidget {
+                background-color: #1a1a1a;
+                border-radius: 400px;  /* Perfect circle for 800x800 */
+                border: 3px solid #4CAF50;  /* Green border for visibility */
+            }
+        """)
+        
+        # Center the circular content
+        main_layout.addStretch()
+        main_layout.addWidget(content_widget, 0, Qt.AlignCenter)
+        main_layout.addStretch()
+        
+        # Create layout for circular content
+        self.content_layout = QVBoxLayout()
+        self.content_layout.setContentsMargins(80, 80, 80, 80)  # Margins for circular content
+        self.content_layout.setSpacing(20)  # Spacing for content
         
         # Title with close button for full screen
         title_layout = QHBoxLayout()
@@ -144,13 +164,13 @@ class FileUploadDialog(QDialog):
         invisible_spacer.setFixedSize(40, 40)
         title_layout.addWidget(invisible_spacer)
         
-        layout.addLayout(title_layout)
+        self.content_layout.addLayout(title_layout)
         
         # Description - more compact
         desc = QLabel("Upload docs to data/input - auto-ingest processes them")
         desc.setAlignment(Qt.AlignCenter)
         desc.setStyleSheet("color: #aaa; font-size: 11px; margin: 5px;")
-        layout.addWidget(desc)
+        self.content_layout.addWidget(desc)
         
         # File selection area - optimized for circular screen
         file_layout = QHBoxLayout()
@@ -186,12 +206,12 @@ class FileUploadDialog(QDialog):
         button_layout.addWidget(self.clear_btn)
         
         file_layout.addLayout(button_layout)
-        layout.addLayout(file_layout)
+        self.content_layout.addLayout(file_layout)
         
         # Upload progress
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        layout.addWidget(self.progress_bar)
+        self.content_layout.addWidget(self.progress_bar)
         
         # Status log - compact for circular screen
         self.status_log = QTextEdit()
@@ -201,7 +221,7 @@ class FileUploadDialog(QDialog):
         self.status_log.setReadOnly(True)
         self.status_log.setPlaceholderText("Upload status will appear here...")
         self.status_log.setStyleSheet("border-radius: 15px; font-size: 11px;")
-        layout.addWidget(self.status_log)
+        self.content_layout.addWidget(self.status_log)
         
         # Action buttons - optimized for circular screen
         button_layout = QHBoxLayout()
@@ -248,9 +268,13 @@ class FileUploadDialog(QDialog):
         """)
         button_layout.addWidget(self.close_btn)
         
-        layout.addLayout(button_layout)
+        self.content_layout.addLayout(button_layout)
         
-        self.setLayout(layout)
+        # Set layout to content widget
+        content_widget.setLayout(self.content_layout)
+        
+        # Set main layout to dialog
+        self.setLayout(main_layout)
         
     def select_files(self):
         """Open file dialog to select multiple files"""
