@@ -231,10 +231,10 @@ def start_services():
     
     print("[Aura] 🚀 Starting Aura services...")
     
-    # Step 1: Start Whisper container first (TensorRT)
-    print("[Aura] 🎤 Starting Whisper container...")
+    # Step 1: Start Whisper container (faster-whisper by default)
+    print("[Aura] 🎤 Starting Whisper container (faster-whisper)...")
     
-    whisper_ok = run_container("aura-whisper", 5000, "aura-whisper:latest", timeout=10)
+    whisper_ok = run_container("aura-whisper", 5000, "aura-whisper-faster:latest", timeout=10)
     if not whisper_ok:
         print("[Aura] ❌ Whisper container failed. Aborting.")
         return
