@@ -35,17 +35,36 @@ if os.path.exists(hf_cache):
 else:
     print(f"[Whisper] ⚠️ HF cache does not exist: {hf_cache}")
 
+# Initialize CUDA properly before loading model
+import torch
+print(f"[Whisper] 🔍 CUDA available: {torch.cuda.is_available()}")
+if torch.cuda.is_available():
+    print(f"[Whisper] 🔍 GPU device: {torch.cuda.get_device_name(0)}")
+    print(f"[Whisper] 🔍 CUDA version: {torch.version.cuda}")
+    print(f"[Whisper] 🔍 cuDNN version: {torch.backends.cudnn.version()}")
+    
+    # Initialize CUDA context properly
+    torch.cuda.init()
+    torch.cuda.set_device(0)
+    
+    # Set cuDNN settings for better compatibility
+    torch.backends.cudnn.enabled = True
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.deterministic = False
+    
+    print(f"[Whisper] 🔍 CUDA initialized successfully")
+
 try:
     model = WhisperModel("distil-small.en", device="cuda", compute_type="float16", download_root=cache_dir)
-    print(f"[Whisper] ✅ Model loaded successfully")
+    print(f"[Whisper] ✅ GPU model loaded successfully")
 except Exception as e:
-    print(f"[Whisper] ❌ Model loading failed with custom cache: {e}")
-    print(f"[Whisper] 🔄 Trying with default HF cache...")
+    print(f"[Whisper] ❌ GPU model loading failed: {e}")
+    print(f"[Whisper] 🔄 Trying with default cache...")
     try:
         model = WhisperModel("distil-small.en", device="cuda", compute_type="float16")
-        print(f"[Whisper] ✅ Model loaded successfully with default cache")
+        print(f"[Whisper] ✅ GPU model loaded with default cache")
     except Exception as e2:
-        print(f"[Whisper] ❌ Model loading failed with default cache: {e2}")
+        print(f"[Whisper] ❌ GPU model loading failed with default cache: {e2}")
         raise
 
 # Timing statistics tracking
@@ -140,6 +159,27 @@ def transcribe():
             print(f"[Whisper] 📝 Final text: '{text}'")
             sys.stdout.flush()
             
+        except RuntimeError as e:
+            print(f"[Whisper] ❌ Runtime error: {e}")
+            if "cuDNN" in str(e) or "CUDNN_STATUS" in str(e):
+                print(f"[Whisper] 🔍 cuDNN error - GPU/CUDA initialization issue")
+                # Try to clear GPU memory and retry once
+                import torch
+                torch.cuda.empty_cache()
+                print(f"[Whisper] 🔄 Cleared GPU memory, retrying...")
+                try:
+                    segments, _ = model.transcribe(audio, language="en", beam_size=5)
+                    segment_list = list(segments)
+                    text = " ".join([s.text.strip() for s in segment_list if s.text.strip()])
+                    print(f"[Whisper] ✅ Retry successful: '{text}'")
+                    sys.stdout.flush()
+                except Exception as retry_error:
+                    print(f"[Whisper] ❌ Retry also failed: {retry_error}")
+                    sys.stdout.flush()
+                    text = ""
+            else:
+                sys.stdout.flush()
+                text = ""
         except Exception as e:
             print(f"[Whisper] ❌ Transcription failed: {e}")
             print(f"[Whisper] ❌ Error type: {type(e).__name__}")
