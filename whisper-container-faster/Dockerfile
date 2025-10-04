@@ -3,12 +3,11 @@ FROM nvcr.io/nvidia/pytorch:23.10-py3
 
 WORKDIR /app
 
-# Copy REST API and build script
+# Copy REST API
 COPY container_rest.py /app/container_rest.py
-COPY build_ctranslate2.sh /app/build_ctranslate2.sh
 
-# Build CTranslate2 for optimal performance
-RUN chmod +x /app/build_ctranslate2.sh && /app/build_ctranslate2.sh
+# Install CTranslate2 from Jetson index (pre-built ARM64 wheels)
+RUN pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu128 ctranslate2
 
 # Install faster-whisper and REST API dependencies
 RUN pip3 install faster-whisper flask soundfile scipy
