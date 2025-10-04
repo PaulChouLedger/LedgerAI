@@ -1,13 +1,17 @@
-# Use dustynv faster-whisper base image (includes all dependencies)
-FROM dustynv/faster-whisper:r36.4.0-cu128-24.04
+# Use NVIDIA PyTorch base image (includes PyTorch and CUDA)
+FROM nvcr.io/nvidia/pytorch:23.10-py3
 
 WORKDIR /app
 
-# Copy REST API
+# Copy REST API and build script
 COPY container_rest.py /app/container_rest.py
+COPY build_ctranslate2.sh /app/build_ctranslate2.sh
 
-# Install all required dependencies for the REST API
-RUN pip3 install --index-url https://pypi.org/simple flask soundfile scipy torch torchvision torchaudio
+# Build CTranslate2 for optimal performance
+RUN chmod +x /app/build_ctranslate2.sh && /app/build_ctranslate2.sh
+
+# Install faster-whisper and REST API dependencies
+RUN pip3 install faster-whisper flask soundfile scipy
 
 # Create cache directory
 RUN mkdir -p /app/cache/whisper
