@@ -49,12 +49,12 @@ class FileUploadDialog(QDialog):
             print(f"[Upload] 🔍 Calculated position: ({x},{y})")
             
             # Based on touch coordinates, adjust for proper centering
-            # If screen is 1080x1080, center should be at (0, 0)
-            # If screen is larger, we need to account for the offset
+            # Touch coordinates show dialog is too high - need to move it down
             if screen_geometry.width() == 1080 and screen_geometry.height() == 1080:
-                # For 1080x1080 screen, position at origin
-                x, y = 0, 0
-                print(f"[Upload] 🎯 1080x1080 screen detected, positioning at origin")
+                # For 1080x1080 screen, position at origin but adjust for the offset
+                # Touch coordinates show dialog needs to move down by ~24 pixels
+                x, y = 0, 24  # Move dialog down by 24 pixels
+                print(f"[Upload] 🎯 1080x1080 screen detected, adjusting position to (0, 24)")
             else:
                 # For larger screens, center properly
                 x = max(0, x)
