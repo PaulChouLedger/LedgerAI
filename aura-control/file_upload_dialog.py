@@ -117,11 +117,10 @@ class FileUploadDialog(QDialog):
             }
         """)
         
-        # Add equal spacing above and below to center vertically
-        # For 1080x1080 dialog with 980x980 content, we need 50px spacing on each side
-        main_layout.addStretch(50)  # Top spacing
-        main_layout.addWidget(content_widget, 0, Qt.AlignCenter)
-        main_layout.addStretch(50)  # Bottom spacing
+        # Use absolute positioning to center the content
+        # Position at (50, 50) to center 980x980 content in 1080x1080 dialog
+        content_widget.move(50, 50)
+        main_layout.addWidget(content_widget)
         
         # Create layout for circular content
         self.content_layout = QVBoxLayout()
