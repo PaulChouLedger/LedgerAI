@@ -35,24 +35,11 @@ if os.path.exists(hf_cache):
 else:
     print(f"[Whisper] ⚠️ HF cache does not exist: {hf_cache}")
 
-# Initialize CUDA properly before loading model
-import torch
-import os
+# Let faster_whisper handle CUDA/PyTorch initialization internally
+print(f"[Whisper] 🚀 Initializing faster-whisper with GPU support...")
 
-# Set additional environment variables for cuDNN
-os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-os.environ['TORCH_USE_CUDA_DSA'] = '0'
-
-print(f"[Whisper] 🔍 CUDA available: {torch.cuda.is_available()}")
-if torch.cuda.is_available():
-    print(f"[Whisper] 🔍 GPU device: {torch.cuda.get_device_name(0)}")
-    print(f"[Whisper] 🔍 CUDA version: {torch.version.cuda}")
-    print(f"[Whisper] 🔍 cuDNN version: {torch.backends.cudnn.version()}")
-    
-    print(f"[Whisper] ✅ CUDA and cuDNN ready")
-else:
-    print(f"[Whisper] 💥 FATAL: CUDA not available - GPU is required")
-    raise RuntimeError("CUDA not available - GPU is required for this container")
+# faster_whisper will handle GPU detection and initialization
+print(f"[Whisper] ✅ Ready to initialize faster-whisper model")
 
 # Load GPU model - NO CPU FALLBACK
 try:
