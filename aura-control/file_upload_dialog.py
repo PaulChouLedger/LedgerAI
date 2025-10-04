@@ -102,8 +102,7 @@ class FileUploadDialog(QDialog):
         
     def setup_ui(self):
         # Create main layout with no margins for full screen
-        from PyQt5.QtWidgets import QGridLayout
-        main_layout = QGridLayout()
+        main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)  # No margins for full screen
         main_layout.setSpacing(0)
         
@@ -118,8 +117,11 @@ class FileUploadDialog(QDialog):
             }
         """)
         
-        # Center the circular content in the grid - this should center both horizontally and vertically
-        main_layout.addWidget(content_widget, 1, 1, Qt.AlignCenter)
+        # Add equal spacing above and below to center vertically
+        # For 1080x1080 dialog with 980x980 content, we need 50px spacing on each side
+        main_layout.addStretch(50)  # Top spacing
+        main_layout.addWidget(content_widget, 0, Qt.AlignCenter)
+        main_layout.addStretch(50)  # Bottom spacing
         
         # Create layout for circular content
         self.content_layout = QVBoxLayout()
