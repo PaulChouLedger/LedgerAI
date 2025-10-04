@@ -7,6 +7,7 @@ import soundfile as sf
 import sounddevice as sd
 import requests
 import subprocess
+from scipy.signal import butter, lfilter
 from speaker import speak_llm_response, is_playing
 from pydub import AudioSegment
 
@@ -15,8 +16,11 @@ SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.2
-VAD_THRESHOLD = 0.35  # Slightly higher threshold to reduce false triggers
-MIC_GAIN = 4.5 # Increased gain - good amplitude range, no clipping detected
+VAD_CONFIDENCE_THRESHOLD = 0.4  # Match transcription_tuner.py
+
+# Gain control (matching transcription_tuner.py)
+TARGET_RMS = 0.05
+MAX_GAIN = 2.0
 MIN_SPEECH_DURATION = 0.20  # Minimum speech duration in seconds to prevent noise triggers
 VAD_RESET_THRESHOLD = 0.15  # Lower threshold for reset
 # If VAD stays below this for too long, reset
@@ -43,6 +47,23 @@ def find_device_index():
 # === Load Silero VAD ===
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
 (get_speech_timestamps, _, read_audio, _, _) = utils
+
+# === Audio Processing Functions (from transcription_tuner.py) ===
+def highpass_filter(audio, cutoff=200):
+    """Remove low-frequency noise"""
+    b, a = butter(1, cutoff / (0.5 * SAMPLE_RATE), btype='high')
+    return lfilter(b, a, audio)
+
+def apply_gain(signal, target_rms=0.05, max_gain=2.0):
+    """Normalize audio levels"""
+    rms = np.sqrt(np.mean(signal ** 2))
+    if rms == 0:
+        return signal
+    gain = min(target_rms / rms, max_gain)
+    signal = signal * gain
+    print(f"[Listener] 🌺 Applied gain multiplier: {gain:.2f}")
+    return np.clip(signal, -1.0, 1.0)
+
 
 # === Transcribe with Whisper container ===
 def transcribe(audio):
@@ -104,8 +125,6 @@ def listen():
                     break
 
                 audio_block, _ = stream.read(FRAME_SIZE)
-                # Apply gain to increase microphone sensitivity
-                audio_block = audio_block * MIC_GAIN
                 channel_0 = audio_block[:, 0]
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 
@@ -126,7 +145,7 @@ def listen():
                 # Reduce debug output for performance
                 if vad_prob > 0.1:  # Only log significant VAD activity
                     print(f"[Debug] VAD prob: {vad_prob:.2f}")
-                if vad_prob > VAD_THRESHOLD:
+                if vad_prob > VAD_CONFIDENCE_THRESHOLD:
                     print(f"[VAD] 🔊 Speech started (prob={vad_prob:.2f})")
                     buffer.append(audio_block)
                     break
@@ -138,13 +157,11 @@ def listen():
                     break
 
                 audio_block, _ = stream.read(FRAME_SIZE)
-                # Apply gain to increase microphone sensitivity
-                audio_block = audio_block * MIC_GAIN
                 channel_0 = audio_block[:, 0]
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 buffer.append(audio_block)
 
-                if vad_prob < VAD_THRESHOLD:
+                if vad_prob < VAD_CONFIDENCE_THRESHOLD:
                     if silence_start is None:
                         silence_start = time.time()
                     elif time.time() - silence_start > SILENCE_TIMEOUT:
@@ -160,18 +177,12 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono_mix = full_audio[:, 0]
             
-            # Audio preprocessing for better transcription
-            # Normalize volume
-            max_val = np.max(np.abs(mono_mix))
-            if max_val > 0:
-                mono_mix = mono_mix / max_val * 0.95
-            
+            # Audio preprocessing for better transcription (matching transcription_tuner.py)
             # Apply high-pass filter to remove low-frequency noise
-            from scipy import signal
-            nyquist = SAMPLE_RATE / 2
-            high = 300 / nyquist  # Remove frequencies below 300Hz
-            b, a = signal.butter(4, high, btype='high')
-            mono_mix = signal.filtfilt(b, a, mono_mix)
+            mono_mix = highpass_filter(mono_mix, cutoff=200)
+            
+            # Apply gain normalization (matching transcription_tuner.py)
+            mono_mix = apply_gain(mono_mix, target_rms=TARGET_RMS, max_gain=MAX_GAIN)
 
             # Check audio duration
             audio_duration = len(mono_mix) / SAMPLE_RATE
