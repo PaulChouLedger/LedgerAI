@@ -1,17 +1,10 @@
-#---
-# name: faster-whisper
-# group: audio
-# depends: [ctranslate2, onnxruntime, huggingface_hub, numpy]
-# requires: '>=34.1.0'
-# test: test.py
-# notes: Faster Whisper transcription with CTranslate2 (https://github.com/SYSTRAN/faster-whisper)
-#---
-ARG BASE_IMAGE
-FROM ${BASE_IMAGE}
+# Use dustynv faster-whisper base image directly
+FROM dustynv/faster-whisper:r36.4.0-cu128-24.04
 
-ARG FORCE_BUILD=off \
-    FASTER_WHISPER_VERSION \
-    FASTER_WHISPER_BRANCH
+# Set build arguments for compatibility
+ARG FORCE_BUILD=off
+ARG FASTER_WHISPER_VERSION
+ARG FASTER_WHISPER_BRANCH
 
 WORKDIR /app
 
