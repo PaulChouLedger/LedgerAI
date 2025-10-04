@@ -30,15 +30,16 @@ class FileUploadDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Document Upload - AuraVision")
-        # Optimized for 5-inch 1080x1080 circular screen
-        self.setFixedSize(1000, 1000)  # Square dialog for circular screen
-        self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint)  # Remove title bar
+        # Full screen for 5-inch 1080x1080 circular screen
+        self.setFixedSize(1080, 1080)  # Full screen size
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # Full screen, no borders
+        self.showMaximized()  # Ensure it fills the screen
         self.setStyleSheet("""
             QDialog {
                 background-color: #1a1a1a;
                 color: white;
-                border-radius: 500px;  /* Circular dialog */
-                border: 3px solid #333;
+                border-radius: 540px;  /* Perfect circle for 1080x1080 */
+                border: none;  /* No border for full screen */
             }
             QLabel {
                 color: white;
@@ -93,15 +94,50 @@ class FileUploadDialog(QDialog):
         
     def setup_ui(self):
         layout = QVBoxLayout()
-        layout.setContentsMargins(50, 50, 50, 50)  # Margins for circular screen
-        layout.setSpacing(15)  # Compact spacing
+        layout.setContentsMargins(80, 80, 80, 80)  # Larger margins for circular screen
+        layout.setSpacing(20)  # Spacing for full screen
         
-        # Title - smaller for circular screen
+        # Title with close button for full screen
+        title_layout = QHBoxLayout()
+        
+        # Close button in top-right
+        close_btn = QPushButton("✕")
+        close_btn.setFixedSize(40, 40)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f44336;
+                color: white;
+                border: none;
+                border-radius: 20px;
+                font-size: 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #d32f2f;
+            }
+        """)
+        close_btn.clicked.connect(self.close)
+        title_layout.addWidget(close_btn)
+        
+        # Spacer to push title to center
+        title_layout.addStretch()
+        
+        # Title
         title = QLabel("📄 Document Upload")
-        title.setFont(QFont("Arial", 16, QFont.Bold))
+        title.setFont(QFont("Arial", 18, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: #4CAF50; margin: 10px;")
-        layout.addWidget(title)
+        title_layout.addWidget(title)
+        
+        # Spacer to balance layout
+        title_layout.addStretch()
+        
+        # Invisible spacer to balance the close button
+        invisible_spacer = QLabel("")
+        invisible_spacer.setFixedSize(40, 40)
+        title_layout.addWidget(invisible_spacer)
+        
+        layout.addLayout(title_layout)
         
         # Description - more compact
         desc = QLabel("Upload docs to data/input - auto-ingest processes them")
@@ -344,17 +380,18 @@ class FileUploadDialog(QDialog):
                 # Server is running, show QR code - optimized for circular screen
                 qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={upload_url}"
                 
-                # Create a new dialog to show QR code - optimized for circular screen
+                # Create a new dialog to show QR code - full screen for circular screen
                 qr_dialog = QDialog(self)
                 qr_dialog.setWindowTitle("📱 Mobile Upload QR Code")
-                qr_dialog.setFixedSize(800, 800)  # Square for circular screen
-                qr_dialog.setWindowFlags(qr_dialog.windowFlags() | Qt.FramelessWindowHint)  # Remove title bar
+                qr_dialog.setFixedSize(1080, 1080)  # Full screen for circular screen
+                qr_dialog.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # Full screen
+                qr_dialog.showMaximized()  # Ensure it fills the screen
                 qr_dialog.setStyleSheet("""
                     QDialog {
                         background-color: #1a1a1a;
                         color: white;
-                        border-radius: 400px;  /* Circular QR dialog */
-                        border: 3px solid #333;
+                        border-radius: 540px;  /* Perfect circle for 1080x1080 */
+                        border: none;  /* No border for full screen */
                     }
                     QLabel {
                         color: white;
@@ -374,8 +411,8 @@ class FileUploadDialog(QDialog):
                 """)
                 
                 layout = QVBoxLayout()
-                layout.setContentsMargins(40, 40, 40, 40)  # Margins for circular screen
-                layout.setSpacing(15)
+                layout.setContentsMargins(80, 80, 80, 80)  # Larger margins for full screen
+                layout.setSpacing(20)
                 
                 # Title - compact for circular screen
                 title = QLabel("📱 Mobile Upload")

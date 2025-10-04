@@ -103,12 +103,16 @@ def transcribe():
         print(f"  📊 Min/Max: {audio.min():.4f}/{audio.max():.4f}")
         print(f"  📊 RMS: {np.sqrt(np.mean(audio**2)):.4f}")
         print(f"  📊 Non-zero samples: {np.count_nonzero(audio)}/{len(audio)}")
+        import sys
+        sys.stdout.flush()
         
         # Check if audio is too quiet or silent
         if np.sqrt(np.mean(audio**2)) < 0.001:
             print(f"[Whisper] ⚠️ Audio is very quiet (RMS < 0.001)")
+            sys.stdout.flush()
         if np.count_nonzero(audio) < len(audio) * 0.1:
             print(f"[Whisper] ⚠️ Audio has very few non-zero samples")
+            sys.stdout.flush()
         
         # Time model transcription (using faster-whisper like transcription tuner)
         transcription_start = time.time()
@@ -119,23 +123,29 @@ def transcribe():
         
         try:
             print(f"[Whisper] 🧠 Model parameters: language='en', beam_size=5")
+            sys.stdout.flush()
             segments, _ = model.transcribe(audio, language="en", beam_size=5)
             print(f"[Whisper] 🧠 Transcription completed, processing segments...")
+            sys.stdout.flush()
             
             # Debug: Check segments
             segment_list = list(segments)
             print(f"[Whisper] 🔍 Found {len(segment_list)} segments")
+            sys.stdout.flush()
             for i, segment in enumerate(segment_list):
                 print(f"[Whisper] 🔍 Segment {i}: '{segment.text}' (start={segment.start:.2f}, end={segment.end:.2f})")
+                sys.stdout.flush()
             
             text = " ".join([s.text.strip() for s in segment_list if s.text.strip()])
             print(f"[Whisper] 📝 Final text: '{text}'")
+            sys.stdout.flush()
             
         except Exception as e:
             print(f"[Whisper] ❌ Transcription failed: {e}")
             print(f"[Whisper] ❌ Error type: {type(e).__name__}")
             import traceback
             print(f"[Whisper] ❌ Traceback: {traceback.format_exc()}")
+            sys.stdout.flush()
             text = ""
             
         transcription_time = time.time() - transcription_start
@@ -167,6 +177,7 @@ def transcribe():
         print(f"  ⚡ Efficiency RTF: {efficiency:.2f}x")
         print(f"  📝 Transcribed: \"{text}\"")
         print()  # Empty line for readability
+        sys.stdout.flush()
         
         # Clean up temp file
         os.remove(tmp_path)
