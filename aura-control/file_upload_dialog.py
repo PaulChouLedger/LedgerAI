@@ -31,11 +31,12 @@ class FileUploadDialog(QDialog):
         super().__init__(parent)
         print("[Upload] 🔧 Initializing upload dialog...")
         self.setWindowTitle("Document Upload - AuraVision")
-        # Test with smaller size first
-        self.setFixedSize(800, 800)  # Smaller size for testing
-        self.setWindowFlags(Qt.Window | Qt.WindowStaysOnTopHint)  # Normal window with stay on top
-        self.move(100, 100)  # Position away from edge
-        print("[Upload] 📐 Dialog size set to 800x800, positioned at (100,100)")
+        # Full screen for 5-inch 1080x1080 circular screen
+        self.setFixedSize(1080, 1080)  # Full screen size
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # Frameless, stay on top
+        self.setAttribute(Qt.WA_TranslucentBackground)  # Make background transparent
+        self.move(0, 0)  # Position at top-left corner
+        print("[Upload] 📐 Dialog size set to 1080x1080, positioned at (0,0)")
         self.raise_()  # Bring to front
         self.activateWindow()  # Activate the window
         self.show()  # Show the dialog
@@ -44,8 +45,8 @@ class FileUploadDialog(QDialog):
             QDialog {
                 background-color: #1a1a1a;
                 color: white;
-                border-radius: 400px;  /* Circle for 800x800 */
-                border: 10px solid #4CAF50;  /* Thicker green border for visibility */
+                border-radius: 540px;  /* Perfect circle for 1080x1080 */
+                border: none;  /* No border for full screen */
             }
             QLabel {
                 color: white;
@@ -100,7 +101,7 @@ class FileUploadDialog(QDialog):
         
     def setup_ui(self):
         layout = QVBoxLayout()
-        layout.setContentsMargins(80, 80, 80, 80)  # Larger margins for circular screen
+        layout.setContentsMargins(100, 100, 100, 100)  # Margins for circular screen
         layout.setSpacing(20)  # Spacing for full screen
         
         # Title with close button for full screen
