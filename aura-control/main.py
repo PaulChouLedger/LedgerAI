@@ -90,9 +90,12 @@ def run_container(name, port, image, timeout=15):
     elif name == "aura-whisper":
         # Mount whisper cache directories for faster startup
         whisper_cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'whisper-container', 'cache'))
+        # Mount host Hugging Face cache for faster-whisper models
+        host_hf_cache = os.path.expanduser("~/.cache/huggingface")
         cmd += [
             "-v", f"{whisper_cache_dir}/whisper:/root/.cache/whisper",
             "-v", f"{whisper_cache_dir}/whisper_trt:/root/.cache/whisper_trt",
+            "-v", f"{host_hf_cache}:/root/.cache/huggingface",  # Mount HF cache for faster-whisper
             "--gpus", "all"  # Add GPU support for TensorRT
         ]
 
