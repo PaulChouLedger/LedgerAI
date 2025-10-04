@@ -37,36 +37,8 @@ class FileUploadDialog(QDialog):
         
         # Center the dialog on the actual screen
         screen = self.screen()
-        if screen:
-            # Use geometry() instead of availableGeometry() to get full screen dimensions
-            screen_geometry = screen.geometry()
-            print(f"[Upload] 🔍 Screen geometry: {screen_geometry}")
-            print(f"[Upload] 🔍 Screen size: {screen_geometry.width()}x{screen_geometry.height()}")
-            
-            # Calculate center position for 1080x1080 dialog
-            x = (screen_geometry.width() - 1080) // 2
-            y = (screen_geometry.height() - 1080) // 2
-            print(f"[Upload] 🔍 Calculated position: ({x},{y})")
-            
-            # Based on touch coordinates, adjust for proper centering
-            # Touch coordinates show dialog is too high - need to move it down
-            if screen_geometry.width() == 1080 and screen_geometry.height() == 1080:
-                # For 1080x1080 screen, position at origin but adjust for the offset
-                # Touch coordinates show dialog needs to move down by ~24 pixels
-                x, y = 0, 24  # Move dialog down by 24 pixels
-                print(f"[Upload] 🎯 1080x1080 screen detected, adjusting position to (0, 24)")
-            else:
-                # For larger screens, center properly
-                x = max(0, x)
-                y = max(0, y)
-                print(f"[Upload] 🎯 Larger screen detected, centering at ({x},{y})")
-            
-            self.move(x, y)
-            print(f"[Upload] 📐 Dialog positioned at ({x},{y}) on {screen_geometry.width()}x{screen_geometry.height()} screen")
-        else:
-            # Fallback to origin if screen detection fails
-            self.move(0, 0)
-            print("[Upload] 📐 Dialog positioned at (0,0) - fallback")
+        # Center dialog dynamically using proper PyQt centering
+        self.center_dialog()
             
         self.raise_()  # Bring to front
         self.activateWindow()  # Activate the window
@@ -186,6 +158,32 @@ class FileUploadDialog(QDialog):
         
         super().mousePressEvent(event)
         
+    def center_dialog(self):
+        """Center the dialog dynamically on the screen using proper PyQt methods"""
+        from PyQt5.QtWidgets import QDesktopWidget
+        
+        # Get screen geometry
+        screen = QDesktopWidget().screenGeometry()
+        print(f"[Upload] 🔍 Screen geometry: {screen.width()}x{screen.height()}")
+        
+        # Get dialog size
+        dialog_size = self.size()
+        print(f"[Upload] 🔍 Dialog size: {dialog_size.width()}x{dialog_size.height()}")
+        
+        # Calculate center position dynamically
+        x = (screen.width() - dialog_size.width()) // 2
+        y = (screen.height() - dialog_size.height()) // 2
+        
+        print(f"[Upload] 📐 Calculated center position: ({x}, {y})")
+        
+        # Move to center
+        self.move(x, y)
+        print(f"[Upload] ✅ Dialog centered at ({x}, {y})")
+        
+        # Ensure dialog is visible and active
+        self.raise_()
+        self.activateWindow()
+
     def center_dialog_manually(self, screen_center_x, screen_center_y):
         """Manually center the dialog based on screen center coordinates"""
         # Calculate new position to center the dialog
