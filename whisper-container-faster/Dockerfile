@@ -6,8 +6,8 @@ WORKDIR /app
 # Copy REST API
 COPY container_rest.py /app/container_rest.py
 
-# Install Flask, soundfile, and scipy for the REST API
-RUN pip3 install --index-url https://pypi.org/simple flask soundfile scipy
+# Install all required dependencies for the REST API
+RUN pip3 install --index-url https://pypi.org/simple flask soundfile scipy torch torchvision torchaudio
 
 # Create cache directory
 RUN mkdir -p /app/cache/whisper
