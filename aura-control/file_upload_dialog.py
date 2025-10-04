@@ -29,17 +29,21 @@ def get_local_ip():
 class FileUploadDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
+        print("[Upload] 🔧 Initializing upload dialog...")
         self.setWindowTitle("Document Upload - AuraVision")
-        # Full screen for 5-inch 1080x1080 circular screen
-        self.setFixedSize(1080, 1080)  # Full screen size
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # Full screen, no borders
-        self.showMaximized()  # Ensure it fills the screen
+        # Test with smaller size first
+        self.setFixedSize(800, 800)  # Smaller size for testing
+        self.setWindowFlags(Qt.FramelessWindowHint)  # Remove title bar but allow normal positioning
+        self.move(100, 100)  # Position away from edge
+        print("[Upload] 📐 Dialog size set to 1080x1080, positioned at (0,0)")
+        self.show()  # Show the dialog
+        print("[Upload] 👁️ Dialog should now be visible")
         self.setStyleSheet("""
             QDialog {
                 background-color: #1a1a1a;
                 color: white;
-                border-radius: 540px;  /* Perfect circle for 1080x1080 */
-                border: none;  /* No border for full screen */
+                border-radius: 400px;  /* Circle for 800x800 */
+                border: 5px solid #4CAF50;  /* Green border for visibility */
             }
             QLabel {
                 color: white;
@@ -590,5 +594,8 @@ class UploadWorker(QThread):
 
 def show_upload_dialog():
     """Show the file upload dialog"""
+    print("[Upload] 🚀 Opening upload dialog...")
     dialog = FileUploadDialog()
+    print("[Upload] 📱 Dialog created, showing...")
     dialog.exec_()
+    print("[Upload] ✅ Dialog closed")
