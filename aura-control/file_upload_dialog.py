@@ -215,9 +215,10 @@ class FileUploadDialog(QDialog):
         content_widget.setFixedSize(980, 980)  # Decreased back 10% (1089 * 0.9 = 980)
         content_widget.setStyleSheet("""
             QWidget {
-                background-color: #1a1a1a;
-                border-radius: 490px;  /* Perfect circle for 980x980 */
-                border: 3px solid #4CAF50;  /* Green border for visibility */
+                background-color: rgba(28, 28, 30, 0.95);
+                border-radius: 490px;
+                border: none;
+                backdrop-filter: blur(20px);
             }
         """)
         
@@ -241,7 +242,7 @@ class FileUploadDialog(QDialog):
         title = QLabel("📄 Document Upload")
         title.setFont(QFont("Arial", 18, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("color: #4CAF50; margin: 10px;")
+        title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;")
         title_layout.addWidget(title)
         
         # Spacer to balance layout
@@ -252,7 +253,7 @@ class FileUploadDialog(QDialog):
         # Description - more compact
         desc = QLabel("Upload docs to data/input - auto-ingest processes them")
         desc.setAlignment(Qt.AlignCenter)
-        desc.setStyleSheet("color: #aaa; font-size: 11px; margin: 5px;")
+        desc.setStyleSheet("color: #8e8e93; font-size: 11px; margin: 5px;")
         self.content_layout.addWidget(desc)
         
         # File selection area - optimized for circular screen
@@ -263,6 +264,27 @@ class FileUploadDialog(QDialog):
         self.file_list.setMaximumHeight(280)  # Increased for even larger circle
         self.file_list.setMinimumHeight(230)
         self.file_list.setMaximumWidth(500)  # Increased width for even larger circle
+        self.file_list.setStyleSheet("""
+            QListWidget {
+                background-color: rgba(44, 44, 46, 0.8);
+                color: #ffffff;
+                border-radius: 15px;
+                border: none;
+                padding: 10px;
+                font-size: 12px;
+            }
+            QListWidget::item {
+                padding: 8px;
+                border-radius: 8px;
+                margin: 2px;
+            }
+            QListWidget::item:selected {
+                background-color: rgba(0, 122, 255, 0.3);
+            }
+            QListWidget::item:hover {
+                background-color: rgba(142, 142, 147, 0.2);
+            }
+        """)
         file_layout.addWidget(self.file_list)
         
         button_layout = QVBoxLayout()
@@ -288,6 +310,29 @@ class FileUploadDialog(QDialog):
         self.clear_btn.clicked.connect(self.clear_files)
         button_layout.addWidget(self.clear_btn)
         
+        # Apply Apple-style styling to all action buttons
+        action_button_style = """
+            QPushButton {
+                background-color: rgba(142, 142, 147, 0.2);
+                color: #ffffff;
+                font-size: 12px;
+                font-weight: 500;
+                padding: 10px 15px;
+                min-height: 35px;
+                border-radius: 18px;
+                border: none;
+            }
+            QPushButton:hover {
+                background-color: rgba(142, 142, 147, 0.4);
+            }
+            QPushButton:pressed {
+                background-color: rgba(142, 142, 147, 0.6);
+            }
+        """
+        
+        for button in [self.select_files_btn, self.url_btn, self.gdrive_btn, self.qr_btn, self.clear_btn]:
+            button.setStyleSheet(action_button_style)
+        
         file_layout.addLayout(button_layout)
         self.content_layout.addLayout(file_layout)
         
@@ -303,7 +348,16 @@ class FileUploadDialog(QDialog):
         self.status_log.setMaximumWidth(600)  # Increased width for even larger circle
         self.status_log.setReadOnly(True)
         self.status_log.setPlaceholderText("Upload status will appear here...")
-        self.status_log.setStyleSheet("border-radius: 15px; font-size: 11px;")
+        self.status_log.setStyleSheet("""
+            QTextEdit {
+                background-color: rgba(44, 44, 46, 0.8);
+                color: #ffffff;
+                border-radius: 15px;
+                font-size: 11px;
+                border: none;
+                padding: 10px;
+            }
+        """)
         self.content_layout.addWidget(self.status_log)
         
         # Action buttons - optimized for circular screen
@@ -315,20 +369,26 @@ class FileUploadDialog(QDialog):
         self.upload_btn.setEnabled(False)
         self.upload_btn.setStyleSheet("""
             QPushButton {
-                background-color: #2196F3;
+                background-color: #007AFF;
+                color: white;
                 font-size: 14px;
+                font-weight: 500;
                 padding: 15px 25px;
                 min-height: 50px;
                 min-width: 120px;
                 max-width: 180px;
                 border-radius: 25px;
+                border: none;
             }
             QPushButton:hover {
-                background-color: #1976D2;
+                background-color: #0056CC;
+            }
+            QPushButton:pressed {
+                background-color: #004499;
             }
             QPushButton:disabled {
-                background-color: #666;
-                color: #999;
+                background-color: #3A3A3C;
+                color: #8E8E93;
             }
         """)
         button_layout.addWidget(self.upload_btn)
@@ -337,16 +397,22 @@ class FileUploadDialog(QDialog):
         self.close_btn.clicked.connect(self.close)
         self.close_btn.setStyleSheet("""
             QPushButton {
-                background-color: #f44336;
+                background-color: #FF3B30;
+                color: white;
                 font-size: 14px;
+                font-weight: 500;
                 padding: 15px 25px;
                 min-height: 50px;
                 min-width: 120px;
                 max-width: 150px;
                 border-radius: 25px;
+                border: none;
             }
             QPushButton:hover {
-                background-color: #d32f2f;
+                background-color: #D70015;
+            }
+            QPushButton:pressed {
+                background-color: #B30000;
             }
         """)
         button_layout.addWidget(self.close_btn)
@@ -532,7 +598,7 @@ class FileUploadDialog(QDialog):
                 title = QLabel("📱 Mobile Upload")
                 title.setFont(QFont("Arial", 14, QFont.Bold))
                 title.setAlignment(Qt.AlignCenter)
-                title.setStyleSheet("color: #4CAF50; margin: 10px;")
+                title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;")
                 layout.addWidget(title)
                 
                 # Instructions - compact
