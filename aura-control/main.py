@@ -12,6 +12,7 @@ from dotenv import dotenv_values   # 👈 load host .env
 from aura_gui import launch_gui, run_gui_loop
 from listener import listen
 import speaker  # ✅ Starts TTS playback loop and queue
+from web_upload_server import start_upload_server
 
 os.environ["DISPLAY"] = ":0"
 
@@ -294,7 +295,12 @@ def start_services():
     print("[Aura] 🔍 Initializing RAG system...")
     initialize_rag_delayed()  # Run synchronously, not in thread
     
-    # Step 6: Start listener (after RAG is initialized)
+    # Step 6: Start file upload server
+    print("[Aura] 📁 Starting file upload server...")
+    upload_ip, upload_port = start_upload_server(port=5001)
+    print(f"[Aura] 📱 Upload server ready at http://{upload_ip}:{upload_port}")
+    
+    # Step 7: Start listener (after RAG is initialized)
     print("[Aura] 🎙️ Starting listener...")
     threading.Thread(target=listen, daemon=True).start()
     
