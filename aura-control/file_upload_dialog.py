@@ -82,6 +82,8 @@ class FileUploadDialog(QDialog):
         self.touch_coordinates = []
         self.setMouseTracking(True)
         print("[Upload] 🖱️ Touch the center of the screen to get coordinates for debugging")
+        print("[Upload] 📝 Touch coordinates will appear in the console output")
+        print("[Upload] 🎯 Touch center, top, right, bottom, left edges to get all coordinates")
         self.setStyleSheet("""
             QDialog {
                 background-color: transparent;  /* Transparent background */
@@ -145,6 +147,8 @@ class FileUploadDialog(QDialog):
         x, y = event.x(), event.y()
         self.touch_coordinates.append((x, y))
         print(f"[Upload] 🖱️ Touch at: ({x}, {y})")
+        print(f"[Upload] 📐 Dialog size: {self.width()} x {self.height()}")
+        print(f"[Upload] 📐 Dialog position: ({self.x()}, {self.y()})")
         
         # Calculate center offset
         dialog_center_x = self.width() // 2
@@ -153,6 +157,11 @@ class FileUploadDialog(QDialog):
         offset_y = y - dialog_center_y
         print(f"[Upload] 📐 Dialog center: ({dialog_center_x}, {dialog_center_y})")
         print(f"[Upload] 📐 Offset from center: ({offset_x}, {offset_y})")
+        
+        # Calculate screen coordinates
+        screen_x = self.x() + x
+        screen_y = self.y() + y
+        print(f"[Upload] 📐 Screen coordinates: ({screen_x}, {screen_y})")
         
         # If this looks like the screen center, suggest new position
         if abs(offset_x) < 50 and abs(offset_y) < 50:
