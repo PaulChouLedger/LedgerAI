@@ -99,17 +99,30 @@ def transcribe():
         # Time model transcription (using faster-whisper like transcription tuner)
         transcription_start = time.time()
         print(f"[Whisper] 🧠 Starting transcription at {transcription_start:.6f}")
-        segments, _ = model.transcribe(audio, language="en", beam_size=5)
-        print(f"[Whisper] 🧠 Transcription completed, processing segments...")
         
-        # Debug: Check segments
-        segment_list = list(segments)
-        print(f"[Whisper] 🔍 Found {len(segment_list)} segments")
-        for i, segment in enumerate(segment_list):
-            print(f"[Whisper] 🔍 Segment {i}: '{segment.text}' (start={segment.start:.2f}, end={segment.end:.2f})")
+        # Initialize text variable
+        text = ""
         
-        text = " ".join([s.text.strip() for s in segment_list if s.text.strip()])
-        print(f"[Whisper] 📝 Final text: '{text}'")
+        try:
+            segments, _ = model.transcribe(audio, language="en", beam_size=5)
+            print(f"[Whisper] 🧠 Transcription completed, processing segments...")
+            
+            # Debug: Check segments
+            segment_list = list(segments)
+            print(f"[Whisper] 🔍 Found {len(segment_list)} segments")
+            for i, segment in enumerate(segment_list):
+                print(f"[Whisper] 🔍 Segment {i}: '{segment.text}' (start={segment.start:.2f}, end={segment.end:.2f})")
+            
+            text = " ".join([s.text.strip() for s in segment_list if s.text.strip()])
+            print(f"[Whisper] 📝 Final text: '{text}'")
+            
+        except Exception as e:
+            print(f"[Whisper] ❌ Transcription failed: {e}")
+            print(f"[Whisper] ❌ Error type: {type(e).__name__}")
+            import traceback
+            print(f"[Whisper] ❌ Traceback: {traceback.format_exc()}")
+            text = ""
+            
         transcription_time = time.time() - transcription_start
         
         # Calculate total processing time
