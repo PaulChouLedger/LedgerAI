@@ -10,14 +10,14 @@ COPY build_ctranslate2.sh /app/build_ctranslate2.sh
 
 # Install faster-whisper and dependencies
 RUN pip3 install --break-system-packages --ignore-installed --no-cache-dir --index-url https://pypi.org/simple \
-    faster-whisper flask soundfile numpy==1.24.4 scipy
+    faster-whisper flask soundfile numpy==1.24.4 "scipy<1.11"
 
 # Build CTranslate2 for optimal performance
 RUN chmod +x /app/build_ctranslate2.sh && \
     /app/build_ctranslate2.sh
 
-# Force reinstall NumPy 1.24.4 after CTranslate2 build (fixes NumPy 2.x compatibility)
-RUN pip3 install --break-system-packages --force-reinstall --no-cache-dir numpy==1.24.4
+# Force reinstall NumPy 1.24.4 and compatible SciPy after CTranslate2 build (fixes NumPy 2.x compatibility)
+RUN pip3 install --break-system-packages --force-reinstall --no-cache-dir numpy==1.24.4 "scipy<1.11"
 
 # Create cache directory
 RUN mkdir -p /app/cache/whisper
