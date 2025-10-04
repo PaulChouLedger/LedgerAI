@@ -2,7 +2,7 @@
 
 import os
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QGraphicsOpacityEffect
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QGraphicsOpacityEffect, QPushButton, QVBoxLayout, QWidget
 from PyQt5.QtGui import QPixmap, QKeySequence
 from PyQt5.QtCore import Qt, QTimer
 from file_upload_dialog import show_upload_dialog
@@ -29,11 +29,42 @@ class AuraGUI(QMainWindow):
         min_dim = min(screen_size.width(), screen_size.height())
         scaled_pixmap = pixmap.scaled(min_dim, min_dim, Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
-        # === Display image at center ===
-        self.label = QLabel(self)
+        # === Create main widget with image and button ===
+        main_widget = QWidget()
+        layout = QVBoxLayout()
+        
+        # Image label
+        self.label = QLabel()
         self.label.setPixmap(scaled_pixmap)
         self.label.setAlignment(Qt.AlignCenter)
-        self.setCentralWidget(self.label)
+        layout.addWidget(self.label)
+        
+        # Upload button
+        self.upload_btn = QPushButton("📄 Upload Documents")
+        self.upload_btn.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(45, 45, 45, 200);
+                border: 2px solid #555;
+                border-radius: 10px;
+                padding: 15px;
+                font-size: 16px;
+                font-weight: bold;
+                color: white;
+                margin: 20px;
+            }
+            QPushButton:hover {
+                background-color: rgba(65, 65, 65, 200);
+                border-color: #777;
+            }
+            QPushButton:pressed {
+                background-color: rgba(25, 25, 25, 200);
+            }
+        """)
+        self.upload_btn.clicked.connect(show_upload_dialog)
+        layout.addWidget(self.upload_btn)
+        
+        main_widget.setLayout(layout)
+        self.setCentralWidget(main_widget)
 
         # === Pulsation Effect ===
         self.opacity_effect = QGraphicsOpacityEffect()
