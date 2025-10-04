@@ -18,6 +18,34 @@ os.environ["DISPLAY"] = ":0"
 # Load host .env (adjust path if needed)
 HOST_ENV = dotenv_values(os.path.expanduser("~/LedgerAI/llm-container/.env"))
 
+# === Whisper Container Configuration ===
+# Set WHISPER_TYPE environment variable to choose container:
+# - "faster" (default): aura-whisper-faster:latest (faster-whisper with distil-small.en)
+# - "tensorrt": aura-whisper:latest (TensorRT optimized)
+WHISPER_TYPE = os.getenv("WHISPER_TYPE", "faster").lower()
+
+# Container configurations
+WHISPER_CONFIGS = {
+    "faster": {
+        "image": "aura-whisper-faster:latest",
+        "name": "faster-whisper",
+        "description": "faster-whisper with distil-small.en"
+    },
+    "tensorrt": {
+        "image": "aura-whisper:latest", 
+        "name": "TensorRT",
+        "description": "TensorRT optimized whisper"
+    }
+}
+
+# Validate configuration
+if WHISPER_TYPE not in WHISPER_CONFIGS:
+    print(f"[Aura] ⚠️ Invalid WHISPER_TYPE '{WHISPER_TYPE}'. Using 'faster' as default.")
+    WHISPER_TYPE = "faster"
+
+whisper_config = WHISPER_CONFIGS[WHISPER_TYPE]
+print(f"[Aura] 🎤 Whisper container: {whisper_config['description']}")
+
 # === Graceful Exit on Ctrl+C ===
 def signal_handler(sig, frame):
     print("\n[Aura] ⛔ Exiting gracefully...")
@@ -234,10 +262,10 @@ def start_services():
     
     print("[Aura] 🚀 Starting Aura services...")
     
-    # Step 1: Start Whisper container (faster-whisper by default)
-    print("[Aura] 🎤 Starting Whisper container (faster-whisper)...")
+    # Step 1: Start Whisper container (configurable)
+    print(f"[Aura] 🎤 Starting Whisper container ({whisper_config['description']})...")
     
-    whisper_ok = run_container("aura-whisper", 5000, "aura-whisper-faster:latest", timeout=10)
+    whisper_ok = run_container("aura-whisper", 5000, whisper_config["image"], timeout=10)
     if not whisper_ok:
         print("[Aura] ❌ Whisper container failed. Aborting.")
         return
