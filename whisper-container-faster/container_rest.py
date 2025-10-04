@@ -16,12 +16,37 @@ app = Flask(__name__)
 cache_dir = "/app/cache/whisper"
 print(f"[Whisper] 🚀 Loading faster-whisper model: distil-small.en")
 print(f"[Whisper] 📁 Cache directory: {cache_dir}")
+
+# Check if cache directory exists and what's in it
+import os
+if os.path.exists(cache_dir):
+    print(f"[Whisper] 📁 Cache directory exists")
+    cache_contents = os.listdir(cache_dir)
+    print(f"[Whisper] 📁 Cache contents: {cache_contents}")
+else:
+    print(f"[Whisper] ⚠️ Cache directory does not exist")
+
+# Check Hugging Face cache
+hf_cache = "/root/.cache/huggingface"
+if os.path.exists(hf_cache):
+    print(f"[Whisper] 📁 HF cache exists: {hf_cache}")
+    hf_contents = os.listdir(hf_cache)
+    print(f"[Whisper] 📁 HF cache contents: {hf_contents}")
+else:
+    print(f"[Whisper] ⚠️ HF cache does not exist: {hf_cache}")
+
 try:
     model = WhisperModel("distil-small.en", device="cuda", compute_type="float16", download_root=cache_dir)
     print(f"[Whisper] ✅ Model loaded successfully")
 except Exception as e:
-    print(f"[Whisper] ❌ Model loading failed: {e}")
-    raise
+    print(f"[Whisper] ❌ Model loading failed with custom cache: {e}")
+    print(f"[Whisper] 🔄 Trying with default HF cache...")
+    try:
+        model = WhisperModel("distil-small.en", device="cuda", compute_type="float16")
+        print(f"[Whisper] ✅ Model loaded successfully with default cache")
+    except Exception as e2:
+        print(f"[Whisper] ❌ Model loading failed with default cache: {e2}")
+        raise
 
 # Timing statistics tracking
 timing_stats = {
