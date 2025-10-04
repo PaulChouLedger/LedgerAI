@@ -141,7 +141,11 @@ def run_container(name, port, image, timeout=15):
         if name == "aura-whisper":
             health_url = f"http://localhost:{port}/health"
             # Give TensorRT container extra time to initialize
-            time.sleep(5)
+            if WHISPER_TYPE == "tensorrt":
+                print(f"[Aura] ⏳ TensorRT container needs extra initialization time...")
+                time.sleep(10)  # Extra time for TensorRT
+            else:
+                time.sleep(5)   # Standard time for faster-whisper
         else:
             health_url = f"http://localhost:{port}"
         
