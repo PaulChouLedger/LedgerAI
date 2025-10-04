@@ -37,12 +37,14 @@ class FileUploadDialog(QDialog):
         
         # Center the dialog on the actual screen
         screen = self.screen()
-        # Center dialog dynamically using proper PyQt centering
-        self.center_dialog()
-            
+        # Show dialog first, then center it after it's rendered
+        self.show()  # Show the dialog first
         self.raise_()  # Bring to front
         self.activateWindow()  # Activate the window
-        self.show()  # Show the dialog
+        
+        # Center dialog after it's been rendered
+        QApplication.processEvents()  # Process events to ensure dialog is rendered
+        self.center_dialog()
         
         # Debug: Print dialog dimensions and position
         print(f"[Upload] 📐 Dialog geometry: {self.geometry()}")
@@ -166,19 +168,28 @@ class FileUploadDialog(QDialog):
         screen = QDesktopWidget().screenGeometry()
         print(f"[Upload] 🔍 Screen geometry: {screen.width()}x{screen.height()}")
         
-        # Get dialog size
-        dialog_size = self.size()
-        print(f"[Upload] 🔍 Dialog size: {dialog_size.width()}x{dialog_size.height()}")
+        # Get dialog size (use fixed size since we set it to 1080x1080)
+        dialog_width = 1080
+        dialog_height = 1080
+        print(f"[Upload] 🔍 Dialog size: {dialog_width}x{dialog_height}")
         
         # Calculate center position dynamically
-        x = (screen.width() - dialog_size.width()) // 2
-        y = (screen.height() - dialog_size.height()) // 2
+        x = (screen.width() - dialog_width) // 2
+        y = (screen.height() - dialog_height) // 2
+        
+        # Ensure dialog doesn't go off-screen
+        x = max(0, x)
+        y = max(0, y)
         
         print(f"[Upload] 📐 Calculated center position: ({x}, {y})")
         
         # Move to center
         self.move(x, y)
         print(f"[Upload] ✅ Dialog centered at ({x}, {y})")
+        
+        # Verify final position
+        final_pos = self.pos()
+        print(f"[Upload] 📐 Final dialog position: ({final_pos.x()}, {final_pos.y()})")
         
         # Ensure dialog is visible and active
         self.raise_()
