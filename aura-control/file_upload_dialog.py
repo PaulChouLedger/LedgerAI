@@ -67,6 +67,11 @@ class FileUploadDialog(QDialog):
         print(f"[Upload] 📐 Dialog size: {self.size()}")
         print(f"[Upload] 📐 Dialog position: {self.pos()}")
         print("[Upload] 👁️ Dialog should now be visible with red border")
+        
+        # Add interactive touch coordinates for debugging
+        self.touch_coordinates = []
+        self.setMouseTracking(True)
+        print("[Upload] 🖱️ Touch the center of the screen to get coordinates for debugging")
         self.setStyleSheet("""
             QDialog {
                 background-color: transparent;  /* Transparent background */
@@ -124,6 +129,36 @@ class FileUploadDialog(QDialog):
         
         self.setup_ui()
         self.uploaded_files = []
+        
+    def mousePressEvent(self, event):
+        """Capture mouse/touch coordinates for debugging"""
+        x, y = event.x(), event.y()
+        self.touch_coordinates.append((x, y))
+        print(f"[Upload] 🖱️ Touch at: ({x}, {y})")
+        
+        # Calculate center offset
+        dialog_center_x = self.width() // 2
+        dialog_center_y = self.height() // 2
+        offset_x = x - dialog_center_x
+        offset_y = y - dialog_center_y
+        print(f"[Upload] 📐 Dialog center: ({dialog_center_x}, {dialog_center_y})")
+        print(f"[Upload] 📐 Offset from center: ({offset_x}, {offset_y})")
+        
+        # If this looks like the screen center, suggest new position
+        if abs(offset_x) < 50 and abs(offset_y) < 50:
+            print(f"[Upload] 🎯 This might be the screen center!")
+            print(f"[Upload] 💡 Suggested dialog position: ({x - 540}, {y - 540})")
+        
+        super().mousePressEvent(event)
+        
+    def center_dialog_manually(self, screen_center_x, screen_center_y):
+        """Manually center the dialog based on screen center coordinates"""
+        # Calculate new position to center the dialog
+        new_x = screen_center_x - 540  # 540 is half of 1080
+        new_y = screen_center_y - 540
+        self.move(new_x, new_y)
+        print(f"[Upload] 🎯 Manually centered dialog at: ({new_x}, {new_y})")
+        print(f"[Upload] 📐 Screen center was: ({screen_center_x}, {screen_center_y})")
         
     def setup_ui(self):
         # Create main layout with no margins for full screen
