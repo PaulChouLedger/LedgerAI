@@ -271,18 +271,28 @@ def tts_playback_thread(text, tts_start_time):
             proc.stdin.write(first_chunk)
             proc.stdin.flush()
             
-            # Analyze first chunk for frequency
-            frequency_speed = analyze_audio_frequency(first_chunk)
-            update_gui_frequency(frequency_speed)
+            # Analyze first chunk for frequency (only during actual TTS, not setup)
+            try:
+                from aura_gui import _gui_ready
+                if _gui_ready:
+                    frequency_speed = analyze_audio_frequency(first_chunk)
+                    update_gui_frequency(frequency_speed)
+            except:
+                pass  # Skip frequency analysis during setup
 
             for chunk in stream:
                 if chunk:
                     proc.stdin.write(chunk)
                     proc.stdin.flush()
                     
-                    # Analyze each chunk for real-time frequency updates
-                    frequency_speed = analyze_audio_frequency(chunk)
-                    update_gui_frequency(frequency_speed)
+                    # Analyze each chunk for real-time frequency updates (only during actual TTS, not setup)
+                    try:
+                        from aura_gui import _gui_ready
+                        if _gui_ready:
+                            frequency_speed = analyze_audio_frequency(chunk)
+                            update_gui_frequency(frequency_speed)
+                    except:
+                        pass  # Skip frequency analysis during setup
 
             proc.stdin.close()
             proc.wait()
