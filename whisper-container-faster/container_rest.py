@@ -71,7 +71,7 @@ print(f"[Whisper] ✅ Ready to initialize faster-whisper model")
 
 # Load GPU model - NO CPU FALLBACK
 try:
-    model = WhisperModel(model_name, device="cuda", compute_type="float16")
+    model = WhisperModel(model_name, device="cuda", compute_type="float16", download_root="/app/models")
     print(f"[Whisper] ✅ GPU model '{model_name}' loaded successfully from built-in cache")
 except Exception as e:
     print(f"[Whisper] ❌ GPU model loading failed: {e}")
