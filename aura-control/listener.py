@@ -16,11 +16,11 @@ SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.2
-VAD_CONFIDENCE_THRESHOLD = 0.4  # Match transcription_tuner.py
+VAD_CONFIDENCE_THRESHOLD = 0.6  # Increased to reduce false triggers from background noise
 
 # Gain control (reverted from transcription_tuner.py)
 MIC_GAIN = 2.0  # Simple gain multiplier
-MIN_SPEECH_DURATION = 0.20  # Minimum speech duration in seconds to prevent noise triggers
+MIN_SPEECH_DURATION = 0.25  # Minimum speech duration in seconds (allows "yes", "no", etc.)
 VAD_RESET_THRESHOLD = 0.15  # Lower threshold for reset
 # If VAD stays below this for too long, reset
 VAD_RESET_COUNT = 20  # Base number of consecutive low VAD readings before reset
@@ -108,6 +108,9 @@ def listen():
             low_vad_count = 0  # Counter for consecutive low VAD readings
 
             # === Wait for speech ===
+            speech_confirmation_frames = 0  # Count consecutive high VAD frames
+            required_confirmation_frames = 3  # Require 3 consecutive high VAD frames to confirm speech
+            
             while True:
                 if is_playing():
                     break
@@ -119,10 +122,9 @@ def listen():
                 # Track consecutive low VAD readings
                 if vad_prob < VAD_RESET_THRESHOLD:
                     low_vad_count += 1
+                    speech_confirmation_frames = 0  # Reset speech confirmation
                     # Only reset VAD if we've been in low VAD for a very long time
-                    # This prevents resetting during natural speech pauses
-                    # 50 readings = ~1.6 seconds of continuous low VAD
-                    if low_vad_count >= VAD_RESET_COUNT * VAD_RESET_MULTIPLIER:  # 50 consecutive low readings
+                    if low_vad_count >= VAD_RESET_COUNT * VAD_RESET_MULTIPLIER:  # 60 consecutive low readings
                         print(f"[VAD] 🔄 Resetting VAD after {low_vad_count} consecutive low readings")
                         low_vad_count = 0
                         time.sleep(0.1)  # Brief pause to reset VAD state
@@ -130,13 +132,20 @@ def listen():
                 else:
                     low_vad_count = 0  # Reset counter on higher VAD readings
                 
-                # Reduce debug output for performance
-                if vad_prob > 0.1:  # Only log significant VAD activity
-                    print(f"[Debug] VAD prob: {vad_prob:.2f}")
+                # Require sustained high VAD to confirm speech (not just noise)
                 if vad_prob > VAD_CONFIDENCE_THRESHOLD:
-                    print(f"[VAD] 🔊 Speech started (prob={vad_prob:.2f})")
-                    buffer.append(audio_block)
-                    break
+                    speech_confirmation_frames += 1
+                    print(f"[VAD] 🔊 High VAD detected (prob={vad_prob:.2f}, confirmation={speech_confirmation_frames}/{required_confirmation_frames})")
+                    if speech_confirmation_frames >= required_confirmation_frames:
+                        print(f"[VAD] ✅ Speech confirmed after {speech_confirmation_frames} consecutive high readings")
+                        buffer.append(audio_block)
+                        break
+                else:
+                    speech_confirmation_frames = 0  # Reset if VAD drops below threshold
+                
+                # Reduce debug output for performance
+                if vad_prob > 0.3:  # Only log significant VAD activity
+                    print(f"[Debug] VAD prob: {vad_prob:.2f}")
 
             # === Continue recording ===
             while True:
