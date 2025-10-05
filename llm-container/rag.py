@@ -89,15 +89,33 @@ class AuraRAG:
             torch.backends.cudnn.enabled = False
             torch.backends.cuda.matmul.allow_tf32 = False
             
-            self.encoder = SentenceTransformer(self.model_name, device=device)
-            # Don't call .to('cpu') again - it's already on CPU from the device parameter
+            # Load model with explicit CPU device and trust_remote_code
+            self.encoder = SentenceTransformer(
+                self.model_name, 
+                device=device,
+                trust_remote_code=True,
+                cache_folder='./cache/sentence_transformers'
+            )
+            
+            # Ensure model is properly initialized on CPU
+            if hasattr(self.encoder, 'to'):
+                self.encoder = self.encoder.to(device)
+            
             print(f"[RAG] ✅ Loaded encoder: {self.model_name} (device: {device}, threads: 4)")
             
         except Exception as e:
             print(f"[RAG] ❌ Failed to load sentence transformer: {e}")
-            # Fallback: create a dummy encoder that returns zeros
-            self.encoder = None
-            print("[RAG] ⚠️ Using fallback encoder (no semantic search)")
+            # Try alternative loading method
+            try:
+                print("[RAG] 🔄 Trying alternative loading method...")
+                self.encoder = SentenceTransformer(self.model_name)
+                self.encoder = self.encoder.to('cpu')
+                print(f"[RAG] ✅ Loaded encoder with alternative method: {self.model_name}")
+            except Exception as e2:
+                print(f"[RAG] ❌ Alternative loading also failed: {e2}")
+                # Fallback: create a dummy encoder that returns zeros
+                self.encoder = None
+                print("[RAG] ⚠️ Using fallback encoder (no semantic search)")
         
         # Check GPU availability (FAISS-GPU not available on ARM64/Jetson)
         try:

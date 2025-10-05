@@ -236,7 +236,7 @@ def initialize_rag_delayed():
         # Test RAG stats with 3 attempts and 10 second timeout each
         for attempt in range(3):  # 3 attempts
             try:
-                stats_response = requests.get("http://localhost:11434/rag/stats", timeout=10)  # 10 second timeout
+                stats_response = requests.get("http://localhost:11434/rag/stats", timeout=30)  # 30 second timeout
                 if stats_response.status_code == 200:
                     stats = stats_response.json()
                     print(f"[Aura] ✅ RAG loaded: {stats.get('chunks_loaded', 0)} medical documents")
