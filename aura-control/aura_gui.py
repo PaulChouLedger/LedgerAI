@@ -3,8 +3,8 @@
 import os
 import sys
 import math
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QGraphicsOpacityEffect, QPushButton, QVBoxLayout, QWidget, QHBoxLayout
-from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QGraphicsDropShadowEffect
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QGraphicsOpacityEffect, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsDropShadowEffect
+from PyQt5.QtGui import QPixmap, QKeySequence, QColor
 from PyQt5.QtCore import Qt, QTimer, QPoint
 from file_upload_dialog import show_upload_dialog
 
