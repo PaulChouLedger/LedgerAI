@@ -341,64 +341,15 @@ class FileUploadDialog(QDialog):
         """)
         self.content_layout.addWidget(self.status_log)
         
-        # Action buttons - restored to working version
-        button_layout = QHBoxLayout()
-        button_layout.setSpacing(15)
-        
-        self.upload_btn = QPushButton("🚀 Upload")
+        # Simple working buttons
+        self.upload_btn = QPushButton("Upload")
         self.upload_btn.clicked.connect(self.upload_files)
         self.upload_btn.setEnabled(False)
-        self.upload_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #007AFF;
-                color: white;
-                font-size: 14px;
-                font-weight: 500;
-                padding: 15px 25px;
-                min-height: 50px;
-                min-width: 120px;
-                max-width: 180px;
-                border-radius: 25px;
-                border: none;
-            }
-            QPushButton:hover {
-                background-color: #0056CC;
-            }
-            QPushButton:pressed {
-                background-color: #004499;
-            }
-            QPushButton:disabled {
-                background-color: #3A3A3C;
-                color: #8E8E93;
-            }
-        """)
-        button_layout.addWidget(self.upload_btn)
+        self.content_layout.addWidget(self.upload_btn)
         
-        self.close_btn = QPushButton("❌ Close")
+        self.close_btn = QPushButton("Close")
         self.close_btn.clicked.connect(self.close)
-        self.close_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #FF3B30;
-                color: white;
-                font-size: 14px;
-                font-weight: 500;
-                padding: 15px 25px;
-                min-height: 50px;
-                min-width: 120px;
-                max-width: 150px;
-                border-radius: 25px;
-                border: none;
-            }
-            QPushButton:hover {
-                background-color: #D70015;
-            }
-            QPushButton:pressed {
-                background-color: #B30000;
-            }
-        """)
-        button_layout.addWidget(self.close_btn)
-        
-        self.content_layout.addLayout(button_layout)
+        self.content_layout.addWidget(self.close_btn)
         
         # Set layout to content widget
         content_widget.setLayout(self.content_layout)
