@@ -9,11 +9,11 @@ COPY container_rest.py /app/container_rest.py
 # Install REST API dependencies
 RUN pip3 install --ignore-installed flask soundfile scipy
 
-# Create a simple model directory
-RUN mkdir -p /app/models/distil-small.en
+# Create the proper HuggingFace cache structure
+RUN mkdir -p /root/.cache/huggingface/hub/models--Systran--faster-distil-whisper-small.en/snapshots/ef77d90526ccd62cde3808ee70626a01e5cf83e4
 
-# Copy the model files directly to a simple directory
-COPY models--Systran--faster-distil-whisper-small.en/snapshots/ef77d90526ccd62cde3808ee70626a01e5cf83e4/* /app/models/distil-small.en/
+# Copy the model files to the exact HuggingFace cache location
+COPY models--Systran--faster-distil-whisper-small.en/snapshots/ef77d90526ccd62cde3808ee70626a01e5cf83e4/* /root/.cache/huggingface/hub/models--Systran--faster-distil-whisper-small.en/snapshots/ef77d90526ccd62cde3808ee70626a01e5cf83e4/
 
 EXPOSE 5000
 CMD ["python3", "/app/container_rest.py"]

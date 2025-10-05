@@ -69,20 +69,20 @@ print(f"[Whisper] 🚀 Initializing faster-whisper with GPU support...")
 # faster_whisper will handle GPU detection and initialization
 print(f"[Whisper] ✅ Ready to initialize faster-whisper model")
 
-# Debug: Check what's in the model directory
-model_dir = f"/app/models/{model_name}"
-print(f"[Whisper] 🔍 Checking model directory: {model_dir}")
-if os.path.exists(model_dir):
-    print(f"[Whisper] 📁 Model directory exists")
-    files = os.listdir(model_dir)
-    print(f"[Whisper] 📄 Files in model directory: {files}")
+# Debug: Check what's in the HuggingFace cache
+hf_cache_dir = "/root/.cache/huggingface/hub/models--Systran--faster-distil-whisper-small.en/snapshots/ef77d90526ccd62cde3808ee70626a01e5cf83e4"
+print(f"[Whisper] 🔍 Checking HuggingFace cache: {hf_cache_dir}")
+if os.path.exists(hf_cache_dir):
+    print(f"[Whisper] 📁 HuggingFace cache directory exists")
+    files = os.listdir(hf_cache_dir)
+    print(f"[Whisper] 📄 Files in cache directory: {files}")
 else:
-    print(f"[Whisper] ⚠️ Model directory does not exist: {model_dir}")
+    print(f"[Whisper] ⚠️ HuggingFace cache directory does not exist: {hf_cache_dir}")
 
 # Load GPU model - NO CPU FALLBACK
 try:
-    model = WhisperModel(model_name, device="cuda", compute_type="float16", download_root="/app/models", local_files_only=True)
-    print(f"[Whisper] ✅ GPU model '{model_name}' loaded successfully from built-in cache")
+    model = WhisperModel(model_name, device="cuda", compute_type="float16", local_files_only=True)
+    print(f"[Whisper] ✅ GPU model '{model_name}' loaded successfully from HuggingFace cache")
 except Exception as e:
     print(f"[Whisper] ❌ GPU model loading failed: {e}")
     print(f"[Whisper] 💥 FATAL: GPU required - no CPU fallback available")
