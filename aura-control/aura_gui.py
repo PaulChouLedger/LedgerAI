@@ -248,33 +248,49 @@ class AuraGUI(QMainWindow):
             try:
                 from listener import get_transcription_frequency
                 speech_freq = get_transcription_frequency()
+                # Ensure frequency is in valid range
+                speech_freq = max(0.1, min(speech_freq, 1.0))
             except ImportError:
-                speech_freq = 0.5  # Default if import fails
+                speech_freq = 0.7  # Higher default for more visible pulsation
+            except Exception as e:
+                print(f"[GUI] ⚠️ Frequency analysis failed: {e}")
+                speech_freq = 0.7  # Fallback to visible pulsation
             
-            # Use speech frequency for pulse speed (0.1 to 1.0 range)
-            self.border_pulse_speed = speech_freq * 2.0  # Scale up for more visible effect
+            # Use speech frequency for pulse speed with enhanced responsiveness
+            self.border_pulse_speed = speech_freq * 4.0  # 4x scale for more visible effect
             
             # Add some variation based on speech frequency
-            frequency_variation = speech_freq * 0.5
+            frequency_variation = speech_freq * 1.0  # More variation
             self.border_pulse_phase += self.border_pulse_speed + frequency_variation
             
             # Create pulsation that matches speech characteristics
             pulse_intensity = (math.sin(self.border_pulse_phase) + 1) / 2
             
             # Width changes based on speech frequency (higher freq = more dramatic changes)
-            base_width = 3 + speech_freq * 5  # 3-8px base
-            variation_width = speech_freq * 15  # 0-15px variation
+            base_width = 5 + speech_freq * 3  # 5-8px base
+            variation_width = 8 + speech_freq * 12  # 8-20px variation
             self.border_width = int(base_width + pulse_intensity * variation_width)
             
+            # Ensure minimum visible width
+            self.border_width = max(self.border_width, 3)
+            
+            print(f"[GUI] 🔴 Border: freq={speech_freq:.3f}, width={self.border_width}px, intensity={pulse_intensity:.3f}")
             self._update_border_style(pulsating=True, width=self.border_width)
             
         # State 4: TTS playing - aura eye pulsation synchronized with speech frequency
         elif _tts_playing:
-            # Use dynamic frequency from actual TTS audio
-            self.eye_pulse_phase += _tts_frequency
+            # Use dynamic frequency from actual TTS audio with enhanced responsiveness
+            # Ensure TTS frequency is valid and scale up for visible pulsation
+            tts_freq = max(0.1, min(_tts_frequency, 2.0))  # Clamp to valid range
+            scaled_frequency = tts_freq * 4.0  # 4x faster for better visibility
+            self.eye_pulse_phase += scaled_frequency
+            
+            # Create more dramatic pulsation
             pulse_intensity = (math.sin(self.eye_pulse_phase) + 1) / 2  # 0 to 1
-            self.opacity = 0.3 + pulse_intensity * 0.7  # 0.3 to 1.0
+            self.opacity = 0.2 + pulse_intensity * 0.8  # 0.2 to 1.0 (more dramatic range)
             self.opacity_effect.setOpacity(self.opacity)
+            
+            print(f"[GUI] 👁️ TTS: freq={tts_freq:.3f}, scaled={scaled_frequency:.3f}, opacity={self.opacity:.3f}")
             self.border_widget.hide()  # Hide border during TTS
     
     def _update_border_style(self, static=True, pulsating=False, width=5):
