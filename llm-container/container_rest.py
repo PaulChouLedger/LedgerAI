@@ -1484,7 +1484,7 @@ def root():
         "service": "Aura-LLM",
         "status": "running",
         "version": "2.0",
-        "endpoints": ["/chat", "/rag/init", "/rag/search", "/rag/stats", "/rag/health"]
+        "endpoints": ["/chat", "/rag/init", "/rag/search", "/rag/stats", "/rag/health", "/rag/reset"]
     })
 
 @app.route("/rag/stats", methods=["GET"])
@@ -1530,6 +1530,37 @@ def rag_health():
         })
     except Exception as e:
         return jsonify({"error": str(e), "status": "error"}), 500
+
+@app.route("/rag/reset", methods=["POST"])
+def rag_reset():
+    """Reset RAG system to clean state"""
+    global RAG_AVAILABLE, RAG_INITIALIZED, get_rag_fn, search_medical_info_fn, smart_search_medical_info_fn
+    
+    try:
+        print("[Aura-LLM] 🔄 Resetting RAG system...")
+        
+        # Reset global state
+        RAG_AVAILABLE = False
+        RAG_INITIALIZED = False
+        get_rag_fn = None
+        search_medical_info_fn = None
+        smart_search_medical_info_fn = None
+        
+        # Clear any cached models
+        try:
+            import gc
+            import torch
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception as e:
+            print(f"[Aura-LLM] ⚠️ Cache clearing failed: {e}")
+        
+        print("[Aura-LLM] ✅ RAG system reset completed")
+        return jsonify({"status": "success", "message": "RAG system reset"})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__=="__main__":
     print("[Aura-LLM] 🚑 Aura triage running with clarify routing, SOAP recap, debug logs, and casual mode")

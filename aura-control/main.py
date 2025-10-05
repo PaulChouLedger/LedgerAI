@@ -56,9 +56,79 @@ print(f"[Aura] 🎤 Whisper container: {whisper_config['description']}")
 # === Graceful Exit on Ctrl+C ===
 def signal_handler(sig, frame):
     print("\n[Aura] ⛔ Exiting gracefully...")
+    cleanup_resources()
     sys.exit(0)
 
+def cleanup_resources():
+    """Clean up all resources before exit"""
+    print("[Aura] 🧹 Cleaning up resources...")
+    
+    # Stop and remove containers with proper cleanup
+    containers_to_cleanup = ["aura-llm", "aura-whisper", "aura-whisper-faster"]
+    for container in containers_to_cleanup:
+        try:
+            print(f"[Aura] 🧹 Stopping container: {container}")
+            # First try graceful stop
+            subprocess.run(["docker", "stop", container], 
+                          timeout=10, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            time.sleep(2)
+            # Then force remove
+            remove_existing_container(container)
+        except Exception as e:
+            print(f"[Aura] ⚠️ Failed to cleanup container {container}: {e}")
+    
+    # Clear RAG-specific resources
+    cleanup_rag_resources()
+    
+    print("[Aura] ✅ Resource cleanup completed")
+
+def cleanup_rag_resources():
+    """Clean up RAG-specific resources"""
+    print("[Aura] 🧹 Cleaning up RAG resources...")
+    
+    try:
+        import shutil
+        
+        # Clear HuggingFace cache (sentence transformers)
+        hf_cache = os.path.expanduser("~/.cache/huggingface")
+        if os.path.exists(hf_cache):
+            print(f"[Aura] 🧹 Clearing HuggingFace cache: {hf_cache}")
+            shutil.rmtree(hf_cache, ignore_errors=True)
+        
+        # Clear sentence transformer cache
+        st_cache = os.path.expanduser("~/.cache/sentence_transformers")
+        if os.path.exists(st_cache):
+            print(f"[Aura] 🧹 Clearing sentence transformer cache: {st_cache}")
+            shutil.rmtree(st_cache, ignore_errors=True)
+        
+        # Clear local RAG cache directories
+        rag_cache_dirs = [
+            "./cache/huggingface",
+            "./cache/transformers", 
+            "./cache/sentence_transformers"
+        ]
+        
+        for cache_dir in rag_cache_dirs:
+            if os.path.exists(cache_dir):
+                print(f"[Aura] 🧹 Clearing RAG cache: {cache_dir}")
+                shutil.rmtree(cache_dir, ignore_errors=True)
+        
+        # Clear any temporary FAISS files
+        temp_faiss_files = [
+            "data/embeddings/index.faiss.tmp",
+            "data/embeddings/doc_chunks.npy.tmp"
+        ]
+        
+        for temp_file in temp_faiss_files:
+            if os.path.exists(temp_file):
+                print(f"[Aura] 🧹 Removing temp file: {temp_file}")
+                os.remove(temp_file)
+                
+    except Exception as e:
+        print(f"[Aura] ⚠️ RAG cleanup failed: {e}")
+
 signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)  # Also handle SIGTERM
 
 # === Utility: Stop and remove container if it exists ===
 def remove_existing_container(name):
@@ -279,11 +349,39 @@ def warm_up_rag():
     """Legacy function - now calls delayed initialization"""
     initialize_rag_delayed()
 
+# === Startup cleanup ===
+def startup_cleanup():
+    """Clean up any leftover resources from previous runs"""
+    print("[Aura] 🧹 Performing startup cleanup...")
+    
+    # Clean up any leftover containers
+    containers_to_cleanup = ["aura-llm", "aura-whisper", "aura-whisper-faster"]
+    for container in containers_to_cleanup:
+        try:
+            remove_existing_container(container)
+        except Exception as e:
+            print(f"[Aura] ⚠️ Failed to cleanup container {container}: {e}")
+    
+    # Reset RAG state if LLM container is running
+    try:
+        reset_response = requests.post("http://localhost:11434/rag/reset", timeout=5)
+        if reset_response.status_code == 200:
+            print("[Aura] ✅ RAG state reset")
+        else:
+            print(f"[Aura] ⚠️ RAG reset failed: {reset_response.status_code}")
+    except Exception as e:
+        print(f"[Aura] ⚠️ RAG reset failed: {e}")
+    
+    print("[Aura] ✅ Startup cleanup completed")
+
 # === Start services after GUI is ready ===
 def start_services():
     TIMEOUT = 10  # Reduced timeout for faster startup
     
     print("[Aura] 🚀 Starting Aura services...")
+    
+    # Step 0: Cleanup any leftover resources
+    startup_cleanup()
     
     # Step 1: Start Whisper container (configurable)
     print(f"[Aura] 🎤 Starting Whisper container ({whisper_config['description']})...")
