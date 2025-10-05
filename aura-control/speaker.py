@@ -7,6 +7,7 @@ import subprocess
 from dotenv import load_dotenv
 from elevenlabs.client import ElevenLabs
 from state import set_playing, is_playing
+import numpy as np
 
 # === Load API credentials ===
 load_dotenv()
@@ -189,6 +190,46 @@ def check_for_initials_merge(text):
     pending_initials = None
     return text
 
+def analyze_audio_frequency(audio_chunk):
+    """Analyze audio chunk to extract dominant frequency for GUI pulsation"""
+    try:
+        # Convert bytes to numpy array (assuming 16-bit PCM)
+        audio_data = np.frombuffer(audio_chunk, dtype=np.int16)
+        
+        # Apply FFT to get frequency spectrum
+        fft = np.fft.fft(audio_data)
+        freqs = np.fft.fftfreq(len(audio_data), 1/PCM_SAMPLE_RATE)
+        
+        # Get magnitude spectrum
+        magnitude = np.abs(fft)
+        
+        # Find dominant frequency (excluding DC component)
+        positive_freqs = freqs[:len(freqs)//2]
+        positive_magnitude = magnitude[:len(magnitude)//2]
+        
+        # Find peak frequency
+        peak_idx = np.argmax(positive_magnitude[1:]) + 1  # Skip DC
+        dominant_freq = positive_freqs[peak_idx]
+        
+        # Normalize frequency to GUI pulsation speed (0.1 to 0.5)
+        # Human speech is typically 85-255 Hz, map to 0.1-0.5 speed
+        normalized_speed = 0.1 + (dominant_freq / 255) * 0.4
+        normalized_speed = max(0.1, min(0.5, normalized_speed))  # Clamp to range
+        
+        return normalized_speed
+        
+    except Exception as e:
+        print(f"[Audio Analysis] ❌ Error analyzing frequency: {e}")
+        return 0.15  # Default speed
+
+def update_gui_frequency(frequency_speed):
+    """Update GUI with current audio frequency for pulsation"""
+    try:
+        from aura_gui import set_tts_frequency
+        set_tts_frequency(frequency_speed)
+    except ImportError:
+        pass  # GUI not available
+
 # === TTS playback using aplay ===
 def tts_playback_thread(text, tts_start_time):
     with playback_lock:
@@ -224,11 +265,19 @@ def tts_playback_thread(text, tts_start_time):
             
             proc.stdin.write(first_chunk)
             proc.stdin.flush()
+            
+            # Analyze first chunk for frequency
+            frequency_speed = analyze_audio_frequency(first_chunk)
+            update_gui_frequency(frequency_speed)
 
             for chunk in stream:
                 if chunk:
                     proc.stdin.write(chunk)
                     proc.stdin.flush()
+                    
+                    # Analyze each chunk for real-time frequency updates
+                    frequency_speed = analyze_audio_frequency(chunk)
+                    update_gui_frequency(frequency_speed)
 
             proc.stdin.close()
             proc.wait()

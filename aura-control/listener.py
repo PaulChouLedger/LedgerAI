@@ -9,6 +9,7 @@ import requests
 import subprocess
 # Simplified audio processing - no complex filtering
 from speaker import speak_llm_response, is_playing
+from aura_gui import set_transcribing
 from pydub import AudioSegment
 
 # === Config ===
@@ -19,7 +20,7 @@ SILENCE_TIMEOUT = 0.2  # Faster silence detection
 VAD_CONFIDENCE_THRESHOLD = 0.3  # Lowered for more responsive detection
 
 # Gain control (reverted from transcription_tuner.py)
-MIC_GAIN = 2.0  # Simple gain multiplier
+MIC_GAIN = 1.5  # Reduced gain to prevent distortion
 MIN_SPEECH_DURATION = 0.25  # Minimum speech duration in seconds (allows "yes", "no", etc.)
 VAD_RESET_THRESHOLD = 0.15  # Lower threshold for reset
 # If VAD stays below this for too long, reset
@@ -51,6 +52,26 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 def apply_simple_gain(signal, gain_multiplier=2.0):
     """Apply simple gain without complex normalization"""
     return np.clip(signal * gain_multiplier, -1.0, 1.0)
+
+def apply_gentle_high_pass_filter(signal, cutoff_freq=200, sample_rate=SAMPLE_RATE):
+    """Apply gentle high-pass filter to reduce low-frequency noise without affecting speech"""
+    try:
+        from scipy import signal as scipy_signal
+        # Design gentle high-pass Butterworth filter (2nd order for less aggressive filtering)
+        nyquist = sample_rate / 2
+        normal_cutoff = cutoff_freq / nyquist
+        b, a = scipy_signal.butter(2, normal_cutoff, btype='high', analog=False)
+        
+        # Apply filter using forward-backward filtering (zero-phase distortion)
+        filtered_signal = scipy_signal.filtfilt(b, a, signal)
+        print(f"[Audio] 🎛️ Applied gentle high-pass filter (cutoff: {cutoff_freq}Hz)")
+        return filtered_signal
+    except ImportError:
+        print("[Audio] ⚠️ scipy not available, skipping high-pass filter")
+        return signal
+    except Exception as e:
+        print(f"[Audio] ⚠️ High-pass filter error: {e}, using original signal")
+        return signal
 
 # High-pass filter removed - using simplified audio processing
 
@@ -146,11 +167,13 @@ def listen():
                     # Immediate detection: single high VAD reading
                     if vad_prob > high_vad_threshold:
                         print(f"[VAD] 🔊 Immediate speech detected (prob={vad_prob:.2f})")
+                        set_transcribing(True)  # Start red edge pulsation
                         buffer.append(audio_block)
                         break
                     # Sustained detection: average of last 3 frames above threshold
                     elif sum(vad_history) / len(vad_history) > VAD_CONFIDENCE_THRESHOLD:
                         print(f"[VAD] 🔊 Sustained speech detected (avg={sum(vad_history)/len(vad_history):.2f})")
+                        set_transcribing(True)  # Start red edge pulsation
                         buffer.append(audio_block)
                         break
                 
@@ -174,6 +197,7 @@ def listen():
                         silence_start = time.time()
                     elif time.time() - silence_start > SILENCE_TIMEOUT:
                         print("\n⏹️ Speech ended. Processing...")
+                        set_transcribing(False)  # Stop red edge pulsation
                         break
                 else:
                     silence_start = None
@@ -185,8 +209,11 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono_mix = full_audio[:, 0]
             
-            # Simplified audio processing pipeline
-            # Apply simple gain without complex normalization
+            # Audio processing pipeline for better transcription quality
+            # 1. Apply gentle high-pass filter to reduce low-frequency noise (fans, HVAC, etc.)
+            mono_mix = apply_gentle_high_pass_filter(mono_mix, cutoff_freq=200)
+            
+            # 2. Apply simple gain without complex normalization
             mono_mix = apply_simple_gain(mono_mix, MIC_GAIN)
 
             # Check audio duration

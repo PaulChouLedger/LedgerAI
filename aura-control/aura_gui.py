@@ -12,18 +12,23 @@ _app = None
 _window = None
 _gui_ready = False
 _listening_ready = False  # Tracks when system is ready to transcribe
+_transcribing = False  # Tracks when user is speaking (transcription active)
+_tts_playing = False  # Tracks when TTS is playing (AI speaking)
+_tts_frequency = 0.15  # Current TTS frequency for pulsation speed
 
 class AuraGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("AuraVision")
-        self.setStyleSheet("""
+        # Dynamic styling - will be updated based on state
+        self.base_style = """
             QMainWindow {
                 background-color: black;
                 border: 5px solid #ff0000;
                 border-radius: 540px;  /* Half of 1080 for perfect circle */
             }
-        """)
+        """
+        self.setStyleSheet(self.base_style)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
 
         # === Load and Scale aura_eye.png ===
@@ -58,10 +63,16 @@ class AuraGUI(QMainWindow):
         self.label.setGraphicsEffect(self.opacity_effect)
         self.opacity = 1.0
         self.pulse_direction = -1
+        
+        # Animation state variables
+        self.border_pulse_phase = 0.0
+        self.eye_pulse_phase = 0.0
+        self.border_pulse_speed = 0.1  # Red edge pulsation speed
+        self.eye_pulse_speed = 0.15    # Aura eye pulsation speed
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.animate_pulse)
-        self.timer.start(100)
+        self.timer.start(50)  # Faster updates for smoother animation
         
         # Enable keyboard focus for shortcuts
         self.setFocusPolicy(Qt.StrongFocus)
@@ -168,7 +179,9 @@ class AuraGUI(QMainWindow):
         print("[AuraGUI] 🎯 GUI has fully rendered")
 
     def animate_pulse(self):
-        global _listening_ready
+        global _listening_ready, _transcribing, _tts_playing
+        
+        # State 1: System not ready - gentle aura eye pulse
         if not _listening_ready:
             delta = 0.04 * self.pulse_direction
             self.opacity += delta
@@ -179,8 +192,43 @@ class AuraGUI(QMainWindow):
                 self.opacity = 0.3
                 self.pulse_direction = 1
             self.opacity_effect.setOpacity(self.opacity)
-        else:
+            self._update_border_style(static=True)
+            
+        # State 2: System ready, fixed mode
+        elif _listening_ready and not _transcribing and not _tts_playing:
             self.opacity_effect.setOpacity(1.0)
+            self._update_border_style(static=True)
+            
+        # State 3: User speaking (transcription) - red edge pulsation
+        elif _transcribing:
+            self.opacity_effect.setOpacity(1.0)
+            self.border_pulse_phase += self.border_pulse_speed
+            pulse_intensity = (math.sin(self.border_pulse_phase) + 1) / 2  # 0 to 1
+            border_width = int(5 + pulse_intensity * 10)  # 5px to 15px
+            self._update_border_style(pulsating=True, width=border_width)
+            
+        # State 4: TTS playing - aura eye pulsation synchronized with speech frequency
+        elif _tts_playing:
+            # Use dynamic frequency from actual TTS audio
+            self.eye_pulse_phase += _tts_frequency
+            pulse_intensity = (math.sin(self.eye_pulse_phase) + 1) / 2  # 0 to 1
+            self.opacity = 0.3 + pulse_intensity * 0.7  # 0.3 to 1.0
+            self.opacity_effect.setOpacity(self.opacity)
+            self._update_border_style(static=True)
+    
+    def _update_border_style(self, static=True, pulsating=False, width=5):
+        """Update the border style based on current state"""
+        if pulsating:
+            style = f"""
+                QMainWindow {{
+                    background-color: black;
+                    border: {width}px solid #ff0000;
+                    border-radius: 540px;
+                }}
+            """
+        else:
+            style = self.base_style
+        self.setStyleSheet(style)
     
     def keyPressEvent(self, event):
         """Handle keyboard shortcuts"""
@@ -223,3 +271,28 @@ def gui_is_ready():
 def set_listening_ready():
     global _listening_ready
     _listening_ready = True
+    print("[AuraGUI] 🎯 Switched to fixed mode - listener ready")
+
+def set_transcribing(active):
+    """Set transcription state - red edge pulsation when user is speaking"""
+    global _transcribing
+    _transcribing = active
+    if active:
+        print("[AuraGUI] 🔴 Transcription active - red edge pulsating")
+    else:
+        print("[AuraGUI] ⚫ Transcription ended - returning to fixed mode")
+
+def set_tts_playing(active):
+    """Set TTS state - aura eye pulsation when AI is speaking"""
+    global _tts_playing
+    _tts_playing = active
+    if active:
+        print("[AuraGUI] 👁️ TTS playing - aura eye pulsating")
+    else:
+        print("[AuraGUI] ⚫ TTS ended - returning to fixed mode")
+
+def set_tts_frequency(frequency_speed):
+    """Set TTS frequency for synchronized aura eye pulsation"""
+    global _tts_frequency
+    _tts_frequency = frequency_speed
+    print(f"[AuraGUI] 🎵 TTS frequency updated: {frequency_speed:.3f}")

@@ -21,6 +21,13 @@ _playing = False
 def set_playing(value: bool):
     global _playing
     _playing = value
+    
+    # Update GUI state for TTS
+    try:
+        from aura_gui import set_tts_playing
+        set_tts_playing(value)
+    except ImportError:
+        pass  # GUI not available
 
 def is_playing():
     return _playing
