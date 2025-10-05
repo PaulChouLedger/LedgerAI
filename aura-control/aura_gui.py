@@ -221,19 +221,7 @@ class AuraGUI(QMainWindow):
     def animate_pulse(self):
         global _listening_ready, _transcribing, _tts_playing, _tts_frequency
         
-        # Debug: Print current state
-        if hasattr(self, '_debug_counter'):
-            self._debug_counter += 1
-        else:
-            self._debug_counter = 0
-            
-        if self._debug_counter % 100 == 0:  # Print every 5 seconds (100 * 50ms)
-            try:
-                from listener import get_transcription_frequency
-                speech_freq = get_transcription_frequency()
-                print(f"[GUI Debug] State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}, tts_freq={_tts_frequency:.3f}, speech_freq={speech_freq:.3f}")
-            except ImportError:
-                print(f"[GUI Debug] State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}, tts_freq={_tts_frequency:.3f}")
+        # Debug output removed for cleaner console
         
         # State 1: System not ready - gentle, meditative aura eye
         if not _listening_ready:
@@ -359,8 +347,10 @@ class AuraGUI(QMainWindow):
         # Set opacity through widget style
         self.label.setStyleSheet(f"opacity: {self.opacity};")
         
-        # Apply scaling using QTransform
-        self._apply_scaling(scale_factor)
+        # Apply scaling using alternative method (pixmap resizing) for TTS
+        self._apply_scaling_alternative(scale_factor)
+        
+        # Debug output removed for cleaner console
         
         # Dynamic glow effect that responds to TTS
         glow_intensity = (heartbeat_intensity + breathing_intensity) / 2
@@ -372,11 +362,7 @@ class AuraGUI(QMainWindow):
         glow_radius = 15 + glow_intensity * 25  # 15-40 radius
         self.glow_effect.setBlurRadius(int(glow_radius))
         
-        # Debug output (less frequent)
-        if hasattr(self, '_debug_counter') and self._debug_counter % 20 == 0:
-            print(f"[GUI] 👁️ Aura: freq={tts_freq:.3f}, breathing={breathing_intensity:.3f}, "
-                  f"heartbeat={heartbeat_intensity:.3f}, glow={glow_intensity:.3f}, "
-                  f"final={self.opacity:.3f}, scale={scale_factor:.3f}, glow_alpha={glow_alpha}")
+        # Debug output removed for cleaner console
     
     def _animate_aura_eye_idle(self):
         """Gentle, meditative aura eye animation when idle"""
@@ -419,8 +405,36 @@ class AuraGUI(QMainWindow):
             transform = QTransform()
             transform.scale(scale_factor, scale_factor)
             self.label.setTransform(transform)
+            
+            # Debug output removed for cleaner console
         except Exception as e:
             # If scaling fails, just continue without it
+            print(f"[GUI] ⚠️ Scaling failed: {e}")
+            pass
+    
+    def _apply_scaling_alternative(self, scale_factor):
+        """Alternative scaling method using pixmap resizing"""
+        try:
+            # Get the original pixmap
+            original_pixmap = self.label.pixmap()
+            if original_pixmap:
+                # Calculate new size
+                original_size = original_pixmap.size()
+                new_size = original_size * scale_factor
+                
+                # Scale the pixmap
+                scaled_pixmap = original_pixmap.scaled(
+                    new_size, 
+                    Qt.KeepAspectRatio, 
+                    Qt.SmoothTransformation
+                )
+                
+                # Set the scaled pixmap
+                self.label.setPixmap(scaled_pixmap)
+                
+                # Debug output removed for cleaner console
+        except Exception as e:
+            print(f"[GUI] ⚠️ Alt scaling failed: {e}")
             pass
     
     def keyPressEvent(self, event):
