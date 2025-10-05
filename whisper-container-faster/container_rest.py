@@ -35,6 +35,57 @@ if os.path.exists(hf_cache):
 else:
     print(f"[Whisper] ⚠️ HF cache does not exist: {hf_cache}")
 
+# Create symbolic links for HuggingFace cache compatibility
+def create_model_symlinks(model_name):
+    """Create symbolic links for any Whisper model to ensure cache compatibility"""
+    print(f"[Whisper] 🔗 Creating symbolic links for {model_name}...")
+    try:
+        cache_dir = f"/app/cache/whisper/{model_name}"
+        snapshots_dir = f"{cache_dir}/snapshots"
+        
+        if os.path.exists(snapshots_dir):
+            # Find the actual snapshot directory (it has a hash name)
+            snapshot_dirs = [d for d in os.listdir(snapshots_dir) if os.path.isdir(os.path.join(snapshots_dir, d))]
+            
+            if snapshot_dirs:
+                # Use the first (and typically only) snapshot directory
+                snapshot_hash = snapshot_dirs[0]
+                snapshot_path = f"snapshots/{snapshot_hash}"
+                
+                # Create symbolic links if they don't exist
+                links_to_create = [
+                    ("config.json", f"{snapshot_path}/config.json"),
+                    ("model.bin", f"{snapshot_path}/model.bin"),
+                    ("preprocessor_config.json", f"{snapshot_path}/preprocessor_config.json"),
+                    ("tokenizer.json", f"{snapshot_path}/tokenizer.json")
+                ]
+                
+                for link_name, target in links_to_create:
+                    link_path = f"{cache_dir}/{link_name}"
+                    target_path = f"{cache_dir}/{target}"
+                    if os.path.exists(target_path) and not os.path.exists(link_path):
+                        os.symlink(target, link_path)
+                        print(f"[Whisper] ✅ Created symlink: {link_name} -> {target}")
+                    elif os.path.exists(link_path):
+                        print(f"[Whisper] ℹ️ Symlink already exists: {link_name}")
+                    else:
+                        print(f"[Whisper] ⚠️ Target not found: {target}")
+                print(f"[Whisper] ✅ Cache compatibility setup complete for {model_name}")
+                return True
+            else:
+                print(f"[Whisper] ⚠️ No snapshot directories found in {snapshots_dir}")
+        else:
+            print(f"[Whisper] ⚠️ No snapshots directory found: {snapshots_dir}")
+        return False
+    except Exception as e:
+        print(f"[Whisper] ⚠️ Error creating symlinks for {model_name}: {e}")
+        return False
+
+# Create symlinks for the model (configurable via environment variable)
+model_name = os.getenv("WHISPER_MODEL", "distil-small.en")
+print(f"[Whisper] 📋 Using model: {model_name}")
+create_model_symlinks(model_name)
+
 # Let faster_whisper handle CUDA/PyTorch initialization internally
 print(f"[Whisper] 🚀 Initializing faster-whisper with GPU support...")
 
@@ -43,14 +94,14 @@ print(f"[Whisper] ✅ Ready to initialize faster-whisper model")
 
 # Load GPU model - NO CPU FALLBACK
 try:
-    model = WhisperModel("distil-small.en", device="cuda", compute_type="float16")
-    print(f"[Whisper] ✅ GPU model loaded successfully from HuggingFace cache")
+    model = WhisperModel(model_name, device="cuda", compute_type="float16")
+    print(f"[Whisper] ✅ GPU model '{model_name}' loaded successfully from HuggingFace cache")
 except Exception as e:
     print(f"[Whisper] ❌ GPU model loading failed: {e}")
     print(f"[Whisper] 🔄 Trying with explicit cache directory...")
     try:
-        model = WhisperModel("distil-small.en", device="cuda", compute_type="float16", download_root=cache_dir)
-        print(f"[Whisper] ✅ GPU model loaded with explicit cache")
+        model = WhisperModel(model_name, device="cuda", compute_type="float16", download_root=cache_dir)
+        print(f"[Whisper] ✅ GPU model '{model_name}' loaded with explicit cache")
     except Exception as e2:
         print(f"[Whisper] ❌ GPU model loading failed with default cache: {e2}")
         print(f"[Whisper] 💥 FATAL: GPU required - no CPU fallback available")
