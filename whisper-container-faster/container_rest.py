@@ -69,9 +69,19 @@ print(f"[Whisper] 🚀 Initializing faster-whisper with GPU support...")
 # faster_whisper will handle GPU detection and initialization
 print(f"[Whisper] ✅ Ready to initialize faster-whisper model")
 
+# Debug: Check what's in the model directory
+model_dir = f"/app/models/{model_name}"
+print(f"[Whisper] 🔍 Checking model directory: {model_dir}")
+if os.path.exists(model_dir):
+    print(f"[Whisper] 📁 Model directory exists")
+    files = os.listdir(model_dir)
+    print(f"[Whisper] 📄 Files in model directory: {files}")
+else:
+    print(f"[Whisper] ⚠️ Model directory does not exist: {model_dir}")
+
 # Load GPU model - NO CPU FALLBACK
 try:
-    model = WhisperModel(model_name, device="cuda", compute_type="float16", download_root="/app/models")
+    model = WhisperModel(model_name, device="cuda", compute_type="float16", download_root="/app/models", local_files_only=True)
     print(f"[Whisper] ✅ GPU model '{model_name}' loaded successfully from built-in cache")
 except Exception as e:
     print(f"[Whisper] ❌ GPU model loading failed: {e}")
