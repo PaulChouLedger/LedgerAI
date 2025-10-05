@@ -341,26 +341,49 @@ class FileUploadDialog(QDialog):
         """)
         self.content_layout.addWidget(self.status_log)
         
-        # Position buttons in the center of the circular screen
-        # For 1080x1080 circular screen, center is at (540, 540)
-        # Position buttons in the center area, not in corners
-        self.upload_btn = QPushButton("UPLOAD TEST")
-        self.upload_btn.setGeometry(440, 440, 120, 60)  # Center area positioning
-        self.upload_btn.setStyleSheet("background-color: red; color: white; font-size: 14px;")
+        # Position buttons around the circular edge of the screen
+        # For 1080x1080 circular screen, position buttons along the edge
+        self.upload_btn = QPushButton("UPLOAD")
+        self.upload_btn.setGeometry(50, 50, 100, 50)  # Top-left area
+        self.upload_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #007AFF;
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 25px;
+                border: none;
+            }
+            QPushButton:hover {
+                background-color: #0056CC;
+            }
+        """)
         self.upload_btn.clicked.connect(self.upload_files)
         self.upload_btn.setParent(self)  # Direct parent to dialog
         self.upload_btn.show()
         self.upload_btn.raise_()
-        print(f"[Upload] 🔘 Created UPLOAD button at (440, 440)")
+        print(f"[Upload] 🔘 Created UPLOAD button at (50, 50)")
         
-        self.close_btn = QPushButton("CLOSE TEST")
-        self.close_btn.setGeometry(440, 520, 120, 60)  # Center area positioning
-        self.close_btn.setStyleSheet("background-color: blue; color: white; font-size: 14px;")
+        self.close_btn = QPushButton("CLOSE")
+        self.close_btn.setGeometry(930, 50, 100, 50)  # Top-right area
+        self.close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF3B30;
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 25px;
+                border: none;
+            }
+            QPushButton:hover {
+                background-color: #CC2E24;
+            }
+        """)
         self.close_btn.clicked.connect(self.close)
         self.close_btn.setParent(self)  # Direct parent to dialog
         self.close_btn.show()
         self.close_btn.raise_()
-        print(f"[Upload] 🔘 Created CLOSE button at (400, 460)")
+        print(f"[Upload] 🔘 Created CLOSE button at (930, 50)")
         
         # Set layout to content widget
         content_widget.setLayout(self.content_layout)
