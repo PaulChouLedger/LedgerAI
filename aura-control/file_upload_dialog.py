@@ -350,50 +350,8 @@ class FileUploadDialog(QDialog):
         """)
         self.content_layout.addWidget(self.status_log)
         
-        # Position buttons within the circular area - center of the circle
-        # For 1080x1080 circular screen, center is at (540, 540)
-        # Position buttons in the center area, well within the circular boundary
-        self.upload_btn = QPushButton("UPLOAD")
-        self.upload_btn.setGeometry(460, 460, 120, 60)  # Center area, within circle
-        self.upload_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #007AFF;
-                color: white;
-                font-size: 16px;
-                font-weight: bold;
-                border-radius: 30px;
-                border: 3px solid #ffffff;
-            }
-            QPushButton:hover {
-                background-color: #0056CC;
-            }
-        """)
-        self.upload_btn.clicked.connect(self.upload_files)
-        self.upload_btn.setParent(self)  # Direct parent to dialog
-        self.upload_btn.show()
-        self.upload_btn.raise_()
-        print(f"[Upload] 🔘 Created UPLOAD button at (460, 460)")
-        
-        self.close_btn = QPushButton("CLOSE")
-        self.close_btn.setGeometry(460, 540, 120, 60)  # Center area, within circle
-        self.close_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #FF3B30;
-                color: white;
-                font-size: 16px;
-                font-weight: bold;
-                border-radius: 30px;
-                border: 3px solid #ffffff;
-            }
-            QPushButton:hover {
-                background-color: #CC2E24;
-            }
-        """)
-        self.close_btn.clicked.connect(self.close)
-        self.close_btn.setParent(self)  # Direct parent to dialog
-        self.close_btn.show()
-        self.close_btn.raise_()
-        print(f"[Upload] 🔘 Created CLOSE button at (460, 540)")
+        # Focus on red border positioning - no buttons for now
+        print(f"[Upload] 🔴 Red border should show circular screen boundaries")
         
         # Set layout to content widget
         content_widget.setLayout(self.content_layout)
