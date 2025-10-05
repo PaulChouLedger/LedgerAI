@@ -226,8 +226,7 @@ class FileUploadDialog(QDialog):
         main_layout.addWidget(content_widget, 0, Qt.AlignCenter)
         main_layout.addStretch()
         
-        # Add edge buttons for future functions
-        self.create_edge_buttons(main_layout)
+        # Add edge buttons for future functions - will be added after layout is set
         
         # Create layout for circular content
         self.content_layout = QVBoxLayout()
@@ -424,61 +423,55 @@ class FileUploadDialog(QDialog):
         
         # Set main layout to dialog
         self.setLayout(main_layout)
+        
+        # Add edge buttons after layout is set (as overlays)
+        self.create_edge_buttons()
     
-    def create_edge_buttons(self, main_layout):
+    def create_edge_buttons(self):
         """Create dummy buttons around the edge of the circular dialog"""
-        # Create edge button container
-        edge_container = QWidget()
-        edge_container.setFixedSize(1080, 1080)
-        edge_container.setStyleSheet("background-color: transparent;")
-        
-        # Use absolute positioning (no layout needed)
-        
         # Button style for edge buttons - more visible
         edge_button_style = """
             QPushButton {
-                background-color: rgba(0, 122, 255, 0.8);
+                background-color: rgba(0, 122, 255, 0.9);
                 color: #ffffff;
-                font-size: 20px;
+                font-size: 24px;
                 font-weight: bold;
-                border-radius: 30px;
-                border: 3px solid #ffffff;
-                min-width: 60px;
-                min-height: 60px;
+                border-radius: 35px;
+                border: 4px solid #ffffff;
+                min-width: 70px;
+                min-height: 70px;
             }
             QPushButton:hover {
                 background-color: rgba(0, 122, 255, 1.0);
-                border: 3px solid #ffffff;
+                border: 4px solid #ffff00;
             }
         """
         
         # Create dummy buttons around the edges with absolute positioning
         button_positions = [
             # Top row
-            (540, 50, "🔍"),   # Top center - Search
-            (900, 200, "⚙️"),  # Top right - Settings
+            (540, 80, "🔍"),   # Top center - Search
+            (900, 150, "⚙️"),  # Top right - Settings
             # Middle rows  
-            (50, 400, "📊"),   # Left - Analytics
-            (1030, 400, "💾"), # Right - Save
+            (80, 400, "📊"),   # Left - Analytics
+            (1000, 400, "💾"), # Right - Save
             # Bottom row
-            (150, 900, "🔄"),  # Bottom left - Refresh
-            (540, 950, "📋"),  # Bottom center - Clipboard
-            (930, 900, "📁"),  # Bottom right - Files
+            (150, 800, "🔄"),  # Bottom left - Refresh
+            (540, 850, "📋"),  # Bottom center - Clipboard
+            (930, 800, "📁"),  # Bottom right - Files
         ]
         
         for x, y, icon in button_positions:
             btn = QPushButton(icon)
             btn.setStyleSheet(edge_button_style)
-            btn.setFixedSize(60, 60)
-            btn.move(x - 30, y - 30)  # Center the button on the position
+            btn.setFixedSize(70, 70)
+            btn.move(x - 35, y - 35)  # Center the button on the position
             btn.clicked.connect(lambda checked, i=icon: self.edge_button_clicked(i))
-            btn.setParent(edge_container)
-            print(f"[Upload] 🔘 Created edge button '{icon}' at position ({x-30}, {y-30})")
+            btn.setParent(self)  # Add directly to dialog
+            btn.raise_()  # Bring to front
+            print(f"[Upload] 🔘 Created edge button '{icon}' at position ({x-35}, {y-35})")
         
-        print(f"[Upload] ✅ Created {len(button_positions)} edge buttons")
-        
-        # Add edge container to main layout (overlay style)
-        main_layout.addWidget(edge_container, 0, Qt.AlignCenter)
+        print(f"[Upload] ✅ Created {len(button_positions)} edge buttons as overlays")
     
     def edge_button_clicked(self, icon):
         """Handle edge button clicks - placeholder for future functions"""
