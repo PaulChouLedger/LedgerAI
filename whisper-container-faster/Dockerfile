@@ -6,11 +6,11 @@ WORKDIR /app
 # Copy REST API
 COPY container_rest.py /app/container_rest.py
 
+# Copy the pre-downloaded model
+COPY models--Systran--faster-distil-small-en /root/.cache/huggingface/hub/models--Systran--faster-distil-small-en
+
 # Install REST API dependencies
 RUN pip3 install --ignore-installed flask soundfile scipy
-
-# Create cache directories
-RUN mkdir -p /app/cache/whisper /root/.cache/huggingface
 
 EXPOSE 5000
 CMD ["python3", "/app/container_rest.py"]

@@ -35,86 +35,35 @@ if os.path.exists(hf_cache):
 else:
     print(f"[Whisper] ⚠️ HF cache does not exist: {hf_cache}")
 
-# Setup HuggingFace cache structure for faster-whisper
-def setup_model_cache(model_name):
-    """Setup proper HuggingFace cache structure for faster-whisper"""
-    print(f"[Whisper] 📋 Setting up HuggingFace cache for {model_name}...")
-    try:
-        import shutil
-        import json
-        
-        # Source directory (mounted HuggingFace cache)
-        source_dir = f"/app/cache/whisper/{model_name}"
-        snapshots_dir = f"{source_dir}/snapshots"
-        
-        # Target HuggingFace cache structure
-        hf_cache_dir = "/root/.cache/huggingface/hub"
-        model_repo = f"models--Systran--faster-{model_name.replace('.', '-')}"
-        target_dir = f"{hf_cache_dir}/{model_repo}"
-        
-        if os.path.exists(snapshots_dir):
-            # Find the actual snapshot directory (it has a hash name)
-            snapshot_dirs = [d for d in os.listdir(snapshots_dir) if os.path.isdir(os.path.join(snapshots_dir, d))]
-            
-            if snapshot_dirs:
-                # Use the first (and typically only) snapshot directory
-                snapshot_hash = snapshot_dirs[0]
-                source_snapshot = os.path.join(source_dir, "snapshots", snapshot_hash)
-                
-                # Create target directory structure
-                os.makedirs(target_dir, exist_ok=True)
-                target_snapshots = f"{target_dir}/snapshots"
-                os.makedirs(target_snapshots, exist_ok=True)
-                
-                # Copy snapshot directory
-                target_snapshot = f"{target_snapshots}/{snapshot_hash}"
-                if not os.path.exists(target_snapshot):
-                    shutil.copytree(source_snapshot, target_snapshot)
-                    print(f"[Whisper] ✅ Copied snapshot: {snapshot_hash}")
-                else:
-                    print(f"[Whisper] ℹ️ Snapshot already exists: {snapshot_hash}")
-                
-                # Copy refs directory if it exists
-                source_refs = f"{source_dir}/refs"
-                target_refs = f"{target_dir}/refs"
-                if os.path.exists(source_refs):
-                    if not os.path.exists(target_refs):
-                        shutil.copytree(source_refs, target_refs)
-                        print(f"[Whisper] ✅ Copied refs directory")
-                    else:
-                        print(f"[Whisper] ℹ️ Refs directory already exists")
-                
-                # Copy blobs directory if it exists
-                source_blobs = f"{source_dir}/blobs"
-                target_blobs = f"{target_dir}/blobs"
-                if os.path.exists(source_blobs):
-                    if not os.path.exists(target_blobs):
-                        shutil.copytree(source_blobs, target_blobs)
-                        print(f"[Whisper] ✅ Copied blobs directory")
-                    else:
-                        print(f"[Whisper] ℹ️ Blobs directory already exists")
-                        
-                print(f"[Whisper] ✅ HuggingFace cache setup complete for {model_name}")
-                return True
-            else:
-                print(f"[Whisper] ⚠️ No snapshot directories found in {snapshots_dir}")
-        else:
-            print(f"[Whisper] ⚠️ No snapshots directory found: {snapshots_dir}")
-        return False
-    except Exception as e:
-        print(f"[Whisper] ⚠️ Error setting up HuggingFace cache for {model_name}: {e}")
-        return False
-
-# Setup model cache for the model (configurable via environment variable)
+# Check if model is available in the built-in cache
 model_name = os.getenv("WHISPER_MODEL", "distil-small.en")
 print(f"[Whisper] 📋 Using model: {model_name}")
-setup_model_cache(model_name)
+
+# Check if the model is available in the built-in cache
+model_repo = f"models--Systran--faster-{model_name.replace('.', '-')}"
+model_cache_path = f"/root/.cache/huggingface/hub/{model_repo}"
+if os.path.exists(model_cache_path):
+    print(f"[Whisper] ✅ Model found in built-in cache: {model_repo}")
+else:
+    print(f"[Whisper] ⚠️ Model not found in built-in cache: {model_repo}")
+    print(f"[Whisper] 📁 Available models:")
+    hf_hub_dir = "/root/.cache/huggingface/hub"
+    if os.path.exists(hf_hub_dir):
+        for item in os.listdir(hf_hub_dir):
+            if item.startswith("models--"):
+                print(f"[Whisper]   - {item}")
+    else:
+        print(f"[Whisper]   - No HuggingFace hub directory found")
 
 # Let faster_whisper handle CUDA/PyTorch initialization internally
 print(f"[Whisper] 🚀 Initializing faster-whisper with GPU support...")
 
 # faster_whisper will handle GPU detection and initialization
 print(f"[Whisper] ✅ Ready to initialize faster-whisper model")
+
+# Set HuggingFace to offline mode to prevent downloads
+os.environ['HF_HUB_OFFLINE'] = '1'
+os.environ['TRANSFORMERS_OFFLINE'] = '1'
 
 # Load GPU model - NO CPU FALLBACK
 try:
