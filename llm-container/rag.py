@@ -273,7 +273,7 @@ class AuraRAG:
             print(f"[RAG] ❌ FAISS search error: {e}")
             return []
         
-        # Format results with relevance filtering
+        # Format results with enhanced relevance filtering
         results = []
         for i, (distance, idx) in enumerate(zip(distances[0], indices[0])):
             if idx < len(self.chunks):
@@ -281,20 +281,32 @@ class AuraRAG:
                 # Convert L2 distance to similarity score (0-1 range)
                 similarity_score = float(1.0 / (1.0 + distance))
                 
-                # Only include results above relevance threshold
-                if similarity_score >= self.relevance_threshold:
+                # Enhanced relevance check: verify the chunk actually contains query terms
+                query_words = set(query.lower().split())
+                chunk_words = set(chunk.lower().split())
+                word_overlap = len(query_words.intersection(chunk_words))
+                word_relevance = word_overlap / len(query_words) if query_words else 0
+                
+                # Combined relevance: semantic similarity + word overlap
+                combined_relevance = (similarity_score * 0.7) + (word_relevance * 0.3)
+                
+                # Only include results with both semantic and word relevance
+                if combined_relevance >= self.relevance_threshold and word_relevance > 0.1:
                     results.append({
                         'chunk': chunk,
-                        'score': similarity_score,
+                        'score': combined_relevance,
+                        'semantic_score': similarity_score,
+                        'word_relevance': word_relevance,
                         'rank': i + 1,
                         'distance': float(distance)
                     })
                     
-                    # Debug: Show actual chunk content
-                    print(f"[RAG] 📄 Chunk {i+1} (score: {similarity_score:.3f}):")
+                    # Debug: Show actual chunk content with relevance breakdown
+                    print(f"[RAG] 📄 Chunk {i+1} (combined: {combined_relevance:.3f}, semantic: {similarity_score:.3f}, words: {word_relevance:.3f}):")
                     print(f"[RAG] 📄 Content: {chunk[:200]}{'...' if len(chunk) > 200 else ''}")
-                    print(f"[RAG] 📄 Full content: {chunk}")
                     print(f"[RAG] 📄 ---")
+                else:
+                    print(f"[RAG] 🚫 Chunk {i+1} filtered out (combined: {combined_relevance:.3f}, words: {word_relevance:.3f})")
         
         retrieval_time = time.time() - start_time
         print(f"[RAG] 🔍 Retrieved {len(results)} chunks in {retrieval_time:.3f}s")
@@ -314,30 +326,46 @@ class AuraRAG:
         """
         print(f"[RAG] 🔍 Keyword search for: '{query}'")
         
-        # Simple keyword matching
+        # Enhanced keyword matching with name recognition
         query_words = set(query.lower().split())
         results = []
+        
+        # Extract potential names from query (capitalized words)
+        query_names = [word for word in query.split() if word[0].isupper()]
         
         for i, chunk in enumerate(self.chunks):
             # Handle both string and dict chunk formats
             if isinstance(chunk, str):
                 chunk_text = chunk.lower()
+                chunk_original = chunk
             else:
                 chunk_text = chunk.get('text', '').lower()
+                chunk_original = chunk.get('text', '')
             
             chunk_words = set(chunk_text.split())
             
-            # Calculate simple keyword overlap
+            # Calculate keyword overlap
             overlap = len(query_words.intersection(chunk_words))
-            if overlap > 0:
-                # Simple relevance score based on keyword overlap
-                relevance_score = overlap / len(query_words)
-                
+            word_relevance = overlap / len(query_words) if query_words else 0
+            
+            # Name matching bonus (exact name matches get higher scores)
+            name_bonus = 0
+            for name in query_names:
+                if name.lower() in chunk_text:
+                    name_bonus += 0.3  # Significant bonus for name matches
+            
+            # Combined relevance with name bonus
+            relevance_score = word_relevance + name_bonus
+            
+            # Only include results with meaningful relevance
+            if relevance_score > 0.2:  # Higher threshold for keyword search
                 results.append({
-                    'chunk': chunk if isinstance(chunk, str) else chunk.get('text', ''),
+                    'chunk': chunk_original,
                     'score': relevance_score,
+                    'word_relevance': word_relevance,
+                    'name_bonus': name_bonus,
                     'rank': len(results) + 1,
-                    'distance': 1.0 - relevance_score  # Convert score to distance
+                    'distance': 1.0 - relevance_score
                 })
         
         # Sort by relevance and return top k
