@@ -361,22 +361,24 @@ class FileUploadDialog(QDialog):
         button_layout.addWidget(test_btn)
         print(f"[Upload] 🔘 Created TEST button: size={test_btn.size()}")
         
-        self.upload_btn = QPushButton("↑")  # Circular upload button with up arrow
+        self.upload_btn = QPushButton("📄 Upload")  # Rectangular upload button like close button
         self.upload_btn.clicked.connect(self.upload_files)
         self.upload_btn.setEnabled(False)
-        self.upload_btn.setFixedSize(100, 100)  # Larger circular button for better visibility
         self.upload_btn.setStyleSheet("""
             QPushButton {
                 background-color: #007AFF;
                 color: white;
-                font-size: 32px;
-                font-weight: bold;
-                border-radius: 50px;  /* Perfect circle */
-                border: 3px solid #ffffff;
+                font-size: 14px;
+                font-weight: 500;
+                padding: 15px 25px;
+                min-height: 50px;
+                min-width: 120px;
+                max-width: 180px;
+                border-radius: 25px;
+                border: none;
             }
             QPushButton:hover {
                 background-color: #0056CC;
-                border: 3px solid #ffff00;
             }
             QPushButton:pressed {
                 background-color: #004499;
@@ -384,7 +386,6 @@ class FileUploadDialog(QDialog):
             QPushButton:disabled {
                 background-color: #3A3A3C;
                 color: #8E8E93;
-                border: 3px solid #555555;
             }
         """)
         button_layout.addWidget(self.upload_btn)
