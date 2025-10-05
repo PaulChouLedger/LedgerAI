@@ -363,7 +363,7 @@ class FileUploadDialog(QDialog):
         print(f"[Upload] 🔍 Dialog size: {self.size()}")
         print(f"[Upload] 🔍 Dialog geometry: {self.geometry()}")
         print(f"[Upload] 🔍 Dialog is visible: {self.isVisible()}")
-        print(f"[Upload] 🔍 Dialog is shown: {self.isShown()}")
+        print(f"[Upload] 🔍 Dialog is shown: {self.isVisible()}")
         print(f"[Upload] 🔍 Content widget size: {content_widget.size()}")
         print(f"[Upload] 🔍 Content widget geometry: {content_widget.geometry()}")
         print(f"[Upload] 🔍 Content widget is visible: {content_widget.isVisible()}")

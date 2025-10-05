@@ -80,7 +80,7 @@ class AuraGUI(QMainWindow):
         
         # Calculate positions for 6 buttons around a circle
         # Radius should be close to the edge but not touching the red border
-        radius = 400  # Distance from center to button
+        radius = 480  # Distance from center to button (closer to edge)
         center_x = 540  # Center of 1080x1080 screen
         center_y = 540
         
@@ -91,26 +91,26 @@ class AuraGUI(QMainWindow):
             angle = math.radians(i * 60)  # 0, 60, 120, 180, 240, 300 degrees
             
             # Calculate position
-            x = center_x + radius * math.cos(angle) - 30  # -30 to center the 60px button
-            y = center_y + radius * math.sin(angle) - 30
+            x = center_x + radius * math.cos(angle) - 50  # -50 to center the 100px button
+            y = center_y + radius * math.sin(angle) - 50
             
             # Create button
             btn = QPushButton(text)
-            btn.setFixedSize(60, 60)
+            btn.setFixedSize(100, 100)  # Bigger buttons
             btn.setToolTip(tooltip)
             btn.move(int(x), int(y))
             btn.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {color};
                     color: white;
-                    font-size: 20px;
+                    font-size: 32px;
                     font-weight: bold;
-                    border-radius: 30px;
-                    border: 2px solid #ffffff;
+                    border-radius: 50px;
+                    border: 3px solid #ffffff;
                 }}
                 QPushButton:hover {{
                     background-color: {color}CC;
-                    border: 3px solid #ffffff;
+                    border: 4px solid #ffffff;
                 }}
                 QPushButton:pressed {{
                     background-color: {color}99;
