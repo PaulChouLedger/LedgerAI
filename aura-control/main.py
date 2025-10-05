@@ -28,7 +28,7 @@ HOST_ENV = dotenv_values(os.path.expanduser("~/LedgerAI/llm-container/.env"))
 # === Whisper Container Configuration ===
 # Using faster-whisper with distil-small.en
 WHISPER_IMAGE = "aura-whisper-faster:latest"
-WHISPER_CONTAINER_NAME = "aura-whisper-faster"
+WHISPER_CONTAINER_NAME = "aura-whisper"
 print(f"[Aura] 🎤 Whisper container: faster-whisper with distil-small.en")
 
 # === Graceful Exit on Ctrl+C ===
@@ -131,14 +131,18 @@ def stream_container_logs(name):
 # === Health check for container via HTTP ===
 def wait_for_container(url, name, timeout=15):
     print(f"[Aura] ⏳ Waiting for {name} to respond (timeout {timeout}s)...")
-    for _ in range(timeout * 10):
+    for i in range(timeout * 10):
         try:
             response = requests.get(url, timeout=1)
             if response.status_code in (200, 404):
                 print(f"[Aura] ✅ {name} is online.")
                 return True
-        except requests.exceptions.RequestException:
-            pass
+            else:
+                if i % 50 == 0:  # Print every 5 seconds
+                    print(f"[Aura] 🔍 {name} responded with status {response.status_code}")
+        except requests.exceptions.RequestException as e:
+            if i % 50 == 0:  # Print every 5 seconds
+                print(f"[Aura] 🔍 {name} connection error: {e}")
         time.sleep(0.1)
     print(f"[Aura] ❌ Timeout waiting for {name}.")
     return False
@@ -179,6 +183,9 @@ def run_container(name, port, image, timeout=15):
 
 
     cmd.append(image)
+    
+    # Debug: Print the exact command being run
+    print(f"[Aura] 🔍 Container command: {' '.join(cmd)}")
 
     for attempt in range(3):
         try:
@@ -190,6 +197,7 @@ def run_container(name, port, image, timeout=15):
         # Use appropriate health check endpoint
         if name == WHISPER_CONTAINER_NAME:
             health_url = f"http://localhost:{port}/health"
+            print(f"[Aura] 🔍 Health check URL: {health_url}")
             time.sleep(5)   # Standard time for faster-whisper
         else:
             health_url = f"http://localhost:{port}"
@@ -205,6 +213,17 @@ def run_container(name, port, image, timeout=15):
                                 capture_output=True, text=True, timeout=5)
             if result.returncode == 0 and result.stdout.strip():
                 print(f"[Aura] 🔍 Container {name} is running but not responding: {result.stdout.strip()}")
+                
+                # Try to get container logs to see what's happening
+                try:
+                    logs_result = subprocess.run(["docker", "logs", "--tail", "10", name], 
+                                              capture_output=True, text=True, timeout=5)
+                    if logs_result.returncode == 0 and logs_result.stdout.strip():
+                        print(f"[Aura] 📋 Container logs (last 10 lines):")
+                        for line in logs_result.stdout.strip().split('\n'):
+                            print(f"[Aura] 📋 {line}")
+                except Exception as log_e:
+                    print(f"[Aura] 🔍 Could not get container logs: {log_e}")
             else:
                 print(f"[Aura] 🔍 Container {name} is not running")
         except Exception as e:
