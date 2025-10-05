@@ -50,7 +50,7 @@ class FileUploadDialog(QDialog):
         print(f"[Upload] 📐 Dialog geometry: {self.geometry()}")
         print(f"[Upload] 📐 Dialog size: {self.size()}")
         print(f"[Upload] 📐 Dialog position: {self.pos()}")
-        print("[Upload] 👁️ Dialog should now be visible with red border")
+        print("[Upload] 👁️ Dialog should now be visible with transparent background")
         
         # Add interactive touch coordinates for debugging
         self.touch_coordinates = []
@@ -62,7 +62,7 @@ class FileUploadDialog(QDialog):
             QDialog {
                 background-color: transparent;  /* Transparent background */
                 color: white;
-                border: 5px solid #ff0000;  /* Red border to see screen edges */
+                border: none;  /* No border */
                 border-radius: 540px;  /* Circular border to match 5-inch screen */
             }
             QLabel {
@@ -597,7 +597,7 @@ class FileUploadDialog(QDialog):
                 qr_dialog.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # Full screen
                 qr_dialog.setStyleSheet("""
                     QDialog {
-                        background-color: rgba(28, 28, 30, 0.95);
+                        background-color: rgba(28, 28, 30, 1.0);
                         color: white;
                         border-radius: 540px;
                         border: none;
