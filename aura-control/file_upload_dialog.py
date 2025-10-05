@@ -341,27 +341,11 @@ class FileUploadDialog(QDialog):
         """)
         self.content_layout.addWidget(self.status_log)
         
-        # Action buttons - optimized for circular screen
+        # Action buttons - restored to working version
         button_layout = QHBoxLayout()
-        button_layout.setSpacing(15)  # Compact spacing
+        button_layout.setSpacing(15)
         
-        # Test button first to see if any buttons work
-        test_btn = QPushButton("TEST")
-        test_btn.setFixedSize(80, 40)
-        test_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #ff0000;
-                color: white;
-                font-size: 16px;
-                font-weight: bold;
-                border: 2px solid #ffffff;
-            }
-        """)
-        test_btn.clicked.connect(lambda: print("[Upload] 🔘 TEST BUTTON CLICKED!"))
-        button_layout.addWidget(test_btn)
-        print(f"[Upload] 🔘 Created TEST button: size={test_btn.size()}")
-        
-        self.upload_btn = QPushButton("📄 Upload")  # Rectangular upload button like close button
+        self.upload_btn = QPushButton("🚀 Upload")
         self.upload_btn.clicked.connect(self.upload_files)
         self.upload_btn.setEnabled(False)
         self.upload_btn.setStyleSheet("""
@@ -389,8 +373,6 @@ class FileUploadDialog(QDialog):
             }
         """)
         button_layout.addWidget(self.upload_btn)
-        print(f"[Upload] 🔘 Created upload button: size={self.upload_btn.size()}, text='{self.upload_btn.text()}'")
-        print(f"[Upload] 🔘 Upload button enabled: {self.upload_btn.isEnabled()}")
         
         self.close_btn = QPushButton("❌ Close")
         self.close_btn.clicked.connect(self.close)
@@ -417,8 +399,6 @@ class FileUploadDialog(QDialog):
         button_layout.addWidget(self.close_btn)
         
         self.content_layout.addLayout(button_layout)
-        print(f"[Upload] 🔘 Added button layout to content layout")
-        print(f"[Upload] 🔘 Content layout children: {self.content_layout.count()}")
         
         # Set layout to content widget
         content_widget.setLayout(self.content_layout)
@@ -426,23 +406,6 @@ class FileUploadDialog(QDialog):
         # Set main layout to dialog
         self.setLayout(main_layout)
         
-        # Add a simple test button directly to dialog to test visibility
-        test_direct_btn = QPushButton("DIRECT TEST")
-        test_direct_btn.setFixedSize(100, 50)
-        test_direct_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #00ff00;
-                color: black;
-                font-size: 14px;
-                font-weight: bold;
-                border: 2px solid #000000;
-            }
-        """)
-        test_direct_btn.move(50, 50)  # Position at top-left
-        test_direct_btn.setParent(self)
-        test_direct_btn.clicked.connect(lambda: print("[Upload] 🔘 DIRECT TEST BUTTON CLICKED!"))
-        test_direct_btn.raise_()  # Bring to front
-        print(f"[Upload] 🔘 Created DIRECT TEST button at (50, 50)")
         
         # Edge buttons removed - separate GUI functions will have their own scripts
     
