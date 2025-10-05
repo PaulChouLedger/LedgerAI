@@ -159,8 +159,8 @@ class FileUploadDialog(QDialog):
         x = (screen.width() - dialog_width) // 2
         y = (screen.height() - dialog_height) // 2
         
-        # Move dialog up by 20% to center it properly
-        y_offset = int(dialog_height * 0.2)  # 20% of dialog height
+        # Move dialog up by 40% total (20% + 20% more) to center it properly
+        y_offset = int(dialog_height * 0.4)  # 40% of dialog height (20% + 20% more)
         y = y - y_offset
         
         # Ensure dialog doesn't go off-screen
