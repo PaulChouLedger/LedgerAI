@@ -105,17 +105,29 @@ class AuraRAG:
             
         except Exception as e:
             print(f"[RAG] ❌ Failed to load sentence transformer: {e}")
-            # Try alternative loading method
+            # Try alternative loading method with explicit model loading
             try:
                 print("[RAG] 🔄 Trying alternative loading method...")
-                self.encoder = SentenceTransformer(self.model_name)
-                self.encoder = self.encoder.to('cpu')
+                # Force download and load without device specification first
+                self.encoder = SentenceTransformer(self.model_name, device=None)
+                # Then explicitly move to CPU
+                if hasattr(self.encoder, 'to'):
+                    self.encoder = self.encoder.to('cpu')
                 print(f"[RAG] ✅ Loaded encoder with alternative method: {self.model_name}")
             except Exception as e2:
                 print(f"[RAG] ❌ Alternative loading also failed: {e2}")
-                # Fallback: create a dummy encoder that returns zeros
-                self.encoder = None
-                print("[RAG] ⚠️ Using fallback encoder (no semantic search)")
+                # Try one more method - load with torch_dtype
+                try:
+                    print("[RAG] 🔄 Trying torch_dtype method...")
+                    import torch
+                    self.encoder = SentenceTransformer(self.model_name, torch_dtype=torch.float32)
+                    self.encoder = self.encoder.to('cpu')
+                    print(f"[RAG] ✅ Loaded encoder with torch_dtype method: {self.model_name}")
+                except Exception as e3:
+                    print(f"[RAG] ❌ All loading methods failed: {e3}")
+                    # Fallback: create a dummy encoder that returns zeros
+                    self.encoder = None
+                    print("[RAG] ⚠️ Using fallback encoder (no semantic search)")
         
         # Check GPU availability (FAISS-GPU not available on ARM64/Jetson)
         try:

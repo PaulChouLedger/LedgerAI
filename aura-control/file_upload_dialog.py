@@ -408,6 +408,9 @@ class FileUploadDialog(QDialog):
         # Set layout to content widget
         content_widget.setLayout(self.content_layout)
         
+        # Ensure content widget is visible
+        content_widget.show()
+        
         # Set main layout to dialog
         self.setLayout(main_layout)
         

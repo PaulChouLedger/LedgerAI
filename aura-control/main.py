@@ -215,7 +215,7 @@ def initialize_rag_delayed():
         # Initialize RAG system
         for attempt in range(3):
             try:
-                init_response = requests.post("http://localhost:11434/rag/init", timeout=30)
+                init_response = requests.post("http://localhost:11434/rag/init", timeout=15)  # Reduced timeout
                 if init_response.status_code == 200:
                     result = init_response.json()
                     if result.get("status") == "success":
@@ -233,10 +233,10 @@ def initialize_rag_delayed():
             print("[Aura] ⚠️ RAG initialization failed after 3 attempts")
             return
         
-        # Test RAG stats with 3 attempts and 10 second timeout each
-        for attempt in range(3):  # 3 attempts
+        # Test RAG stats with 2 attempts and shorter timeout
+        for attempt in range(2):  # Reduced to 2 attempts
             try:
-                stats_response = requests.get("http://localhost:11434/rag/stats", timeout=30)  # 30 second timeout
+                stats_response = requests.get("http://localhost:11434/rag/stats", timeout=10)  # Reduced to 10 second timeout
                 if stats_response.status_code == 200:
                     stats = stats_response.json()
                     print(f"[Aura] ✅ RAG loaded: {stats.get('chunks_loaded', 0)} medical documents")
@@ -252,13 +252,13 @@ def initialize_rag_delayed():
         else:
             print("[Aura] ⚠️ RAG stats endpoint not available after 3 attempts")
             
-        # Test RAG search
+        # Test RAG search with 3 attempts (standard for containers)
         for attempt in range(3):
             try:
                 search_response = requests.post(
                     "http://localhost:11434/rag/search",
                     json={"query": "test", "k": 1},
-                    timeout=30
+                    timeout=10  # 10 second timeout per attempt
                 )
                 if search_response.status_code == 200:
                     print("[Aura] ✅ RAG search working")
@@ -267,7 +267,7 @@ def initialize_rag_delayed():
                     print(f"[Aura] ⚠️ RAG search attempt {attempt + 1} failed: {search_response.status_code}")
             except requests.exceptions.RequestException as e:
                 print(f"[Aura] ⚠️ RAG search attempt {attempt + 1} failed: {e}")
-                if attempt < 2:
+                if attempt < 2:  # Don't sleep on last attempt
                     time.sleep(2)
         else:
             print("[Aura] ⚠️ RAG search endpoint not working after 3 attempts")
