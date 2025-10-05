@@ -35,14 +35,7 @@ class FileUploadDialog(QDialog):
         self.setFixedSize(1080, 1080)  # Full screen size
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # Frameless, stay on top
         
-        # Add red border to show circular screen edge
-        self.setStyleSheet("""
-            QDialog {
-                background-color: rgba(0, 0, 0, 0.1);
-                border: 5px solid #ff0000;
-                border-radius: 540px;  /* Half of 1080 for perfect circle */
-            }
-        """)
+        # Red border will be set later in the initialization
         
         # Center the dialog on the actual screen
         screen = self.screen()
@@ -69,9 +62,9 @@ class FileUploadDialog(QDialog):
         print("[Upload] 🎯 Touch center, top, right, bottom, left edges to get all coordinates")
         self.setStyleSheet("""
             QDialog {
-                background-color: transparent;  /* Transparent background */
+                background-color: rgba(0, 0, 0, 0.3);  /* Semi-transparent background */
                 color: white;
-                border: none;  /* No border */
+                border: 8px solid #ff0000;  /* Red border for circular screen edge */
                 border-radius: 540px;  /* Circular border to match 5-inch screen */
             }
             QLabel {
@@ -350,7 +343,62 @@ class FileUploadDialog(QDialog):
         """)
         self.content_layout.addWidget(self.status_log)
         
-        # Focus on red border positioning - no buttons for now
+        # Upload and Close buttons
+        button_layout = QHBoxLayout()
+        
+        # Upload button
+        self.upload_btn = QPushButton("📤 Upload Files")
+        self.upload_btn.setEnabled(False)  # Disabled until files are selected
+        self.upload_btn.clicked.connect(self.upload_files)
+        self.upload_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #007AFF;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
+                border: none;
+                min-width: 120px;
+            }
+            QPushButton:hover {
+                background-color: #0056CC;
+            }
+            QPushButton:pressed {
+                background-color: #004499;
+            }
+            QPushButton:disabled {
+                background-color: rgba(142, 142, 147, 0.3);
+                color: rgba(255, 255, 255, 0.5);
+            }
+        """)
+        
+        # Close button
+        self.close_btn = QPushButton("❌ Close")
+        self.close_btn.clicked.connect(self.close)
+        self.close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF3B30;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
+                border: none;
+                min-width: 120px;
+            }
+            QPushButton:hover {
+                background-color: #D70015;
+            }
+            QPushButton:pressed {
+                background-color: #B30000;
+            }
+        """)
+        
+        button_layout.addWidget(self.upload_btn)
+        button_layout.addWidget(self.close_btn)
+        self.content_layout.addLayout(button_layout)
+        
         print(f"[Upload] 🔴 Red border should show circular screen boundaries")
         
         # Set layout to content widget
