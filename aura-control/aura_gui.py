@@ -355,10 +355,9 @@ class AuraGUI(QMainWindow):
         
         # Apply subtle scaling effect for more dynamic appearance
         scale_factor = 1.0 + (smoothed_intensity - 0.5) * 0.1  # ±5% scaling
-        self.label.setScale(scale_factor)
         
-        # Set opacity through widget style
-        self.label.setStyleSheet(f"opacity: {self.opacity};")
+        # Set opacity and scaling through widget style
+        self.label.setStyleSheet(f"opacity: {self.opacity}; transform: scale({scale_factor});")
         
         # Dynamic glow effect that responds to TTS
         glow_intensity = (heartbeat_intensity + breathing_intensity) / 2
@@ -391,11 +390,12 @@ class AuraGUI(QMainWindow):
         
         # Gentle opacity range
         self.opacity = 0.4 + combined_intensity * 0.4  # 0.4 to 0.8 range
-        self.label.setStyleSheet(f"opacity: {self.opacity};")
         
         # Very subtle scaling
         scale_factor = 1.0 + (combined_intensity - 0.5) * 0.05  # ±2.5% scaling
-        self.label.setScale(scale_factor)
+        
+        # Set opacity and scaling through widget style
+        self.label.setStyleSheet(f"opacity: {self.opacity}; transform: scale({scale_factor});")
         
         # Gentle glow effect for idle state
         glow_alpha = int(30 + combined_intensity * 40)  # 30-70 alpha
