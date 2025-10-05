@@ -7,7 +7,7 @@ import urllib.parse
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                              QPushButton, QFileDialog, QTextEdit, QProgressBar,
                              QMessageBox, QListWidget, QListWidgetItem, QInputDialog,
-                             QLineEdit, QWidget, QApplication)
+                             QLineEdit, QWidget, QApplication, QGridLayout)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont
 import requests
@@ -431,47 +431,48 @@ class FileUploadDialog(QDialog):
         edge_container.setFixedSize(1080, 1080)
         edge_container.setStyleSheet("background-color: transparent;")
         
-        # Create grid layout for edge buttons
-        edge_layout = QGridLayout(edge_container)
-        edge_layout.setContentsMargins(0, 0, 0, 0)
-        edge_layout.setSpacing(0)
+        # Create absolute positioning for edge buttons
+        edge_container.setLayout(None)  # Use absolute positioning
         
         # Button style for edge buttons
         edge_button_style = """
             QPushButton {
-                background-color: rgba(142, 142, 147, 0.3);
+                background-color: rgba(142, 142, 147, 0.6);
                 color: #ffffff;
-                font-size: 14px;
+                font-size: 16px;
                 font-weight: 500;
-                border-radius: 25px;
-                border: none;
-                min-width: 50px;
-                min-height: 50px;
+                border-radius: 30px;
+                border: 2px solid rgba(255, 255, 255, 0.3);
+                min-width: 60px;
+                min-height: 60px;
             }
             QPushButton:hover {
-                background-color: rgba(142, 142, 147, 0.5);
+                background-color: rgba(142, 142, 147, 0.8);
+                border: 2px solid rgba(255, 255, 255, 0.5);
             }
         """
         
-        # Create dummy buttons around the edges
+        # Create dummy buttons around the edges with absolute positioning
         button_positions = [
             # Top row
-            (0, 1, "🔍"),  # Top center - Search
-            (0, 2, "⚙️"),  # Top right - Settings
-            # Middle rows
-            (1, 0, "📊"),  # Left - Analytics
-            (1, 2, "💾"),  # Right - Save
-            (2, 0, "🔄"),  # Bottom left - Refresh
-            (2, 1, "📋"),  # Bottom center - Clipboard
-            (2, 2, "📁"),  # Bottom right - Files
+            (540, 50, "🔍"),   # Top center - Search
+            (900, 200, "⚙️"),  # Top right - Settings
+            # Middle rows  
+            (50, 400, "📊"),   # Left - Analytics
+            (1030, 400, "💾"), # Right - Save
+            # Bottom row
+            (150, 900, "🔄"),  # Bottom left - Refresh
+            (540, 950, "📋"),  # Bottom center - Clipboard
+            (930, 900, "📁"),  # Bottom right - Files
         ]
         
-        for row, col, icon in button_positions:
+        for x, y, icon in button_positions:
             btn = QPushButton(icon)
             btn.setStyleSheet(edge_button_style)
             btn.setFixedSize(60, 60)
+            btn.move(x - 30, y - 30)  # Center the button on the position
             btn.clicked.connect(lambda checked, i=icon: self.edge_button_clicked(i))
-            edge_layout.addWidget(btn, row, col)
+            btn.setParent(edge_container)
         
         # Add edge container to main layout (overlay style)
         main_layout.addWidget(edge_container, 0, Qt.AlignCenter)
