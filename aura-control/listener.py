@@ -7,7 +7,7 @@ import soundfile as sf
 import sounddevice as sd
 import requests
 import subprocess
-from scipy.signal import butter, lfilter
+# Removed scipy imports - using simpler filtering approach
 from speaker import speak_llm_response, is_playing
 from pydub import AudioSegment
 
@@ -18,9 +18,8 @@ FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.2
 VAD_CONFIDENCE_THRESHOLD = 0.4  # Match transcription_tuner.py
 
-# Gain control (matching transcription_tuner.py)
-TARGET_RMS = 0.05
-MAX_GAIN = 2.0
+# Gain control (reverted from transcription_tuner.py)
+MIC_GAIN = 2.0  # Simple gain multiplier
 MIN_SPEECH_DURATION = 0.20  # Minimum speech duration in seconds to prevent noise triggers
 VAD_RESET_THRESHOLD = 0.15  # Lower threshold for reset
 # If VAD stays below this for too long, reset
@@ -48,21 +47,10 @@ def find_device_index():
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
 (get_speech_timestamps, _, read_audio, _, _) = utils
 
-# === Audio Processing Functions (from transcription_tuner.py) ===
-def highpass_filter(audio, cutoff=200):
-    """Remove low-frequency noise"""
-    b, a = butter(1, cutoff / (0.5 * SAMPLE_RATE), btype='high')
-    return lfilter(b, a, audio)
-
-def apply_gain(signal, target_rms=0.05, max_gain=2.0):
-    """Normalize audio levels"""
-    rms = np.sqrt(np.mean(signal ** 2))
-    if rms == 0:
-        return signal
-    gain = min(target_rms / rms, max_gain)
-    signal = signal * gain
-    print(f"[Listener] 🌺 Applied gain multiplier: {gain:.2f}")
-    return np.clip(signal, -1.0, 1.0)
+# === Audio Processing Functions (reverted to simpler approach) ===
+def apply_simple_gain(signal, gain_multiplier=2.0):
+    """Apply simple gain without complex normalization"""
+    return np.clip(signal * gain_multiplier, -1.0, 1.0)
 
 
 # === Transcribe with Whisper container ===
@@ -177,12 +165,9 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono_mix = full_audio[:, 0]
             
-            # Audio preprocessing for better transcription (matching transcription_tuner.py)
-            # Apply high-pass filter to remove low-frequency noise
-            mono_mix = highpass_filter(mono_mix, cutoff=200)
-            
-            # Apply gain normalization (matching transcription_tuner.py)
-            mono_mix = apply_gain(mono_mix, target_rms=TARGET_RMS, max_gain=MAX_GAIN)
+            # Simple audio preprocessing (reverted from transcription_tuner.py)
+            # Apply simple gain without complex normalization
+            mono_mix = apply_simple_gain(mono_mix, MIC_GAIN)
 
             # Check audio duration
             audio_duration = len(mono_mix) / SAMPLE_RATE
