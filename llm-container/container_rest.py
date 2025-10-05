@@ -1484,7 +1484,7 @@ def root():
         "service": "Aura-LLM",
         "status": "running",
         "version": "2.0",
-        "endpoints": ["/chat", "/rag/init", "/rag/search", "/rag/stats"]
+        "endpoints": ["/chat", "/rag/init", "/rag/search", "/rag/stats", "/rag/health"]
     })
 
 @app.route("/rag/stats", methods=["GET"])
@@ -1499,6 +1499,37 @@ def rag_stats():
         return jsonify(stats)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/rag/health", methods=["GET"])
+def rag_health():
+    """Get RAG system health status"""
+    if not RAG_AVAILABLE or not RAG_INITIALIZED or not get_rag_fn:
+        return jsonify({
+            "status": "unavailable",
+            "rag_available": RAG_AVAILABLE,
+            "rag_initialized": RAG_INITIALIZED,
+            "get_rag_fn_available": get_rag_fn is not None
+        }), 500
+    
+    try:
+        rag = get_rag_fn()
+        health = rag.get_health_status()
+        return jsonify({
+            "status": "healthy" if health['health_score'] >= 0.8 else "degraded",
+            "health_score": health['health_score'],
+            "components": {
+                "index_loaded": health['index_loaded'],
+                "chunks_loaded": health['chunks_loaded'],
+                "encoder_loaded": health['encoder_loaded']
+            },
+            "stats": {
+                "index_size": health['index_size'],
+                "chunks_count": health['chunks_count']
+            },
+            "errors": health['errors']
+        })
+    except Exception as e:
+        return jsonify({"error": str(e), "status": "error"}), 500
 
 if __name__=="__main__":
     print("[Aura-LLM] 🚑 Aura triage running with clarify routing, SOAP recap, debug logs, and casual mode")

@@ -56,31 +56,68 @@ class AuraRAG:
         self._load_components()
     
     def _load_components(self):
-        """Load FAISS index, chunks, and encoder model"""
+        """Load FAISS index, chunks, and encoder model with robust error handling"""
         # Prevent duplicate loading
-        if self.index is not None and self.chunks is not None:
+        if self.index is not None and self.chunks is not None and self.encoder is not None:
             print("[RAG] 🔧 Components already loaded, skipping...")
             return
             
         print("[RAG] 🔧 Loading RAG components...")
         
-        # Load FAISS index
-        if os.path.exists(self.index_path):
-            self.index = faiss.read_index(self.index_path)
-            print(f"[RAG] ✅ Loaded FAISS index: {self.index_path}")
-            
-            # Optimize CPU FAISS for Jetson (use multiple threads)
-            faiss.omp_set_num_threads(4)  # Use 4 threads on Jetson Orin NX
-            print("[RAG] 🔧 Set FAISS to use 4 CPU threads for optimal Jetson performance")
-        else:
-            raise FileNotFoundError(f"FAISS index not found: {self.index_path}")
+        # Add loading state tracking
+        self._loading_state = {
+            'index_loaded': False,
+            'chunks_loaded': False,
+            'encoder_loaded': False,
+            'errors': []
+        }
         
-        # Load document chunks
-        if os.path.exists(self.chunks_path):
-            self.chunks = np.load(self.chunks_path, allow_pickle=True)
-            print(f"[RAG] ✅ Loaded {len(self.chunks)} document chunks")
-        else:
-            raise FileNotFoundError(f"Document chunks not found: {self.chunks_path}")
+        # Load FAISS index with comprehensive error handling
+        try:
+            if os.path.exists(self.index_path):
+                print(f"[RAG] 🔧 Loading FAISS index from: {self.index_path}")
+                self.index = faiss.read_index(self.index_path)
+                
+                # Validate index
+                if self.index.ntotal == 0:
+                    raise ValueError("FAISS index is empty (0 vectors)")
+                
+                # Optimize CPU FAISS for Jetson (use multiple threads)
+                faiss.omp_set_num_threads(4)  # Use 4 threads on Jetson Orin NX
+                print(f"[RAG] ✅ Loaded FAISS index: {self.index_path} ({self.index.ntotal} vectors)")
+                self._loading_state['index_loaded'] = True
+            else:
+                raise FileNotFoundError(f"FAISS index not found: {self.index_path}")
+        except Exception as e:
+            error_msg = f"Failed to load FAISS index: {e}"
+            print(f"[RAG] ❌ {error_msg}")
+            self._loading_state['errors'].append(error_msg)
+            raise
+        
+        # Load document chunks with comprehensive error handling
+        try:
+            if os.path.exists(self.chunks_path):
+                print(f"[RAG] 🔧 Loading document chunks from: {self.chunks_path}")
+                self.chunks = np.load(self.chunks_path, allow_pickle=True)
+                
+                # Validate chunks
+                if len(self.chunks) == 0:
+                    raise ValueError("Document chunks file is empty")
+                
+                # Ensure chunks are strings
+                for i, chunk in enumerate(self.chunks):
+                    if not isinstance(chunk, str):
+                        print(f"[RAG] ⚠️ Warning: Chunk {i} is not a string: {type(chunk)}")
+                
+                print(f"[RAG] ✅ Loaded {len(self.chunks)} document chunks")
+                self._loading_state['chunks_loaded'] = True
+            else:
+                raise FileNotFoundError(f"Document chunks not found: {self.chunks_path}")
+        except Exception as e:
+            error_msg = f"Failed to load document chunks: {e}"
+            print(f"[RAG] ❌ {error_msg}")
+            self._loading_state['errors'].append(error_msg)
+            raise
         
         # Load sentence transformer (force CPU for Jetson compatibility)
         try:
@@ -153,9 +190,14 @@ class AuraRAG:
                 print(f"[RAG] ✅ Loaded encoder with fresh download: {self.model_name}")
             
         except Exception as e:
-            print(f"[RAG] ❌ Failed to load sentence transformer: {e}")
+            error_msg = f"Failed to load sentence transformer: {e}"
+            print(f"[RAG] ❌ {error_msg}")
+            self._loading_state['errors'].append(error_msg)
             print("[RAG] ⚠️ Using keyword-based fallback search")
             self.encoder = None
+        
+        # Final validation
+        self._validate_components()
         
         # Check GPU availability (FAISS-GPU not available on ARM64/Jetson)
         try:
@@ -170,6 +212,59 @@ class AuraRAG:
             print(f"[RAG] 💻 Using CPU FAISS (GPU not available on ARM64): {e}")
             self.gpu_available = False
     
+    def _validate_components(self):
+        """Validate all loaded components and report health status"""
+        print("[RAG] 🔍 Validating RAG components...")
+        
+        # Check index
+        if self.index is None:
+            print("[RAG] ❌ FAISS index not loaded")
+        else:
+            print(f"[RAG] ✅ FAISS index: {self.index.ntotal} vectors, dimension: {self.index.d}")
+        
+        # Check chunks
+        if self.chunks is None:
+            print("[RAG] ❌ Document chunks not loaded")
+        else:
+            print(f"[RAG] ✅ Document chunks: {len(self.chunks)} chunks")
+        
+        # Check encoder
+        if self.encoder is None:
+            print("[RAG] ❌ Sentence transformer not loaded (keyword search only)")
+        else:
+            print(f"[RAG] ✅ Sentence transformer: {self.model_name}")
+        
+        # Overall health status
+        health_score = sum([
+            self.index is not None,
+            self.chunks is not None,
+            self.encoder is not None
+        ]) / 3.0
+        
+        print(f"[RAG] 📊 Health score: {health_score:.1%}")
+        
+        if health_score < 1.0:
+            print(f"[RAG] ⚠️ RAG system partially functional (health: {health_score:.1%})")
+            if self._loading_state['errors']:
+                print(f"[RAG] 🔍 Errors encountered: {self._loading_state['errors']}")
+    
+    def get_health_status(self) -> dict:
+        """Get comprehensive health status of RAG system"""
+        return {
+            'index_loaded': self.index is not None,
+            'chunks_loaded': self.chunks is not None,
+            'encoder_loaded': self.encoder is not None,
+            'gpu_available': self.gpu_available,
+            'health_score': sum([
+                self.index is not None,
+                self.chunks is not None,
+                self.encoder is not None
+            ]) / 3.0,
+            'errors': getattr(self, '_loading_state', {}).get('errors', []),
+            'index_size': self.index.ntotal if self.index else 0,
+            'chunks_count': len(self.chunks) if self.chunks is not None else 0
+        }
+    
     def _move_to_gpu(self):
         """Move FAISS index to GPU for faster search"""
         try:
@@ -183,36 +278,59 @@ class AuraRAG:
             print(f"[RAG] ⚠️ Failed to move to GPU: {e}, using CPU")
             self.gpu_available = False
     
-    def retrieve(self, query: str, k: int = 3) -> List[Dict[str, Any]]:
+    def retrieve(self, query: str, k: int = 3, max_retries: int = 2) -> List[Dict[str, Any]]:
         """
         Hybrid retrieval: semantic + keyword for maximum intelligence
+        Includes retry mechanism for reliability
         
         Args:
             query: User query string
             k: Number of chunks to retrieve
+            max_retries: Maximum number of retry attempts
             
         Returns:
             List of relevant document chunks with metadata
         """
         start_time = time.time()
         
+        # Validate inputs
+        if not query or not isinstance(query, str):
+            print(f"[RAG] ❌ Invalid query: {query}")
+            return []
+        
+        # Check system health
+        health = self.get_health_status()
+        if health['health_score'] < 0.5:
+            print(f"[RAG] ⚠️ RAG system health low ({health['health_score']:.1%}), using keyword search")
+            return self._keyword_search(query, k)
+        
         # Check if encoder is available
         if self.encoder is None:
             print("[RAG] ⚠️ Encoder not available, using keyword fallback search")
             return self._keyword_search(query, k)
         
-        # Hybrid approach: try semantic first, fallback to keyword
-        try:
-            semantic_results = self._semantic_search(query, k)
-            if semantic_results:
-                print(f"[RAG] ✅ Semantic search found {len(semantic_results)} results")
-                return semantic_results
-            else:
-                print("[RAG] 🔄 Semantic search found no results, trying keyword search...")
-                return self._keyword_search(query, k)
-        except Exception as e:
-            print(f"[RAG] ❌ Semantic search failed: {e}, using keyword search")
-            return self._keyword_search(query, k)
+        # Retry mechanism for semantic search
+        for attempt in range(max_retries + 1):
+            try:
+                print(f"[RAG] 🔍 Semantic search attempt {attempt + 1}/{max_retries + 1}")
+                semantic_results = self._semantic_search(query, k)
+                
+                if semantic_results:
+                    elapsed = time.time() - start_time
+                    print(f"[RAG] ✅ Semantic search found {len(semantic_results)} results in {elapsed:.2f}s")
+                    return semantic_results
+                else:
+                    print("[RAG] 🔄 Semantic search found no results, trying keyword search...")
+                    return self._keyword_search(query, k)
+                    
+            except Exception as e:
+                print(f"[RAG] ❌ Semantic search attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries:
+                    print(f"[RAG] 🔄 Retrying in 0.5s...")
+                    time.sleep(0.5)
+                else:
+                    print(f"[RAG] ❌ All semantic search attempts failed, using keyword search")
+                    return self._keyword_search(query, k)
     
     def _semantic_search(self, query: str, k: int = 3) -> List[Dict[str, Any]]:
         """

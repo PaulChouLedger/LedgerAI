@@ -111,8 +111,9 @@ class AuraGUI(QMainWindow):
         ]
         
         # Calculate positions for 6 buttons around a circle
-        # Radius should be close to the edge but not touching the red border
-        radius = 480  # Distance from center to button (closer to edge)
+        # Add 5mm spacing from edge (5mm ≈ 19 pixels at 1080p)
+        # Edge radius is 540px, button radius is 50px, so: 540 - 19 - 50 = 471px
+        radius = 471  # Distance from center to button (5mm spacing from edge)
         center_x = 540  # Center of 1080x1080 screen
         center_y = 540
         
