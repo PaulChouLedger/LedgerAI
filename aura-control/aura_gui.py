@@ -57,7 +57,7 @@ class AuraGUI(QMainWindow):
         main_widget.setLayout(layout)
         self.setCentralWidget(main_widget)
         
-        # Create dedicated border widget for continuous circular border
+        # Create dedicated border widget for continuous circular border (hidden by default)
         self.border_widget = QLabel()
         self.border_widget.setParent(self)
         self.border_widget.setGeometry(0, 0, 1080, 1080)
@@ -70,9 +70,11 @@ class AuraGUI(QMainWindow):
         """)
         self.border_widget.setAttribute(Qt.WA_TransparentForMouseEvents)
         self.border_widget.raise_()  # Bring to front
+        self.border_widget.hide()  # Hide by default
         
         # Store border state for animation
         self.border_width = 5
+        self.border_pulse_speed = 0.1  # Will be randomized during transcription
         
         # Create 6 buttons equally spaced around the circular edge (after central widget is set)
         self.create_circular_buttons()
@@ -212,7 +214,12 @@ class AuraGUI(QMainWindow):
             self._debug_counter = 0
             
         if self._debug_counter % 100 == 0:  # Print every 5 seconds (100 * 50ms)
-            print(f"[GUI Debug] State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}, tts_freq={_tts_frequency:.3f}")
+            try:
+                from listener import get_transcription_frequency
+                speech_freq = get_transcription_frequency()
+                print(f"[GUI Debug] State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}, tts_freq={_tts_frequency:.3f}, speech_freq={speech_freq:.3f}")
+            except ImportError:
+                print(f"[GUI Debug] State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}, tts_freq={_tts_frequency:.3f}")
         
         # State 1: System not ready - gentle aura eye pulse
         if not _listening_ready:
@@ -225,19 +232,39 @@ class AuraGUI(QMainWindow):
                 self.opacity = 0.3
                 self.pulse_direction = 1
             self.opacity_effect.setOpacity(self.opacity)
-            self._update_border_style(static=True)
+            self.border_widget.hide()  # Hide border in initial state
             
-        # State 2: System ready, fixed mode
+        # State 2: System ready, fixed mode - hide border
         elif _listening_ready and not _transcribing and not _tts_playing:
             self.opacity_effect.setOpacity(1.0)
-            self._update_border_style(static=True)
+            self.border_widget.hide()  # Hide border completely
             
-        # State 3: User speaking (transcription) - red edge pulsation
+        # State 3: User speaking (transcription) - red edge pulsation matching user's speech frequency
         elif _transcribing:
             self.opacity_effect.setOpacity(1.0)
-            self.border_pulse_phase += self.border_pulse_speed
-            pulse_intensity = (math.sin(self.border_pulse_phase) + 1) / 2  # 0 to 1
-            self.border_width = int(5 + pulse_intensity * 10)  # 5px to 15px
+            
+            # Get actual transcription frequency from audio analysis
+            try:
+                from listener import get_transcription_frequency
+                speech_freq = get_transcription_frequency()
+            except ImportError:
+                speech_freq = 0.5  # Default if import fails
+            
+            # Use speech frequency for pulse speed (0.1 to 1.0 range)
+            self.border_pulse_speed = speech_freq * 2.0  # Scale up for more visible effect
+            
+            # Add some variation based on speech frequency
+            frequency_variation = speech_freq * 0.5
+            self.border_pulse_phase += self.border_pulse_speed + frequency_variation
+            
+            # Create pulsation that matches speech characteristics
+            pulse_intensity = (math.sin(self.border_pulse_phase) + 1) / 2
+            
+            # Width changes based on speech frequency (higher freq = more dramatic changes)
+            base_width = 3 + speech_freq * 5  # 3-8px base
+            variation_width = speech_freq * 15  # 0-15px variation
+            self.border_width = int(base_width + pulse_intensity * variation_width)
+            
             self._update_border_style(pulsating=True, width=self.border_width)
             
         # State 4: TTS playing - aura eye pulsation synchronized with speech frequency
@@ -247,12 +274,12 @@ class AuraGUI(QMainWindow):
             pulse_intensity = (math.sin(self.eye_pulse_phase) + 1) / 2  # 0 to 1
             self.opacity = 0.3 + pulse_intensity * 0.7  # 0.3 to 1.0
             self.opacity_effect.setOpacity(self.opacity)
-            self._update_border_style(static=True)
+            self.border_widget.hide()  # Hide border during TTS
     
     def _update_border_style(self, static=True, pulsating=False, width=5):
         """Update the border style based on current state"""
         if pulsating:
-            # Pulsating red border
+            # Show and animate pulsating red border
             self.border_widget.setStyleSheet(f"""
                 QLabel {{
                     background-color: transparent;
@@ -260,20 +287,15 @@ class AuraGUI(QMainWindow):
                     border-radius: 540px;
                 }}
             """)
+            self.border_widget.show()
         else:
-            # Static red border
-            self.border_widget.setStyleSheet("""
-                QLabel {
-                    background-color: transparent;
-                    border: 5px solid #ff0000;
-                    border-radius: 540px;
-                }
-            """)
+            # Hide border completely
+            self.border_widget.hide()
+            return
         
         # Ensure border widget is always on top and properly positioned
         self.border_widget.raise_()
         self.border_widget.setGeometry(0, 0, 1080, 1080)
-        self.border_widget.show()
     
     def keyPressEvent(self, event):
         """Handle keyboard shortcuts"""

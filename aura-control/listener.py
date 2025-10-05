@@ -7,6 +7,7 @@ import soundfile as sf
 import sounddevice as sd
 import requests
 import subprocess
+from scipy.fft import fft, fftfreq
 # Simplified audio processing - no complex filtering
 from speaker import speak_llm_response, is_playing
 from aura_gui import set_transcribing
@@ -30,6 +31,9 @@ DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
 prompt_history = []
+
+# Global variable for transcription frequency
+_transcription_frequency = 0.0
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
@@ -72,6 +76,46 @@ def apply_gentle_high_pass_filter(signal, cutoff_freq=200, sample_rate=SAMPLE_RA
     except Exception as e:
         print(f"[Audio] ⚠️ High-pass filter error: {e}, using original signal")
         return signal
+
+def calculate_dominant_frequency(audio_data, sample_rate=SAMPLE_RATE):
+    """Calculate the dominant frequency of audio data for visual feedback"""
+    global _transcription_frequency
+    try:
+        # Apply window function to reduce spectral leakage
+        windowed = audio_data * np.hanning(len(audio_data))
+        
+        # Compute FFT
+        fft_data = fft(windowed)
+        freqs = fftfreq(len(windowed), 1/sample_rate)
+        
+        # Get magnitude spectrum
+        magnitude = np.abs(fft_data)
+        
+        # Focus on human speech range (80Hz to 8000Hz)
+        speech_mask = (freqs >= 80) & (freqs <= 8000)
+        speech_freqs = freqs[speech_mask]
+        speech_magnitude = magnitude[speech_mask]
+        
+        if len(speech_freqs) > 0:
+            # Find the frequency with maximum magnitude
+            max_idx = np.argmax(speech_magnitude)
+            dominant_freq = speech_freqs[max_idx]
+            
+            # Normalize frequency to 0.1-1.0 range for visual feedback
+            normalized_freq = min(max(dominant_freq / 1000.0, 0.1), 1.0)
+            _transcription_frequency = normalized_freq
+            
+            return normalized_freq
+        else:
+            return 0.1  # Default low frequency
+    except Exception as e:
+        print(f"[Audio] ⚠️ Frequency calculation error: {e}")
+        return 0.1
+
+def get_transcription_frequency():
+    """Get the current transcription frequency for GUI"""
+    global _transcription_frequency
+    return _transcription_frequency
 
 # High-pass filter removed - using simplified audio processing
 
@@ -213,7 +257,10 @@ def listen():
             # 1. Apply gentle high-pass filter to reduce low-frequency noise (fans, HVAC, etc.)
             mono_mix = apply_gentle_high_pass_filter(mono_mix, cutoff_freq=200)
             
-            # 2. Apply simple gain without complex normalization
+            # 2. Calculate dominant frequency for visual feedback
+            calculate_dominant_frequency(mono_mix)
+            
+            # 3. Apply simple gain without complex normalization
             mono_mix = apply_simple_gain(mono_mix, MIC_GAIN)
 
             # Check audio duration
