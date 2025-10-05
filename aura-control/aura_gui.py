@@ -4,7 +4,7 @@ import os
 import sys
 import math
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QGraphicsOpacityEffect, QPushButton, QVBoxLayout, QWidget, QHBoxLayout
-from PyQt5.QtGui import QPixmap, QKeySequence
+from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QGraphicsDropShadowEffect
 from PyQt5.QtCore import Qt, QTimer, QPoint
 from file_upload_dialog import show_upload_dialog
 
@@ -85,11 +85,26 @@ class AuraGUI(QMainWindow):
         self.opacity = 1.0
         self.pulse_direction = -1
         
+        # Add subtle glow effect for more visual appeal
+        self.glow_effect = QGraphicsDropShadowEffect()
+        self.glow_effect.setBlurRadius(20)
+        self.glow_effect.setColor(QColor(0, 100, 255, 100))  # Subtle blue glow
+        self.glow_effect.setOffset(0, 0)
+        self.label.setGraphicsEffect(self.glow_effect)
+        
         # Animation state variables
         self.border_pulse_phase = 0.0
         self.eye_pulse_phase = 0.0
         self.border_pulse_speed = 0.1  # Red edge pulsation speed
         self.eye_pulse_speed = 0.15    # Aura eye pulsation speed
+        
+        # Enhanced aura eye animation variables
+        self.aura_breathing_phase = 0.0      # Slow breathing rhythm
+        self.aura_heartbeat_phase = 0.0      # Quick heartbeat rhythm
+        self.aura_glow_phase = 0.0          # Subtle glow effect
+        self.aura_organic_timer = 0.0       # Organic timing variation
+        self.aura_intensity_base = 0.3        # Base intensity
+        self.aura_intensity_variation = 0.7   # Intensity variation range
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.animate_pulse)
@@ -222,22 +237,14 @@ class AuraGUI(QMainWindow):
             except ImportError:
                 print(f"[GUI Debug] State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}, tts_freq={_tts_frequency:.3f}")
         
-        # State 1: System not ready - gentle aura eye pulse
+        # State 1: System not ready - gentle, meditative aura eye
         if not _listening_ready:
-            delta = 0.04 * self.pulse_direction
-            self.opacity += delta
-            if self.opacity >= 1.0:
-                self.opacity = 1.0
-                self.pulse_direction = -1
-            elif self.opacity <= 0.3:
-                self.opacity = 0.3
-                self.pulse_direction = 1
-            self.opacity_effect.setOpacity(self.opacity)
+            self._animate_aura_eye_idle()
             self.border_widget.hide()  # Hide border in initial state
             
-        # State 2: System ready, fixed mode - hide border
+        # State 2: System ready, fixed mode - subtle aura eye
         elif _listening_ready and not _transcribing and not _tts_playing:
-            self.opacity_effect.setOpacity(1.0)
+            self._animate_aura_eye_idle()  # Gentle breathing animation
             self.border_widget.hide()  # Hide border completely
             
         # State 3: User speaking (transcription) - red edge pulsation matching user's speech frequency
@@ -277,20 +284,9 @@ class AuraGUI(QMainWindow):
             print(f"[GUI] 🔴 Border: freq={speech_freq:.3f}, width={self.border_width}px, intensity={pulse_intensity:.3f}")
             self._update_border_style(pulsating=True, width=self.border_width)
             
-        # State 4: TTS playing - aura eye pulsation synchronized with speech frequency
+        # State 4: TTS playing - sophisticated aura eye pulsation
         elif _tts_playing:
-            # Use dynamic frequency from actual TTS audio with enhanced responsiveness
-            # Ensure TTS frequency is valid and scale up for visible pulsation
-            tts_freq = max(0.1, min(_tts_frequency, 2.0))  # Clamp to valid range
-            scaled_frequency = tts_freq * 4.0  # 4x faster for better visibility
-            self.eye_pulse_phase += scaled_frequency
-            
-            # Create more dramatic pulsation
-            pulse_intensity = (math.sin(self.eye_pulse_phase) + 1) / 2  # 0 to 1
-            self.opacity = 0.2 + pulse_intensity * 0.8  # 0.2 to 1.0 (more dramatic range)
-            self.opacity_effect.setOpacity(self.opacity)
-            
-            print(f"[GUI] 👁️ TTS: freq={tts_freq:.3f}, scaled={scaled_frequency:.3f}, opacity={self.opacity:.3f}")
+            self._animate_aura_eye_tts(_tts_frequency)
             self.border_widget.hide()  # Hide border during TTS
     
     def _update_border_style(self, static=True, pulsating=False, width=5):
@@ -313,6 +309,104 @@ class AuraGUI(QMainWindow):
         # Ensure border widget is always on top and properly positioned
         self.border_widget.raise_()
         self.border_widget.setGeometry(0, 0, 1080, 1080)
+    
+    def _animate_aura_eye_tts(self, tts_frequency):
+        """Sophisticated aura eye animation during TTS with organic, natural movement"""
+        # Clamp and scale TTS frequency
+        tts_freq = max(0.1, min(tts_frequency, 2.0))
+        
+        # Update organic timing (creates natural variation)
+        self.aura_organic_timer += 0.02
+        organic_variation = math.sin(self.aura_organic_timer * 0.3) * 0.1
+        
+        # Multiple animation layers for natural movement
+        
+        # Layer 1: Breathing rhythm (slow, deep)
+        self.aura_breathing_phase += 0.05 + organic_variation
+        breathing_intensity = (math.sin(self.aura_breathing_phase) + 1) / 2
+        
+        # Layer 2: Heartbeat rhythm (quick, responsive to TTS)
+        heartbeat_speed = tts_freq * 2.0 + organic_variation
+        self.aura_heartbeat_phase += heartbeat_speed
+        heartbeat_intensity = (math.sin(self.aura_heartbeat_phase) + 1) / 2
+        
+        # Layer 3: Glow effect (subtle, continuous)
+        self.aura_glow_phase += 0.08 + organic_variation * 0.5
+        glow_intensity = (math.sin(self.aura_glow_phase) + 1) / 2
+        
+        # Layer 4: Micro-variations (very subtle, organic)
+        micro_phase = self.aura_organic_timer * 0.7
+        micro_intensity = (math.sin(micro_phase) + math.sin(micro_phase * 1.7)) / 4
+        
+        # Combine all layers with weighted influence
+        combined_intensity = (
+            breathing_intensity * 0.4 +      # 40% breathing (slow, natural)
+            heartbeat_intensity * 0.35 +     # 35% heartbeat (responsive to TTS)
+            glow_intensity * 0.15 +          # 15% glow (subtle)
+            micro_intensity * 0.1            # 10% micro-variations (organic)
+        )
+        
+        # Apply natural easing and smoothing
+        # Use sigmoid-like function for more natural transitions
+        smoothed_intensity = 1 / (1 + math.exp(-6 * (combined_intensity - 0.5)))
+        
+        # Calculate final opacity with natural range
+        base_opacity = self.aura_intensity_base
+        variation_range = self.aura_intensity_variation
+        self.opacity = base_opacity + smoothed_intensity * variation_range
+        
+        # Apply subtle scaling effect for more dynamic appearance
+        scale_factor = 1.0 + (smoothed_intensity - 0.5) * 0.1  # ±5% scaling
+        self.label.setScale(scale_factor)
+        
+        # Set opacity
+        self.opacity_effect.setOpacity(self.opacity)
+        
+        # Dynamic glow effect that responds to TTS
+        glow_intensity = (heartbeat_intensity + breathing_intensity) / 2
+        glow_alpha = int(50 + glow_intensity * 100)  # 50-150 alpha
+        glow_color = QColor(0, 100, 255, glow_alpha)
+        self.glow_effect.setColor(glow_color)
+        
+        # Vary glow radius based on intensity
+        glow_radius = 15 + glow_intensity * 25  # 15-40 radius
+        self.glow_effect.setBlurRadius(int(glow_radius))
+        
+        # Debug output (less frequent)
+        if hasattr(self, '_debug_counter') and self._debug_counter % 20 == 0:
+            print(f"[GUI] 👁️ Aura: freq={tts_freq:.3f}, breathing={breathing_intensity:.3f}, "
+                  f"heartbeat={heartbeat_intensity:.3f}, glow={glow_intensity:.3f}, "
+                  f"final={self.opacity:.3f}, scale={scale_factor:.3f}, glow_alpha={glow_alpha}")
+    
+    def _animate_aura_eye_idle(self):
+        """Gentle, meditative aura eye animation when idle"""
+        # Slow, peaceful breathing
+        self.aura_breathing_phase += 0.03
+        breathing_intensity = (math.sin(self.aura_breathing_phase) + 1) / 2
+        
+        # Very subtle glow
+        self.aura_glow_phase += 0.02
+        glow_intensity = (math.sin(self.aura_glow_phase) + 1) / 2
+        
+        # Combine with gentle weighting
+        combined_intensity = breathing_intensity * 0.7 + glow_intensity * 0.3
+        
+        # Gentle opacity range
+        self.opacity = 0.4 + combined_intensity * 0.4  # 0.4 to 0.8 range
+        self.opacity_effect.setOpacity(self.opacity)
+        
+        # Very subtle scaling
+        scale_factor = 1.0 + (combined_intensity - 0.5) * 0.05  # ±2.5% scaling
+        self.label.setScale(scale_factor)
+        
+        # Gentle glow effect for idle state
+        glow_alpha = int(30 + combined_intensity * 40)  # 30-70 alpha
+        glow_color = QColor(0, 100, 255, glow_alpha)
+        self.glow_effect.setColor(glow_color)
+        
+        # Subtle glow radius
+        glow_radius = 10 + combined_intensity * 10  # 10-20 radius
+        self.glow_effect.setBlurRadius(int(glow_radius))
     
     def keyPressEvent(self, event):
         """Handle keyboard shortcuts"""
