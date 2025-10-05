@@ -69,28 +69,8 @@ class FileUploadDialog(QDialog):
                 color: white;
                 font-size: 12px;
             }
-            QPushButton {
-                background-color: #4CAF50;
-                border: none;
-                padding: 12px 20px;
-                color: white;
-                border-radius: 25px;  /* More rounded for circular theme */
-                font-weight: bold;
-                font-size: 13px;
-                min-height: 45px;
-                min-width: 100px;
-                max-width: 150px;  /* Limit width for circular layout */
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-            QPushButton:pressed {
-                background-color: #3d8b40;
-            }
-            QPushButton:disabled {
-                background-color: #666;
-                color: #999;
-            }
+            /* Global QPushButton styles removed - each button will have its own styling */
+            /* All global QPushButton styles removed - each button will have its own styling */
             QTextEdit {
                 background-color: #2d2d2d;
                 border: 1px solid #555;
@@ -444,6 +424,24 @@ class FileUploadDialog(QDialog):
         
         # Set main layout to dialog
         self.setLayout(main_layout)
+        
+        # Add a simple test button directly to dialog to test visibility
+        test_direct_btn = QPushButton("DIRECT TEST")
+        test_direct_btn.setFixedSize(100, 50)
+        test_direct_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #00ff00;
+                color: black;
+                font-size: 14px;
+                font-weight: bold;
+                border: 2px solid #000000;
+            }
+        """)
+        test_direct_btn.move(50, 50)  # Position at top-left
+        test_direct_btn.setParent(self)
+        test_direct_btn.clicked.connect(lambda: print("[Upload] 🔘 DIRECT TEST BUTTON CLICKED!"))
+        test_direct_btn.raise_()  # Bring to front
+        print(f"[Upload] 🔘 Created DIRECT TEST button at (50, 50)")
         
         # Edge buttons removed - separate GUI functions will have their own scripts
     
