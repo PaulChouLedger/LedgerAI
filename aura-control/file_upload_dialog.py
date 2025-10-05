@@ -232,12 +232,6 @@ class FileUploadDialog(QDialog):
         
         self.content_layout.addLayout(title_layout)
         
-        # Description - more compact
-        desc = QLabel("Upload docs to data/input - auto-ingest processes them")
-        desc.setAlignment(Qt.AlignCenter)
-        desc.setStyleSheet("color: #8e8e93; font-size: 11px; margin: 5px;")
-        self.content_layout.addWidget(desc)
-        
         # File selection area - optimized for circular screen
         file_layout = QHBoxLayout()
         file_layout.setSpacing(20)
