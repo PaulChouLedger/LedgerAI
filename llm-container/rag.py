@@ -98,53 +98,64 @@ class AuraRAG:
             torch.backends.cudnn.enabled = False
             torch.backends.cuda.matmul.allow_tf32 = False
             
-            # Load model without device specification first to avoid meta tensor issues
             print(f"[RAG] 🔧 Loading sentence transformer: {self.model_name}")
-            self.encoder = SentenceTransformer(
-                self.model_name, 
-                device=None,  # Load without device first
-                trust_remote_code=True,
-                cache_folder='./cache/sentence_transformers'
-            )
             
-            # Force model to CPU and ensure proper initialization
-            self.encoder = self.encoder.to('cpu')
-            self.encoder.eval()
-            
-            # Test the model with a dummy input to ensure it's properly loaded
-            print("[RAG] 🔧 Testing encoder with dummy input...")
-            dummy_input = ["test sentence"]
-            _ = self.encoder.encode(dummy_input)
-            
-            print(f"[RAG] ✅ Loaded encoder: {self.model_name} (device: {device}, threads: 4)")
-            
-        except Exception as e:
-            print(f"[RAG] ❌ Failed to load sentence transformer: {e}")
-            # Try alternative loading method
+            # Method 1: Try loading with explicit offline mode
             try:
-                print("[RAG] 🔄 Trying alternative loading method...")
-                # Clear any cached models that might be corrupted
+                # Set offline mode to prevent downloads
+                os.environ['TRANSFORMERS_OFFLINE'] = '1'
+                os.environ['HF_HUB_OFFLINE'] = '1'
+                
+                self.encoder = SentenceTransformer(
+                    self.model_name,
+                    device='cpu',
+                    trust_remote_code=True,
+                    cache_folder='/root/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2'
+                )
+                
+                # Test the model
+                print("[RAG] 🔧 Testing encoder with dummy input...")
+                dummy_input = ["test sentence"]
+                _ = self.encoder.encode(dummy_input)
+                
+                print(f"[RAG] ✅ Loaded encoder: {self.model_name} (device: cpu, threads: 4)")
+                
+            except Exception as e1:
+                print(f"[RAG] 🔄 Method 1 failed: {e1}")
+                
+                # Method 2: Try with fresh download and proper initialization
+                print("[RAG] 🔄 Trying fresh download method...")
+                os.environ['TRANSFORMERS_OFFLINE'] = '0'  # Allow downloads
+                os.environ['HF_HUB_OFFLINE'] = '0'
+                
+                # Clear potentially corrupted cache
                 import shutil
                 cache_dir = './cache/sentence_transformers'
                 if os.path.exists(cache_dir):
                     shutil.rmtree(cache_dir)
                     print("[RAG] 🧹 Cleared corrupted cache")
                 
-                # Load fresh model
-                self.encoder = SentenceTransformer(self.model_name)
-                self.encoder = self.encoder.to('cpu')
+                # Load with explicit model initialization
+                self.encoder = SentenceTransformer(
+                    self.model_name,
+                    device='cpu',
+                    trust_remote_code=True
+                )
+                
+                # Ensure proper model state
                 self.encoder.eval()
                 
                 # Test the model
+                print("[RAG] 🔧 Testing encoder with dummy input...")
                 dummy_input = ["test sentence"]
                 _ = self.encoder.encode(dummy_input)
                 
                 print(f"[RAG] ✅ Loaded encoder with fresh download: {self.model_name}")
-            except Exception as e2:
-                print(f"[RAG] ❌ Alternative loading also failed: {e2}")
-                # Final fallback: create a dummy encoder
-                print("[RAG] ⚠️ Using fallback encoder (no semantic search)")
-                self.encoder = None
+            
+        except Exception as e:
+            print(f"[RAG] ❌ Failed to load sentence transformer: {e}")
+            print("[RAG] ⚠️ Using keyword-based fallback search")
+            self.encoder = None
         
         # Check GPU availability (FAISS-GPU not available on ARM64/Jetson)
         try:
@@ -174,7 +185,7 @@ class AuraRAG:
     
     def retrieve(self, query: str, k: int = 3) -> List[Dict[str, Any]]:
         """
-        Retrieve relevant document chunks for a query
+        Hybrid retrieval: semantic + keyword for maximum intelligence
         
         Args:
             query: User query string
@@ -189,6 +200,32 @@ class AuraRAG:
         if self.encoder is None:
             print("[RAG] ⚠️ Encoder not available, using keyword fallback search")
             return self._keyword_search(query, k)
+        
+        # Hybrid approach: try semantic first, fallback to keyword
+        try:
+            semantic_results = self._semantic_search(query, k)
+            if semantic_results:
+                print(f"[RAG] ✅ Semantic search found {len(semantic_results)} results")
+                return semantic_results
+            else:
+                print("[RAG] 🔄 Semantic search found no results, trying keyword search...")
+                return self._keyword_search(query, k)
+        except Exception as e:
+            print(f"[RAG] ❌ Semantic search failed: {e}, using keyword search")
+            return self._keyword_search(query, k)
+    
+    def _semantic_search(self, query: str, k: int = 3) -> List[Dict[str, Any]]:
+        """
+        Pure semantic search using sentence transformer
+        
+        Args:
+            query: Search query
+            k: Number of results to return
+            
+        Returns:
+            List of relevant document chunks with metadata
+        """
+        start_time = time.time()
         
         # Encode query with robust error handling
         try:
@@ -323,7 +360,7 @@ class AuraRAG:
         # Basic query characteristics
         analysis = {
             'word_count': len(words),
-            'has_question_word': any(w in words for w in ['what', 'who', 'where', 'when', 'why', 'how', 'which']),
+            'has_question_word': any(w in words for w in ['what', 'who', 'where', 'when', 'why', 'how', 'which', 'can', 'could', 'would', 'should', 'is', 'are', 'was', 'were', 'do', 'does', 'did']),
             'is_greeting': False,
             'is_conversational': False,
             'is_informational': False,
@@ -341,7 +378,7 @@ class AuraRAG:
             return analysis
         
         # Detect informational queries (questions seeking factual information)
-        informational_starters = ['what is', 'who is', 'who was', 'tell me about', 'explain', 'describe']
+        informational_starters = ['what is', 'who is', 'who was', 'tell me about', 'explain', 'describe', 'what are', 'how do', 'how does', 'how can', 'what does', 'what did', 'what was', 'what were', 'where is', 'where are', 'when is', 'when was', 'why is', 'why are']
         if any(query_lower.startswith(starter) for starter in informational_starters):
             analysis['is_informational'] = True
             analysis['confidence'] = 0.8
@@ -398,6 +435,7 @@ class AuraRAG:
     def should_use_rag(self, query: str) -> bool:
         """
         Dynamically determine if RAG should be used based on query analysis
+        More inclusive approach: any question or complex query should trigger RAG
         
         Args:
             query: User query string
@@ -405,40 +443,52 @@ class AuraRAG:
         Returns:
             Boolean indicating if RAG should be used
         """
-        # Skip very short queries
-        if len(query.split()) < 2:
-            print(f"[RAG] 🚫 Query too short: '{query}'")
+        # Skip very short queries (but allow single words if they're questions)
+        words = query.split()
+        if len(words) < 1:
+            print(f"[RAG] 🚫 Empty query")
             return False
         
         # Analyze query intent
         intent = self._analyze_query_intent(query)
         print(f"[RAG] 🔍 Intent analysis: {intent}")
         
-        # Skip greetings and casual conversation
-        if intent['is_greeting'] or intent['is_conversational']:
-            print(f"[RAG] 🚫 Casual conversation detected: '{query}'")
+        # Skip only casual greetings (not informational greetings)
+        if intent['is_greeting'] and not intent['is_informational']:
+            print(f"[RAG] 🚫 Casual greeting detected: '{query}'")
             return False
         
-        # Use RAG for informational queries with high confidence
-        if intent['is_informational'] and intent['confidence'] >= 0.6:
-            print(f"[RAG] ✅ High-confidence informational query: '{query}'")
+        # Use RAG for ANY question (not just medical)
+        if intent['has_question_word']:
+            print(f"[RAG] ✅ Question detected: '{query}'")
             return True
         
-        # For borderline cases, check document relevance
-        if intent['confidence'] >= 0.4:
+        # Use RAG for informational queries (lowered threshold)
+        if intent['is_informational'] and intent['confidence'] >= 0.3:
+            print(f"[RAG] ✅ Informational query: '{query}'")
+            return True
+        
+        # Use RAG for complex queries based on length
+        if len(words) >= 4:  # Longer queries are more likely to be informational
+            print(f"[RAG] ✅ Complex query (length: {len(words)}): '{query}'")
+            return True
+        
+        # For shorter queries, do quick relevance check
+        if len(words) >= 2:
             doc_relevance = self._has_document_relevance(query)
             print(f"[RAG] 🔍 Document relevance score: {doc_relevance:.3f}")
-            if doc_relevance > 0.1:  # Found some word overlap with documents
+            if doc_relevance > 0.05:  # Lowered threshold for relevance
                 print(f"[RAG] ✅ Document relevance found: '{query}'")
                 return True
         
-        # Default to not using RAG for unclear intent
-        print(f"[RAG] 🚫 Unclear intent, skipping RAG: '{query}'")
-        return False
+        # Default to using RAG for unclear cases (more inclusive)
+        print(f"[RAG] ✅ Defaulting to RAG for query: '{query}'")
+        return True
     
     def smart_retrieve(self, query: str, k: int = 3) -> tuple[bool, List[Dict[str, Any]]]:
         """
         Smart retrieval that decides whether to use RAG and returns results
+        Includes quick relevance pre-check to reduce latency
         
         Args:
             query: User query string
@@ -449,7 +499,19 @@ class AuraRAG:
         """
         if not self.should_use_rag(query):
             return False, []
+        
+        # Quick relevance pre-check to avoid expensive semantic search if not needed
+        print(f"[RAG] 🔍 Quick relevance check for: '{query}'")
+        quick_relevance = self._has_document_relevance(query)
+        print(f"[RAG] 🔍 Quick relevance score: {quick_relevance:.3f}")
+        
+        # If quick check shows no relevance, skip expensive search
+        if quick_relevance < 0.02:  # Very low threshold for quick check
+            print(f"[RAG] 🚫 Quick check: No document relevance for: '{query}'")
+            return False, []
             
+        # Proceed with full semantic search
+        print(f"[RAG] 🔍 Proceeding with semantic search for: '{query}'")
         results = self.retrieve(query, k)
         
         # If no results meet the relevance threshold, don't use RAG

@@ -28,6 +28,12 @@ RUN pip3 install --no-cache-dir --ignore-installed \
 # Copy RAG module and debug script
 COPY rag.py /app/rag.py
 
+# Create HuggingFace cache directory for sentence transformer
+RUN mkdir -p /root/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2
+
+# Copy the sentence transformer model files to the cache location
+COPY models--sentence-transformers--all-MiniLM-L6-v2/* /root/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2/
+
 
 # === Environment defaults (can be overridden by .env or -e) ===
 ENV MODEL_PATH=/models/qwen2.5-1.5b-instruct-q4_0.gguf
