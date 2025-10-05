@@ -365,6 +365,22 @@ class FileUploadDialog(QDialog):
         button_layout = QHBoxLayout()
         button_layout.setSpacing(15)  # Compact spacing
         
+        # Test button first to see if any buttons work
+        test_btn = QPushButton("TEST")
+        test_btn.setFixedSize(80, 40)
+        test_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #ff0000;
+                color: white;
+                font-size: 16px;
+                font-weight: bold;
+                border: 2px solid #ffffff;
+            }
+        """)
+        test_btn.clicked.connect(lambda: print("[Upload] 🔘 TEST BUTTON CLICKED!"))
+        button_layout.addWidget(test_btn)
+        print(f"[Upload] 🔘 Created TEST button: size={test_btn.size()}")
+        
         self.upload_btn = QPushButton("↑")  # Circular upload button with up arrow
         self.upload_btn.clicked.connect(self.upload_files)
         self.upload_btn.setEnabled(False)
@@ -420,6 +436,8 @@ class FileUploadDialog(QDialog):
         button_layout.addWidget(self.close_btn)
         
         self.content_layout.addLayout(button_layout)
+        print(f"[Upload] 🔘 Added button layout to content layout")
+        print(f"[Upload] 🔘 Content layout children: {self.content_layout.count()}")
         
         # Set layout to content widget
         content_widget.setLayout(self.content_layout)
