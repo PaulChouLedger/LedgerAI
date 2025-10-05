@@ -226,6 +226,9 @@ class FileUploadDialog(QDialog):
         main_layout.addWidget(content_widget, 0, Qt.AlignCenter)
         main_layout.addStretch()
         
+        # Add edge buttons for future functions
+        self.create_edge_buttons(main_layout)
+        
         # Create layout for circular content
         self.content_layout = QVBoxLayout()
         self.content_layout.setContentsMargins(110, 110, 110, 110)  # 10% bigger margins (100 * 1.1 = 110)
@@ -363,20 +366,17 @@ class FileUploadDialog(QDialog):
         button_layout = QHBoxLayout()
         button_layout.setSpacing(15)  # Compact spacing
         
-        self.upload_btn = QPushButton("🚀 Upload")
+        self.upload_btn = QPushButton("↑")  # Circular upload button with up arrow
         self.upload_btn.clicked.connect(self.upload_files)
         self.upload_btn.setEnabled(False)
+        self.upload_btn.setFixedSize(80, 80)  # Circular button
         self.upload_btn.setStyleSheet("""
             QPushButton {
                 background-color: #007AFF;
                 color: white;
-                font-size: 14px;
-                font-weight: 500;
-                padding: 15px 25px;
-                min-height: 50px;
-                min-width: 120px;
-                max-width: 180px;
-                border-radius: 25px;
+                font-size: 24px;
+                font-weight: bold;
+                border-radius: 40px;  /* Perfect circle */
                 border: none;
             }
             QPushButton:hover {
@@ -423,6 +423,63 @@ class FileUploadDialog(QDialog):
         
         # Set main layout to dialog
         self.setLayout(main_layout)
+    
+    def create_edge_buttons(self, main_layout):
+        """Create dummy buttons around the edge of the circular dialog"""
+        # Create edge button container
+        edge_container = QWidget()
+        edge_container.setFixedSize(1080, 1080)
+        edge_container.setStyleSheet("background-color: transparent;")
+        
+        # Create grid layout for edge buttons
+        edge_layout = QGridLayout(edge_container)
+        edge_layout.setContentsMargins(0, 0, 0, 0)
+        edge_layout.setSpacing(0)
+        
+        # Button style for edge buttons
+        edge_button_style = """
+            QPushButton {
+                background-color: rgba(142, 142, 147, 0.3);
+                color: #ffffff;
+                font-size: 14px;
+                font-weight: 500;
+                border-radius: 25px;
+                border: none;
+                min-width: 50px;
+                min-height: 50px;
+            }
+            QPushButton:hover {
+                background-color: rgba(142, 142, 147, 0.5);
+            }
+        """
+        
+        # Create dummy buttons around the edges
+        button_positions = [
+            # Top row
+            (0, 1, "🔍"),  # Top center - Search
+            (0, 2, "⚙️"),  # Top right - Settings
+            # Middle rows
+            (1, 0, "📊"),  # Left - Analytics
+            (1, 2, "💾"),  # Right - Save
+            (2, 0, "🔄"),  # Bottom left - Refresh
+            (2, 1, "📋"),  # Bottom center - Clipboard
+            (2, 2, "📁"),  # Bottom right - Files
+        ]
+        
+        for row, col, icon in button_positions:
+            btn = QPushButton(icon)
+            btn.setStyleSheet(edge_button_style)
+            btn.setFixedSize(60, 60)
+            btn.clicked.connect(lambda checked, i=icon: self.edge_button_clicked(i))
+            edge_layout.addWidget(btn, row, col)
+        
+        # Add edge container to main layout (overlay style)
+        main_layout.addWidget(edge_container, 0, Qt.AlignCenter)
+    
+    def edge_button_clicked(self, icon):
+        """Handle edge button clicks - placeholder for future functions"""
+        print(f"[Upload] 🔘 Edge button clicked: {icon}")
+        # Placeholder for future functionality
         
     def select_files(self):
         """Open file dialog to select multiple files"""
