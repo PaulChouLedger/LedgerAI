@@ -47,11 +47,11 @@ class AuraGUI(QMainWindow):
         self.label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.label)
         
-        # Create 6 buttons equally spaced around the circular edge
-        self.create_circular_buttons()
-        
         main_widget.setLayout(layout)
         self.setCentralWidget(main_widget)
+        
+        # Create 6 buttons equally spaced around the circular edge (after central widget is set)
+        self.create_circular_buttons()
 
         # === Pulsation Effect ===
         self.opacity_effect = QGraphicsOpacityEffect()
@@ -121,8 +121,10 @@ class AuraGUI(QMainWindow):
             btn.clicked.connect(handler)
             self.buttons.append(btn)
             
-            # Add button to the main widget
-            self.centralWidget().layout().addWidget(btn)
+            # Add button to the main widget (positioned absolutely)
+            btn.setParent(self.centralWidget())
+            btn.move(int(x), int(y))
+            btn.show()
     
     def _handle_upload(self):
         """Handle upload button click"""
