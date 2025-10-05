@@ -35,6 +35,15 @@ class FileUploadDialog(QDialog):
         self.setFixedSize(1080, 1080)  # Full screen size
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # Frameless, stay on top
         
+        # Add red border to show circular screen edge
+        self.setStyleSheet("""
+            QDialog {
+                background-color: rgba(0, 0, 0, 0.1);
+                border: 3px solid #ff0000;
+                border-radius: 540px;  /* Half of 1080 for perfect circle */
+            }
+        """)
+        
         # Center the dialog on the actual screen
         screen = self.screen()
         # Show dialog first, then center it after it's rendered
@@ -341,18 +350,19 @@ class FileUploadDialog(QDialog):
         """)
         self.content_layout.addWidget(self.status_log)
         
-        # Position buttons around the circular edge of the screen
-        # For 1080x1080 circular screen, position buttons along the edge
+        # Position buttons within the circular area
+        # For 1080x1080 circular screen, center is at (540, 540)
+        # Position buttons in the center area, well within the circular boundary
         self.upload_btn = QPushButton("UPLOAD")
-        self.upload_btn.setGeometry(50, 50, 100, 50)  # Top-left area
+        self.upload_btn.setGeometry(440, 440, 120, 60)  # Center area, within circle
         self.upload_btn.setStyleSheet("""
             QPushButton {
                 background-color: #007AFF;
                 color: white;
-                font-size: 14px;
+                font-size: 16px;
                 font-weight: bold;
-                border-radius: 25px;
-                border: none;
+                border-radius: 30px;
+                border: 2px solid #ffffff;
             }
             QPushButton:hover {
                 background-color: #0056CC;
@@ -362,18 +372,18 @@ class FileUploadDialog(QDialog):
         self.upload_btn.setParent(self)  # Direct parent to dialog
         self.upload_btn.show()
         self.upload_btn.raise_()
-        print(f"[Upload] 🔘 Created UPLOAD button at (50, 50)")
+        print(f"[Upload] 🔘 Created UPLOAD button at (440, 440)")
         
         self.close_btn = QPushButton("CLOSE")
-        self.close_btn.setGeometry(930, 50, 100, 50)  # Top-right area
+        self.close_btn.setGeometry(440, 520, 120, 60)  # Center area, within circle
         self.close_btn.setStyleSheet("""
             QPushButton {
                 background-color: #FF3B30;
                 color: white;
-                font-size: 14px;
+                font-size: 16px;
                 font-weight: bold;
-                border-radius: 25px;
-                border: none;
+                border-radius: 30px;
+                border: 2px solid #ffffff;
             }
             QPushButton:hover {
                 background-color: #CC2E24;
@@ -383,7 +393,7 @@ class FileUploadDialog(QDialog):
         self.close_btn.setParent(self)  # Direct parent to dialog
         self.close_btn.show()
         self.close_btn.raise_()
-        print(f"[Upload] 🔘 Created CLOSE button at (930, 50)")
+        print(f"[Upload] 🔘 Created CLOSE button at (440, 520)")
         
         # Set layout to content widget
         content_widget.setLayout(self.content_layout)
