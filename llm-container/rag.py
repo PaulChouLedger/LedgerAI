@@ -98,7 +98,7 @@ class AuraRAG:
             torch.backends.cudnn.enabled = False
             torch.backends.cuda.matmul.allow_tf32 = False
             
-            # Load model with explicit CPU device and trust_remote_code
+            # Load model with explicit CPU device and proper initialization
             self.encoder = SentenceTransformer(
                 self.model_name, 
                 device=device,
@@ -106,7 +106,11 @@ class AuraRAG:
                 cache_folder='./cache/sentence_transformers'
             )
             
-            # Fix meta tensor issue by ensuring model is properly loaded
+            # Ensure model is properly initialized on CPU
+            self.encoder.eval()
+            # Force model parameters to be loaded (fixes meta tensor issue)
+            dummy_input = ["test"]
+            _ = self.encoder.encode(dummy_input)
             if hasattr(self.encoder, 'to'):
                 # Use to_empty() to handle meta tensors properly
                 try:

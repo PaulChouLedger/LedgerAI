@@ -29,6 +29,18 @@ def initialize_rag_safely():
         print("[Aura-LLM] ℹ️ RAG already initialized, skipping...")
         return
         
+    # Add initialization lock to prevent race conditions
+    import threading
+    init_lock = getattr(initialize_rag_safely, '_lock', None)
+    if init_lock is None:
+        init_lock = threading.Lock()
+        initialize_rag_safely._lock = init_lock
+    
+    with init_lock:
+        if RAG_INITIALIZED:
+            print("[Aura-LLM] ℹ️ RAG already initialized (locked), skipping...")
+            return
+        
     try:
         print("[Aura-LLM] 🔍 Initializing RAG system...")
         time.sleep(3)  # Reduced wait time
