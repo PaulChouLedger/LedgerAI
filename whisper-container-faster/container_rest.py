@@ -43,14 +43,14 @@ print(f"[Whisper] ✅ Ready to initialize faster-whisper model")
 
 # Load GPU model - NO CPU FALLBACK
 try:
-    model = WhisperModel("distil-small.en", device="cuda", compute_type="float16", download_root=cache_dir)
-    print(f"[Whisper] ✅ GPU model loaded successfully")
+    model = WhisperModel("distil-small.en", device="cuda", compute_type="float16")
+    print(f"[Whisper] ✅ GPU model loaded successfully from HuggingFace cache")
 except Exception as e:
     print(f"[Whisper] ❌ GPU model loading failed: {e}")
-    print(f"[Whisper] 🔄 Trying with default cache...")
+    print(f"[Whisper] 🔄 Trying with explicit cache directory...")
     try:
-        model = WhisperModel("distil-small.en", device="cuda", compute_type="float16")
-        print(f"[Whisper] ✅ GPU model loaded with default cache")
+        model = WhisperModel("distil-small.en", device="cuda", compute_type="float16", download_root=cache_dir)
+        print(f"[Whisper] ✅ GPU model loaded with explicit cache")
     except Exception as e2:
         print(f"[Whisper] ❌ GPU model loading failed with default cache: {e2}")
         print(f"[Whisper] 💥 FATAL: GPU required - no CPU fallback available")
