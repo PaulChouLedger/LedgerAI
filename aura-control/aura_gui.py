@@ -2,9 +2,10 @@
 
 import os
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QGraphicsOpacityEffect, QPushButton, QVBoxLayout, QWidget
+import math
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QGraphicsOpacityEffect, QPushButton, QVBoxLayout, QWidget, QHBoxLayout
 from PyQt5.QtGui import QPixmap, QKeySequence
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QPoint
 from file_upload_dialog import show_upload_dialog
 
 _app = None
@@ -19,7 +20,7 @@ class AuraGUI(QMainWindow):
         self.setStyleSheet("""
             QMainWindow {
                 background-color: black;
-                border: 15px solid #ff0000;
+                border: 5px solid #ff0000;
                 border-radius: 540px;  /* Half of 1080 for perfect circle */
             }
         """)
@@ -35,9 +36,10 @@ class AuraGUI(QMainWindow):
         min_dim = min(screen_size.width(), screen_size.height())
         scaled_pixmap = pixmap.scaled(min_dim, min_dim, Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
-        # === Create main widget with image and button ===
+        # === Create main widget with image and circular buttons ===
         main_widget = QWidget()
         layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
         
         # Image label
         self.label = QLabel()
@@ -45,28 +47,8 @@ class AuraGUI(QMainWindow):
         self.label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.label)
         
-        # Upload button
-        self.upload_btn = QPushButton("↑")  # Circular upload button with up arrow
-        self.upload_btn.setFixedSize(80, 80)  # Circular button
-        self.upload_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #007AFF;
-                color: white;
-                font-size: 24px;
-                font-weight: bold;
-                border-radius: 40px;  /* Perfect circle */
-                border: none;
-            }
-            QPushButton:hover {
-                background-color: #0056CC;
-            }
-            QPushButton:pressed {
-                background-color: rgba(25, 25, 25, 200);
-            }
-        """)
-        # Add debounce to prevent multiple rapid clicks
-        self.upload_btn.clicked.connect(self._debounced_upload_click)
-        layout.addWidget(self.upload_btn)
+        # Create 6 buttons equally spaced around the circular edge
+        self.create_circular_buttons()
         
         main_widget.setLayout(layout)
         self.setCentralWidget(main_widget)
@@ -83,6 +65,99 @@ class AuraGUI(QMainWindow):
         
         # Enable keyboard focus for shortcuts
         self.setFocusPolicy(Qt.StrongFocus)
+    
+    def create_circular_buttons(self):
+        """Create 6 buttons equally spaced around the circular edge"""
+        # Button configurations: (text, icon, function, color)
+        button_configs = [
+            ("↑", "Upload", self._handle_upload, "#007AFF"),      # Upload files
+            ("⚙", "Settings", self._handle_settings, "#FF9500"),  # Settings
+            ("📊", "Analytics", self._handle_analytics, "#34C759"), # Analytics
+            ("🎤", "Voice", self._handle_voice, "#FF3B30"),        # Voice control
+            ("📱", "Mobile", self._handle_mobile, "#5856D6"),     # Mobile sync
+            ("ℹ", "Info", self._handle_info, "#8E8E93")          # Information
+        ]
+        
+        # Calculate positions for 6 buttons around a circle
+        # Radius should be close to the edge but not touching the red border
+        radius = 400  # Distance from center to button
+        center_x = 540  # Center of 1080x1080 screen
+        center_y = 540
+        
+        self.buttons = []
+        
+        for i, (text, tooltip, handler, color) in enumerate(button_configs):
+            # Calculate angle for this button (0° to 300° in 60° increments)
+            angle = math.radians(i * 60)  # 0, 60, 120, 180, 240, 300 degrees
+            
+            # Calculate position
+            x = center_x + radius * math.cos(angle) - 30  # -30 to center the 60px button
+            y = center_y + radius * math.sin(angle) - 30
+            
+            # Create button
+            btn = QPushButton(text)
+            btn.setFixedSize(60, 60)
+            btn.setToolTip(tooltip)
+            btn.move(int(x), int(y))
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {color};
+                    color: white;
+                    font-size: 20px;
+                    font-weight: bold;
+                    border-radius: 30px;
+                    border: 2px solid #ffffff;
+                }}
+                QPushButton:hover {{
+                    background-color: {color}CC;
+                    border: 3px solid #ffffff;
+                }}
+                QPushButton:pressed {{
+                    background-color: {color}99;
+                }}
+            """)
+            
+            # Connect handler
+            btn.clicked.connect(handler)
+            self.buttons.append(btn)
+            
+            # Add button to the main widget
+            self.centralWidget().layout().addWidget(btn)
+    
+    def _handle_upload(self):
+        """Handle upload button click"""
+        print("[AuraGUI] 📤 Upload button clicked")
+        show_upload_dialog()
+    
+    def _handle_settings(self):
+        """Handle settings button click"""
+        print("[AuraGUI] ⚙️ Settings button clicked")
+        # TODO: Call settings script
+        pass
+    
+    def _handle_analytics(self):
+        """Handle analytics button click"""
+        print("[AuraGUI] 📊 Analytics button clicked")
+        # TODO: Call analytics script
+        pass
+    
+    def _handle_voice(self):
+        """Handle voice button click"""
+        print("[AuraGUI] 🎤 Voice button clicked")
+        # TODO: Call voice control script
+        pass
+    
+    def _handle_mobile(self):
+        """Handle mobile button click"""
+        print("[AuraGUI] 📱 Mobile button clicked")
+        # TODO: Call mobile sync script
+        pass
+    
+    def _handle_info(self):
+        """Handle info button click"""
+        print("[AuraGUI] ℹ️ Info button clicked")
+        # TODO: Call info script
+        pass
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -109,30 +184,12 @@ class AuraGUI(QMainWindow):
         """Handle keyboard shortcuts"""
         if event.key() == Qt.Key_U and event.modifiers() == Qt.ControlModifier:
             # Ctrl+U: Open upload dialog
-            show_upload_dialog()
+            self._handle_upload()
         elif event.key() == Qt.Key_Escape:
             # Escape: Close GUI
             self.close()
         else:
             super().keyPressEvent(event)
-    
-    def _debounced_upload_click(self):
-        """Debounced upload button click to prevent multiple rapid clicks"""
-        # Show upload dialog immediately
-        show_upload_dialog()
-        
-        # Disable button temporarily to prevent rapid clicking
-        self.upload_btn.setEnabled(False)
-        self.upload_btn.setText("⏳ Opening...")
-        
-        # Use QTimer to re-enable button after a short delay
-        from PyQt5.QtCore import QTimer
-        QTimer.singleShot(2000, self._reenable_upload_button)
-    
-    def _reenable_upload_button(self):
-        """Re-enable upload button after debounce delay"""
-        self.upload_btn.setEnabled(True)
-        self.upload_btn.setText("↑")  # Circular upload button with up arrow
 
 # === GUI Control ===
 def launch_gui():

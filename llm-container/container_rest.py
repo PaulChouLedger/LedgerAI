@@ -23,9 +23,15 @@ smart_search_medical_info_fn = None
 def initialize_rag_safely():
     """Initialize RAG system safely after LLM is loaded"""
     global RAG_AVAILABLE, RAG_INITIALIZED, get_rag_fn, search_medical_info_fn, smart_search_medical_info_fn
+    
+    # Prevent multiple initializations
+    if RAG_INITIALIZED:
+        print("[Aura-LLM] ℹ️ RAG already initialized, skipping...")
+        return
+        
     try:
         print("[Aura-LLM] 🔍 Initializing RAG system...")
-        time.sleep(5)  # Wait for LLM to be fully loaded
+        time.sleep(3)  # Reduced wait time
         
         from rag import get_rag, search_medical_info, smart_search_medical_info
         get_rag_fn = get_rag

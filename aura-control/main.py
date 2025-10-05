@@ -233,10 +233,10 @@ def initialize_rag_delayed():
             print("[Aura] ⚠️ RAG initialization failed after 3 attempts")
             return
         
-        # Test RAG stats
-        for attempt in range(3):
+        # Test RAG stats with 3 attempts and 10 second timeout each
+        for attempt in range(3):  # 3 attempts
             try:
-                stats_response = requests.get("http://localhost:11434/rag/stats", timeout=30)
+                stats_response = requests.get("http://localhost:11434/rag/stats", timeout=10)  # 10 second timeout
                 if stats_response.status_code == 200:
                     stats = stats_response.json()
                     print(f"[Aura] ✅ RAG loaded: {stats.get('chunks_loaded', 0)} medical documents")
@@ -244,9 +244,9 @@ def initialize_rag_delayed():
                 else:
                     print(f"[Aura] ⚠️ RAG stats attempt {attempt + 1} failed: {stats_response.status_code}")
             except requests.exceptions.RequestException as e:
-                if attempt < 2:
+                if attempt < 2:  # Retry up to 2 more times (3 total attempts)
                     print(f"[Aura] ⚠️ RAG stats attempt {attempt + 1} failed: {e}")
-                    time.sleep(5)  # Wait longer between attempts
+                    time.sleep(5)  # Wait between attempts
                 else:
                     print(f"[Aura] ⚠️ RAG stats attempt {attempt + 1} failed: {e}")
         else:

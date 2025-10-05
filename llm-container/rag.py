@@ -90,8 +90,7 @@ class AuraRAG:
             torch.backends.cuda.matmul.allow_tf32 = False
             
             self.encoder = SentenceTransformer(self.model_name, device=device)
-            # Ensure model is on CPU
-            self.encoder = self.encoder.to('cpu')
+            # Don't call .to('cpu') again - it's already on CPU from the device parameter
             print(f"[RAG] ✅ Loaded encoder: {self.model_name} (device: {device}, threads: 4)")
             
         except Exception as e:
