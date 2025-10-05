@@ -175,11 +175,8 @@ def run_container(name, port, image, timeout=15):
             "-v", f"{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))}:/app/data"  # Mount embeddings data
         ]
     elif name == WHISPER_CONTAINER_NAME:
-        # Mount host Hugging Face cache for faster-whisper models
-        host_hf_cache = os.path.expanduser("~/.cache/huggingface")
-        cmd += [
-            "-v", f"{host_hf_cache}:/root/.cache/huggingface",  # Mount HF cache for faster-whisper
-        ]
+        # Use built-in model files, no external cache mounting needed
+        pass
 
 
     cmd.append(image)
@@ -198,7 +195,7 @@ def run_container(name, port, image, timeout=15):
         if name == WHISPER_CONTAINER_NAME:
             health_url = f"http://localhost:{port}/health"
             print(f"[Aura] 🔍 Health check URL: {health_url}")
-            time.sleep(5)   # Standard time for faster-whisper
+            time.sleep(15)   # Give more time for model loading
         else:
             health_url = f"http://localhost:{port}"
         
