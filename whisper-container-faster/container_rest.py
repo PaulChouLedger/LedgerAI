@@ -81,7 +81,7 @@ else:
 
 # Load GPU model - NO CPU FALLBACK
 try:
-    model = WhisperModel(model_name, device="cuda", compute_type="float16", download_root="/root/.cache/huggingface/hub", local_files_only=True)
+    model = WhisperModel(model_name, device="cuda", compute_type="float16", download_root="/root/.cache/huggingface/hub")
     print(f"[Whisper] ✅ GPU model '{model_name}' loaded successfully from HuggingFace cache")
 except Exception as e:
     print(f"[Whisper] ❌ GPU model loading failed: {e}")
