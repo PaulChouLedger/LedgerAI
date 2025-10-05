@@ -347,8 +347,8 @@ class AuraGUI(QMainWindow):
         # Set opacity through widget style
         self.label.setStyleSheet(f"opacity: {self.opacity};")
         
-        # Apply scaling using alternative method (pixmap resizing) for TTS
-        self._apply_scaling_alternative(scale_factor)
+        # Apply scaling using pixmap resizing
+        self._apply_scaling(scale_factor)
         
         # Debug output removed for cleaner console
         
@@ -399,21 +399,7 @@ class AuraGUI(QMainWindow):
         self.glow_effect.setBlurRadius(int(glow_radius))
     
     def _apply_scaling(self, scale_factor):
-        """Apply scaling to the aura eye using QTransform"""
-        try:
-            # Create a transform that scales from the center
-            transform = QTransform()
-            transform.scale(scale_factor, scale_factor)
-            self.label.setTransform(transform)
-            
-            # Debug output removed for cleaner console
-        except Exception as e:
-            # If scaling fails, just continue without it
-            print(f"[GUI] ⚠️ Scaling failed: {e}")
-            pass
-    
-    def _apply_scaling_alternative(self, scale_factor):
-        """Alternative scaling method using pixmap resizing"""
+        """Apply scaling to the aura eye using pixmap resizing"""
         try:
             # Get the original pixmap
             original_pixmap = self.label.pixmap()
@@ -431,11 +417,10 @@ class AuraGUI(QMainWindow):
                 
                 # Set the scaled pixmap
                 self.label.setPixmap(scaled_pixmap)
-                
-                # Debug output removed for cleaner console
         except Exception as e:
-            print(f"[GUI] ⚠️ Alt scaling failed: {e}")
+            # If scaling fails, just continue without it
             pass
+    
     
     def keyPressEvent(self, event):
         """Handle keyboard shortcuts"""
