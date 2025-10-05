@@ -176,6 +176,12 @@ class AuraGUI(QMainWindow):
         """Handle upload button click"""
         print("[AuraGUI] 📤 Upload button clicked")
         show_upload_dialog()
+        # Ensure GUI is properly restored after dialog closes
+        self.showFullScreen()
+        self.raise_()
+        self.activateWindow()
+        # Reset aura eye to original size
+        self._reset_aura_eye()
     
     def _handle_settings(self):
         """Handle settings button click"""
@@ -401,15 +407,17 @@ class AuraGUI(QMainWindow):
     def _apply_scaling(self, scale_factor):
         """Apply scaling to the aura eye using pixmap resizing"""
         try:
-            # Get the original pixmap
-            original_pixmap = self.label.pixmap()
-            if original_pixmap:
-                # Calculate new size
-                original_size = original_pixmap.size()
+            # Store original pixmap if not already stored
+            if not hasattr(self, '_original_pixmap'):
+                self._original_pixmap = self.label.pixmap()
+            
+            if self._original_pixmap:
+                # Calculate new size from original pixmap (not current)
+                original_size = self._original_pixmap.size()
                 new_size = original_size * scale_factor
                 
-                # Scale the pixmap
-                scaled_pixmap = original_pixmap.scaled(
+                # Scale the original pixmap (not the already scaled one)
+                scaled_pixmap = self._original_pixmap.scaled(
                     new_size, 
                     Qt.KeepAspectRatio, 
                     Qt.SmoothTransformation
@@ -421,6 +429,13 @@ class AuraGUI(QMainWindow):
             # If scaling fails, just continue without it
             pass
     
+    def _reset_aura_eye(self):
+        """Reset aura eye to original size"""
+        try:
+            if hasattr(self, '_original_pixmap') and self._original_pixmap:
+                self.label.setPixmap(self._original_pixmap)
+        except Exception as e:
+            pass
     
     def keyPressEvent(self, event):
         """Handle keyboard shortcuts"""
