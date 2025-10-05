@@ -212,11 +212,11 @@ class FileUploadDialog(QDialog):
         
         # Create circular content container
         content_widget = QWidget()
-        content_widget.setFixedSize(980, 980)  # Decreased back 10% (1089 * 0.9 = 980)
+        content_widget.setFixedSize(1078, 1078)  # 10% bigger (980 * 1.1 = 1078)
         content_widget.setStyleSheet("""
             QWidget {
                 background-color: rgba(28, 28, 30, 0.95);
-                border-radius: 490px;
+                border-radius: 539px;
                 border: none;
             }
         """)
@@ -228,8 +228,8 @@ class FileUploadDialog(QDialog):
         
         # Create layout for circular content
         self.content_layout = QVBoxLayout()
-        self.content_layout.setContentsMargins(100, 100, 100, 100)  # Adjusted margins for smaller circle
-        self.content_layout.setSpacing(25)  # Adjusted spacing for smaller circle
+        self.content_layout.setContentsMargins(110, 110, 110, 110)  # 10% bigger margins (100 * 1.1 = 110)
+        self.content_layout.setSpacing(28)  # 10% bigger spacing (25 * 1.1 = 27.5, rounded to 28)
         
         # Title centered (no close button)
         title_layout = QHBoxLayout()
@@ -260,9 +260,9 @@ class FileUploadDialog(QDialog):
         file_layout.setSpacing(20)
         
         self.file_list = QListWidget()
-        self.file_list.setMaximumHeight(280)  # Increased for even larger circle
-        self.file_list.setMinimumHeight(230)
-        self.file_list.setMaximumWidth(500)  # Increased width for even larger circle
+        self.file_list.setMaximumHeight(308)  # 10% bigger (280 * 1.1 = 308)
+        self.file_list.setMinimumHeight(253)  # 10% bigger (230 * 1.1 = 253)
+        self.file_list.setMaximumWidth(550)  # 10% bigger (500 * 1.1 = 550)
         self.file_list.setStyleSheet("""
             QListWidget {
                 background-color: rgba(44, 44, 46, 0.8);
@@ -342,9 +342,9 @@ class FileUploadDialog(QDialog):
         
         # Status log - increased for even larger circle
         self.status_log = QTextEdit()
-        self.status_log.setMaximumHeight(140)  # Increased for even larger circle
-        self.status_log.setMinimumHeight(120)
-        self.status_log.setMaximumWidth(600)  # Increased width for even larger circle
+        self.status_log.setMaximumHeight(154)  # 10% bigger (140 * 1.1 = 154)
+        self.status_log.setMinimumHeight(132)  # 10% bigger (120 * 1.1 = 132)
+        self.status_log.setMaximumWidth(660)  # 10% bigger (600 * 1.1 = 660)
         self.status_log.setReadOnly(True)
         self.status_log.setPlaceholderText("Upload status will appear here...")
         self.status_log.setStyleSheet("""
@@ -607,19 +607,20 @@ class FileUploadDialog(QDialog):
                         font-size: 12px;
                     }
                     QPushButton {
-                        background-color: #007AFF;
-                        color: white;
+                        background-color: rgba(142, 142, 147, 0.2);
+                        color: #ffffff;
+                        font-size: 12px;
                         font-weight: 500;
+                        padding: 10px 15px;
+                        min-height: 35px;
+                        border-radius: 18px;
                         border: none;
-                        padding: 12px 20px;
-                        border-radius: 20px;
-                        font-size: 13px;
                     }
                     QPushButton:hover {
-                        background-color: #0056CC;
+                        background-color: rgba(142, 142, 147, 0.3);
                     }
                     QPushButton:pressed {
-                        background-color: #004499;
+                        background-color: rgba(142, 142, 147, 0.4);
                     }
                 """)
                 
