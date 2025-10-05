@@ -52,6 +52,26 @@ def apply_simple_gain(signal, gain_multiplier=2.0):
     """Apply simple gain without complex normalization"""
     return np.clip(signal * gain_multiplier, -1.0, 1.0)
 
+def apply_high_pass_filter(signal, cutoff_freq=300, sample_rate=SAMPLE_RATE):
+    """Apply high-pass filter to remove low-frequency noise (fans, HVAC, etc.)"""
+    try:
+        from scipy import signal as scipy_signal
+        # Design high-pass Butterworth filter (4th order for good rolloff)
+        nyquist = sample_rate / 2
+        normal_cutoff = cutoff_freq / nyquist
+        b, a = scipy_signal.butter(4, normal_cutoff, btype='high', analog=False)
+        
+        # Apply filter using forward-backward filtering (zero-phase distortion)
+        filtered_signal = scipy_signal.filtfilt(b, a, signal)
+        print(f"[Audio] 🎛️ Applied high-pass filter (cutoff: {cutoff_freq}Hz)")
+        return filtered_signal
+    except ImportError:
+        print("[Audio] ⚠️ scipy not available, skipping high-pass filter")
+        return signal
+    except Exception as e:
+        print(f"[Audio] ⚠️ High-pass filter error: {e}, using original signal")
+        return signal
+
 
 # === Transcribe with Whisper container ===
 def transcribe(audio):
@@ -174,8 +194,11 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono_mix = full_audio[:, 0]
             
-            # Simple audio preprocessing (reverted from transcription_tuner.py)
-            # Apply simple gain without complex normalization
+            # Audio preprocessing pipeline
+            # 1. Apply high-pass filter to remove low-frequency noise (fans, HVAC, etc.)
+            mono_mix = apply_high_pass_filter(mono_mix, cutoff_freq=300)
+            
+            # 2. Apply simple gain without complex normalization
             mono_mix = apply_simple_gain(mono_mix, MIC_GAIN)
 
             # Check audio duration

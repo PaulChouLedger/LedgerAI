@@ -62,7 +62,7 @@ class FileUploadDialog(QDialog):
         print("[Upload] 🎯 Touch center, top, right, bottom, left edges to get all coordinates")
         self.setStyleSheet("""
             QDialog {
-                background-color: rgba(0, 0, 0, 0.3);  /* Semi-transparent background */
+                background-color: rgba(28, 28, 30, 1.0);  /* Solid dark background */
                 color: white;
                 border: 8px solid #ff0000;  /* Red border for circular screen edge */
                 border-radius: 540px;  /* Circular border to match 5-inch screen */
@@ -323,11 +323,11 @@ class FileUploadDialog(QDialog):
         self.progress_bar.setVisible(False)
         self.content_layout.addWidget(self.progress_bar)
         
-        # Status log - increased for even larger circle
+        # Status log - made thinner for circular screen
         self.status_log = QTextEdit()
-        self.status_log.setMaximumHeight(154)  # 10% bigger (140 * 1.1 = 154)
-        self.status_log.setMinimumHeight(132)  # 10% bigger (120 * 1.1 = 132)
-        self.status_log.setMaximumWidth(660)  # 10% bigger (600 * 1.1 = 660)
+        self.status_log.setMaximumHeight(100)  # Much thinner
+        self.status_log.setMinimumHeight(80)   # Much thinner
+        self.status_log.setMaximumWidth(500)   # Narrower for circular screen
         self.status_log.setReadOnly(True)
         self.status_log.setPlaceholderText("Upload status will appear here...")
         self.status_log.setStyleSheet("""
@@ -358,7 +358,7 @@ class FileUploadDialog(QDialog):
                 padding: 12px 24px;
                 border-radius: 20px;
                 border: none;
-                min-width: 120px;
+                min-width: 80px;
             }
             QPushButton:hover {
                 background-color: #0056CC;
@@ -384,7 +384,7 @@ class FileUploadDialog(QDialog):
                 padding: 12px 24px;
                 border-radius: 20px;
                 border: none;
-                min-width: 120px;
+                min-width: 80px;
             }
             QPushButton:hover {
                 background-color: #D70015;
@@ -661,10 +661,40 @@ class FileUploadDialog(QDialog):
                 
                 open_btn = QPushButton("🌐 Open in Browser")
                 open_btn.clicked.connect(lambda: webbrowser.open(upload_url))
+                open_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #007AFF;
+                        color: white;
+                        font-size: 12px;
+                        font-weight: 600;
+                        padding: 8px 16px;
+                        border-radius: 15px;
+                        border: none;
+                        min-width: 60px;
+                    }
+                    QPushButton:hover {
+                        background-color: #0056CC;
+                    }
+                """)
                 button_layout.addWidget(open_btn)
                 
                 close_btn = QPushButton("❌ Close")
                 close_btn.clicked.connect(qr_dialog.accept)
+                close_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #FF3B30;
+                        color: white;
+                        font-size: 12px;
+                        font-weight: 600;
+                        padding: 8px 16px;
+                        border-radius: 15px;
+                        border: none;
+                        min-width: 60px;
+                    }
+                    QPushButton:hover {
+                        background-color: #D70015;
+                    }
+                """)
                 button_layout.addWidget(close_btn)
                 
                 layout.addLayout(button_layout)
