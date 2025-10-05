@@ -39,9 +39,17 @@ else:
 model_name = os.getenv("WHISPER_MODEL", "distil-small.en")
 print(f"[Whisper] 📋 Using model: {model_name}")
 
-# Check if the model is available in the built-in cache
-model_repo = f"models--Systran--faster-{model_name.replace('.', '-')}"
+# Map model names to their actual HuggingFace repo names
+model_mapping = {
+    "distil-small.en": "models--Systran--faster-distil-whisper-small.en",
+    "small.en": "models--Systran--faster-small-whisper.en",
+    "base.en": "models--Systran--faster-base-whisper.en"
+}
+
+# Get the actual model repo name
+model_repo = model_mapping.get(model_name, f"models--Systran--faster-{model_name.replace('.', '-')}")
 model_cache_path = f"/root/.cache/huggingface/hub/{model_repo}"
+
 if os.path.exists(model_cache_path):
     print(f"[Whisper] ✅ Model found in built-in cache: {model_repo}")
 else:
