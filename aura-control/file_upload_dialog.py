@@ -368,18 +368,19 @@ class FileUploadDialog(QDialog):
         self.upload_btn = QPushButton("↑")  # Circular upload button with up arrow
         self.upload_btn.clicked.connect(self.upload_files)
         self.upload_btn.setEnabled(False)
-        self.upload_btn.setFixedSize(80, 80)  # Circular button
+        self.upload_btn.setFixedSize(100, 100)  # Larger circular button for better visibility
         self.upload_btn.setStyleSheet("""
             QPushButton {
                 background-color: #007AFF;
                 color: white;
-                font-size: 24px;
+                font-size: 32px;
                 font-weight: bold;
-                border-radius: 40px;  /* Perfect circle */
-                border: none;
+                border-radius: 50px;  /* Perfect circle */
+                border: 3px solid #ffffff;
             }
             QPushButton:hover {
                 background-color: #0056CC;
+                border: 3px solid #ffff00;
             }
             QPushButton:pressed {
                 background-color: #004499;
@@ -387,10 +388,12 @@ class FileUploadDialog(QDialog):
             QPushButton:disabled {
                 background-color: #3A3A3C;
                 color: #8E8E93;
+                border: 3px solid #555555;
             }
         """)
         button_layout.addWidget(self.upload_btn)
         print(f"[Upload] 🔘 Created upload button: size={self.upload_btn.size()}, text='{self.upload_btn.text()}'")
+        print(f"[Upload] 🔘 Upload button enabled: {self.upload_btn.isEnabled()}")
         
         self.close_btn = QPushButton("❌ Close")
         self.close_btn.clicked.connect(self.close)
@@ -424,59 +427,8 @@ class FileUploadDialog(QDialog):
         # Set main layout to dialog
         self.setLayout(main_layout)
         
-        # Add edge buttons after layout is set (as overlays)
-        self.create_edge_buttons()
+        # Edge buttons removed - separate GUI functions will have their own scripts
     
-    def create_edge_buttons(self):
-        """Create dummy buttons around the edge of the circular dialog"""
-        # Button style for edge buttons - more visible
-        edge_button_style = """
-            QPushButton {
-                background-color: rgba(0, 122, 255, 0.9);
-                color: #ffffff;
-                font-size: 24px;
-                font-weight: bold;
-                border-radius: 35px;
-                border: 4px solid #ffffff;
-                min-width: 70px;
-                min-height: 70px;
-            }
-            QPushButton:hover {
-                background-color: rgba(0, 122, 255, 1.0);
-                border: 4px solid #ffff00;
-            }
-        """
-        
-        # Create dummy buttons around the edges with absolute positioning
-        button_positions = [
-            # Top row
-            (540, 80, "🔍"),   # Top center - Search
-            (900, 150, "⚙️"),  # Top right - Settings
-            # Middle rows  
-            (80, 400, "📊"),   # Left - Analytics
-            (1000, 400, "💾"), # Right - Save
-            # Bottom row
-            (150, 800, "🔄"),  # Bottom left - Refresh
-            (540, 850, "📋"),  # Bottom center - Clipboard
-            (930, 800, "📁"),  # Bottom right - Files
-        ]
-        
-        for x, y, icon in button_positions:
-            btn = QPushButton(icon)
-            btn.setStyleSheet(edge_button_style)
-            btn.setFixedSize(70, 70)
-            btn.move(x - 35, y - 35)  # Center the button on the position
-            btn.clicked.connect(lambda checked, i=icon: self.edge_button_clicked(i))
-            btn.setParent(self)  # Add directly to dialog
-            btn.raise_()  # Bring to front
-            print(f"[Upload] 🔘 Created edge button '{icon}' at position ({x-35}, {y-35})")
-        
-        print(f"[Upload] ✅ Created {len(button_positions)} edge buttons as overlays")
-    
-    def edge_button_clicked(self, icon):
-        """Handle edge button clicks - placeholder for future functions"""
-        print(f"[Upload] 🔘 Edge button clicked: {icon}")
-        # Placeholder for future functionality
         
     def select_files(self):
         """Open file dialog to select multiple files"""
