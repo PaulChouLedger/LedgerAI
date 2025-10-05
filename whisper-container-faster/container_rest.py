@@ -35,14 +35,22 @@ if os.path.exists(hf_cache):
 else:
     print(f"[Whisper] ⚠️ HF cache does not exist: {hf_cache}")
 
-# Copy model files for faster-whisper compatibility
+# Setup HuggingFace cache structure for faster-whisper
 def setup_model_cache(model_name):
-    """Copy model files from HuggingFace cache to faster-whisper expected format"""
-    print(f"[Whisper] 📋 Setting up model cache for {model_name}...")
+    """Setup proper HuggingFace cache structure for faster-whisper"""
+    print(f"[Whisper] 📋 Setting up HuggingFace cache for {model_name}...")
     try:
         import shutil
-        cache_dir = f"/app/cache/whisper/{model_name}"
-        snapshots_dir = f"{cache_dir}/snapshots"
+        import json
+        
+        # Source directory (mounted HuggingFace cache)
+        source_dir = f"/app/cache/whisper/{model_name}"
+        snapshots_dir = f"{source_dir}/snapshots"
+        
+        # Target HuggingFace cache structure
+        hf_cache_dir = "/root/.cache/huggingface/hub"
+        model_repo = f"models--Systran--faster-{model_name.replace('.', '-')}"
+        target_dir = f"{hf_cache_dir}/{model_repo}"
         
         if os.path.exists(snapshots_dir):
             # Find the actual snapshot directory (it has a hash name)
@@ -51,31 +59,42 @@ def setup_model_cache(model_name):
             if snapshot_dirs:
                 # Use the first (and typically only) snapshot directory
                 snapshot_hash = snapshot_dirs[0]
-                snapshot_path = os.path.join(cache_dir, "snapshots", snapshot_hash)
+                source_snapshot = os.path.join(source_dir, "snapshots", snapshot_hash)
                 
-                # Files that faster-whisper expects
-                files_to_copy = [
-                    "config.json",
-                    "model.bin", 
-                    "preprocessor_config.json",
-                    "tokenizer.json",
-                    "vocabulary.json"
-                ]
+                # Create target directory structure
+                os.makedirs(target_dir, exist_ok=True)
+                target_snapshots = f"{target_dir}/snapshots"
+                os.makedirs(target_snapshots, exist_ok=True)
                 
-                for filename in files_to_copy:
-                    source_path = os.path.join(snapshot_path, filename)
-                    dest_path = os.path.join(cache_dir, filename)
-                    
-                    if os.path.exists(source_path):
-                        if not os.path.exists(dest_path):
-                            shutil.copy2(source_path, dest_path)
-                            print(f"[Whisper] ✅ Copied: {filename}")
-                        else:
-                            print(f"[Whisper] ℹ️ File already exists: {filename}")
+                # Copy snapshot directory
+                target_snapshot = f"{target_snapshots}/{snapshot_hash}"
+                if not os.path.exists(target_snapshot):
+                    shutil.copytree(source_snapshot, target_snapshot)
+                    print(f"[Whisper] ✅ Copied snapshot: {snapshot_hash}")
+                else:
+                    print(f"[Whisper] ℹ️ Snapshot already exists: {snapshot_hash}")
+                
+                # Copy refs directory if it exists
+                source_refs = f"{source_dir}/refs"
+                target_refs = f"{target_dir}/refs"
+                if os.path.exists(source_refs):
+                    if not os.path.exists(target_refs):
+                        shutil.copytree(source_refs, target_refs)
+                        print(f"[Whisper] ✅ Copied refs directory")
                     else:
-                        print(f"[Whisper] ⚠️ Source file not found: {filename}")
+                        print(f"[Whisper] ℹ️ Refs directory already exists")
+                
+                # Copy blobs directory if it exists
+                source_blobs = f"{source_dir}/blobs"
+                target_blobs = f"{target_dir}/blobs"
+                if os.path.exists(source_blobs):
+                    if not os.path.exists(target_blobs):
+                        shutil.copytree(source_blobs, target_blobs)
+                        print(f"[Whisper] ✅ Copied blobs directory")
+                    else:
+                        print(f"[Whisper] ℹ️ Blobs directory already exists")
                         
-                print(f"[Whisper] ✅ Model cache setup complete for {model_name}")
+                print(f"[Whisper] ✅ HuggingFace cache setup complete for {model_name}")
                 return True
             else:
                 print(f"[Whisper] ⚠️ No snapshot directories found in {snapshots_dir}")
@@ -83,7 +102,7 @@ def setup_model_cache(model_name):
             print(f"[Whisper] ⚠️ No snapshots directory found: {snapshots_dir}")
         return False
     except Exception as e:
-        print(f"[Whisper] ⚠️ Error setting up model cache for {model_name}: {e}")
+        print(f"[Whisper] ⚠️ Error setting up HuggingFace cache for {model_name}: {e}")
         return False
 
 # Setup model cache for the model (configurable via environment variable)
@@ -98,10 +117,9 @@ print(f"[Whisper] 🚀 Initializing faster-whisper with GPU support...")
 print(f"[Whisper] ✅ Ready to initialize faster-whisper model")
 
 # Load GPU model - NO CPU FALLBACK
-cache_dir = f"/app/cache/whisper"
 try:
-    model = WhisperModel(model_name, device="cuda", compute_type="float16", download_root=cache_dir)
-    print(f"[Whisper] ✅ GPU model '{model_name}' loaded successfully from local cache")
+    model = WhisperModel(model_name, device="cuda", compute_type="float16")
+    print(f"[Whisper] ✅ GPU model '{model_name}' loaded successfully from HuggingFace cache")
 except Exception as e:
     print(f"[Whisper] ❌ GPU model loading failed: {e}")
     print(f"[Whisper] 💥 FATAL: GPU required - no CPU fallback available")
