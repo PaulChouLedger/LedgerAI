@@ -16,7 +16,13 @@ class AuraGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("AuraVision")
-        self.setStyleSheet("background-color: black;")
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: black;
+                border: 5px solid #ff0000;
+                border-radius: 540px;  /* Half of 1080 for perfect circle */
+            }
+        """)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
 
         # === Load and Scale aura_eye.png ===
