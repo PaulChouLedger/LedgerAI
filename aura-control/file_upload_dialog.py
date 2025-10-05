@@ -341,18 +341,20 @@ class FileUploadDialog(QDialog):
         """)
         self.content_layout.addWidget(self.status_log)
         
-        # Try adding buttons directly to dialog - bypass all layouts
+        # Position buttons in the center of the circular screen
+        # For 1080x1080 circular screen, center is at (540, 540)
+        # Position buttons in the center area, not in corners
         self.upload_btn = QPushButton("UPLOAD TEST")
-        self.upload_btn.setGeometry(400, 400, 100, 50)  # Absolute positioning
+        self.upload_btn.setGeometry(440, 440, 120, 60)  # Center area positioning
         self.upload_btn.setStyleSheet("background-color: red; color: white; font-size: 14px;")
         self.upload_btn.clicked.connect(self.upload_files)
         self.upload_btn.setParent(self)  # Direct parent to dialog
         self.upload_btn.show()
         self.upload_btn.raise_()
-        print(f"[Upload] 🔘 Created UPLOAD button at (400, 400)")
+        print(f"[Upload] 🔘 Created UPLOAD button at (440, 440)")
         
         self.close_btn = QPushButton("CLOSE TEST")
-        self.close_btn.setGeometry(400, 460, 100, 50)  # Absolute positioning
+        self.close_btn.setGeometry(440, 520, 120, 60)  # Center area positioning
         self.close_btn.setStyleSheet("background-color: blue; color: white; font-size: 14px;")
         self.close_btn.clicked.connect(self.close)
         self.close_btn.setParent(self)  # Direct parent to dialog
