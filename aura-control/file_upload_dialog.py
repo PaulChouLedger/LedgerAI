@@ -628,9 +628,13 @@ class FileUploadDialog(QDialog):
                     }
                 """)
                 
+                # Apply centering pattern for QR dialog within red edge
                 layout = QVBoxLayout()
-                layout.setContentsMargins(80, 80, 80, 80)  # Larger margins for full screen
+                layout.setContentsMargins(110, 110, 110, 110)  # Equal margins for perfect centering
                 layout.setSpacing(20)
+                
+                # Add top spacer to push content to center
+                layout.addStretch()
                 
                 # Title - compact for circular screen
                 title = QLabel("📱 Mobile Upload")
@@ -707,6 +711,10 @@ class FileUploadDialog(QDialog):
                 button_layout.addWidget(close_btn)
                 
                 layout.addLayout(button_layout)
+                
+                # Add bottom spacer to complete centering
+                layout.addStretch()
+                
                 qr_dialog.setLayout(layout)
                 
                 # Center the QR dialog using the same method as main dialog

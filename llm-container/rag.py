@@ -98,57 +98,53 @@ class AuraRAG:
             torch.backends.cudnn.enabled = False
             torch.backends.cuda.matmul.allow_tf32 = False
             
-            # Load model with explicit CPU device and proper initialization
+            # Load model without device specification first to avoid meta tensor issues
+            print(f"[RAG] 🔧 Loading sentence transformer: {self.model_name}")
             self.encoder = SentenceTransformer(
                 self.model_name, 
-                device=device,
+                device=None,  # Load without device first
                 trust_remote_code=True,
                 cache_folder='./cache/sentence_transformers'
             )
             
-            # Ensure model is properly initialized on CPU
+            # Force model to CPU and ensure proper initialization
+            self.encoder = self.encoder.to('cpu')
             self.encoder.eval()
-            # Force model parameters to be loaded (fixes meta tensor issue)
-            dummy_input = ["test"]
+            
+            # Test the model with a dummy input to ensure it's properly loaded
+            print("[RAG] 🔧 Testing encoder with dummy input...")
+            dummy_input = ["test sentence"]
             _ = self.encoder.encode(dummy_input)
-            if hasattr(self.encoder, 'to'):
-                # Use to_empty() to handle meta tensors properly
-                try:
-                    self.encoder = self.encoder.to_empty(device=device)
-                except:
-                    # Fallback to regular to() if to_empty() fails
-                    self.encoder = self.encoder.to(device)
             
             print(f"[RAG] ✅ Loaded encoder: {self.model_name} (device: {device}, threads: 4)")
             
         except Exception as e:
             print(f"[RAG] ❌ Failed to load sentence transformer: {e}")
-            # Try alternative loading method with explicit model loading
+            # Try alternative loading method
             try:
                 print("[RAG] 🔄 Trying alternative loading method...")
-                # Force download and load without device specification first
-                self.encoder = SentenceTransformer(self.model_name, device=None)
-                # Then explicitly move to CPU
-                if hasattr(self.encoder, 'to'):
-                    self.encoder = self.encoder.to('cpu')
-                print(f"[RAG] ✅ Loaded encoder with alternative method: {self.model_name}")
+                # Clear any cached models that might be corrupted
+                import shutil
+                cache_dir = './cache/sentence_transformers'
+                if os.path.exists(cache_dir):
+                    shutil.rmtree(cache_dir)
+                    print("[RAG] 🧹 Cleared corrupted cache")
+                
+                # Load fresh model
+                self.encoder = SentenceTransformer(self.model_name)
+                self.encoder = self.encoder.to('cpu')
+                self.encoder.eval()
+                
+                # Test the model
+                dummy_input = ["test sentence"]
+                _ = self.encoder.encode(dummy_input)
+                
+                print(f"[RAG] ✅ Loaded encoder with fresh download: {self.model_name}")
             except Exception as e2:
                 print(f"[RAG] ❌ Alternative loading also failed: {e2}")
-                # Try one more method - load with explicit cache and trust_remote_code
-                try:
-                    print("[RAG] 🔄 Trying cache method...")
-                    self.encoder = SentenceTransformer(
-                        self.model_name, 
-                        cache_folder='./cache/sentence_transformers',
-                        trust_remote_code=True
-                    )
-                    self.encoder = self.encoder.to('cpu')
-                    print(f"[RAG] ✅ Loaded encoder with cache method: {self.model_name}")
-                except Exception as e3:
-                    print(f"[RAG] ❌ All loading methods failed: {e3}")
-                    # Fallback: create a dummy encoder that returns zeros
-                    self.encoder = None
-                    print("[RAG] ⚠️ Using fallback encoder (no semantic search)")
+                # Final fallback: create a dummy encoder
+                print("[RAG] ⚠️ Using fallback encoder (no semantic search)")
+                self.encoder = None
         
         # Check GPU availability (FAISS-GPU not available on ARM64/Jetson)
         try:
@@ -191,13 +187,26 @@ class AuraRAG:
         
         # Check if encoder is available
         if self.encoder is None:
-            print("[RAG] ⚠️ Encoder not available, cannot perform semantic search")
-            return []
+            print("[RAG] ⚠️ Encoder not available, using keyword fallback search")
+            return self._keyword_search(query, k)
         
         # Encode query with robust error handling
         try:
-            # Simple CPU-only encoding
-            query_embedding = self.encoder.encode([query], convert_to_numpy=True)
+            # Ensure query is a string and not empty
+            if not query or not isinstance(query, str):
+                print(f"[RAG] ❌ Invalid query: {query}")
+                return self._keyword_search(query, k)
+            
+            # Clean and prepare query
+            query = query.strip()
+            if not query:
+                print("[RAG] ❌ Empty query after cleaning")
+                return self._keyword_search(query, k)
+            
+            print(f"[RAG] 🔍 Encoding query: '{query}'")
+            
+            # Simple CPU-only encoding with proper input format
+            query_embedding = self.encoder.encode(query, convert_to_numpy=True, show_progress_bar=False)
             print(f"[RAG] 🔍 Query embedding shape: {query_embedding.shape}, type: {type(query_embedding)}")
             
             # Ensure numpy array
@@ -217,7 +226,8 @@ class AuraRAG:
             
         except Exception as e:
             print(f"[RAG] ❌ Encoding error: {e}")
-            raise Exception(f"Failed to encode query: {e}")
+            print("[RAG] 🔄 Falling back to keyword search")
+            return self._keyword_search(query, k)
         
         # Search FAISS index with error handling
         try:
@@ -253,6 +263,49 @@ class AuraRAG:
         print(f"[RAG] 🔍 Retrieved {len(results)} chunks in {retrieval_time:.3f}s")
         
         return results
+    
+    def _keyword_search(self, query: str, k: int = 3) -> List[Dict[str, Any]]:
+        """
+        Fallback keyword-based search when sentence transformer is not available
+        
+        Args:
+            query: Search query
+            k: Number of results to return
+            
+        Returns:
+            List of relevant chunks based on keyword matching
+        """
+        print(f"[RAG] 🔍 Keyword search for: '{query}'")
+        
+        # Simple keyword matching
+        query_words = set(query.lower().split())
+        results = []
+        
+        for i, chunk in enumerate(self.chunks):
+            # Handle both string and dict chunk formats
+            if isinstance(chunk, str):
+                chunk_text = chunk.lower()
+            else:
+                chunk_text = chunk.get('text', '').lower()
+            
+            chunk_words = set(chunk_text.split())
+            
+            # Calculate simple keyword overlap
+            overlap = len(query_words.intersection(chunk_words))
+            if overlap > 0:
+                # Simple relevance score based on keyword overlap
+                relevance_score = overlap / len(query_words)
+                
+                results.append({
+                    'chunk': chunk if isinstance(chunk, str) else chunk.get('text', ''),
+                    'score': relevance_score,
+                    'rank': len(results) + 1,
+                    'distance': 1.0 - relevance_score  # Convert score to distance
+                })
+        
+        # Sort by relevance and return top k
+        results.sort(key=lambda x: x['score'], reverse=True)
+        return results[:k]
     
     def _analyze_query_intent(self, query: str) -> dict:
         """

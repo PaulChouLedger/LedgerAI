@@ -1477,6 +1477,16 @@ def rag_init():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/", methods=["GET"])
+def root():
+    """Root endpoint to handle health checks"""
+    return jsonify({
+        "service": "Aura-LLM",
+        "status": "running",
+        "version": "2.0",
+        "endpoints": ["/chat", "/rag/init", "/rag/search", "/rag/stats"]
+    })
+
 @app.route("/rag/stats", methods=["GET"])
 def rag_stats():
     """Get RAG system statistics"""
