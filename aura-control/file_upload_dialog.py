@@ -341,21 +341,39 @@ class FileUploadDialog(QDialog):
         """)
         self.content_layout.addWidget(self.status_log)
         
-        # Simple working buttons
-        self.upload_btn = QPushButton("Upload")
+        # Try adding buttons directly to dialog - bypass all layouts
+        self.upload_btn = QPushButton("UPLOAD TEST")
+        self.upload_btn.setGeometry(400, 400, 100, 50)  # Absolute positioning
+        self.upload_btn.setStyleSheet("background-color: red; color: white; font-size: 14px;")
         self.upload_btn.clicked.connect(self.upload_files)
-        self.upload_btn.setEnabled(False)
-        self.content_layout.addWidget(self.upload_btn)
+        self.upload_btn.setParent(self)  # Direct parent to dialog
+        self.upload_btn.show()
+        self.upload_btn.raise_()
+        print(f"[Upload] 🔘 Created UPLOAD button at (400, 400)")
         
-        self.close_btn = QPushButton("Close")
+        self.close_btn = QPushButton("CLOSE TEST")
+        self.close_btn.setGeometry(400, 460, 100, 50)  # Absolute positioning
+        self.close_btn.setStyleSheet("background-color: blue; color: white; font-size: 14px;")
         self.close_btn.clicked.connect(self.close)
-        self.content_layout.addWidget(self.close_btn)
+        self.close_btn.setParent(self)  # Direct parent to dialog
+        self.close_btn.show()
+        self.close_btn.raise_()
+        print(f"[Upload] 🔘 Created CLOSE button at (400, 460)")
         
         # Set layout to content widget
         content_widget.setLayout(self.content_layout)
         
         # Set main layout to dialog
         self.setLayout(main_layout)
+        
+        # Debug: Check dialog properties
+        print(f"[Upload] 🔍 Dialog size: {self.size()}")
+        print(f"[Upload] 🔍 Dialog geometry: {self.geometry()}")
+        print(f"[Upload] 🔍 Dialog is visible: {self.isVisible()}")
+        print(f"[Upload] 🔍 Dialog is shown: {self.isShown()}")
+        print(f"[Upload] 🔍 Content widget size: {content_widget.size()}")
+        print(f"[Upload] 🔍 Content widget geometry: {content_widget.geometry()}")
+        print(f"[Upload] 🔍 Content widget is visible: {content_widget.isVisible()}")
         
         
         # Edge buttons removed - separate GUI functions will have their own scripts
