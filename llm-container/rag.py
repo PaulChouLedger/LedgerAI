@@ -17,6 +17,10 @@ os.environ['OMP_NUM_THREADS'] = '4'
 os.environ['TORCH_USE_CUDA_DSA'] = '0'
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
 
+# Fix transformers cache warning
+os.environ['HF_HOME'] = './cache/huggingface'
+os.environ['TRANSFORMERS_CACHE'] = './cache/transformers'
+
 import torch
 torch.set_num_threads(4)
 torch.set_num_interop_threads(4)
@@ -53,6 +57,11 @@ class AuraRAG:
     
     def _load_components(self):
         """Load FAISS index, chunks, and encoder model"""
+        # Prevent duplicate loading
+        if self.index is not None and self.chunks is not None:
+            print("[RAG] 🔧 Components already loaded, skipping...")
+            return
+            
         print("[RAG] 🔧 Loading RAG components...")
         
         # Load FAISS index
@@ -116,13 +125,16 @@ class AuraRAG:
                 print(f"[RAG] ✅ Loaded encoder with alternative method: {self.model_name}")
             except Exception as e2:
                 print(f"[RAG] ❌ Alternative loading also failed: {e2}")
-                # Try one more method - load with torch_dtype
+                # Try one more method - load with explicit cache and trust_remote_code
                 try:
-                    print("[RAG] 🔄 Trying torch_dtype method...")
-                    import torch
-                    self.encoder = SentenceTransformer(self.model_name, torch_dtype=torch.float32)
+                    print("[RAG] 🔄 Trying cache method...")
+                    self.encoder = SentenceTransformer(
+                        self.model_name, 
+                        cache_folder='./cache/sentence_transformers',
+                        trust_remote_code=True
+                    )
                     self.encoder = self.encoder.to('cpu')
-                    print(f"[RAG] ✅ Loaded encoder with torch_dtype method: {self.model_name}")
+                    print(f"[RAG] ✅ Loaded encoder with cache method: {self.model_name}")
                 except Exception as e3:
                     print(f"[RAG] ❌ All loading methods failed: {e3}")
                     # Fallback: create a dummy encoder that returns zeros
