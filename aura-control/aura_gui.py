@@ -27,7 +27,6 @@ class AuraGUI(QMainWindow):
         self.base_style = """
             QMainWindow {
                 background-color: black;
-                border: 5px solid #ff0000;
                 border-radius: 540px;  /* Half of 1080 for perfect circle */
             }
         """
@@ -57,6 +56,23 @@ class AuraGUI(QMainWindow):
         
         main_widget.setLayout(layout)
         self.setCentralWidget(main_widget)
+        
+        # Create dedicated border widget for continuous circular border
+        self.border_widget = QLabel()
+        self.border_widget.setParent(self)
+        self.border_widget.setGeometry(0, 0, 1080, 1080)
+        self.border_widget.setStyleSheet("""
+            QLabel {
+                background-color: transparent;
+                border: 5px solid #ff0000;
+                border-radius: 540px;
+            }
+        """)
+        self.border_widget.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.border_widget.raise_()  # Bring to front
+        
+        # Store border state for animation
+        self.border_width = 5
         
         # Create 6 buttons equally spaced around the circular edge (after central widget is set)
         self.create_circular_buttons()
@@ -180,6 +196,11 @@ class AuraGUI(QMainWindow):
         global _gui_ready
         _gui_ready = True
         print("[AuraGUI] 🎯 GUI has fully rendered")
+        
+        # Ensure border widget is properly positioned and visible
+        self.border_widget.setGeometry(0, 0, 1080, 1080)
+        self.border_widget.raise_()
+        self.border_widget.show()
 
     def animate_pulse(self):
         global _listening_ready, _transcribing, _tts_playing, _tts_frequency
@@ -216,8 +237,8 @@ class AuraGUI(QMainWindow):
             self.opacity_effect.setOpacity(1.0)
             self.border_pulse_phase += self.border_pulse_speed
             pulse_intensity = (math.sin(self.border_pulse_phase) + 1) / 2  # 0 to 1
-            border_width = int(5 + pulse_intensity * 10)  # 5px to 15px
-            self._update_border_style(pulsating=True, width=border_width)
+            self.border_width = int(5 + pulse_intensity * 10)  # 5px to 15px
+            self._update_border_style(pulsating=True, width=self.border_width)
             
         # State 4: TTS playing - aura eye pulsation synchronized with speech frequency
         elif _tts_playing:
@@ -231,23 +252,28 @@ class AuraGUI(QMainWindow):
     def _update_border_style(self, static=True, pulsating=False, width=5):
         """Update the border style based on current state"""
         if pulsating:
-            style = f"""
-                QMainWindow {{
-                    background-color: black;
+            # Pulsating red border
+            self.border_widget.setStyleSheet(f"""
+                QLabel {{
+                    background-color: transparent;
                     border: {width}px solid #ff0000;
                     border-radius: 540px;
                 }}
-            """
+            """)
         else:
-            # Reset to base style (static red border)
-            style = """
-                QMainWindow {
-                    background-color: black;
+            # Static red border
+            self.border_widget.setStyleSheet("""
+                QLabel {
+                    background-color: transparent;
                     border: 5px solid #ff0000;
                     border-radius: 540px;
                 }
-            """
-        self.setStyleSheet(style)
+            """)
+        
+        # Ensure border widget is always on top and properly positioned
+        self.border_widget.raise_()
+        self.border_widget.setGeometry(0, 0, 1080, 1080)
+        self.border_widget.show()
     
     def keyPressEvent(self, event):
         """Handle keyboard shortcuts"""
