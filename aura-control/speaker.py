@@ -20,7 +20,7 @@ client = ElevenLabs(api_key=ELEVEN_API_KEY)
 PCM_SAMPLE_RATE = 22050
 PCM_FORMAT = "pcm_22050"
 VOLUME_SET = False
-TTS_VOLUME = 100  # percent
+TTS_VOLUME = 50  # percent
 
 # Device identification
 DEVICE_NAME = "UACDemoV1.0"   # part of the USB device name from `aplay -l`
@@ -196,6 +196,10 @@ def analyze_audio_frequency(audio_chunk):
         # Convert bytes to numpy array (assuming 16-bit PCM)
         audio_data = np.frombuffer(audio_chunk, dtype=np.int16)
         
+        # Skip if audio is too short
+        if len(audio_data) < 100:
+            return 0.15  # Default speed
+            
         # Apply FFT to get frequency spectrum
         fft = np.fft.fft(audio_data)
         freqs = np.fft.fftfreq(len(audio_data), 1/PCM_SAMPLE_RATE)
@@ -216,6 +220,7 @@ def analyze_audio_frequency(audio_chunk):
         normalized_speed = 0.1 + (dominant_freq / 255) * 0.4
         normalized_speed = max(0.1, min(0.5, normalized_speed))  # Clamp to range
         
+        print(f"[Audio Analysis] 🎵 Freq: {dominant_freq:.1f}Hz -> Speed: {normalized_speed:.3f}")
         return normalized_speed
         
     except Exception as e:
