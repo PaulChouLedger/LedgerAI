@@ -155,17 +155,12 @@ class FileUploadDialog(QDialog):
         dialog_height = 1080
         print(f"[Upload] 🔍 Dialog size: {dialog_width}x{dialog_height}")
         
-        # Calculate center position dynamically
-        x = (screen.width() - dialog_width) // 2
-        y = (screen.height() - dialog_height) // 2
+        # For circular 1080x1080 screen, position dialog at (0,0) to fill entire screen
+        # This ensures the dialog perfectly matches the circular display area
+        x = 0
+        y = 0
         
-        # Move dialog up by 60% total (20% + 20% + 20% more) to center it properly
-        y_offset = int(dialog_height * 0.6)  # 60% of dialog height (20% + 20% + 20% more)
-        y = y - y_offset
-        
-        # Ensure dialog doesn't go off-screen
-        x = max(0, x)
-        y = max(0, y)
+        print(f"[Upload] 📐 Positioning for circular screen: ({x}, {y})")
         
         print(f"[Upload] 📐 Calculated center position: ({x}, {y})")
         
