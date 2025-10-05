@@ -236,7 +236,7 @@ def initialize_rag_delayed():
         # Test RAG stats with 2 attempts and shorter timeout
         for attempt in range(2):  # Reduced to 2 attempts
             try:
-                stats_response = requests.get("http://localhost:11434/rag/stats", timeout=10)  # Reduced to 10 second timeout
+                stats_response = requests.get("http://localhost:11434/rag/stats", timeout=5)  # Reduced to 5 second timeout
                 if stats_response.status_code == 200:
                     stats = stats_response.json()
                     print(f"[Aura] ✅ RAG loaded: {stats.get('chunks_loaded', 0)} medical documents")
@@ -258,7 +258,7 @@ def initialize_rag_delayed():
                 search_response = requests.post(
                     "http://localhost:11434/rag/search",
                     json={"query": "test", "k": 1},
-                    timeout=10  # 10 second timeout per attempt
+                    timeout=5  # 5 second timeout per attempt
                 )
                 if search_response.status_code == 200:
                     print("[Aura] ✅ RAG search working")
@@ -312,9 +312,13 @@ def start_services():
         print("[Aura] ❌ LLM warm-up failed. Aborting.")
         return
     
-    # Step 5: Initialize RAG immediately after LLM warm-up
+    # Step 5: Initialize RAG immediately after LLM warm-up and wait for completion
     print("[Aura] 🔍 Initializing RAG system...")
     initialize_rag_delayed()  # Run synchronously, not in thread
+    
+    # Wait for RAG to be fully ready before starting listener
+    print("[Aura] ⏳ Waiting for RAG to be fully ready...")
+    time.sleep(5)  # Give RAG time to complete initialization
     
     # Step 6: Start file upload server (if available)
     if UPLOAD_SERVER_AVAILABLE:

@@ -106,9 +106,14 @@ class AuraRAG:
                 cache_folder='./cache/sentence_transformers'
             )
             
-            # Ensure model is properly initialized on CPU
+            # Fix meta tensor issue by ensuring model is properly loaded
             if hasattr(self.encoder, 'to'):
-                self.encoder = self.encoder.to(device)
+                # Use to_empty() to handle meta tensors properly
+                try:
+                    self.encoder = self.encoder.to_empty(device=device)
+                except:
+                    # Fallback to regular to() if to_empty() fails
+                    self.encoder = self.encoder.to(device)
             
             print(f"[RAG] ✅ Loaded encoder: {self.model_name} (device: {device}, threads: 4)")
             
@@ -511,7 +516,7 @@ def test_rag():
     print("[RAG] 🧪 Testing RAG system...")
     
     try:
-        rag = AuraRAG()
+        rag = get_rag()  # Use global instance instead of creating new one
         stats = rag.get_stats()
         print(f"[RAG] 📊 Stats: {stats}")
         
