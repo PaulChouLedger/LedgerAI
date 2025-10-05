@@ -4,7 +4,7 @@ import os
 import sys
 import math
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsDropShadowEffect
-from PyQt5.QtGui import QPixmap, QKeySequence, QColor
+from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QTransform
 from PyQt5.QtCore import Qt, QTimer, QPoint
 from file_upload_dialog import show_upload_dialog
 
@@ -356,8 +356,11 @@ class AuraGUI(QMainWindow):
         # Apply subtle scaling effect for more dynamic appearance
         scale_factor = 1.0 + (smoothed_intensity - 0.5) * 0.1  # ±5% scaling
         
-        # Set opacity and scaling through widget style
-        self.label.setStyleSheet(f"opacity: {self.opacity}; transform: scale({scale_factor});")
+        # Set opacity through widget style
+        self.label.setStyleSheet(f"opacity: {self.opacity};")
+        
+        # Apply scaling using QTransform
+        self._apply_scaling(scale_factor)
         
         # Dynamic glow effect that responds to TTS
         glow_intensity = (heartbeat_intensity + breathing_intensity) / 2
@@ -394,8 +397,11 @@ class AuraGUI(QMainWindow):
         # Very subtle scaling
         scale_factor = 1.0 + (combined_intensity - 0.5) * 0.05  # ±2.5% scaling
         
-        # Set opacity and scaling through widget style
-        self.label.setStyleSheet(f"opacity: {self.opacity}; transform: scale({scale_factor});")
+        # Set opacity through widget style
+        self.label.setStyleSheet(f"opacity: {self.opacity};")
+        
+        # Apply scaling using QTransform
+        self._apply_scaling(scale_factor)
         
         # Gentle glow effect for idle state
         glow_alpha = int(30 + combined_intensity * 40)  # 30-70 alpha
@@ -405,6 +411,17 @@ class AuraGUI(QMainWindow):
         # Subtle glow radius
         glow_radius = 10 + combined_intensity * 10  # 10-20 radius
         self.glow_effect.setBlurRadius(int(glow_radius))
+    
+    def _apply_scaling(self, scale_factor):
+        """Apply scaling to the aura eye using QTransform"""
+        try:
+            # Create a transform that scales from the center
+            transform = QTransform()
+            transform.scale(scale_factor, scale_factor)
+            self.label.setTransform(transform)
+        except Exception as e:
+            # If scaling fails, just continue without it
+            pass
     
     def keyPressEvent(self, event):
         """Handle keyboard shortcuts"""
