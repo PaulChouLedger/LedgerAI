@@ -13,10 +13,10 @@ from pydub import AudioSegment
 
 # === Config ===
 SAMPLE_RATE = 16000
-FRAME_DURATION = 0.032
+FRAME_DURATION = 0.032  # Required frame duration for proper audio processing
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
-SILENCE_TIMEOUT = 0.2
-VAD_CONFIDENCE_THRESHOLD = 0.3  # Increased to reduce false triggers from background noise
+SILENCE_TIMEOUT = 0.2  # Faster silence detection
+VAD_CONFIDENCE_THRESHOLD = 0.2  # Lowered for more responsive detection
 
 # Gain control (reverted from transcription_tuner.py)
 MIC_GAIN = 2.0  # Simple gain multiplier
@@ -98,7 +98,7 @@ def play_welcome_prompt(stream):
         print("[Aura] 🔊 Playing welcome prompt...")
         stream.stop()
         subprocess.run(["aplay", WELCOME_AUDIO_PATH])
-        time.sleep(0.25)
+        time.sleep(0.1)  # Faster mic resume
         stream.start()
         print("[Aura] 🎤 Mic resumed after welcome prompt")
     except Exception as e:
@@ -128,8 +128,10 @@ def listen():
             low_vad_count = 0  # Counter for consecutive low VAD readings
 
             # === Wait for speech ===
-            speech_confirmation_frames = 0  # Count consecutive high VAD frames
-            required_confirmation_frames = 3  # Require 3 consecutive high VAD frames to confirm speech
+            # Use sliding window approach for more responsive detection
+            vad_history = []  # Keep last few VAD readings
+            history_size = 3  # Look at last 3 frames
+            high_vad_threshold = 0.5  # Higher threshold for immediate detection
             
             while True:
                 if is_playing():
@@ -147,21 +149,28 @@ def listen():
                     if low_vad_count >= VAD_RESET_COUNT * VAD_RESET_MULTIPLIER:  # 60 consecutive low readings
                         print(f"[VAD] 🔄 Resetting VAD after {low_vad_count} consecutive low readings")
                         low_vad_count = 0
-                        time.sleep(0.1)  # Brief pause to reset VAD state
+                        time.sleep(0.05)  # Faster VAD reset
                         continue
                 else:
                     low_vad_count = 0  # Reset counter on higher VAD readings
                 
-                # Require sustained high VAD to confirm speech (not just noise)
-                if vad_prob > VAD_CONFIDENCE_THRESHOLD:
-                    speech_confirmation_frames += 1
-                    print(f"[VAD] 🔊 High VAD detected (prob={vad_prob:.2f}, confirmation={speech_confirmation_frames}/{required_confirmation_frames})")
-                    if speech_confirmation_frames >= required_confirmation_frames:
-                        print(f"[VAD] ✅ Speech confirmed after {speech_confirmation_frames} consecutive high readings")
+                # Add current VAD to history
+                vad_history.append(vad_prob)
+                if len(vad_history) > history_size:
+                    vad_history.pop(0)  # Keep only last 3 readings
+                
+                # Check for speech using sliding window
+                if len(vad_history) >= history_size:
+                    # Immediate detection: single high VAD reading
+                    if vad_prob > high_vad_threshold:
+                        print(f"[VAD] 🔊 Immediate speech detected (prob={vad_prob:.2f})")
                         buffer.append(audio_block)
                         break
-                else:
-                    speech_confirmation_frames = 0  # Reset if VAD drops below threshold
+                    # Sustained detection: average of last 3 frames above threshold
+                    elif sum(vad_history) / len(vad_history) > VAD_CONFIDENCE_THRESHOLD:
+                        print(f"[VAD] 🔊 Sustained speech detected (avg={sum(vad_history)/len(vad_history):.2f})")
+                        buffer.append(audio_block)
+                        break
                 
                 # Reduce debug output for performance
                 if vad_prob > 0.3:  # Only log significant VAD activity
@@ -206,7 +215,7 @@ def listen():
             if audio_duration < MIN_SPEECH_DURATION:
                 print(f"⚠️ Skipped: too short (duration: {audio_duration:.2f}s)")
                 # Reset VAD state after failed detection to prevent noise loops
-                time.sleep(0.1)  # Brief pause to let VAD reset
+                time.sleep(0.05)  # Faster VAD reset
                 continue
 
             text = transcribe(mono_mix)

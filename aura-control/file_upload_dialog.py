@@ -209,10 +209,18 @@ class FileUploadDialog(QDialog):
         
         # Add edge buttons for future functions - will be added after layout is set
         
-        # Create layout for circular content
+        # Create layout for circular content - centered within red edge
+        # CENTERING PATTERN FOR ALL GUI COMPONENTS:
+        # 1. Equal margins (110px) for perfect circular centering
+        # 2. Top stretch spacer to push content to center
+        # 3. All components added in middle section
+        # 4. Bottom stretch spacer to complete centering
         self.content_layout = QVBoxLayout()
-        self.content_layout.setContentsMargins(110, 110, 110, 110)  # 10% bigger margins (100 * 1.1 = 110)
-        self.content_layout.setSpacing(28)  # 10% bigger spacing (25 * 1.1 = 27.5, rounded to 28)
+        self.content_layout.setContentsMargins(110, 110, 110, 110)  # Equal margins for perfect centering
+        self.content_layout.setSpacing(20)  # Reduced spacing for better centering
+        
+        # Add top spacer to push content to center
+        self.content_layout.addStretch()
         
         # Title centered (no close button)
         title_layout = QHBoxLayout()
@@ -391,6 +399,9 @@ class FileUploadDialog(QDialog):
         button_layout.addWidget(self.upload_btn)
         button_layout.addWidget(self.close_btn)
         self.content_layout.addLayout(button_layout)
+        
+        # Add bottom spacer to complete centering
+        self.content_layout.addStretch()
         
         print(f"[Upload] 🔴 Red border should show circular screen boundaries")
         
