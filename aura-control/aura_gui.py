@@ -3,7 +3,7 @@
 import os
 import sys
 import math
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QGraphicsOpacityEffect, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsDropShadowEffect
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsDropShadowEffect
 from PyQt5.QtGui import QPixmap, QKeySequence, QColor
 from PyQt5.QtCore import Qt, QTimer, QPoint
 from file_upload_dialog import show_upload_dialog
@@ -80,12 +80,10 @@ class AuraGUI(QMainWindow):
         self.create_circular_buttons()
 
         # === Pulsation Effect ===
-        self.opacity_effect = QGraphicsOpacityEffect()
-        self.label.setGraphicsEffect(self.opacity_effect)
         self.opacity = 1.0
         self.pulse_direction = -1
         
-        # Add subtle glow effect for more visual appeal
+        # Add subtle glow effect for more visual appeal (this will be our main effect)
         self.glow_effect = QGraphicsDropShadowEffect()
         self.glow_effect.setBlurRadius(20)
         self.glow_effect.setColor(QColor(0, 100, 255, 100))  # Subtle blue glow
@@ -249,7 +247,7 @@ class AuraGUI(QMainWindow):
             
         # State 3: User speaking (transcription) - red edge pulsation matching user's speech frequency
         elif _transcribing:
-            self.opacity_effect.setOpacity(1.0)
+            self.label.setStyleSheet("opacity: 1.0;")
             
             # Get actual transcription frequency from audio analysis
             try:
@@ -359,8 +357,8 @@ class AuraGUI(QMainWindow):
         scale_factor = 1.0 + (smoothed_intensity - 0.5) * 0.1  # ±5% scaling
         self.label.setScale(scale_factor)
         
-        # Set opacity
-        self.opacity_effect.setOpacity(self.opacity)
+        # Set opacity through widget style
+        self.label.setStyleSheet(f"opacity: {self.opacity};")
         
         # Dynamic glow effect that responds to TTS
         glow_intensity = (heartbeat_intensity + breathing_intensity) / 2
@@ -393,7 +391,7 @@ class AuraGUI(QMainWindow):
         
         # Gentle opacity range
         self.opacity = 0.4 + combined_intensity * 0.4  # 0.4 to 0.8 range
-        self.opacity_effect.setOpacity(self.opacity)
+        self.label.setStyleSheet(f"opacity: {self.opacity};")
         
         # Very subtle scaling
         scale_factor = 1.0 + (combined_intensity - 0.5) * 0.05  # ±2.5% scaling
