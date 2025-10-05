@@ -431,8 +431,7 @@ class FileUploadDialog(QDialog):
         edge_container.setFixedSize(1080, 1080)
         edge_container.setStyleSheet("background-color: transparent;")
         
-        # Create absolute positioning for edge buttons
-        edge_container.setLayout(None)  # Use absolute positioning
+        # Use absolute positioning (no layout needed)
         
         # Button style for edge buttons
         edge_button_style = """

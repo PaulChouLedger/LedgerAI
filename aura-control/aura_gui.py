@@ -40,21 +40,19 @@ class AuraGUI(QMainWindow):
         layout.addWidget(self.label)
         
         # Upload button
-        self.upload_btn = QPushButton("📄 Upload Documents")
+        self.upload_btn = QPushButton("↑")  # Circular upload button with up arrow
+        self.upload_btn.setFixedSize(80, 80)  # Circular button
         self.upload_btn.setStyleSheet("""
             QPushButton {
-                background-color: rgba(45, 45, 45, 200);
-                border: 2px solid #555;
-                border-radius: 10px;
-                padding: 15px;
-                font-size: 16px;
-                font-weight: bold;
+                background-color: #007AFF;
                 color: white;
-                margin: 20px;
+                font-size: 24px;
+                font-weight: bold;
+                border-radius: 40px;  /* Perfect circle */
+                border: none;
             }
             QPushButton:hover {
-                background-color: rgba(65, 65, 65, 200);
-                border-color: #777;
+                background-color: #0056CC;
             }
             QPushButton:pressed {
                 background-color: rgba(25, 25, 25, 200);
@@ -128,7 +126,7 @@ class AuraGUI(QMainWindow):
     def _reenable_upload_button(self):
         """Re-enable upload button after debounce delay"""
         self.upload_btn.setEnabled(True)
-        self.upload_btn.setText("📄 Upload Documents")
+        self.upload_btn.setText("↑")  # Circular upload button with up arrow
 
 # === GUI Control ===
 def launch_gui():
