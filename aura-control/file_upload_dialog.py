@@ -391,6 +391,7 @@ class FileUploadDialog(QDialog):
             }
         """)
         button_layout.addWidget(self.upload_btn)
+        print(f"[Upload] 🔘 Created upload button: size={self.upload_btn.size()}, text='{self.upload_btn.text()}'")
         
         self.close_btn = QPushButton("❌ Close")
         self.close_btn.clicked.connect(self.close)
@@ -433,21 +434,21 @@ class FileUploadDialog(QDialog):
         
         # Use absolute positioning (no layout needed)
         
-        # Button style for edge buttons
+        # Button style for edge buttons - more visible
         edge_button_style = """
             QPushButton {
-                background-color: rgba(142, 142, 147, 0.6);
+                background-color: rgba(0, 122, 255, 0.8);
                 color: #ffffff;
-                font-size: 16px;
-                font-weight: 500;
+                font-size: 20px;
+                font-weight: bold;
                 border-radius: 30px;
-                border: 2px solid rgba(255, 255, 255, 0.3);
+                border: 3px solid #ffffff;
                 min-width: 60px;
                 min-height: 60px;
             }
             QPushButton:hover {
-                background-color: rgba(142, 142, 147, 0.8);
-                border: 2px solid rgba(255, 255, 255, 0.5);
+                background-color: rgba(0, 122, 255, 1.0);
+                border: 3px solid #ffffff;
             }
         """
         
@@ -472,6 +473,9 @@ class FileUploadDialog(QDialog):
             btn.move(x - 30, y - 30)  # Center the button on the position
             btn.clicked.connect(lambda checked, i=icon: self.edge_button_clicked(i))
             btn.setParent(edge_container)
+            print(f"[Upload] 🔘 Created edge button '{icon}' at position ({x-30}, {y-30})")
+        
+        print(f"[Upload] ✅ Created {len(button_positions)} edge buttons")
         
         # Add edge container to main layout (overlay style)
         main_layout.addWidget(edge_container, 0, Qt.AlignCenter)
