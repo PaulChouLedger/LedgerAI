@@ -12,8 +12,8 @@ RUN pip3 install --ignore-installed flask soundfile scipy
 # Create HuggingFace cache directory structure
 RUN mkdir -p /root/.cache/huggingface/hub
 
-# Copy the pre-downloaded model
-COPY models--Systran--faster-distil-whisper-small.en /root/.cache/huggingface/hub/models--Systran--faster-distil-whisper-small.en
+# Copy the model files directly to the git hash directory where faster-whisper expects them
+COPY models--Systran--faster-distil-whisper-small.en/snapshots/ef77d90526ccd62cde3808ee70626a01e5cf83e4 /root/.cache/huggingface/hub/models--Systran--faster-distil-whisper-small.en/snapshots/ef77d90526ccd62cde3808ee70626a01e5cf83e4
 
 EXPOSE 5000
 CMD ["python3", "/app/container_rest.py"]
