@@ -26,4 +26,4 @@ ENV TRANSFORMERS_CACHE=/root/.cache/huggingface/hub
 ENV SENTENCE_TRANSFORMERS_HOME=/app/cache/sentence_transformers
 
 # Run RAG service
-CMD ["python", "container_rest.py"]
+CMD ["python3", "container_rest.py"]
