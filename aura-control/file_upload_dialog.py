@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                              QPushButton, QFileDialog, QTextEdit, QProgressBar,
                              QMessageBox, QListWidget, QListWidgetItem, QInputDialog,
                              QLineEdit, QWidget, QApplication, QGridLayout)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont
 import requests
 import json
@@ -48,10 +48,33 @@ class FileUploadDialog(QDialog):
         QApplication.processEvents()  # Process events to ensure dialog is rendered
         self.center_dialog()
         
+        # Add smooth fade-in animation
+        self.setWindowOpacity(0.0)  # Start transparent
+        self.fade_in_animation = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_in_animation.setDuration(300)  # 300ms fade-in
+        self.fade_in_animation.setStartValue(0.0)
+        self.fade_in_animation.setEndValue(1.0)
+        self.fade_in_animation.setEasingCurve(QEasingCurve.OutCubic)
+        self.fade_in_animation.start()
+        
         # Debug: Print dialog dimensions and position
         print(f"[Upload] 📐 Dialog geometry: {self.geometry()}")
         print(f"[Upload] 📐 Dialog size: {self.size()}")
         print(f"[Upload] 📐 Dialog position: {self.pos()}")
+    
+    def close(self):
+        """Override close method to add smooth fade-out animation"""
+        if hasattr(self, 'fade_out_animation') and self.fade_out_animation.state() == QPropertyAnimation.Running:
+            return  # Already animating out
+        
+        print("[Upload] 🎬 Starting fade-out animation...")
+        self.fade_out_animation = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_out_animation.setDuration(200)  # 200ms fade-out
+        self.fade_out_animation.setStartValue(1.0)
+        self.fade_out_animation.setEndValue(0.0)
+        self.fade_out_animation.setEasingCurve(QEasingCurve.InCubic)
+        self.fade_out_animation.finished.connect(super().close)  # Close after animation
+        self.fade_out_animation.start()
         print("[Upload] 👁️ Dialog should now be visible with transparent background")
         
         # Add interactive touch coordinates for debugging
@@ -886,8 +909,9 @@ def show_upload_dialog():
     try:
         _current_dialog = FileUploadDialog()
         print("[Upload] 📱 Dialog created, showing...")
-        _current_dialog.exec_()
-        print("[Upload] ✅ Dialog closed")
+        # Use show() instead of exec_() for non-blocking display with smooth transitions
+        _current_dialog.show()
+        print("[Upload] ✅ Dialog shown with smooth transitions")
     except Exception as e:
         print(f"[Upload] ❌ Dialog error: {e}")
     finally:

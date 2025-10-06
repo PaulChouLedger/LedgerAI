@@ -5,7 +5,7 @@ import sys
 import math
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsDropShadowEffect
 from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QTransform
-from PyQt5.QtCore import Qt, QTimer, QPoint
+from PyQt5.QtCore import Qt, QTimer, QPoint, QPropertyAnimation, QEasingCurve
 from file_upload_dialog import show_upload_dialog
 
 _app = None
@@ -148,21 +148,33 @@ class AuraGUI(QMainWindow):
             btn.move(int(x), int(y))
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    background-color: {color};
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 {color}FF, stop:0.3 {color}E6, stop:0.7 {color}CC, stop:1 {color}B3);
                     color: white;
                     font-size: 32px;
                     font-weight: bold;
                     border-radius: 50px;
-                    border: 3px solid #ffffff;
+                    border: none;
+                    padding: 0px;
                 }}
                 QPushButton:hover {{
-                    background-color: {color}CC;
-                    border: 4px solid #ffffff;
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 {color}FF, stop:0.2 {color}F0, stop:0.8 {color}D9, stop:1 {color}C2);
+                    transform: scale(1.05);
                 }}
                 QPushButton:pressed {{
-                    background-color: {color}99;
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 {color}CC, stop:0.3 {color}B3, stop:0.7 {color}99, stop:1 {color}80);
+                    transform: scale(0.95);
                 }}
             """)
+            
+            # Add 3D shadow effect for Apple-style depth
+            shadow_effect = QGraphicsDropShadowEffect()
+            shadow_effect.setBlurRadius(15)
+            shadow_effect.setColor(QColor(0, 0, 0, 80))  # Subtle black shadow
+            shadow_effect.setOffset(0, 4)  # Slight downward offset for depth
+            btn.setGraphicsEffect(shadow_effect)
             
             # Connect handler
             btn.clicked.connect(handler)
@@ -176,7 +188,29 @@ class AuraGUI(QMainWindow):
     def _handle_upload(self):
         """Handle upload button click"""
         print("[AuraGUI] 📤 Upload button clicked")
+        
+        # Add smooth fade-out animation for main GUI
+        self.fade_out_animation = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_out_animation.setDuration(150)  # Quick fade-out
+        self.fade_out_animation.setStartValue(1.0)
+        self.fade_out_animation.setEndValue(0.7)  # Slightly dimmed
+        self.fade_out_animation.setEasingCurve(QEasingCurve.OutCubic)
+        self.fade_out_animation.start()
+        
         show_upload_dialog()
+        
+        # Add smooth fade-in animation when dialog closes
+        QTimer.singleShot(200, self._restore_gui_opacity)
+    
+    def _restore_gui_opacity(self):
+        """Restore main GUI opacity with smooth animation"""
+        self.fade_in_animation = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_in_animation.setDuration(200)  # Smooth fade-in
+        self.fade_in_animation.setStartValue(0.7)
+        self.fade_in_animation.setEndValue(1.0)
+        self.fade_in_animation.setEasingCurve(QEasingCurve.OutCubic)
+        self.fade_in_animation.start()
+        
         # Ensure GUI is properly restored after dialog closes
         self.showFullScreen()
         self.raise_()
