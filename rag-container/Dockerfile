@@ -10,7 +10,8 @@ RUN pip list | grep -E "(sentence|transformers|faiss|numpy|torch)"
 RUN pip install --no-cache-dir --ignore-installed \
     flask \
     flask-cors \
-    requests
+    requests \
+    sentence-transformers
 
 # Copy RAG service and module
 COPY container_rest.py /app/
