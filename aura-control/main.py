@@ -26,32 +26,12 @@ os.environ["DISPLAY"] = ":0"
 HOST_ENV = dotenv_values(os.path.expanduser("~/LedgerAI/llm-container/.env"))
 
 # === Whisper Container Configuration ===
-# Set WHISPER_TYPE environment variable to choose container:
-# - "faster" (default): aura-whisper-faster:latest (faster-whisper with distil-small.en)
-# - "tensorrt": aura-whisper:latest (TensorRT optimized)
-WHISPER_TYPE = os.getenv("WHISPER_TYPE", "faster").lower()
+# Using faster-whisper with distil-small.en model
+WHISPER_IMAGE = "aura-whisper-faster:latest"
+WHISPER_NAME = "faster-whisper"
+WHISPER_DESCRIPTION = "faster-whisper with distil-small.en"
 
-# Container configurations
-WHISPER_CONFIGS = {
-    "faster": {
-        "image": "aura-whisper-faster:latest",
-        "name": "faster-whisper",
-        "description": "faster-whisper with distil-small.en"
-    },
-    "tensorrt": {
-        "image": "aura-whisper:latest", 
-        "name": "TensorRT",
-        "description": "TensorRT optimized whisper"
-    }
-}
-
-# Validate configuration
-if WHISPER_TYPE not in WHISPER_CONFIGS:
-    print(f"[Aura] ⚠️ Invalid WHISPER_TYPE '{WHISPER_TYPE}'. Using 'faster' as default.")
-    WHISPER_TYPE = "faster"
-
-whisper_config = WHISPER_CONFIGS[WHISPER_TYPE]
-print(f"[Aura] 🎤 Whisper container: {whisper_config['description']}")
+print(f"[Aura] 🎤 Whisper container: {WHISPER_DESCRIPTION}")
 
 # === Graceful Exit on Ctrl+C ===
 def signal_handler(sig, frame):
@@ -123,15 +103,9 @@ def run_container(name, port, image, timeout=15):
             "-v", f"{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))}:/app/data"  # Mount embeddings data
         ]
     elif name == "aura-whisper":
-        # Mount whisper cache directories for faster startup
-        whisper_cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'whisper-container', 'cache'))
-        # Mount host Hugging Face cache for faster-whisper models
-        host_hf_cache = os.path.expanduser("~/.cache/huggingface")
+        # faster-whisper model is baked into the image, no cache mounting needed
         cmd += [
-            "-v", f"{whisper_cache_dir}/whisper:/root/.cache/whisper",
-            "-v", f"{whisper_cache_dir}/whisper_trt:/root/.cache/whisper_trt",
-            "-v", f"{host_hf_cache}:/root/.cache/huggingface",  # Mount HF cache for faster-whisper
-            "--gpus", "all"  # Add GPU support for TensorRT
+            "--gpus", "all"  # Add GPU support for faster-whisper
         ]
 
 
@@ -147,12 +121,7 @@ def run_container(name, port, image, timeout=15):
         # Use appropriate health check endpoint
         if name == "aura-whisper":
             health_url = f"http://localhost:{port}/health"
-            # Give TensorRT container extra time to initialize
-            if WHISPER_TYPE == "tensorrt":
-                print(f"[Aura] ⏳ TensorRT container needs extra initialization time...")
-                time.sleep(10)  # Extra time for TensorRT
-            else:
-                time.sleep(5)   # Standard time for faster-whisper
+            time.sleep(5)   # Standard time for faster-whisper
         else:
             health_url = f"http://localhost:{port}"
         
@@ -286,12 +255,12 @@ def start_services():
     print("[Aura] 🚀 Starting Aura services...")
     
     # Step 1: Start Whisper container (configurable)
-    print(f"[Aura] 🎤 Starting Whisper container ({whisper_config['description']})...")
+    print(f"[Aura] 🎤 Starting Whisper container ({WHISPER_DESCRIPTION})...")
     
-    # Use longer timeout for TensorRT container
-    whisper_timeout = 30 if WHISPER_TYPE == "tensorrt" else 10
-    print(f"[Aura] ⏱️ Using {whisper_timeout}s timeout for {whisper_config['description']}")
-    whisper_ok = run_container("aura-whisper", 5000, whisper_config["image"], timeout=whisper_timeout)
+    # Use 10s timeout for faster-whisper container
+    whisper_timeout = 10
+    print(f"[Aura] ⏱️ Using {whisper_timeout}s timeout for {WHISPER_DESCRIPTION}")
+    whisper_ok = run_container("aura-whisper", 5000, WHISPER_IMAGE, timeout=whisper_timeout)
     if not whisper_ok:
         print("[Aura] ❌ Whisper container failed. Aborting.")
         return

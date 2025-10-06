@@ -1,10 +1,9 @@
 services:
   whisper:
-    build: ./whisper-container
+    build: ./whisper-container-faster
     network_mode: host
     volumes:
       - ./shared:/shared
-      - ./whisper-container/cache:/app/cache  # Mount whisper model cache
 
   llm:
     build: ./llm-container
