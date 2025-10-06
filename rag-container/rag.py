@@ -113,9 +113,17 @@ class AuraRAG:
             # Search FAISS index
             distances, indices = self.index.search(query_embedding, k)
             
+            # Debug FAISS results
+            print(f"[RAG] 🔍 FAISS search results - distances shape: {distances.shape}, indices shape: {indices.shape}")
+            print(f"[RAG] 🔍 Distances: {distances[0]}, Indices: {indices[0]}")
+            
             # Format results
             results = []
-            for i, (distance, idx) in enumerate(zip(distances[0], indices[0])):
+            # Convert to numpy arrays to ensure proper handling
+            distances_array = np.array(distances[0])
+            indices_array = np.array(indices[0])
+            
+            for i, (distance, idx) in enumerate(zip(distances_array, indices_array)):
                 # Convert to Python int to avoid array comparison issues
                 idx = int(idx)
                 if idx < len(self.chunks):
