@@ -35,14 +35,16 @@ def rebuild_embeddings():
     # Load sentence transformer
     print("🧠 Loading sentence transformer model...")
     
-    # Use local cached model
+    # Use local model directory
     local_model_path = "rag-container/models--sentence-transformers--all-MiniLM-L6-v2"
     if os.path.exists(local_model_path):
         print(f"📁 Using local model: {local_model_path}")
-        encoder = SentenceTransformer(local_model_path, device='cpu')
+        # Set cache directory to point to our local model
+        os.environ['HF_HOME'] = os.path.abspath('rag-container')
+        encoder = SentenceTransformer("all-MiniLM-L6-v2", device='cpu')
         print(f"✅ Loaded local model: {local_model_path}")
     else:
-        # Fallback to downloading
+        # Fallback to standard model
         model_name = "all-MiniLM-L6-v2"
         encoder = SentenceTransformer(model_name, device='cpu')
         print(f"✅ Loaded model: {model_name}")
