@@ -16,23 +16,12 @@ COPY models/qwen2.5-1.5b-instruct-q4_0.gguf /models/qwen2.5-1.5b-instruct-q4_0.g
 #COPY models/smollm2-1.7b-instruct-q4_k_m.gguf /models/smollm2-1.7b-instruct-q4_k_m.gguf
 #COPY models/DeepSeek-R1-Distill-Qwen-1.5B-Medical-COT.i1-Q4_K_M.gguf /models/DeepSeek-R1-Distill-Qwen-1.5B-Medical-COT.i1-Q4_K_M.gguf
 
-# Install Python dependencies (including RAG dependencies)
+# Install Python dependencies (LLM only)
 RUN pip3 install --no-cache-dir --ignore-installed \
     flask \
     python-dotenv \
     numpy==1.24.4 \
-    faiss-cpu==1.7.4 \
-    sentence-transformers \
     --index-url https://pypi.org/simple
-
-# Copy RAG module and debug script
-COPY rag.py /app/rag.py
-
-# Create HuggingFace cache directory for sentence transformer
-RUN mkdir -p /root/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2
-
-# Copy the sentence transformer model files to the cache location
-COPY models--sentence-transformers--all-MiniLM-L6-v2/* /root/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2/
 
 
 # === Environment defaults (can be overridden by .env or -e) ===

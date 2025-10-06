@@ -11,54 +11,7 @@ from datetime import datetime, timedelta
 from glob import glob
 from nlg import rewrite as nlg_rewrite
 
-# RAG module - will be initialized after LLM warm-up
-RAG_AVAILABLE = False
-RAG_INITIALIZED = False
-
-# RAG functions (loaded only when RAG is initialized)
-get_rag_fn = None
-search_medical_info_fn = None
-smart_search_medical_info_fn = None
-
-def initialize_rag_safely():
-    """Initialize RAG system safely after LLM is loaded"""
-    global RAG_AVAILABLE, RAG_INITIALIZED, get_rag_fn, search_medical_info_fn, smart_search_medical_info_fn
-    
-    # Prevent multiple initializations
-    if RAG_INITIALIZED:
-        print("[Aura-LLM] ℹ️ RAG already initialized, skipping...")
-        return
-        
-    # Add initialization lock to prevent race conditions
-    import threading
-    init_lock = getattr(initialize_rag_safely, '_lock', None)
-    if init_lock is None:
-        init_lock = threading.Lock()
-        initialize_rag_safely._lock = init_lock
-    
-    with init_lock:
-        if RAG_INITIALIZED:
-            print("[Aura-LLM] ℹ️ RAG already initialized (locked), skipping...")
-            return
-        
-    try:
-        print("[Aura-LLM] 🔍 Initializing RAG system...")
-        time.sleep(3)  # Reduced wait time
-        
-        from rag import get_rag, search_medical_info, smart_search_medical_info
-        get_rag_fn = get_rag
-        search_medical_info_fn = search_medical_info
-        smart_search_medical_info_fn = smart_search_medical_info
-        
-        RAG_AVAILABLE = True
-        RAG_INITIALIZED = True
-        print("[Aura-LLM] ✅ RAG module loaded and initialized")
-    except ImportError as e:
-        print(f"[Aura-LLM] ⚠️ RAG module not available: {e}")
-        RAG_AVAILABLE = False
-    except Exception as e:
-        print(f"[Aura-LLM] ❌ RAG initialization failed: {e}")
-        RAG_AVAILABLE = False
+# RAG functionality moved to separate container
 
 app = Flask(__name__)
 load_dotenv()
@@ -304,7 +257,7 @@ def detect_condition(prompt, session_id: str | None = None):
         
         if not has_medical_content:
             print(f"[Aura-LLM] 💬 Casual greeting detected: '{p}' -> no triage trigger")
-            return None
+        return None
         else:
             print(f"[Aura-LLM] 💬 Greeting with medical content detected: '{p}' -> proceeding with triage")
     
@@ -557,12 +510,12 @@ def add_phrasing_fingerprint(state, text):
 def llm_chat_once(messages, gen_kwargs):
     """Non-stream single completion via llama_cpp with thread safety."""
     with llm_lock:
-        try:
-            resp = llm.create_chat_completion(messages=messages, **{k: v for k, v in gen_kwargs.items() if v is not None})
-            return resp
-        except Exception as e:
+    try:
+        resp = llm.create_chat_completion(messages=messages, **{k: v for k, v in gen_kwargs.items() if v is not None})
+        return resp
+    except Exception as e:
             print(f"[LLM] ❌ Error in llm_chat_once: {e}")
-            return {"choices":[{"message":{"content":""}}]}
+        return {"choices":[{"message":{"content":""}}]}
 
 def get_steps(cond, state):
     steps = TRIAGE_DEFS[cond].get("steps", [])
@@ -651,7 +604,7 @@ def update_flags_from_answer(cond, key, ans, state, session_id=None):
                     print(f"[Aura-LLM] ❌ No answers defined for key: {key}")
                     return
             else:
-                sev = s["answers"][opt]
+            sev = s["answers"][opt]
                 print(f"[Aura-LLM] 🔍 Severity/pathway: {sev}")
 
             # Inline clarify object with followup_question
@@ -779,7 +732,7 @@ def build_recap(cond, answers, flags, severity, session_id=None):
             if key in ["onset", "when", "timing", "duration"]:
                 if clean_opts:
                     ans_out = pretty_join(clean_opts, 'and')
-                else:
+        else:
                     ans_out = pretty_join(opts, 'and')
             else:
                 if clean_opts:
@@ -796,10 +749,10 @@ def build_recap(cond, answers, flags, severity, session_id=None):
             else:
                 ans_out = raw
         # Handle pathway routing - show actual answer, not pathway names
-        if ans_out.endswith("_pathway"):
-            # Extract the pathway name without "_pathway" suffix for display
-            display_name = ans_out.replace("_pathway", "").replace("_", " ").title()
-            line = templ.format(answer=display_name).strip()
+            if ans_out.endswith("_pathway"):
+                # Extract the pathway name without "_pathway" suffix for display
+                display_name = ans_out.replace("_pathway", "").replace("_", " ").title()
+                line = templ.format(answer=display_name).strip()
         elif re.match(r"^\s*You\s+\{answer\}\s+", templ, flags=re.IGNORECASE) and ans_out not in ("reported", "denied"):
         # If template is of the form "You {answer} X" and ans_out is not reported/denied,
         # rewrite to "You reported X with ans_out" for better readability
@@ -827,7 +780,7 @@ def build_recap(cond, answers, flags, severity, session_id=None):
                     line = f"denied {ans_out}"
             else:
                 # Use the raw answer for display
-                line = templ.format(answer=ans_out).strip()
+            line = templ.format(answer=ans_out).strip()
             
         # Debug logging for recap generation
         print(f"[Aura-LLM] 🔍 Recap step: key='{key}', ans_out='{ans_out}', line='{line}', is_priority={key in pk}")
@@ -1363,45 +1316,23 @@ def chat():
     def generate():
         nonlocal condition, prompt, state
         if not condition:
-            # Try RAG first for non-triage queries (only if RAG is initialized)
-            used_rag = False
-            final_prompt = prompt
+            # Use regular chat for non-triage queries
+            print(f"[Aura-LLM] 💬 Using regular chat for query: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}'")
             
-            print(f"[Aura-LLM] 🔍 RAG status: AVAILABLE={RAG_AVAILABLE}, INITIALIZED={RAG_INITIALIZED}")
-            print(f"[Aura-LLM] 🔍 RAG functions: get_rag_fn={get_rag_fn is not None}, search_medical_info_fn={search_medical_info_fn is not None}, smart_search_medical_info_fn={smart_search_medical_info_fn is not None}")
-            if RAG_AVAILABLE and RAG_INITIALIZED and smart_search_medical_info_fn:
-                print(f"[Aura-LLM] 🔍 About to call smart_search_medical_info_fn")
-                try:
-                    used_rag, final_prompt = smart_search_medical_info_fn(prompt, k=3)
-                    if used_rag:
-                        print(f"[Aura-LLM] 🔍 Using RAG for query: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}'")
-                    else:
-                        print(f"[Aura-LLM] 💬 Using regular chat for query: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}'")
-                except Exception as e:
-                    print(f"[Aura-LLM] ⚠️ RAG error, falling back to regular chat: {e}")
-                    used_rag = False
-                    final_prompt = prompt
+            # Check for casual greetings
+            casual_greetings = ["hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]
+            if any(greeting in prompt_norm for greeting in casual_greetings):
+                system_msg = "I am AuraVision, your friendly personal assistant. Respond warmly to greetings and ask how I can help."
             else:
-                print(f"[Aura-LLM] 💬 Using regular chat for query: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}' (RAG not available)")
+                system_msg = "I am AuraVision, your friendly personal assistant."
             
-            # Prepare system message based on whether RAG was used
-            if used_rag:
-                system_msg = "I am AuraVision, your personal assistant. Use the provided information to give accurate, helpful responses. Answer based on the context provided, and if the information doesn't fully answer the question, say so clearly."
-            else:
-                # Check for casual greetings
-                casual_greetings = ["hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]
-                if any(greeting in prompt_norm for greeting in casual_greetings):
-                    system_msg = "I am AuraVision, your friendly personal assistant. Respond warmly to greetings and ask how I can help."
-                else:
-                    system_msg = "I am AuraVision, your friendly personal assistant."
-            
-            msgs = [{"role": "system", "content": system_msg}, {"role": "user", "content": final_prompt}]
+            msgs = [{"role": "system", "content": system_msg}, {"role": "user", "content": prompt}]
             
             try:
-                stream=llm.create_chat_completion(messages=msgs,stream=True)
+            stream=llm.create_chat_completion(messages=msgs,stream=True)
                 casual_buf=""
-                for ch in stream:
-                    tok=ch.get("choices",[{}])[0].get("delta",{}).get("content","")
+            for ch in stream:
+                tok=ch.get("choices",[{}])[0].get("delta",{}).get("content","")
                     if not tok: continue; 
                     casual_buf+=tok
                     if re.search(r"[.!?]['\")\]]?\s*$",casual_buf):
@@ -1438,44 +1369,7 @@ def chat():
 
     return Response(stream_with_context(generate()),mimetype="text/plain")
 
-# === RAG Endpoints ===
-@app.route("/rag/search", methods=["POST"])
-def rag_search():
-    """Search medical information using RAG"""
-    if not RAG_AVAILABLE or not RAG_INITIALIZED or not search_medical_info_fn:
-        return jsonify({"error": "RAG module not available or not initialized"}), 500
-    
-    try:
-        data = request.get_json()
-        query = data.get("query", "").strip()
-        k = data.get("k", 3)
-        
-        if not query:
-            return jsonify({"error": "Query is required"}), 400
-        
-        # Search medical information
-        augmented_prompt = search_medical_info_fn(query, k)
-        
-        return jsonify({
-            "query": query,
-            "augmented_prompt": augmented_prompt,
-            "k": k
-        })
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/rag/init", methods=["POST"])
-def rag_init():
-    """Initialize RAG system"""
-    try:
-        initialize_rag_safely()
-        if RAG_AVAILABLE:
-            return jsonify({"status": "success", "message": "RAG initialized"})
-        else:
-            return jsonify({"status": "failed", "message": "RAG initialization failed"}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# RAG functionality moved to separate container
 
 @app.route("/", methods=["GET"])
 def root():
@@ -1484,83 +1378,10 @@ def root():
         "service": "Aura-LLM",
         "status": "running",
         "version": "2.0",
-        "endpoints": ["/chat", "/rag/init", "/rag/search", "/rag/stats", "/rag/health", "/rag/reset"]
+        "endpoints": ["/chat"]
     })
 
-@app.route("/rag/stats", methods=["GET"])
-def rag_stats():
-    """Get RAG system statistics"""
-    if not RAG_AVAILABLE or not RAG_INITIALIZED or not get_rag_fn:
-        return jsonify({"error": "RAG module not available or not initialized"}), 500
-    
-    try:
-        rag = get_rag_fn()
-        stats = rag.get_stats()
-        return jsonify(stats)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/rag/health", methods=["GET"])
-def rag_health():
-    """Get RAG system health status"""
-    if not RAG_AVAILABLE or not RAG_INITIALIZED or not get_rag_fn:
-        return jsonify({
-            "status": "unavailable",
-            "rag_available": RAG_AVAILABLE,
-            "rag_initialized": RAG_INITIALIZED,
-            "get_rag_fn_available": get_rag_fn is not None
-        }), 500
-    
-    try:
-        rag = get_rag_fn()
-        health = rag.get_health_status()
-        return jsonify({
-            "status": "healthy" if health['health_score'] >= 0.8 else "degraded",
-            "health_score": health['health_score'],
-            "components": {
-                "index_loaded": health['index_loaded'],
-                "chunks_loaded": health['chunks_loaded'],
-                "encoder_loaded": health['encoder_loaded']
-            },
-            "stats": {
-                "index_size": health['index_size'],
-                "chunks_count": health['chunks_count']
-            },
-            "errors": health['errors']
-        })
-    except Exception as e:
-        return jsonify({"error": str(e), "status": "error"}), 500
-
-@app.route("/rag/reset", methods=["POST"])
-def rag_reset():
-    """Reset RAG system to clean state"""
-    global RAG_AVAILABLE, RAG_INITIALIZED, get_rag_fn, search_medical_info_fn, smart_search_medical_info_fn
-    
-    try:
-        print("[Aura-LLM] 🔄 Resetting RAG system...")
-        
-        # Reset global state
-        RAG_AVAILABLE = False
-        RAG_INITIALIZED = False
-        get_rag_fn = None
-        search_medical_info_fn = None
-        smart_search_medical_info_fn = None
-        
-        # Clear any cached models
-        try:
-            import gc
-            import torch
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        except Exception as e:
-            print(f"[Aura-LLM] ⚠️ Cache clearing failed: {e}")
-        
-        print("[Aura-LLM] ✅ RAG system reset completed")
-        return jsonify({"status": "success", "message": "RAG system reset"})
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# RAG endpoints removed - functionality moved to separate container
 
 if __name__=="__main__":
     print("[Aura-LLM] 🚑 Aura triage running with clarify routing, SOAP recap, debug logs, and casual mode")

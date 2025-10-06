@@ -266,26 +266,8 @@ def initialize_rag_delayed():
         
         print("[Aura] 🔍 Initializing RAG system...")
         
-        # Initialize RAG system
-        for attempt in range(3):
-            try:
-                init_response = requests.post("http://localhost:11434/rag/init", timeout=15)  # Reduced timeout
-                if init_response.status_code == 200:
-                    result = init_response.json()
-                    if result.get("status") == "success":
-                        print("[Aura] ✅ RAG system initialized successfully")
-                        break
-                    else:
-                        print(f"[Aura] ⚠️ RAG init attempt {attempt + 1} failed: {result.get('message')}")
-                else:
-                    print(f"[Aura] ⚠️ RAG init attempt {attempt + 1} failed: {init_response.status_code}")
-            except requests.exceptions.RequestException as e:
-                print(f"[Aura] ⚠️ RAG init attempt {attempt + 1} failed: {e}")
-                if attempt < 2:
-                    time.sleep(5)
-        else:
-            print("[Aura] ⚠️ RAG initialization failed after 3 attempts")
-            return
+        # RAG container should auto-initialize, just wait for it to be ready
+        print("[Aura] 🔍 Waiting for RAG container to be ready...")
         
         # Wait for RAG to be fully ready with proper polling
         print("[Aura] ⏳ Waiting for RAG to be fully ready...")
@@ -295,7 +277,7 @@ def initialize_rag_delayed():
         
         while time.time() - start_time < max_wait_time:
             try:
-                stats_response = requests.get("http://localhost:11434/rag/stats", timeout=5)
+                stats_response = requests.get("http://localhost:11435/rag/stats", timeout=5)
                 if stats_response.status_code == 200:
                     stats = stats_response.json()
                     chunks_loaded = stats.get('chunks_loaded', 0)
@@ -395,7 +377,7 @@ def start_services():
     
     while time.time() - start_time < max_wait_time:
         try:
-            stats_response = requests.get("http://localhost:11434/rag/stats", timeout=5)
+            stats_response = requests.get("http://localhost:11435/rag/stats", timeout=5)
             if stats_response.status_code == 200:
                 stats = stats_response.json()
                 health_score = stats.get('health_score', 0)

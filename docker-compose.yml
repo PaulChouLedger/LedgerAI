@@ -7,10 +7,18 @@ services:
       - ./whisper-container/cache:/app/cache  # Mount whisper model cache
 
   llm:
-    image: aura-llm-rag
+    build: ./llm-container
+    network_mode: host
+    volumes:
+      - ./shared:/shared
+    working_dir: /app
+
+  rag:
+    build: ./rag-container
     network_mode: host
     volumes:
       - ./shared:/shared
       - ./data:/app/data  # Mount embeddings data
+      - ./rag-container/cache:/app/cache  # Mount RAG model cache
     working_dir: /app
 
