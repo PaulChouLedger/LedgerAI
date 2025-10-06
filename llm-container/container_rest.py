@@ -10,6 +10,7 @@ import os, re, json, string, threading, time
 from datetime import datetime, timedelta
 from glob import glob
 from nlg import rewrite as nlg_rewrite
+import requests
 
 # RAG functionality moved to separate RAG container (port 11435)
 
@@ -1316,10 +1317,35 @@ def chat():
     def generate():
         nonlocal condition, prompt, state
         if not condition:
-            # RAG functionality moved to separate RAG container (port 11435)
-            # For now, use regular chat for all queries
+            # Try RAG search first for medical/person queries
             final_prompt = prompt
             used_rag = False
+            
+            # Check if this might be a medical or person query
+            medical_keywords = ["who is", "what is", "tell me about", "information about", "details about"]
+            person_keywords = ["who is", "tell me about", "information about"]
+            
+            if any(keyword in prompt_norm for keyword in medical_keywords):
+                try:
+                    rag_response = requests.post("http://localhost:11435/rag/search", 
+                                              json={"query": prompt, "k": 3}, 
+                                              timeout=5)
+                    if rag_response.status_code == 200:
+                        rag_data = rag_response.json()
+                        if rag_data.get("results") and len(rag_data["results"]) > 0:
+                            # Use RAG results to augment the prompt
+                            context_parts = []
+                            for result in rag_data["results"][:2]:  # Use top 2 results
+                                context_parts.append(result.get("text", ""))
+                            
+                            if context_parts:
+                                context = "\n\n".join(context_parts)
+                                final_prompt = f"Based on the following information:\n\n{context}\n\nPlease answer: {prompt}"
+                                used_rag = True
+                                print(f"[Aura-LLM] 🔍 RAG found {len(rag_data['results'])} relevant documents")
+                except Exception as e:
+                    print(f"[Aura-LLM] ⚠️ RAG search failed: {e}")
+                    # Continue with regular prompt
             
             # Check for casual greetings
             casual_greetings = ["hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]

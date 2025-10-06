@@ -17,8 +17,6 @@ FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.2
 VAD_CONFIDENCE_THRESHOLD = 0.3  # Increased to reduce false triggers from background noise
-
-# Gain control (reverted from transcription_tuner.py)
 MIC_GAIN = 2.0  # Simple gain multiplier
 MIN_SPEECH_DURATION = 0.25  # Minimum speech duration in seconds (allows "yes", "no", etc.)
 VAD_RESET_THRESHOLD = 0.15  # Lower threshold for reset
