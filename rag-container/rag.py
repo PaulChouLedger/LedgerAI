@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Aura RAG Module - FAISS-based retrieval for document search
-Optimized for Jetson Orin NX with CPU-only operation
+Optimized for Jetson Orin NX with GPU acceleration via faiss_lite
 """
 
 import os
@@ -32,7 +32,12 @@ try:
     )
     
     # Load the faiss_lite library
-    _lib = C.CDLL('/opt/faiss_lite/build/libfaiss_lite.so')
+    try:
+        _lib = C.CDLL('/opt/faiss_lite/build/libfaiss_lite.so')
+        print("[RAG] 🔍 faiss_lite library loaded from /opt/faiss_lite/build/libfaiss_lite.so")
+    except Exception as lib_e:
+        print(f"[RAG] ❌ Failed to load faiss_lite library: {lib_e}")
+        raise
     
     def _cudaKNN(name='cudaKNN'):
         func = _lib[name]
@@ -108,12 +113,13 @@ class AuraRAG:
                 print(f"[RAG] ❌ CUDA allocation failed: {cudaGetErrorString(err)[1]}")
                 return data
             
-            # Copy data to CUDA memory
+            # Create CUDA array that points to the managed memory
             cuda_array = np.ctypeslib.as_array(C.cast(ptr, C.POINTER(C.c_float)), shape=shape)
             cuda_array[:] = data.astype(dtype)
             
             print(f"[RAG] 🔍 Allocated CUDA memory: {size} bytes, shape: {shape}")
-            return ptr
+            print(f"[RAG] 🔍 CUDA array properties - OWNDATA: {cuda_array.flags.owndata}, base: {cuda_array.base is None}")
+            return cuda_array
             
         except Exception as e:
             print(f"[RAG] ❌ CUDA memory allocation failed: {e}")
@@ -275,9 +281,10 @@ class AuraRAG:
                     if FAISS_LITE_AVAILABLE:
                         print(f"[RAG] 🔧 Trying CUDA memory allocation...")
                         cuda_ptr = self._allocate_cuda_memory(query_embedding)
-                        if cuda_ptr != query_embedding:  # Successfully allocated CUDA memory
+                        print(f"[RAG] 🔧 CUDA array type: {type(cuda_ptr)}, original type: {type(query_embedding)}")
+                        if isinstance(cuda_ptr, np.ndarray) and cuda_ptr is not query_embedding:  # Successfully allocated CUDA memory
                             print(f"[RAG] 🔧 Using CUDA memory for FAISS search...")
-                            distances, indices = self.index.search(query_embedding, k)
+                            distances, indices = self.index.search(cuda_ptr, k)
                             print(f"[RAG] ✅ CUDA memory FAISS search successful")
                         else:
                             raise Exception("CUDA memory allocation failed")
@@ -322,6 +329,20 @@ class AuraRAG:
                 except Exception as test_e:
                     print(f"[RAG] ❌ Test search failed: {test_e}")
                     print(f"[RAG] 🔍 This suggests the FAISS index itself has issues")
+                    
+                    # Try to create a new simple index to test
+                    print(f"[RAG] 🔧 Creating test index to verify FAISS functionality...")
+                    try:
+                        test_index = faiss.IndexFlatIP(self.index.d)
+                        test_vectors = np.random.random((10, self.index.d)).astype(np.float32)
+                        test_index.add(test_vectors)
+                        test_query = np.random.random((1, self.index.d)).astype(np.float32)
+                        test_d, test_i = test_index.search(test_query, 3)
+                        print(f"[RAG] ✅ Test index search successful - FAISS is working")
+                        print(f"[RAG] 🔍 Test results: distances={test_d}, indices={test_i}")
+                    except Exception as test_index_e:
+                        print(f"[RAG] ❌ Test index creation failed: {test_index_e}")
+                        print(f"[RAG] 🔍 This suggests a fundamental FAISS installation issue")
                 
                 # Try to reinitialize the index if it seems corrupted
                 try:
