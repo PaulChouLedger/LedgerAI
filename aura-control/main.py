@@ -401,7 +401,7 @@ def start_services():
                 health_score = stats.get('health_score', 0)
                 chunks_loaded = stats.get('chunks_loaded', 0)
                 
-                # RAG is fully ready when health score is 100% and chunks are loaded
+                # RAG must be fully functional (100% health) with sentence transformer
                 if health_score >= 100.0 and chunks_loaded > 0:
                     print(f"[Aura] ✅ RAG fully ready: {chunks_loaded} chunks, {health_score}% health")
                     break

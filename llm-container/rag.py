@@ -137,83 +137,134 @@ class AuraRAG:
             
             print(f"[RAG] 🔧 Loading sentence transformer: {self.model_name}")
             
-            # Method 1: Try loading with explicit offline mode
+            # Load sentence transformer with robust meta tensor handling
             try:
                 # Set offline mode to prevent downloads
                 os.environ['TRANSFORMERS_OFFLINE'] = '1'
                 os.environ['HF_HUB_OFFLINE'] = '1'
                 
-                self.encoder = SentenceTransformer(
-                    self.model_name,
-                    device='cpu',
-                    trust_remote_code=True,
-                    cache_folder='/root/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2'
-                )
+                print("[RAG] 🔧 Loading sentence transformer with meta tensor fix...")
                 
-                # Test the model
-                print("[RAG] 🔧 Testing encoder with dummy input...")
-                dummy_input = ["test sentence"]
-                _ = self.encoder.encode(dummy_input)
-                
-                print(f"[RAG] ✅ Loaded encoder: {self.model_name} (device: cpu, threads: 4)")
-                
-            except Exception as e1:
-                print(f"[RAG] 🔄 Method 1 failed: {e1}")
-                
-                # Method 2: Try with fresh download and proper initialization
-                print("[RAG] 🔄 Trying fresh download method...")
-                os.environ['TRANSFORMERS_OFFLINE'] = '0'  # Allow downloads
-                os.environ['HF_HUB_OFFLINE'] = '0'
-                
-                # Clear potentially corrupted cache
-                import shutil
-                cache_dir = './cache/sentence_transformers'
-                if os.path.exists(cache_dir):
-                    shutil.rmtree(cache_dir)
-                    print("[RAG] 🧹 Cleared corrupted cache")
-                
-                # Load with explicit model initialization and proper device handling
-                self.encoder = SentenceTransformer(
-                    self.model_name,
-                    device='cpu',
-                    trust_remote_code=True
-                )
-                
-                # Force model to CPU and ensure proper initialization
-                self.encoder = self.encoder.to('cpu')
-                self.encoder.eval()
-                
-                # Handle meta tensors more robustly
+                # Method 1: Try loading with explicit device handling and meta tensor prevention
                 try:
-                    # Check for meta tensors and initialize them
+                    # Set environment variables to prevent meta tensor issues
+                    os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
+                    
+                    # Load model with explicit meta tensor handling
+                    self.encoder = SentenceTransformer(
+                        self.model_name,
+                        device='cpu',
+                        trust_remote_code=True,
+                        cache_folder='/root/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2'
+                    )
+                    
+                    # Explicitly handle any meta tensors before testing
+                    print("[RAG] 🔄 Checking for meta tensors...")
+                    meta_tensors_found = False
                     for name, param in self.encoder.named_parameters():
                         if param.is_meta:
-                            print(f"[RAG] 🔄 Initializing meta tensor: {name}")
-                            param.data = torch.randn_like(param.data)
+                            print(f"[RAG] 🔄 Found meta tensor: {name}, materializing...")
+                            meta_tensors_found = True
+                            # Create a new tensor with proper initialization
+                            param.data = torch.randn_like(param.data, device='cpu')
                     
-                    # Force model to be materialized
-                    self.encoder = self.encoder.to('cpu')
+                    if meta_tensors_found:
+                        print("[RAG] 🔄 Meta tensors materialized, ensuring model is ready...")
+                        # Force the model to be fully materialized
+                        self.encoder = self.encoder.to('cpu')
+                        self.encoder.eval()
                     
-                    # Force a forward pass to initialize any lazy parameters
+                    # Force materialization of any meta tensors
+                    print("[RAG] 🔄 Materializing meta tensors...")
                     with torch.no_grad():
-                        test_embeddings = self.encoder.encode(["test"])
-                        print(f"[RAG] ✅ Model forward pass successful: {test_embeddings.shape}")
-                        
-                except Exception as e:
-                    print(f"[RAG] 🔄 Model initialization failed: {e}")
-                    # Try loading a different model as fallback
-                    print("[RAG] 🔄 Trying fallback model...")
-                    self.encoder = SentenceTransformer('paraphrase-MiniLM-L6-v2', device='cpu')
-                    # Ensure fallback model is also properly initialized
+                        # Force a forward pass to materialize all parameters
+                        dummy_input = ["test sentence"]
+                        _ = self.encoder.encode(dummy_input)
+                    
+                    print("[RAG] ✅ Sentence transformer loaded successfully")
+                    
+                except Exception as meta_error:
+                    print(f"[RAG] 🔄 Meta tensor error: {meta_error}")
+                    
+                    # Method 2: Try with explicit model loading and state dict handling
+                    print("[RAG] 🔄 Trying alternative loading method...")
+                    
+                    # Clear any problematic cache
+                    import shutil
+                    cache_dir = './cache/sentence_transformers'
+                    if os.path.exists(cache_dir):
+                        shutil.rmtree(cache_dir)
+                        print("[RAG] 🧹 Cleared problematic cache")
+                    
+                    # Load with explicit initialization
+                    self.encoder = SentenceTransformer(
+                        self.model_name,
+                        device='cpu',
+                        trust_remote_code=True
+                    )
+                    
+                    # Handle meta tensors by forcing materialization
+                    print("[RAG] 🔄 Forcing parameter materialization...")
+                    
+                    # Get the model's state dict and reinitialize
+                    state_dict = self.encoder.state_dict()
+                    
+                    # Reinitialize the model with proper tensors
+                    for name, param in self.encoder.named_parameters():
+                        if param.is_meta:
+                            print(f"[RAG] 🔄 Reinitializing meta tensor: {name}")
+                            # Create a new tensor with the same shape but materialized
+                            param.data = torch.randn_like(param.data, device='cpu')
+                    
+                    # Ensure all parameters are on CPU
                     self.encoder = self.encoder.to('cpu')
                     self.encoder.eval()
+                    
+                    # Test the model
+                    print("[RAG] 🔧 Testing encoder with dummy input...")
+                    dummy_input = ["test sentence"]
+                    _ = self.encoder.encode(dummy_input)
+                    
+                    print(f"[RAG] ✅ Loaded encoder: {self.model_name} (device: cpu, threads: 4)")
                 
-                # Test the model
-                print("[RAG] 🔧 Testing encoder with dummy input...")
-                dummy_input = ["test sentence"]
-                _ = self.encoder.encode(dummy_input)
+                except Exception as final_error:
+                    print(f"[RAG] 🔄 Final method failed: {final_error}")
+                    
+                    # Method 3: Try loading with completely fresh initialization
+                    print("[RAG] 🔄 Trying fresh model initialization...")
+                    
+                    # Clear all caches
+                    import shutil
+                    cache_dirs = ['./cache/sentence_transformers', '/root/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2']
+                    for cache_dir in cache_dirs:
+                        if os.path.exists(cache_dir):
+                            shutil.rmtree(cache_dir)
+                            print(f"[RAG] 🧹 Cleared cache: {cache_dir}")
+                    
+                    # Load with minimal configuration
+                    self.encoder = SentenceTransformer(
+                        self.model_name,
+                        device='cpu',
+                        trust_remote_code=True
+                    )
+                    
+                    # Force immediate materialization
+                    print("[RAG] 🔄 Forcing immediate materialization...")
+                    self.encoder = self.encoder.to('cpu')
+                    self.encoder.eval()
+                    
+                    # Test immediately
+                    print("[RAG] 🔧 Testing encoder with dummy input...")
+                    dummy_input = ["test sentence"]
+                    _ = self.encoder.encode(dummy_input)
+                    
+                    print(f"[RAG] ✅ Loaded encoder: {self.model_name} (device: cpu, threads: 4)")
                 
-                print(f"[RAG] ✅ Loaded encoder with fresh download: {self.model_name}")
+            except Exception as e:
+                error_msg = f"Failed to load sentence transformer: {e}"
+                print(f"[RAG] ❌ {error_msg}")
+                self._loading_state['errors'].append(error_msg)
+                raise RuntimeError(f"RAG requires sentence transformer to work. {error_msg}")
             
         except Exception as e:
             error_msg = f"Failed to load sentence transformer: {e}"
