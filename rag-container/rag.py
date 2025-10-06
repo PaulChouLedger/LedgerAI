@@ -77,11 +77,31 @@ class AuraRAG:
         # Load sentence transformer
         try:
             print(f"[RAG] 🔧 Loading sentence transformer: {self.model_name}")
-            self.encoder = SentenceTransformer(self.model_name, device='cpu')
+            # Use trust_remote_code=True and specific device handling for compatibility
+            self.encoder = SentenceTransformer(
+                self.model_name, 
+                device='cpu',
+                trust_remote_code=True
+            )
+            # Ensure model is properly loaded and not in meta state
+            if hasattr(self.encoder, '_modules'):
+                for module in self.encoder._modules.values():
+                    if hasattr(module, 'to'):
+                        module.to('cpu')
             print(f"[RAG] ✅ Loaded sentence transformer: {self.model_name}")
         except Exception as e:
             print(f"[RAG] ❌ Failed to load sentence transformer: {e}")
-            raise
+            # Try alternative loading method
+            try:
+                print(f"[RAG] 🔧 Trying alternative loading method...")
+                import torch
+                torch.set_default_device('cpu')
+                self.encoder = SentenceTransformer(self.model_name)
+                self.encoder = self.encoder.to('cpu')
+                print(f"[RAG] ✅ Loaded sentence transformer (alternative method): {self.model_name}")
+            except Exception as e2:
+                print(f"[RAG] ❌ Alternative loading also failed: {e2}")
+                raise e
     
     def search(self, query: str, k: int = 3) -> List[Dict[str, Any]]:
         """
@@ -98,36 +118,61 @@ class AuraRAG:
             return []
         
         try:
-            # Encode query
-            query_embedding = self.encoder.encode(query, convert_to_numpy=True)
+            # Encode query with explicit conversion to numpy
+            query_embedding = self.encoder.encode(
+                query, 
+                convert_to_numpy=True,
+                normalize_embeddings=False,
+                show_progress_bar=False
+            )
             
-            # Ensure it's a numpy array
-            if not isinstance(query_embedding, np.ndarray):
+            # Force conversion to numpy array and ensure proper type
+            if hasattr(query_embedding, 'cpu'):
+                # Handle PyTorch tensors
+                query_embedding = query_embedding.cpu().detach().numpy()
+            elif not isinstance(query_embedding, np.ndarray):
                 query_embedding = np.array(query_embedding)
             
+            # Ensure float32 type for FAISS compatibility
             query_embedding = query_embedding.astype(np.float32)
             
+            # Reshape to 2D if needed (FAISS expects 2D arrays)
             if len(query_embedding.shape) == 1:
                 query_embedding = query_embedding.reshape(1, -1)
             
             # Ensure contiguous memory layout for FAISS
             query_embedding = np.ascontiguousarray(query_embedding)
             
-            # Debug embedding shape and type
+            # Validate embedding before FAISS search
+            if not isinstance(query_embedding, np.ndarray):
+                raise ValueError(f"Expected numpy array, got {type(query_embedding)}")
+            
+            if query_embedding.dtype != np.float32:
+                query_embedding = query_embedding.astype(np.float32)
+            
+            # Debug embedding details
             print(f"[RAG] 🔍 Query embedding shape: {query_embedding.shape}, dtype: {query_embedding.dtype}")
-            
-            # Search FAISS index
-            print(f"[RAG] 🔍 About to search FAISS index with query shape: {query_embedding.shape}")
             print(f"[RAG] 🔍 Query embedding type: {type(query_embedding)}")
-            print(f"[RAG] 🔍 Query embedding dtype: {query_embedding.dtype}")
+            print(f"[RAG] 🔍 Is contiguous: {query_embedding.flags.c_contiguous}")
+            print(f"[RAG] 🔍 About to search FAISS index with query shape: {query_embedding.shape}")
             
+            # Search FAISS index with error handling
             try:
                 distances, indices = self.index.search(query_embedding, k)
                 print(f"[RAG] ✅ FAISS search completed successfully")
             except Exception as e:
                 print(f"[RAG] ❌ FAISS search failed: {e}")
-                print(f"[RAG] 🔍 Query embedding details: shape={query_embedding.shape}, dtype={query_embedding.dtype}, contiguous={query_embedding.flags.c_contiguous}")
-                raise
+                print(f"[RAG] 🔍 Query embedding details: shape={query_embedding.shape}, dtype={query_embedding.dtype}")
+                print(f"[RAG] 🔍 Index details: type={type(self.index)}, trained={self.index.is_trained}")
+                # Try to reinitialize the index if it seems corrupted
+                try:
+                    print(f"[RAG] 🔧 Attempting to reload FAISS index...")
+                    self.index = faiss.read_index(self.index_path)
+                    distances, indices = self.index.search(query_embedding, k)
+                    print(f"[RAG] ✅ FAISS search successful after reload")
+                except Exception as e2:
+                    print(f"[RAG] ❌ FAISS search failed even after reload: {e2}")
+                    raise e
             
             # Debug FAISS results
             print(f"[RAG] 🔍 FAISS search results - distances shape: {distances.shape}, indices shape: {indices.shape}")

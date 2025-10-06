@@ -3,15 +3,16 @@ FROM faiss_lite:r36.4.tegra-aarch64-cu126-22.04
 # Set working directory
 WORKDIR /app
 
-# Check what's already installed
-RUN pip list | grep -E "(sentence|transformers|faiss|numpy|torch)"
 
-# Install only missing dependencies
+# Install dependencies with specific versions for compatibility
 RUN pip install --no-cache-dir --ignore-installed \
     flask \
     flask-cors \
     requests \
-    sentence-transformers
+    sentence-transformers==2.2.2 \
+    torch==2.0.1 \
+    transformers==4.30.2 \
+    numpy==1.24.3
 
 # Copy RAG service and module
 COPY container_rest.py /app/
