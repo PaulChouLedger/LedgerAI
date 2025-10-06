@@ -97,10 +97,18 @@ class AuraRAG:
         try:
             # Encode query
             query_embedding = self.encoder.encode(query, convert_to_numpy=True)
+            
+            # Ensure it's a numpy array
+            if not isinstance(query_embedding, np.ndarray):
+                query_embedding = np.array(query_embedding)
+            
             query_embedding = query_embedding.astype(np.float32)
             
             if len(query_embedding.shape) == 1:
                 query_embedding = query_embedding.reshape(1, -1)
+            
+            # Debug embedding shape and type
+            print(f"[RAG] 🔍 Query embedding shape: {query_embedding.shape}, dtype: {query_embedding.dtype}")
             
             # Search FAISS index
             distances, indices = self.index.search(query_embedding, k)
