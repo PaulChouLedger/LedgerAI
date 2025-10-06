@@ -15,21 +15,11 @@ os.environ['OMP_NUM_THREADS'] = '4'
 
 from sentence_transformers import SentenceTransformer
 
-# Test FAISS functionality (like the container test)
-print("[RAG] 🔧 Testing FAISS functionality...")
-try:
-    test_array = np.random.random((1, 10)).astype(np.float32)
-    test_index = faiss.IndexFlatIP(10)
-    test_vectors = np.random.random((5, 10)).astype(np.float32)
-    test_index.add(test_vectors)
-    test_distances, test_indices = test_index.search(test_array, 1)
-    print("[RAG] ✅ FAISS test successful - ready to use")
-except Exception as e:
-    print(f"[RAG] ❌ FAISS test failed: {e}")
-    raise
-
-# Use standard FAISS (container test shows it works perfectly)
-print("[RAG] ✅ Using standard FAISS implementation")
+# Use faiss_lite Python wrapper (the working C++ functions)
+import sys
+sys.path.append('/opt/faiss_lite')
+from faiss_lite import cudaKNN, cudaL2Norm, cudaAllocMapped
+print("[RAG] ✅ faiss_lite Python wrapper loaded - using CUDA functions")
 
 class AuraRAG:
     def __init__(self, 
@@ -57,6 +47,9 @@ class AuraRAG:
         
         # Load components
         self._load_components()
+        
+        # Convert FAISS index to numpy arrays for faiss_lite CUDA functions
+        self._prepare_cuda_data()
     
     def _load_components(self):
         """Load FAISS index, chunks, and encoder model"""
@@ -113,6 +106,92 @@ class AuraRAG:
                 print(f"[RAG] ❌ Alternative loading also failed: {e2}")
                 raise e
     
+    def _prepare_cuda_data(self):
+        """Prepare FAISS index data for faiss_lite CUDA functions"""
+        try:
+            print("[RAG] 🔧 Preparing CUDA data for faiss_lite...")
+            
+            # Extract vectors from FAISS index
+            if hasattr(self.index, 'reconstruct_n'):
+                # Get all vectors from the index
+                n_vectors = self.index.ntotal
+                vectors = np.zeros((n_vectors, self.index.d), dtype=np.float32)
+                for i in range(n_vectors):
+                    vectors[i] = self.index.reconstruct(i)
+                
+                # Allocate CUDA memory for vectors
+                self.cuda_vectors = cudaAllocMapped(vectors.shape, np.float32)
+                self.cuda_vectors['array'][:] = vectors
+                
+                # Pre-compute L2 norms if using L2 metric
+                if self.index.metric_type == faiss.METRIC_L2:
+                    self.cuda_vector_norms = cudaAllocMapped((n_vectors,), np.float32)
+                    result = cudaL2Norm(
+                        self.cuda_vectors['ptr'], 4,  # 4 bytes for float32
+                        n_vectors, self.index.d,
+                        self.cuda_vector_norms['ptr'], True, None
+                    )
+                    if not result:
+                        print("[RAG] ⚠️ Failed to compute L2 norms")
+                        self.cuda_vector_norms = None
+                
+                print(f"[RAG] ✅ CUDA data prepared: {n_vectors} vectors, {self.index.d} dimensions")
+            else:
+                print("[RAG] ⚠️ Index doesn't support vector reconstruction - using standard FAISS")
+                self.cuda_vectors = None
+                self.cuda_vector_norms = None
+                
+        except Exception as e:
+            print(f"[RAG] ❌ Failed to prepare CUDA data: {e}")
+            self.cuda_vectors = None
+            self.cuda_vector_norms = None
+    
+    def _search_with_faiss_lite(self, query_embedding, k):
+        """Search using faiss_lite CUDA functions"""
+        if self.cuda_vectors is None:
+            return None, None
+        
+        try:
+            # Allocate CUDA memory for query
+            cuda_query = cudaAllocMapped(query_embedding.shape, np.float32)
+            cuda_query['array'][:] = query_embedding
+            
+            # Allocate CUDA memory for results
+            cuda_distances = cudaAllocMapped((1, k), np.float32)
+            cuda_indices = cudaAllocMapped((1, k), np.int64)
+            
+            # Call cudaKNN
+            n_vectors = self.index.ntotal
+            metric = 0 if self.index.metric_type == faiss.METRIC_INNER_PRODUCT else 1
+            
+            result = cudaKNN(
+                self.cuda_vectors['ptr'],     # vectors
+                cuda_query['ptr'],            # queries
+                4,                            # dsize (float32 = 4 bytes)
+                n_vectors,                    # n (number of vectors)
+                1,                            # m (number of queries)
+                self.index.d,                 # d (dimension)
+                k,                            # k (number of results)
+                metric,                       # metric type
+                self.cuda_vector_norms['ptr'] if self.cuda_vector_norms else None,  # vector norms
+                cuda_distances['ptr'],        # output distances
+                cuda_indices['ptr'],          # output indices
+                None                          # stream
+            )
+            
+            if result:
+                distances = cuda_distances['array'].copy()
+                indices = cuda_indices['array'].copy()
+                print("[RAG] ✅ faiss_lite CUDA search successful")
+                return distances, indices
+            else:
+                print("[RAG] ❌ faiss_lite CUDA search failed")
+                return None, None
+                
+        except Exception as e:
+            print(f"[RAG] ❌ faiss_lite search error: {e}")
+            return None, None
+    
     def search(self, query: str, k: int = 3) -> List[Dict[str, Any]]:
         """
         Search documents using RAG - simplified like container test
@@ -134,9 +213,12 @@ class AuraRAG:
             
             print(f"[RAG] 🔍 Query embedding shape: {query_embedding.shape}, dtype: {query_embedding.dtype}")
             
-            # Simple search like the container test
-            distances, indices = self.index.search(query_embedding, k)
-            print(f"[RAG] ✅ FAISS search successful")
+            # Use faiss_lite CUDA functions (the working approach)
+            print(f"[RAG] 🔧 Using faiss_lite CUDA search...")
+            distances, indices = self._search_with_faiss_lite(query_embedding, k)
+            
+            if distances is None:
+                raise Exception("faiss_lite CUDA search failed")
             
             # Format results
             results = []
