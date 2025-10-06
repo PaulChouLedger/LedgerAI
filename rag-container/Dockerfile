@@ -4,7 +4,7 @@ FROM faiss:r36.4.tegra-aarch64-cu126-22.04
 WORKDIR /app
 
 # Install only essential packages for container communication
-RUN pip install --no-cache-dir \
+RUN pip install --no-cache-dir --ignore-installed \
     flask \
     flask-cors \
     requests
