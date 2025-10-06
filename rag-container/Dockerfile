@@ -9,8 +9,9 @@ RUN pip install --no-cache-dir --ignore-installed \
     flask-cors \
     requests
 
-# Copy communication service
+# Copy RAG service and module
 COPY container_rest.py /app/
+COPY rag.py /app/
 
 
 

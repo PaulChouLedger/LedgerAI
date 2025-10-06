@@ -107,6 +107,11 @@ def run_container(name, port, image, timeout=15):
         cmd += [
             "--gpus", "all"  # Add GPU support for faster-whisper
         ]
+    elif name == "aura-rag":
+        # RAG container - minimal communication service
+        cmd += [
+            "-v", f"{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))}:/app/data"  # Mount embeddings data
+        ]
 
 
     cmd.append(image)
@@ -272,7 +277,14 @@ def start_services():
         print("[Aura] ❌ LLM container failed. Aborting.")
         return
     
-    # Step 3: Wait for LLM to be fully ready
+    # Step 3: Start RAG container
+    print("[Aura] 🔍 Starting RAG container...")
+    rag_ok = run_container("aura-rag", 11435, "aura-rag:latest", timeout=TIMEOUT)
+    if not rag_ok:
+        print("[Aura] ❌ RAG container failed. Aborting.")
+        return
+    
+    # Step 4: Wait for LLM to be fully ready
     print("[Aura] ⏳ Waiting for LLM to initialize...")
     time.sleep(10)  # Give LLM more time to load model
     

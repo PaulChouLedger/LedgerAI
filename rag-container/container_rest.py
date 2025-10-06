@@ -13,6 +13,9 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
 
+# Import RAG functionality
+from rag import get_rag, search_medical_info, smart_search_medical_info
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -140,11 +143,13 @@ def rag_init():
     """Initialize RAG system"""
     try:
         print(f"[{SERVICE_NAME}] 🔍 RAG init requested")
-        # Since this is a communication container, we just return success
-        # The actual RAG functionality would be handled by the LLM container
+        # Initialize RAG system
+        rag = get_rag()
+        stats = rag.get_stats()
         return jsonify({
             'status': 'success',
-            'message': 'RAG communication service ready'
+            'message': 'RAG system initialized',
+            'stats': stats
         })
     except Exception as e:
         logger.error(f"Error initializing RAG: {e}")
@@ -154,22 +159,21 @@ def rag_init():
 def rag_stats():
     """Get RAG system statistics"""
     try:
-        # Since this is a communication container, return basic stats
-        return jsonify({
-            'status': 'ready',
+        rag = get_rag()
+        stats = rag.get_stats()
+        stats.update({
             'service': SERVICE_NAME,
             'threshold': RAG_THRESHOLD,
-            'top_k': TOP_K,
-            'chunks_loaded': 0,  # Would be populated by actual RAG service
-            'index_loaded': False
+            'top_k': TOP_K
         })
+        return jsonify(stats)
     except Exception as e:
         logger.error(f"Error getting RAG stats: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/rag/search', methods=['POST'])
 def rag_search():
-    """Search using RAG system - proxy to LLM container for efficiency"""
+    """Search using RAG system"""
     try:
         data = request.get_json()
         query = data.get('query', '').strip()
@@ -178,22 +182,15 @@ def rag_search():
         if not query:
             return jsonify({'error': 'Query is required'}), 400
         
-        # Proxy to LLM container for actual RAG processing (more efficient)
-        try:
-            response = requests.post(
-                f"{LLM_SERVICE_URL}/rag/search", 
-                json=data, 
-                timeout=10
-            )
-            return jsonify(response.json()), response.status_code
-        except requests.exceptions.RequestException:
-            # Fallback: return empty results if LLM container not available
-            return jsonify({
-                'query': query,
-                'results': [],
-                'count': 0,
-                'message': 'LLM container not available'
-            })
+        # Use actual RAG functionality
+        rag = get_rag()
+        results = rag.search(query, k)
+        
+        return jsonify({
+            'query': query,
+            'results': results,
+            'count': len(results)
+        })
         
     except Exception as e:
         logger.error(f"Error in RAG search: {e}")
