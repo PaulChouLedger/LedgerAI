@@ -127,11 +127,22 @@ class AuraRAG:
             )
             
             # Force conversion to numpy array and ensure proper type
+            print(f"[RAG] 🔍 Raw embedding type: {type(query_embedding)}")
+            print(f"[RAG] 🔍 Raw embedding shape: {getattr(query_embedding, 'shape', 'no shape')}")
+            
             if hasattr(query_embedding, 'cpu'):
                 # Handle PyTorch tensors
+                print(f"[RAG] 🔍 Converting PyTorch tensor to numpy")
                 query_embedding = query_embedding.cpu().detach().numpy()
+            elif hasattr(query_embedding, 'numpy'):
+                # Handle tensorflow tensors
+                print(f"[RAG] 🔍 Converting TensorFlow tensor to numpy")
+                query_embedding = query_embedding.numpy()
             elif not isinstance(query_embedding, np.ndarray):
+                print(f"[RAG] 🔍 Converting other type to numpy array")
                 query_embedding = np.array(query_embedding)
+            
+            print(f"[RAG] 🔍 After conversion - type: {type(query_embedding)}, shape: {query_embedding.shape}")
             
             # Ensure float32 type for FAISS compatibility
             query_embedding = query_embedding.astype(np.float32)
@@ -158,12 +169,32 @@ class AuraRAG:
             
             # Search FAISS index with error handling
             try:
+                # Ensure we have a proper numpy array for FAISS
+                if not isinstance(query_embedding, np.ndarray):
+                    print(f"[RAG] ❌ Expected numpy array, got {type(query_embedding)}")
+                    raise ValueError(f"Expected numpy array, got {type(query_embedding)}")
+                
+                # Double-check the array properties
+                if not query_embedding.flags.c_contiguous:
+                    query_embedding = np.ascontiguousarray(query_embedding)
+                    print(f"[RAG] 🔧 Made array contiguous")
+                
+                # Verify FAISS index is ready
+                if not self.index.is_trained:
+                    print(f"[RAG] ❌ FAISS index is not trained")
+                    raise ValueError("FAISS index is not trained")
+                
+                print(f"[RAG] 🔍 Final embedding for FAISS: shape={query_embedding.shape}, dtype={query_embedding.dtype}, contiguous={query_embedding.flags.c_contiguous}")
+                
                 distances, indices = self.index.search(query_embedding, k)
                 print(f"[RAG] ✅ FAISS search completed successfully")
             except Exception as e:
                 print(f"[RAG] ❌ FAISS search failed: {e}")
                 print(f"[RAG] 🔍 Query embedding details: shape={query_embedding.shape}, dtype={query_embedding.dtype}")
                 print(f"[RAG] 🔍 Index details: type={type(self.index)}, trained={self.index.is_trained}")
+                print(f"[RAG] 🔍 Index dimension: {self.index.d}")
+                print(f"[RAG] 🔍 Query dimension: {query_embedding.shape[1] if len(query_embedding.shape) > 1 else query_embedding.shape[0]}")
+                
                 # Try to reinitialize the index if it seems corrupted
                 try:
                     print(f"[RAG] 🔧 Attempting to reload FAISS index...")
