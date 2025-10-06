@@ -162,6 +162,12 @@ def listen():
         play_welcome_prompt(stream)
 
         while True:
+            # Check for shutdown request
+            from state import should_shutdown
+            if should_shutdown():
+                print("[Listener] 🛑 Shutdown requested - stopping microphone")
+                break
+                
             if is_playing():
                 print("[Listener] ⏸️ Pausing mic during playback")
                 stream.stop()

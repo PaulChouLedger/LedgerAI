@@ -348,13 +348,16 @@ class AuraGUI(QMainWindow):
         # Use sigmoid-like function for more natural transitions
         smoothed_intensity = 1 / (1 + math.exp(-6 * (combined_intensity - 0.5)))
         
-        # Calculate final opacity with more visible range
-        base_opacity = 0.3  # Lower base for more dramatic effect
-        variation_range = 0.5  # Larger variation range
-        self.opacity = base_opacity + smoothed_intensity * variation_range  # 0.3 to 0.8 range
+        # Calculate final opacity with more dramatic range for TTS
+        base_opacity = 0.2  # Even lower base for more dramatic effect
+        variation_range = 0.7  # Much larger variation range
+        self.opacity = base_opacity + smoothed_intensity * variation_range  # 0.2 to 0.9 range
         
-        # Set opacity through widget style (no scaling to prevent position drift)
+        # Set opacity through widget style with more dramatic changes
         self.label.setStyleSheet(f"opacity: {self.opacity};")
+        
+        # Also try setting the widget opacity directly
+        self.label.setWindowOpacity(self.opacity)
         
         # Debug: Print TTS animation values
         if hasattr(self, '_debug_counter'):
@@ -458,6 +461,13 @@ class AuraGUI(QMainWindow):
                 self.label.setPixmap(self._original_pixmap)
         except Exception as e:
             pass
+    
+    def closeEvent(self, event):
+        """Handle application close event"""
+        print("[AuraGUI] 🚪 Close event triggered - requesting shutdown")
+        from state import request_shutdown
+        request_shutdown()
+        event.accept()
     
     def keyPressEvent(self, event):
         """Handle keyboard shortcuts"""

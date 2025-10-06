@@ -421,6 +421,20 @@ def start_services():
 # === Main Entrypoint ===
 def main():
     print("[Aura] 🌀 Launching Aura GUI...")
+    
+    # Set up signal handlers for graceful shutdown
+    import signal
+    def signal_handler(signum, frame):
+        print(f"\n[Aura] ⛔ Received signal {signum} - requesting shutdown")
+        from state import request_shutdown
+        request_shutdown()
+        from aura_gui import close_gui
+        close_gui()
+        sys.exit(0)
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
     warm_up_tts()
     threading.Thread(target=start_services, daemon=True).start()
     launch_gui()
