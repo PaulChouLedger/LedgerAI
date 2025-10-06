@@ -4,15 +4,12 @@ FROM faiss_lite:r36.4.tegra-aarch64-cu126-22.04
 WORKDIR /app
 
 
-# Install dependencies with specific versions for compatibility
+# Install only missing dependencies
 RUN pip install --no-cache-dir --ignore-installed \
     flask \
     flask-cors \
     requests \
-    sentence-transformers==2.2.2 \
-    torch==2.0.1 \
-    transformers==4.30.2 \
-    numpy==1.24.3
+    sentence-transformers
 
 # Copy RAG service and module
 COPY container_rest.py /app/
