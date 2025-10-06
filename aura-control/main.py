@@ -411,8 +411,9 @@ def start_services():
     print("[Aura] 🎙️ Starting listener...")
     threading.Thread(target=listen, daemon=True).start()
     
-    # Step 8: Set GUI to fixed mode (listener ready)
-    from aura_gui import set_listening_ready
+    # Step 8: Mark setup as complete and set GUI to fixed mode (listener ready)
+    from aura_gui import set_listening_ready, set_setup_complete
+    set_setup_complete()
     set_listening_ready()
     
     print("[Aura] ✅ Core services started successfully!")

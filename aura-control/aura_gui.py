@@ -14,6 +14,7 @@ _gui_ready = False
 _listening_ready = False  # Tracks when system is ready to transcribe
 _transcribing = False  # Tracks when user is speaking (transcription active)
 _tts_playing = False  # Tracks when TTS is playing (AI speaking)
+_setup_complete = False  # Tracks when initial setup is complete
 _tts_frequency = 0.15  # Current TTS frequency for pulsation speed
 
 # Debug: Print initial state
@@ -64,7 +65,7 @@ class AuraGUI(QMainWindow):
         self.border_widget.setStyleSheet("""
             QLabel {
                 background-color: transparent;
-                border: 5px solid #ff0000;
+                border: 5px solid rgba(180, 0, 0, 0.7);
                 border-radius: 540px;
             }
         """)
@@ -225,21 +226,26 @@ class AuraGUI(QMainWindow):
         self.border_widget.show()
 
     def animate_pulse(self):
-        global _listening_ready, _transcribing, _tts_playing, _tts_frequency
+        global _listening_ready, _transcribing, _tts_playing, _tts_frequency, _setup_complete
         
         # Debug output removed for cleaner console
         
-        # State 1: System not ready - gentle, meditative aura eye
-        if not _listening_ready:
+        # State 1: Initial setup - gentle, meditative aura eye
+        if not _setup_complete:
+            self._animate_aura_eye_setup()
+            self.border_widget.hide()  # Hide border during setup
+            
+        # State 2: Setup complete but not ready - gentle, meditative aura eye
+        elif _setup_complete and not _listening_ready:
             self._animate_aura_eye_idle()
             self.border_widget.hide()  # Hide border in initial state
             
-        # State 2: System ready, fixed mode - subtle aura eye
+        # State 3: System ready, fixed mode - subtle aura eye
         elif _listening_ready and not _transcribing and not _tts_playing:
             self._animate_aura_eye_idle()  # Gentle breathing animation
             self.border_widget.hide()  # Hide border completely
             
-        # State 3: User speaking (transcription) - red edge pulsation matching user's speech frequency
+        # State 4: User speaking (transcription) - red edge pulsation matching user's speech frequency
         elif _transcribing:
             self.label.setStyleSheet("opacity: 1.0;")
             
@@ -276,7 +282,7 @@ class AuraGUI(QMainWindow):
             print(f"[GUI] 🔴 Border: freq={speech_freq:.3f}, width={self.border_width}px, intensity={pulse_intensity:.3f}")
             self._update_border_style(pulsating=True, width=self.border_width)
             
-        # State 4: TTS playing - sophisticated aura eye pulsation
+        # State 5: TTS playing - sophisticated aura eye pulsation
         elif _tts_playing:
             self._animate_aura_eye_tts(_tts_frequency)
             self.border_widget.hide()  # Hide border during TTS
@@ -288,7 +294,7 @@ class AuraGUI(QMainWindow):
             self.border_widget.setStyleSheet(f"""
                 QLabel {{
                     background-color: transparent;
-                    border: {width}px solid #ff0000;
+                    border: {width}px solid rgba(180, 0, 0, 0.7);
                     border-radius: 540px;
                 }}
             """)
@@ -350,14 +356,14 @@ class AuraGUI(QMainWindow):
         # Set opacity through widget style (no scaling to prevent position drift)
         self.label.setStyleSheet(f"opacity: {self.opacity};")
         
-        # Debug: Print opacity values occasionally
+        # Debug: Print TTS animation values
         if hasattr(self, '_debug_counter'):
             self._debug_counter += 1
         else:
             self._debug_counter = 0
             
-        if self._debug_counter % 100 == 0:  # Print every 5 seconds
-            print(f"[GUI] 👁️ Aura Eye Setup: opacity={self.opacity:.3f}, breathing={breathing_intensity:.3f}, glow={glow_intensity:.3f}")
+        if self._debug_counter % 20 == 0:  # Print every second during TTS
+            print(f"[GUI] 👁️ Aura Eye TTS: opacity={self.opacity:.3f}, breathing={breathing_intensity:.3f}, heartbeat={heartbeat_intensity:.3f}")
         
         # Dynamic glow effect that responds to TTS
         glow_intensity = (heartbeat_intensity + breathing_intensity) / 2
@@ -370,6 +376,43 @@ class AuraGUI(QMainWindow):
         self.glow_effect.setBlurRadius(int(glow_radius))
         
         # Debug output removed for cleaner console
+    
+    def _animate_aura_eye_setup(self):
+        """Gentle, meditative aura eye animation during initial setup"""
+        # Very slow, peaceful breathing during setup
+        self.aura_breathing_phase += 0.02
+        breathing_intensity = (math.sin(self.aura_breathing_phase) + 1) / 2
+        
+        # Subtle glow during setup
+        self.aura_glow_phase += 0.015
+        glow_intensity = (math.sin(self.aura_glow_phase) + 1) / 2
+        
+        # Combine with gentle weighting
+        combined_intensity = breathing_intensity * 0.8 + glow_intensity * 0.2
+        
+        # Setup opacity range - more visible than idle
+        self.opacity = 0.3 + combined_intensity * 0.5  # 0.3 to 0.8 range
+        
+        # Set opacity through widget style
+        self.label.setStyleSheet(f"opacity: {self.opacity};")
+        
+        # Debug: Print setup animation values
+        if hasattr(self, '_debug_counter'):
+            self._debug_counter += 1
+        else:
+            self._debug_counter = 0
+            
+        if self._debug_counter % 100 == 0:  # Print every 5 seconds
+            print(f"[GUI] 👁️ Aura Eye Setup: opacity={self.opacity:.3f}, breathing={breathing_intensity:.3f}, glow={glow_intensity:.3f}")
+        
+        # Gentle glow effect for setup state
+        glow_alpha = int(40 + combined_intensity * 50)  # 40-90 alpha
+        glow_color = QColor(0, 100, 255, glow_alpha)
+        self.glow_effect.setColor(glow_color)
+        
+        # Subtle glow radius
+        glow_radius = 12 + combined_intensity * 15  # 12-27 radius
+        self.glow_effect.setBlurRadius(int(glow_radius))
     
     def _animate_aura_eye_idle(self):
         """Gentle, meditative aura eye animation when idle"""
@@ -485,3 +528,9 @@ def set_tts_frequency(frequency_speed):
     global _tts_frequency
     _tts_frequency = frequency_speed
     print(f"[AuraGUI] 🎵 TTS frequency updated: {frequency_speed:.3f}")
+
+def set_setup_complete():
+    """Mark initial setup as complete"""
+    global _setup_complete
+    _setup_complete = True
+    print("[AuraGUI] ✅ Setup complete - switching to idle mode")
