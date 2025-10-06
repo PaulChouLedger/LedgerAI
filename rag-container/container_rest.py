@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Aura RAG Container REST API
-Dedicated container for RAG functionality with FAISS and sentence transformers
+Aura Communication Container REST API
+Minimal container for communication between services
 """
 
 import os
@@ -11,12 +11,7 @@ import json
 import logging
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import numpy as np
-
-# Add current directory to path
-sys.path.append('/app')
-
-from rag import AuraRAG
+import requests
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -26,28 +21,24 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
-# Global RAG instance
-rag_system = None
+# Service configuration
+SERVICE_NAME = "aura-communication"
+LLM_SERVICE_URL = "http://localhost:11434"  # LLM container
+WHISPER_SERVICE_URL = "http://localhost:11436"  # Whisper container
 
-def initialize_rag():
-    """Initialize RAG system"""
-    global rag_system
+# Configuration parameters
+RAG_THRESHOLD = float(os.environ.get('RAG_THRESHOLD', '0.3'))
+TOP_K = int(os.environ.get('TOP_K', '3'))
+
+def initialize_service():
+    """Initialize communication service"""
     try:
-        print("[RAG Container] 🚀 Starting Aura RAG Container...")
-        
-        # Initialize RAG system
-        rag_system = AuraRAG(
-            index_path="data/embeddings/index.faiss",
-            chunks_path="data/embeddings/doc_chunks.npy",
-            model_name="all-MiniLM-L6-v2",
-            relevance_threshold=0.3
-        )
-        
-        print("[RAG Container] ✅ RAG system initialized successfully")
+        print(f"[{SERVICE_NAME}] 🚀 Starting Aura Communication Service...")
+        print(f"[{SERVICE_NAME}] ✅ Communication service ready")
         return True
         
     except Exception as e:
-        print(f"[RAG Container] ❌ Failed to initialize RAG: {e}")
+        print(f"[{SERVICE_NAME}] ❌ Failed to initialize service: {e}")
         return False
 
 @app.route('/health', methods=['GET'])
@@ -55,149 +46,100 @@ def health_check():
     """Health check endpoint"""
     return jsonify({
         'status': 'healthy',
-        'service': 'aura-rag',
+        'service': SERVICE_NAME,
         'timestamp': time.time()
     })
 
-@app.route('/rag/stats', methods=['GET'])
-def get_rag_stats():
-    """Get RAG system statistics"""
+@app.route('/services/status', methods=['GET'])
+def get_services_status():
+    """Check status of all services"""
     try:
-        if rag_system is None:
-            return jsonify({
-                'status': 'not_ready',
-                'health_score': 0,
-                'chunks_loaded': 0,
-                'index_loaded': False,
-                'encoder_loaded': False
-            })
+        services_status = {}
         
-        stats = rag_system.get_health_status()
-        return jsonify(stats)
+        # Check LLM service
+        try:
+            response = requests.get(f"{LLM_SERVICE_URL}/health", timeout=5)
+            services_status['llm'] = response.json() if response.status_code == 200 else {'status': 'error'}
+        except:
+            services_status['llm'] = {'status': 'unavailable'}
         
-    except Exception as e:
-        logger.error(f"Error getting RAG stats: {e}")
-        return jsonify({
-            'status': 'error',
-            'error': str(e),
-            'health_score': 0,
-            'chunks_loaded': 0
-        }), 500
-
-@app.route('/rag/search', methods=['POST'])
-def search_documents():
-    """Search documents using RAG"""
-    try:
-        if rag_system is None:
-            return jsonify({
-                'error': 'RAG system not initialized',
-                'results': []
-            }), 503
-        
-        data = request.get_json()
-        query = data.get('query', '')
-        top_k = data.get('top_k', 5)
-        
-        if not query:
-            return jsonify({
-                'error': 'Query is required',
-                'results': []
-            }), 400
-        
-        # Perform search
-        results = rag_system.search(query, top_k=top_k)
+        # Check Whisper service
+        try:
+            response = requests.get(f"{WHISPER_SERVICE_URL}/health", timeout=5)
+            services_status['whisper'] = response.json() if response.status_code == 200 else {'status': 'error'}
+        except:
+            services_status['whisper'] = {'status': 'unavailable'}
         
         return jsonify({
-            'query': query,
-            'results': results,
-            'count': len(results)
+            'status': 'success',
+            'services': services_status
         })
         
     except Exception as e:
-        logger.error(f"Error searching documents: {e}")
-        return jsonify({
-            'error': str(e),
-            'results': []
-        }), 500
+        logger.error(f"Error checking services: {e}")
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/rag/encode', methods=['POST'])
-def encode_text():
-    """Encode text using sentence transformer"""
+@app.route('/proxy/llm', methods=['POST'])
+def proxy_llm():
+    """Proxy requests to LLM service"""
     try:
-        if rag_system is None or rag_system.encoder is None:
-            return jsonify({
-                'error': 'Sentence transformer not available',
-                'embedding': []
-            }), 503
-        
         data = request.get_json()
-        text = data.get('text', '')
-        
-        if not text:
-            return jsonify({
-                'error': 'Text is required',
-                'embedding': []
-            }), 400
-        
-        # Encode text
-        embedding = rag_system.encoder.encode([text])
-        
-        return jsonify({
-            'text': text,
-            'embedding': embedding[0].tolist(),
-            'dimension': len(embedding[0])
-        })
-        
+        response = requests.post(f"{LLM_SERVICE_URL}/generate", json=data, timeout=30)
+        return jsonify(response.json()), response.status_code
     except Exception as e:
-        logger.error(f"Error encoding text: {e}")
-        return jsonify({
-            'error': str(e),
-            'embedding': []
-        }), 500
+        logger.error(f"Error proxying to LLM: {e}")
+        return jsonify({'error': str(e)}), 500
 
-@app.route('/rag/reload', methods=['POST'])
-def reload_rag():
-    """Reload RAG system"""
+@app.route('/proxy/whisper', methods=['POST'])
+def proxy_whisper():
+    """Proxy requests to Whisper service"""
     try:
-        global rag_system
-        rag_system = None
+        data = request.get_json()
+        response = requests.post(f"{WHISPER_SERVICE_URL}/transcribe", json=data, timeout=30)
+        return jsonify(response.json()), response.status_code
+    except Exception as e:
+        logger.error(f"Error proxying to Whisper: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/config/threshold', methods=['GET'])
+def get_threshold():
+    """Get current RAG threshold"""
+    return jsonify({
+        'threshold': RAG_THRESHOLD,
+        'top_k': TOP_K
+    })
+
+@app.route('/config/threshold', methods=['POST'])
+def set_threshold():
+    """Set RAG threshold"""
+    try:
+        data = request.get_json()
+        new_threshold = data.get('threshold')
+        new_top_k = data.get('top_k')
         
-        # Reinitialize
-        success = initialize_rag()
-        
-        if success:
-            return jsonify({
-                'status': 'success',
-                'message': 'RAG system reloaded'
-            })
-        else:
-            return jsonify({
-                'status': 'error',
-                'message': 'Failed to reload RAG system'
-            }), 500
+        if new_threshold is not None:
+            global RAG_THRESHOLD
+            RAG_THRESHOLD = float(new_threshold)
             
-    except Exception as e:
-        logger.error(f"Error reloading RAG: {e}")
+        if new_top_k is not None:
+            global TOP_K
+            TOP_K = int(new_top_k)
+            
         return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
+            'threshold': RAG_THRESHOLD,
+            'top_k': TOP_K,
+            'message': 'Configuration updated'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error setting threshold: {e}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    print("[RAG Container] 🚀 Starting Aura RAG Container...")
-    
-    # Initialize RAG system
-    if initialize_rag():
-        print("[RAG Container] ✅ RAG system ready")
-        print("[RAG Container] 🌐 Starting REST API on port 11435...")
-        
-        # Start Flask app
-        app.run(
-            host='0.0.0.0',
-            port=11435,
-            debug=False,
-            threaded=True
-        )
+    # Initialize service
+    if initialize_service():
+        print(f"[{SERVICE_NAME}] 🚀 Starting server on port 11435...")
+        app.run(host='0.0.0.0', port=11435, debug=False)
     else:
-        print("[RAG Container] ❌ Failed to initialize RAG system")
+        print(f"[{SERVICE_NAME}] ❌ Failed to initialize service")
         sys.exit(1)
