@@ -1,14 +1,16 @@
-FROM faiss:r36.4.tegra-aarch64-cu126-22.04
+FROM faiss_lite:r36.4.tegra-aarch64-cu126-22.04
 
 # Set working directory
 WORKDIR /app
 
-# Install only essential packages for container communication
+# Check what's already installed
+RUN pip list | grep -E "(sentence|transformers|faiss|numpy|torch)"
+
+# Install only missing dependencies
 RUN pip install --no-cache-dir --ignore-installed \
     flask \
     flask-cors \
-    requests \
-    sentence-transformers==2.2.0
+    requests
 
 # Copy RAG service and module
 COPY container_rest.py /app/
