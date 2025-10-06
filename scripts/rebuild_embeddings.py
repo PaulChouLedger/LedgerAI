@@ -47,12 +47,12 @@ def rebuild_embeddings():
         os.environ['TRANSFORMERS_OFFLINE'] = '1'
         
         # Use the local model path directly
-        encoder = SentenceTransformer(local_model_path, device='cpu')
+        encoder = SentenceTransformer(local_model_path, device='cuda')
         print(f"✅ Loaded local model: {local_model_path}")
     else:
         # Fallback to standard model
         model_name = "all-MiniLM-L6-v2"
-        encoder = SentenceTransformer(model_name, device='cpu')
+        encoder = SentenceTransformer(model_name, device='cuda')
         print(f"✅ Loaded model: {model_name}")
     
     # Read all parsed text
