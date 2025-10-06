@@ -36,7 +36,7 @@ def rebuild_embeddings():
     print("🧠 Loading sentence transformer model...")
     
     # Use local model directory directly
-    local_model_path = "rag-container/models--sentence-transformers--all-MiniLM-L6-v2"
+    local_model_path = "rag-container/models--sentence-transformers--all-MiniLM-L6-v2/snapshots/c9745ed1d9f207416be6d2e6f8de32d1f16199bf"
     if os.path.exists(local_model_path):
         print(f"📁 Using local model: {local_model_path}")
         
