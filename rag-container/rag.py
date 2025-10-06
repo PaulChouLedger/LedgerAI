@@ -148,16 +148,18 @@ class AuraRAG:
             
             # CRITICAL: Create a completely independent numpy array for FAISS
             # FAISS requires arrays that own their data (OWNDATA=True)
-            query_embedding = np.array(query_embedding, dtype=np.float32, copy=True)
             
-            # Reshape to 2D if needed (FAISS expects 2D arrays)
+            # Create a completely new array from scratch
             if len(query_embedding.shape) == 1:
-                query_embedding = query_embedding.reshape(1, -1)
+                # For 1D arrays, create new 2D array
+                query_embedding = np.array([query_embedding], dtype=np.float32)
+            else:
+                # For 2D arrays, copy with explicit copy
+                query_embedding = query_embedding.astype(np.float32).copy()
             
-            # Ensure contiguous memory layout for FAISS
-            query_embedding = np.ascontiguousarray(query_embedding)
-            
+            # Final verification
             print(f"[RAG] 🔍 Final array properties - OWNDATA: {query_embedding.flags.owndata}, base: {query_embedding.base is None}")
+            print(f"[RAG] 🔍 Final array shape: {query_embedding.shape}, dtype: {query_embedding.dtype}")
             
             # Validate embedding before FAISS search
             if not isinstance(query_embedding, np.ndarray):
