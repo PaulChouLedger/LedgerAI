@@ -347,14 +347,8 @@ class AuraGUI(QMainWindow):
         variation_range = self.aura_intensity_variation
         self.opacity = base_opacity + smoothed_intensity * variation_range
         
-        # Apply subtle scaling effect for more dynamic appearance
-        scale_factor = 1.0 + (smoothed_intensity - 0.5) * 0.1  # ±5% scaling
-        
-        # Set opacity through widget style
+        # Set opacity through widget style (no scaling to prevent position drift)
         self.label.setStyleSheet(f"opacity: {self.opacity};")
-        
-        # Apply scaling using pixmap resizing
-        self._apply_scaling(scale_factor)
         
         # Debug output removed for cleaner console
         
@@ -405,26 +399,18 @@ class AuraGUI(QMainWindow):
         self.glow_effect.setBlurRadius(int(glow_radius))
     
     def _apply_scaling(self, scale_factor):
-        """Apply scaling to the aura eye using pixmap resizing"""
+        """Apply scaling to the aura eye using CSS transform"""
         try:
-            # Store original pixmap if not already stored
-            if not hasattr(self, '_original_pixmap'):
-                self._original_pixmap = self.label.pixmap()
+            # Clamp scale factor to prevent extreme scaling
+            scale_factor = max(0.9, min(scale_factor, 1.1))  # Limit to ±10%
             
-            if self._original_pixmap:
-                # Calculate new size from original pixmap (not current)
-                original_size = self._original_pixmap.size()
-                new_size = original_size * scale_factor
-                
-                # Scale the original pixmap (not the already scaled one)
-                scaled_pixmap = self._original_pixmap.scaled(
-                    new_size, 
-                    Qt.KeepAspectRatio, 
-                    Qt.SmoothTransformation
-                )
-                
-                # Set the scaled pixmap
-                self.label.setPixmap(scaled_pixmap)
+            # Use CSS transform which works on QLabel
+            self.label.setStyleSheet(f"""
+                QLabel {{
+                    transform: scale({scale_factor});
+                    transform-origin: center;
+                }}
+            """)
         except Exception as e:
             # If scaling fails, just continue without it
             pass
