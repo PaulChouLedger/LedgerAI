@@ -143,33 +143,14 @@ def rag_init():
     """Initialize RAG system"""
     try:
         print(f"[{SERVICE_NAME}] 🔍 RAG init requested")
-        # Initialize RAG system with timeout handling
-        import signal
-        
-        def timeout_handler(signum, frame):
-            raise TimeoutError("RAG initialization timeout")
-        
-        # Set timeout for initialization
-        signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(60)  # 60 second timeout
-        
-        try:
-            rag = get_rag()
-            stats = rag.get_stats()
-            signal.alarm(0)  # Cancel timeout
-            return jsonify({
-                'status': 'success',
-                'message': 'RAG system initialized',
-                'stats': stats
-            })
-        except TimeoutError:
-            signal.alarm(0)
-            logger.error("RAG initialization timed out")
-            return jsonify({'error': 'Initialization timeout'}), 500
-        except Exception as e:
-            signal.alarm(0)
-            raise e
-            
+        # Initialize RAG system
+        rag = get_rag()
+        stats = rag.get_stats()
+        return jsonify({
+            'status': 'success',
+            'message': 'RAG system initialized',
+            'stats': stats
+        })
     except Exception as e:
         logger.error(f"Error initializing RAG: {e}")
         return jsonify({'error': str(e)}), 500
@@ -201,32 +182,15 @@ def rag_search():
         if not query:
             return jsonify({'error': 'Query is required'}), 400
         
-        # Use actual RAG functionality with timeout handling
-        import signal
+        # Use actual RAG functionality
+        rag = get_rag()
+        results = rag.search(query, k)
         
-        def timeout_handler(signum, frame):
-            raise TimeoutError("RAG search timeout")
-        
-        signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(30)  # 30 second timeout for search
-        
-        try:
-            rag = get_rag()
-            results = rag.search(query, k)
-            signal.alarm(0)  # Cancel timeout
-            
-            return jsonify({
-                'query': query,
-                'results': results,
-                'count': len(results)
-            })
-        except TimeoutError:
-            signal.alarm(0)
-            logger.error("RAG search timed out")
-            return jsonify({'error': 'Search timeout'}), 500
-        except Exception as e:
-            signal.alarm(0)
-            raise e
+        return jsonify({
+            'query': query,
+            'results': results,
+            'count': len(results)
+        })
         
     except Exception as e:
         logger.error(f"Error in RAG search: {e}")
