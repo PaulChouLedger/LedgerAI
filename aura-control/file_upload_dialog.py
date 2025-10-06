@@ -374,19 +374,32 @@ class FileUploadDialog(QDialog):
         self.upload_btn = QPushButton("📤 Upload Files")
         self.upload_btn.setEnabled(False)  # Disabled until files are selected
         self.upload_btn.clicked.connect(self.upload_files)
+        
+        # Add drop shadow effect to make button more prominent
+        from PyQt5.QtWidgets import QGraphicsDropShadowEffect
+        from PyQt5.QtGui import QColor
+        shadow_effect = QGraphicsDropShadowEffect()
+        shadow_effect.setBlurRadius(10)
+        shadow_effect.setColor(QColor(0, 0, 0, 100))
+        shadow_effect.setOffset(0, 3)
+        self.upload_btn.setGraphicsEffect(shadow_effect)
+        
         self.upload_btn.setStyleSheet("""
             QPushButton {
-                background-color: #007AFF;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #007AFF, stop:0.3 #0056CC, stop:0.7 #004499, stop:1 #003366);
                 color: white;
-                font-size: 14px;
-                font-weight: 600;
-                padding: 12px 24px;
-                border-radius: 20px;
-                border: none;
-                min-width: 80px;
+                font-size: 16px;
+                font-weight: 700;
+                padding: 15px 30px;
+                border-radius: 25px;
+                border: 2px solid #ffffff;
+                min-width: 120px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
             }
             QPushButton:hover {
-                background-color: #0056CC;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #0056CC, stop:0.3 #004499, stop:0.7 #003366, stop:1 #002244);
             }
             QPushButton:pressed {
                 background-color: #004499;

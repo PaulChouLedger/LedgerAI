@@ -305,13 +305,14 @@ class AuraGUI(QMainWindow):
             # Create pulsation that matches speech characteristics
             pulse_intensity = (math.sin(self.border_pulse_phase) + 1) / 2
             
-            # Width changes based on speech frequency (higher freq = more dramatic changes)
-            base_width = 5 + speech_freq * 3  # 5-8px base
-            variation_width = 8 + speech_freq * 12  # 8-20px variation
+            # Consistent width calculation for all transcriptions
+            base_width = 5  # Fixed base width
+            variation_width = 3  # Fixed variation
             self.border_width = int(base_width + pulse_intensity * variation_width)
             
-            # Ensure minimum visible width
-            self.border_width = max(self.border_width, 3)
+            # Ensure consistent minimum and maximum width
+            self.border_width = max(self.border_width, 5)
+            self.border_width = min(self.border_width, 8)
             
             print(f"[GUI] 🔴 Border: freq={speech_freq:.3f}, width={self.border_width}px, intensity={pulse_intensity:.3f}")
             self._update_border_style(pulsating=True, width=self.border_width)

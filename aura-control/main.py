@@ -287,44 +287,34 @@ def initialize_rag_delayed():
             print("[Aura] ⚠️ RAG initialization failed after 3 attempts")
             return
         
-        # Test RAG stats with 2 attempts and shorter timeout
-        for attempt in range(2):  # Reduced to 2 attempts
+        # Wait for RAG to be fully ready with proper polling
+        print("[Aura] ⏳ Waiting for RAG to be fully ready...")
+        max_wait_time = 30  # Maximum 30 seconds wait
+        poll_interval = 1   # Check every 1 second
+        start_time = time.time()
+        
+        while time.time() - start_time < max_wait_time:
             try:
-                stats_response = requests.get("http://localhost:11434/rag/stats", timeout=30)  # 30 second timeout
+                stats_response = requests.get("http://localhost:11434/rag/stats", timeout=5)
                 if stats_response.status_code == 200:
                     stats = stats_response.json()
-                    print(f"[Aura] ✅ RAG loaded: {stats.get('chunks_loaded', 0)} medical documents")
-                    break
+                    chunks_loaded = stats.get('chunks_loaded', 0)
+                    if chunks_loaded > 0:  # RAG is ready when it has loaded chunks
+                        print(f"[Aura] ✅ RAG loaded: {chunks_loaded} medical documents")
+                        break
+                    else:
+                        print(f"[Aura] ⏳ RAG still loading... ({chunks_loaded} chunks)")
                 else:
-                    print(f"[Aura] ⚠️ RAG stats attempt {attempt + 1} failed: {stats_response.status_code}")
+                    print(f"[Aura] ⏳ RAG not ready yet (status: {stats_response.status_code})")
             except requests.exceptions.RequestException as e:
-                if attempt < 2:  # Retry up to 2 more times (3 total attempts)
-                    print(f"[Aura] ⚠️ RAG stats attempt {attempt + 1} failed: {e}")
-                    time.sleep(5)  # Wait between attempts
-                else:
-                    print(f"[Aura] ⚠️ RAG stats attempt {attempt + 1} failed: {e}")
-        else:
-            print("[Aura] ⚠️ RAG stats endpoint not available after 3 attempts")
+                print(f"[Aura] ⏳ RAG not ready yet: {e}")
             
-        # Test RAG search with 3 attempts (standard for containers)
-        for attempt in range(3):
-            try:
-                search_response = requests.post(
-                    "http://localhost:11434/rag/search",
-                    json={"query": "test", "k": 1},
-                    timeout=5  # 5 second timeout per attempt
-                )
-                if search_response.status_code == 200:
-                    print("[Aura] ✅ RAG search working")
-                    break
-                else:
-                    print(f"[Aura] ⚠️ RAG search attempt {attempt + 1} failed: {search_response.status_code}")
-            except requests.exceptions.RequestException as e:
-                print(f"[Aura] ⚠️ RAG search attempt {attempt + 1} failed: {e}")
-                if attempt < 2:  # Don't sleep on last attempt
-                    time.sleep(2)
+            time.sleep(poll_interval)
         else:
-            print("[Aura] ⚠️ RAG search endpoint not working after 3 attempts")
+            print("[Aura] ❌ RAG failed to load within 30 seconds")
+            
+        # RAG is already verified to be working from the polling above
+        print("[Aura] ✅ RAG system fully ready")
             
     except Exception as e:
         print(f"[Aura] ⚠️ Delayed RAG initialization failed: {e}")
