@@ -342,15 +342,22 @@ class AuraGUI(QMainWindow):
         # Use sigmoid-like function for more natural transitions
         smoothed_intensity = 1 / (1 + math.exp(-6 * (combined_intensity - 0.5)))
         
-        # Calculate final opacity with natural range
-        base_opacity = self.aura_intensity_base
-        variation_range = self.aura_intensity_variation
-        self.opacity = base_opacity + smoothed_intensity * variation_range
+        # Calculate final opacity with more visible range
+        base_opacity = 0.3  # Lower base for more dramatic effect
+        variation_range = 0.5  # Larger variation range
+        self.opacity = base_opacity + smoothed_intensity * variation_range  # 0.3 to 0.8 range
         
         # Set opacity through widget style (no scaling to prevent position drift)
         self.label.setStyleSheet(f"opacity: {self.opacity};")
         
-        # Debug output removed for cleaner console
+        # Debug: Print opacity values occasionally
+        if hasattr(self, '_debug_counter'):
+            self._debug_counter += 1
+        else:
+            self._debug_counter = 0
+            
+        if self._debug_counter % 100 == 0:  # Print every 5 seconds
+            print(f"[GUI] 👁️ Aura Eye Setup: opacity={self.opacity:.3f}, breathing={breathing_intensity:.3f}, glow={glow_intensity:.3f}")
         
         # Dynamic glow effect that responds to TTS
         glow_intensity = (heartbeat_intensity + breathing_intensity) / 2
@@ -377,17 +384,20 @@ class AuraGUI(QMainWindow):
         # Combine with gentle weighting
         combined_intensity = breathing_intensity * 0.7 + glow_intensity * 0.3
         
-        # Gentle opacity range
-        self.opacity = 0.4 + combined_intensity * 0.4  # 0.4 to 0.8 range
+        # More visible opacity range for setup
+        self.opacity = 0.2 + combined_intensity * 0.6  # 0.2 to 0.8 range (more dramatic)
         
-        # Very subtle scaling
-        scale_factor = 1.0 + (combined_intensity - 0.5) * 0.05  # ±2.5% scaling
-        
-        # Set opacity through widget style
+        # Set opacity through widget style (no scaling to prevent position drift)
         self.label.setStyleSheet(f"opacity: {self.opacity};")
         
-        # Apply scaling using QTransform
-        self._apply_scaling(scale_factor)
+        # Debug: Print opacity values occasionally
+        if hasattr(self, '_debug_counter'):
+            self._debug_counter += 1
+        else:
+            self._debug_counter = 0
+            
+        if self._debug_counter % 100 == 0:  # Print every 5 seconds
+            print(f"[GUI] 👁️ Aura Eye Idle: opacity={self.opacity:.3f}, breathing={breathing_intensity:.3f}, glow={glow_intensity:.3f}")
         
         # Gentle glow effect for idle state
         glow_alpha = int(30 + combined_intensity * 40)  # 30-70 alpha
@@ -397,23 +407,6 @@ class AuraGUI(QMainWindow):
         # Subtle glow radius
         glow_radius = 10 + combined_intensity * 10  # 10-20 radius
         self.glow_effect.setBlurRadius(int(glow_radius))
-    
-    def _apply_scaling(self, scale_factor):
-        """Apply scaling to the aura eye using CSS transform"""
-        try:
-            # Clamp scale factor to prevent extreme scaling
-            scale_factor = max(0.9, min(scale_factor, 1.1))  # Limit to ±10%
-            
-            # Use CSS transform which works on QLabel
-            self.label.setStyleSheet(f"""
-                QLabel {{
-                    transform: scale({scale_factor});
-                    transform-origin: center;
-                }}
-            """)
-        except Exception as e:
-            # If scaling fails, just continue without it
-            pass
     
     def _reset_aura_eye(self):
         """Reset aura eye to original size"""
