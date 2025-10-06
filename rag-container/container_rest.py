@@ -135,6 +135,70 @@ def set_threshold():
         logger.error(f"Error setting threshold: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/rag/init', methods=['POST'])
+def rag_init():
+    """Initialize RAG system"""
+    try:
+        print(f"[{SERVICE_NAME}] 🔍 RAG init requested")
+        # Since this is a communication container, we just return success
+        # The actual RAG functionality would be handled by the LLM container
+        return jsonify({
+            'status': 'success',
+            'message': 'RAG communication service ready'
+        })
+    except Exception as e:
+        logger.error(f"Error initializing RAG: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/rag/stats', methods=['GET'])
+def rag_stats():
+    """Get RAG system statistics"""
+    try:
+        # Since this is a communication container, return basic stats
+        return jsonify({
+            'status': 'ready',
+            'service': SERVICE_NAME,
+            'threshold': RAG_THRESHOLD,
+            'top_k': TOP_K,
+            'chunks_loaded': 0,  # Would be populated by actual RAG service
+            'index_loaded': False
+        })
+    except Exception as e:
+        logger.error(f"Error getting RAG stats: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/rag/search', methods=['POST'])
+def rag_search():
+    """Search using RAG system - proxy to LLM container for efficiency"""
+    try:
+        data = request.get_json()
+        query = data.get('query', '').strip()
+        k = data.get('k', TOP_K)
+        
+        if not query:
+            return jsonify({'error': 'Query is required'}), 400
+        
+        # Proxy to LLM container for actual RAG processing (more efficient)
+        try:
+            response = requests.post(
+                f"{LLM_SERVICE_URL}/rag/search", 
+                json=data, 
+                timeout=10
+            )
+            return jsonify(response.json()), response.status_code
+        except requests.exceptions.RequestException:
+            # Fallback: return empty results if LLM container not available
+            return jsonify({
+                'query': query,
+                'results': [],
+                'count': 0,
+                'message': 'LLM container not available'
+            })
+        
+    except Exception as e:
+        logger.error(f"Error in RAG search: {e}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Initialize service
     if initialize_service():

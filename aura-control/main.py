@@ -215,7 +215,7 @@ def initialize_rag_delayed():
         # Initialize RAG system
         for attempt in range(3):
             try:
-                init_response = requests.post("http://localhost:11434/rag/init", timeout=30)
+                init_response = requests.post("http://localhost:11435/rag/init", timeout=30)
                 if init_response.status_code == 200:
                     result = init_response.json()
                     if result.get("status") == "success":
@@ -236,7 +236,7 @@ def initialize_rag_delayed():
         # Test RAG stats
         for attempt in range(3):
             try:
-                stats_response = requests.get("http://localhost:11434/rag/stats", timeout=30)
+                stats_response = requests.get("http://localhost:11435/rag/stats", timeout=30)
                 if stats_response.status_code == 200:
                     stats = stats_response.json()
                     print(f"[Aura] ✅ RAG loaded: {stats.get('chunks_loaded', 0)} medical documents")
@@ -256,7 +256,7 @@ def initialize_rag_delayed():
         for attempt in range(3):
             try:
                 search_response = requests.post(
-                    "http://localhost:11434/rag/search",
+                    "http://localhost:11435/rag/search",
                     json={"query": "test", "k": 1},
                     timeout=30
                 )
