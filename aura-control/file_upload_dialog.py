@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                              QPushButton, QFileDialog, QTextEdit, QProgressBar,
                              QMessageBox, QListWidget, QListWidgetItem, QInputDialog,
                              QLineEdit, QWidget, QApplication, QGridLayout)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QPropertyAnimation, QEasingCurve
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont
 import requests
 import json
@@ -48,33 +48,10 @@ class FileUploadDialog(QDialog):
         QApplication.processEvents()  # Process events to ensure dialog is rendered
         self.center_dialog()
         
-        # Add smooth fade-in animation
-        self.setWindowOpacity(0.0)  # Start transparent
-        self.fade_in_animation = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_in_animation.setDuration(300)  # 300ms fade-in
-        self.fade_in_animation.setStartValue(0.0)
-        self.fade_in_animation.setEndValue(1.0)
-        self.fade_in_animation.setEasingCurve(QEasingCurve.OutCubic)
-        self.fade_in_animation.start()
-        
         # Debug: Print dialog dimensions and position
         print(f"[Upload] 📐 Dialog geometry: {self.geometry()}")
         print(f"[Upload] 📐 Dialog size: {self.size()}")
         print(f"[Upload] 📐 Dialog position: {self.pos()}")
-    
-    def close(self):
-        """Override close method to add smooth fade-out animation"""
-        if hasattr(self, 'fade_out_animation') and self.fade_out_animation.state() == QPropertyAnimation.Running:
-            return  # Already animating out
-        
-        print("[Upload] 🎬 Starting fade-out animation...")
-        self.fade_out_animation = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_out_animation.setDuration(200)  # 200ms fade-out
-        self.fade_out_animation.setStartValue(1.0)
-        self.fade_out_animation.setEndValue(0.0)
-        self.fade_out_animation.setEasingCurve(QEasingCurve.InCubic)
-        self.fade_out_animation.finished.connect(super().close)  # Close after animation
-        self.fade_out_animation.start()
         print("[Upload] 👁️ Dialog should now be visible with transparent background")
         
         # Add interactive touch coordinates for debugging
@@ -232,18 +209,10 @@ class FileUploadDialog(QDialog):
         
         # Add edge buttons for future functions - will be added after layout is set
         
-        # Create layout for circular content - centered within red edge
-        # CENTERING PATTERN FOR ALL GUI COMPONENTS:
-        # 1. Equal margins (110px) for perfect circular centering
-        # 2. Top stretch spacer to push content to center
-        # 3. All components added in middle section
-        # 4. Bottom stretch spacer to complete centering
+        # Create layout for circular content
         self.content_layout = QVBoxLayout()
-        self.content_layout.setContentsMargins(110, 110, 110, 110)  # Equal margins for perfect centering
-        self.content_layout.setSpacing(20)  # Reduced spacing for better centering
-        
-        # Add top spacer to push content to center
-        self.content_layout.addStretch()
+        self.content_layout.setContentsMargins(110, 110, 110, 110)  # 10% bigger margins (100 * 1.1 = 110)
+        self.content_layout.setSpacing(28)  # 10% bigger spacing (25 * 1.1 = 27.5, rounded to 28)
         
         # Title centered (no close button)
         title_layout = QHBoxLayout()
@@ -262,6 +231,12 @@ class FileUploadDialog(QDialog):
         title_layout.addStretch()
         
         self.content_layout.addLayout(title_layout)
+        
+        # Description - more compact
+        desc = QLabel("Upload docs to data/input - auto-ingest processes them")
+        desc.setAlignment(Qt.AlignCenter)
+        desc.setStyleSheet("color: #8e8e93; font-size: 11px; margin: 5px;")
+        self.content_layout.addWidget(desc)
         
         # File selection area - optimized for circular screen
         file_layout = QHBoxLayout()
@@ -374,32 +349,19 @@ class FileUploadDialog(QDialog):
         self.upload_btn = QPushButton("📤 Upload Files")
         self.upload_btn.setEnabled(False)  # Disabled until files are selected
         self.upload_btn.clicked.connect(self.upload_files)
-        
-        # Add drop shadow effect to make button more prominent
-        from PyQt5.QtWidgets import QGraphicsDropShadowEffect
-        from PyQt5.QtGui import QColor
-        shadow_effect = QGraphicsDropShadowEffect()
-        shadow_effect.setBlurRadius(10)
-        shadow_effect.setColor(QColor(0, 0, 0, 100))
-        shadow_effect.setOffset(0, 3)
-        self.upload_btn.setGraphicsEffect(shadow_effect)
-        
         self.upload_btn.setStyleSheet("""
             QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #007AFF, stop:0.3 #0056CC, stop:0.7 #004499, stop:1 #003366);
+                background-color: #007AFF;
                 color: white;
-                font-size: 16px;
-                font-weight: 700;
-                padding: 15px 30px;
-                border-radius: 25px;
-                border: 2px solid #ffffff;
-                min-width: 120px;
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
+                border: none;
+                min-width: 80px;
             }
             QPushButton:hover {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #0056CC, stop:0.3 #004499, stop:0.7 #003366, stop:1 #002244);
+                background-color: #0056CC;
             }
             QPushButton:pressed {
                 background-color: #004499;
@@ -436,17 +398,10 @@ class FileUploadDialog(QDialog):
         button_layout.addWidget(self.close_btn)
         self.content_layout.addLayout(button_layout)
         
-        # Add bottom spacer to complete centering
-        self.content_layout.addStretch()
-        
         print(f"[Upload] 🔴 Red border should show circular screen boundaries")
         
         # Set layout to content widget
         content_widget.setLayout(self.content_layout)
-        
-        # Ensure content widget is visible and properly initialized
-        content_widget.setVisible(True)
-        content_widget.show()
         
         # Set main layout to dialog
         self.setLayout(main_layout)
@@ -664,13 +619,9 @@ class FileUploadDialog(QDialog):
                     }
                 """)
                 
-                # Apply centering pattern for QR dialog within red edge
                 layout = QVBoxLayout()
-                layout.setContentsMargins(110, 110, 110, 110)  # Equal margins for perfect centering
+                layout.setContentsMargins(80, 80, 80, 80)  # Larger margins for full screen
                 layout.setSpacing(20)
-                
-                # Add top spacer to push content to center
-                layout.addStretch()
                 
                 # Title - compact for circular screen
                 title = QLabel("📱 Mobile Upload")
@@ -747,10 +698,6 @@ class FileUploadDialog(QDialog):
                 button_layout.addWidget(close_btn)
                 
                 layout.addLayout(button_layout)
-                
-                # Add bottom spacer to complete centering
-                layout.addStretch()
-                
                 qr_dialog.setLayout(layout)
                 
                 # Center the QR dialog using the same method as main dialog
@@ -922,9 +869,8 @@ def show_upload_dialog():
     try:
         _current_dialog = FileUploadDialog()
         print("[Upload] 📱 Dialog created, showing...")
-        # Use show() instead of exec_() for non-blocking display with smooth transitions
-        _current_dialog.show()
-        print("[Upload] ✅ Dialog shown with smooth transitions")
+        _current_dialog.exec_()
+        print("[Upload] ✅ Dialog closed")
     except Exception as e:
         print(f"[Upload] ❌ Dialog error: {e}")
     finally:

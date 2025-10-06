@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Install dependencies in correct order for CUDA compatibility
 RUN pip install --no-cache-dir --ignore-installed \
-    torch \
+    torch==2.1.0 \
     transformers \
     sentence-transformers \
     flask \

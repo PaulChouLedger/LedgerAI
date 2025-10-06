@@ -7,21 +7,19 @@ import soundfile as sf
 import sounddevice as sd
 import requests
 import subprocess
-from scipy.fft import fft, fftfreq
-# Simplified audio processing - no complex filtering
+# Removed scipy imports - using simpler filtering approach
 from speaker import speak_llm_response, is_playing
-from aura_gui import set_transcribing
 from pydub import AudioSegment
 
 # === Config ===
 SAMPLE_RATE = 16000
-FRAME_DURATION = 0.032  # Required frame duration for proper audio processing
+FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
-SILENCE_TIMEOUT = 0.2  # Faster silence detection
-VAD_CONFIDENCE_THRESHOLD = 0.3  # Lowered for more responsive detection
+SILENCE_TIMEOUT = 0.2
+VAD_CONFIDENCE_THRESHOLD = 0.6  # Increased to reduce false triggers from background noise
 
 # Gain control (reverted from transcription_tuner.py)
-MIC_GAIN = 1.5  # Reduced gain to prevent distortion
+MIC_GAIN = 2.0  # Simple gain multiplier
 MIN_SPEECH_DURATION = 0.25  # Minimum speech duration in seconds (allows "yes", "no", etc.)
 VAD_RESET_THRESHOLD = 0.15  # Lower threshold for reset
 # If VAD stays below this for too long, reset
@@ -31,9 +29,6 @@ DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
 prompt_history = []
-
-# Global variable for transcription frequency
-_transcription_frequency = 0.0
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
@@ -56,68 +51,6 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 def apply_simple_gain(signal, gain_multiplier=2.0):
     """Apply simple gain without complex normalization"""
     return np.clip(signal * gain_multiplier, -1.0, 1.0)
-
-def apply_gentle_high_pass_filter(signal, cutoff_freq=200, sample_rate=SAMPLE_RATE):
-    """Apply gentle high-pass filter to reduce low-frequency noise without affecting speech"""
-    try:
-        from scipy import signal as scipy_signal
-        # Design gentle high-pass Butterworth filter (2nd order for less aggressive filtering)
-        nyquist = sample_rate / 2
-        normal_cutoff = cutoff_freq / nyquist
-        b, a = scipy_signal.butter(2, normal_cutoff, btype='high', analog=False)
-        
-        # Apply filter using forward-backward filtering (zero-phase distortion)
-        filtered_signal = scipy_signal.filtfilt(b, a, signal)
-        print(f"[Audio] 🎛️ Applied gentle high-pass filter (cutoff: {cutoff_freq}Hz)")
-        return filtered_signal
-    except ImportError:
-        print("[Audio] ⚠️ scipy not available, skipping high-pass filter")
-        return signal
-    except Exception as e:
-        print(f"[Audio] ⚠️ High-pass filter error: {e}, using original signal")
-        return signal
-
-def calculate_dominant_frequency(audio_data, sample_rate=SAMPLE_RATE):
-    """Calculate the dominant frequency of audio data for visual feedback"""
-    global _transcription_frequency
-    try:
-        # Apply window function to reduce spectral leakage
-        windowed = audio_data * np.hanning(len(audio_data))
-        
-        # Compute FFT
-        fft_data = fft(windowed)
-        freqs = fftfreq(len(windowed), 1/sample_rate)
-        
-        # Get magnitude spectrum
-        magnitude = np.abs(fft_data)
-        
-        # Focus on human speech range (80Hz to 8000Hz)
-        speech_mask = (freqs >= 80) & (freqs <= 8000)
-        speech_freqs = freqs[speech_mask]
-        speech_magnitude = magnitude[speech_mask]
-        
-        if len(speech_freqs) > 0:
-            # Find the frequency with maximum magnitude
-            max_idx = np.argmax(speech_magnitude)
-            dominant_freq = speech_freqs[max_idx]
-            
-            # Normalize frequency to 0.1-1.0 range for visual feedback
-            normalized_freq = min(max(dominant_freq / 1000.0, 0.1), 1.0)
-            _transcription_frequency = normalized_freq
-            
-            return normalized_freq
-        else:
-            return 0.1  # Default low frequency
-    except Exception as e:
-        print(f"[Audio] ⚠️ Frequency calculation error: {e}")
-        return 0.1
-
-def get_transcription_frequency():
-    """Get the current transcription frequency for GUI"""
-    global _transcription_frequency
-    return _transcription_frequency
-
-# High-pass filter removed - using simplified audio processing
 
 
 # === Transcribe with Whisper container ===
@@ -145,7 +78,7 @@ def play_welcome_prompt(stream):
         print("[Aura] 🔊 Playing welcome prompt...")
         stream.stop()
         subprocess.run(["aplay", WELCOME_AUDIO_PATH])
-        time.sleep(0.1)  # Faster mic resume
+        time.sleep(0.25)
         stream.start()
         print("[Aura] 🎤 Mic resumed after welcome prompt")
     except Exception as e:
@@ -162,12 +95,6 @@ def listen():
         play_welcome_prompt(stream)
 
         while True:
-            # Check for shutdown request
-            from state import should_shutdown
-            if should_shutdown():
-                print("[Listener] 🛑 Shutdown requested - stopping microphone")
-                break
-                
             if is_playing():
                 print("[Listener] ⏸️ Pausing mic during playback")
                 stream.stop()
@@ -181,10 +108,8 @@ def listen():
             low_vad_count = 0  # Counter for consecutive low VAD readings
 
             # === Wait for speech ===
-            # Use sliding window approach for more responsive detection
-            vad_history = []  # Keep last few VAD readings
-            history_size = 3  # Look at last 3 frames
-            high_vad_threshold = 0.5  # Higher threshold for immediate detection
+            speech_confirmation_frames = 0  # Count consecutive high VAD frames
+            required_confirmation_frames = 3  # Require 3 consecutive high VAD frames to confirm speech
             
             while True:
                 if is_playing():
@@ -202,30 +127,21 @@ def listen():
                     if low_vad_count >= VAD_RESET_COUNT * VAD_RESET_MULTIPLIER:  # 60 consecutive low readings
                         print(f"[VAD] 🔄 Resetting VAD after {low_vad_count} consecutive low readings")
                         low_vad_count = 0
-                        time.sleep(0.05)  # Faster VAD reset
+                        time.sleep(0.1)  # Brief pause to reset VAD state
                         continue
                 else:
                     low_vad_count = 0  # Reset counter on higher VAD readings
                 
-                # Add current VAD to history
-                vad_history.append(vad_prob)
-                if len(vad_history) > history_size:
-                    vad_history.pop(0)  # Keep only last 3 readings
-                
-                # Check for speech using sliding window
-                if len(vad_history) >= history_size:
-                    # Immediate detection: single high VAD reading
-                    if vad_prob > high_vad_threshold:
-                        print(f"[VAD] 🔊 Immediate speech detected (prob={vad_prob:.2f})")
-                        set_transcribing(True)  # Start red edge pulsation
+                # Require sustained high VAD to confirm speech (not just noise)
+                if vad_prob > VAD_CONFIDENCE_THRESHOLD:
+                    speech_confirmation_frames += 1
+                    print(f"[VAD] 🔊 High VAD detected (prob={vad_prob:.2f}, confirmation={speech_confirmation_frames}/{required_confirmation_frames})")
+                    if speech_confirmation_frames >= required_confirmation_frames:
+                        print(f"[VAD] ✅ Speech confirmed after {speech_confirmation_frames} consecutive high readings")
                         buffer.append(audio_block)
                         break
-                    # Sustained detection: average of last 3 frames above threshold
-                    elif sum(vad_history) / len(vad_history) > VAD_CONFIDENCE_THRESHOLD:
-                        print(f"[VAD] 🔊 Sustained speech detected (avg={sum(vad_history)/len(vad_history):.2f})")
-                        set_transcribing(True)  # Start red edge pulsation
-                        buffer.append(audio_block)
-                        break
+                else:
+                    speech_confirmation_frames = 0  # Reset if VAD drops below threshold
                 
                 # Reduce debug output for performance
                 if vad_prob > 0.3:  # Only log significant VAD activity
@@ -247,7 +163,6 @@ def listen():
                         silence_start = time.time()
                     elif time.time() - silence_start > SILENCE_TIMEOUT:
                         print("\n⏹️ Speech ended. Processing...")
-                        set_transcribing(False)  # Stop red edge pulsation
                         break
                 else:
                     silence_start = None
@@ -259,14 +174,8 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono_mix = full_audio[:, 0]
             
-            # Audio processing pipeline for better transcription quality
-            # 1. Apply gentle high-pass filter to reduce low-frequency noise (fans, HVAC, etc.)
-            mono_mix = apply_gentle_high_pass_filter(mono_mix, cutoff_freq=200)
-            
-            # 2. Calculate dominant frequency for visual feedback
-            calculate_dominant_frequency(mono_mix)
-            
-            # 3. Apply simple gain without complex normalization
+            # Simple audio preprocessing (reverted from transcription_tuner.py)
+            # Apply simple gain without complex normalization
             mono_mix = apply_simple_gain(mono_mix, MIC_GAIN)
 
             # Check audio duration
@@ -274,7 +183,7 @@ def listen():
             if audio_duration < MIN_SPEECH_DURATION:
                 print(f"⚠️ Skipped: too short (duration: {audio_duration:.2f}s)")
                 # Reset VAD state after failed detection to prevent noise loops
-                time.sleep(0.05)  # Faster VAD reset
+                time.sleep(0.1)  # Brief pause to let VAD reset
                 continue
 
             text = transcribe(mono_mix)

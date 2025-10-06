@@ -26,87 +26,39 @@ os.environ["DISPLAY"] = ":0"
 HOST_ENV = dotenv_values(os.path.expanduser("~/LedgerAI/llm-container/.env"))
 
 # === Whisper Container Configuration ===
-# Using faster-whisper with distil-small.en
-WHISPER_IMAGE = "aura-whisper-faster:latest"
-WHISPER_CONTAINER_NAME = "aura-whisper"
-print(f"[Aura] 🎤 Whisper container: faster-whisper with distil-small.en")
+# Set WHISPER_TYPE environment variable to choose container:
+# - "faster" (default): aura-whisper-faster:latest (faster-whisper with distil-small.en)
+# - "tensorrt": aura-whisper:latest (TensorRT optimized)
+WHISPER_TYPE = os.getenv("WHISPER_TYPE", "faster").lower()
+
+# Container configurations
+WHISPER_CONFIGS = {
+    "faster": {
+        "image": "aura-whisper-faster:latest",
+        "name": "faster-whisper",
+        "description": "faster-whisper with distil-small.en"
+    },
+    "tensorrt": {
+        "image": "aura-whisper:latest", 
+        "name": "TensorRT",
+        "description": "TensorRT optimized whisper"
+    }
+}
+
+# Validate configuration
+if WHISPER_TYPE not in WHISPER_CONFIGS:
+    print(f"[Aura] ⚠️ Invalid WHISPER_TYPE '{WHISPER_TYPE}'. Using 'faster' as default.")
+    WHISPER_TYPE = "faster"
+
+whisper_config = WHISPER_CONFIGS[WHISPER_TYPE]
+print(f"[Aura] 🎤 Whisper container: {whisper_config['description']}")
 
 # === Graceful Exit on Ctrl+C ===
 def signal_handler(sig, frame):
     print("\n[Aura] ⛔ Exiting gracefully...")
-    cleanup_resources()
     sys.exit(0)
 
-def cleanup_resources():
-    """Clean up all resources before exit"""
-    print("[Aura] 🧹 Cleaning up resources...")
-    
-    # Stop and remove containers with proper cleanup
-    containers_to_cleanup = ["aura-llm", WHISPER_CONTAINER_NAME]
-    for container in containers_to_cleanup:
-        try:
-            print(f"[Aura] 🧹 Stopping container: {container}")
-            # First try graceful stop
-            subprocess.run(["docker", "stop", container], 
-                          timeout=10, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            time.sleep(2)
-            # Then force remove
-            remove_existing_container(container)
-        except Exception as e:
-            print(f"[Aura] ⚠️ Failed to cleanup container {container}: {e}")
-    
-    # Clear RAG-specific resources
-    cleanup_rag_resources()
-    
-    print("[Aura] ✅ Resource cleanup completed")
-
-def cleanup_rag_resources():
-    """Clean up RAG-specific resources"""
-    print("[Aura] 🧹 Cleaning up RAG resources...")
-    
-    try:
-        import shutil
-        
-        # Clear HuggingFace cache (sentence transformers)
-        hf_cache = os.path.expanduser("~/.cache/huggingface")
-        if os.path.exists(hf_cache):
-            print(f"[Aura] 🧹 Clearing HuggingFace cache: {hf_cache}")
-            shutil.rmtree(hf_cache, ignore_errors=True)
-        
-        # Clear sentence transformer cache
-        st_cache = os.path.expanduser("~/.cache/sentence_transformers")
-        if os.path.exists(st_cache):
-            print(f"[Aura] 🧹 Clearing sentence transformer cache: {st_cache}")
-            shutil.rmtree(st_cache, ignore_errors=True)
-        
-        # Clear local RAG cache directories
-        rag_cache_dirs = [
-            "./cache/huggingface",
-            "./cache/transformers", 
-            "./cache/sentence_transformers"
-        ]
-        
-        for cache_dir in rag_cache_dirs:
-            if os.path.exists(cache_dir):
-                print(f"[Aura] 🧹 Clearing RAG cache: {cache_dir}")
-                shutil.rmtree(cache_dir, ignore_errors=True)
-        
-        # Clear any temporary FAISS files
-        temp_faiss_files = [
-            "data/embeddings/index.faiss.tmp",
-            "data/embeddings/doc_chunks.npy.tmp"
-        ]
-        
-        for temp_file in temp_faiss_files:
-            if os.path.exists(temp_file):
-                print(f"[Aura] 🧹 Removing temp file: {temp_file}")
-                os.remove(temp_file)
-                
-    except Exception as e:
-        print(f"[Aura] ⚠️ RAG cleanup failed: {e}")
-
 signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)  # Also handle SIGTERM
 
 # === Utility: Stop and remove container if it exists ===
 def remove_existing_container(name):
@@ -131,18 +83,14 @@ def stream_container_logs(name):
 # === Health check for container via HTTP ===
 def wait_for_container(url, name, timeout=15):
     print(f"[Aura] ⏳ Waiting for {name} to respond (timeout {timeout}s)...")
-    for i in range(timeout * 10):
+    for _ in range(timeout * 10):
         try:
             response = requests.get(url, timeout=1)
             if response.status_code in (200, 404):
                 print(f"[Aura] ✅ {name} is online.")
                 return True
-            else:
-                if i % 50 == 0:  # Print every 5 seconds
-                    print(f"[Aura] 🔍 {name} responded with status {response.status_code}")
-        except requests.exceptions.RequestException as e:
-            if i % 50 == 0:  # Print every 5 seconds
-                print(f"[Aura] 🔍 {name} connection error: {e}")
+        except requests.exceptions.RequestException:
+            pass
         time.sleep(0.1)
     print(f"[Aura] ❌ Timeout waiting for {name}.")
     return False
@@ -174,15 +122,20 @@ def run_container(name, port, image, timeout=15):
             "-e", f"N_CTX={n_ctx}",
             "-v", f"{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))}:/app/data"  # Mount embeddings data
         ]
-    elif name == WHISPER_CONTAINER_NAME:
-        # Use built-in model files, no external cache mounting needed
-        pass
+    elif name == "aura-whisper":
+        # Mount whisper cache directories for faster startup
+        whisper_cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'whisper-container', 'cache'))
+        # Mount host Hugging Face cache for faster-whisper models
+        host_hf_cache = os.path.expanduser("~/.cache/huggingface")
+        cmd += [
+            "-v", f"{whisper_cache_dir}/whisper:/root/.cache/whisper",
+            "-v", f"{whisper_cache_dir}/whisper_trt:/root/.cache/whisper_trt",
+            "-v", f"{host_hf_cache}:/root/.cache/huggingface",  # Mount HF cache for faster-whisper
+            "--gpus", "all"  # Add GPU support for TensorRT
+        ]
 
 
     cmd.append(image)
-    
-    # Debug: Print the exact command being run
-    print(f"[Aura] 🔍 Container command: {' '.join(cmd)}")
 
     for attempt in range(3):
         try:
@@ -192,10 +145,14 @@ def run_container(name, port, image, timeout=15):
             print(f"[Aura] ⚠️ Container command error: {e}")
         
         # Use appropriate health check endpoint
-        if name == WHISPER_CONTAINER_NAME:
+        if name == "aura-whisper":
             health_url = f"http://localhost:{port}/health"
-            print(f"[Aura] 🔍 Health check URL: {health_url}")
-            time.sleep(15)   # Give more time for model loading
+            # Give TensorRT container extra time to initialize
+            if WHISPER_TYPE == "tensorrt":
+                print(f"[Aura] ⏳ TensorRT container needs extra initialization time...")
+                time.sleep(10)  # Extra time for TensorRT
+            else:
+                time.sleep(5)   # Standard time for faster-whisper
         else:
             health_url = f"http://localhost:{port}"
         
@@ -210,17 +167,6 @@ def run_container(name, port, image, timeout=15):
                                 capture_output=True, text=True, timeout=5)
             if result.returncode == 0 and result.stdout.strip():
                 print(f"[Aura] 🔍 Container {name} is running but not responding: {result.stdout.strip()}")
-                
-                # Try to get container logs to see what's happening
-                try:
-                    logs_result = subprocess.run(["docker", "logs", "--tail", "10", name], 
-                                              capture_output=True, text=True, timeout=5)
-                    if logs_result.returncode == 0 and logs_result.stdout.strip():
-                        print(f"[Aura] 📋 Container logs (last 10 lines):")
-                        for line in logs_result.stdout.strip().split('\n'):
-                            print(f"[Aura] 📋 {line}")
-                except Exception as log_e:
-                    print(f"[Aura] 🔍 Could not get container logs: {log_e}")
             else:
                 print(f"[Aura] 🔍 Container {name} is not running")
         except Exception as e:
@@ -266,37 +212,65 @@ def initialize_rag_delayed():
         
         print("[Aura] 🔍 Initializing RAG system...")
         
-        # RAG container should auto-initialize, just wait for it to be ready
-        print("[Aura] 🔍 Waiting for RAG container to be ready...")
-        
-        # Wait for RAG to be fully ready with proper polling
-        print("[Aura] ⏳ Waiting for RAG to be fully ready...")
-        max_wait_time = 30  # Maximum 30 seconds wait
-        poll_interval = 1   # Check every 1 second
-        start_time = time.time()
-        
-        while time.time() - start_time < max_wait_time:
+        # Initialize RAG system
+        for attempt in range(3):
             try:
-                stats_response = requests.get("http://localhost:11435/rag/stats", timeout=5)
-                if stats_response.status_code == 200:
-                    stats = stats_response.json()
-                    chunks_loaded = stats.get('chunks_loaded', 0)
-                    if chunks_loaded > 0:  # RAG is ready when it has loaded chunks
-                        print(f"[Aura] ✅ RAG loaded: {chunks_loaded} medical documents")
+                init_response = requests.post("http://localhost:11434/rag/init", timeout=30)
+                if init_response.status_code == 200:
+                    result = init_response.json()
+                    if result.get("status") == "success":
+                        print("[Aura] ✅ RAG system initialized successfully")
                         break
                     else:
-                        print(f"[Aura] ⏳ RAG still loading... ({chunks_loaded} chunks)")
+                        print(f"[Aura] ⚠️ RAG init attempt {attempt + 1} failed: {result.get('message')}")
                 else:
-                    print(f"[Aura] ⏳ RAG not ready yet (status: {stats_response.status_code})")
+                    print(f"[Aura] ⚠️ RAG init attempt {attempt + 1} failed: {init_response.status_code}")
             except requests.exceptions.RequestException as e:
-                print(f"[Aura] ⏳ RAG not ready yet: {e}")
-            
-            time.sleep(poll_interval)
+                print(f"[Aura] ⚠️ RAG init attempt {attempt + 1} failed: {e}")
+                if attempt < 2:
+                    time.sleep(5)
         else:
-            print("[Aura] ❌ RAG failed to load within 30 seconds")
+            print("[Aura] ⚠️ RAG initialization failed after 3 attempts")
+            return
+        
+        # Test RAG stats
+        for attempt in range(3):
+            try:
+                stats_response = requests.get("http://localhost:11434/rag/stats", timeout=30)
+                if stats_response.status_code == 200:
+                    stats = stats_response.json()
+                    print(f"[Aura] ✅ RAG loaded: {stats.get('chunks_loaded', 0)} medical documents")
+                    break
+                else:
+                    print(f"[Aura] ⚠️ RAG stats attempt {attempt + 1} failed: {stats_response.status_code}")
+            except requests.exceptions.RequestException as e:
+                if attempt < 2:
+                    print(f"[Aura] ⚠️ RAG stats attempt {attempt + 1} failed: {e}")
+                    time.sleep(5)  # Wait longer between attempts
+                else:
+                    print(f"[Aura] ⚠️ RAG stats attempt {attempt + 1} failed: {e}")
+        else:
+            print("[Aura] ⚠️ RAG stats endpoint not available after 3 attempts")
             
-        # RAG is already verified to be working from the polling above
-        print("[Aura] ✅ RAG system fully ready")
+        # Test RAG search
+        for attempt in range(3):
+            try:
+                search_response = requests.post(
+                    "http://localhost:11434/rag/search",
+                    json={"query": "test", "k": 1},
+                    timeout=30
+                )
+                if search_response.status_code == 200:
+                    print("[Aura] ✅ RAG search working")
+                    break
+                else:
+                    print(f"[Aura] ⚠️ RAG search attempt {attempt + 1} failed: {search_response.status_code}")
+            except requests.exceptions.RequestException as e:
+                print(f"[Aura] ⚠️ RAG search attempt {attempt + 1} failed: {e}")
+                if attempt < 2:
+                    time.sleep(2)
+        else:
+            print("[Aura] ⚠️ RAG search endpoint not working after 3 attempts")
             
     except Exception as e:
         print(f"[Aura] ⚠️ Delayed RAG initialization failed: {e}")
@@ -305,35 +279,19 @@ def warm_up_rag():
     """Legacy function - now calls delayed initialization"""
     initialize_rag_delayed()
 
-# === Startup cleanup ===
-def startup_cleanup():
-    """Clean up any leftover resources from previous runs"""
-    print("[Aura] 🧹 Performing startup cleanup...")
-    
-    # Clean up any leftover containers
-    containers_to_cleanup = ["aura-llm", "aura-whisper", "aura-whisper-faster"]
-    for container in containers_to_cleanup:
-        try:
-            remove_existing_container(container)
-        except Exception as e:
-            print(f"[Aura] ⚠️ Failed to cleanup container {container}: {e}")
-    
-    # Reset RAG state if LLM container is running
-    print("[Aura] ✅ Startup cleanup completed")
-
 # === Start services after GUI is ready ===
 def start_services():
     TIMEOUT = 10  # Reduced timeout for faster startup
     
     print("[Aura] 🚀 Starting Aura services...")
     
-    # Step 0: Cleanup any leftover resources
-    startup_cleanup()
+    # Step 1: Start Whisper container (configurable)
+    print(f"[Aura] 🎤 Starting Whisper container ({whisper_config['description']})...")
     
-    # Step 1: Start Whisper container
-    print(f"[Aura] 🎤 Starting Whisper container (faster-whisper with distil-small.en)...")
-    
-    whisper_ok = run_container(WHISPER_CONTAINER_NAME, 5000, WHISPER_IMAGE, timeout=10)
+    # Use longer timeout for TensorRT container
+    whisper_timeout = 30 if WHISPER_TYPE == "tensorrt" else 10
+    print(f"[Aura] ⏱️ Using {whisper_timeout}s timeout for {whisper_config['description']}")
+    whisper_ok = run_container("aura-whisper", 5000, whisper_config["image"], timeout=whisper_timeout)
     if not whisper_ok:
         print("[Aura] ❌ Whisper container failed. Aborting.")
         return
@@ -354,50 +312,9 @@ def start_services():
         print("[Aura] ❌ LLM warm-up failed. Aborting.")
         return
     
-    # Step 4.5: Reset RAG state now that LLM container is running
-    print("[Aura] 🔄 Resetting RAG state...")
-    try:
-        reset_response = requests.post("http://localhost:11434/rag/reset", timeout=5)
-        if reset_response.status_code == 200:
-            print("[Aura] ✅ RAG state reset")
-        else:
-            print(f"[Aura] ⚠️ RAG reset failed: {reset_response.status_code}")
-    except Exception as e:
-        print(f"[Aura] ⚠️ RAG reset failed: {e}")
-    
-    # Step 5: Initialize RAG immediately after LLM warm-up and wait for completion
+    # Step 5: Initialize RAG immediately after LLM warm-up
     print("[Aura] 🔍 Initializing RAG system...")
     initialize_rag_delayed()  # Run synchronously, not in thread
-    
-    # Wait for RAG to be fully ready before starting listener
-    print("[Aura] ⏳ Waiting for RAG to be fully ready...")
-    max_wait_time = 60  # Maximum 60 seconds wait for RAG
-    poll_interval = 2   # Check every 2 seconds
-    start_time = time.time()
-    
-    while time.time() - start_time < max_wait_time:
-        try:
-            stats_response = requests.get("http://localhost:11435/rag/stats", timeout=5)
-            if stats_response.status_code == 200:
-                stats = stats_response.json()
-                health_score = stats.get('health_score', 0)
-                chunks_loaded = stats.get('chunks_loaded', 0)
-                
-                # RAG must be fully functional (100% health) with sentence transformer
-                if health_score >= 100.0 and chunks_loaded > 0:
-                    print(f"[Aura] ✅ RAG fully ready: {chunks_loaded} chunks, {health_score}% health")
-                    break
-                else:
-                    print(f"[Aura] ⏳ RAG still loading... ({chunks_loaded} chunks, {health_score}% health)")
-            else:
-                print(f"[Aura] ⏳ RAG not ready yet (status: {stats_response.status_code})")
-        except requests.exceptions.RequestException as e:
-            print(f"[Aura] ⏳ RAG not ready yet: {e}")
-        
-        time.sleep(poll_interval)
-    else:
-        print("[Aura] ❌ RAG failed to load within 60 seconds")
-        print("[Aura] ⚠️ Starting with partial RAG functionality")
     
     # Step 6: Start file upload server (if available)
     if UPLOAD_SERVER_AVAILABLE:
@@ -411,30 +328,11 @@ def start_services():
     print("[Aura] 🎙️ Starting listener...")
     threading.Thread(target=listen, daemon=True).start()
     
-    # Step 8: Mark setup as complete and set GUI to fixed mode (listener ready)
-    from aura_gui import set_listening_ready, set_setup_complete
-    set_setup_complete()
-    set_listening_ready()
-    
     print("[Aura] ✅ Core services started successfully!")
 
 # === Main Entrypoint ===
 def main():
     print("[Aura] 🌀 Launching Aura GUI...")
-    
-    # Set up signal handlers for graceful shutdown
-    import signal
-    def signal_handler(signum, frame):
-        print(f"\n[Aura] ⛔ Received signal {signum} - requesting shutdown")
-        from state import request_shutdown
-        request_shutdown()
-        from aura_gui import close_gui
-        close_gui()
-        sys.exit(0)
-    
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-    
     warm_up_tts()
     threading.Thread(target=start_services, daemon=True).start()
     launch_gui()
