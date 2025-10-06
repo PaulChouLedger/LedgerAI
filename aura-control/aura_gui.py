@@ -65,16 +65,17 @@ class AuraGUI(QMainWindow):
         self.border_widget.setStyleSheet("""
             QLabel {
                 background-color: transparent;
-                border: 5px solid rgba(100, 0, 0, 0.6);
+                border: 8px solid rgba(100, 0, 0, 0.6);
                 border-radius: 540px;
             }
         """)
         self.border_widget.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.border_widget.setAttribute(Qt.WA_NoSystemBackground, True)  # Make transparent to mouse events
         self.border_widget.raise_()  # Bring to front
         self.border_widget.hide()  # Hide by default
         
         # Store border state for animation
-        self.border_width = 5
+        self.border_width = 8
         self.border_pulse_speed = 0.1  # Will be randomized during transcription
         
         # Create 6 buttons equally spaced around the circular edge (after central widget is set)
@@ -125,9 +126,9 @@ class AuraGUI(QMainWindow):
         ]
         
         # Calculate positions for 6 buttons around a circle
-        # Add 5mm spacing from edge (5mm ≈ 19 pixels at 1080p)
-        # Edge radius is 540px, button radius is 50px, so: 540 - 19 - 50 = 471px
-        radius = 471  # Distance from center to button (5mm spacing from edge)
+        # Move buttons further inward to avoid interfering with red border
+        # Edge radius is 540px, button radius is 50px, border is 8-12px, so: 540 - 20 - 50 - 20 = 450px
+        radius = 450  # Distance from center to button (further from edge to avoid border interference)
         center_x = 540  # Center of 1080x1080 screen
         center_y = 540
         
@@ -306,13 +307,13 @@ class AuraGUI(QMainWindow):
             pulse_intensity = (math.sin(self.border_pulse_phase) + 1) / 2
             
             # Consistent width calculation for all transcriptions
-            base_width = 5  # Fixed base width
-            variation_width = 3  # Fixed variation
+            base_width = 8  # Thicker base width
+            variation_width = 4  # More variation
             self.border_width = int(base_width + pulse_intensity * variation_width)
             
             # Ensure consistent minimum and maximum width
-            self.border_width = max(self.border_width, 5)
-            self.border_width = min(self.border_width, 8)
+            self.border_width = max(self.border_width, 8)
+            self.border_width = min(self.border_width, 12)
             
             print(f"[GUI] 🔴 Border: freq={speech_freq:.3f}, width={self.border_width}px, intensity={pulse_intensity:.3f}")
             self._update_border_style(pulsating=True, width=self.border_width)
@@ -334,6 +335,8 @@ class AuraGUI(QMainWindow):
                 }}
             """)
             self.border_widget.show()
+            # Ensure border is always on top of buttons
+            self.border_widget.raise_()
         else:
             # Hide border completely
             self.border_widget.hide()
@@ -342,6 +345,8 @@ class AuraGUI(QMainWindow):
         # Ensure border widget is always on top and properly positioned
         self.border_widget.raise_()
         self.border_widget.setGeometry(0, 0, 1080, 1080)
+        # Ensure border is visible above buttons
+        self.border_widget.raise_()
     
     def _animate_aura_eye_tts(self, tts_frequency):
         """Sophisticated aura eye animation during TTS with organic, natural movement"""

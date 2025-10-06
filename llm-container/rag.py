@@ -183,21 +183,30 @@ class AuraRAG:
                 self.encoder = self.encoder.to('cpu')
                 self.encoder.eval()
                 
-                # Ensure all parameters are properly initialized
-                for param in self.encoder.parameters():
-                    if param.is_meta:
-                        param.data = torch.randn_like(param.data)
-                
-                # Alternative approach: try to reinitialize the model
+                # Handle meta tensors more robustly
                 try:
+                    # Check for meta tensors and initialize them
+                    for name, param in self.encoder.named_parameters():
+                        if param.is_meta:
+                            print(f"[RAG] 🔄 Initializing meta tensor: {name}")
+                            param.data = torch.randn_like(param.data)
+                    
+                    # Force model to be materialized
+                    self.encoder = self.encoder.to('cpu')
+                    
                     # Force a forward pass to initialize any lazy parameters
                     with torch.no_grad():
                         test_embeddings = self.encoder.encode(["test"])
+                        print(f"[RAG] ✅ Model forward pass successful: {test_embeddings.shape}")
+                        
                 except Exception as e:
                     print(f"[RAG] 🔄 Model initialization failed: {e}")
                     # Try loading a different model as fallback
                     print("[RAG] 🔄 Trying fallback model...")
                     self.encoder = SentenceTransformer('paraphrase-MiniLM-L6-v2', device='cpu')
+                    # Ensure fallback model is also properly initialized
+                    self.encoder = self.encoder.to('cpu')
+                    self.encoder.eval()
                 
                 # Test the model
                 print("[RAG] 🔧 Testing encoder with dummy input...")

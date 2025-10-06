@@ -337,15 +337,6 @@ def startup_cleanup():
             print(f"[Aura] ⚠️ Failed to cleanup container {container}: {e}")
     
     # Reset RAG state if LLM container is running
-    try:
-        reset_response = requests.post("http://localhost:11434/rag/reset", timeout=5)
-        if reset_response.status_code == 200:
-            print("[Aura] ✅ RAG state reset")
-        else:
-            print(f"[Aura] ⚠️ RAG reset failed: {reset_response.status_code}")
-    except Exception as e:
-        print(f"[Aura] ⚠️ RAG reset failed: {e}")
-    
     print("[Aura] ✅ Startup cleanup completed")
 
 # === Start services after GUI is ready ===
@@ -381,13 +372,50 @@ def start_services():
         print("[Aura] ❌ LLM warm-up failed. Aborting.")
         return
     
+    # Step 4.5: Reset RAG state now that LLM container is running
+    print("[Aura] 🔄 Resetting RAG state...")
+    try:
+        reset_response = requests.post("http://localhost:11434/rag/reset", timeout=5)
+        if reset_response.status_code == 200:
+            print("[Aura] ✅ RAG state reset")
+        else:
+            print(f"[Aura] ⚠️ RAG reset failed: {reset_response.status_code}")
+    except Exception as e:
+        print(f"[Aura] ⚠️ RAG reset failed: {e}")
+    
     # Step 5: Initialize RAG immediately after LLM warm-up and wait for completion
     print("[Aura] 🔍 Initializing RAG system...")
     initialize_rag_delayed()  # Run synchronously, not in thread
     
     # Wait for RAG to be fully ready before starting listener
     print("[Aura] ⏳ Waiting for RAG to be fully ready...")
-    time.sleep(5)  # Give RAG time to complete initialization
+    max_wait_time = 60  # Maximum 60 seconds wait for RAG
+    poll_interval = 2   # Check every 2 seconds
+    start_time = time.time()
+    
+    while time.time() - start_time < max_wait_time:
+        try:
+            stats_response = requests.get("http://localhost:11434/rag/stats", timeout=5)
+            if stats_response.status_code == 200:
+                stats = stats_response.json()
+                health_score = stats.get('health_score', 0)
+                chunks_loaded = stats.get('chunks_loaded', 0)
+                
+                # RAG is fully ready when health score is 100% and chunks are loaded
+                if health_score >= 100.0 and chunks_loaded > 0:
+                    print(f"[Aura] ✅ RAG fully ready: {chunks_loaded} chunks, {health_score}% health")
+                    break
+                else:
+                    print(f"[Aura] ⏳ RAG still loading... ({chunks_loaded} chunks, {health_score}% health)")
+            else:
+                print(f"[Aura] ⏳ RAG not ready yet (status: {stats_response.status_code})")
+        except requests.exceptions.RequestException as e:
+            print(f"[Aura] ⏳ RAG not ready yet: {e}")
+        
+        time.sleep(poll_interval)
+    else:
+        print("[Aura] ❌ RAG failed to load within 60 seconds")
+        print("[Aura] ⚠️ Starting with partial RAG functionality")
     
     # Step 6: Start file upload server (if available)
     if UPLOAD_SERVER_AVAILABLE:
