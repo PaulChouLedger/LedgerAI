@@ -3,8 +3,10 @@ FROM faiss:r36.4.tegra-aarch64-cu126-22.04
 # Set working directory
 WORKDIR /app
 
-# Install only the minimal dependencies needed
+# Install dependencies in correct order for CUDA compatibility
 RUN pip install --no-cache-dir --ignore-installed \
+    torch \
+    transformers \
     sentence-transformers \
     flask \
     flask-cors
