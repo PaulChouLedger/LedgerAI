@@ -65,7 +65,7 @@ class AuraGUI(QMainWindow):
         self.border_widget.setStyleSheet("""
             QLabel {
                 background-color: transparent;
-                border: 5px solid rgba(180, 0, 0, 0.7);
+                border: 5px solid rgba(100, 0, 0, 0.6);
                 border-radius: 540px;
             }
         """)
@@ -294,7 +294,7 @@ class AuraGUI(QMainWindow):
             self.border_widget.setStyleSheet(f"""
                 QLabel {{
                     background-color: transparent;
-                    border: {width}px solid rgba(180, 0, 0, 0.7);
+                    border: {width}px solid rgba(100, 0, 0, 0.6);
                     border-radius: 540px;
                 }}
             """)
@@ -359,6 +359,20 @@ class AuraGUI(QMainWindow):
         # Also try setting the widget opacity directly
         self.label.setWindowOpacity(self.opacity)
         
+        # Try a more dramatic approach - scale the pixmap slightly
+        try:
+            if hasattr(self, '_original_pixmap') and self._original_pixmap:
+                # Create a scaled version based on intensity
+                scale_factor = 0.8 + (smoothed_intensity * 0.4)  # 0.8 to 1.2 scale
+                scaled_pixmap = self._original_pixmap.scaled(
+                    int(self._original_pixmap.width() * scale_factor),
+                    int(self._original_pixmap.height() * scale_factor),
+                    Qt.KeepAspectRatio, Qt.SmoothTransformation
+                )
+                self.label.setPixmap(scaled_pixmap)
+        except Exception as e:
+            pass  # Fallback to opacity only
+        
         # Debug: Print TTS animation values
         if hasattr(self, '_debug_counter'):
             self._debug_counter += 1
@@ -368,15 +382,16 @@ class AuraGUI(QMainWindow):
         if self._debug_counter % 20 == 0:  # Print every second during TTS
             print(f"[GUI] 👁️ Aura Eye TTS: opacity={self.opacity:.3f}, breathing={breathing_intensity:.3f}, heartbeat={heartbeat_intensity:.3f}")
         
+        # Temporarily disable glow effect to test aura eye pulsation
         # Dynamic glow effect that responds to TTS
-        glow_intensity = (heartbeat_intensity + breathing_intensity) / 2
-        glow_alpha = int(50 + glow_intensity * 100)  # 50-150 alpha
-        glow_color = QColor(0, 100, 255, glow_alpha)
-        self.glow_effect.setColor(glow_color)
+        # glow_intensity = (heartbeat_intensity + breathing_intensity) / 2
+        # glow_alpha = int(50 + glow_intensity * 100)  # 50-150 alpha
+        # glow_color = QColor(0, 100, 255, glow_alpha)
+        # self.glow_effect.setColor(glow_color)
         
         # Vary glow radius based on intensity
-        glow_radius = 15 + glow_intensity * 25  # 15-40 radius
-        self.glow_effect.setBlurRadius(int(glow_radius))
+        # glow_radius = 15 + glow_intensity * 25  # 15-40 radius
+        # self.glow_effect.setBlurRadius(int(glow_radius))
         
         # Debug output removed for cleaner console
     

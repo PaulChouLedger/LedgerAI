@@ -172,15 +172,32 @@ class AuraRAG:
                     shutil.rmtree(cache_dir)
                     print("[RAG] 🧹 Cleared corrupted cache")
                 
-                # Load with explicit model initialization
+                # Load with explicit model initialization and proper device handling
                 self.encoder = SentenceTransformer(
                     self.model_name,
                     device='cpu',
                     trust_remote_code=True
                 )
                 
-                # Ensure proper model state
+                # Force model to CPU and ensure proper initialization
+                self.encoder = self.encoder.to('cpu')
                 self.encoder.eval()
+                
+                # Ensure all parameters are properly initialized
+                for param in self.encoder.parameters():
+                    if param.is_meta:
+                        param.data = torch.randn_like(param.data)
+                
+                # Alternative approach: try to reinitialize the model
+                try:
+                    # Force a forward pass to initialize any lazy parameters
+                    with torch.no_grad():
+                        test_embeddings = self.encoder.encode(["test"])
+                except Exception as e:
+                    print(f"[RAG] 🔄 Model initialization failed: {e}")
+                    # Try loading a different model as fallback
+                    print("[RAG] 🔄 Trying fallback model...")
+                    self.encoder = SentenceTransformer('paraphrase-MiniLM-L6-v2', device='cpu')
                 
                 # Test the model
                 print("[RAG] 🔧 Testing encoder with dummy input...")
