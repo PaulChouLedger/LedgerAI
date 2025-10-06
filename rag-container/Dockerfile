@@ -7,12 +7,12 @@ WORKDIR /app
 RUN pip install --no-cache-dir --ignore-installed \
     flask \
     flask-cors \
-    requests
+    requests \
+    sentence-transformers==2.2.0
 
 # Copy RAG service and module
 COPY container_rest.py /app/
 COPY rag.py /app/
-
 
 
 # Expose port
