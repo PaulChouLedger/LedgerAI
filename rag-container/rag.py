@@ -135,7 +135,7 @@ class AuraRAG:
             'chunks_loaded': len(self.chunks) if self.chunks is not None else 0,
             'model_name': self.model_name,
             'index_path': self.index_path,
-            'status': 'ready' if self.index and self.chunks and self.encoder else 'not_ready'
+            'status': 'ready' if self.index is not None and self.chunks is not None and self.encoder is not None else 'not_ready'
         }
 
 # Global RAG instance
