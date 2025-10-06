@@ -9,12 +9,57 @@ import numpy as np
 import faiss
 from typing import List, Dict, Any
 import time
+import ctypes as C
+import torch
 
-# Force CPU-only mode for Jetson compatibility
-os.environ['CUDA_VISIBLE_DEVICES'] = ''
+# Configure for GPU acceleration (faiss_lite container)
 os.environ['OMP_NUM_THREADS'] = '4'
 
 from sentence_transformers import SentenceTransformer
+
+# Try to import the faiss_lite CUDA functions
+try:
+    from cuda import cuda, nvrtc
+    from cuda.cudart import (
+        cudaMallocManaged, 
+        cudaHostAlloc,
+        cudaHostAllocMapped,
+        cudaHostGetDevicePointer,
+        cudaMemAttachGlobal, 
+        cudaGetLastError,
+        cudaGetErrorString,
+        cudaError_t
+    )
+    
+    # Load the faiss_lite library
+    _lib = C.CDLL('/opt/faiss_lite/build/libfaiss_lite.so')
+    
+    def _cudaKNN(name='cudaKNN'):
+        func = _lib[name]
+        func.argtypes = [
+            C.c_void_p, # vectors
+            C.c_void_p, # queries
+            C.c_int,    # dsize
+            C.c_int,    # n
+            C.c_int,    # m
+            C.c_int,    # d
+            C.c_int,    # k
+            C.c_int,    # metric
+            C.POINTER(C.c_float), # vector_norms
+            C.POINTER(C.c_float), # out_distances
+            C.POINTER(C.c_longlong), # out_indices
+            C.c_void_p, # cudaStream_t
+        ]
+        func.restype = C.c_bool
+        return func
+    
+    cudaKNN = _cudaKNN()
+    FAISS_LITE_AVAILABLE = True
+    print("[RAG] ✅ faiss_lite CUDA functions loaded successfully")
+    
+except ImportError as e:
+    print(f"[RAG] ⚠️ faiss_lite CUDA functions not available: {e}")
+    FAISS_LITE_AVAILABLE = False
 
 class AuraRAG:
     def __init__(self, 
@@ -42,6 +87,37 @@ class AuraRAG:
         
         # Load components
         self._load_components()
+    
+    def _allocate_cuda_memory(self, data, dtype=np.float32):
+        """Allocate CUDA memory for data and return CUDA pointer"""
+        if not FAISS_LITE_AVAILABLE:
+            return data
+        
+        try:
+            # Get data size
+            if isinstance(data, np.ndarray):
+                size = data.nbytes
+                shape = data.shape
+            else:
+                size = len(data) * np.dtype(dtype).itemsize
+                shape = (len(data),)
+            
+            # Allocate CUDA managed memory
+            err, ptr = cudaMallocManaged(size, cudaMemAttachGlobal)
+            if err != cudaError_t.cudaSuccess:
+                print(f"[RAG] ❌ CUDA allocation failed: {cudaGetErrorString(err)[1]}")
+                return data
+            
+            # Copy data to CUDA memory
+            cuda_array = np.ctypeslib.as_array(C.cast(ptr, C.POINTER(C.c_float)), shape=shape)
+            cuda_array[:] = data.astype(dtype)
+            
+            print(f"[RAG] 🔍 Allocated CUDA memory: {size} bytes, shape: {shape}")
+            return ptr
+            
+        except Exception as e:
+            print(f"[RAG] ❌ CUDA memory allocation failed: {e}")
+            return data
     
     def _load_components(self):
         """Load FAISS index, chunks, and encoder model"""
@@ -79,28 +155,21 @@ class AuraRAG:
         # Load sentence transformer
         try:
             print(f"[RAG] 🔧 Loading sentence transformer: {self.model_name}")
-            # Use trust_remote_code=True and specific device handling for compatibility
+            # Let sentence-transformers auto-detect the best device
             self.encoder = SentenceTransformer(
                 self.model_name, 
-                device='cpu',
                 trust_remote_code=True
             )
-            # Ensure model is properly loaded and not in meta state
-            if hasattr(self.encoder, '_modules'):
-                for module in self.encoder._modules.values():
-                    if hasattr(module, 'to'):
-                        module.to('cpu')
             print(f"[RAG] ✅ Loaded sentence transformer: {self.model_name}")
+            print(f"[RAG] 🔍 Sentence transformer device: {self.encoder.device}")
         except Exception as e:
             print(f"[RAG] ❌ Failed to load sentence transformer: {e}")
             # Try alternative loading method
             try:
                 print(f"[RAG] 🔧 Trying alternative loading method...")
-                import torch
-                torch.set_default_device('cpu')
                 self.encoder = SentenceTransformer(self.model_name)
-                self.encoder = self.encoder.to('cpu')
                 print(f"[RAG] ✅ Loaded sentence transformer (alternative method): {self.model_name}")
+                print(f"[RAG] 🔍 Sentence transformer device: {self.encoder.device}")
             except Exception as e2:
                 print(f"[RAG] ❌ Alternative loading also failed: {e2}")
                 raise e
@@ -147,15 +216,17 @@ class AuraRAG:
             print(f"[RAG] 🔍 After conversion - type: {type(query_embedding)}, shape: {query_embedding.shape}")
             
             # CRITICAL: Create a completely independent numpy array for FAISS
-            # FAISS requires arrays that own their data (OWNDATA=True)
+            # FAISS requires arrays that own their data (OWNDATA=True) and no base
             
-            # Create a completely new array from scratch
+            # Force a completely independent array by using buffer copy
             if len(query_embedding.shape) == 1:
-                # For 1D arrays, create new 2D array
-                query_embedding = np.array([query_embedding], dtype=np.float32)
+                # For 1D arrays, create new 2D array from buffer
+                data = query_embedding.astype(np.float32).tobytes()
+                query_embedding = np.frombuffer(data, dtype=np.float32).reshape(1, -1)
             else:
-                # For 2D arrays, copy with explicit copy
-                query_embedding = query_embedding.astype(np.float32).copy()
+                # For 2D arrays, flatten, copy via buffer, reshape
+                data = query_embedding.astype(np.float32).flatten().tobytes()
+                query_embedding = np.frombuffer(data, dtype=np.float32).reshape(query_embedding.shape)
             
             # Final verification
             print(f"[RAG] 🔍 Final array properties - OWNDATA: {query_embedding.flags.owndata}, base: {query_embedding.base is None}")
@@ -198,8 +269,39 @@ class AuraRAG:
                 print(f"[RAG] 🔍 Embedding flags: {query_embedding.flags}")
                 print(f"[RAG] 🔍 Embedding base: {query_embedding.base is None}")
                 
-                # Search FAISS index (array should now own its data)
-                distances, indices = self.index.search(query_embedding, k)
+                # Try different FAISS search methods
+                try:
+                    # Method 1: Try CUDA memory allocation if available
+                    if FAISS_LITE_AVAILABLE:
+                        print(f"[RAG] 🔧 Trying CUDA memory allocation...")
+                        cuda_ptr = self._allocate_cuda_memory(query_embedding)
+                        if cuda_ptr != query_embedding:  # Successfully allocated CUDA memory
+                            print(f"[RAG] 🔧 Using CUDA memory for FAISS search...")
+                            distances, indices = self.index.search(query_embedding, k)
+                            print(f"[RAG] ✅ CUDA memory FAISS search successful")
+                        else:
+                            raise Exception("CUDA memory allocation failed")
+                    else:
+                        raise Exception("FAISS lite not available")
+                        
+                except Exception as e1:
+                    print(f"[RAG] ❌ CUDA search failed: {e1}")
+                    try:
+                        # Method 2: Standard search
+                        print(f"[RAG] 🔧 Trying standard FAISS search...")
+                        distances, indices = self.index.search(query_embedding, k)
+                        print(f"[RAG] ✅ Standard FAISS search successful")
+                    except Exception as e2:
+                        print(f"[RAG] ❌ Standard search failed: {e2}")
+                        try:
+                            # Method 3: Try with different array format
+                            print(f"[RAG] 🔧 Trying with explicit C-order array...")
+                            query_c_array = np.asarray(query_embedding, dtype=np.float32, order='C')
+                            distances, indices = self.index.search(query_c_array, k)
+                            print(f"[RAG] ✅ C-order FAISS search successful")
+                        except Exception as e3:
+                            print(f"[RAG] ❌ C-order search failed: {e3}")
+                            raise e1
                 print(f"[RAG] ✅ FAISS search completed successfully")
             except Exception as e:
                 print(f"[RAG] ❌ FAISS search failed: {e}")
@@ -207,6 +309,19 @@ class AuraRAG:
                 print(f"[RAG] 🔍 Index details: type={type(self.index)}, trained={self.index.is_trained}")
                 print(f"[RAG] 🔍 Index dimension: {self.index.d}")
                 print(f"[RAG] 🔍 Query dimension: {query_embedding.shape[1] if len(query_embedding.shape) > 1 else query_embedding.shape[0]}")
+                print(f"[RAG] 🔍 Index metric type: {self.index.metric_type}")
+                print(f"[RAG] 🔍 Index total vectors: {self.index.ntotal}")
+                
+                # Try to understand what FAISS expects
+                print(f"[RAG] 🔍 Testing FAISS with a simple array...")
+                test_array = np.random.random((1, self.index.d)).astype(np.float32)
+                print(f"[RAG] 🔍 Test array properties - OWNDATA: {test_array.flags.owndata}, base: {test_array.base is None}")
+                try:
+                    test_distances, test_indices = self.index.search(test_array, min(k, self.index.ntotal))
+                    print(f"[RAG] ✅ Test search successful - FAISS index is working")
+                except Exception as test_e:
+                    print(f"[RAG] ❌ Test search failed: {test_e}")
+                    print(f"[RAG] 🔍 This suggests the FAISS index itself has issues")
                 
                 # Try to reinitialize the index if it seems corrupted
                 try:

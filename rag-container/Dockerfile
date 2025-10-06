@@ -9,7 +9,8 @@ RUN pip install --no-cache-dir --ignore-installed \
     flask \
     flask-cors \
     requests \
-    sentence-transformers
+    sentence-transformers \
+    cuda-python
 
 # Copy RAG service and module
 COPY container_rest.py /app/
