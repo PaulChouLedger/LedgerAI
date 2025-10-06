@@ -121,7 +121,13 @@ class AuraRAG:
             print(f"[RAG] 🔍 Query embedding type: {type(query_embedding)}")
             print(f"[RAG] 🔍 Query embedding dtype: {query_embedding.dtype}")
             
-            distances, indices = self.index.search(query_embedding, k)
+            try:
+                distances, indices = self.index.search(query_embedding, k)
+                print(f"[RAG] ✅ FAISS search completed successfully")
+            except Exception as e:
+                print(f"[RAG] ❌ FAISS search failed: {e}")
+                print(f"[RAG] 🔍 Query embedding details: shape={query_embedding.shape}, dtype={query_embedding.dtype}, contiguous={query_embedding.flags.c_contiguous}")
+                raise
             
             # Debug FAISS results
             print(f"[RAG] 🔍 FAISS search results - distances shape: {distances.shape}, indices shape: {indices.shape}")
