@@ -53,6 +53,9 @@ class AuraRAG:
                 print(f"[RAG] 🔧 Loading FAISS index from: {self.index_path}")
                 self.index = faiss.read_index(self.index_path)
                 print(f"[RAG] ✅ Loaded FAISS index: {self.index.ntotal} vectors")
+                print(f"[RAG] 🔍 Index dimension: {self.index.d}")
+                print(f"[RAG] 🔍 Index type: {type(self.index)}")
+                print(f"[RAG] 🔍 Index is_trained: {self.index.is_trained}")
             else:
                 raise FileNotFoundError(f"FAISS index not found: {self.index_path}")
         except Exception as e:
@@ -107,10 +110,17 @@ class AuraRAG:
             if len(query_embedding.shape) == 1:
                 query_embedding = query_embedding.reshape(1, -1)
             
+            # Ensure contiguous memory layout for FAISS
+            query_embedding = np.ascontiguousarray(query_embedding)
+            
             # Debug embedding shape and type
             print(f"[RAG] 🔍 Query embedding shape: {query_embedding.shape}, dtype: {query_embedding.dtype}")
             
             # Search FAISS index
+            print(f"[RAG] 🔍 About to search FAISS index with query shape: {query_embedding.shape}")
+            print(f"[RAG] 🔍 Query embedding type: {type(query_embedding)}")
+            print(f"[RAG] 🔍 Query embedding dtype: {query_embedding.dtype}")
+            
             distances, indices = self.index.search(query_embedding, k)
             
             # Debug FAISS results
