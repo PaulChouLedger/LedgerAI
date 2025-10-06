@@ -3,16 +3,11 @@ FROM faiss:r36.4.tegra-aarch64-cu126-22.04
 # Set working directory
 WORKDIR /app
 
-# Install Python dependencies for RAG
+# Install only the minimal dependencies needed
 RUN pip install --no-cache-dir \
-    sentence-transformers==2.2.2 \
-    numpy==1.24.4 \
-    scipy==1.11.4 \
-    torch==2.1.0 \
-    transformers==4.35.2 \
-    requests==2.31.0 \
-    flask==2.3.3 \
-    flask-cors==4.0.0
+    sentence-transformers \
+    flask \
+    flask-cors
 
 # Copy RAG code
 COPY rag.py /app/
