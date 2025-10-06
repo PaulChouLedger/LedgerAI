@@ -126,6 +126,9 @@ class AuraRAG:
                 self.cuda_vectors = cudaAllocMapped(vectors.shape, np.float32)
                 self.cuda_vectors['array'][:] = vectors
                 
+                # Initialize vector norms (None for inner product metric)
+                self.cuda_vector_norms = None
+                
                 # Pre-compute L2 norms if using L2 metric
                 if self.index.metric_type == faiss.METRIC_L2:
                     n_vectors = vectors.shape[0]
