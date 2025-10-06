@@ -34,9 +34,18 @@ def rebuild_embeddings():
     
     # Load sentence transformer
     print("🧠 Loading sentence transformer model...")
-    model_name = "all-MiniLM-L6-v2"
-    encoder = SentenceTransformer(model_name, device='cpu')
-    print(f"✅ Loaded model: {model_name}")
+    
+    # Use local cached model
+    local_model_path = "rag-container/models--sentence-transformers--all-MiniLM-L6-v2"
+    if os.path.exists(local_model_path):
+        print(f"📁 Using local model: {local_model_path}")
+        encoder = SentenceTransformer(local_model_path, device='cpu')
+        print(f"✅ Loaded local model: {local_model_path}")
+    else:
+        # Fallback to downloading
+        model_name = "all-MiniLM-L6-v2"
+        encoder = SentenceTransformer(model_name, device='cpu')
+        print(f"✅ Loaded model: {model_name}")
     
     # Read all parsed text
     all_texts = []
