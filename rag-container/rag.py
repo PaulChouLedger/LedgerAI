@@ -146,8 +146,9 @@ class AuraRAG:
             
             print(f"[RAG] 🔍 After conversion - type: {type(query_embedding)}, shape: {query_embedding.shape}")
             
-            # Ensure float32 type for FAISS compatibility
-            query_embedding = query_embedding.astype(np.float32)
+            # CRITICAL: Create a completely independent numpy array for FAISS
+            # FAISS requires arrays that own their data (OWNDATA=True)
+            query_embedding = np.array(query_embedding, dtype=np.float32, copy=True)
             
             # Reshape to 2D if needed (FAISS expects 2D arrays)
             if len(query_embedding.shape) == 1:
@@ -155,6 +156,8 @@ class AuraRAG:
             
             # Ensure contiguous memory layout for FAISS
             query_embedding = np.ascontiguousarray(query_embedding)
+            
+            print(f"[RAG] 🔍 Final array properties - OWNDATA: {query_embedding.flags.owndata}, base: {query_embedding.base is None}")
             
             # Validate embedding before FAISS search
             if not isinstance(query_embedding, np.ndarray):
@@ -193,28 +196,8 @@ class AuraRAG:
                 print(f"[RAG] 🔍 Embedding flags: {query_embedding.flags}")
                 print(f"[RAG] 🔍 Embedding base: {query_embedding.base is None}")
                 
-                # Try different approaches to ensure FAISS compatibility
-                try:
-                    # Method 1: Direct search
-                    distances, indices = self.index.search(query_embedding, k)
-                    print(f"[RAG] ✅ FAISS search successful (method 1)")
-                except Exception as e1:
-                    print(f"[RAG] ❌ Method 1 failed: {e1}")
-                    try:
-                        # Method 2: Ensure it's a pure numpy array
-                        query_array = np.array(query_embedding, dtype=np.float32, copy=True)
-                        distances, indices = self.index.search(query_array, k)
-                        print(f"[RAG] ✅ FAISS search successful (method 2)")
-                    except Exception as e2:
-                        print(f"[RAG] ❌ Method 2 failed: {e2}")
-                        try:
-                            # Method 3: Use reshape to ensure proper format
-                            query_reshaped = query_embedding.reshape(1, -1).astype(np.float32)
-                            distances, indices = self.index.search(query_reshaped, k)
-                            print(f"[RAG] ✅ FAISS search successful (method 3)")
-                        except Exception as e3:
-                            print(f"[RAG] ❌ Method 3 failed: {e3}")
-                            raise e1
+                # Search FAISS index (array should now own its data)
+                distances, indices = self.index.search(query_embedding, k)
                 print(f"[RAG] ✅ FAISS search completed successfully")
             except Exception as e:
                 print(f"[RAG] ❌ FAISS search failed: {e}")
