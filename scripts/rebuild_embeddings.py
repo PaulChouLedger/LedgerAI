@@ -104,12 +104,16 @@ def rebuild_embeddings():
     
     print(f"✅ FAISS index created with {index.ntotal} vectors")
     
-    # Save index and chunks
+    # Save index, raw vectors, and chunks
     index_path = embeddings_dir / "index.faiss"
+    vectors_path = embeddings_dir / "vectors.npy"
     chunks_path = embeddings_dir / "doc_chunks.npy"
     
     print(f"💾 Saving index to {index_path}")
     faiss.write_index(index, str(index_path))
+    
+    print(f"💾 Saving raw vectors to {vectors_path}")
+    np.save(vectors_path, embeddings.astype(np.float32))
     
     print(f"💾 Saving chunks to {chunks_path}")
     np.save(chunks_path, np.array(chunks))

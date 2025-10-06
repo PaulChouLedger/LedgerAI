@@ -24,6 +24,7 @@ print("[RAG] ✅ faiss_lite Python wrapper loaded - using CUDA functions")
 class AuraRAG:
     def __init__(self, 
                  index_path: str = "data/embeddings/index.faiss",
+                 vectors_path: str = "data/embeddings/vectors.npy",
                  chunks_path: str = "data/embeddings/doc_chunks.npy",
                  model_name: str = "all-MiniLM-L6-v2",
                  relevance_threshold: float = 0.3):
@@ -36,6 +37,7 @@ class AuraRAG:
             model_name: Sentence transformer model name
         """
         self.index_path = index_path
+        self.vectors_path = vectors_path
         self.chunks_path = chunks_path
         self.model_name = model_name
         self.relevance_threshold = relevance_threshold
@@ -107,17 +109,18 @@ class AuraRAG:
                 raise e
     
     def _prepare_cuda_data(self):
-        """Prepare FAISS index data for faiss_lite CUDA functions"""
+        """Prepare raw vectors for faiss_lite CUDA functions"""
         try:
-            print("[RAG] 🔧 Preparing CUDA data for faiss_lite...")
+            print("[RAG] 🔧 Loading raw vectors for faiss_lite...")
             
-            # Extract vectors from FAISS index
-            if hasattr(self.index, 'reconstruct_n'):
-                # Get all vectors from the index
-                n_vectors = self.index.ntotal
-                vectors = np.zeros((n_vectors, self.index.d), dtype=np.float32)
-                for i in range(n_vectors):
-                    vectors[i] = self.index.reconstruct(i)
+            # Load raw vectors from file (much simpler than reconstructing from FAISS index)
+            if os.path.exists(self.vectors_path):
+                vectors = np.load(self.vectors_path)
+                print(f"[RAG] 🔍 Loaded vectors shape: {vectors.shape}, dtype: {vectors.dtype}")
+                
+                # Ensure float32
+                if vectors.dtype != np.float32:
+                    vectors = vectors.astype(np.float32)
                 
                 # Allocate CUDA memory for vectors
                 self.cuda_vectors = cudaAllocMapped(vectors.shape, np.float32)
@@ -125,6 +128,7 @@ class AuraRAG:
                 
                 # Pre-compute L2 norms if using L2 metric
                 if self.index.metric_type == faiss.METRIC_L2:
+                    n_vectors = vectors.shape[0]
                     self.cuda_vector_norms = cudaAllocMapped((n_vectors,), np.float32)
                     result = cudaL2Norm(
                         self.cuda_vectors['ptr'], 4,  # 4 bytes for float32
@@ -135,23 +139,25 @@ class AuraRAG:
                         print("[RAG] ⚠️ Failed to compute L2 norms")
                         self.cuda_vector_norms = None
                 
-                print(f"[RAG] ✅ CUDA data prepared: {n_vectors} vectors, {self.index.d} dimensions")
+                print(f"[RAG] ✅ CUDA data prepared: {vectors.shape[0]} vectors, {vectors.shape[1]} dimensions")
             else:
-                print("[RAG] ⚠️ Index doesn't support vector reconstruction - using standard FAISS")
-                self.cuda_vectors = None
-                self.cuda_vector_norms = None
+                print(f"[RAG] ❌ Raw vectors file not found: {self.vectors_path}")
+                raise Exception(f"Raw vectors file not found: {self.vectors_path}")
                 
         except Exception as e:
             print(f"[RAG] ❌ Failed to prepare CUDA data: {e}")
-            self.cuda_vectors = None
-            self.cuda_vector_norms = None
+            raise
     
     def _search_with_faiss_lite(self, query_embedding, k):
         """Search using faiss_lite CUDA functions"""
         if self.cuda_vectors is None:
+            print("[RAG] ❌ CUDA vectors not prepared")
             return None, None
         
         try:
+            print(f"[RAG] 🔍 Query embedding: shape={query_embedding.shape}, dtype={query_embedding.dtype}")
+            print(f"[RAG] 🔍 CUDA vectors: shape={self.cuda_vectors['array'].shape}, dtype={self.cuda_vectors['array'].dtype}")
+            
             # Allocate CUDA memory for query
             cuda_query = cudaAllocMapped(query_embedding.shape, np.float32)
             cuda_query['array'][:] = query_embedding
@@ -163,6 +169,8 @@ class AuraRAG:
             # Call cudaKNN
             n_vectors = self.index.ntotal
             metric = 0 if self.index.metric_type == faiss.METRIC_INNER_PRODUCT else 1
+            
+            print(f"[RAG] 🔍 Calling cudaKNN: n={n_vectors}, d={self.index.d}, k={k}, metric={metric}")
             
             result = cudaKNN(
                 self.cuda_vectors['ptr'],     # vectors
@@ -179,17 +187,21 @@ class AuraRAG:
                 None                          # stream
             )
             
+            print(f"[RAG] 🔍 cudaKNN result: {result}")
+            
             if result:
                 distances = cuda_distances['array'].copy()
                 indices = cuda_indices['array'].copy()
-                print("[RAG] ✅ faiss_lite CUDA search successful")
+                print(f"[RAG] ✅ faiss_lite CUDA search successful: distances={distances}, indices={indices}")
                 return distances, indices
             else:
-                print("[RAG] ❌ faiss_lite CUDA search failed")
+                print("[RAG] ❌ faiss_lite CUDA search returned False")
                 return None, None
                 
         except Exception as e:
             print(f"[RAG] ❌ faiss_lite search error: {e}")
+            import traceback
+            traceback.print_exc()
             return None, None
     
     def search(self, query: str, k: int = 3) -> List[Dict[str, Any]]:
