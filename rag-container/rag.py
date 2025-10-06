@@ -275,31 +275,30 @@ class AuraRAG:
                 print(f"[RAG] 🔍 Embedding flags: {query_embedding.flags}")
                 print(f"[RAG] 🔍 Embedding base: {query_embedding.base is None}")
                 
-                # Try different FAISS search methods
+                # Try FAISS search methods
                 try:
-                    # Method 1: Try CUDA memory allocation if available
-                    if FAISS_LITE_AVAILABLE:
-                        print(f"[RAG] 🔧 Trying CUDA memory allocation...")
-                        cuda_ptr = self._allocate_cuda_memory(query_embedding)
-                        print(f"[RAG] 🔧 CUDA array type: {type(cuda_ptr)}, original type: {type(query_embedding)}")
-                        if isinstance(cuda_ptr, np.ndarray) and cuda_ptr is not query_embedding:  # Successfully allocated CUDA memory
-                            print(f"[RAG] 🔧 Using CUDA memory for FAISS search...")
-                            distances, indices = self.index.search(cuda_ptr, k)
-                            print(f"[RAG] ✅ CUDA memory FAISS search successful")
-                        else:
-                            raise Exception("CUDA memory allocation failed")
-                    else:
-                        raise Exception("FAISS lite not available")
-                        
+                    # Method 1: Direct search (should work based on test results)
+                    print(f"[RAG] 🔧 Trying direct FAISS search...")
+                    distances, indices = self.index.search(query_embedding, k)
+                    print(f"[RAG] ✅ Direct FAISS search successful")
                 except Exception as e1:
-                    print(f"[RAG] ❌ CUDA search failed: {e1}")
+                    print(f"[RAG] ❌ Direct search failed: {e1}")
                     try:
-                        # Method 2: Standard search
-                        print(f"[RAG] 🔧 Trying standard FAISS search...")
-                        distances, indices = self.index.search(query_embedding, k)
-                        print(f"[RAG] ✅ Standard FAISS search successful")
+                        # Method 2: Try CUDA memory allocation if available
+                        if FAISS_LITE_AVAILABLE:
+                            print(f"[RAG] 🔧 Trying CUDA memory allocation...")
+                            cuda_ptr = self._allocate_cuda_memory(query_embedding)
+                            print(f"[RAG] 🔧 CUDA array type: {type(cuda_ptr)}, original type: {type(query_embedding)}")
+                            if isinstance(cuda_ptr, np.ndarray) and cuda_ptr is not query_embedding:  # Successfully allocated CUDA memory
+                                print(f"[RAG] 🔧 Using CUDA memory for FAISS search...")
+                                distances, indices = self.index.search(cuda_ptr, k)
+                                print(f"[RAG] ✅ CUDA memory FAISS search successful")
+                            else:
+                                raise Exception("CUDA memory allocation failed")
+                        else:
+                            raise Exception("FAISS lite not available")
                     except Exception as e2:
-                        print(f"[RAG] ❌ Standard search failed: {e2}")
+                        print(f"[RAG] ❌ CUDA search failed: {e2}")
                         try:
                             # Method 3: Try with different array format
                             print(f"[RAG] 🔧 Trying with explicit C-order array...")
