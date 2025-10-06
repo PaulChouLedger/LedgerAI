@@ -108,6 +108,8 @@ class AuraRAG:
             # Format results
             results = []
             for i, (distance, idx) in enumerate(zip(distances[0], indices[0])):
+                # Convert to Python int to avoid array comparison issues
+                idx = int(idx)
                 if idx < len(self.chunks):
                     chunk = self.chunks[idx]
                     similarity_score = float(1.0 / (1.0 + distance))
