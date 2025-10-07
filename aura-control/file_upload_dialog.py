@@ -634,7 +634,7 @@ class FileUploadDialog(QDialog):
                     QDialog {
                         background-color: rgba(28, 28, 30, 1.0);
                         color: white;
-                        border: 8px solid #ff0000;
+                        border: none;
                         border-radius: 536px;
                     }
                     QLabel {

@@ -563,9 +563,9 @@ class AuraGUI(QMainWindow):
         # Second smooth: cosine easing
         eased = 0.5 - 0.5 * math.cos(self.tts_opacity_smooth * math.pi)
         
-        # Map to opacity range - very wide for dramatic, visible pulsation
-        min_opacity = 0.20  # Much lower minimum - very dramatic dimming
-        max_opacity = 0.98  # Near full brightness - strong peaks
+        # Map to opacity range - extremely wide for maximum dramatic effect
+        min_opacity = 0.10  # Very low minimum - extreme dimming
+        max_opacity = 1.00  # Full brightness - maximum peaks
         target_opacity = min_opacity + eased * (max_opacity - min_opacity)
         
         # Final smoothing pass for smooth but visible transitions
