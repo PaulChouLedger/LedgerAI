@@ -101,13 +101,26 @@ def rebuild_embeddings():
     # Verify important content is in chunks
     print("\n🔍 Verifying important names are in chunks...")
     important_names = ["Bob Carella", "David Lara", "Paul Chou"]
+    name_chunks = {}  # Store chunk indices for later testing
+    
     for name in important_names:
         found_in = []
         for i, chunk in enumerate(chunks):
             if name in chunk:
                 found_in.append(i)
+        
+        name_chunks[name] = found_in
+        
         if found_in:
-            print(f"  ✅ '{name}' found in {len(found_in)} chunk(s): {found_in[:3]}...")
+            print(f"  ✅ '{name}' found in {len(found_in)} chunk(s): {found_in}")
+            # Show preview of first chunk containing the name
+            first_chunk = chunks[found_in[0]]
+            # Find the name's position and show context
+            pos = first_chunk.find(name)
+            context_start = max(0, pos - 50)
+            context_end = min(len(first_chunk), pos + 200)
+            preview = first_chunk[context_start:context_end].replace('\n', ' ')
+            print(f"     Preview: '...{preview}...'")
         else:
             print(f"  ❌ '{name}' NOT FOUND in any chunks!")
     
@@ -157,15 +170,49 @@ def rebuild_embeddings():
     for query in test_queries:
         query_embedding = encoder.encode([query], convert_to_numpy=True).astype(np.float32)
         faiss.normalize_L2(query_embedding)
-        distances, indices = index.search(query_embedding, 3)
+        distances, indices = index.search(query_embedding, 10)  # Get top 10 to see ranking
         
         print(f"\n  Query: '{query}'")
-        print(f"  Top 3 results:")
+        print(f"  Top 10 results:")
+        
+        # Extract the person's name from query if present
+        query_name = None
+        for name in important_names:
+            if name in query:
+                query_name = name
+                break
+        
+        expected_chunks = name_chunks.get(query_name, []) if query_name else []
+        
         for i, (dist, idx) in enumerate(zip(distances[0], indices[0])):
             idx = int(idx)
             if idx < len(chunks):
                 preview = chunks[idx][:100].replace('\n', ' ')
-                print(f"    {i+1}. idx={idx}, distance={dist:.4f}, preview: '{preview}...'")
+                
+                # Check if this chunk contains the expected name
+                contains_name = ""
+                if query_name and query_name in chunks[idx]:
+                    contains_name = f" ✅ CONTAINS '{query_name}'"
+                elif idx in expected_chunks:
+                    contains_name = f" ✅ Expected chunk"
+                
+                print(f"    {i+1}. idx={idx}, distance={dist:.4f}{contains_name}")
+                if i < 3:  # Show preview for top 3
+                    print(f"       preview: '{preview}...'")
+        
+        # Check if expected chunks are in top 3
+        if expected_chunks:
+            top_3_indices = [int(idx) for idx in indices[0][:3]]
+            found_in_top_3 = any(chunk_idx in top_3_indices for chunk_idx in expected_chunks)
+            if found_in_top_3:
+                print(f"  ✅ Found '{query_name}' in top 3 results")
+            else:
+                print(f"  ⚠️ WARNING: '{query_name}' NOT in top 3!")
+                # Show where it actually ranked
+                for chunk_idx in expected_chunks:
+                    if chunk_idx in indices[0]:
+                        rank = list(indices[0]).index(chunk_idx) + 1
+                        print(f"     '{query_name}' chunk {chunk_idx} ranked #{rank}")
         
         # Check for duplicate indices
         if len(set(indices[0])) < len(indices[0]):
