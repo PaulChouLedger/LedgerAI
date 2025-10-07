@@ -205,11 +205,8 @@ class AuraRAG:
             print("[RAG] ❌ CUDA vectors not prepared")
             return None, None
         
-        # Clean up any previous CUDA allocations
-        import torch
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()  # Wait for previous operations
-            torch.cuda.empty_cache()  # Clear cache
+        # Note: Do NOT call torch.cuda.empty_cache() here!
+        # It will invalidate the cudaAllocMapped memory used by faiss_lite
         
         try:
             print(f"[RAG] 🔍 Query embedding: shape={query_embedding.shape}, dtype={query_embedding.dtype}")
