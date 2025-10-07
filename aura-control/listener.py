@@ -15,14 +15,17 @@ from aura_gui import set_transcribing
 SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
-SILENCE_TIMEOUT = 0.2
-VAD_THRESHOLD = 0.3
-MIN_AUDIO_SAMPLES = 8000
-AUDIO_GAIN = 10.0  # Audio gain multiplier
+SILENCE_TIMEOUT = 0.5  # Increased from 0.2 to capture full speech
+VAD_THRESHOLD = 0.2  # Lowered from 0.3 for better detection of normal speech
+MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
+AUDIO_GAIN = 3.0  # Moderate gain (10.0 causes distortion)
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
 prompt_history = []
+
+# Debug: Show audio levels to help diagnose mic issues
+DEBUG_AUDIO_LEVELS = True  # Set to False to disable
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
@@ -107,9 +110,14 @@ def listen():
                 audio_block, _ = stream.read(FRAME_SIZE)
                 channel_0 = audio_block[:, 0]
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
-                print(f"[Debug] VAD prob: {vad_prob:.2f}")
+                
+                # Debug: Show audio levels
+                if DEBUG_AUDIO_LEVELS:
+                    rms = np.sqrt(np.mean(channel_0 ** 2))
+                    print(f"[Debug] VAD: {vad_prob:.2f}, RMS: {rms:.4f}", end="\r")
+                
                 if vad_prob > VAD_THRESHOLD:
-                    print(f"[VAD] 🔊 Speech started (prob={vad_prob:.2f})")
+                    print(f"\n[VAD] 🔊 Speech started (prob={vad_prob:.2f})")
                     set_transcribing(True)  # Notify GUI: transcription started
                     buffer.append(audio_block)
                     break
