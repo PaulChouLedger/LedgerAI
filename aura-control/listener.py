@@ -15,9 +15,9 @@ from aura_gui import set_transcribing
 SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
-SILENCE_TIMEOUT = 0.2  # Longer timeout to handle natural pauses and distance variations
-VAD_THRESHOLD = 0.25  # Threshold to START detecting speech
-VAD_CONTINUATION_THRESHOLD = 0.12  # Lower threshold to CONTINUE recording (more lenient for distance)
+SILENCE_TIMEOUT = 0.5  # Time of continuous silence to stop - balance between responsiveness and cutoff prevention
+VAD_START_THRESHOLD = 0.25  # Threshold to START detecting speech
+VAD_SILENCE_THRESHOLD = 0.10  # Threshold for silence (closer to actual silence ~0.05, minimizes dead air to Whisper)
 MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 
 # Audio Processing Config - Dynamic RMS-based gain
@@ -160,13 +160,15 @@ def listen():
                     gain_applied = rms_norm / rms_raw if rms_raw > 0.0001 else 1.0
                     print(f"[Debug] VAD: {vad_prob:.2f}, RMS: {rms_raw:.4f}→{rms_norm:.4f}, Gain: {gain_applied:.1f}x", end="\r")
                 
-                if vad_prob > VAD_THRESHOLD:
+                if vad_prob > VAD_START_THRESHOLD:
                     print(f"\n[VAD] 🔊 Speech started (prob={vad_prob:.2f})")
                     set_transcribing(True)  # Notify GUI: transcription started
                     buffer.append(audio_block)  # Store original audio
                     break
 
             # === Continue recording ===
+            # Use VAD with LOWER threshold for silence detection
+            # This allows continuous recording through quiet speech/distance variations
             while True:
                 if is_playing():
                     print("[Listener] ⏸️ Pausing mic during playback")
@@ -175,22 +177,22 @@ def listen():
 
                 audio_block, _ = stream.read(FRAME_SIZE)
                 channel_0 = audio_block[:, 0]
+                buffer.append(audio_block)  # Store original audio
                 
-                # Apply dynamic gain for VAD (but store original audio)
+                # Apply dynamic gain and run VAD for silence detection
                 channel_0_normalized = apply_dynamic_gain(channel_0.copy())
                 vad_prob = model_vad(torch.from_numpy(channel_0_normalized), SAMPLE_RATE).item()
-                buffer.append(audio_block)  # Store original audio
-
-                # Use LOWER threshold for continuation (more lenient to avoid cutting off)
-                # This prevents breaking up speech when speaking from a distance
-                if vad_prob < VAD_CONTINUATION_THRESHOLD:
+                
+                # Check if VAD indicates silence (below LOWER threshold)
+                if vad_prob < VAD_SILENCE_THRESHOLD:
                     if silence_start is None:
                         silence_start = time.time()
                     elif time.time() - silence_start > SILENCE_TIMEOUT:
-                        print(f"\n⏹️ Speech ended (VAD: {vad_prob:.2f}). Processing...")
+                        print(f"\n⏹️ Speech ended (VAD silence: {vad_prob:.2f} < {VAD_SILENCE_THRESHOLD}). Processing...")
                         set_transcribing(False)  # Notify GUI: transcription ended
                         break
                 else:
+                    # Reset silence timer if VAD detects any speech
                     silence_start = None
                 print(".", end="", flush=True)
 

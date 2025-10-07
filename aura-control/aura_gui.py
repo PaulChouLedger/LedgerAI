@@ -75,6 +75,13 @@ class BorderOverlay(QWidget):
         rect_size = radius * 2
         
         painter.drawEllipse(rect_x, rect_y, rect_size, rect_size)
+        
+        # Debug: Print position info once
+        if not hasattr(self, '_debug_printed'):
+            self._debug_printed = True
+            print(f"[BorderOverlay Paint] Widget size: {size.width()}x{size.height()}, Center: ({center_x},{center_y}), Radius: {radius}px")
+            print(f"[BorderOverlay Paint] Drawing at: ({rect_x},{rect_y}), diameter: {rect_size}px")
+        
         painter.end()
     
     def update_border(self, width, opacity):
@@ -150,8 +157,11 @@ class AuraGUI(QMainWindow):
         
         # Create transparent overlay widget for drawing border on top of EVERYTHING
         self.border_overlay = BorderOverlay(self, min_dim)
-        self.border_overlay.setGeometry(0, 0, min_dim, min_dim)
+        self.border_overlay.move(0, 0)  # Position at top-left of parent window
+        self.border_overlay.resize(min_dim, min_dim)
+        self.border_overlay.raise_()  # Ensure it's on top
         self.border_overlay.hide()  # Hidden until transcription starts
+        print(f"[BorderOverlay] 🔴 Created at (0,0), size={min_dim}x{min_dim}")
         
         # Create 6 buttons equally spaced around the circular edge (after borders)
         # Buttons will be on top of borders
