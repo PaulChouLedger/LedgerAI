@@ -175,6 +175,11 @@ class AuraRAG:
             
             print(f"[RAG] 🔍 Calling cudaKNN: n={n_vectors}, d={self.index.d}, k={k}, metric={metric}")
             
+            # Prepare vector norms pointer
+            vector_norms_ptr = None
+            if self.cuda_vector_norms is not None:
+                vector_norms_ptr = self.cuda_vector_norms['ptr']
+            
             result = cudaKNN(
                 self.cuda_vectors['ptr'],     # vectors
                 cuda_query['ptr'],            # queries
@@ -184,7 +189,7 @@ class AuraRAG:
                 self.index.d,                 # d (dimension)
                 k,                            # k (number of results)
                 metric,                       # metric type
-                self.cuda_vector_norms['ptr'] if self.cuda_vector_norms else None,  # vector norms
+                vector_norms_ptr,             # vector norms (None for inner product)
                 cuda_distances['ptr'],        # output distances
                 cuda_indices['ptr'],          # output indices
                 None                          # stream
