@@ -16,11 +16,11 @@ SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.5  # Increased to capture full speech including pauses
-VAD_THRESHOLD = 0.3  # Lowered for better detection with dynamic gain
+VAD_THRESHOLD = 0.2  # Lowered for better detection with dynamic gain
 MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 
 # Audio Processing Config - Dynamic RMS-based gain
-TARGET_RMS = 0.3  # Target RMS level for dynamic normalization
+TARGET_RMS = 0.08  # Target RMS level for dynamic normalization
 MIN_GAIN = 1.0  # Minimum gain multiplier
 MAX_GAIN = 15.0  # Maximum gain multiplier (prevents over-amplification)
 
