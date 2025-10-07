@@ -199,24 +199,30 @@ class AuraGUI(QMainWindow):
             btn.move(int(x), int(y))
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                        stop:0 {color}FF, stop:0.3 {color}E6, stop:0.7 {color}CC, stop:1 {color}B3);
+                    /* Futuristic glassmorphism background */
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                        stop:0 {color}AA, stop:0.5 {color}CC, stop:1 {color}AA);
                     color: white;
-                    font-size: 32px;
+                    font-size: 36px;
                     font-weight: bold;
                     border-radius: 50px;
-                    border: none;
+                    /* Glowing border effect */
+                    border: 3px solid {color}66;
                     padding: 0px;
+                    /* Subtle inner shadow for depth */
                 }}
                 QPushButton:hover {{
-                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                        stop:0 {color}FF, stop:0.2 {color}F0, stop:0.8 {color}D9, stop:1 {color}C2);
-                    transform: scale(1.05);
+                    /* Brighter, more intense on hover */
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                        stop:0 {color}FF, stop:0.3 #FFFFFFAA, stop:0.7 {color}FF, stop:1 {color}DD);
+                    border: 3px solid {color}FF;
+                    /* Scale up slightly */
                 }}
                 QPushButton:pressed {{
-                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                        stop:0 {color}CC, stop:0.3 {color}B3, stop:0.7 {color}99, stop:1 {color}80);
-                    transform: scale(0.95);
+                    /* Dimmer when pressed */
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                        stop:0 {color}88, stop:0.5 {color}AA, stop:1 {color}88);
+                    border: 3px solid {color}AA;
                 }}
             """)
             
@@ -552,15 +558,15 @@ class AuraGUI(QMainWindow):
         # Second smooth: cosine easing
         eased = 0.5 - 0.5 * math.cos(self.tts_opacity_smooth * math.pi)
         
-        # Map to opacity range - not too extreme for smooth feel
-        min_opacity = 0.45  # Higher minimum - never too dim
-        max_opacity = 0.90  # Slightly lower max - less harsh
+        # Map to opacity range - wider for more visible pulsation
+        min_opacity = 0.30  # Lower minimum - more dramatic
+        max_opacity = 0.95  # Higher maximum - more contrast
         target_opacity = min_opacity + eased * (max_opacity - min_opacity)
         
-        # Final smoothing pass for absolutely smooth transitions
+        # Final smoothing pass for smooth but visible transitions
         if not hasattr(self, 'tts_final_opacity'):
             self.tts_final_opacity = target_opacity
-        self.tts_final_opacity += (target_opacity - self.tts_final_opacity) * 0.3
+        self.tts_final_opacity += (target_opacity - self.tts_final_opacity) * 0.4  # Increased from 0.3 for more responsiveness
         
         self.opacity = self.tts_final_opacity
         
