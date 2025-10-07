@@ -59,7 +59,7 @@ model_mapping = {
     "small.en": "models--Systran--faster-small-whisper.en",      # Better accuracy
     "medium.en": "models--Systran--faster-medium-whisper.en",    # Much better for names
     "base.en": "models--Systran--faster-base-whisper.en",
-    "large-v3-turbo": "models--deepdml--faster-whisper-large-v3-turbo-ct2"  # Best accuracy, optimized speed
+    "large-v3-turbo": "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo"  # Best accuracy, optimized speed
 }
 
 # Get the actual model repo name
