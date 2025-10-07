@@ -35,7 +35,8 @@ class BorderOverlayWidget(QWidget):
         painter.setBrush(Qt.NoBrush)
         
         center = 540
-        radius = 526
+        # Move border to the edge: 540 (screen edge) - 4 (half of 8px pen) - 1 (safety) = 535px
+        radius = 535  # Right at the edge of the circular screen
         
         # White reference circle (always)
         white_pen = QPen(QColor(255, 255, 255), 8, Qt.SolidLine)
