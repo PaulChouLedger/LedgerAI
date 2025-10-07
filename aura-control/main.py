@@ -313,7 +313,6 @@ def start_services():
         # Run initial scan for any new files
         auto_ingest.run_once()
         # Start continuous monitoring in background thread
-        import threading
         def monitor_files():
             while True:
                 time.sleep(60)  # Check every 60 seconds

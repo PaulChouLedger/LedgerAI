@@ -122,11 +122,12 @@ def rebuild_embeddings():
         
         if USE_SMART_CHUNKING and DETECT_PERSON_BIOS:
             # Multiple patterns to detect section breaks (works for various document types)
+            # Note: Use \s* to handle leading whitespace before names
             patterns = [
-                re.compile(r'\n([A-Z][a-z]+ [A-Z][a-z]+) is (a|an|the) ', re.MULTILINE),  # "Name is a/an/the"
-                re.compile(r'\n([A-Z][a-z]+ [A-Z][a-z]+) was (a|an|the) ', re.MULTILINE),  # "Name was"
-                re.compile(r'\n([A-Z][a-z]+ [A-Z][a-z]+) has been ', re.MULTILINE),  # "Name has been"
-                re.compile(r'\n([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+) is (a|an|the) ', re.MULTILINE),  # Multi-word names
+                re.compile(r'\n\s*([A-Z][a-z]+ [A-Z][a-z]+) is (a|an|the) ', re.MULTILINE),  # "Name is a/an/the"
+                re.compile(r'\n\s*([A-Z][a-z]+ [A-Z][a-z]+) was (a|an|the) ', re.MULTILINE),  # "Name was"
+                re.compile(r'\n\s*([A-Z][a-z]+ [A-Z][a-z]+) has been ', re.MULTILINE),  # "Name has been"
+                re.compile(r'\n\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+) is (a|an|the) ', re.MULTILINE),  # Multi-word names
             ]
             
             # Combine all pattern matches
