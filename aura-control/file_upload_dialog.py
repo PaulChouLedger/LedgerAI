@@ -38,7 +38,15 @@ class FileUploadDialog(QDialog):
         self.setWindowTitle("Document Upload - AuraVision")
         # Full screen for 5-inch 1080x1080 circular screen
         self.setFixedSize(1080, 1080)  # Full screen size
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # Frameless, stay on top
+        
+        # Use different window flags depending on whether we have a parent
+        if parent:
+            # If we have a parent, use Dialog flag for proper modal behavior
+            self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+            self.setModal(True)  # Make it modal to block parent interaction
+        else:
+            # If no parent, stay on top
+            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         
         # Set stylesheet before creating UI
         print("[Upload] 👁️ Dialog initialized and ready")

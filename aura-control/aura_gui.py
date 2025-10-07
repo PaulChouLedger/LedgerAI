@@ -6,7 +6,6 @@ import math
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsDropShadowEffect
 from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QTransform
 from PyQt5.QtCore import Qt, QTimer, QPoint, QPropertyAnimation, QEasingCurve
-from file_upload_dialog import show_upload_dialog
 
 _app = None
 _window = None
@@ -49,11 +48,13 @@ class AuraGUI(QMainWindow):
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         
-        # Image label
+        # Image label - fixed size to prevent shifting
         self.label = QLabel()
         self.label.setPixmap(scaled_pixmap)
         self.label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.label)
+        self.label.setFixedSize(min_dim, min_dim)  # Lock size to prevent shifting
+        self.label.setScaledContents(False)  # Don't auto-scale, we'll handle it manually
+        layout.addWidget(self.label, alignment=Qt.AlignCenter)  # Center in layout
         
         # Store original pixmap for scaling effects
         self._original_pixmap = scaled_pixmap
@@ -68,14 +69,15 @@ class AuraGUI(QMainWindow):
         self.border_widget.setStyleSheet("""
             QLabel {
                 background-color: transparent;
-                border: 8px solid rgba(100, 0, 0, 0.6);
+                border: 8px solid rgba(139, 0, 0, 0.7);  /* Dark red with transparency */
                 border-radius: 540px;
             }
         """)
         self.border_widget.setAttribute(Qt.WA_TransparentForMouseEvents)
-        self.border_widget.setAttribute(Qt.WA_NoSystemBackground, True)  # Make transparent to mouse events
         self.border_widget.raise_()  # Bring to front
         self.border_widget.hide()  # Hide by default
+        
+        print("[AuraGUI] 🔴 Border widget created and configured")
         
         # Store border state for animation
         self.border_width = 8
@@ -193,57 +195,17 @@ class AuraGUI(QMainWindow):
         """Handle upload button click"""
         print("[AuraGUI] 📤 Upload button clicked")
         
-        # Remove WindowStaysOnTopHint temporarily to let dialog be on top
-        print("[AuraGUI] 🔽 Removing stay-on-top flag for upload dialog...")
-        self.setWindowFlags(Qt.FramelessWindowHint)
-        self.show()  # Need to show again after changing flags
-        
-        # Process events
-        QApplication.processEvents()
-        
-        # Small delay to ensure window flags are updated
-        QTimer.singleShot(100, self._show_upload_dialog_after_fade)
-    
-    def _show_upload_dialog_after_fade(self):
-        """Show upload dialog after main GUI flags are updated"""
+        # Pass self as parent so dialog appears on top properly
         print("[AuraGUI] 📂 Showing upload dialog...")
-        show_upload_dialog()
+        from file_upload_dialog import FileUploadDialog
         
-        print("[AuraGUI] 📂 Upload dialog closed, restoring main window...")
-        # Restore main GUI after dialog closes (no delay needed)
-        self._restore_gui_opacity()
-    
-    def _restore_gui_opacity(self):
-        """Restore main GUI after upload dialog closes"""
-        print("[AuraGUI] 👁️ Restoring main window with stay-on-top flag...")
+        # Create and show dialog with this window as parent
+        dialog = FileUploadDialog(parent=self)
         
-        global _transcribing
+        # The dialog should now appear on top of this window
+        dialog.exec_()
         
-        # Restore WindowStaysOnTopHint flag
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        
-        # Show the window again in fullscreen
-        self.showFullScreen()
-        self.raise_()
-        self.activateWindow()
-        
-        # Restore border widget visibility and position
-        self.border_widget.setGeometry(0, 0, 1080, 1080)
-        self.border_widget.raise_()
-        
-        # Show border if we're currently transcribing
-        if _transcribing:
-            self.border_widget.show()
-        else:
-            self.border_widget.hide()
-        
-        # Process events to ensure window is visible
-        QApplication.processEvents()
-        
-        # Reset aura eye to original size
-        self._reset_aura_eye()
-        
-        print("[AuraGUI] ✅ Main window restored")
+        print("[AuraGUI] ✅ Upload dialog closed")
     
     def _handle_settings(self):
         """Handle settings button click"""
@@ -365,26 +327,29 @@ class AuraGUI(QMainWindow):
     def _update_border_style(self, static=True, pulsating=False, width=5):
         """Update the border style based on current state"""
         if pulsating:
-            # Show and animate pulsating red border
+            # Show and animate pulsating red border with darker color and transparency
             self.border_widget.setStyleSheet(f"""
                 QLabel {{
                     background-color: transparent;
-                    border: {width}px solid rgba(100, 0, 0, 0.6);
+                    border: {width}px solid rgba(139, 0, 0, 0.7);  /* Dark red with transparency */
                     border-radius: 540px;
                 }}
             """)
+            self.border_widget.setGeometry(0, 0, 1080, 1080)
             self.border_widget.show()
             # Ensure border is always on top of buttons
             self.border_widget.raise_()
+            
+            # Debug output
+            if not hasattr(self, '_border_shown_once'):
+                self._border_shown_once = True
+                print(f"[GUI] 🔴 Border widget shown: visible={self.border_widget.isVisible()}, geometry={self.border_widget.geometry()}")
         else:
             # Hide border completely
             self.border_widget.hide()
             return
         
         # Ensure border widget is always on top and properly positioned
-        self.border_widget.raise_()
-        self.border_widget.setGeometry(0, 0, 1080, 1080)
-        # Ensure border is visible above buttons
         self.border_widget.raise_()
     
     def _animate_aura_eye_tts(self, tts_frequency):
@@ -616,12 +581,19 @@ def set_listening_ready():
 
 def set_transcribing(active):
     """Set transcription state - red edge pulsation when user is speaking"""
-    global _transcribing
+    global _transcribing, _window
     _transcribing = active
     if active:
-        print("[AuraGUI] 🔴 Transcription active - red edge pulsating")
+        print("[AuraGUI] 🔴 Transcription active - red edge should start pulsating")
+        # Force border to show immediately
+        if _window and hasattr(_window, 'border_widget'):
+            _window.border_widget.show()
+            _window.border_widget.raise_()
+            print(f"[AuraGUI] 🔴 Border widget forced visible: {_window.border_widget.isVisible()}")
     else:
         print("[AuraGUI] ⚫ Transcription ended - returning to fixed mode")
+        if _window and hasattr(_window, 'border_widget'):
+            _window.border_widget.hide()
     print(f"[AuraGUI] 🔴 State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
 
 def set_tts_playing(active):
