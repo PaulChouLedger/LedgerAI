@@ -32,6 +32,10 @@ prompt_history = []
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
+# === Real-time voice frequency tracking ===
+_current_voice_frequency = 0.5  # Default frequency (0.0 to 1.0 range)
+_last_audio_rms = 0.0  # Track audio amplitude
+
 # === Detect correct mic index ===
 def find_device_index():
     global DEVICE_INDEX
@@ -51,6 +55,58 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 def apply_minimal_gain(signal, gain_multiplier=1.5):
     """Apply minimal gain without complex processing"""
     return np.clip(signal * gain_multiplier, -1.0, 1.0)
+
+def analyze_voice_frequency(audio_block):
+    """
+    Analyze audio block to extract voice characteristics for organic border pulsation
+    Returns normalized frequency (0.0 to 1.0) based on audio amplitude and pitch
+    """
+    global _current_voice_frequency, _last_audio_rms
+    
+    try:
+        # Get mono channel
+        if audio_block.ndim > 1:
+            mono = audio_block[:, 0]
+        else:
+            mono = audio_block
+        
+        # Calculate RMS (amplitude) for intensity
+        rms = np.sqrt(np.mean(mono ** 2))
+        
+        # Smooth RMS changes for organic feel
+        smoothing = 0.7  # 70% previous, 30% current
+        _last_audio_rms = _last_audio_rms * smoothing + rms * (1 - smoothing)
+        
+        # Calculate zero-crossing rate for pitch estimation
+        zero_crossings = np.sum(np.diff(np.sign(mono)) != 0)
+        zcr_rate = zero_crossings / len(mono)
+        
+        # Combine RMS and ZCR for organic frequency
+        # High RMS = louder = faster pulsation
+        # High ZCR = higher pitch = faster pulsation
+        amplitude_component = min(_last_audio_rms * 50, 1.0)  # Scale RMS to 0-1
+        pitch_component = min(zcr_rate * 2.0, 1.0)  # Scale ZCR to 0-1
+        
+        # Weighted combination (60% amplitude, 40% pitch)
+        frequency = amplitude_component * 0.6 + pitch_component * 0.4
+        
+        # Add organic variation (small random-like fluctuation)
+        import random
+        organic_noise = random.uniform(-0.05, 0.05)
+        frequency = max(0.1, min(frequency + organic_noise, 1.0))
+        
+        # Smooth frequency changes
+        _current_voice_frequency = _current_voice_frequency * 0.8 + frequency * 0.2
+        
+        return _current_voice_frequency
+        
+    except Exception as e:
+        # Fallback to moderate frequency on error
+        return 0.5
+
+def get_transcription_frequency():
+    """Get current voice frequency for GUI pulsation (0.0 to 1.0)"""
+    return _current_voice_frequency
 
 
 # === Transcribe with Whisper container ===
@@ -150,6 +206,10 @@ def listen():
                 channel_0 = audio_block[:, 0]
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 buffer.append(audio_block)
+                
+                # Analyze voice frequency in real-time for organic border pulsation
+                if vad_prob > VAD_CONFIDENCE_THRESHOLD:
+                    analyze_voice_frequency(audio_block)
 
                 if vad_prob < VAD_CONFIDENCE_THRESHOLD:
                     if silence_start is None:

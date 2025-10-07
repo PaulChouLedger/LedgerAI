@@ -273,65 +273,86 @@ class AuraGUI(QMainWindow):
             self._animate_aura_eye_idle()  # Gentle breathing animation
             self.border_widget.hide()  # Hide border completely
             
-        # State 4: User speaking (transcription) - red edge pulsation matching user's speech frequency
+        # State 4: User speaking (transcription) - organic red border pulsation matching voice
         elif _transcribing:
+            # Keep aura eye fully visible during transcription
             self.label.setStyleSheet("opacity: 1.0;")
             
-            # Get actual transcription frequency from audio analysis
+            # Get real-time voice frequency from audio analysis
             try:
                 from listener import get_transcription_frequency
-                speech_freq = get_transcription_frequency()
-                # Ensure frequency is in valid range
-                speech_freq = max(0.1, min(speech_freq, 1.0))
+                voice_freq = get_transcription_frequency()
+                # voice_freq is 0.0 to 1.0 based on amplitude and pitch
             except ImportError:
-                speech_freq = 0.7  # Higher default for more visible pulsation
+                voice_freq = 0.5  # Moderate default
             except Exception as e:
-                print(f"[GUI] ⚠️ Frequency analysis failed: {e}")
-                speech_freq = 0.7  # Fallback to visible pulsation
+                voice_freq = 0.5  # Fallback
             
-            # Use speech frequency for pulse speed with enhanced responsiveness
-            self.border_pulse_speed = speech_freq * 4.0  # 4x scale for more visible effect
+            # Create organic pulsation based on voice characteristics
+            # Use multiple sine waves at different frequencies for natural feel
             
-            # Add some variation based on speech frequency
-            frequency_variation = speech_freq * 1.0  # More variation
-            self.border_pulse_phase += self.border_pulse_speed + frequency_variation
+            # Primary pulse (follows voice frequency closely)
+            primary_speed = 0.1 + (voice_freq * 0.3)  # 0.1 to 0.4 range
+            self.border_pulse_phase += primary_speed
+            primary_pulse = (math.sin(self.border_pulse_phase) + 1) / 2
             
-            # Create pulsation that matches speech characteristics
-            pulse_intensity = (math.sin(self.border_pulse_phase) + 1) / 2
+            # Secondary pulse (slower, adds organic variation)
+            if not hasattr(self, 'secondary_phase'):
+                self.secondary_phase = 0.0
+            self.secondary_phase += 0.05
+            secondary_pulse = (math.sin(self.secondary_phase) + 1) / 2
             
-            # Consistent width calculation for all transcriptions
-            base_width = 8  # Thicker base width
-            variation_width = 4  # More variation
-            self.border_width = int(base_width + pulse_intensity * variation_width)
+            # Tertiary pulse (micro variations for organic feel)
+            if not hasattr(self, 'tertiary_phase'):
+                self.tertiary_phase = 0.0
+            self.tertiary_phase += 0.15
+            tertiary_pulse = (math.sin(self.tertiary_phase * 1.7) + 1) / 2
             
-            # Ensure consistent minimum and maximum width
-            self.border_width = max(self.border_width, 8)
-            self.border_width = min(self.border_width, 12)
+            # Combine pulses with voice frequency weighting
+            # Higher voice frequency = more influence from primary pulse
+            combined_pulse = (
+                primary_pulse * (0.5 + voice_freq * 0.3) +      # 50-80% primary
+                secondary_pulse * (0.3 - voice_freq * 0.1) +    # 30-20% secondary  
+                tertiary_pulse * 0.2                             # 20% micro variation
+            )
             
-            # Only print occasionally to avoid log spam
+            # Calculate border width based on combined pulse and voice intensity
+            base_width = 6
+            max_variation = 8  # Larger variation for more dramatic effect
+            self.border_width = int(base_width + combined_pulse * max_variation * (0.5 + voice_freq))
+            
+            # Clamp width
+            self.border_width = max(6, min(self.border_width, 16))
+            
+            # Calculate opacity variation for more organic feel
+            border_opacity = 0.5 + combined_pulse * 0.4  # 0.5 to 0.9 opacity
+            
+            # Debug logging (occasional)
             if hasattr(self, '_border_debug_counter'):
                 self._border_debug_counter += 1
             else:
                 self._border_debug_counter = 0
             
             if self._border_debug_counter % 20 == 0:  # Print every second
-                print(f"[GUI] 🔴 Border: freq={speech_freq:.3f}, width={self.border_width}px, intensity={pulse_intensity:.3f}, visible={self.border_widget.isVisible()}")
+                print(f"[GUI] 🔴 Voice: freq={voice_freq:.3f}, width={self.border_width}px, pulse={combined_pulse:.3f}, opacity={border_opacity:.3f}")
             
-            self._update_border_style(pulsating=True, width=self.border_width)
+            # Update border with organic pulsation
+            self._update_border_style(pulsating=True, width=self.border_width, opacity=border_opacity)
             
         # State 5: TTS playing - sophisticated aura eye pulsation
         elif _tts_playing:
             self._animate_aura_eye_tts(_tts_frequency)
             self.border_widget.hide()  # Hide border during TTS
     
-    def _update_border_style(self, static=True, pulsating=False, width=5):
-        """Update the border style based on current state"""
+    def _update_border_style(self, static=True, pulsating=False, width=5, opacity=0.7):
+        """Update the border style with organic opacity variation"""
         if pulsating:
-            # Show and animate pulsating red border with darker color and transparency
+            # Show and animate pulsating red border with variable opacity
+            # Brighter red color for better visibility
             self.border_widget.setStyleSheet(f"""
                 QLabel {{
                     background-color: transparent;
-                    border: {width}px solid rgba(139, 0, 0, 0.7);  /* Dark red with transparency */
+                    border: {width}px solid rgba(200, 0, 0, {opacity});
                     border-radius: 540px;
                 }}
             """)
@@ -340,7 +361,7 @@ class AuraGUI(QMainWindow):
             # Ensure border is always on top of buttons
             self.border_widget.raise_()
             
-            # Debug output
+            # Debug output (only once)
             if not hasattr(self, '_border_shown_once'):
                 self._border_shown_once = True
                 print(f"[GUI] 🔴 Border widget shown: visible={self.border_widget.isVisible()}, geometry={self.border_widget.geometry()}")
@@ -534,13 +555,24 @@ class AuraGUI(QMainWindow):
         global _transcribing
         _transcribing = active
         if active:
-            print("[AuraGUI] 🔴 Transcription active - red edge should start pulsating")
+            print("[AuraGUI] 🔴 Transcription active - red edge pulsating")
+            # Reset animation phases for consistent start
+            self.border_pulse_phase = 0.0
+            if hasattr(self, 'secondary_phase'):
+                self.secondary_phase = 0.0
+            if hasattr(self, 'tertiary_phase'):
+                self.tertiary_phase = 0.0
+            
+            # Immediately show border
             if hasattr(self, 'border_widget'):
+                self.border_widget.setGeometry(0, 0, 1080, 1080)
                 self.border_widget.show()
                 self.border_widget.raise_()
-                print(f"[AuraGUI] 🔴 Border widget forced visible: {self.border_widget.isVisible()}")
+                # Force initial style update
+                self._update_border_style(pulsating=True, width=8, opacity=0.7)
+                print(f"[AuraGUI] 🔴 Border shown: visible={self.border_widget.isVisible()}")
         else:
-            print("[AuraGUI] ⚫ Transcription ended - returning to fixed mode")
+            print("[AuraGUI] ⚫ Transcription ended")
             if hasattr(self, 'border_widget'):
                 self.border_widget.hide()
         print(f"[AuraGUI] 🔴 State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")

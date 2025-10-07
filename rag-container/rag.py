@@ -232,9 +232,38 @@ class AuraRAG:
             traceback.print_exc()
             return None, None
     
+    def _extract_person_name(self, query: str) -> str:
+        """
+        Extract person name from queries like "Who is X?", "Tell me about Y", etc.
+        
+        Args:
+            query: User query
+            
+        Returns:
+            Extracted name or empty string if no name found
+        """
+        # Common patterns for name queries
+        patterns = [
+            r"who is ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",              # "Who is David Lara"
+            r"who's ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",               # "Who's Bob Carella"
+            r"tell me about ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",       # "Tell me about Paul Chou"
+            r"about ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",               # "About Jorge Guinovart"
+            r"describe ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",            # "Describe Liam Hugill"
+            r"what (?:do you know )?about ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",  # "What about X" or "What do you know about X"
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, query, re.IGNORECASE)
+            if match:
+                name = match.group(1)
+                print(f"[RAG] 🔍 Detected name query: '{name}'")
+                return name
+        
+        return ""
+    
     def search(self, query: str, k: int = 3) -> List[Dict[str, Any]]:
         """
-        Search documents using RAG - simplified like container test
+        Search documents using RAG with hybrid keyword filtering
         
         Args:
             query: Search query
@@ -246,6 +275,13 @@ class AuraRAG:
         if not query or not isinstance(query, str):
             return []
         
+        # Extract person name if this is a biographical query
+        person_name = self._extract_person_name(query)
+        use_keyword_filter = bool(person_name)
+        
+        if use_keyword_filter:
+            print(f"[RAG] 🔍 Hybrid search enabled: filtering for '{person_name}'")
+        
         try:
             # Simple encoding like the container test
             query_embedding = self.encoder.encode([query], convert_to_numpy=True)
@@ -255,7 +291,10 @@ class AuraRAG:
             
             # Use faiss_lite CUDA functions (the working approach)
             print(f"[RAG] 🔧 Using faiss_lite CUDA search...")
-            distances, indices = self._search_with_faiss_lite(query_embedding, k)
+            
+            # Request more results if using keyword filter (we'll filter down)
+            search_k = k * 3 if use_keyword_filter else k
+            distances, indices = self._search_with_faiss_lite(query_embedding, search_k)
             
             if distances is None:
                 raise Exception("faiss_lite CUDA search failed")
@@ -280,15 +319,27 @@ class AuraRAG:
                     print(f"[RAG] 🔍 Result {i+1}: idx={idx}, distance={distance:.4f}, score={similarity_score:.4f}, threshold={self.relevance_threshold}")
                     print(f"[RAG] 🔍 Chunk preview: '{chunk[:100]}...'")
                     
+                    # Apply keyword filter if enabled (HYBRID SEARCH)
+                    if use_keyword_filter:
+                        if person_name not in chunk:
+                            print(f"[RAG] 🔍 Filtered out: '{person_name}' not found in chunk")
+                            continue
+                        else:
+                            print(f"[RAG] ✅ Keyword match: '{person_name}' found in chunk")
+                    
                     if similarity_score >= self.relevance_threshold:
                         results.append({
                             'chunk': chunk,
                             'score': similarity_score,
                             'distance': float(distance),
-                            'rank': i + 1
+                            'rank': len(results) + 1
                         })
                         seen_indices.add(idx)
                         print(f"[RAG] ✅ Added to results (above threshold)")
+                        
+                        # Stop if we have enough results
+                        if len(results) >= k:
+                            break
                     else:
                         print(f"[RAG] ❌ Below threshold, skipping")
                 else:
@@ -296,8 +347,8 @@ class AuraRAG:
             
             print(f"[RAG] 🔍 Final results: {len(results)} unique documents above threshold")
             
-            # If we have fewer results than requested due to duplicates, try to get more diverse results
-            if len(results) < k and len(results) > 0:
+            # If we have fewer results than requested, try to get more diverse results
+            if len(results) < k and len(results) > 0 and not use_keyword_filter:
                 print(f"[RAG] 🔧 Only found {len(results)} unique results, requesting more for diversity...")
                 # Try to get additional results by increasing k and filtering out seen indices
                 additional_k = k * 2  # Request more results
