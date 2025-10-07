@@ -7,6 +7,7 @@ import os
 import signal
 import sys
 import requests
+import concurrent.futures
 from dotenv import dotenv_values   # 👈 load host .env
 
 from aura_gui import launch_gui, run_gui_loop
@@ -186,10 +187,10 @@ def initialize_rag_delayed():
         
         print("[Aura] 🔍 Initializing RAG system...")
         
-        # Initialize RAG system
+        # Initialize RAG system (longer timeout for CUDA model loading on first boot)
         for attempt in range(3):
             try:
-                init_response = requests.post("http://localhost:11435/rag/init", timeout=30)
+                init_response = requests.post("http://localhost:11435/rag/init", timeout=90)
                 if init_response.status_code == 200:
                     result = init_response.json()
                     if result.get("status") == "success":
@@ -257,36 +258,48 @@ def warm_up_rag():
 def start_services():
     TIMEOUT = 10  # Reduced timeout for faster startup
     
-    print("[Aura] 🚀 Starting Aura services...")
+    print("[Aura] 🚀 Starting all containers in parallel...")
     
-    # Step 1: Start Whisper container (configurable)
-    print(f"[Aura] 🎤 Starting Whisper container ({WHISPER_DESCRIPTION})...")
+    # Start all containers in parallel using threads
+    def start_whisper():
+        print(f"[Aura] 🎤 Starting Whisper container ({WHISPER_DESCRIPTION})...")
+        return run_container("aura-whisper", 5000, WHISPER_IMAGE, timeout=10)
     
-    # Use 10s timeout for faster-whisper container
-    whisper_timeout = 10
-    print(f"[Aura] ⏱️ Using {whisper_timeout}s timeout for {WHISPER_DESCRIPTION}")
-    whisper_ok = run_container("aura-whisper", 5000, WHISPER_IMAGE, timeout=whisper_timeout)
+    def start_llm():
+        print("[Aura] 🧠 Starting LLM container...")
+        return run_container("aura-llm", 11434, "aura-llm:latest", timeout=TIMEOUT)
+    
+    def start_rag():
+        print("[Aura] 🔍 Starting RAG container...")
+        return run_container("aura-rag", 11435, "aura-rag:latest", timeout=TIMEOUT)
+    
+    # Start all containers simultaneously
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        whisper_future = executor.submit(start_whisper)
+        llm_future = executor.submit(start_llm)
+        rag_future = executor.submit(start_rag)
+        
+        # Wait for all to complete
+        whisper_ok = whisper_future.result()
+        llm_ok = llm_future.result()
+        rag_ok = rag_future.result()
+    
+    # Check if all succeeded
     if not whisper_ok:
         print("[Aura] ❌ Whisper container failed. Aborting.")
         return
-    
-    # Step 2: Start LLM container
-    print("[Aura] 🧠 Starting LLM container...")
-    llm_ok = run_container("aura-llm", 11434, "aura-llm:latest", timeout=TIMEOUT)
     if not llm_ok:
         print("[Aura] ❌ LLM container failed. Aborting.")
         return
-    
-    # Step 3: Start RAG container
-    print("[Aura] 🔍 Starting RAG container...")
-    rag_ok = run_container("aura-rag", 11435, "aura-rag:latest", timeout=TIMEOUT)
     if not rag_ok:
         print("[Aura] ❌ RAG container failed. Aborting.")
         return
     
-    # Step 4: Wait for LLM to be fully ready
+    print("[Aura] ✅ All containers started successfully!")
+    
+    # Wait a bit for LLM to fully initialize
     print("[Aura] ⏳ Waiting for LLM to initialize...")
-    time.sleep(10)  # Give LLM more time to load model
+    time.sleep(5)  # Reduced from 10s since containers started in parallel
     
     # Step 4: Warm up LLM (without RAG first)
     if not warm_up_llm():

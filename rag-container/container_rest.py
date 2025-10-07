@@ -34,9 +34,20 @@ RAG_THRESHOLD = float(os.environ.get('RAG_THRESHOLD', '0.3'))
 TOP_K = int(os.environ.get('TOP_K', '3'))
 
 def initialize_service():
-    """Initialize communication service"""
+    """Initialize communication service and pre-load RAG model"""
     try:
         print(f"[{SERVICE_NAME}] 🚀 Starting Aura Communication Service...")
+        
+        # Pre-load RAG model during startup to avoid first-request delay
+        print(f"[{SERVICE_NAME}] 🔧 Pre-loading RAG model...")
+        try:
+            rag = get_rag()
+            print(f"[{SERVICE_NAME}] ✅ RAG model pre-loaded successfully")
+            print(f"[{SERVICE_NAME}] 📊 Loaded {rag.get_stats().get('chunks_loaded', 0)} document chunks")
+        except Exception as e:
+            print(f"[{SERVICE_NAME}] ⚠️ RAG pre-load failed (will retry on first request): {e}")
+            # Don't fail startup if RAG fails - it can initialize on first request
+        
         print(f"[{SERVICE_NAME}] ✅ Communication service ready")
         return True
         
