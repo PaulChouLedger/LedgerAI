@@ -628,23 +628,36 @@ class AuraGUI(QMainWindow):
         painter.setRenderHint(QPainter.HighQualityAntialiasing, True)
         painter.setBrush(Qt.NoBrush)
         
-        # Get window center
+        # Get window dimensions
         size = self.size()
-        center_x = size.width() // 2
-        center_y = size.height() // 2
-        radius = CircularBorderConfig.FIXED_BORDER_RADIUS  # 536px
+        width = size.width()
+        height = size.height()
+        center_x = width // 2
+        center_y = height // 2
         
-        # 1. ALWAYS draw white reference border
-        white_pen = QPen()
-        white_pen.setWidth(CircularBorderConfig.FIXED_BORDER_WIDTH)  # 8px
-        white_pen.setColor(QColor(255, 255, 255))  # Solid white
-        white_pen.setStyle(Qt.SolidLine)
-        white_pen.setCapStyle(Qt.RoundCap)
-        white_pen.setJoinStyle(Qt.RoundJoin)
-        painter.setPen(white_pen)
-        painter.drawEllipse(center_x - radius, center_y - radius, radius * 2, radius * 2)
+        # 1. ALWAYS draw white RECTANGLE around screen perimeter (to see available area)
+        perimeter_pen = QPen()
+        perimeter_pen.setWidth(5)  # Thick for visibility
+        perimeter_pen.setColor(QColor(255, 255, 255))  # Solid white
+        perimeter_pen.setStyle(Qt.SolidLine)
+        painter.setPen(perimeter_pen)
+        # Draw rectangle at the edge (inset by half pen width to stay inside)
+        painter.drawRect(2, 2, width - 4, height - 4)
         
-        # 2. Draw red border ONLY when transcribing
+        # 2. Draw circular reference border (smaller, inside the rectangle)
+        # Calculate safe radius that fits entirely within the screen
+        safe_radius = min(width, height) // 2 - 20  # -20px margin from edge
+        
+        circle_pen = QPen()
+        circle_pen.setWidth(CircularBorderConfig.FIXED_BORDER_WIDTH)  # 8px
+        circle_pen.setColor(QColor(0, 255, 0))  # Green to differentiate from rectangle
+        circle_pen.setStyle(Qt.SolidLine)
+        circle_pen.setCapStyle(Qt.RoundCap)
+        circle_pen.setJoinStyle(Qt.RoundJoin)
+        painter.setPen(circle_pen)
+        painter.drawEllipse(center_x - safe_radius, center_y - safe_radius, safe_radius * 2, safe_radius * 2)
+        
+        # 3. Draw red border ONLY when transcribing
         if self.show_red_border:
             red_pen = QPen()
             red_pen.setWidth(self.red_border_width)
@@ -655,16 +668,17 @@ class AuraGUI(QMainWindow):
             red_pen.setCapStyle(Qt.RoundCap)
             red_pen.setJoinStyle(Qt.RoundJoin)
             painter.setPen(red_pen)
-            painter.drawEllipse(center_x - radius, center_y - radius, radius * 2, radius * 2)
+            painter.drawEllipse(center_x - safe_radius, center_y - safe_radius, safe_radius * 2, safe_radius * 2)
         
         painter.end()
         
         # Debug once
         if not hasattr(self, '_paint_debug'):
             self._paint_debug = True
-            print(f"[PaintEvent] Window size: {size.width()}x{size.height()}, Center: ({center_x},{center_y})")
-            print(f"[PaintEvent] Drawing borders at radius: {radius}px")
-            print(f"[PaintEvent] White: {CircularBorderConfig.FIXED_BORDER_WIDTH}px, Red: {self.red_border_width}px")
+            print(f"[PaintEvent] Window size: {width}x{height}, Center: ({center_x},{center_y})")
+            print(f"[PaintEvent] White rectangle: screen perimeter")
+            print(f"[PaintEvent] Green circle: safe radius {safe_radius}px")
+            print(f"[PaintEvent] Red circle: transcription indicator (when active)")
     
     def closeEvent(self, event):
         """Handle application close event"""
