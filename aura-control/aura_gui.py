@@ -292,41 +292,41 @@ class AuraGUI(QMainWindow):
             # Create organic pulsation based on voice characteristics
             # Use multiple sine waves at different frequencies for natural feel
             
-            # Primary pulse (follows voice frequency closely)
-            primary_speed = 0.1 + (voice_freq * 0.3)  # 0.1 to 0.4 range
+            # Primary pulse (follows voice frequency closely) - FASTER for speech dynamics
+            primary_speed = 0.2 + (voice_freq * 0.6)  # 0.2 to 0.8 range (2x faster)
             self.border_pulse_phase += primary_speed
             primary_pulse = (math.sin(self.border_pulse_phase) + 1) / 2
             
-            # Secondary pulse (slower, adds organic variation)
+            # Secondary pulse (adds organic variation) - FASTER
             if not hasattr(self, 'secondary_phase'):
                 self.secondary_phase = 0.0
-            self.secondary_phase += 0.05
+            self.secondary_phase += 0.12  # Increased from 0.05
             secondary_pulse = (math.sin(self.secondary_phase) + 1) / 2
             
-            # Tertiary pulse (micro variations for organic feel)
+            # Tertiary pulse (micro variations for organic feel) - FASTER
             if not hasattr(self, 'tertiary_phase'):
                 self.tertiary_phase = 0.0
-            self.tertiary_phase += 0.15
+            self.tertiary_phase += 0.25  # Increased from 0.15
             tertiary_pulse = (math.sin(self.tertiary_phase * 1.7) + 1) / 2
             
             # Combine pulses with voice frequency weighting
             # Higher voice frequency = more influence from primary pulse
             combined_pulse = (
-                primary_pulse * (0.5 + voice_freq * 0.3) +      # 50-80% primary
-                secondary_pulse * (0.3 - voice_freq * 0.1) +    # 30-20% secondary  
-                tertiary_pulse * 0.2                             # 20% micro variation
+                primary_pulse * (0.6 + voice_freq * 0.3) +      # 60-90% primary (more responsive)
+                secondary_pulse * (0.25 - voice_freq * 0.1) +   # 25-15% secondary  
+                tertiary_pulse * 0.15                            # 15% micro variation
             )
             
             # Calculate border width based on combined pulse and voice intensity
             base_width = 6
-            max_variation = 8  # Larger variation for more dramatic effect
+            max_variation = 10  # Increased from 8 for more dramatic effect
             self.border_width = int(base_width + combined_pulse * max_variation * (0.5 + voice_freq))
             
             # Clamp width
-            self.border_width = max(6, min(self.border_width, 16))
+            self.border_width = max(6, min(self.border_width, 18))
             
-            # Calculate opacity variation for more organic feel
-            border_opacity = 0.5 + combined_pulse * 0.4  # 0.5 to 0.9 opacity
+            # Calculate opacity variation - MORE TRANSPARENT
+            border_opacity = 0.25 + combined_pulse * 0.25  # 0.25 to 0.5 opacity (was 0.5-0.9)
             
             # Debug logging (occasional)
             if hasattr(self, '_border_debug_counter'):
@@ -365,14 +365,14 @@ class AuraGUI(QMainWindow):
         try:
             if pulsating:
                 # Show and animate pulsating red border with variable opacity
-                # Brighter red color for better visibility
+                # Darker red (blood red) for subtlety
                 window_size = self.size()
                 border_radius = min(window_size.width(), window_size.height()) // 2
                 
                 self.border_widget.setStyleSheet(f"""
                     QLabel {{
                         background-color: transparent;
-                        border: {width}px solid rgba(200, 0, 0, {opacity});
+                        border: {width}px solid rgba(120, 0, 0, {opacity});
                         border-radius: {border_radius}px;
                     }}
                 """)

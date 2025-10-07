@@ -737,21 +737,27 @@ class FileUploadDialog(QDialog):
                 layout.addLayout(button_layout)
                 qr_dialog.setLayout(layout)
                 
-                # Center the QR dialog - use available geometry
-                screen = QApplication.primaryScreen().availableGeometry()
-                dialog_size = min(screen.width(), screen.height())
-                qr_dialog.setFixedSize(dialog_size, dialog_size)
+                # Center the QR dialog within the circular display
+                # Get parent window geometry for proper centering
+                if self.parent():
+                    parent_rect = self.parent().geometry()
+                    dialog_size = min(parent_rect.width(), parent_rect.height())
+                    qr_dialog.setFixedSize(dialog_size, dialog_size)
+                    
+                    # Center relative to parent
+                    x = parent_rect.x() + (parent_rect.width() - dialog_size) // 2
+                    y = parent_rect.y() + (parent_rect.height() - dialog_size) // 2
+                else:
+                    # No parent, center on screen
+                    screen = QApplication.primaryScreen().availableGeometry()
+                    dialog_size = min(screen.width(), screen.height())
+                    qr_dialog.setFixedSize(dialog_size, dialog_size)
+                    x = (screen.width() - dialog_size) // 2
+                    y = (screen.height() - dialog_size) // 2
                 
-                qr_dialog.show()
-                QApplication.processEvents()
-                
-                # Center on screen
-                x = (screen.width() - dialog_size) // 2
-                y = (screen.height() - dialog_size) // 2
-                x = max(0, x)
-                y = max(0, y)
                 qr_dialog.move(x, y)
                 print(f"[Upload] 🔍 QR dialog centered: size={dialog_size}x{dialog_size}, position=({x}, {y})")
+                qr_dialog.show()
                 qr_dialog.raise_()
                 qr_dialog.activateWindow()
                 

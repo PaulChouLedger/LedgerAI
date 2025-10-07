@@ -95,7 +95,19 @@ class AuraRAG:
             raise RuntimeError("CUDA not available - GPU required for RAG")
         
         print(f"[RAG] 🔧 Loading sentence transformer on CUDA: {self.model_name}")
-        self.encoder = SentenceTransformer(self.model_name, device='cuda')
+        
+        # Handle PyTorch meta tensor bug: load on CPU first, then move to CUDA
+        # This avoids "Cannot copy out of meta tensor" error
+        try:
+            self.encoder = SentenceTransformer(self.model_name, device='cuda')
+        except Exception as e:
+            if "meta tensor" in str(e).lower():
+                print(f"[RAG] 🔧 Meta tensor detected - loading via CPU→CUDA")
+                self.encoder = SentenceTransformer(self.model_name, device='cpu')
+                self.encoder = self.encoder.to('cuda')
+            else:
+                raise
+        
         print(f"[RAG] ✅ Loaded on CUDA: {self.model_name}")
         print(f"[RAG] 🔍 Device: {self.encoder.device}")
     
