@@ -35,31 +35,13 @@ class FileUploadDialog(QDialog):
         self.setFixedSize(1080, 1080)  # Full screen size
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # Frameless, stay on top
         
-        # Red border will be set later in the initialization
+        # Set up UI first
+        self.setup_ui()
         
         # Center the dialog on the actual screen
-        screen = self.screen()
-        # Show dialog first, then center it after it's rendered
-        self.show()  # Show the dialog first
-        self.raise_()  # Bring to front
-        self.activateWindow()  # Activate the window
-        
-        # Center dialog after it's been rendered
-        QApplication.processEvents()  # Process events to ensure dialog is rendered
         self.center_dialog()
         
-        # Debug: Print dialog dimensions and position
-        print(f"[Upload] 📐 Dialog geometry: {self.geometry()}")
-        print(f"[Upload] 📐 Dialog size: {self.size()}")
-        print(f"[Upload] 📐 Dialog position: {self.pos()}")
-        print("[Upload] 👁️ Dialog should now be visible with transparent background")
-        
-        # Add interactive touch coordinates for debugging
-        self.touch_coordinates = []
-        self.setMouseTracking(True)
-        print("[Upload] 🖱️ Touch the center of the screen to get coordinates for debugging")
-        print("[Upload] 📝 Touch coordinates will appear in the console output")
-        print("[Upload] 🎯 Touch center, top, right, bottom, left edges to get all coordinates")
+        print("[Upload] 👁️ Dialog initialized and ready")
         self.setStyleSheet("""
             QDialog {
                 background-color: rgba(28, 28, 30, 1.0);  /* Solid dark background */
@@ -194,9 +176,8 @@ class FileUploadDialog(QDialog):
     
     def closeEvent(self, event):
         """Handle dialog close event"""
-        # Use our custom close method with animation
-        self.close_dialog()
-        event.ignore()  # Prevent immediate close
+        print("[Upload] ✅ Dialog closed")
+        event.accept()
 
     def center_dialog_manually(self, screen_center_x, screen_center_y):
         """Manually center the dialog based on screen center coordinates"""
@@ -230,8 +211,11 @@ class FileUploadDialog(QDialog):
         
         # Create layout for circular content - centered within the dialog
         self.content_layout = QVBoxLayout()
-        self.content_layout.setContentsMargins(80, 80, 80, 80)  # Margins to center content within circular area
+        self.content_layout.setContentsMargins(100, 100, 100, 100)  # Margins to center content within circular area
         self.content_layout.setSpacing(25)  # Standard spacing
+        
+        # Add top spacer to push content down
+        self.content_layout.addStretch(1)
         
         # Title centered (no close button)
         title_layout = QHBoxLayout()
@@ -393,7 +377,7 @@ class FileUploadDialog(QDialog):
         
         # Close button
         self.close_btn = QPushButton("❌ Close")
-        self.close_btn.clicked.connect(self.close_dialog)
+        self.close_btn.clicked.connect(self.accept)
         self.close_btn.setStyleSheet("""
             QPushButton {
                 background-color: #FF3B30;
@@ -416,6 +400,9 @@ class FileUploadDialog(QDialog):
         button_layout.addWidget(self.upload_btn)
         button_layout.addWidget(self.close_btn)
         self.content_layout.addLayout(button_layout)
+        
+        # Add bottom spacer to complete centering
+        self.content_layout.addStretch(1)
         
         print(f"[Upload] 🔴 Red border should show circular screen boundaries")
         
