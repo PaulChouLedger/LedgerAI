@@ -292,16 +292,27 @@ class AuraGUI(QMainWindow):
     def animate_pulse(self):
         global _listening_ready, _transcribing, _tts_playing, _tts_frequency, _setup_complete
         
-        # Debug transcribing state changes
-        if hasattr(self, '_last_transcribing_state'):
-            if self._last_transcribing_state != _transcribing:
-                print(f"[GUI] 🔴 Transcribing state changed: {self._last_transcribing_state} → {_transcribing}")
-        self._last_transcribing_state = _transcribing
+        # Debug state changes
+        current_state = (
+            "transcribing" if _transcribing else
+            "tts_playing" if _tts_playing else
+            "listener_ready" if _listening_ready else
+            "setup_breathing" if not _setup_complete else
+            "waiting_for_listener"
+        )
+        
+        if not hasattr(self, '_last_state'):
+            self._last_state = None
+            
+        if self._last_state != current_state:
+            print(f"[GUI] 🎭 Animation state changed: {self._last_state} → {current_state}")
+            print(f"      _setup_complete={_setup_complete}, _listening_ready={_listening_ready}, _transcribing={_transcribing}, _tts_playing={_tts_playing}")
+        self._last_state = current_state
         
         # PRIORITY: Check transcription state FIRST to avoid it being hidden by other states
         if _transcribing:
             # Keep aura eye fully visible during transcription
-            self.label.setStyleSheet("opacity: 1.0;")
+            self.opacity_effect.setOpacity(1.0)
             
             # Border is now drawn via paintEvent - no need to show/hide widget
             
