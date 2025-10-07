@@ -276,6 +276,16 @@ def upload_files():
     
     if uploaded_count > 0:
         flash(f'Successfully uploaded {uploaded_count} file(s)', 'success')
+        
+        # Trigger auto-ingest for new files
+        try:
+            from auto_ingest import AutoIngestPipeline
+            print(f"[Aura-Upload] 🔄 Triggering auto-ingest for {uploaded_count} new file(s)...")
+            auto_ingest = AutoIngestPipeline()
+            auto_ingest.run_once()
+            print(f"[Aura-Upload] ✅ Auto-ingest completed")
+        except Exception as e:
+            print(f"[Aura-Upload] ⚠️ Auto-ingest failed: {e}")
     
     return redirect(url_for('index'))
 

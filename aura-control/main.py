@@ -305,7 +305,30 @@ def start_services():
     else:
         print("[Aura] ⚠️ Upload server skipped (Flask not available)")
     
-    # Step 7: Start listener (after RAG is initialized)
+    # Step 7: Start auto-ingest monitoring (if available)
+    try:
+        from auto_ingest import AutoIngestPipeline
+        print("[Aura] 📂 Starting auto-ingest monitoring...")
+        auto_ingest = AutoIngestPipeline()
+        # Run initial scan for any new files
+        auto_ingest.run_once()
+        # Start continuous monitoring in background thread
+        import threading
+        def monitor_files():
+            while True:
+                time.sleep(60)  # Check every 60 seconds
+                try:
+                    auto_ingest.run_once()
+                except Exception as e:
+                    print(f"[Aura] ⚠️ Auto-ingest error: {e}")
+        
+        monitor_thread = threading.Thread(target=monitor_files, daemon=True)
+        monitor_thread.start()
+        print("[Aura] ✅ Auto-ingest monitoring active (checking every 60s)")
+    except Exception as e:
+        print(f"[Aura] ⚠️ Auto-ingest not available: {e}")
+    
+    # Step 8: Start listener (after RAG is initialized)
     print("[Aura] 🎙️ Starting listener...")
     threading.Thread(target=listen, daemon=True).start()
     

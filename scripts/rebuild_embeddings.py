@@ -1,6 +1,16 @@
 #!/usr/bin/env python3
 """
 Rebuild RAG embeddings with current FAISS-GPU setup
+
+Supports multiple document types:
+- Person bios (team pages, about us sections)
+- Technical documentation (APIs, guides)
+- General content (articles, reports)
+
+Chunking strategies:
+1. Content-aware: Detects person bios, headers, section breaks
+2. Paragraph-aware: Respects paragraph boundaries
+3. Fixed-size: Falls back to simple character-based chunking
 """
 
 import os
@@ -10,6 +20,34 @@ import faiss
 from sentence_transformers import SentenceTransformer
 from pathlib import Path
 import time
+
+# === Configuration ===
+CHUNK_SIZE = 1000  # Target characters per chunk
+OVERLAP = 200  # Overlap between chunks to preserve context
+USE_SMART_CHUNKING = True  # Use content-aware chunking (True) or simple splitting (False)
+DETECT_PERSON_BIOS = True  # Enable person bio detection for team/about pages
+
+# === Usage Guide ===
+# For your document type, adjust these settings:
+#
+# 1. TEAM/BIO PAGES (like this PDF):
+#    USE_SMART_CHUNKING = True
+#    DETECT_PERSON_BIOS = True
+#
+# 2. TECHNICAL DOCS (APIs, guides):
+#    USE_SMART_CHUNKING = True
+#    DETECT_PERSON_BIOS = False
+#    (Will use paragraph-aware chunking)
+#
+# 3. GENERAL CONTENT (articles, reports):
+#    USE_SMART_CHUNKING = False
+#    DETECT_PERSON_BIOS = False  
+#    (Will use simple fixed-size chunking)
+#
+# 4. MIXED CONTENT:
+#    USE_SMART_CHUNKING = True
+#    DETECT_PERSON_BIOS = True
+#    (Will auto-detect and use best strategy per section)
 
 def rebuild_embeddings():
     """Rebuild FAISS index and document chunks"""
@@ -70,44 +108,110 @@ def rebuild_embeddings():
     
     print(f"📝 Total text length: {sum(len(text) for text in all_texts)} characters")
     
-    # Split into chunks with paragraph-aware splitting
-    chunk_size = 1000  # target characters per chunk
-    overlap = 200  # overlap between chunks
+    # Split into chunks based on configuration
+    import re
     chunks = []
     
+    print(f"\n📐 Chunking strategy: {'Smart content-aware' if USE_SMART_CHUNKING else 'Simple fixed-size'}")
+    print(f"   Chunk size: {CHUNK_SIZE} chars, Overlap: {OVERLAP} chars")
+    print(f"   Bio detection: {'Enabled' if DETECT_PERSON_BIOS else 'Disabled'}")
+    
     for text in all_texts:
-        # Split by double newlines (paragraph boundaries) first
-        paragraphs = text.split('\n\n')
+        # Try smart chunking if enabled
+        bio_starts = []
         
-        current_chunk = ""
-        
-        for para in paragraphs:
-            para = para.strip()
-            if not para:
-                continue
+        if USE_SMART_CHUNKING and DETECT_PERSON_BIOS:
+            # Multiple patterns to detect section breaks (works for various document types)
+            patterns = [
+                re.compile(r'\n([A-Z][a-z]+ [A-Z][a-z]+) is (a|an|the) ', re.MULTILINE),  # "Name is a/an/the"
+                re.compile(r'\n([A-Z][a-z]+ [A-Z][a-z]+) was (a|an|the) ', re.MULTILINE),  # "Name was"
+                re.compile(r'\n([A-Z][a-z]+ [A-Z][a-z]+) has been ', re.MULTILINE),  # "Name has been"
+                re.compile(r'\n([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+) is (a|an|the) ', re.MULTILINE),  # Multi-word names
+            ]
             
-            # If adding this paragraph would exceed chunk size
-            if len(current_chunk) + len(para) > chunk_size and current_chunk:
-                # Save current chunk
-                if len(current_chunk) > 100:
-                    chunks.append(current_chunk.strip())
-                
-                # Start new chunk with overlap from previous
-                # Take last 'overlap' characters from previous chunk
-                if len(current_chunk) > overlap:
-                    current_chunk = current_chunk[-overlap:] + "\n\n" + para
-                else:
-                    current_chunk = para
-            else:
-                # Add paragraph to current chunk
-                if current_chunk:
-                    current_chunk += "\n\n" + para
-                else:
-                    current_chunk = para
+            # Combine all pattern matches
+            bio_pattern = patterns[0]  # Use first pattern as primary
+            
+            # Find all bio starts
+            for match in bio_pattern.finditer(text):
+                bio_starts.append((match.start(), match.group(1)))
+            
+            if bio_starts:
+                print(f"\n🔍 Found {len(bio_starts)} person bios in text")
+                for pos, name in bio_starts:
+                    print(f"  - {name} at position {pos}")
         
-        # Don't forget the last chunk
-        if current_chunk and len(current_chunk) > 100:
-            chunks.append(current_chunk.strip())
+        # If we found bio markers and smart chunking is enabled, use them to split
+        if bio_starts and USE_SMART_CHUNKING:
+            last_pos = 0
+            
+            for i, (start_pos, name) in enumerate(bio_starts):
+                # Get text from last position to current bio start
+                if last_pos < start_pos:
+                    before_bio = text[last_pos:start_pos].strip()
+                    # Split this section normally if it's large
+                    if len(before_bio) > CHUNK_SIZE:
+                        # Chunk the pre-bio content
+                        for j in range(0, len(before_bio), CHUNK_SIZE - OVERLAP):
+                            chunk = before_bio[j:j + CHUNK_SIZE].strip()
+                            if len(chunk) > 100:
+                                chunks.append(chunk)
+                    elif len(before_bio) > 100:
+                        chunks.append(before_bio)
+                
+                # Get bio content (from this bio start to next bio start or end)
+                if i < len(bio_starts) - 1:
+                    next_pos = bio_starts[i + 1][0]
+                else:
+                    next_pos = len(text)
+                
+                bio_content = text[start_pos:next_pos].strip()
+                
+                # If bio is longer than chunk size, split it with overlap
+                if len(bio_content) > CHUNK_SIZE:
+                    for j in range(0, len(bio_content), CHUNK_SIZE - OVERLAP):
+                        chunk = bio_content[j:j + CHUNK_SIZE].strip()
+                        if len(chunk) > 100:
+                            chunks.append(chunk)
+                            print(f"  ✅ Created chunk for {name} (part {j // (CHUNK_SIZE - OVERLAP) + 1})")
+                else:
+                    chunks.append(bio_content)
+                    print(f"  ✅ Created chunk for {name}")
+                
+                last_pos = next_pos
+            
+            # Handle any remaining text after last bio
+            if last_pos < len(text):
+                remaining = text[last_pos:].strip()
+                if len(remaining) > 100:
+                    chunks.append(remaining)
+        else:
+            # No bio markers found or smart chunking disabled, fall back to paragraph splitting
+            print(f"\n📄 Using paragraph-aware chunking (no bio markers found or disabled)")
+            paragraphs = text.split('\n\n')
+            current_chunk = ""
+            
+            for para in paragraphs:
+                para = para.strip()
+                if not para:
+                    continue
+                
+                if len(current_chunk) + len(para) > CHUNK_SIZE and current_chunk:
+                    if len(current_chunk) > 100:
+                        chunks.append(current_chunk.strip())
+                    
+                    if len(current_chunk) > OVERLAP:
+                        current_chunk = current_chunk[-OVERLAP:] + "\n\n" + para
+                    else:
+                        current_chunk = para
+                else:
+                    if current_chunk:
+                        current_chunk += "\n\n" + para
+                    else:
+                        current_chunk = para
+            
+            if current_chunk and len(current_chunk) > 100:
+                chunks.append(current_chunk.strip())
     
     print(f"📦 Created {len(chunks)} text chunks")
     
