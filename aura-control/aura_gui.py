@@ -167,12 +167,12 @@ class AuraGUI(QMainWindow):
         """Create 6 buttons equally spaced around the circular edge"""
         # Button configurations: (text, icon, function, color)
         button_configs = [
-            ("↑", "Upload", self._handle_upload, "#007AFF"),      # Upload files
-            ("⚙", "Settings", self._handle_settings, "#FF9500"),  # Settings
-            ("📊", "Analytics", self._handle_analytics, "#34C759"), # Analytics
-            ("🎤", "Voice", self._handle_voice, "#FF3B30"),        # Voice control
-            ("📱", "Mobile", self._handle_mobile, "#5856D6"),     # Mobile sync
-            ("ℹ", "Info", self._handle_info, "#8E8E93")          # Information
+            ("↑", "Upload", self._handle_upload, "#00D4FF"),      # Upload files - Bright cyan
+            ("⚙", "Settings", self._handle_settings, "#4DB8FF"),  # Settings - Sky blue
+            ("📊", "Analytics", self._handle_analytics, "#80CFFF"), # Analytics - Light blue
+            ("🎤", "Voice", self._handle_voice, "#B3E0FF"),        # Voice control - Pale blue
+            ("📱", "Mobile", self._handle_mobile, "#CCE9FF"),     # Mobile sync - Very light blue
+            ("ℹ", "Info", self._handle_info, "#E6F4FF")          # Information - Almost white blue
         ]
         
         # Calculate positions for 6 buttons around a circle
