@@ -18,7 +18,7 @@ FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.2  # Increased from 0.2 to capture full speech
 VAD_THRESHOLD = 0.2  # Lowered from 0.3 for better detection of normal speech
 MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
-AUDIO_GAIN = 0.25  # Moderate gain (10.0 causes distortion)
+AUDIO_GAIN = 0.6  # Moderate gain (10.0 causes distortion)
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
@@ -48,6 +48,11 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 def apply_gain(signal, gain=2.0):
     """Apply simple gain to audio signal"""
     return np.clip(signal * gain, -1.0, 1.0)
+
+# === Simple frequency function for GUI border (placeholder) ===
+def get_transcription_frequency():
+    """Return default frequency for GUI border pulsation"""
+    return 0.7  # Moderate pulsation speed
 
 # === Transcribe with Whisper container ===
 def transcribe(audio):
