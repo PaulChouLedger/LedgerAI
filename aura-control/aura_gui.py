@@ -19,6 +19,39 @@ _tts_frequency = 0.15  # Current TTS frequency for pulsation speed
 # Debug: Print initial state
 print(f"[AuraGUI] 🎯 Initial state: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
 
+class BorderOverlayWidget(QWidget):
+    """Simple transparent overlay to paint borders on top of all other widgets"""
+    def __init__(self, parent, size):
+        super().__init__(parent)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.setStyleSheet("background: transparent;")
+        self.parent_gui = parent
+        
+    def paintEvent(self, event):
+        """Paint borders - this runs AFTER buttons paint, so borders appear on top"""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.setBrush(Qt.NoBrush)
+        
+        center = 540
+        radius = 526
+        
+        # White reference circle (always)
+        white_pen = QPen(QColor(255, 255, 255), 8, Qt.SolidLine)
+        painter.setPen(white_pen)
+        painter.drawEllipse(center - radius, center - radius, radius * 2, radius * 2)
+        
+        # Red circle (when transcribing)
+        if hasattr(self.parent_gui, 'show_red_border') and self.parent_gui.show_red_border:
+            red_color = QColor(200, 0, 0)
+            red_color.setAlphaF(self.parent_gui.red_border_opacity)
+            red_pen = QPen(red_color, self.parent_gui.red_border_width, Qt.SolidLine)
+            painter.setPen(red_pen)
+            painter.drawEllipse(center - radius, center - radius, radius * 2, radius * 2)
+        
+        painter.end()
+
 class AuraGUI(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -70,16 +103,22 @@ class AuraGUI(QMainWindow):
         # Make central widget ignore mouse events so border can be on top
         main_widget.setAttribute(Qt.WA_TransparentForMouseEvents, False)  # Keep mouse events for buttons
         
-        # Store border state for direct painting
+        # Store border state
         self.border_width = 8
         self.border_pulse_speed = 0.1
         self.red_border_width = 10
         self.red_border_opacity = 0.7
         self.show_red_border = False
         
-        # Create 6 buttons equally spaced around the circular edge (after borders)
-        # Buttons will be on top of borders
+        # Create 6 buttons equally spaced around the circular edge
         self.create_circular_buttons()
+        
+        # Create simple overlay widget for borders (ON TOP of buttons)
+        self.border_overlay = BorderOverlayWidget(self, window_size)
+        self.border_overlay.setGeometry(0, 0, window_size, window_size)
+        self.border_overlay.raise_()
+        self.border_overlay.show()
+        print(f"[Border] Created overlay at (0,0), size {window_size}x{window_size}")
 
         # === Pulsation Effect ===
         self.opacity = 1.0
@@ -333,11 +372,12 @@ class AuraGUI(QMainWindow):
             if self._border_debug_counter % 20 == 0:  # Print every second
                 print(f"[GUI] 🔴 Transcribing: freq={voice_freq:.3f}, width={self.border_width}px, pulse={combined_pulse:.3f}, opacity={border_opacity:.3f}")
             
-            # Update red border state and trigger repaint
+            # Update red border state and trigger overlay repaint
             self.red_border_width = int(self.border_width)
             self.red_border_opacity = border_opacity
             self.show_red_border = True
-            self.update()  # Trigger paintEvent
+            self.border_overlay.raise_()  # Keep on top every frame
+            self.border_overlay.update()  # Trigger overlay paintEvent
             
         # State 1: Initial setup - gentle, meditative aura eye
         elif not _setup_complete:
@@ -596,52 +636,6 @@ class AuraGUI(QMainWindow):
             self.show_red_border = False
             self.update()
         print(f"[AuraGUI] 🔴 State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
-    
-    def paintEvent(self, event):
-        """Draw circular borders for 1080x1080 circular screen"""
-        super().paintEvent(event)
-        
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing, True)
-        painter.setBrush(Qt.NoBrush)
-        
-        # For 1080x1080 circular screen with border-radius: 540px clipping
-        center = 540
-        
-        # Window has border-radius: 540px, so anything outside that is clipped
-        # Draw INSIDE the clipping area to be fully visible
-        # Radius must be less than 540 - (pen_width/2) to avoid clipping
-        
-        # 1. ALWAYS draw white reference circle
-        white_pen = QPen()
-        white_pen.setWidth(8)  # Thick white border
-        white_pen.setColor(QColor(255, 255, 255))  # Solid white
-        white_pen.setStyle(Qt.SolidLine)
-        painter.setPen(white_pen)
-        # Draw well inside the clipping area: 540 - 8/2 - 10 margin = 526px radius
-        white_radius = 526
-        painter.drawEllipse(center - white_radius, center - white_radius, white_radius * 2, white_radius * 2)
-        
-        # 2. Draw red border when transcribing (same radius as white)
-        if self.show_red_border:
-            red_pen = QPen()
-            red_pen.setWidth(self.red_border_width)
-            color = QColor(200, 0, 0)
-            color.setAlphaF(self.red_border_opacity)
-            red_pen.setColor(color)
-            red_pen.setStyle(Qt.SolidLine)
-            painter.setPen(red_pen)
-            # Draw at same radius as white
-            painter.drawEllipse(center - white_radius, center - white_radius, white_radius * 2, white_radius * 2)
-        
-        painter.end()
-        
-        # Debug once
-        if not hasattr(self, '_paint_debug'):
-            self._paint_debug = True
-            print(f"[PaintEvent] 1080x1080 circular screen, window clipping radius: 540px")
-            print(f"[PaintEvent] White border: radius={white_radius}px (inside clipping), width=8px")
-            print(f"[PaintEvent] Red border: same radius, width={self.red_border_width}px (when active)")
     
     def closeEvent(self, event):
         """Handle application close event"""
