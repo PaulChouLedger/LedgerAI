@@ -62,31 +62,31 @@ class AuraGUI(QMainWindow):
         main_widget.setLayout(layout)
         self.setCentralWidget(main_widget)
         
-        # Create dedicated border widget for continuous circular border (hidden by default)
-        self.border_widget = QLabel()
-        self.border_widget.setParent(self)
-        # Initial geometry - will be updated dynamically based on actual window size
-        self.border_widget.setGeometry(0, 0, min_dim, min_dim)
-        border_radius = min_dim // 2
-        self.border_widget.setStyleSheet(f"""
-            QLabel {{
-                background-color: transparent;
-                border: 8px solid rgba(200, 0, 0, 0.7);
-                border-radius: {border_radius}px;
-            }}
-        """)
-        self.border_widget.setAttribute(Qt.WA_TransparentForMouseEvents)
-        self.border_widget.raise_()  # Bring to front
-        self.border_widget.hide()  # Hide by default
-        
-        print(f"[AuraGUI] 🔴 Border widget created: size={min_dim}x{min_dim}, radius={border_radius}px")
-        
         # Store border state for animation
         self.border_width = 8
         self.border_pulse_speed = 0.1  # Will be randomized during transcription
         
         # Create 6 buttons equally spaced around the circular edge (after central widget is set)
         self.create_circular_buttons()
+        
+        # Create dedicated border widget AFTER buttons so it's on top
+        self.border_widget = QLabel(self)
+        # Initial geometry - will be updated dynamically based on actual window size
+        self.border_widget.setGeometry(0, 0, min_dim, min_dim)
+        border_radius = min_dim // 2
+        self.border_widget.setStyleSheet(f"""
+            QLabel {{
+                background-color: transparent;
+                border: 8px solid rgba(180, 0, 0, 0.4);
+                border-radius: {border_radius}px;
+            }}
+        """)
+        # Ensure border is always clickable-through and always on top
+        self.border_widget.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.border_widget.raise_()  # Bring to front above buttons
+        self.border_widget.hide()  # Hide by default
+        
+        print(f"[AuraGUI] 🔴 Border widget created ABOVE buttons: size={min_dim}x{min_dim}, radius={border_radius}px")
 
         # === Pulsation Effect ===
         self.opacity = 1.0
@@ -292,29 +292,29 @@ class AuraGUI(QMainWindow):
             # Create organic pulsation based on voice characteristics
             # Use multiple sine waves at different frequencies for natural feel
             
-            # Primary pulse (follows voice frequency closely) - FASTER for speech dynamics
-            primary_speed = 0.2 + (voice_freq * 0.6)  # 0.2 to 0.8 range (2x faster)
+            # Primary pulse (follows voice frequency closely) - VERY FAST for speech dynamics
+            primary_speed = 0.4 + (voice_freq * 1.0)  # 0.4 to 1.4 range (4x faster than original)
             self.border_pulse_phase += primary_speed
             primary_pulse = (math.sin(self.border_pulse_phase) + 1) / 2
             
-            # Secondary pulse (adds organic variation) - FASTER
+            # Secondary pulse (adds organic variation) - VERY FAST
             if not hasattr(self, 'secondary_phase'):
                 self.secondary_phase = 0.0
-            self.secondary_phase += 0.12  # Increased from 0.05
+            self.secondary_phase += 0.25  # Much faster
             secondary_pulse = (math.sin(self.secondary_phase) + 1) / 2
             
-            # Tertiary pulse (micro variations for organic feel) - FASTER
+            # Tertiary pulse (micro variations for organic feel) - VERY FAST
             if not hasattr(self, 'tertiary_phase'):
                 self.tertiary_phase = 0.0
-            self.tertiary_phase += 0.25  # Increased from 0.15
+            self.tertiary_phase += 0.45  # Much faster
             tertiary_pulse = (math.sin(self.tertiary_phase * 1.7) + 1) / 2
             
             # Combine pulses with voice frequency weighting
             # Higher voice frequency = more influence from primary pulse
             combined_pulse = (
-                primary_pulse * (0.6 + voice_freq * 0.3) +      # 60-90% primary (more responsive)
-                secondary_pulse * (0.25 - voice_freq * 0.1) +   # 25-15% secondary  
-                tertiary_pulse * 0.15                            # 15% micro variation
+                primary_pulse * (0.7 + voice_freq * 0.2) +      # 70-90% primary (highly responsive)
+                secondary_pulse * (0.2 - voice_freq * 0.05) +   # 20-15% secondary  
+                tertiary_pulse * 0.1                             # 10% micro variation
             )
             
             # Calculate border width based on combined pulse and voice intensity
@@ -365,14 +365,14 @@ class AuraGUI(QMainWindow):
         try:
             if pulsating:
                 # Show and animate pulsating red border with variable opacity
-                # Darker red (blood red) for subtlety
+                # Brighter dark red for visibility
                 window_size = self.size()
                 border_radius = min(window_size.width(), window_size.height()) // 2
                 
                 self.border_widget.setStyleSheet(f"""
                     QLabel {{
                         background-color: transparent;
-                        border: {width}px solid rgba(120, 0, 0, {opacity});
+                        border: {width}px solid rgba(180, 0, 0, {opacity});
                         border-radius: {border_radius}px;
                     }}
                 """)
