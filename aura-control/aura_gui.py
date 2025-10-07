@@ -39,8 +39,8 @@ class BorderOverlayWidget(QWidget):
         # Move border to the edge: 540 (screen edge) - 4 (half of 8px pen) - 1 (safety) = 535px
         radius = 535  # Right at the edge of the circular screen
         
-        # White reference circle (always) - 30% transparent (70% opacity)
-        white_color = QColor(255, 255, 255, 179)  # Alpha: 179/255 = 70% opacity
+        # White reference circle (always) - 50% transparent (50% opacity)
+        white_color = QColor(255, 255, 255, 128)  # Alpha: 128/255 = 50% opacity
         white_pen = QPen(white_color, 8, Qt.SolidLine)
         painter.setPen(white_pen)
         painter.drawEllipse(center - radius, center - radius, radius * 2, radius * 2)
@@ -491,62 +491,78 @@ class AuraGUI(QMainWindow):
                 pass
     
     def _animate_aura_eye_tts(self, tts_frequency):
-        """Organic TTS pulsation - speech-like rhythm with smooth transitions"""
-        # Initialize phases
+        """Highly organic TTS pulsation - smooth, speech-like, breathing feel"""
+        # Initialize phases and smoothing
         if not hasattr(self, 'tts_organic_timer'):
             self.tts_organic_timer = 0.0
-        if not hasattr(self, 'tts_word_phase'):
-            self.tts_word_phase = 0.0
-        if not hasattr(self, 'tts_sentence_phase'):
-            self.tts_sentence_phase = 0.0
-        if not hasattr(self, 'tts_breath_phase'):
-            self.tts_breath_phase = 0.0
+        if not hasattr(self, 'tts_slow_wave'):
+            self.tts_slow_wave = 0.0
+        if not hasattr(self, 'tts_medium_wave'):
+            self.tts_medium_wave = 0.0
+        if not hasattr(self, 'tts_fast_wave'):
+            self.tts_fast_wave = 0.0
+        if not hasattr(self, 'tts_breath_wave'):
+            self.tts_breath_wave = 0.0
+        if not hasattr(self, 'tts_opacity_smooth'):
+            self.tts_opacity_smooth = 0.6  # Start at mid-point
         
-        # Update timers
-        self.tts_organic_timer += 0.02
+        # Update organic timer
+        self.tts_organic_timer += 0.015
         
-        # Word-level rhythm (fast, like syllables)
-        # Variable speed to mimic speaking rhythm
-        word_speed = 0.8 + math.sin(self.tts_organic_timer * 0.3) * 0.3  # 0.5 to 1.1
-        self.tts_word_phase += word_speed
-        word_rhythm = (math.sin(self.tts_word_phase) + 1) / 2
+        # Create natural drift for all waves (prevents mechanical repetition)
+        drift = math.sin(self.tts_organic_timer * 0.2) * 0.08
         
-        # Sentence-level rhythm (medium, like phrases)
-        sentence_speed = 0.15 + math.sin(self.tts_organic_timer * 0.15) * 0.05  # 0.1 to 0.2
-        self.tts_sentence_phase += sentence_speed
-        sentence_rhythm = (math.sin(self.tts_sentence_phase) + 1) / 2
+        # Slow wave - like breathing during speech (very smooth baseline)
+        self.tts_slow_wave += 0.025 + drift * 0.5
+        slow = (math.sin(self.tts_slow_wave) + 1) / 2
         
-        # Breathing rhythm (slow, continuous baseline)
-        self.tts_breath_phase += 0.03
-        breath_rhythm = (math.sin(self.tts_breath_phase) + 1) / 2
+        # Medium wave - like sentence phrasing (smooth cadence)
+        self.tts_medium_wave += 0.08 + drift
+        medium = (math.sin(self.tts_medium_wave) + 1) / 2
         
-        # Emphasis peaks (occasional stronger pulses)
-        emphasis_phase = self.tts_word_phase * 0.4
-        emphasis = max(0, math.sin(emphasis_phase)) ** 2  # Squared for sharper peaks
+        # Fast wave - like word/syllable rhythm (but not too fast)
+        self.tts_fast_wave += 0.25 + math.sin(self.tts_organic_timer * 0.4) * 0.15
+        fast = (math.sin(self.tts_fast_wave) + 1) / 2
         
-        # Natural variation (prevents exact repetition)
-        natural_var = (math.sin(self.tts_organic_timer * 1.7) + 
-                      math.sin(self.tts_organic_timer * 2.3)) / 8
+        # Breathing overlay - very slow, continuous (adds life)
+        self.tts_breath_wave += 0.02
+        breath = (math.sin(self.tts_breath_wave) + 1) / 2
         
-        # Combine layers with speech-like weighting
-        # More weight on word rhythm for speech-like feel
-        combined = (
-            word_rhythm * 0.45 +        # 45% word rhythm (main driver)
-            sentence_rhythm * 0.25 +    # 25% sentence rhythm (phrasing)
-            breath_rhythm * 0.15 +      # 15% breathing (baseline)
-            emphasis * 0.10 +           # 10% emphasis peaks (accents)
-            natural_var * 0.05          # 5% natural variation
+        # Micro variations - complex, organic detail
+        micro1 = math.sin(self.tts_organic_timer * 1.3)
+        micro2 = math.sin(self.tts_organic_timer * 2.1)
+        micro3 = math.sin(self.tts_organic_timer * 3.7)
+        micro_combined = (micro1 + micro2 + micro3) / 12  # Very subtle
+        
+        # Combine waves with smooth, speech-like weighting
+        # Emphasize slower waves for smooth, organic feel
+        combined_raw = (
+            slow * 0.35 +           # 35% slow wave (smooth baseline)
+            medium * 0.30 +         # 30% medium wave (cadence)
+            fast * 0.20 +           # 20% fast wave (syllables, reduced)
+            breath * 0.10 +         # 10% breathing (life)
+            micro_combined * 0.05   # 5% micro (organic detail)
         )
         
-        # Add easing for smoother transitions (prevents on/off feel)
-        # Use cosine interpolation for natural acceleration/deceleration
-        eased = 0.5 - 0.5 * math.cos(combined * math.pi)
+        # Apply double smoothing for ultra-smooth transitions
+        # First smooth: exponential moving average
+        smooth_factor = 0.25  # Higher = more smoothing
+        self.tts_opacity_smooth += (combined_raw - self.tts_opacity_smooth) * smooth_factor
         
-        # Map to opacity with good contrast but not too extreme
-        # Narrower range than before to avoid harsh on/off
-        min_opacity = 0.35  # Not too dim
-        max_opacity = 0.95  # Almost full brightness
-        self.opacity = min_opacity + eased * (max_opacity - min_opacity)
+        # Second smooth: cosine easing
+        eased = 0.5 - 0.5 * math.cos(self.tts_opacity_smooth * math.pi)
+        
+        # Map to opacity range - not too extreme for smooth feel
+        min_opacity = 0.45  # Higher minimum - never too dim
+        max_opacity = 0.90  # Slightly lower max - less harsh
+        target_opacity = min_opacity + eased * (max_opacity - min_opacity)
+        
+        # Final smoothing pass for absolutely smooth transitions
+        if not hasattr(self, 'tts_final_opacity'):
+            self.tts_final_opacity = target_opacity
+        self.tts_final_opacity += (target_opacity - self.tts_final_opacity) * 0.3
+        
+        self.opacity = self.tts_final_opacity
         
         # Apply opacity using graphics effect
         self.opacity_effect.setOpacity(self.opacity)
@@ -558,7 +574,7 @@ class AuraGUI(QMainWindow):
             self._debug_counter = 0
             
         if self._debug_counter % 20 == 0:  # Print every second during TTS
-            print(f"[GUI] 👁️ TTS: opacity={self.opacity:.3f}, word={word_rhythm:.3f}, sentence={sentence_rhythm:.3f}, emphasis={emphasis:.3f}")
+            print(f"[GUI] 👁️ TTS: opacity={self.opacity:.3f}, slow={slow:.3f}, medium={medium:.3f}, fast={fast:.3f}, smoothed={self.tts_opacity_smooth:.3f}")
         
         # Temporarily disable glow effect to test aura eye pulsation
         # Dynamic glow effect that responds to TTS
