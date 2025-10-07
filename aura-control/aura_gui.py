@@ -14,6 +14,7 @@ _listening_ready = False  # Tracks when system is ready to transcribe
 _transcribing = False  # Tracks when user is speaking (transcription active)
 _tts_playing = False  # Tracks when TTS is playing (AI speaking)
 _setup_complete = False  # Tracks when initial setup is complete
+_welcome_played = False  # Tracks when welcome prompt has been played
 _tts_frequency = 0.15  # Current TTS frequency for pulsation speed
 
 # Debug: Print initial state
@@ -290,15 +291,15 @@ class AuraGUI(QMainWindow):
             self.border_overlay.show()
 
     def animate_pulse(self):
-        global _listening_ready, _transcribing, _tts_playing, _tts_frequency, _setup_complete
+        global _listening_ready, _transcribing, _tts_playing, _tts_frequency, _setup_complete, _welcome_played
         
         # Debug state changes
         current_state = (
             "transcribing" if _transcribing else
             "tts_playing" if _tts_playing else
-            "listener_ready" if _listening_ready else
+            "static_ready" if _welcome_played else
             "setup_breathing" if not _setup_complete else
-            "waiting_for_listener"
+            "waiting_for_welcome"
         )
         
         if not hasattr(self, '_last_state'):
@@ -306,7 +307,7 @@ class AuraGUI(QMainWindow):
             
         if self._last_state != current_state:
             print(f"[GUI] 🎭 Animation state changed: {self._last_state} → {current_state}")
-            print(f"      _setup_complete={_setup_complete}, _listening_ready={_listening_ready}, _transcribing={_transcribing}, _tts_playing={_tts_playing}")
+            print(f"      _setup_complete={_setup_complete}, _welcome_played={_welcome_played}, _listening_ready={_listening_ready}, _transcribing={_transcribing}, _tts_playing={_tts_playing}")
         self._last_state = current_state
         
         # PRIORITY: Check transcription state FIRST to avoid it being hidden by other states
@@ -382,23 +383,23 @@ class AuraGUI(QMainWindow):
             self.border_overlay.raise_()  # Keep on top every frame
             self.border_overlay.update()  # Trigger overlay paintEvent
             
-        # State 1: Initial setup - slow breathing animation
+        # State 1: Initial setup - breathing animation (faster, more noticeable)
         elif not _setup_complete:
-            self._animate_aura_eye_breathing()  # Slow breathing during setup
+            self._animate_aura_eye_breathing()  # Breathing during setup
             self.show_red_border = False
             
-        # State 2: Setup complete but listener not ready - continue breathing
-        elif _setup_complete and not _listening_ready:
-            self._animate_aura_eye_breathing()  # Continue breathing
+        # State 2: Setup complete but welcome not played - continue breathing
+        elif _setup_complete and not _welcome_played:
+            self._animate_aura_eye_breathing()  # Continue breathing until welcome plays
             self.show_red_border = False
             
-        # State 3: TTS playing - responsive pulsation
+        # State 3: TTS playing - dramatic pulsation
         elif _tts_playing:
             self._animate_aura_eye_tts(_tts_frequency)
             self.show_red_border = False
             
-        # State 4: Listener ready - STATIC (no animation)
-        elif _listening_ready:
+        # State 4: Welcome played - STATIC (no animation, ready for interaction)
+        elif _welcome_played:
             self._set_aura_eye_static()  # Static, ready state
             self.show_red_border = False
     
@@ -461,51 +462,39 @@ class AuraGUI(QMainWindow):
                 pass
     
     def _animate_aura_eye_tts(self, tts_frequency):
-        """Sophisticated aura eye animation during TTS with organic, natural movement"""
-        # Clamp and scale TTS frequency
-        tts_freq = max(0.1, min(tts_frequency, 2.0))
+        """Dramatic pulsation during TTS - same as red border during transcription"""
+        # Use the same multi-layer pulsation as the red border for consistency
         
-        # Update organic timing (creates natural variation)
-        self.aura_organic_timer += 0.02
-        organic_variation = math.sin(self.aura_organic_timer * 0.3) * 0.1
+        # Primary pulse (fast, responsive)
+        primary_speed = 0.4 + (tts_frequency * 1.0)  # 0.4 to 1.4 range
+        if not hasattr(self, 'tts_pulse_phase'):
+            self.tts_pulse_phase = 0.0
+        self.tts_pulse_phase += primary_speed
+        primary_pulse = (math.sin(self.tts_pulse_phase) + 1) / 2
         
-        # Multiple animation layers for natural movement
+        # Secondary pulse (adds organic variation)
+        if not hasattr(self, 'tts_secondary_phase'):
+            self.tts_secondary_phase = 0.0
+        self.tts_secondary_phase += 0.25
+        secondary_pulse = (math.sin(self.tts_secondary_phase) + 1) / 2
         
-        # Layer 1: Breathing rhythm (slow, deep)
-        self.aura_breathing_phase += 0.05 + organic_variation
-        breathing_intensity = (math.sin(self.aura_breathing_phase) + 1) / 2
+        # Tertiary pulse (micro variations for organic feel)
+        if not hasattr(self, 'tts_tertiary_phase'):
+            self.tts_tertiary_phase = 0.0
+        self.tts_tertiary_phase += 0.45
+        tertiary_pulse = (math.sin(self.tts_tertiary_phase) + 1) / 2
         
-        # Layer 2: Heartbeat rhythm (quick, responsive to TTS)
-        heartbeat_speed = tts_freq * 2.0 + organic_variation
-        self.aura_heartbeat_phase += heartbeat_speed
-        heartbeat_intensity = (math.sin(self.aura_heartbeat_phase) + 1) / 2
-        
-        # Layer 3: Glow effect (subtle, continuous)
-        self.aura_glow_phase += 0.08 + organic_variation * 0.5
-        glow_intensity = (math.sin(self.aura_glow_phase) + 1) / 2
-        
-        # Layer 4: Micro-variations (very subtle, organic)
-        micro_phase = self.aura_organic_timer * 0.7
-        micro_intensity = (math.sin(micro_phase) + math.sin(micro_phase * 1.7)) / 4
-        
-        # Combine all layers with weighted influence
-        combined_intensity = (
-            breathing_intensity * 0.4 +      # 40% breathing (slow, natural)
-            heartbeat_intensity * 0.35 +     # 35% heartbeat (responsive to TTS)
-            glow_intensity * 0.15 +          # 15% glow (subtle)
-            micro_intensity * 0.1            # 10% micro-variations (organic)
+        # Combine with weighted influence (60% primary, 25% secondary, 15% tertiary)
+        combined_pulse = (
+            primary_pulse * 0.60 +
+            secondary_pulse * 0.25 +
+            tertiary_pulse * 0.15
         )
         
-        # Apply natural easing and smoothing
-        # Use sigmoid-like function for more natural transitions
-        smoothed_intensity = 1 / (1 + math.exp(-6 * (combined_intensity - 0.5)))
+        # Calculate dramatic opacity variation (0.2 to 1.0)
+        self.opacity = 0.2 + combined_pulse * 0.8
         
-        # Calculate final opacity with more dramatic range for TTS
-        base_opacity = 0.1  # Lower base for more dramatic effect
-        variation_range = 0.8  # Much larger variation range
-        self.opacity = base_opacity + smoothed_intensity * variation_range  # 0.1 to 0.9 range
-        
-        # Apply opacity using graphics effect (no pixmap scaling)
+        # Apply opacity using graphics effect
         self.opacity_effect.setOpacity(self.opacity)
         
         # Debug: Print TTS animation values
@@ -515,7 +504,7 @@ class AuraGUI(QMainWindow):
             self._debug_counter = 0
             
         if self._debug_counter % 20 == 0:  # Print every second during TTS
-            print(f"[GUI] 👁️ Aura Eye TTS: opacity={self.opacity:.3f}, breathing={breathing_intensity:.3f}, heartbeat={heartbeat_intensity:.3f}")
+            print(f"[GUI] 👁️ Aura Eye TTS: opacity={self.opacity:.3f}, pulse={combined_pulse:.3f}, freq={tts_frequency:.3f}")
         
         # Temporarily disable glow effect to test aura eye pulsation
         # Dynamic glow effect that responds to TTS
@@ -531,13 +520,13 @@ class AuraGUI(QMainWindow):
         # Debug output removed for cleaner console
     
     def _animate_aura_eye_breathing(self):
-        """Slow, gentle breathing animation - mimics calm breathing"""
-        # Very slow breathing rhythm (4 second cycle)
-        self.aura_breathing_phase += 0.025  # Slower than before
+        """Faster, more noticeable breathing animation during setup"""
+        # Faster breathing rhythm (2 second cycle - 2x faster than before)
+        self.aura_breathing_phase += 0.05  # Doubled from 0.025
         breathing = (math.sin(self.aura_breathing_phase) + 1) / 2
         
-        # Gentle opacity variation (0.3 to 0.9)
-        self.opacity = 0.3 + (breathing * 0.6)
+        # More dramatic opacity variation (0.2 to 1.0)
+        self.opacity = 0.2 + (breathing * 0.8)
         
         # Apply opacity using graphics effect
         self.opacity_effect.setOpacity(self.opacity)
@@ -704,6 +693,12 @@ def set_listening_ready():
     _listening_ready = True
     print("[AuraGUI] 🎯 Switched to fixed mode - listener ready")
     print(f"[AuraGUI] 🎯 State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
+
+def set_welcome_played():
+    """Signal that welcome prompt has been played - makes aura eye static"""
+    global _welcome_played
+    _welcome_played = True
+    print("[AuraGUI] 👋 Welcome prompt played - aura eye now static and ready")
 
 def set_transcribing(active):
     """Set transcription state - red edge pulsation when user is speaking (thread-safe)"""

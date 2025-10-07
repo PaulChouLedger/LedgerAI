@@ -86,6 +86,13 @@ def play_welcome_prompt(stream):
         time.sleep(0.25)
         stream.start()
         print("[Aura] 🎤 Mic resumed after welcome prompt")
+        
+        # Signal GUI that welcome is done - aura eye becomes static
+        try:
+            from aura_gui import set_welcome_played
+            set_welcome_played()
+        except ImportError:
+            pass
     except Exception as e:
         print(f"[Aura] ❌ Failed to play welcome prompt: {e}")
 
