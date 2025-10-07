@@ -250,13 +250,18 @@ class AuraRAG:
             if distances is None:
                 raise Exception("faiss_lite CUDA search failed")
             
-            # Format results
+            # Format results with detailed debugging
             results = []
+            print(f"[RAG] 🔍 Processing {len(distances[0])} search results...")
+            
             for i, (distance, idx) in enumerate(zip(distances[0], indices[0])):
                 idx = int(idx)
                 if idx < len(self.chunks):
                     chunk = self.chunks[idx]
                     similarity_score = float(1.0 / (1.0 + distance))
+                    
+                    print(f"[RAG] 🔍 Result {i+1}: idx={idx}, distance={distance:.4f}, score={similarity_score:.4f}, threshold={self.relevance_threshold}")
+                    print(f"[RAG] 🔍 Chunk preview: '{chunk[:100]}...'")
                     
                     if similarity_score >= self.relevance_threshold:
                         results.append({
@@ -265,7 +270,13 @@ class AuraRAG:
                             'distance': float(distance),
                             'rank': i + 1
                         })
+                        print(f"[RAG] ✅ Added to results (above threshold)")
+                    else:
+                        print(f"[RAG] ❌ Below threshold, skipping")
+                else:
+                    print(f"[RAG] ❌ Invalid index {idx} (max: {len(self.chunks)-1})")
             
+            print(f"[RAG] 🔍 Final results: {len(results)} documents above threshold")
             return results
             
         except Exception as e:
@@ -306,7 +317,11 @@ def search_medical_info(query: str, k: int = 3) -> str:
     rag = get_rag()
     results = rag.search(query, k)
     
+    print(f"[RAG] 🔍 search_medical_info called with query: '{query}'")
+    print(f"[RAG] 🔍 Found {len(results)} results")
+    
     if not results:
+        print(f"[RAG] ⚠️ No results found, returning original query")
         return query
     
     # Build context from chunks
@@ -315,6 +330,7 @@ def search_medical_info(query: str, k: int = 3) -> str:
         chunk = result['chunk']
         score = result['score']
         context_parts.append(f"{i}. {chunk} (relevance: {score:.2f})")
+        print(f"[RAG] 🔍 Adding chunk {i}: score={score:.3f}, preview='{chunk[:50]}...'")
     
     context = "\n".join(context_parts)
     
@@ -326,6 +342,9 @@ def search_medical_info(query: str, k: int = 3) -> str:
 Please answer this question: {query}
 
 Provide a helpful, accurate response based on the information above."""
+    
+    print(f"[RAG] 🔍 Augmented prompt length: {len(augmented_prompt)} characters")
+    print(f"[RAG] 🔍 Augmented prompt preview: '{augmented_prompt[:200]}...'")
     
     return augmented_prompt
 
