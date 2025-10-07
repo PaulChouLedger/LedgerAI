@@ -6,6 +6,7 @@ import math
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsDropShadowEffect
 from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QTransform
 from PyQt5.QtCore import Qt, QTimer, QPoint, QPropertyAnimation, QEasingCurve, QMetaObject, Q_ARG, pyqtSlot
+from circular_border import FixedCircularBorder, DynamicCircularBorder, CircularBorderConfig
 
 _app = None
 _window = None
@@ -69,24 +70,17 @@ class AuraGUI(QMainWindow):
         # Create 6 buttons equally spaced around the circular edge (after central widget is set)
         self.create_circular_buttons()
         
-        # Create dedicated border widget AFTER buttons so it's on top
-        self.border_widget = QLabel(self)
-        # Initial geometry - will be updated dynamically based on actual window size
-        self.border_widget.setGeometry(0, 0, min_dim, min_dim)
-        border_radius = min_dim // 2
-        self.border_widget.setStyleSheet(f"""
-            QLabel {{
-                background-color: transparent;
-                border: 8px solid rgba(180, 0, 0, 0.4);
-                border-radius: {border_radius}px;
-            }}
-        """)
-        # Ensure border is always clickable-through and always on top
-        self.border_widget.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-        self.border_widget.raise_()  # Bring to front above buttons
-        self.border_widget.hide()  # Hide by default
+        # Create FIXED transparent reference border (always visible)
+        # Uses shared CircularBorder system for consistency across all GUI scripts
+        self.fixed_border = FixedCircularBorder(self, size=min_dim)
         
-        print(f"[AuraGUI] 🔴 Border widget created ABOVE buttons: size={min_dim}x{min_dim}, radius={border_radius}px")
+        # Create DYNAMIC pulsating border (shows during transcription)
+        # Uses shared CircularBorder system
+        self.border_widget = DynamicCircularBorder(
+            self, 
+            size=min_dim,
+            color=CircularBorderConfig.DYNAMIC_BORDER_COLOR
+        )
 
         # === Pulsation Effect ===
         self.opacity = 1.0
@@ -245,17 +239,25 @@ class AuraGUI(QMainWindow):
         _gui_ready = True
         print("[AuraGUI] 🎯 GUI has fully rendered")
         
-        # Ensure border widget is properly positioned - use actual window size
+        # Ensure borders are properly positioned - use actual window size
         window_size = self.size()
-        self.border_widget.setGeometry(0, 0, window_size.width(), window_size.height())
-        self.border_widget.raise_()
-        print(f"[AuraGUI] 🔴 Border widget positioned: {self.border_widget.geometry()}")
+        size = min(window_size.width(), window_size.height())
         
-        # Only show border if we're currently transcribing
+        # Update fixed transparent border
+        self.fixed_border.update_geometry(size)
+        print(f"[AuraGUI] ⚪ Fixed border positioned: {self.fixed_border.geometry()}")
+        
+        # Update dynamic border geometry
+        self.border_widget.setGeometry(0, 0, size, size)
+        self.border_widget.border_radius = size // 2
+        self.border_widget.raise_()
+        print(f"[AuraGUI] 🔴 Dynamic border positioned: {self.border_widget.geometry()}")
+        
+        # Only show dynamic border if we're currently transcribing
         if _transcribing:
-            self.border_widget.show()
+            self.border_widget.show_border()
         else:
-            self.border_widget.hide()
+            self.border_widget.hide_border()
 
     def animate_pulse(self):
         global _listening_ready, _transcribing, _tts_playing, _tts_frequency, _setup_complete
@@ -318,15 +320,16 @@ class AuraGUI(QMainWindow):
             )
             
             # Calculate border width based on combined pulse and voice intensity
-            base_width = 6
-            max_variation = 10  # Increased from 8 for more dramatic effect
-            self.border_width = int(base_width + combined_pulse * max_variation * (0.5 + voice_freq))
+            # Make it MUCH more dynamic and thicker
+            base_width = 10  # Increased from 6
+            max_variation = 15  # Increased from 10 for dramatic pulsation
+            self.border_width = int(base_width + combined_pulse * max_variation * (0.7 + voice_freq))
             
-            # Clamp width
-            self.border_width = max(6, min(self.border_width, 18))
+            # Wider range for more dramatic effect
+            self.border_width = max(10, min(self.border_width, 25))
             
-            # Calculate opacity variation - MORE TRANSPARENT
-            border_opacity = 0.25 + combined_pulse * 0.25  # 0.25 to 0.5 opacity (was 0.5-0.9)
+            # Calculate opacity variation - consistent visibility
+            border_opacity = 0.6 + combined_pulse * 0.3  # 0.6 to 0.9 opacity (more visible)
             
             # Debug logging (occasional)
             if hasattr(self, '_border_debug_counter'):
@@ -337,8 +340,8 @@ class AuraGUI(QMainWindow):
             if self._border_debug_counter % 20 == 0:  # Print every second
                 print(f"[GUI] 🔴 Transcribing: freq={voice_freq:.3f}, width={self.border_width}px, pulse={combined_pulse:.3f}, opacity={border_opacity:.3f}")
             
-            # Update border style with organic pulsation
-            self._update_border_style(pulsating=True, width=self.border_width, opacity=border_opacity)
+            # Update border using shared border system
+            self.border_widget.update_style(width=self.border_width, opacity=border_opacity)
             
         # State 1: Initial setup - gentle, meditative aura eye
         elif not _setup_complete:
@@ -364,44 +367,57 @@ class AuraGUI(QMainWindow):
         """Update the border style with organic opacity variation"""
         try:
             if pulsating:
-                # Show and animate pulsating red border with variable opacity
-                # Brighter dark red for visibility
+                # Show and animate pulsating red border with solid color for consistency
                 window_size = self.size()
                 border_radius = min(window_size.width(), window_size.height()) // 2
                 
+                # Use solid RGB with widget opacity instead of RGBA for consistent rendering
+                # This prevents opaque sections at button locations
                 self.border_widget.setStyleSheet(f"""
-                    QLabel {{
+                    QWidget {{
                         background-color: transparent;
-                        border: {width}px solid rgba(180, 0, 0, {opacity});
+                        border: {width}px solid rgb(200, 0, 0);
                         border-radius: {border_radius}px;
                     }}
                 """)
+                
+                # Set widget opacity separately for consistent alpha across entire widget
+                self.border_widget.setWindowOpacity(opacity)
+                
+                # Ensure proper geometry
                 self.border_widget.setGeometry(0, 0, window_size.width(), window_size.height())
                 
                 # Force show and raise - critical for visibility
                 if not self.border_widget.isVisible():
                     self.border_widget.show()
                     print(f"[GUI] 🔴 Border forced visible in update_style")
-                    
+                
+                # Always raise to ensure it's on top
                 self.border_widget.raise_()
+                
+                # Update the widget to force repaint
+                self.border_widget.update()
                 
                 # Debug output (only once)
                 if not hasattr(self, '_border_shown_once'):
                     self._border_shown_once = True
-                    print(f"[GUI] 🔴 Border widget shown: visible={self.border_widget.isVisible()}, geometry={self.border_widget.geometry()}, radius={border_radius}px")
+                    print(f"[GUI] 🔴 Border widget shown: visible={self.border_widget.isVisible()}, geometry={self.border_widget.geometry()}, radius={border_radius}px, width={width}px")
             else:
                 # Hide border completely
                 self.border_widget.hide()
                 return
             
-            # Ensure border widget is always on top and properly positioned
+            # Ensure border widget is always on top
             self.border_widget.raise_()
         except Exception as e:
             print(f"[GUI] ❌ Border update error: {e}")
+            import traceback
+            traceback.print_exc()
             # Don't let errors break the border - try to keep it visible
             try:
                 if pulsating and not self.border_widget.isVisible():
                     self.border_widget.show()
+                    self.border_widget.raise_()
             except:
                 pass
     

@@ -241,13 +241,16 @@ class FileUploadDialog(QDialog):
         
         # Add edge buttons for future functions - will be added after layout is set
         
-        # Create layout for circular content - shifted up within the dialog
+        # Create layout for circular content - centered within red border
         self.content_layout = QVBoxLayout()
-        self.content_layout.setContentsMargins(100, 80, 100, 120)  # Reduced top margin, increased bottom margin to shift content up
-        self.content_layout.setSpacing(25)  # Standard spacing
+        # Symmetric margins to center content within the circular area
+        # Red border is 8px, so safe area starts at ~8px inset
+        # Use symmetric margins for proper centering
+        self.content_layout.setContentsMargins(120, 100, 120, 100)  # Equal top/bottom for vertical centering
+        self.content_layout.setSpacing(20)  # Compact spacing
         
-        # Add smaller top spacer to shift content up
-        self.content_layout.addStretch(1)  # Use integer, not float
+        # Add top spacer for vertical centering
+        self.content_layout.addStretch(1)
         
         # Title centered (no close button)
         title_layout = QHBoxLayout()
@@ -631,8 +634,8 @@ class FileUploadDialog(QDialog):
                     QDialog {
                         background-color: rgba(28, 28, 30, 1.0);
                         color: white;
-                        border-radius: 540px;
-                        border: none;
+                        border: 8px solid #ff0000;
+                        border-radius: 536px;
                     }
                     QLabel {
                         color: white;
@@ -657,8 +660,13 @@ class FileUploadDialog(QDialog):
                 """)
                 
                 layout = QVBoxLayout()
-                layout.setContentsMargins(80, 80, 80, 80)  # Larger margins for full screen
-                layout.setSpacing(20)
+                # Symmetric margins to center content within circular red border
+                # Account for 8px red border on the QR dialog itself
+                layout.setContentsMargins(120, 120, 120, 120)  # Centered within circular area
+                layout.setSpacing(15)  # Compact spacing
+                
+                # Add top stretch for vertical centering
+                layout.addStretch(1)
                 
                 # Title - compact for circular screen
                 title = QLabel("📱 Mobile Upload")
@@ -735,6 +743,10 @@ class FileUploadDialog(QDialog):
                 button_layout.addWidget(close_btn)
                 
                 layout.addLayout(button_layout)
+                
+                # Add bottom stretch for vertical centering
+                layout.addStretch(1)
+                
                 qr_dialog.setLayout(layout)
                 
                 # Center the QR dialog within the circular display
