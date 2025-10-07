@@ -48,7 +48,14 @@ class AuraGUI(QMainWindow):
         
         # CRITICAL: Set window to FIXED size to prevent edge pulsation
         self.setFixedSize(min_dim, min_dim)
-        print(f"[AuraGUI] 🔒 Window locked to {min_dim}x{min_dim} - only aura_eye will pulsate, not edges")
+        
+        # Center window on screen
+        screen_rect = screen.availableGeometry()
+        window_x = (screen_rect.width() - min_dim) // 2
+        window_y = (screen_rect.height() - min_dim) // 2
+        self.move(window_x, window_y)
+        
+        print(f"[AuraGUI] 🔒 Window locked to {min_dim}x{min_dim} at ({window_x},{window_y}) - only aura_eye will pulsate, not edges")
 
         # === Create main widget with image and circular buttons ===
         main_widget = QWidget()
