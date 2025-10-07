@@ -605,20 +605,24 @@ class AuraGUI(QMainWindow):
         painter.setRenderHint(QPainter.Antialiasing, True)
         painter.setBrush(Qt.NoBrush)
         
-        # For 1080x1080 circular screen
+        # For 1080x1080 circular screen with border-radius: 540px clipping
         center = 540
         
-        # 1. ALWAYS draw white reference circle at screen edge
+        # Window has border-radius: 540px, so anything outside that is clipped
+        # Draw INSIDE the clipping area to be fully visible
+        # Radius must be less than 540 - (pen_width/2) to avoid clipping
+        
+        # 1. ALWAYS draw white reference circle
         white_pen = QPen()
         white_pen.setWidth(8)  # Thick white border
         white_pen.setColor(QColor(255, 255, 255))  # Solid white
         white_pen.setStyle(Qt.SolidLine)
         painter.setPen(white_pen)
-        # Draw at edge of circular screen (radius 540 - margin for border width)
-        white_radius = 535  # Just inside the 540px edge
+        # Draw well inside the clipping area: 540 - 8/2 - 10 margin = 526px radius
+        white_radius = 526
         painter.drawEllipse(center - white_radius, center - white_radius, white_radius * 2, white_radius * 2)
         
-        # 2. Draw red border when transcribing
+        # 2. Draw red border when transcribing (same radius as white)
         if self.show_red_border:
             red_pen = QPen()
             red_pen.setWidth(self.red_border_width)
@@ -635,8 +639,8 @@ class AuraGUI(QMainWindow):
         # Debug once
         if not hasattr(self, '_paint_debug'):
             self._paint_debug = True
-            print(f"[PaintEvent] 1080x1080 circular screen")
-            print(f"[PaintEvent] White border: radius={white_radius}px, width=8px")
+            print(f"[PaintEvent] 1080x1080 circular screen, window clipping radius: 540px")
+            print(f"[PaintEvent] White border: radius={white_radius}px (inside clipping), width=8px")
             print(f"[PaintEvent] Red border: same radius, width={self.red_border_width}px (when active)")
     
     def closeEvent(self, event):
