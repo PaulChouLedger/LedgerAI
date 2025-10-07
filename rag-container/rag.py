@@ -335,9 +335,13 @@ class AuraRAG:
                 query_embedding = query_embedding.astype(np.float32)
             
             # Normalize for Inner Product metric (required for cosine similarity)
+            # Do NOT use faiss.normalize_L2() - it causes "input not a numpy array" errors
+            # Use manual normalization instead
             if self.index.metric_type == faiss.METRIC_INNER_PRODUCT:
-                faiss.normalize_L2(query_embedding)
-                print(f"[RAG] 🔧 Query normalized for Inner Product metric")
+                # Manual L2 normalization
+                norms = np.linalg.norm(query_embedding, axis=1, keepdims=True)
+                query_embedding = query_embedding / norms
+                print(f"[RAG] 🔧 Query manually normalized for Inner Product metric")
             
             print(f"[RAG] 🔍 Query embedding shape: {query_embedding.shape}, dtype: {query_embedding.dtype}")
             print(f"[RAG] 🔍 Query embedding preview: {query_embedding[0][:5]}")  # First 5 values
