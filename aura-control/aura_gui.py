@@ -39,8 +39,8 @@ class BorderOverlayWidget(QWidget):
         # Move border to the edge: 540 (screen edge) - 4 (half of 8px pen) - 1 (safety) = 535px
         radius = 535  # Right at the edge of the circular screen
         
-        # White reference circle (always) - 20% transparent (80% opacity)
-        white_color = QColor(255, 255, 255, 204)  # Alpha: 204/255 = 80% opacity
+        # White reference circle (always) - 30% transparent (70% opacity)
+        white_color = QColor(255, 255, 255, 179)  # Alpha: 179/255 = 70% opacity
         white_pen = QPen(white_color, 8, Qt.SolidLine)
         painter.setPen(white_pen)
         painter.drawEllipse(center - radius, center - radius, radius * 2, radius * 2)
@@ -296,13 +296,21 @@ class AuraGUI(QMainWindow):
     def animate_pulse(self):
         global _listening_ready, _transcribing, _tts_playing, _tts_frequency, _setup_complete, _welcome_played
         
-        # Verify opacity effect is still attached
+        # Verify opacity effect is still attached and enabled
         if not hasattr(self, '_opacity_check_done'):
             if self.label.graphicsEffect() == self.opacity_effect:
                 print(f"[GUI] ✅ Opacity effect is properly attached")
+                print(f"[GUI]    Effect enabled: {self.opacity_effect.isEnabled()}")
+                print(f"[GUI]    Current opacity: {self.opacity_effect.opacity():.3f}")
             else:
                 print(f"[GUI] ❌ Opacity effect is NOT attached! Re-attaching...")
                 self.label.setGraphicsEffect(self.opacity_effect)
+            
+            # Force enable it
+            if not self.opacity_effect.isEnabled():
+                print(f"[GUI] ⚠️ Opacity effect was disabled! Enabling...")
+                self.opacity_effect.setEnabled(True)
+            
             self._opacity_check_done = True
         
         # Debug state changes
@@ -557,7 +565,7 @@ class AuraGUI(QMainWindow):
             self._breathing_debug_counter = 0
         self._breathing_debug_counter += 1
         if self._breathing_debug_counter % 20 == 0:
-            print(f"[GUI] 🌬️ BREATHING: opacity={self.opacity:.3f}, phase={self.aura_breathing_phase:.3f}, breathing={breathing:.3f}")
+            print(f"[GUI] 🌬️ BREATHING: opacity={self.opacity:.3f}, effect_opacity={self.opacity_effect.opacity():.3f}, is_enabled={self.opacity_effect.isEnabled()}")
     
     def _set_aura_eye_static(self):
         """Set aura eye to static state - no animation, ready for interaction"""
@@ -565,10 +573,12 @@ class AuraGUI(QMainWindow):
         self.opacity = 1.0
         self.opacity_effect.setOpacity(1.0)
         
-        # Debug output
-        if not hasattr(self, '_static_debug_logged'):
-            self._static_debug_logged = True
-            print(f"[GUI] 👁️ STATIC: opacity={self.opacity:.3f} (no animation)")
+        # Debug output - log every time, not just once
+        if not hasattr(self, '_static_debug_counter'):
+            self._static_debug_counter = 0
+        self._static_debug_counter += 1
+        if self._static_debug_counter % 20 == 0:
+            print(f"[GUI] 👁️ STATIC: opacity={self.opacity:.3f}, effect_opacity={self.opacity_effect.opacity():.3f}, is_enabled={self.opacity_effect.isEnabled()}")
     
     def _animate_aura_eye_setup(self):
         """Gentle, meditative aura eye animation during initial setup"""
