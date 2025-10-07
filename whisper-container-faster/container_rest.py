@@ -12,7 +12,7 @@ import time
 
 # === Transcription Configuration ===
 # Tune these parameters for your needs:
-BEAM_SIZE = 5.0                    # Higher = better accuracy, slower (5=fast, 10=balanced, 20=best)
+BEAM_SIZE = 5                      # Higher = better accuracy, slower (5=fast, 10=balanced, 20=best) - MUST be int
 TEMPERATURE = 0.0                 # 0.0 = deterministic, 0.1+ = more creative
 PATIENCE = 1.0                    # Wait time for better results
 LENGTH_PENALTY = 1.0              # Don't penalize longer outputs
