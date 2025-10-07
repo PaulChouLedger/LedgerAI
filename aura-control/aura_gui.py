@@ -65,19 +65,21 @@ class AuraGUI(QMainWindow):
         # Create dedicated border widget for continuous circular border (hidden by default)
         self.border_widget = QLabel()
         self.border_widget.setParent(self)
-        self.border_widget.setGeometry(0, 0, 1080, 1080)
-        self.border_widget.setStyleSheet("""
-            QLabel {
+        # Initial geometry - will be updated dynamically based on actual window size
+        self.border_widget.setGeometry(0, 0, min_dim, min_dim)
+        border_radius = min_dim // 2
+        self.border_widget.setStyleSheet(f"""
+            QLabel {{
                 background-color: transparent;
-                border: 8px solid rgba(139, 0, 0, 0.7);  /* Dark red with transparency */
-                border-radius: 540px;
-            }
+                border: 8px solid rgba(200, 0, 0, 0.7);
+                border-radius: {border_radius}px;
+            }}
         """)
         self.border_widget.setAttribute(Qt.WA_TransparentForMouseEvents)
         self.border_widget.raise_()  # Bring to front
         self.border_widget.hide()  # Hide by default
         
-        print("[AuraGUI] 🔴 Border widget created and configured")
+        print(f"[AuraGUI] 🔴 Border widget created: size={min_dim}x{min_dim}, radius={border_radius}px")
         
         # Store border state for animation
         self.border_width = 8
@@ -243,9 +245,11 @@ class AuraGUI(QMainWindow):
         _gui_ready = True
         print("[AuraGUI] 🎯 GUI has fully rendered")
         
-        # Ensure border widget is properly positioned
-        self.border_widget.setGeometry(0, 0, 1080, 1080)
+        # Ensure border widget is properly positioned - use actual window size
+        window_size = self.size()
+        self.border_widget.setGeometry(0, 0, window_size.width(), window_size.height())
         self.border_widget.raise_()
+        print(f"[AuraGUI] 🔴 Border widget positioned: {self.border_widget.geometry()}")
         
         # Only show border if we're currently transcribing
         if _transcribing:
@@ -277,6 +281,14 @@ class AuraGUI(QMainWindow):
         elif _transcribing:
             # Keep aura eye fully visible during transcription
             self.label.setStyleSheet("opacity: 1.0;")
+            
+            # Ensure border widget is visible and on top EVERY frame
+            if not self.border_widget.isVisible():
+                window_size = self.size()
+                self.border_widget.setGeometry(0, 0, window_size.width(), window_size.height())
+                self.border_widget.show()
+                print(f"[GUI] 🔴 Border re-shown during transcription: {self.border_widget.geometry()}")
+            self.border_widget.raise_()  # Keep on top every frame
             
             # Get real-time voice frequency from audio analysis
             try:
@@ -334,9 +346,9 @@ class AuraGUI(QMainWindow):
                 self._border_debug_counter = 0
             
             if self._border_debug_counter % 20 == 0:  # Print every second
-                print(f"[GUI] 🔴 Voice: freq={voice_freq:.3f}, width={self.border_width}px, pulse={combined_pulse:.3f}, opacity={border_opacity:.3f}")
+                print(f"[GUI] 🔴 Transcribing: freq={voice_freq:.3f}, width={self.border_width}px, pulse={combined_pulse:.3f}, opacity={border_opacity:.3f}")
             
-            # Update border with organic pulsation
+            # Update border style with organic pulsation
             self._update_border_style(pulsating=True, width=self.border_width, opacity=border_opacity)
             
         # State 5: TTS playing - sophisticated aura eye pulsation
@@ -346,32 +358,48 @@ class AuraGUI(QMainWindow):
     
     def _update_border_style(self, static=True, pulsating=False, width=5, opacity=0.7):
         """Update the border style with organic opacity variation"""
-        if pulsating:
-            # Show and animate pulsating red border with variable opacity
-            # Brighter red color for better visibility
-            self.border_widget.setStyleSheet(f"""
-                QLabel {{
-                    background-color: transparent;
-                    border: {width}px solid rgba(200, 0, 0, {opacity});
-                    border-radius: 540px;
-                }}
-            """)
-            self.border_widget.setGeometry(0, 0, 1080, 1080)
-            self.border_widget.show()
-            # Ensure border is always on top of buttons
-            self.border_widget.raise_()
+        try:
+            if pulsating:
+                # Show and animate pulsating red border with variable opacity
+                # Brighter red color for better visibility
+                window_size = self.size()
+                border_radius = min(window_size.width(), window_size.height()) // 2
+                
+                self.border_widget.setStyleSheet(f"""
+                    QLabel {{
+                        background-color: transparent;
+                        border: {width}px solid rgba(200, 0, 0, {opacity});
+                        border-radius: {border_radius}px;
+                    }}
+                """)
+                self.border_widget.setGeometry(0, 0, window_size.width(), window_size.height())
+                
+                # Force show and raise - critical for visibility
+                if not self.border_widget.isVisible():
+                    self.border_widget.show()
+                    print(f"[GUI] 🔴 Border forced visible in update_style")
+                    
+                self.border_widget.raise_()
+                
+                # Debug output (only once)
+                if not hasattr(self, '_border_shown_once'):
+                    self._border_shown_once = True
+                    print(f"[GUI] 🔴 Border widget shown: visible={self.border_widget.isVisible()}, geometry={self.border_widget.geometry()}, radius={border_radius}px")
+            else:
+                # Hide border completely
+                self.border_widget.hide()
+                return
             
-            # Debug output (only once)
-            if not hasattr(self, '_border_shown_once'):
-                self._border_shown_once = True
-                print(f"[GUI] 🔴 Border widget shown: visible={self.border_widget.isVisible()}, geometry={self.border_widget.geometry()}")
-        else:
-            # Hide border completely
-            self.border_widget.hide()
-            return
-        
-        # Ensure border widget is always on top and properly positioned
-        self.border_widget.raise_()
+            # Ensure border widget is always on top and properly positioned
+            self.border_widget.raise_()
+        except Exception as e:
+            print(f"[GUI] ❌ Border update error: {e}")
+            # Don't let errors break the border - try to keep it visible
+            try:
+                if pulsating and not self.border_widget.isVisible():
+                    self.border_widget.show()
+            except:
+                pass
     
     def _animate_aura_eye_tts(self, tts_frequency):
         """Sophisticated aura eye animation during TTS with organic, natural movement"""
@@ -563,14 +591,15 @@ class AuraGUI(QMainWindow):
             if hasattr(self, 'tertiary_phase'):
                 self.tertiary_phase = 0.0
             
-            # Immediately show border
+            # Immediately show border - use actual window size
             if hasattr(self, 'border_widget'):
-                self.border_widget.setGeometry(0, 0, 1080, 1080)
+                window_size = self.size()
+                self.border_widget.setGeometry(0, 0, window_size.width(), window_size.height())
                 self.border_widget.show()
                 self.border_widget.raise_()
                 # Force initial style update
                 self._update_border_style(pulsating=True, width=8, opacity=0.7)
-                print(f"[AuraGUI] 🔴 Border shown: visible={self.border_widget.isVisible()}")
+                print(f"[AuraGUI] 🔴 Border shown: visible={self.border_widget.isVisible()}, geometry={self.border_widget.geometry()}, window_size={window_size}")
         else:
             print("[AuraGUI] ⚫ Transcription ended")
             if hasattr(self, 'border_widget'):
