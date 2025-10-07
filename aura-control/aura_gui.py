@@ -523,20 +523,20 @@ class AuraGUI(QMainWindow):
         # Create natural drift for all waves (prevents mechanical repetition)
         drift = math.sin(self.tts_organic_timer * 0.2) * 0.08
         
-        # Slow wave - like breathing during speech (very smooth baseline)
-        self.tts_slow_wave += 0.025 + drift * 0.5
+        # Slow wave - like breathing during speech (baseline, faster than before)
+        self.tts_slow_wave += 0.045 + drift * 0.5  # Increased from 0.025
         slow = (math.sin(self.tts_slow_wave) + 1) / 2
         
-        # Medium wave - like sentence phrasing (smooth cadence)
-        self.tts_medium_wave += 0.08 + drift
+        # Medium wave - like sentence phrasing (faster cadence)
+        self.tts_medium_wave += 0.15 + drift  # Increased from 0.08
         medium = (math.sin(self.tts_medium_wave) + 1) / 2
         
-        # Fast wave - like word/syllable rhythm (but not too fast)
-        self.tts_fast_wave += 0.25 + math.sin(self.tts_organic_timer * 0.4) * 0.15
+        # Fast wave - like word/syllable rhythm (much faster)
+        self.tts_fast_wave += 0.40 + math.sin(self.tts_organic_timer * 0.4) * 0.20  # Increased from 0.25
         fast = (math.sin(self.tts_fast_wave) + 1) / 2
         
-        # Breathing overlay - very slow, continuous (adds life)
-        self.tts_breath_wave += 0.02
+        # Breathing overlay - faster, more visible
+        self.tts_breath_wave += 0.035  # Increased from 0.02
         breath = (math.sin(self.tts_breath_wave) + 1) / 2
         
         # Micro variations - complex, organic detail
@@ -555,9 +555,9 @@ class AuraGUI(QMainWindow):
             micro_combined * 0.05   # 5% micro (organic detail)
         )
         
-        # Apply double smoothing for ultra-smooth transitions
-        # First smooth: exponential moving average
-        smooth_factor = 0.25  # Higher = more smoothing
+        # Apply double smoothing for smooth but responsive transitions
+        # First smooth: exponential moving average (less smoothing for faster response)
+        smooth_factor = 0.35  # Increased from 0.25 for more responsiveness
         self.tts_opacity_smooth += (combined_raw - self.tts_opacity_smooth) * smooth_factor
         
         # Second smooth: cosine easing
@@ -568,10 +568,10 @@ class AuraGUI(QMainWindow):
         max_opacity = 1.00  # Full brightness - maximum peaks
         target_opacity = min_opacity + eased * (max_opacity - min_opacity)
         
-        # Final smoothing pass for smooth but visible transitions
+        # Final smoothing pass for smooth but highly responsive transitions
         if not hasattr(self, 'tts_final_opacity'):
             self.tts_final_opacity = target_opacity
-        self.tts_final_opacity += (target_opacity - self.tts_final_opacity) * 0.4  # Increased from 0.3 for more responsiveness
+        self.tts_final_opacity += (target_opacity - self.tts_final_opacity) * 0.5  # Increased from 0.4 for faster response
         
         self.opacity = self.tts_final_opacity
         
