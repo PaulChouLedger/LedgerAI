@@ -39,8 +39,8 @@ class BorderOverlayWidget(QWidget):
         # Move border to the edge: 540 (screen edge) - 4 (half of 8px pen) - 1 (safety) = 535px
         radius = 535  # Right at the edge of the circular screen
         
-        # White reference circle (always) - 50% transparent (50% opacity)
-        white_color = QColor(255, 255, 255, 128)  # Alpha: 128/255 = 50% opacity
+        # White reference circle (always) - 70% transparent (30% opacity)
+        white_color = QColor(255, 255, 255, 77)  # Alpha: 77/255 = 30% opacity
         white_pen = QPen(white_color, 8, Qt.SolidLine)
         painter.setPen(white_pen)
         painter.drawEllipse(center - radius, center - radius, radius * 2, radius * 2)
