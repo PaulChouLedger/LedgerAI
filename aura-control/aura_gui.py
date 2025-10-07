@@ -42,33 +42,41 @@ class AuraGUI(QMainWindow):
         pixmap = QPixmap(img_path)
 
         screen = self.screen()
-        screen_size = screen.availableGeometry().size()
-        min_dim = min(screen_size.width(), screen_size.height())
-        scaled_pixmap = pixmap.scaled(min_dim, min_dim, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        
-        # CRITICAL: Set window to FIXED size to prevent edge pulsation
-        self.setFixedSize(min_dim, min_dim)
-        
-        # Center window on screen
         screen_rect = screen.availableGeometry()
-        window_x = (screen_rect.width() - min_dim) // 2
-        window_y = (screen_rect.height() - min_dim) // 2
-        self.move(window_x, window_y)
         
-        print(f"[AuraGUI] 🔒 Window locked to {min_dim}x{min_dim} at ({window_x},{window_y}) - only aura_eye will pulsate, not edges")
+        # For circular display: use FULL screen size (not minimum dimension)
+        # This ensures no desktop background shows through
+        window_width = screen_rect.width()
+        window_height = screen_rect.height()
+        
+        # Scale pixmap to fit the larger dimension
+        display_size = max(window_width, window_height)
+        scaled_pixmap = pixmap.scaled(display_size, display_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        
+        # CRITICAL: Set window to FULL SCREEN size to prevent edge pulsation and cover entire display
+        self.setFixedSize(window_width, window_height)
+        
+        # Position at top-left (fill entire screen)
+        self.move(screen_rect.x(), screen_rect.y())
+        
+        print(f"[AuraGUI] 🔒 Window locked to {window_width}x{window_height} at ({screen_rect.x()},{screen_rect.y()}) - fills entire screen")
 
         # === Create main widget with image and circular buttons ===
         main_widget = QWidget()
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         
-        # Image label - fixed size to prevent shifting
+        # Image label - fill entire window
         self.label = QLabel()
         self.label.setPixmap(scaled_pixmap)
         self.label.setAlignment(Qt.AlignCenter)
-        self.label.setFixedSize(min_dim, min_dim)  # Lock size to prevent shifting
+        self.label.setFixedSize(window_width, window_height)  # Fill entire screen
         self.label.setScaledContents(True)  # Let label handle scaling to prevent layout changes
         layout.addWidget(self.label, alignment=Qt.AlignCenter)  # Center in layout
+        
+        # Store screen dimensions for buttons and borders
+        self.screen_width = window_width
+        self.screen_height = window_height
         
         # Store original pixmap for scaling effects
         self._original_pixmap = scaled_pixmap
