@@ -155,22 +155,31 @@ class DynamicCircularBorder(QWidget):
         self.current_width = width
         self.current_opacity = opacity
         
+        # Use rgba for opacity in the stylesheet instead of setWindowOpacity
+        # setWindowOpacity only works for top-level windows, not child widgets
+        rgba_color = self._color_with_opacity(self.color, opacity)
+        
         self.setStyleSheet(f"""
             QWidget {{
                 background-color: transparent;
-                border: {width}px solid {self.color};
+                border: {width}px solid {rgba_color};
                 border-radius: {self.border_radius}px;
             }}
         """)
-        
-        # Set widget opacity separately for consistent rendering
-        self.setWindowOpacity(opacity)
         
         # Ensure visibility and z-order
         if not self.isVisible():
             self.show()
         self.raise_()
         self.update()
+    
+    def _color_with_opacity(self, rgb_color, opacity):
+        """Convert rgb(r,g,b) to rgba(r,g,b,opacity)"""
+        # rgb(200, 0, 0) -> rgba(200, 0, 0, 0.7)
+        if rgb_color.startswith('rgb(') and rgb_color.endswith(')'):
+            rgb_values = rgb_color[4:-1]  # Extract "200, 0, 0"
+            return f"rgba({rgb_values}, {opacity})"
+        return rgb_color  # Fallback
     
     def show_border(self):
         """Show the dynamic border"""
