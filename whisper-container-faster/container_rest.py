@@ -12,7 +12,7 @@ import time
 
 # === Transcription Configuration ===
 # Tune these parameters for your needs:
-BEAM_SIZE = 10                    # Higher = better accuracy, slower (5=fast, 10=balanced, 20=best)
+BEAM_SIZE = 5.0                    # Higher = better accuracy, slower (5=fast, 10=balanced, 20=best)
 TEMPERATURE = 0.0                 # 0.0 = deterministic, 0.1+ = more creative
 PATIENCE = 1.0                    # Wait time for better results
 LENGTH_PENALTY = 1.0              # Don't penalize longer outputs
@@ -24,10 +24,10 @@ INITIAL_PROMPT = "This is a conversation about people and medical information. P
 # BEAM_SIZE=20: ~4x latency, best accuracy
 
 app = Flask(__name__)
-# Use faster-whisper with same model as transcription tuner
+# Use faster-whisper with large-v3-turbo for better accuracy
 # Set cache directory to avoid re-downloading models
 cache_dir = "/app/cache/whisper"
-print(f"[Whisper] 🚀 Loading faster-whisper model: distil-small.en")
+print(f"[Whisper] 🚀 Loading faster-whisper model: large-v3-turbo")
 print(f"[Whisper] 📁 Cache directory: {cache_dir}")
 
 # Check if cache directory exists and what's in it
@@ -49,7 +49,7 @@ else:
     print(f"[Whisper] ⚠️ HF cache does not exist: {hf_cache}")
 
 # Check if model is available in the built-in cache
-model_name = os.getenv("WHISPER_MODEL", "distil-small.en")
+model_name = os.getenv("WHISPER_MODEL", "large-v3-turbo")
 print(f"[Whisper] 📋 Using model: {model_name}")
 
 # Map model names to their actual HuggingFace repo names
@@ -58,7 +58,8 @@ model_mapping = {
     "distil-small.en": "models--Systran--faster-distil-whisper-small.en",
     "small.en": "models--Systran--faster-small-whisper.en",      # Better accuracy
     "medium.en": "models--Systran--faster-medium-whisper.en",    # Much better for names
-    "base.en": "models--Systran--faster-base-whisper.en"
+    "base.en": "models--Systran--faster-base-whisper.en",
+    "large-v3-turbo": "models--deepdml--faster-whisper-large-v3-turbo-ct2"  # Best accuracy, optimized speed
 }
 
 # Get the actual model repo name
@@ -96,7 +97,7 @@ else:
 
 # Load GPU model - NO CPU FALLBACK
 try:
-    model = WhisperModel(model_name, device="cuda", compute_type="float16", download_root="/root/.cache/huggingface/hub")
+    model = WhisperModel(model_name, device="cuda", compute_type="int8_float16", download_root="/root/.cache/huggingface/hub")
     print(f"[Whisper] ✅ GPU model '{model_name}' loaded successfully from HuggingFace cache")
 except Exception as e:
     print(f"[Whisper] ❌ GPU model loading failed: {e}")
