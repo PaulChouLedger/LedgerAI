@@ -312,13 +312,14 @@ class AuraRAG:
                     print(f"[RAG] 🔍 Result {i+1}: idx={idx}, distance={distance:.4f}, score={similarity_score:.4f}, threshold={self.relevance_threshold}")
                     print(f"[RAG] 🔍 Chunk preview: '{chunk[:100]}...'")
                     
-                    # Apply keyword filter if enabled (HYBRID SEARCH)
+                    # Apply keyword filter if enabled (HYBRID SEARCH with fuzzy matching)
                     if use_keyword_filter:
-                        if person_name not in chunk:
-                            print(f"[RAG] 🔍 Filtered out: '{person_name}' not found in chunk")
+                        # Use fuzzy matching to handle typos/variations
+                        if not self._fuzzy_name_search(person_name, chunk, threshold=0.75):
+                            print(f"[RAG] 🔍 Filtered out: no fuzzy match for '{person_name}' in chunk")
                             continue
                         else:
-                            print(f"[RAG] ✅ Keyword match: '{person_name}' found in chunk")
+                            print(f"[RAG] ✅ Fuzzy name match found for '{person_name}'")
                     
                     if similarity_score >= self.relevance_threshold:
                         results.append({
@@ -373,34 +374,43 @@ class AuraRAG:
             print(f"[RAG] ❌ Search error: {e}")
             return []
     
-    def _fuzzy_name_search(self, query: str, chunk: str, threshold: float = 0.8) -> bool:
+    def _fuzzy_name_search(self, person_name: str, chunk: str, threshold: float = 0.8) -> bool:
         """
-        Check if a chunk contains a fuzzy match for names in the query
+        Check if a chunk contains a fuzzy match for the person name
+        Handles typos like "Bob Corella" matching "Bob Carella"
         
         Args:
-            query: Original query
+            person_name: Person name from query (e.g., "Bob Corella")
             chunk: Document chunk
             threshold: Similarity threshold (0.0 to 1.0)
             
         Returns:
             True if fuzzy match found, False otherwise
         """
-        # Extract potential names from query (capitalized words)
-        query_words = re.findall(r'\b[A-Z][a-z]+\b', query)
+        # Method 1: Check full name similarity with all name-like sequences in chunk
+        chunk_names = re.findall(r'[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+', chunk)
+        for chunk_name in chunk_names:
+            similarity = SequenceMatcher(None, person_name.lower(), chunk_name.lower()).ratio()
+            if similarity >= threshold:
+                print(f"[RAG] 🔍 Fuzzy full name match: '{person_name}' ~ '{chunk_name}' (similarity: {similarity:.3f})")
+                return True
         
-        if not query_words:
-            return False
-            
-        # Extract potential names from chunk (capitalized words)
+        # Method 2: Check individual word matches (for partial names)
+        query_words = person_name.split()
         chunk_words = re.findall(r'\b[A-Z][a-z]+\b', chunk)
         
-        # Check for fuzzy matches
-        for query_name in query_words:
-            for chunk_name in chunk_words:
-                similarity = SequenceMatcher(None, query_name.lower(), chunk_name.lower()).ratio()
+        matches = 0
+        for query_word in query_words:
+            for chunk_word in chunk_words:
+                similarity = SequenceMatcher(None, query_word.lower(), chunk_word.lower()).ratio()
                 if similarity >= threshold:
-                    print(f"[RAG] 🔍 Fuzzy name match: '{query_name}' ~ '{chunk_name}' (similarity: {similarity:.3f})")
-                    return True
+                    print(f"[RAG] 🔍 Fuzzy word match: '{query_word}' ~ '{chunk_word}' (similarity: {similarity:.3f})")
+                    matches += 1
+                    break
+        
+        # Require at least 2 words to match (first + last name)
+        if matches >= min(2, len(query_words)):
+            return True
         
         return False
 
