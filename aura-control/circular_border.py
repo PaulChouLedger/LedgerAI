@@ -95,6 +95,7 @@ class FixedCircularBorder(QWidget):
         # Attributes for proper rendering
         self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.setAttribute(Qt.WA_NoSystemBackground, True)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)  # Allow transparent background
         
         # Always on top but below dynamic borders
         self.raise_()
@@ -144,8 +145,8 @@ class DynamicCircularBorder(QWidget):
         self.setAttribute(Qt.WA_NoSystemBackground, True)
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         
-        # Ensure it's on top
-        self.setWindowFlags(Qt.SubWindow | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        # Don't set window flags for child widgets - it breaks rendering
+        # Just use raise_() to control z-order
         self.hide()  # Hidden by default
         
         print(f"[CircularBorder] 🔴 Dynamic border created: {size}x{size}, color={color}")
@@ -168,10 +169,19 @@ class DynamicCircularBorder(QWidget):
         """)
         
         # Ensure visibility and z-order
-        if not self.isVisible():
+        was_visible = self.isVisible()
+        if not was_visible:
             self.show()
+            print(f"[CircularBorder] 🔴 SHOWING border: width={width}px, opacity={opacity:.2f}, color={rgba_color}")
         self.raise_()
         self.update()
+        
+        # Debug every 30 frames
+        if not hasattr(self, '_debug_counter'):
+            self._debug_counter = 0
+        self._debug_counter += 1
+        if self._debug_counter % 30 == 0:
+            print(f"[CircularBorder] 🔴 Border update: visible={self.isVisible()}, width={width}px, opacity={opacity:.2f}, geometry={self.geometry()}")
     
     def _color_with_opacity(self, rgb_color, opacity):
         """Convert rgb(r,g,b) to rgba(r,g,b,opacity)"""
