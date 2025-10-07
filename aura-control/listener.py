@@ -16,14 +16,13 @@ SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.5  # Increased to capture full speech including pauses
-VAD_THRESHOLD = 0.35  # Adjusted for normalized audio
+VAD_THRESHOLD = 0.3  # Lowered for better detection with dynamic gain
 MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 
-# Audio Processing Config
-AUDIO_GAIN = 3.5  # Pre-VAD gain boost for better detection
-NORMALIZE_AUDIO = True  # Auto-normalize audio levels
-TARGET_RMS = 0.1  # Target RMS level for normalization
-NOISE_GATE_THRESHOLD = 0.001  # Remove very quiet background noise
+# Audio Processing Config - Dynamic RMS-based gain
+TARGET_RMS = 0.3  # Target RMS level for dynamic normalization
+MIN_GAIN = 1.0  # Minimum gain multiplier
+MAX_GAIN = 15.0  # Maximum gain multiplier (prevents over-amplification)
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -50,42 +49,36 @@ def find_device_index():
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
 (get_speech_timestamps, _, read_audio, _, _) = utils
 
-# === Advanced Audio Processing ===
-def preprocess_audio(signal, apply_normalization=True, apply_noise_gate=True):
+# === Dynamic RMS-based Gain ===
+def apply_dynamic_gain(signal):
     """
-    Comprehensive audio preprocessing for better VAD and transcription
+    Apply dynamic gain based on RMS level to normalize audio
+    Works at any distance from microphone
     
     Args:
         signal: Raw audio signal (numpy array)
-        apply_normalization: Auto-normalize volume levels
-        apply_noise_gate: Remove very quiet background noise
     
     Returns:
-        Processed audio signal
+        Normalized audio signal
     """
-    # 1. Apply initial gain boost
-    signal = np.clip(signal * AUDIO_GAIN, -1.0, 1.0)
+    # Calculate RMS (Root Mean Square) - measures average signal level
+    rms = np.sqrt(np.mean(signal ** 2))
     
-    # 2. Noise gate - remove very quiet background noise
-    if apply_noise_gate:
-        mask = np.abs(signal) > NOISE_GATE_THRESHOLD
-        signal = signal * mask
+    # Avoid division by zero
+    if rms < 0.0001:
+        return signal
     
-    # 3. Auto-normalize to target RMS level
-    if apply_normalization:
-        rms = np.sqrt(np.mean(signal ** 2))
-        if rms > 0.001:  # Avoid division by zero
-            normalization_factor = TARGET_RMS / rms
-            # Limit normalization to avoid extreme amplification
-            normalization_factor = min(normalization_factor, 10.0)
-            signal = signal * normalization_factor
-            signal = np.clip(signal, -1.0, 1.0)
+    # Calculate dynamic gain needed to reach target RMS
+    dynamic_gain = TARGET_RMS / rms
     
-    return signal
-
-def apply_gain(signal, gain=AUDIO_GAIN):
-    """Simple gain application (legacy compatibility)"""
-    return preprocess_audio(signal, apply_normalization=NORMALIZE_AUDIO, apply_noise_gate=True)
+    # Clamp gain to reasonable range
+    dynamic_gain = np.clip(dynamic_gain, MIN_GAIN, MAX_GAIN)
+    
+    # Apply gain and clip to prevent distortion
+    normalized = signal * dynamic_gain
+    normalized = np.clip(normalized, -1.0, 1.0)
+    
+    return normalized
 
 # === Simple frequency function for GUI border (placeholder) ===
 def get_transcription_frequency():
@@ -153,19 +146,18 @@ def listen():
                 audio_block, _ = stream.read(FRAME_SIZE)
                 channel_0 = audio_block[:, 0]
                 
-                # CRITICAL: Preprocess audio BEFORE VAD to boost quiet signals
-                channel_0_processed = preprocess_audio(channel_0.copy(), 
-                                                       apply_normalization=True, 
-                                                       apply_noise_gate=True)
+                # Apply dynamic gain BEFORE VAD to normalize volume
+                channel_0_normalized = apply_dynamic_gain(channel_0.copy())
                 
-                # Run VAD on preprocessed audio
-                vad_prob = model_vad(torch.from_numpy(channel_0_processed), SAMPLE_RATE).item()
+                # Run VAD on normalized audio
+                vad_prob = model_vad(torch.from_numpy(channel_0_normalized), SAMPLE_RATE).item()
                 
-                # Debug: Show audio levels (raw vs processed)
+                # Debug: Show audio levels and dynamic gain
                 if DEBUG_AUDIO_LEVELS:
                     rms_raw = np.sqrt(np.mean(channel_0 ** 2))
-                    rms_proc = np.sqrt(np.mean(channel_0_processed ** 2))
-                    print(f"[Debug] VAD: {vad_prob:.2f}, RMS(raw): {rms_raw:.4f}, RMS(proc): {rms_proc:.4f}", end="\r")
+                    rms_norm = np.sqrt(np.mean(channel_0_normalized ** 2))
+                    gain_applied = rms_norm / rms_raw if rms_raw > 0.0001 else 1.0
+                    print(f"[Debug] VAD: {vad_prob:.2f}, RMS: {rms_raw:.4f}→{rms_norm:.4f}, Gain: {gain_applied:.1f}x", end="\r")
                 
                 if vad_prob > VAD_THRESHOLD:
                     print(f"\n[VAD] 🔊 Speech started (prob={vad_prob:.2f})")
@@ -183,11 +175,9 @@ def listen():
                 audio_block, _ = stream.read(FRAME_SIZE)
                 channel_0 = audio_block[:, 0]
                 
-                # Preprocess for VAD (but store original audio)
-                channel_0_processed = preprocess_audio(channel_0.copy(), 
-                                                       apply_normalization=True, 
-                                                       apply_noise_gate=True)
-                vad_prob = model_vad(torch.from_numpy(channel_0_processed), SAMPLE_RATE).item()
+                # Apply dynamic gain for VAD (but store original audio)
+                channel_0_normalized = apply_dynamic_gain(channel_0.copy())
+                vad_prob = model_vad(torch.from_numpy(channel_0_normalized), SAMPLE_RATE).item()
                 buffer.append(audio_block)  # Store original audio
 
                 if vad_prob < VAD_THRESHOLD:
@@ -208,8 +198,8 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono_mix = full_audio[:, 0]
             
-            # Apply comprehensive audio preprocessing (gain + normalization + noise gate)
-            mono_mix = apply_gain(mono_mix)
+            # Apply dynamic RMS-based gain for consistent volume
+            mono_mix = apply_dynamic_gain(mono_mix)
 
             if len(mono_mix) < MIN_AUDIO_SAMPLES:
                 print("⚠️ Skipped: too short")

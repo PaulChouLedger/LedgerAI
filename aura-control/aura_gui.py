@@ -619,6 +619,8 @@ class AuraGUI(QMainWindow):
         
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.HighQualityAntialiasing)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform)
         
         # Get current border style from border_widget
         if hasattr(self, 'border_widget'):
@@ -632,21 +634,29 @@ class AuraGUI(QMainWindow):
             color.setAlphaF(opacity_val)
             pen.setColor(color)
             pen.setStyle(Qt.SolidLine)
+            pen.setCapStyle(Qt.RoundCap)  # Smooth rounded ends
+            pen.setJoinStyle(Qt.RoundJoin)  # Smooth rounded joins
             painter.setPen(pen)
             
-            # Draw circular border INSIDE the window's circular clipping
+            # Don't fill the circle, only draw outline
+            painter.setBrush(Qt.NoBrush)
+            
+            # Draw circular border FLUSH to the edge (inside window's circular boundary)
             size = self.size()
-            # Account for window's border-radius (540px) and pen width
-            # Draw the border inside the circular window boundary
-            radius = min(size.width(), size.height()) // 2 - width - 5  # -5 for safety margin
             center_x = size.width() // 2
             center_y = size.height() // 2
             
-            # Draw from top-left corner of bounding rect
+            # Calculate radius to be flush with window edge
+            # Subtract half the pen width so the border sits perfectly at the edge
+            window_radius = min(size.width(), size.height()) // 2
+            radius = window_radius - (width // 2) - 2  # -2 for antialiasing smoothness
+            
+            # Create bounding rectangle for the ellipse
             rect_x = center_x - radius
             rect_y = center_y - radius
             rect_size = radius * 2
             
+            # Use drawEllipse with QRectF for smooth, continuous border
             painter.drawEllipse(rect_x, rect_y, rect_size, rect_size)
             
             # Debug every 10 frames while transcribing
