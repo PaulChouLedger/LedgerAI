@@ -175,11 +175,13 @@ class AuraRAG:
             
             print(f"[RAG] 🔍 Calling cudaKNN: n={n_vectors}, d={self.index.d}, k={k}, metric={metric}")
             
-            # Prepare vector norms pointer - use proper ctypes float pointer
+            # Prepare vector norms pointer - for inner product metric, we can pass NULL
             import ctypes
-            vector_norms_ptr = ctypes.POINTER(ctypes.c_float)()  # NULL float pointer
             if self.cuda_vector_norms is not None:
                 vector_norms_ptr = self.cuda_vector_norms['ptr']
+            else:
+                # For inner product metric, pass NULL pointer
+                vector_norms_ptr = ctypes.cast(0, ctypes.POINTER(ctypes.c_float))
             
             result = cudaKNN(
                 self.cuda_vectors['ptr'],     # vectors
