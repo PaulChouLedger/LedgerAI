@@ -39,8 +39,9 @@ class BorderOverlayWidget(QWidget):
         # Move border to the edge: 540 (screen edge) - 4 (half of 8px pen) - 1 (safety) = 535px
         radius = 535  # Right at the edge of the circular screen
         
-        # White reference circle (always)
-        white_pen = QPen(QColor(255, 255, 255), 8, Qt.SolidLine)
+        # White reference circle (always) - 20% transparent (80% opacity)
+        white_color = QColor(255, 255, 255, 204)  # Alpha: 204/255 = 80% opacity
+        white_pen = QPen(white_color, 8, Qt.SolidLine)
         painter.setPen(white_pen)
         painter.drawEllipse(center - radius, center - radius, radius * 2, radius * 2)
         
@@ -723,7 +724,7 @@ def gui_is_ready():
 def set_listening_ready():
     global _listening_ready
     _listening_ready = True
-    print("[AuraGUI] 🎯 Switched to fixed mode - listener ready")
+    print("[AuraGUI] 🎯 Listener is now READY - aura eye should be STATIC")
     print(f"[AuraGUI] 🎯 State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
 
 def set_welcome_played():
