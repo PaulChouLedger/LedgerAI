@@ -45,6 +45,10 @@ class AuraGUI(QMainWindow):
         screen_size = screen.availableGeometry().size()
         min_dim = min(screen_size.width(), screen_size.height())
         scaled_pixmap = pixmap.scaled(min_dim, min_dim, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        
+        # CRITICAL: Set window to FIXED size to prevent edge pulsation
+        self.setFixedSize(min_dim, min_dim)
+        print(f"[AuraGUI] 🔒 Window locked to {min_dim}x{min_dim} - only aura_eye will pulsate, not edges")
 
         # === Create main widget with image and circular buttons ===
         main_widget = QWidget()
