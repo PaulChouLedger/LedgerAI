@@ -21,9 +21,9 @@ class CircularBorderConfig:
     SCREEN_RADIUS = 540  # Half of screen size
     
     # Fixed border configuration
-    FIXED_BORDER_WIDTH = 5  # Thicker for visibility
-    FIXED_BORDER_COLOR = "rgb(255, 255, 255)"  # SOLID WHITE (no alpha channel)
-    FIXED_BORDER_RADIUS = 538  # 540 - 2 (account for border width)
+    FIXED_BORDER_WIDTH = 8  # Very thick for maximum visibility
+    FIXED_BORDER_COLOR = "#FFFFFF"  # SOLID WHITE (hex format for Qt)
+    FIXED_BORDER_RADIUS = 536  # 540 - 4 (account for border width)
     
     # Safe content area (inside fixed border)
     SAFE_AREA_MARGIN = 120  # Minimum margin from edge

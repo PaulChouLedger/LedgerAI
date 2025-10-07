@@ -157,11 +157,12 @@ class AuraGUI(QMainWindow):
         
         # Create transparent overlay widget for drawing border on top of EVERYTHING
         self.border_overlay = BorderOverlay(self, min_dim)
-        self.border_overlay.move(0, 0)  # Position at top-left of parent window
-        self.border_overlay.resize(min_dim, min_dim)
+        self.border_overlay.setGeometry(0, 0, min_dim, min_dim)  # Explicit geometry
         self.border_overlay.raise_()  # Ensure it's on top
         self.border_overlay.hide()  # Hidden until transcription starts
-        print(f"[BorderOverlay] 🔴 Created at (0,0), size={min_dim}x{min_dim}")
+        print(f"[BorderOverlay] 🔴 Created: geometry={self.border_overlay.geometry()}, size={min_dim}x{min_dim}")
+        print(f"[BorderOverlay] 🔴 Parent window size: {self.size()}")
+        print(f"[BorderOverlay] 🔴 Using radius: {CircularBorderConfig.FIXED_BORDER_RADIUS}px")
         
         # Create 6 buttons equally spaced around the circular edge (after borders)
         # Buttons will be on top of borders

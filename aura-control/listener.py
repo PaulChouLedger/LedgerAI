@@ -20,7 +20,8 @@ VAD_START_THRESHOLD = 0.25  # Threshold to START detecting speech
 VAD_SILENCE_THRESHOLD = 0.10  # Threshold for silence (closer to actual silence ~0.05, minimizes dead air to Whisper)
 MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 
-# No audio processing - send raw audio to Whisper
+# Simple audio gain
+AUDIO_GAIN = 2.0  # Simple gain multiplier
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -46,6 +47,11 @@ def find_device_index():
 # === Load Silero VAD ===
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
 (get_speech_timestamps, _, read_audio, _, _) = utils
+
+# === Simple Audio Gain ===
+def apply_gain(audio):
+    """Apply simple gain to audio signal"""
+    return np.clip(audio * AUDIO_GAIN, -1.0, 1.0)
 
 # === Simple frequency function for GUI border (placeholder) ===
 def get_transcription_frequency():
@@ -163,7 +169,8 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono_mix = full_audio[:, 0]
             
-            # Send raw audio to Whisper (no processing)
+            # Apply simple gain
+            mono_mix = apply_gain(mono_mix)
 
             if len(mono_mix) < MIN_AUDIO_SAMPLES:
                 print("⚠️ Skipped: too short")
