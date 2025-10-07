@@ -86,27 +86,35 @@ class AuraRAG:
             print(f"[RAG] ❌ Failed to load document chunks: {e}")
             raise
         
-        # Load sentence transformer
-        try:
-            print(f"[RAG] 🔧 Loading sentence transformer: {self.model_name}")
-            # Let sentence-transformers auto-detect the best device
-            self.encoder = SentenceTransformer(
-                self.model_name, 
-                trust_remote_code=True
-            )
-            print(f"[RAG] ✅ Loaded sentence transformer: {self.model_name}")
-            print(f"[RAG] 🔍 Sentence transformer device: {self.encoder.device}")
-        except Exception as e:
-            print(f"[RAG] ❌ Failed to load sentence transformer: {e}")
-            # Try alternative loading method
+        # Load sentence transformer with robust error handling
+        self.encoder = None
+        loading_methods = [
+            # Method 1: Force CPU to avoid meta tensor issues
+            lambda: SentenceTransformer(self.model_name, device='cpu', trust_remote_code=True),
+            # Method 2: Default loading
+            lambda: SentenceTransformer(self.model_name, trust_remote_code=True),
+            # Method 3: Minimal parameters
+            lambda: SentenceTransformer(self.model_name),
+            # Method 4: Force CPU with minimal parameters
+            lambda: SentenceTransformer(self.model_name, device='cpu')
+        ]
+        
+        for i, method in enumerate(loading_methods, 1):
             try:
-                print(f"[RAG] 🔧 Trying alternative loading method...")
-                self.encoder = SentenceTransformer(self.model_name)
-                print(f"[RAG] ✅ Loaded sentence transformer (alternative method): {self.model_name}")
+                print(f"[RAG] 🔧 Loading sentence transformer (method {i}): {self.model_name}")
+                self.encoder = method()
+                print(f"[RAG] ✅ Loaded sentence transformer (method {i}): {self.model_name}")
                 print(f"[RAG] 🔍 Sentence transformer device: {self.encoder.device}")
-            except Exception as e2:
-                print(f"[RAG] ❌ Alternative loading also failed: {e2}")
-                raise e
+                break
+            except Exception as e:
+                print(f"[RAG] ❌ Method {i} failed: {e}")
+                if i == len(loading_methods):
+                    print(f"[RAG] ❌ All loading methods failed!")
+                    raise RuntimeError(f"Failed to load sentence transformer after {len(loading_methods)} attempts")
+                continue
+        
+        if self.encoder is None:
+            raise RuntimeError("Failed to load sentence transformer")
     
     def _prepare_cuda_data(self):
         """Prepare raw vectors for faiss_lite CUDA functions"""

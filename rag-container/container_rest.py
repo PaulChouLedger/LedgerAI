@@ -46,12 +46,28 @@ def initialize_service():
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
-    return jsonify({
-        'status': 'healthy',
-        'service': SERVICE_NAME,
-        'timestamp': time.time()
-    })
+    """Health check endpoint with RAG status"""
+    try:
+        rag = get_rag()
+        stats = rag.get_stats()
+        return jsonify({
+            'status': 'healthy' if stats.get('status') == 'ready' else 'degraded',
+            'service': SERVICE_NAME,
+            'rag_status': stats.get('status', 'unknown'),
+            'rag_components': {
+                'index_size': stats.get('index_size', 0),
+                'chunks_loaded': stats.get('chunks_loaded', 0),
+                'model_name': stats.get('model_name', 'unknown')
+            },
+            'timestamp': time.time()
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'service': SERVICE_NAME,
+            'error': str(e),
+            'timestamp': time.time()
+        }), 500
 
 @app.route('/services/status', methods=['GET'])
 def get_services_status():
@@ -140,20 +156,49 @@ def set_threshold():
 
 @app.route('/rag/init', methods=['POST'])
 def rag_init():
-    """Initialize RAG system"""
+    """Initialize RAG system with robust error handling"""
     try:
         print(f"[{SERVICE_NAME}] 🔍 RAG init requested")
-        # Initialize RAG system
-        rag = get_rag()
-        stats = rag.get_stats()
-        return jsonify({
-            'status': 'success',
-            'message': 'RAG system initialized',
-            'stats': stats
-        })
+        
+        # Initialize RAG system with detailed error reporting
+        try:
+            rag = get_rag()
+            stats = rag.get_stats()
+            
+            # Verify all components are loaded
+            if stats.get('status') != 'ready':
+                error_msg = f"RAG components not ready: {stats}"
+                logger.error(error_msg)
+                return jsonify({
+                    'status': 'error',
+                    'message': error_msg,
+                    'stats': stats
+                }), 500
+            
+            print(f"[{SERVICE_NAME}] ✅ RAG system initialized successfully")
+            return jsonify({
+                'status': 'success',
+                'message': 'RAG system initialized',
+                'stats': stats
+            })
+            
+        except RuntimeError as e:
+            error_msg = f"RAG initialization failed: {e}"
+            logger.error(error_msg)
+            return jsonify({
+                'status': 'error',
+                'message': error_msg,
+                'retry_recommended': True
+            }), 500
+            
     except Exception as e:
-        logger.error(f"Error initializing RAG: {e}")
-        return jsonify({'error': str(e)}), 500
+        error_msg = f"Unexpected error during RAG initialization: {e}"
+        logger.error(error_msg)
+        return jsonify({
+            'status': 'error',
+            'message': error_msg,
+            'retry_recommended': True
+        }), 500
 
 @app.route('/rag/stats', methods=['GET'])
 def rag_stats():

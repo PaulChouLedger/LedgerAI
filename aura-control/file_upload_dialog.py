@@ -47,7 +47,7 @@ class FileUploadDialog(QDialog):
                 background-color: rgba(28, 28, 30, 1.0);  /* Solid dark background */
                 color: white;
                 border: 8px solid #ff0000;  /* Red border for circular screen edge */
-                border-radius: 540px;  /* Circular border to match 5-inch screen */
+                border-radius: 536px;  /* Slightly smaller radius to account for border width */
             }
             QLabel {
                 color: white;
@@ -199,7 +199,7 @@ class FileUploadDialog(QDialog):
         content_widget.setStyleSheet("""
             QWidget {
                 background-color: rgba(28, 28, 30, 0.95);
-                border-radius: 540px;  /* Half of 1080 to match dialog */
+                border-radius: 532px;  /* Adjusted to account for dialog border and margins */
                 border: none;
             }
         """)
@@ -209,13 +209,13 @@ class FileUploadDialog(QDialog):
         
         # Add edge buttons for future functions - will be added after layout is set
         
-        # Create layout for circular content - centered within the dialog
+        # Create layout for circular content - shifted up within the dialog
         self.content_layout = QVBoxLayout()
-        self.content_layout.setContentsMargins(100, 100, 100, 100)  # Margins to center content within circular area
+        self.content_layout.setContentsMargins(100, 80, 100, 120)  # Reduced top margin, increased bottom margin to shift content up
         self.content_layout.setSpacing(25)  # Standard spacing
         
-        # Add top spacer to push content down
-        self.content_layout.addStretch(1)
+        # Add smaller top spacer to shift content up
+        self.content_layout.addStretch(0.5)
         
         # Title centered (no close button)
         title_layout = QHBoxLayout()
@@ -401,8 +401,8 @@ class FileUploadDialog(QDialog):
         button_layout.addWidget(self.close_btn)
         self.content_layout.addLayout(button_layout)
         
-        # Add bottom spacer to complete centering
-        self.content_layout.addStretch(1)
+        # Add bottom spacer to maintain proper spacing (smaller since we shifted content up)
+        self.content_layout.addStretch(1.5)
         
         print(f"[Upload] 🔴 Red border should show circular screen boundaries")
         
