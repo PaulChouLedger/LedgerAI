@@ -23,7 +23,8 @@ print(f"[AuraGUI] 🎯 Initial state: listening_ready={_listening_ready}, transc
 class BorderOverlay(QWidget):
     """
     Transparent overlay widget that sits on top of all other widgets
-    to draw the red border without being occluded by buttons
+    to draw the red border without being occluded by buttons.
+    Draws at the SAME radius as the fixed transparent border for perfect alignment.
     """
     def __init__(self, parent, size):
         super().__init__(parent)
@@ -35,11 +36,11 @@ class BorderOverlay(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground, True)  # Allow transparency
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         
-        # Set size
+        # Set size to match screen
         self.setFixedSize(size, size)
         
     def paintEvent(self, event):
-        """Draw the red border"""
+        """Draw the red border at the EXACT same position as fixed transparent border"""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
         painter.setRenderHint(QPainter.HighQualityAntialiasing, True)
@@ -58,13 +59,17 @@ class BorderOverlay(QWidget):
         # No fill
         painter.setBrush(Qt.NoBrush)
         
-        # Draw circle
+        # CRITICAL: Draw at the SAME radius as the fixed transparent border
+        # This ensures perfect alignment with the reference border
         size = self.size()
-        window_radius = min(size.width(), size.height()) // 2
-        radius = window_radius - (self.border_width // 2) - 2
         center_x = size.width() // 2
         center_y = size.height() // 2
         
+        # Use the FIXED_BORDER_RADIUS from config for perfect centering
+        # The radius is the CENTER of the border line
+        radius = CircularBorderConfig.FIXED_BORDER_RADIUS
+        
+        # Calculate bounding rect
         rect_x = center_x - radius
         rect_y = center_y - radius
         rect_size = radius * 2

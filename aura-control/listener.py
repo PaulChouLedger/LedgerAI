@@ -15,8 +15,9 @@ from aura_gui import set_transcribing
 SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
-SILENCE_TIMEOUT = 0.5  # Increased to capture full speech including pauses
-VAD_THRESHOLD = 0.2  # Lowered for better detection with dynamic gain
+SILENCE_TIMEOUT = 0.2  # Longer timeout to handle natural pauses and distance variations
+VAD_THRESHOLD = 0.25  # Threshold to START detecting speech
+VAD_CONTINUATION_THRESHOLD = 0.12  # Lower threshold to CONTINUE recording (more lenient for distance)
 MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 
 # Audio Processing Config - Dynamic RMS-based gain
@@ -180,11 +181,13 @@ def listen():
                 vad_prob = model_vad(torch.from_numpy(channel_0_normalized), SAMPLE_RATE).item()
                 buffer.append(audio_block)  # Store original audio
 
-                if vad_prob < VAD_THRESHOLD:
+                # Use LOWER threshold for continuation (more lenient to avoid cutting off)
+                # This prevents breaking up speech when speaking from a distance
+                if vad_prob < VAD_CONTINUATION_THRESHOLD:
                     if silence_start is None:
                         silence_start = time.time()
                     elif time.time() - silence_start > SILENCE_TIMEOUT:
-                        print("\n⏹️ Speech ended. Processing...")
+                        print(f"\n⏹️ Speech ended (VAD: {vad_prob:.2f}). Processing...")
                         set_transcribing(False)  # Notify GUI: transcription ended
                         break
                 else:
