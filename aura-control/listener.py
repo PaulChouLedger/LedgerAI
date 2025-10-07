@@ -23,6 +23,7 @@ VAD_RESET_THRESHOLD = 0.15  # Lower threshold for reset
 # If VAD stays below this for too long, reset
 VAD_RESET_COUNT = 20  # Base number of consecutive low VAD readings before reset
 VAD_RESET_MULTIPLIER = 3  # Multiply by this to get actual reset threshold (60 readings)
+# Removed consecutive reading requirement for immediate speech detection
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
@@ -142,10 +143,7 @@ def listen():
             silence_start = None
             low_vad_count = 0  # Counter for consecutive low VAD readings
 
-            # === Wait for speech ===
-            speech_confirmation_frames = 0  # Count consecutive high VAD frames
-            required_confirmation_frames = 3  # Require 3 consecutive high VAD frames to confirm speech
-            
+            # === Wait for speech (immediate trigger) ===
             while True:
                 if is_playing():
                     break
@@ -157,7 +155,6 @@ def listen():
                 # Track consecutive low VAD readings
                 if vad_prob < VAD_RESET_THRESHOLD:
                     low_vad_count += 1
-                    speech_confirmation_frames = 0  # Reset speech confirmation
                     # Only reset VAD if we've been in low VAD for a very long time
                     if low_vad_count >= VAD_RESET_COUNT * VAD_RESET_MULTIPLIER:  # 60 consecutive low readings
                         print(f"[VAD] 🔄 Resetting VAD after {low_vad_count} consecutive low readings")
@@ -167,16 +164,11 @@ def listen():
                 else:
                     low_vad_count = 0  # Reset counter on higher VAD readings
                 
-                # Require sustained high VAD to confirm speech (not just noise)
+                # Immediate speech detection - no consecutive reading requirement
                 if vad_prob > VAD_CONFIDENCE_THRESHOLD:
-                    speech_confirmation_frames += 1
-                    print(f"[VAD] 🔊 High VAD detected (prob={vad_prob:.2f}, confirmation={speech_confirmation_frames}/{required_confirmation_frames})")
-                    if speech_confirmation_frames >= required_confirmation_frames:
-                        print(f"[VAD] ✅ Speech confirmed after {speech_confirmation_frames} consecutive high readings")
-                        buffer.append(audio_block)
-                        break
-                else:
-                    speech_confirmation_frames = 0  # Reset if VAD drops below threshold
+                    print(f"[VAD] 🔊 High VAD detected (prob={vad_prob:.2f}) - starting recording")
+                    buffer.append(audio_block)
+                    break
                 
                 # Reduce debug output for performance
                 if vad_prob > 0.3:  # Only log significant VAD activity
