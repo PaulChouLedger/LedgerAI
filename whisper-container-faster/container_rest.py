@@ -151,35 +151,23 @@ def transcribe():
         audio = preprocess_audio(tmp_path)
         preprocessing_time = time.time() - preprocessing_start
         
-        # Debug audio properties
-        print(f"[Whisper] 🔍 Audio properties:")
-        print(f"  📊 Shape: {audio.shape}")
-        print(f"  📊 Duration: {len(audio) / 16000:.3f}s")
-        print(f"  📊 Min/Max: {audio.min():.4f}/{audio.max():.4f}")
-        print(f"  📊 RMS: {np.sqrt(np.mean(audio**2)):.4f}")
-        print(f"  📊 Non-zero samples: {np.count_nonzero(audio)}/{len(audio)}")
-        import sys
-        sys.stdout.flush()
+        # Audio properties (minimal logging)
+        audio_duration = len(audio) / 16000
+        print(f"[Whisper] 🔍 Audio duration: {audio_duration:.3f}s")
         
-        # Check if audio is too quiet or silent
+        # Check if audio is too quiet or silent (minimal logging)
         if np.sqrt(np.mean(audio**2)) < 0.001:
-            print(f"[Whisper] ⚠️ Audio is very quiet (RMS < 0.001)")
-            sys.stdout.flush()
-        if np.count_nonzero(audio) < len(audio) * 0.1:
-            print(f"[Whisper] ⚠️ Audio has very few non-zero samples")
-            sys.stdout.flush()
+            print(f"[Whisper] ⚠️ Audio is very quiet")
         
-        # Time model transcription (using faster-whisper like transcription tuner)
+        # Time model transcription
         transcription_start = time.time()
-        print(f"[Whisper] 🧠 Starting transcription at {transcription_start:.6f}")
         
         # Initialize text variable
         text = ""
         
         try:
             # Using configurable transcription parameters
-            print(f"[Whisper] 🧠 Model parameters: language='en', beam_size={BEAM_SIZE}, temperature={TEMPERATURE}")
-            sys.stdout.flush()
+            print(f"[Whisper] 🧠 Starting transcription...")
             segments, _ = model.transcribe(
                 audio, 
                 language="en",
@@ -189,20 +177,10 @@ def transcribe():
                 length_penalty=LENGTH_PENALTY,
                 initial_prompt=INITIAL_PROMPT
             )
-            print(f"[Whisper] 🧠 Transcription completed, processing segments...")
-            sys.stdout.flush()
-            
-            # Debug: Check segments
+            # Process segments
             segment_list = list(segments)
-            print(f"[Whisper] 🔍 Found {len(segment_list)} segments")
-            sys.stdout.flush()
-            for i, segment in enumerate(segment_list):
-                print(f"[Whisper] 🔍 Segment {i}: '{segment.text}' (start={segment.start:.2f}, end={segment.end:.2f})")
-                sys.stdout.flush()
-            
             text = " ".join([s.text.strip() for s in segment_list if s.text.strip()])
-            print(f"[Whisper] 📝 Final text: '{text}'")
-            sys.stdout.flush()
+            print(f"[Whisper] 📝 Transcribed: '{text}'")
             
         except RuntimeError as e:
             print(f"[Whisper] ❌ Runtime error: {e}")
@@ -223,7 +201,6 @@ def transcribe():
                     segment_list = list(segments)
                     text = " ".join([s.text.strip() for s in segment_list if s.text.strip()])
                     print(f"[Whisper] ✅ Retry successful: '{text}'")
-                    sys.stdout.flush()
                 except Exception as retry_error:
                     print(f"[Whisper] ❌ Retry also failed: {retry_error}")
                     sys.stdout.flush()
@@ -258,17 +235,8 @@ def transcribe():
         timing_stats["min_transcription_time"] = min(timing_stats["min_transcription_time"], transcription_time)
         timing_stats["max_transcription_time"] = max(timing_stats["max_transcription_time"], transcription_time)
         
-        # Print timing information to console (like transcription tuner)
-        print(f"[Whisper] ⏱️ TIMING METRICS:")
-        print(f"  📥 Request to completion: {total_time:.3f}s")
-        print(f"  📁 File processing: {file_processing_time:.3f}s")
-        print(f"  🔧 Audio preprocessing: {preprocessing_time:.3f}s")
-        print(f"  🧠 Model transcription: {transcription_time:.3f}s")
-        print(f"  📊 Audio duration: {audio_duration:.3f}s")
-        print(f"  ⚡ Efficiency RTF: {efficiency:.2f}x")
-        print(f"  📝 Transcribed: \"{text}\"")
-        print()  # Empty line for readability
-        sys.stdout.flush()
+        # Show model transcription timing (important for performance monitoring)
+        print(f"[Whisper] ⏱️ Model transcription: {transcription_time:.3f}s")
         
         # Clean up temp file
         os.remove(tmp_path)

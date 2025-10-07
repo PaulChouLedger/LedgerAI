@@ -172,8 +172,8 @@ class FileUploadDialog(QDialog):
         self.raise_()
         self.activateWindow()
     
-    def closeEvent(self, event):
-        """Handle dialog close with smooth fade-out animation"""
+    def close_dialog(self):
+        """Close dialog with smooth fade-out animation"""
         print("[Upload] 🔄 Closing dialog with fade-out animation...")
         
         # Create fade-out animation
@@ -184,11 +184,14 @@ class FileUploadDialog(QDialog):
         self.fade_out.setEasingCurve(QEasingCurve.OutCubic)
         
         # Connect finished signal to actually close the dialog
-        self.fade_out.finished.connect(lambda: self.accept())
+        self.fade_out.finished.connect(self.accept)
         self.fade_out.start()
-        
-        # Prevent immediate close
-        event.ignore()
+    
+    def closeEvent(self, event):
+        """Handle dialog close event"""
+        # Use our custom close method with animation
+        self.close_dialog()
+        event.ignore()  # Prevent immediate close
 
     def center_dialog_manually(self, screen_center_x, screen_center_y):
         """Manually center the dialog based on screen center coordinates"""
@@ -205,18 +208,18 @@ class FileUploadDialog(QDialog):
         main_layout.setContentsMargins(0, 0, 0, 0)  # No margins for full screen
         main_layout.setSpacing(0)
         
-        # Create circular content container
+        # Create circular content container - size to fit within red border
         content_widget = QWidget()
-        content_widget.setFixedSize(1078, 1078)  # 10% bigger (980 * 1.1 = 1078)
+        content_widget.setFixedSize(1064, 1064)  # 1080 - 16 (8px border on each side)
         content_widget.setStyleSheet("""
             QWidget {
                 background-color: rgba(28, 28, 30, 0.95);
-                border-radius: 539px;
+                border-radius: 532px;  /* Half of 1064 */
                 border: none;
             }
         """)
         
-        # Use simple centering with equal stretch
+        # Center the content widget within the dialog
         main_layout.addStretch()
         main_layout.addWidget(content_widget, 0, Qt.AlignCenter)
         main_layout.addStretch()
@@ -225,8 +228,8 @@ class FileUploadDialog(QDialog):
         
         # Create layout for circular content
         self.content_layout = QVBoxLayout()
-        self.content_layout.setContentsMargins(110, 110, 110, 110)  # 10% bigger margins (100 * 1.1 = 110)
-        self.content_layout.setSpacing(28)  # 10% bigger spacing (25 * 1.1 = 27.5, rounded to 28)
+        self.content_layout.setContentsMargins(100, 100, 100, 100)  # Proper margins for 1064x1064 content
+        self.content_layout.setSpacing(25)  # Standard spacing
         
         # Title centered (no close button)
         title_layout = QHBoxLayout()
@@ -388,7 +391,7 @@ class FileUploadDialog(QDialog):
         
         # Close button
         self.close_btn = QPushButton("❌ Close")
-        self.close_btn.clicked.connect(self.close)
+        self.close_btn.clicked.connect(self.close_dialog)
         self.close_btn.setStyleSheet("""
             QPushButton {
                 background-color: #FF3B30;
