@@ -70,31 +70,44 @@ def rebuild_embeddings():
     
     print(f"📝 Total text length: {sum(len(text) for text in all_texts)} characters")
     
-    # Split into chunks with smart overlap for better context
-    chunk_size = 1000  # characters per chunk
-    overlap = 200  # overlap between chunks to avoid splitting important content
+    # Split into chunks with paragraph-aware splitting
+    chunk_size = 1000  # target characters per chunk
+    overlap = 200  # overlap between chunks
     chunks = []
     
     for text in all_texts:
-        # Smart chunking with overlap
-        text_len = len(text)
-        start = 0
+        # Split by double newlines (paragraph boundaries) first
+        paragraphs = text.split('\n\n')
         
-        while start < text_len:
-            # Get chunk with overlap
-            end = start + chunk_size
-            chunk = text[start:end].strip()
+        current_chunk = ""
+        
+        for para in paragraphs:
+            para = para.strip()
+            if not para:
+                continue
             
-            # Only keep substantial chunks
-            if len(chunk) > 100:
-                chunks.append(chunk)
-            
-            # Move forward by chunk_size - overlap
-            start += (chunk_size - overlap)
-            
-            # If we're at the end, break
-            if end >= text_len:
-                break
+            # If adding this paragraph would exceed chunk size
+            if len(current_chunk) + len(para) > chunk_size and current_chunk:
+                # Save current chunk
+                if len(current_chunk) > 100:
+                    chunks.append(current_chunk.strip())
+                
+                # Start new chunk with overlap from previous
+                # Take last 'overlap' characters from previous chunk
+                if len(current_chunk) > overlap:
+                    current_chunk = current_chunk[-overlap:] + "\n\n" + para
+                else:
+                    current_chunk = para
+            else:
+                # Add paragraph to current chunk
+                if current_chunk:
+                    current_chunk += "\n\n" + para
+                else:
+                    current_chunk = para
+        
+        # Don't forget the last chunk
+        if current_chunk and len(current_chunk) > 100:
+            chunks.append(current_chunk.strip())
     
     print(f"📦 Created {len(chunks)} text chunks")
     
@@ -113,14 +126,25 @@ def rebuild_embeddings():
         
         if found_in:
             print(f"  ✅ '{name}' found in {len(found_in)} chunk(s): {found_in}")
-            # Show preview of first chunk containing the name
-            first_chunk = chunks[found_in[0]]
-            # Find the name's position and show context
-            pos = first_chunk.find(name)
-            context_start = max(0, pos - 50)
-            context_end = min(len(first_chunk), pos + 200)
-            preview = first_chunk[context_start:context_end].replace('\n', ' ')
-            print(f"     Preview: '...{preview}...'")
+            
+            # Validate that chunks actually START with or prominently feature this person
+            for chunk_idx in found_in:
+                chunk = chunks[chunk_idx]
+                name_pos = chunk.find(name)
+                chunk_start = chunk[:100].replace('\n', ' ')
+                
+                # Check if name appears early in the chunk (within first 200 chars)
+                if name_pos < 200:
+                    print(f"     ✅ Chunk {chunk_idx}: '{name}' at position {name_pos}")
+                    print(f"        Start: '{chunk_start}...'")
+                else:
+                    print(f"     ⚠️ Chunk {chunk_idx}: '{name}' at position {name_pos} (late in chunk!)")
+                    print(f"        Start: '{chunk_start}...'")
+                    # Show where the name actually appears
+                    context_start = max(0, name_pos - 30)
+                    context_end = min(len(chunk), name_pos + 100)
+                    name_context = chunk[context_start:context_end].replace('\n', ' ')
+                    print(f"        Name context: '...{name_context}...'")
         else:
             print(f"  ❌ '{name}' NOT FOUND in any chunks!")
     
