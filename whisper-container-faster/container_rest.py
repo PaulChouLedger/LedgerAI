@@ -49,7 +49,7 @@ else:
     print(f"[Whisper] ⚠️ HF cache does not exist: {hf_cache}")
 
 # Check if model is available in the built-in cache
-model_name = os.getenv("WHISPER_MODEL", "distil-large-v3")
+model_name = os.getenv("WHISPER_MODEL", "distil-small.en")
 print(f"[Whisper] 📋 Using model: {model_name}")
 
 # Map model names to their actual HuggingFace repo names
