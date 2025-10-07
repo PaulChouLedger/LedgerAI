@@ -15,10 +15,10 @@ from aura_gui import set_transcribing
 SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
-SILENCE_TIMEOUT = 0.5  # Increased from 0.2 to capture full speech
+SILENCE_TIMEOUT = 0.2  # Increased from 0.2 to capture full speech
 VAD_THRESHOLD = 0.2  # Lowered from 0.3 for better detection of normal speech
 MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
-AUDIO_GAIN = 3.0  # Moderate gain (10.0 causes distortion)
+AUDIO_GAIN = 5.0  # Moderate gain (10.0 causes distortion)
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
