@@ -274,29 +274,14 @@ class AuraGUI(QMainWindow):
 
     def showEvent(self, event):
         super().showEvent(event)
-        global _gui_ready, _transcribing
+        global _gui_ready
         _gui_ready = True
         print("[AuraGUI] 🎯 GUI has fully rendered")
         
-        # Ensure borders are properly positioned - use actual window size
-        window_size = self.size()
-        size = min(window_size.width(), window_size.height())
-        
-        # Update fixed transparent border
-        self.fixed_border.update_geometry(size)
-        print(f"[AuraGUI] ⚪ Fixed border positioned: {self.fixed_border.geometry()}")
-        
-        # Update dynamic border geometry
-        self.border_widget.setGeometry(0, 0, size, size)
-        self.border_widget.border_radius = size // 2
-        self.border_widget.raise_()
-        print(f"[AuraGUI] 🔴 Dynamic border positioned: {self.border_widget.geometry()}")
-        
-        # Only show dynamic border if we're currently transcribing
-        if _transcribing:
-            self.border_widget.show_border()
-        else:
-            self.border_widget.hide_border()
+        # Ensure border overlay is on top
+        if hasattr(self, 'border_overlay'):
+            self.border_overlay.raise_()
+            self.border_overlay.show()
 
     def animate_pulse(self):
         global _listening_ready, _transcribing, _tts_playing, _tts_frequency, _setup_complete
@@ -380,24 +365,24 @@ class AuraGUI(QMainWindow):
             self.border_overlay.raise_()  # Keep on top every frame
             self.border_overlay.update()  # Trigger overlay paintEvent
             
-        # State 1: Initial setup - gentle, meditative aura eye
+        # State 1: Initial setup - slow breathing animation
         elif not _setup_complete:
-            self._animate_aura_eye_setup()
+            self._animate_aura_eye_breathing()  # Slow breathing during setup
             self.show_red_border = False
             
-        # State 2: Setup complete but not ready - gentle, meditative aura eye
+        # State 2: Setup complete but listener not ready - continue breathing
         elif _setup_complete and not _listening_ready:
-            self._animate_aura_eye_idle()
+            self._animate_aura_eye_breathing()  # Continue breathing
             self.show_red_border = False
             
-        # State 3: TTS playing - sophisticated aura eye pulsation
+        # State 3: TTS playing - responsive pulsation
         elif _tts_playing:
             self._animate_aura_eye_tts(_tts_frequency)
             self.show_red_border = False
             
-        # State 4: System ready, fixed mode - subtle aura eye  
+        # State 4: Listener ready - STATIC (no animation)
         elif _listening_ready:
-            self._animate_aura_eye_idle()  # Gentle breathing animation
+            self._set_aura_eye_static()  # Static, ready state
             self.show_red_border = False
     
     def _update_border_style(self, static=True, pulsating=False, width=5, opacity=0.7):
@@ -529,6 +514,24 @@ class AuraGUI(QMainWindow):
         # self.glow_effect.setBlurRadius(int(glow_radius))
         
         # Debug output removed for cleaner console
+    
+    def _animate_aura_eye_breathing(self):
+        """Slow, gentle breathing animation - mimics calm breathing"""
+        # Very slow breathing rhythm (4 second cycle)
+        self.aura_breathing_phase += 0.025  # Slower than before
+        breathing = (math.sin(self.aura_breathing_phase) + 1) / 2
+        
+        # Gentle opacity variation (0.3 to 0.9)
+        self.opacity = 0.3 + (breathing * 0.6)
+        
+        # Apply opacity
+        self.label.setStyleSheet(f"opacity: {self.opacity};")
+    
+    def _set_aura_eye_static(self):
+        """Set aura eye to static state - no animation, ready for interaction"""
+        # Full opacity, no pulsation
+        self.opacity = 1.0
+        self.label.setStyleSheet("opacity: 1.0;")
     
     def _animate_aura_eye_setup(self):
         """Gentle, meditative aura eye animation during initial setup"""
