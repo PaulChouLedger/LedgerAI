@@ -169,6 +169,9 @@ class AuraRAG:
             cuda_distances = cudaAllocMapped((1, k), np.float32)
             cuda_indices = cudaAllocMapped((1, k), np.int64)
             
+            print(f"[RAG] 🔍 cuda_distances ptr type: {type(cuda_distances['ptr'])}")
+            print(f"[RAG] 🔍 cuda_indices ptr type: {type(cuda_indices['ptr'])}")
+            
             # Call cudaKNN
             n_vectors = self.index.ntotal
             metric = 0 if self.index.metric_type == faiss.METRIC_INNER_PRODUCT else 1
@@ -183,6 +186,10 @@ class AuraRAG:
                 # For inner product metric, pass NULL pointer
                 vector_norms_ptr = ctypes.cast(0, ctypes.POINTER(ctypes.c_float))
             
+            # Cast pointers to the correct types
+            distances_ptr = ctypes.cast(cuda_distances['ptr'], ctypes.POINTER(ctypes.c_float))
+            indices_ptr = ctypes.cast(cuda_indices['ptr'], ctypes.POINTER(ctypes.c_longlong))
+            
             result = cudaKNN(
                 self.cuda_vectors['ptr'],     # vectors
                 cuda_query['ptr'],            # queries
@@ -193,8 +200,8 @@ class AuraRAG:
                 k,                            # k (number of results)
                 metric,                       # metric type
                 vector_norms_ptr,             # vector norms (NULL for inner product)
-                cuda_distances['ptr'],        # output distances
-                cuda_indices['ptr'],          # output indices
+                distances_ptr,                # output distances
+                indices_ptr,                  # output indices
                 ctypes.c_void_p(0)            # stream (NULL)
             )
             
