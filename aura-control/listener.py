@@ -18,13 +18,7 @@ FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.2
 VAD_CONFIDENCE_THRESHOLD = 0.45  # Higher threshold to avoid background noise (45%)
-MIC_GAIN = 4.5  # Minimal gain multiplier
 MIN_SPEECH_DURATION = 0.25  # Minimum speech duration in seconds (allows "yes", "no", etc.)
-VAD_RESET_THRESHOLD = 0.15  # Lower threshold for reset
-# If VAD stays below this for too long, reset
-VAD_RESET_COUNT = 20  # Base number of consecutive low VAD readings before reset
-VAD_RESET_MULTIPLIER = 3  # Multiply by this to get actual reset threshold (60 readings)
-# Removed consecutive reading requirement for immediate speech detection
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
@@ -51,10 +45,18 @@ def find_device_index():
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
 (get_speech_timestamps, _, read_audio, _, _) = utils
 
-# === Simple Audio Processing ===
-def apply_minimal_gain(signal, gain_multiplier=1.5):
-    """Apply minimal gain without complex processing"""
-    return np.clip(signal * gain_multiplier, -1.0, 1.0)
+# === Adaptive Audio Processing (from transcription_tuner) ===
+TARGET_RMS = 0.05
+MAX_GAIN = 2.0
+
+def apply_adaptive_gain(signal):
+    """Apply adaptive gain based on signal RMS - more robust than fixed gain"""
+    rms = np.sqrt(np.mean(signal ** 2))
+    if rms == 0:
+        return signal
+    gain = min(TARGET_RMS / rms, MAX_GAIN)
+    signal = signal * gain
+    return np.clip(signal, -1.0, 1.0)
 
 def analyze_voice_frequency(audio_block):
     """
@@ -161,39 +163,28 @@ def listen():
 
             buffer = []
             silence_start = None
-            low_vad_count = 0  # Counter for consecutive low VAD readings
+            recording_start = None
 
-            # === Wait for speech (immediate trigger) ===
+            # === Wait for speech (simpler approach like tuner) ===
             while True:
                 if is_playing():
                     break
 
                 audio_block, _ = stream.read(FRAME_SIZE)
                 channel_0 = audio_block[:, 0]
+                
+                # Apply adaptive gain to improve VAD accuracy
+                channel_0 = apply_adaptive_gain(channel_0)
+                
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 
-                # Track consecutive low VAD readings
-                if vad_prob < VAD_RESET_THRESHOLD:
-                    low_vad_count += 1
-                    # Only reset VAD if we've been in low VAD for a very long time
-                    if low_vad_count >= VAD_RESET_COUNT * VAD_RESET_MULTIPLIER:  # 60 consecutive low readings
-                        print(f"[VAD] 🔄 Resetting VAD after {low_vad_count} consecutive low readings")
-                        low_vad_count = 0
-                        time.sleep(0.1)  # Brief pause to reset VAD state
-                        continue
-                else:
-                    low_vad_count = 0  # Reset counter on higher VAD readings
-                
-                # Immediate speech detection - no consecutive reading requirement
+                # Simple speech detection like tuner - no complex reset logic
                 if vad_prob > VAD_CONFIDENCE_THRESHOLD:
-                    print(f"[VAD] 🔊 High VAD detected (prob={vad_prob:.2f}) - starting recording")
+                    print(f"[VAD] 🔊 Speech detected (confidence={vad_prob:.2f})")
                     set_transcribing(True)  # Notify GUI: transcription started
                     buffer.append(audio_block)
+                    recording_start = time.time()
                     break
-                
-                # Reduce debug output for performance
-                if vad_prob > 0.3:  # Only log significant VAD activity
-                    print(f"[Debug] VAD prob: {vad_prob:.2f}")
 
             # === Continue recording ===
             while True:
@@ -204,22 +195,32 @@ def listen():
 
                 audio_block, _ = stream.read(FRAME_SIZE)
                 channel_0 = audio_block[:, 0]
+                
+                # Apply adaptive gain for consistent VAD performance
+                channel_0 = apply_adaptive_gain(channel_0)
+                
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 buffer.append(audio_block)
                 
                 # Analyze voice frequency in real-time for organic border pulsation
                 if vad_prob > VAD_CONFIDENCE_THRESHOLD:
                     analyze_voice_frequency(audio_block)
-
-                if vad_prob < VAD_CONFIDENCE_THRESHOLD:
+                    silence_start = None  # Reset silence timer
+                else:
+                    # Silence detected
                     if silence_start is None:
                         silence_start = time.time()
                     elif time.time() - silence_start > SILENCE_TIMEOUT:
                         print("\n⏹️ Speech ended. Processing...")
                         set_transcribing(False)  # Notify GUI: transcription ended
                         break
-                else:
-                    silence_start = None
+                
+                # Timeout safety check (like tuner)
+                if recording_start and time.time() - recording_start > 10:
+                    print("\n⏳ Recording timeout (10s). Processing...")
+                    set_transcribing(False)
+                    break
+                
                 print(".", end="", flush=True)
 
             if is_playing():
@@ -229,8 +230,8 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono_mix = full_audio[:, 0]
             
-            # Minimal audio processing - just basic gain
-            mono_mix = apply_minimal_gain(mono_mix, MIC_GAIN)
+            # Apply adaptive gain for final audio (like tuner)
+            mono_mix = apply_adaptive_gain(mono_mix)
 
             # Check audio duration
             audio_duration = len(mono_mix) / SAMPLE_RATE
