@@ -30,17 +30,17 @@ class FileUploadDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         print("[Upload] 🔧 Initializing upload dialog...")
+        
+        # Initialize attributes first
+        self.uploaded_files = []
+        self.touch_coordinates = []
+        
         self.setWindowTitle("Document Upload - AuraVision")
         # Full screen for 5-inch 1080x1080 circular screen
         self.setFixedSize(1080, 1080)  # Full screen size
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # Frameless, stay on top
         
-        # Set up UI first
-        self.setup_ui()
-        
-        # Center the dialog on the actual screen
-        self.center_dialog()
-        
+        # Set stylesheet before creating UI
         print("[Upload] 👁️ Dialog initialized and ready")
         self.setStyleSheet("""
             QDialog {
@@ -77,8 +77,11 @@ class FileUploadDialog(QDialog):
             }
         """)
         
+        # Set up UI (only once!)
         self.setup_ui()
-        self.uploaded_files = []
+        
+        # Center the dialog on the actual screen
+        self.center_dialog()
         
     def mousePressEvent(self, event):
         """Capture mouse/touch coordinates for debugging"""
@@ -875,9 +878,21 @@ def show_upload_dialog():
     try:
         _current_dialog = FileUploadDialog()
         print("[Upload] 📱 Dialog created, showing...")
+        
+        # Ensure dialog is visible and on top
+        _current_dialog.show()
+        _current_dialog.raise_()
+        _current_dialog.activateWindow()
+        
+        # Process events to ensure dialog is rendered
+        QApplication.processEvents()
+        
+        print("[Upload] 👁️ Dialog is now visible, waiting for user interaction...")
         _current_dialog.exec_()
         print("[Upload] ✅ Dialog closed")
     except Exception as e:
         print(f"[Upload] ❌ Dialog error: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         _current_dialog = None

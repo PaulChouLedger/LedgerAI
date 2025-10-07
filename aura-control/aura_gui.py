@@ -55,6 +55,9 @@ class AuraGUI(QMainWindow):
         self.label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.label)
         
+        # Store original pixmap for scaling effects
+        self._original_pixmap = scaled_pixmap
+        
         main_widget.setLayout(layout)
         self.setCentralWidget(main_widget)
         
@@ -85,12 +88,12 @@ class AuraGUI(QMainWindow):
         self.opacity = 1.0
         self.pulse_direction = -1
         
-        # Add subtle glow effect for more visual appeal (this will be our main effect)
-        self.glow_effect = QGraphicsDropShadowEffect()
-        self.glow_effect.setBlurRadius(20)
-        self.glow_effect.setColor(QColor(0, 100, 255, 100))  # Subtle blue glow
-        self.glow_effect.setOffset(0, 0)
-        self.label.setGraphicsEffect(self.glow_effect)
+        # Remove blue glow effect - it was causing issues
+        # self.glow_effect = QGraphicsDropShadowEffect()
+        # self.glow_effect.setBlurRadius(20)
+        # self.glow_effect.setColor(QColor(0, 100, 255, 100))  # Subtle blue glow
+        # self.glow_effect.setOffset(0, 0)
+        # self.label.setGraphicsEffect(self.glow_effect)
         
         # Animation state variables
         self.border_pulse_phase = 0.0
@@ -190,41 +193,44 @@ class AuraGUI(QMainWindow):
         """Handle upload button click"""
         print("[AuraGUI] 📤 Upload button clicked")
         
-        # Add smooth fade-out animation for main GUI
-        self.fade_out_animation = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_out_animation.setDuration(200)  # Slightly longer for smoother transition
-        self.fade_out_animation.setStartValue(1.0)
-        self.fade_out_animation.setEndValue(0.0)  # Completely fade out to prevent desktop flash
-        self.fade_out_animation.setEasingCurve(QEasingCurve.OutCubic)
+        # Hide the main window to prevent it from intercepting events
+        print("[AuraGUI] 🙈 Hiding main window for upload dialog...")
+        self.hide()
         
-        # Connect finished signal to show dialog after fade completes
-        self.fade_out_animation.finished.connect(self._show_upload_dialog_after_fade)
-        self.fade_out_animation.start()
+        # Process events to ensure window is hidden
+        QApplication.processEvents()
+        
+        # Show upload dialog
+        self._show_upload_dialog_after_fade()
     
     def _show_upload_dialog_after_fade(self):
         """Show upload dialog after main GUI has faded out"""
+        print("[AuraGUI] 📂 Showing upload dialog...")
         show_upload_dialog()
         
-        # Add smooth fade-in animation when dialog closes
+        print("[AuraGUI] 📂 Upload dialog closed, restoring main window...")
+        # Restore main GUI after dialog closes
         QTimer.singleShot(100, self._restore_gui_opacity)
     
     def _restore_gui_opacity(self):
-        """Restore main GUI opacity with smooth animation"""
-        # Ensure GUI is properly restored before fading in
+        """Restore main GUI after upload dialog closes"""
+        print("[AuraGUI] 👁️ Restoring main window...")
+        
+        # Ensure window opacity is at full
+        self.setWindowOpacity(1.0)
+        
+        # Show the window again
         self.showFullScreen()
         self.raise_()
         self.activateWindow()
         
-        # Start fade-in animation from completely transparent
-        self.fade_in_animation = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_in_animation.setDuration(250)  # Slightly longer for smoother transition
-        self.fade_in_animation.setStartValue(0.0)
-        self.fade_in_animation.setEndValue(1.0)
-        self.fade_in_animation.setEasingCurve(QEasingCurve.OutCubic)
-        self.fade_in_animation.start()
+        # Process events to ensure window is visible
+        QApplication.processEvents()
         
-        # Reset aura eye to original size after animation starts
-        QTimer.singleShot(50, self._reset_aura_eye)
+        # Reset aura eye to original size
+        self._reset_aura_eye()
+        
+        print("[AuraGUI] ✅ Main window restored")
     
     def _handle_settings(self):
         """Handle settings button click"""
@@ -396,15 +402,21 @@ class AuraGUI(QMainWindow):
         smoothed_intensity = 1 / (1 + math.exp(-6 * (combined_intensity - 0.5)))
         
         # Calculate final opacity with more dramatic range for TTS
-        base_opacity = 0.2  # Even lower base for more dramatic effect
-        variation_range = 0.7  # Much larger variation range
-        self.opacity = base_opacity + smoothed_intensity * variation_range  # 0.2 to 0.9 range
+        base_opacity = 0.1  # Lower base for more dramatic effect
+        variation_range = 0.8  # Much larger variation range
+        self.opacity = base_opacity + smoothed_intensity * variation_range  # 0.1 to 0.9 range
         
         # Set opacity through widget style with more dramatic changes
         self.label.setStyleSheet(f"opacity: {self.opacity};")
         
-        # Also try setting the widget opacity directly
+        # Also try setting the widget opacity directly for better visibility
         self.label.setWindowOpacity(self.opacity)
+        
+        # Additional method: Use transform for scaling effect
+        scale_factor = 0.9 + (smoothed_intensity * 0.2)  # 0.9 to 1.1 scale
+        transform = QTransform()
+        transform.scale(scale_factor, scale_factor)
+        self.label.setTransform(transform)
         
         # Try a more dramatic approach - scale the pixmap slightly
         try:
@@ -456,10 +468,13 @@ class AuraGUI(QMainWindow):
         combined_intensity = breathing_intensity * 0.8 + glow_intensity * 0.2
         
         # Setup opacity range - more visible than idle
-        self.opacity = 0.3 + combined_intensity * 0.5  # 0.3 to 0.8 range
+        self.opacity = 0.1 + combined_intensity * 0.7  # 0.1 to 0.8 range
         
         # Set opacity through widget style
         self.label.setStyleSheet(f"opacity: {self.opacity};")
+        
+        # Also set widget opacity directly for better visibility
+        self.label.setWindowOpacity(self.opacity)
         
         # Debug: Print setup animation values
         if hasattr(self, '_debug_counter'):
@@ -470,14 +485,14 @@ class AuraGUI(QMainWindow):
         if self._debug_counter % 100 == 0:  # Print every 5 seconds
             print(f"[GUI] 👁️ Aura Eye Setup: opacity={self.opacity:.3f}, breathing={breathing_intensity:.3f}, glow={glow_intensity:.3f}")
         
-        # Gentle glow effect for setup state
-        glow_alpha = int(40 + combined_intensity * 50)  # 40-90 alpha
-        glow_color = QColor(0, 100, 255, glow_alpha)
-        self.glow_effect.setColor(glow_color)
+        # Remove blue glow effect - was causing issues
+        # glow_alpha = int(40 + combined_intensity * 50)  # 40-90 alpha
+        # glow_color = QColor(0, 100, 255, glow_alpha)
+        # self.glow_effect.setColor(glow_color)
         
         # Subtle glow radius
-        glow_radius = 12 + combined_intensity * 15  # 12-27 radius
-        self.glow_effect.setBlurRadius(int(glow_radius))
+        # glow_radius = 12 + combined_intensity * 15  # 12-27 radius
+        # self.glow_effect.setBlurRadius(int(glow_radius))
     
     def _animate_aura_eye_idle(self):
         """Gentle, meditative aura eye animation when idle"""
@@ -492,11 +507,14 @@ class AuraGUI(QMainWindow):
         # Combine with gentle weighting
         combined_intensity = breathing_intensity * 0.7 + glow_intensity * 0.3
         
-        # More visible opacity range for setup
-        self.opacity = 0.2 + combined_intensity * 0.6  # 0.2 to 0.8 range (more dramatic)
+        # More visible opacity range for idle
+        self.opacity = 0.1 + combined_intensity * 0.7  # 0.1 to 0.8 range (more dramatic)
         
         # Set opacity through widget style (no scaling to prevent position drift)
         self.label.setStyleSheet(f"opacity: {self.opacity};")
+        
+        # Also set widget opacity directly for better visibility
+        self.label.setWindowOpacity(self.opacity)
         
         # Debug: Print opacity values occasionally
         if hasattr(self, '_debug_counter'):
@@ -507,14 +525,14 @@ class AuraGUI(QMainWindow):
         if self._debug_counter % 100 == 0:  # Print every 5 seconds
             print(f"[GUI] 👁️ Aura Eye Idle: opacity={self.opacity:.3f}, breathing={breathing_intensity:.3f}, glow={glow_intensity:.3f}")
         
-        # Gentle glow effect for idle state
-        glow_alpha = int(30 + combined_intensity * 40)  # 30-70 alpha
-        glow_color = QColor(0, 100, 255, glow_alpha)
-        self.glow_effect.setColor(glow_color)
+        # Remove blue glow effect - was causing issues
+        # glow_alpha = int(30 + combined_intensity * 40)  # 30-70 alpha
+        # glow_color = QColor(0, 100, 255, glow_alpha)
+        # self.glow_effect.setColor(glow_color)
         
         # Subtle glow radius
-        glow_radius = 10 + combined_intensity * 10  # 10-20 radius
-        self.glow_effect.setBlurRadius(int(glow_radius))
+        # glow_radius = 10 + combined_intensity * 10  # 10-20 radius
+        # self.glow_effect.setBlurRadius(int(glow_radius))
     
     def _reset_aura_eye(self):
         """Reset aura eye to original size"""

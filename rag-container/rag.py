@@ -9,6 +9,8 @@ import numpy as np
 import faiss
 from typing import List, Dict, Any
 import time
+import re
+from difflib import SequenceMatcher
 
 # Configure for GPU acceleration (faiss_lite container)
 os.environ['OMP_NUM_THREADS'] = '4'
@@ -258,12 +260,19 @@ class AuraRAG:
             if distances is None:
                 raise Exception("faiss_lite CUDA search failed")
             
-            # Format results with detailed debugging
+            # Format results with detailed debugging and deduplication
             results = []
+            seen_indices = set()  # Track seen indices to avoid duplicates
             print(f"[RAG] 🔍 Processing {len(distances[0])} search results...")
             
             for i, (distance, idx) in enumerate(zip(distances[0], indices[0])):
                 idx = int(idx)
+                
+                # Skip duplicate indices
+                if idx in seen_indices:
+                    print(f"[RAG] 🔍 Result {i+1}: idx={idx} (DUPLICATE - skipping)")
+                    continue
+                    
                 if idx < len(self.chunks):
                     chunk = self.chunks[idx]
                     similarity_score = float(1.0 / (1.0 + distance))
@@ -278,19 +287,127 @@ class AuraRAG:
                             'distance': float(distance),
                             'rank': i + 1
                         })
+                        seen_indices.add(idx)
                         print(f"[RAG] ✅ Added to results (above threshold)")
                     else:
                         print(f"[RAG] ❌ Below threshold, skipping")
                 else:
                     print(f"[RAG] ❌ Invalid index {idx} (max: {len(self.chunks)-1})")
             
-            print(f"[RAG] 🔍 Final results: {len(results)} documents above threshold")
+            print(f"[RAG] 🔍 Final results: {len(results)} unique documents above threshold")
+            
+            # If we have fewer results than requested due to duplicates, try to get more diverse results
+            if len(results) < k and len(results) > 0:
+                print(f"[RAG] 🔧 Only found {len(results)} unique results, requesting more for diversity...")
+                # Try to get additional results by increasing k and filtering out seen indices
+                additional_k = k * 2  # Request more results
+                additional_distances, additional_indices = self._search_with_faiss_lite(query_embedding, additional_k)
+                
+                if additional_distances is not None:
+                    for i, (distance, idx) in enumerate(zip(additional_distances[0], additional_indices[0])):
+                        idx = int(idx)
+                        if idx not in seen_indices and idx < len(self.chunks):
+                            chunk = self.chunks[idx]
+                            similarity_score = float(1.0 / (1.0 + distance))
+                            
+                            if similarity_score >= self.relevance_threshold:
+                                results.append({
+                                    'chunk': chunk,
+                                    'score': similarity_score,
+                                    'distance': float(distance),
+                                    'rank': len(results) + 1
+                                })
+                                seen_indices.add(idx)
+                                print(f"[RAG] 🔧 Added additional result: idx={idx}, score={similarity_score:.4f}")
+                                
+                                if len(results) >= k:
+                                    break
+            
             return results
             
         except Exception as e:
             print(f"[RAG] ❌ Search error: {e}")
             return []
     
+    def _fuzzy_name_search(self, query: str, chunk: str, threshold: float = 0.8) -> bool:
+        """
+        Check if a chunk contains a fuzzy match for names in the query
+        
+        Args:
+            query: Original query
+            chunk: Document chunk
+            threshold: Similarity threshold (0.0 to 1.0)
+            
+        Returns:
+            True if fuzzy match found, False otherwise
+        """
+        # Extract potential names from query (capitalized words)
+        query_words = re.findall(r'\b[A-Z][a-z]+\b', query)
+        
+        if not query_words:
+            return False
+            
+        # Extract potential names from chunk (capitalized words)
+        chunk_words = re.findall(r'\b[A-Z][a-z]+\b', chunk)
+        
+        # Check for fuzzy matches
+        for query_name in query_words:
+            for chunk_name in chunk_words:
+                similarity = SequenceMatcher(None, query_name.lower(), chunk_name.lower()).ratio()
+                if similarity >= threshold:
+                    print(f"[RAG] 🔍 Fuzzy name match: '{query_name}' ~ '{chunk_name}' (similarity: {similarity:.3f})")
+                    return True
+        
+        return False
+
+    def diagnose_index_issues(self) -> Dict[str, Any]:
+        """Diagnose potential issues with the FAISS index"""
+        issues = []
+        
+        if self.index is None:
+            issues.append("FAISS index not loaded")
+            return {'issues': issues, 'status': 'critical'}
+        
+        # Check for duplicate vectors in the index
+        try:
+            # Get some sample vectors from the index
+            if hasattr(self.index, 'reconstruct'):
+                sample_indices = [0, 1, 2] if self.index.ntotal >= 3 else list(range(self.index.ntotal))
+                vectors = []
+                for idx in sample_indices:
+                    vector = self.index.reconstruct(idx)
+                    vectors.append(vector)
+                
+                # Check for identical vectors
+                identical_count = 0
+                for i in range(len(vectors)):
+                    for j in range(i + 1, len(vectors)):
+                        if np.array_equal(vectors[i], vectors[j]):
+                            identical_count += 1
+                
+                if identical_count > 0:
+                    issues.append(f"Found {identical_count} identical vectors in index")
+                
+        except Exception as e:
+            issues.append(f"Error checking index vectors: {e}")
+        
+        # Check chunks for duplicates
+        if self.chunks is not None:
+            chunk_set = set(self.chunks)
+            if len(chunk_set) != len(self.chunks):
+                issues.append(f"Found {len(self.chunks) - len(chunk_set)} duplicate chunks")
+        
+        # Check index statistics
+        if self.index.ntotal != len(self.chunks):
+            issues.append(f"Index size ({self.index.ntotal}) doesn't match chunks ({len(self.chunks)})")
+        
+        return {
+            'issues': issues,
+            'status': 'healthy' if not issues else 'issues_found',
+            'index_size': self.index.ntotal,
+            'chunks_count': len(self.chunks) if self.chunks is not None else 0
+        }
+
     def get_stats(self) -> Dict[str, Any]:
         """Get RAG system statistics"""
         return {
@@ -313,7 +430,7 @@ def get_rag() -> AuraRAG:
 
 def search_medical_info(query: str, k: int = 3) -> str:
     """
-    Search medical information and return augmented prompt
+    Search medical information and return augmented prompt with fuzzy name matching
     
     Args:
         query: Medical query
@@ -332,6 +449,13 @@ def search_medical_info(query: str, k: int = 3) -> str:
         print(f"[RAG] ⚠️ No results found, returning original query")
         return query
     
+    # Check for fuzzy name matches in results
+    fuzzy_matches_found = False
+    for result in results:
+        if rag._fuzzy_name_search(query, result['chunk']):
+            fuzzy_matches_found = True
+            break
+    
     # Build context from chunks
     context_parts = []
     for i, result in enumerate(results, 1):
@@ -342,8 +466,17 @@ def search_medical_info(query: str, k: int = 3) -> str:
     
     context = "\n".join(context_parts)
     
-    # Create augmented prompt
-    augmented_prompt = f"""Based on the following information:
+    # Create enhanced augmented prompt with name variation handling
+    if fuzzy_matches_found:
+        augmented_prompt = f"""Based on the following information:
+
+{context}
+
+Please answer this question: {query}
+
+IMPORTANT: The query may contain name variations or slight misspellings. Look for similar names in the context above (e.g., "Corrella" might refer to "Carella", "Corella", etc.). Provide a helpful, accurate response based on the information above, making reasonable connections between similar names."""
+    else:
+        augmented_prompt = f"""Based on the following information:
 
 {context}
 
@@ -353,6 +486,7 @@ Provide a helpful, accurate response based on the information above."""
     
     print(f"[RAG] 🔍 Augmented prompt length: {len(augmented_prompt)} characters")
     print(f"[RAG] 🔍 Augmented prompt preview: '{augmented_prompt[:200]}...'")
+    print(f"[RAG] 🔍 Fuzzy name matching: {'enabled' if fuzzy_matches_found else 'not needed'}")
     
     return augmented_prompt
 

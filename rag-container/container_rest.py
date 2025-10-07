@@ -216,6 +216,17 @@ def rag_stats():
         logger.error(f"Error getting RAG stats: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/rag/diagnose', methods=['GET'])
+def rag_diagnose():
+    """Diagnose RAG system issues"""
+    try:
+        rag = get_rag()
+        diagnosis = rag.diagnose_index_issues()
+        return jsonify(diagnosis)
+    except Exception as e:
+        logger.error(f"Error diagnosing RAG: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/rag/search', methods=['POST'])
 def rag_search():
     """Search using RAG system"""
