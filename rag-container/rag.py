@@ -88,35 +88,16 @@ class AuraRAG:
             print(f"[RAG] ❌ Failed to load document chunks: {e}")
             raise
         
-        # Load sentence transformer with robust error handling
-        self.encoder = None
-        loading_methods = [
-            # Method 1: Force CPU to avoid meta tensor issues
-            lambda: SentenceTransformer(self.model_name, device='cpu', trust_remote_code=True),
-            # Method 2: Default loading
-            lambda: SentenceTransformer(self.model_name, trust_remote_code=True),
-            # Method 3: Minimal parameters
-            lambda: SentenceTransformer(self.model_name),
-            # Method 4: Force CPU with minimal parameters
-            lambda: SentenceTransformer(self.model_name, device='cpu')
-        ]
+        # Load sentence transformer - CUDA required
+        import torch
         
-        for i, method in enumerate(loading_methods, 1):
-            try:
-                print(f"[RAG] 🔧 Loading sentence transformer (method {i}): {self.model_name}")
-                self.encoder = method()
-                print(f"[RAG] ✅ Loaded sentence transformer (method {i}): {self.model_name}")
-                print(f"[RAG] 🔍 Sentence transformer device: {self.encoder.device}")
-                break
-            except Exception as e:
-                print(f"[RAG] ❌ Method {i} failed: {e}")
-                if i == len(loading_methods):
-                    print(f"[RAG] ❌ All loading methods failed!")
-                    raise RuntimeError(f"Failed to load sentence transformer after {len(loading_methods)} attempts")
-                continue
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA not available - GPU required for RAG")
         
-        if self.encoder is None:
-            raise RuntimeError("Failed to load sentence transformer")
+        print(f"[RAG] 🔧 Loading sentence transformer on CUDA: {self.model_name}")
+        self.encoder = SentenceTransformer(self.model_name, device='cuda')
+        print(f"[RAG] ✅ Loaded on CUDA: {self.model_name}")
+        print(f"[RAG] 🔍 Device: {self.encoder.device}")
     
     def _prepare_cuda_data(self):
         """Prepare raw vectors for faiss_lite CUDA functions"""

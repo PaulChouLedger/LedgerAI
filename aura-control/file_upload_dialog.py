@@ -57,6 +57,27 @@ class FileUploadDialog(QDialog):
                 border: 8px solid #ff0000;  /* Red border for circular screen edge */
                 border-radius: 536px;  /* Slightly smaller radius to account for border width */
             }
+            /* Remove red border from message boxes */
+            QMessageBox {
+                background-color: rgba(28, 28, 30, 1.0);
+                border: none !important;
+                border-radius: 10px;
+            }
+            QMessageBox QLabel {
+                color: white;
+                font-size: 14px;
+            }
+            QMessageBox QPushButton {
+                background-color: #007AFF;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 8px 16px;
+                min-width: 60px;
+            }
+            QMessageBox QPushButton:hover {
+                background-color: #0056CC;
+            }
             QLabel {
                 color: white;
                 font-size: 12px;
@@ -605,7 +626,6 @@ class FileUploadDialog(QDialog):
                 # Create a new dialog to show QR code - full screen for circular screen
                 qr_dialog = QDialog(self)
                 qr_dialog.setWindowTitle("📱 Mobile Upload QR Code")
-                qr_dialog.setFixedSize(1080, 1080)  # Full screen for circular screen
                 qr_dialog.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # Full screen
                 qr_dialog.setStyleSheet("""
                     QDialog {
@@ -717,18 +737,21 @@ class FileUploadDialog(QDialog):
                 layout.addLayout(button_layout)
                 qr_dialog.setLayout(layout)
                 
-                # Center the QR dialog using the same method as main dialog
+                # Center the QR dialog - use available geometry
+                screen = QApplication.primaryScreen().availableGeometry()
+                dialog_size = min(screen.width(), screen.height())
+                qr_dialog.setFixedSize(dialog_size, dialog_size)
+                
                 qr_dialog.show()
                 QApplication.processEvents()
                 
-                # Center dynamically
-                from PyQt5.QtWidgets import QDesktopWidget
-                screen = QDesktopWidget().screenGeometry()
-                x = (screen.width() - 1080) // 2
-                y = (screen.height() - 1080) // 2
+                # Center on screen
+                x = (screen.width() - dialog_size) // 2
+                y = (screen.height() - dialog_size) // 2
                 x = max(0, x)
                 y = max(0, y)
                 qr_dialog.move(x, y)
+                print(f"[Upload] 🔍 QR dialog centered: size={dialog_size}x{dialog_size}, position=({x}, {y})")
                 qr_dialog.raise_()
                 qr_dialog.activateWindow()
                 

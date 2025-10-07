@@ -260,25 +260,14 @@ class AuraGUI(QMainWindow):
     def animate_pulse(self):
         global _listening_ready, _transcribing, _tts_playing, _tts_frequency, _setup_complete
         
-        # Debug output removed for cleaner console
+        # Debug transcribing state changes
+        if hasattr(self, '_last_transcribing_state'):
+            if self._last_transcribing_state != _transcribing:
+                print(f"[GUI] 🔴 Transcribing state changed: {self._last_transcribing_state} → {_transcribing}")
+        self._last_transcribing_state = _transcribing
         
-        # State 1: Initial setup - gentle, meditative aura eye
-        if not _setup_complete:
-            self._animate_aura_eye_setup()
-            self.border_widget.hide()  # Hide border during setup
-            
-        # State 2: Setup complete but not ready - gentle, meditative aura eye
-        elif _setup_complete and not _listening_ready:
-            self._animate_aura_eye_idle()
-            self.border_widget.hide()  # Hide border in initial state
-            
-        # State 3: System ready, fixed mode - subtle aura eye
-        elif _listening_ready and not _transcribing and not _tts_playing:
-            self._animate_aura_eye_idle()  # Gentle breathing animation
-            self.border_widget.hide()  # Hide border completely
-            
-        # State 4: User speaking (transcription) - organic red border pulsation matching voice
-        elif _transcribing:
+        # PRIORITY: Check transcription state FIRST to avoid it being hidden by other states
+        if _transcribing:
             # Keep aura eye fully visible during transcription
             self.label.setStyleSheet("opacity: 1.0;")
             
@@ -351,10 +340,25 @@ class AuraGUI(QMainWindow):
             # Update border style with organic pulsation
             self._update_border_style(pulsating=True, width=self.border_width, opacity=border_opacity)
             
-        # State 5: TTS playing - sophisticated aura eye pulsation
+        # State 1: Initial setup - gentle, meditative aura eye
+        elif not _setup_complete:
+            self._animate_aura_eye_setup()
+            self.border_widget.hide()  # Hide border during setup
+            
+        # State 2: Setup complete but not ready - gentle, meditative aura eye
+        elif _setup_complete and not _listening_ready:
+            self._animate_aura_eye_idle()
+            self.border_widget.hide()  # Hide border in initial state
+            
+        # State 3: TTS playing - sophisticated aura eye pulsation
         elif _tts_playing:
             self._animate_aura_eye_tts(_tts_frequency)
             self.border_widget.hide()  # Hide border during TTS
+            
+        # State 4: System ready, fixed mode - subtle aura eye  
+        elif _listening_ready:
+            self._animate_aura_eye_idle()  # Gentle breathing animation
+            self.border_widget.hide()  # Hide border completely
     
     def _update_border_style(self, static=True, pulsating=False, width=5, opacity=0.7):
         """Update the border style with organic opacity variation"""
