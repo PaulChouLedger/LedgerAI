@@ -175,9 +175,9 @@ class AuraRAG:
             
             print(f"[RAG] 🔍 Calling cudaKNN: n={n_vectors}, d={self.index.d}, k={k}, metric={metric}")
             
-            # Prepare vector norms pointer - use ctypes NULL pointer for None
+            # Prepare vector norms pointer - use proper ctypes float pointer
             import ctypes
-            vector_norms_ptr = ctypes.c_void_p(0)  # NULL pointer
+            vector_norms_ptr = ctypes.POINTER(ctypes.c_float)()  # NULL float pointer
             if self.cuda_vector_norms is not None:
                 vector_norms_ptr = self.cuda_vector_norms['ptr']
             
