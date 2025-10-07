@@ -193,36 +193,49 @@ class AuraGUI(QMainWindow):
         """Handle upload button click"""
         print("[AuraGUI] 📤 Upload button clicked")
         
-        # Hide the main window to prevent it from intercepting events
-        print("[AuraGUI] 🙈 Hiding main window for upload dialog...")
-        self.hide()
+        # Remove WindowStaysOnTopHint temporarily to let dialog be on top
+        print("[AuraGUI] 🔽 Removing stay-on-top flag for upload dialog...")
+        self.setWindowFlags(Qt.FramelessWindowHint)
+        self.show()  # Need to show again after changing flags
         
-        # Process events to ensure window is hidden
+        # Process events
         QApplication.processEvents()
         
-        # Show upload dialog
-        self._show_upload_dialog_after_fade()
+        # Small delay to ensure window flags are updated
+        QTimer.singleShot(100, self._show_upload_dialog_after_fade)
     
     def _show_upload_dialog_after_fade(self):
-        """Show upload dialog after main GUI has faded out"""
+        """Show upload dialog after main GUI flags are updated"""
         print("[AuraGUI] 📂 Showing upload dialog...")
         show_upload_dialog()
         
         print("[AuraGUI] 📂 Upload dialog closed, restoring main window...")
-        # Restore main GUI after dialog closes
-        QTimer.singleShot(100, self._restore_gui_opacity)
+        # Restore main GUI after dialog closes (no delay needed)
+        self._restore_gui_opacity()
     
     def _restore_gui_opacity(self):
         """Restore main GUI after upload dialog closes"""
-        print("[AuraGUI] 👁️ Restoring main window...")
+        print("[AuraGUI] 👁️ Restoring main window with stay-on-top flag...")
         
-        # Ensure window opacity is at full
-        self.setWindowOpacity(1.0)
+        global _transcribing
         
-        # Show the window again
+        # Restore WindowStaysOnTopHint flag
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        
+        # Show the window again in fullscreen
         self.showFullScreen()
         self.raise_()
         self.activateWindow()
+        
+        # Restore border widget visibility and position
+        self.border_widget.setGeometry(0, 0, 1080, 1080)
+        self.border_widget.raise_()
+        
+        # Show border if we're currently transcribing
+        if _transcribing:
+            self.border_widget.show()
+        else:
+            self.border_widget.hide()
         
         # Process events to ensure window is visible
         QApplication.processEvents()
@@ -264,14 +277,19 @@ class AuraGUI(QMainWindow):
 
     def showEvent(self, event):
         super().showEvent(event)
-        global _gui_ready
+        global _gui_ready, _transcribing
         _gui_ready = True
         print("[AuraGUI] 🎯 GUI has fully rendered")
         
-        # Ensure border widget is properly positioned and visible
+        # Ensure border widget is properly positioned
         self.border_widget.setGeometry(0, 0, 1080, 1080)
         self.border_widget.raise_()
-        self.border_widget.show()
+        
+        # Only show border if we're currently transcribing
+        if _transcribing:
+            self.border_widget.show()
+        else:
+            self.border_widget.hide()
 
     def animate_pulse(self):
         global _listening_ready, _transcribing, _tts_playing, _tts_frequency, _setup_complete
@@ -328,7 +346,15 @@ class AuraGUI(QMainWindow):
             self.border_width = max(self.border_width, 8)
             self.border_width = min(self.border_width, 12)
             
-            print(f"[GUI] 🔴 Border: freq={speech_freq:.3f}, width={self.border_width}px, intensity={pulse_intensity:.3f}")
+            # Only print occasionally to avoid log spam
+            if hasattr(self, '_border_debug_counter'):
+                self._border_debug_counter += 1
+            else:
+                self._border_debug_counter = 0
+            
+            if self._border_debug_counter % 20 == 0:  # Print every second
+                print(f"[GUI] 🔴 Border: freq={speech_freq:.3f}, width={self.border_width}px, intensity={pulse_intensity:.3f}, visible={self.border_widget.isVisible()}")
+            
             self._update_border_style(pulsating=True, width=self.border_width)
             
         # State 5: TTS playing - sophisticated aura eye pulsation
@@ -406,31 +432,16 @@ class AuraGUI(QMainWindow):
         variation_range = 0.8  # Much larger variation range
         self.opacity = base_opacity + smoothed_intensity * variation_range  # 0.1 to 0.9 range
         
-        # Set opacity through widget style with more dramatic changes
-        self.label.setStyleSheet(f"opacity: {self.opacity};")
-        
-        # Also try setting the widget opacity directly for better visibility
-        self.label.setWindowOpacity(self.opacity)
-        
-        # Additional method: Use transform for scaling effect
-        scale_factor = 0.9 + (smoothed_intensity * 0.2)  # 0.9 to 1.1 scale
-        transform = QTransform()
-        transform.scale(scale_factor, scale_factor)
-        self.label.setTransform(transform)
-        
-        # Try a more dramatic approach - scale the pixmap slightly
-        try:
-            if hasattr(self, '_original_pixmap') and self._original_pixmap:
-                # Create a scaled version based on intensity
-                scale_factor = 0.8 + (smoothed_intensity * 0.4)  # 0.8 to 1.2 scale
-                scaled_pixmap = self._original_pixmap.scaled(
-                    int(self._original_pixmap.width() * scale_factor),
-                    int(self._original_pixmap.height() * scale_factor),
-                    Qt.KeepAspectRatio, Qt.SmoothTransformation
-                )
-                self.label.setPixmap(scaled_pixmap)
-        except Exception as e:
-            pass  # Fallback to opacity only
+        # Scale the pixmap based on intensity for visible pulsation
+        if hasattr(self, '_original_pixmap') and self._original_pixmap:
+            # Create a scaled version based on intensity
+            scale_factor = 0.8 + (smoothed_intensity * 0.4)  # 0.8 to 1.2 scale
+            scaled_pixmap = self._original_pixmap.scaled(
+                int(self._original_pixmap.width() * scale_factor),
+                int(self._original_pixmap.height() * scale_factor),
+                Qt.KeepAspectRatio, Qt.SmoothTransformation
+            )
+            self.label.setPixmap(scaled_pixmap)
         
         # Debug: Print TTS animation values
         if hasattr(self, '_debug_counter'):
@@ -470,11 +481,16 @@ class AuraGUI(QMainWindow):
         # Setup opacity range - more visible than idle
         self.opacity = 0.1 + combined_intensity * 0.7  # 0.1 to 0.8 range
         
-        # Set opacity through widget style
-        self.label.setStyleSheet(f"opacity: {self.opacity};")
-        
-        # Also set widget opacity directly for better visibility
-        self.label.setWindowOpacity(self.opacity)
+        # Scale the pixmap based on intensity for visible pulsation
+        if hasattr(self, '_original_pixmap') and self._original_pixmap:
+            # Create a scaled version based on intensity
+            scale_factor = 0.85 + (combined_intensity * 0.3)  # 0.85 to 1.15 scale
+            scaled_pixmap = self._original_pixmap.scaled(
+                int(self._original_pixmap.width() * scale_factor),
+                int(self._original_pixmap.height() * scale_factor),
+                Qt.KeepAspectRatio, Qt.SmoothTransformation
+            )
+            self.label.setPixmap(scaled_pixmap)
         
         # Debug: Print setup animation values
         if hasattr(self, '_debug_counter'):
@@ -510,11 +526,16 @@ class AuraGUI(QMainWindow):
         # More visible opacity range for idle
         self.opacity = 0.1 + combined_intensity * 0.7  # 0.1 to 0.8 range (more dramatic)
         
-        # Set opacity through widget style (no scaling to prevent position drift)
-        self.label.setStyleSheet(f"opacity: {self.opacity};")
-        
-        # Also set widget opacity directly for better visibility
-        self.label.setWindowOpacity(self.opacity)
+        # Scale the pixmap based on intensity for visible pulsation
+        if hasattr(self, '_original_pixmap') and self._original_pixmap:
+            # Create a scaled version based on intensity
+            scale_factor = 0.9 + (combined_intensity * 0.2)  # 0.9 to 1.1 scale (subtle)
+            scaled_pixmap = self._original_pixmap.scaled(
+                int(self._original_pixmap.width() * scale_factor),
+                int(self._original_pixmap.height() * scale_factor),
+                Qt.KeepAspectRatio, Qt.SmoothTransformation
+            )
+            self.label.setPixmap(scaled_pixmap)
         
         # Debug: Print opacity values occasionally
         if hasattr(self, '_debug_counter'):
