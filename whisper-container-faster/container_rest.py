@@ -10,6 +10,19 @@ import scipy.signal
 import tempfile
 import time
 
+# === Transcription Configuration ===
+# Tune these parameters for your needs:
+BEAM_SIZE = 10                    # Higher = better accuracy, slower (5=fast, 10=balanced, 20=best)
+TEMPERATURE = 0.0                 # 0.0 = deterministic, 0.1+ = more creative
+PATIENCE = 1.0                    # Wait time for better results
+LENGTH_PENALTY = 1.0              # Don't penalize longer outputs
+INITIAL_PROMPT = "This is a conversation about people and medical information. Proper names and technical terms are important."
+
+# Performance vs Accuracy Guide:
+# BEAM_SIZE=5:  ~1x latency, good accuracy
+# BEAM_SIZE=10: ~2x latency, better accuracy (current)
+# BEAM_SIZE=20: ~4x latency, best accuracy
+
 app = Flask(__name__)
 # Use faster-whisper with same model as transcription tuner
 # Set cache directory to avoid re-downloading models
@@ -40,9 +53,11 @@ model_name = os.getenv("WHISPER_MODEL", "distil-small.en")
 print(f"[Whisper] 📋 Using model: {model_name}")
 
 # Map model names to their actual HuggingFace repo names
+# For better accuracy with proper names, consider upgrading to small.en or medium.en
 model_mapping = {
     "distil-small.en": "models--Systran--faster-distil-whisper-small.en",
-    "small.en": "models--Systran--faster-small-whisper.en",
+    "small.en": "models--Systran--faster-small-whisper.en",      # Better accuracy
+    "medium.en": "models--Systran--faster-medium-whisper.en",    # Much better for names
     "base.en": "models--Systran--faster-base-whisper.en"
 }
 
@@ -162,9 +177,18 @@ def transcribe():
         text = ""
         
         try:
-            print(f"[Whisper] 🧠 Model parameters: language='en', beam_size=5")
+            # Using configurable transcription parameters
+            print(f"[Whisper] 🧠 Model parameters: language='en', beam_size={BEAM_SIZE}, temperature={TEMPERATURE}")
             sys.stdout.flush()
-            segments, _ = model.transcribe(audio, language="en", beam_size=5)
+            segments, _ = model.transcribe(
+                audio, 
+                language="en",
+                beam_size=BEAM_SIZE,
+                temperature=TEMPERATURE,
+                patience=PATIENCE,
+                length_penalty=LENGTH_PENALTY,
+                initial_prompt=INITIAL_PROMPT
+            )
             print(f"[Whisper] 🧠 Transcription completed, processing segments...")
             sys.stdout.flush()
             
@@ -189,7 +213,13 @@ def transcribe():
                 torch.cuda.empty_cache()
                 print(f"[Whisper] 🔄 Cleared GPU memory, retrying...")
                 try:
-                    segments, _ = model.transcribe(audio, language="en", beam_size=5)
+                    segments, _ = model.transcribe(
+                        audio, 
+                        language="en",
+                        beam_size=BEAM_SIZE,
+                        temperature=TEMPERATURE,
+                        initial_prompt=INITIAL_PROMPT
+                    )
                     segment_list = list(segments)
                     text = " ".join([s.text.strip() for s in segment_list if s.text.strip()])
                     print(f"[Whisper] ✅ Retry successful: '{text}'")

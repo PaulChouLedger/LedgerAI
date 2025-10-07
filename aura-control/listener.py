@@ -50,6 +50,43 @@ def apply_simple_gain(signal, gain_multiplier=2.0):
     """Apply simple gain without complex normalization"""
     return np.clip(signal * gain_multiplier, -1.0, 1.0)
 
+def enhance_audio_for_transcription(audio):
+    """Enhance audio for better transcription accuracy"""
+    try:
+        # 1. Remove DC offset
+        audio = audio - np.mean(audio)
+        
+        # 2. Apply gentle high-pass filter to remove low-frequency noise
+        # Simple difference filter (approximates high-pass)
+        if len(audio) > 1:
+            filtered = np.zeros_like(audio)
+            filtered[0] = audio[0]
+            alpha = 0.95  # Filter coefficient
+            for i in range(1, len(audio)):
+                filtered[i] = alpha * filtered[i-1] + alpha * (audio[i] - audio[i-1])
+            audio = filtered
+        
+        # 3. Normalize to prevent clipping while maximizing dynamic range
+        max_val = np.max(np.abs(audio))
+        if max_val > 0:
+            audio = audio / max_val * 0.95  # Leave some headroom
+        
+        # 4. Apply gentle compression to even out volume
+        # Simple soft compression
+        threshold = 0.3
+        ratio = 3.0
+        compressed = np.where(
+            np.abs(audio) > threshold,
+            np.sign(audio) * (threshold + (np.abs(audio) - threshold) / ratio),
+            audio
+        )
+        
+        return np.clip(compressed, -1.0, 1.0).astype(np.float32)
+        
+    except Exception as e:
+        print(f"[Audio] ⚠️ Enhancement failed: {e}")
+        return audio
+
 
 # === Transcribe with Whisper container ===
 def transcribe(audio):
@@ -172,9 +209,12 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono_mix = full_audio[:, 0]
             
-            # Simple audio preprocessing (reverted from transcription_tuner.py)
+            # Enhanced audio preprocessing for better transcription accuracy
             # Apply simple gain without complex normalization
             mono_mix = apply_simple_gain(mono_mix, MIC_GAIN)
+            
+            # Apply basic noise reduction and normalization
+            mono_mix = enhance_audio_for_transcription(mono_mix)
 
             # Check audio duration
             audio_duration = len(mono_mix) / SAMPLE_RATE
