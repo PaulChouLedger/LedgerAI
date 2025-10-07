@@ -15,7 +15,7 @@ from aura_gui import set_transcribing
 SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
-SILENCE_TIMEOUT = 0.2  # Increased to capture full speech including pauses
+SILENCE_TIMEOUT = 0.5  # Increased to capture full speech including pauses
 VAD_THRESHOLD = 0.35  # Adjusted for normalized audio
 MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 

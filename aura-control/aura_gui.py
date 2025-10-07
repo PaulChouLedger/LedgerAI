@@ -4,7 +4,7 @@ import os
 import sys
 import math
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsDropShadowEffect
-from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QTransform
+from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QTransform, QPainter, QPen
 from PyQt5.QtCore import Qt, QTimer, QPoint, QPropertyAnimation, QEasingCurve, QMetaObject, Q_ARG, pyqtSlot
 from circular_border import FixedCircularBorder, DynamicCircularBorder, CircularBorderConfig
 
@@ -63,24 +63,31 @@ class AuraGUI(QMainWindow):
         main_widget.setLayout(layout)
         self.setCentralWidget(main_widget)
         
+        # Make central widget ignore mouse events so border can be on top
+        main_widget.setAttribute(Qt.WA_TransparentForMouseEvents, False)  # Keep mouse events for buttons
+        
         # Store border state for animation
         self.border_width = 8
         self.border_pulse_speed = 0.1  # Will be randomized during transcription
         
-        # Create 6 buttons equally spaced around the circular edge (after central widget is set)
-        self.create_circular_buttons()
-        
         # Create FIXED transparent reference border (always visible)
+        # IMPORTANT: Create borders BEFORE buttons to ensure proper layering
         # Uses shared CircularBorder system for consistency across all GUI scripts
         self.fixed_border = FixedCircularBorder(self, size=min_dim)
         
         # Create DYNAMIC pulsating border (shows during transcription)
-        # Uses shared CircularBorder system
+        # Uses shared CircularBorder system (for state tracking, actual drawing in paintEvent)
         self.border_widget = DynamicCircularBorder(
             self, 
             size=min_dim,
             color=CircularBorderConfig.DYNAMIC_BORDER_COLOR
         )
+        # Hide the widget since we're using custom paintEvent to draw
+        self.border_widget.hide()
+        
+        # Create 6 buttons equally spaced around the circular edge (after borders)
+        # Buttons will be on top of borders
+        self.create_circular_buttons()
 
         # === Pulsation Effect ===
         self.opacity = 1.0
@@ -273,13 +280,7 @@ class AuraGUI(QMainWindow):
             # Keep aura eye fully visible during transcription
             self.label.setStyleSheet("opacity: 1.0;")
             
-            # Ensure border widget is visible and on top EVERY frame
-            if not self.border_widget.isVisible():
-                window_size = self.size()
-                self.border_widget.setGeometry(0, 0, window_size.width(), window_size.height())
-                self.border_widget.show()
-                print(f"[GUI] 🔴 Border re-shown during transcription: {self.border_widget.geometry()}")
-            self.border_widget.raise_()  # Keep on top every frame
+            # Border is now drawn via paintEvent - no need to show/hide widget
             
             # Get real-time voice frequency from audio analysis
             try:
@@ -342,6 +343,9 @@ class AuraGUI(QMainWindow):
             
             # Update border using shared border system
             self.border_widget.update_style(width=self.border_width, opacity=border_opacity)
+            
+            # CRITICAL: Trigger repaint to draw border on top
+            self.update()
             
         # State 1: Initial setup - gentle, meditative aura eye
         elif not _setup_complete:
@@ -597,6 +601,62 @@ class AuraGUI(QMainWindow):
         except Exception as e:
             pass
     
+    def paintEvent(self, event):
+        """Override paintEvent to draw border on top of everything"""
+        super().paintEvent(event)
+        
+        # Debug: Track paint events
+        if not hasattr(self, '_paint_counter'):
+            self._paint_counter = 0
+        self._paint_counter += 1
+        
+        # Only draw if transcribing
+        global _transcribing
+        if not _transcribing:
+            if self._paint_counter % 60 == 0:  # Print every 60 frames
+                print(f"[PaintEvent] ⚪ Not transcribing, no border drawn (frame {self._paint_counter})")
+            return
+        
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        # Get current border style from border_widget
+        if hasattr(self, 'border_widget'):
+            width = int(self.border_widget.current_width)
+            opacity_val = self.border_widget.current_opacity
+            
+            # Create pen with current border settings
+            pen = QPen()
+            pen.setWidth(width)
+            color = QColor(200, 0, 0)  # Red
+            color.setAlphaF(opacity_val)
+            pen.setColor(color)
+            pen.setStyle(Qt.SolidLine)
+            painter.setPen(pen)
+            
+            # Draw circular border INSIDE the window's circular clipping
+            size = self.size()
+            # Account for window's border-radius (540px) and pen width
+            # Draw the border inside the circular window boundary
+            radius = min(size.width(), size.height()) // 2 - width - 5  # -5 for safety margin
+            center_x = size.width() // 2
+            center_y = size.height() // 2
+            
+            # Draw from top-left corner of bounding rect
+            rect_x = center_x - radius
+            rect_y = center_y - radius
+            rect_size = radius * 2
+            
+            painter.drawEllipse(rect_x, rect_y, rect_size, rect_size)
+            
+            # Debug every 10 frames while transcribing
+            if self._paint_counter % 10 == 0:
+                print(f"[PaintEvent] 🔴 DRAWING border: width={width}px, opacity={opacity_val:.2f}, radius={radius}px, center=({center_x},{center_y})")
+        else:
+            print(f"[PaintEvent] ⚠️ No border_widget attribute!")
+        
+        painter.end()
+    
     @pyqtSlot(bool)
     def _update_transcribing_state(self, active):
         """Thread-safe method to update transcribing state (must be called from GUI thread)"""
@@ -611,19 +671,12 @@ class AuraGUI(QMainWindow):
             if hasattr(self, 'tertiary_phase'):
                 self.tertiary_phase = 0.0
             
-            # Immediately show border - use actual window size
-            if hasattr(self, 'border_widget'):
-                window_size = self.size()
-                self.border_widget.setGeometry(0, 0, window_size.width(), window_size.height())
-                self.border_widget.show()
-                self.border_widget.raise_()
-                # Force initial style update
-                self._update_border_style(pulsating=True, width=8, opacity=0.7)
-                print(f"[AuraGUI] 🔴 Border shown: visible={self.border_widget.isVisible()}, geometry={self.border_widget.geometry()}, window_size={window_size}")
+            # Trigger repaint to show border
+            self.update()
         else:
             print("[AuraGUI] ⚫ Transcription ended")
-            if hasattr(self, 'border_widget'):
-                self.border_widget.hide()
+            # Trigger repaint to hide border
+            self.update()
         print(f"[AuraGUI] 🔴 State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
     
     def closeEvent(self, event):
