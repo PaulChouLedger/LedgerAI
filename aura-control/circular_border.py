@@ -21,8 +21,8 @@ class CircularBorderConfig:
     SCREEN_RADIUS = 540  # Half of screen size
     
     # Fixed border configuration
-    FIXED_BORDER_WIDTH = 3  # Thin reference border
-    FIXED_BORDER_COLOR = "rgba(255, 255, 255, 1.0)"  # SOLID WHITE for visibility/testing
+    FIXED_BORDER_WIDTH = 5  # Thicker for visibility
+    FIXED_BORDER_COLOR = "rgb(255, 255, 255)"  # SOLID WHITE (no alpha channel)
     FIXED_BORDER_RADIUS = 538  # 540 - 2 (account for border width)
     
     # Safe content area (inside fixed border)

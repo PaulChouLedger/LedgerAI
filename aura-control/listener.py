@@ -15,15 +15,12 @@ from aura_gui import set_transcribing
 SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
-SILENCE_TIMEOUT = 0.5  # Time of continuous silence to stop - balance between responsiveness and cutoff prevention
+SILENCE_TIMEOUT = 0.2  # Time of continuous silence to stop - balance between responsiveness and cutoff prevention
 VAD_START_THRESHOLD = 0.25  # Threshold to START detecting speech
 VAD_SILENCE_THRESHOLD = 0.10  # Threshold for silence (closer to actual silence ~0.05, minimizes dead air to Whisper)
 MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 
-# Audio Processing Config - Dynamic RMS-based gain
-TARGET_RMS = 0.08  # Target RMS level for dynamic normalization
-MIN_GAIN = 1.0  # Minimum gain multiplier
-MAX_GAIN = 15.0  # Maximum gain multiplier (prevents over-amplification)
+# No audio processing - send raw audio to Whisper
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -49,37 +46,6 @@ def find_device_index():
 # === Load Silero VAD ===
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
 (get_speech_timestamps, _, read_audio, _, _) = utils
-
-# === Dynamic RMS-based Gain ===
-def apply_dynamic_gain(signal):
-    """
-    Apply dynamic gain based on RMS level to normalize audio
-    Works at any distance from microphone
-    
-    Args:
-        signal: Raw audio signal (numpy array)
-    
-    Returns:
-        Normalized audio signal
-    """
-    # Calculate RMS (Root Mean Square) - measures average signal level
-    rms = np.sqrt(np.mean(signal ** 2))
-    
-    # Avoid division by zero
-    if rms < 0.0001:
-        return signal
-    
-    # Calculate dynamic gain needed to reach target RMS
-    dynamic_gain = TARGET_RMS / rms
-    
-    # Clamp gain to reasonable range
-    dynamic_gain = np.clip(dynamic_gain, MIN_GAIN, MAX_GAIN)
-    
-    # Apply gain and clip to prevent distortion
-    normalized = signal * dynamic_gain
-    normalized = np.clip(normalized, -1.0, 1.0)
-    
-    return normalized
 
 # === Simple frequency function for GUI border (placeholder) ===
 def get_transcription_frequency():
@@ -147,18 +113,13 @@ def listen():
                 audio_block, _ = stream.read(FRAME_SIZE)
                 channel_0 = audio_block[:, 0]
                 
-                # Apply dynamic gain BEFORE VAD to normalize volume
-                channel_0_normalized = apply_dynamic_gain(channel_0.copy())
+                # Run VAD on raw audio (no processing)
+                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 
-                # Run VAD on normalized audio
-                vad_prob = model_vad(torch.from_numpy(channel_0_normalized), SAMPLE_RATE).item()
-                
-                # Debug: Show audio levels and dynamic gain
+                # Debug: Show audio levels
                 if DEBUG_AUDIO_LEVELS:
-                    rms_raw = np.sqrt(np.mean(channel_0 ** 2))
-                    rms_norm = np.sqrt(np.mean(channel_0_normalized ** 2))
-                    gain_applied = rms_norm / rms_raw if rms_raw > 0.0001 else 1.0
-                    print(f"[Debug] VAD: {vad_prob:.2f}, RMS: {rms_raw:.4f}→{rms_norm:.4f}, Gain: {gain_applied:.1f}x", end="\r")
+                    rms = np.sqrt(np.mean(channel_0 ** 2))
+                    print(f"[Debug] VAD: {vad_prob:.2f}, RMS: {rms:.4f}", end="\r")
                 
                 if vad_prob > VAD_START_THRESHOLD:
                     print(f"\n[VAD] 🔊 Speech started (prob={vad_prob:.2f})")
@@ -179,9 +140,8 @@ def listen():
                 channel_0 = audio_block[:, 0]
                 buffer.append(audio_block)  # Store original audio
                 
-                # Apply dynamic gain and run VAD for silence detection
-                channel_0_normalized = apply_dynamic_gain(channel_0.copy())
-                vad_prob = model_vad(torch.from_numpy(channel_0_normalized), SAMPLE_RATE).item()
+                # Run VAD on raw audio for silence detection
+                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 
                 # Check if VAD indicates silence (below LOWER threshold)
                 if vad_prob < VAD_SILENCE_THRESHOLD:
@@ -203,8 +163,7 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono_mix = full_audio[:, 0]
             
-            # Apply dynamic RMS-based gain for consistent volume
-            mono_mix = apply_dynamic_gain(mono_mix)
+            # Send raw audio to Whisper (no processing)
 
             if len(mono_mix) < MIN_AUDIO_SAMPLES:
                 print("⚠️ Skipped: too short")
