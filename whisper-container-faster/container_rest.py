@@ -49,7 +49,7 @@ else:
     print(f"[Whisper] ⚠️ HF cache does not exist: {hf_cache}")
 
 # Check if model is available in the built-in cache
-model_name = os.getenv("WHISPER_MODEL", "large-v3-turbo")
+model_name = os.getenv("WHISPER_MODEL", "distil-large-v3")
 print(f"[Whisper] 📋 Using model: {model_name}")
 
 # Map model names to their actual HuggingFace repo names
@@ -59,7 +59,8 @@ model_mapping = {
     "small.en": "models--Systran--faster-small-whisper.en",      # Better accuracy
     "medium.en": "models--Systran--faster-medium-whisper.en",    # Much better for names
     "base.en": "models--Systran--faster-base-whisper.en",
-    "large-v3-turbo": "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo"  # Best accuracy, optimized speed
+    "large-v3-turbo": "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo",  # Best accuracy, higher latency
+    "distil-large-v3": "models--Systran--faster-distil-whisper-large-v3"  # Great accuracy, low latency (RECOMMENDED)
 }
 
 # Get the actual model repo name
