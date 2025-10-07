@@ -21,7 +21,7 @@ VAD_SILENCE_THRESHOLD = 0.10  # Threshold for silence (closer to actual silence 
 MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 
 # Simple audio gain
-AUDIO_GAIN = 6.0  # Simple gain multiplier
+AUDIO_GAIN = 1.0  # Simple gain multiplier
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
