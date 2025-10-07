@@ -50,6 +50,7 @@ class AuraRAG:
         self.encoder = None
         self.cuda_vectors = None
         self.cuda_vector_norms = None
+        self.cuda_query_buffer = None  # Reusable query buffer to avoid allocation on every search
         
         # Load components
         self._load_components()
@@ -186,6 +187,17 @@ class AuraRAG:
                 else:
                     print(f"[RAG] ✅ L2 norms computed")
             
+            # Pre-allocate query buffer for reuse across searches (avoids repeated allocations)
+            print(f"[RAG] 🔧 Pre-allocating query buffer...")
+            self.cuda_query_buffer = cudaAllocMapped((1, self.index.d), np.float32)
+            print(f"[RAG] ✅ Query buffer allocated: {self.cuda_query_buffer['array'].shape}")
+            
+            # Pre-allocate result buffers (max k=10 for most queries)
+            self.max_k = 10
+            self.cuda_distances_buffer = cudaAllocMapped((1, self.max_k), np.float32)
+            self.cuda_indices_buffer = cudaAllocMapped((1, self.max_k), np.int64)
+            print(f"[RAG] ✅ Result buffers allocated: distances={self.cuda_distances_buffer['array'].shape}, indices={self.cuda_indices_buffer['array'].shape}")
+            
             print(f"[RAG] ✅ CUDA data prepared: {vectors.shape[0]} vectors, {vectors.shape[1]} dimensions")
             print(f"[RAG] 🔍 Metric type: {self.index.metric_type} ({'Inner Product' if self.index.metric_type == 0 else 'L2'})")
             
@@ -213,19 +225,23 @@ class AuraRAG:
             print(f"[RAG] 🔍 Query embedding preview: {query_embedding[0][:5]}")  # Check if non-zero
             print(f"[RAG] 🔍 CUDA vectors: shape={self.cuda_vectors['array'].shape}, dtype={self.cuda_vectors['array'].dtype}")
             
-            # Allocate fresh CUDA memory for this query
-            cuda_query = cudaAllocMapped(query_embedding.shape, np.float32)
-            cuda_query['array'][:] = query_embedding
+            # Reuse pre-allocated query buffer (avoid repeated allocations that corrupt memory)
+            self.cuda_query_buffer['array'][:] = query_embedding
             
             # Verify query was copied correctly
-            print(f"[RAG] 🔍 CUDA query preview: {cuda_query['array'][0][:5]}")
+            print(f"[RAG] 🔍 CUDA query preview: {self.cuda_query_buffer['array'][0][:5]}")
             
-            # Allocate CUDA memory for results
-            cuda_distances = cudaAllocMapped((1, k), np.float32)
-            cuda_indices = cudaAllocMapped((1, k), np.int64)
-            
-            print(f"[RAG] 🔍 cuda_distances ptr type: {type(cuda_distances['ptr'])}")
-            print(f"[RAG] 🔍 cuda_indices ptr type: {type(cuda_indices['ptr'])}")
+            # Use pre-allocated result buffers or allocate new ones if k > max_k
+            if k <= self.max_k:
+                # Reuse pre-allocated buffers
+                cuda_distances = self.cuda_distances_buffer
+                cuda_indices = self.cuda_indices_buffer
+                print(f"[RAG] 🔧 Reusing pre-allocated result buffers (k={k} <= max_k={self.max_k})")
+            else:
+                # Allocate larger buffers if needed
+                print(f"[RAG] 🔧 Allocating larger buffers (k={k} > max_k={self.max_k})")
+                cuda_distances = cudaAllocMapped((1, k), np.float32)
+                cuda_indices = cudaAllocMapped((1, k), np.int64)
             
             # Call cudaKNN
             n_vectors = self.index.ntotal
@@ -246,25 +262,26 @@ class AuraRAG:
             indices_ptr = ctypes.cast(cuda_indices['ptr'], ctypes.POINTER(ctypes.c_longlong))
             
             result = cudaKNN(
-                self.cuda_vectors['ptr'],     # vectors
-                cuda_query['ptr'],            # queries
-                4,                            # dsize (float32 = 4 bytes)
-                n_vectors,                    # n (number of vectors)
-                1,                            # m (number of queries)
-                self.index.d,                 # d (dimension)
-                k,                            # k (number of results)
-                metric,                       # metric type
-                vector_norms_ptr,             # vector norms (NULL for inner product)
-                distances_ptr,                # output distances
-                indices_ptr,                  # output indices
-                ctypes.c_void_p(0)            # stream (NULL)
+                self.cuda_vectors['ptr'],           # vectors
+                self.cuda_query_buffer['ptr'],      # queries (reuse buffer)
+                4,                                  # dsize (float32 = 4 bytes)
+                n_vectors,                          # n (number of vectors)
+                1,                                  # m (number of queries)
+                self.index.d,                       # d (dimension)
+                k,                                  # k (number of results)
+                metric,                             # metric type
+                vector_norms_ptr,                   # vector norms (NULL for inner product)
+                distances_ptr,                      # output distances
+                indices_ptr,                        # output indices
+                ctypes.c_void_p(0)                  # stream (NULL)
             )
             
             print(f"[RAG] 🔍 cudaKNN result: {result}")
             
             if result:
-                distances = cuda_distances['array'].copy()
-                indices = cuda_indices['array'].copy()
+                # Copy only the requested k results (not the entire buffer)
+                distances = cuda_distances['array'][:, :k].copy()
+                indices = cuda_indices['array'][:, :k].copy()
                 print(f"[RAG] ✅ faiss_lite CUDA search successful: distances={distances}, indices={indices}")
                 return distances, indices
             else:
