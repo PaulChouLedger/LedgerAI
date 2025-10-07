@@ -226,7 +226,7 @@ class FileUploadDialog(QDialog):
         self.content_layout.setSpacing(25)  # Standard spacing
         
         # Add smaller top spacer to shift content up
-        self.content_layout.addStretch(0.5)
+        self.content_layout.addStretch(1)  # Use integer, not float
         
         # Title centered (no close button)
         title_layout = QHBoxLayout()
@@ -413,7 +413,7 @@ class FileUploadDialog(QDialog):
         self.content_layout.addLayout(button_layout)
         
         # Add bottom spacer to maintain proper spacing (smaller since we shifted content up)
-        self.content_layout.addStretch(1.5)
+        self.content_layout.addStretch(2)  # Use integer, not float
         
         print(f"[Upload] 🔴 Red border should show circular screen boundaries")
         

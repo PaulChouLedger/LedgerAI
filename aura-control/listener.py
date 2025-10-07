@@ -10,6 +10,7 @@ import subprocess
 # Removed scipy imports - using simpler filtering approach
 from speaker import speak_llm_response, is_playing
 from pydub import AudioSegment
+from aura_gui import set_transcribing
 
 # === Config ===
 SAMPLE_RATE = 16000
@@ -130,6 +131,7 @@ def listen():
                 # Immediate speech detection - no consecutive reading requirement
                 if vad_prob > VAD_CONFIDENCE_THRESHOLD:
                     print(f"[VAD] 🔊 High VAD detected (prob={vad_prob:.2f}) - starting recording")
+                    set_transcribing(True)  # Notify GUI: transcription started
                     buffer.append(audio_block)
                     break
                 
@@ -141,6 +143,7 @@ def listen():
             while True:
                 if is_playing():
                     print("[Listener] ⏸️ Pausing mic during playback")
+                    set_transcribing(False)  # Reset transcribing state if interrupted
                     break
 
                 audio_block, _ = stream.read(FRAME_SIZE)
@@ -153,12 +156,14 @@ def listen():
                         silence_start = time.time()
                     elif time.time() - silence_start > SILENCE_TIMEOUT:
                         print("\n⏹️ Speech ended. Processing...")
+                        set_transcribing(False)  # Notify GUI: transcription ended
                         break
                 else:
                     silence_start = None
                 print(".", end="", flush=True)
 
             if is_playing():
+                set_transcribing(False)  # Reset transcribing state if interrupted
                 continue
 
             full_audio = np.concatenate(buffer)
@@ -171,12 +176,14 @@ def listen():
             audio_duration = len(mono_mix) / SAMPLE_RATE
             if audio_duration < MIN_SPEECH_DURATION:
                 print(f"⚠️ Skipped: too short (duration: {audio_duration:.2f}s)")
+                set_transcribing(False)  # Reset transcribing state
                 # Reset VAD state after failed detection to prevent noise loops
                 time.sleep(0.1)  # Brief pause to let VAD reset
                 continue
 
             text = transcribe(mono_mix)
             if not text:
+                set_transcribing(False)  # Reset transcribing state
                 continue
 
             prompt_history.append(text)
