@@ -184,8 +184,13 @@ class FileUploadDialog(QDialog):
         self.fade_out.setEasingCurve(QEasingCurve.OutCubic)
         
         # Connect finished signal to actually close the dialog
-        self.fade_out.finished.connect(self.accept)
+        self.fade_out.finished.connect(self._final_close)
         self.fade_out.start()
+    
+    def _final_close(self):
+        """Final step to close the dialog"""
+        print("[Upload] ✅ Dialog closing completely...")
+        self.accept()
     
     def closeEvent(self, event):
         """Handle dialog close event"""
@@ -208,27 +213,24 @@ class FileUploadDialog(QDialog):
         main_layout.setContentsMargins(0, 0, 0, 0)  # No margins for full screen
         main_layout.setSpacing(0)
         
-        # Create circular content container - size to fit within red border
+        # Create content widget that fills the dialog (behind the red border)
         content_widget = QWidget()
-        content_widget.setFixedSize(1064, 1064)  # 1080 - 16 (8px border on each side)
         content_widget.setStyleSheet("""
             QWidget {
                 background-color: rgba(28, 28, 30, 0.95);
-                border-radius: 532px;  /* Half of 1064 */
+                border-radius: 540px;  /* Half of 1080 to match dialog */
                 border: none;
             }
         """)
         
-        # Center the content widget within the dialog
-        main_layout.addStretch()
-        main_layout.addWidget(content_widget, 0, Qt.AlignCenter)
-        main_layout.addStretch()
+        # Add content widget to main layout (fills entire dialog)
+        main_layout.addWidget(content_widget)
         
         # Add edge buttons for future functions - will be added after layout is set
         
-        # Create layout for circular content
+        # Create layout for circular content - centered within the dialog
         self.content_layout = QVBoxLayout()
-        self.content_layout.setContentsMargins(100, 100, 100, 100)  # Proper margins for 1064x1064 content
+        self.content_layout.setContentsMargins(80, 80, 80, 80)  # Margins to center content within circular area
         self.content_layout.setSpacing(25)  # Standard spacing
         
         # Title centered (no close button)
