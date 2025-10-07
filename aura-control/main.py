@@ -271,7 +271,8 @@ def start_services():
     
     def start_rag():
         print("[Aura] 🔍 Starting RAG container...")
-        return run_container("aura-rag", 11435, "aura-rag:latest", timeout=TIMEOUT)
+        # RAG needs longer timeout due to CUDA model pre-loading (30-60s on first boot)
+        return run_container("aura-rag", 11435, "aura-rag:latest", timeout=90)
     
     # Start all containers simultaneously
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
