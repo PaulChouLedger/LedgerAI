@@ -226,12 +226,17 @@ class AuraGUI(QMainWindow):
                 }}
             """)
             
-            # Add 3D shadow effect for Apple-style depth
-            shadow_effect = QGraphicsDropShadowEffect()
-            shadow_effect.setBlurRadius(15)
-            shadow_effect.setColor(QColor(0, 0, 0, 80))  # Subtle black shadow
-            shadow_effect.setOffset(0, 4)  # Slight downward offset for depth
-            btn.setGraphicsEffect(shadow_effect)
+            # Add futuristic glow effect (colored shadow)
+            # Parse color hex to RGB for glow
+            r = int(color[1:3], 16) if len(color) >= 7 else 255
+            g = int(color[3:5], 16) if len(color) >= 7 else 255
+            b = int(color[5:7], 16) if len(color) >= 7 else 255
+            
+            glow_effect = QGraphicsDropShadowEffect()
+            glow_effect.setBlurRadius(25)  # Larger blur for glow effect
+            glow_effect.setColor(QColor(r, g, b, 120))  # Colored glow matching button
+            glow_effect.setOffset(0, 0)  # Centered glow (not shadow)
+            btn.setGraphicsEffect(glow_effect)
             
             # Connect handler
             btn.clicked.connect(handler)
@@ -240,7 +245,7 @@ class AuraGUI(QMainWindow):
             # Add button to the main widget (positioned absolutely)
             btn.setParent(self.centralWidget())
             btn.move(int(x), int(y))
-            btn.show()
+            btn.hide()  # Start hidden, show after welcome prompt
     
     def _handle_upload(self):
         """Handle upload button click"""
@@ -558,9 +563,9 @@ class AuraGUI(QMainWindow):
         # Second smooth: cosine easing
         eased = 0.5 - 0.5 * math.cos(self.tts_opacity_smooth * math.pi)
         
-        # Map to opacity range - wider for more visible pulsation
-        min_opacity = 0.30  # Lower minimum - more dramatic
-        max_opacity = 0.95  # Higher maximum - more contrast
+        # Map to opacity range - very wide for dramatic, visible pulsation
+        min_opacity = 0.20  # Much lower minimum - very dramatic dimming
+        max_opacity = 0.98  # Near full brightness - strong peaks
         target_opacity = min_opacity + eased * (max_opacity - min_opacity)
         
         # Final smoothing pass for smooth but visible transitions
@@ -785,10 +790,16 @@ def set_listening_ready():
     print(f"[AuraGUI] 🎯 State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
 
 def set_welcome_played():
-    """Signal that welcome prompt has been played - makes aura eye static"""
-    global _welcome_played
+    """Signal that welcome prompt has been played - makes aura eye static and shows buttons"""
+    global _welcome_played, _window
     _welcome_played = True
     print("[AuraGUI] 👋 Welcome prompt played - aura eye now static and ready")
+    
+    # Show buttons with fade-in animation
+    if _window and hasattr(_window, 'buttons'):
+        for btn in _window.buttons:
+            btn.show()
+        print("[AuraGUI] 🔘 Buttons now visible")
 
 def set_transcribing(active):
     """Set transcription state - red edge pulsation when user is speaking (thread-safe)"""
