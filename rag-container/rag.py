@@ -48,12 +48,33 @@ class AuraRAG:
         self.index = None
         self.chunks = None
         self.encoder = None
+        self.cuda_vectors = None
+        self.cuda_vector_norms = None
         
         # Load components
         self._load_components()
         
+        # Validate that critical components loaded before preparing CUDA data
+        if self.index is None or self.chunks is None or self.encoder is None:
+            error_msg = f"Critical components failed to load: index={self.index is not None}, chunks={self.chunks is not None}, encoder={self.encoder is not None}"
+            print(f"[RAG] ❌ {error_msg}")
+            raise RuntimeError(error_msg)
+        
         # Convert FAISS index to numpy arrays for faiss_lite CUDA functions
-        self._prepare_cuda_data()
+        try:
+            self._prepare_cuda_data()
+            
+            # Validate that CUDA data was actually prepared
+            if self.cuda_vectors is None:
+                raise RuntimeError("CUDA vectors not initialized - _prepare_cuda_data() failed silently")
+            
+            print(f"[RAG] ✅ Initialization complete: index ready, CUDA data ready, encoder ready")
+            print(f"[RAG] 🎯 System status: {self.index.ntotal} vectors indexed, {len(self.chunks)} chunks loaded")
+            
+        except Exception as e:
+            print(f"[RAG] ❌ CUDA data preparation failed during init: {e}")
+            print(f"[RAG] ⚠️ RAG system CANNOT function without CUDA data")
+            raise
     
     def _load_components(self):
         """Load FAISS index, chunks, and encoder model"""
@@ -115,43 +136,67 @@ class AuraRAG:
         """Prepare raw vectors for faiss_lite CUDA functions"""
         try:
             print("[RAG] 🔧 Loading raw vectors for faiss_lite...")
+            print(f"[RAG] 🔍 Looking for vectors at: {self.vectors_path}")
+            print(f"[RAG] 🔍 Vectors file exists: {os.path.exists(self.vectors_path)}")
             
             # Load raw vectors from file (much simpler than reconstructing from FAISS index)
-            if os.path.exists(self.vectors_path):
-                vectors = np.load(self.vectors_path)
-                print(f"[RAG] 🔍 Loaded vectors shape: {vectors.shape}, dtype: {vectors.dtype}")
-                
-                # Ensure float32
-                if vectors.dtype != np.float32:
-                    vectors = vectors.astype(np.float32)
-                
-                # Allocate CUDA memory for vectors
-                self.cuda_vectors = cudaAllocMapped(vectors.shape, np.float32)
-                self.cuda_vectors['array'][:] = vectors
-                
-                # Initialize vector norms (None for inner product metric)
-                self.cuda_vector_norms = None
-                
-                # Pre-compute L2 norms if using L2 metric
-                if self.index.metric_type == faiss.METRIC_L2:
-                    n_vectors = vectors.shape[0]
-                    self.cuda_vector_norms = cudaAllocMapped((n_vectors,), np.float32)
-                    result = cudaL2Norm(
-                        self.cuda_vectors['ptr'], 4,  # 4 bytes for float32
-                        n_vectors, self.index.d,
-                        self.cuda_vector_norms['ptr'], True, None
-                    )
-                    if not result:
-                        print("[RAG] ⚠️ Failed to compute L2 norms")
-                        self.cuda_vector_norms = None
-                
-                print(f"[RAG] ✅ CUDA data prepared: {vectors.shape[0]} vectors, {vectors.shape[1]} dimensions")
-            else:
-                print(f"[RAG] ❌ Raw vectors file not found: {self.vectors_path}")
-                raise Exception(f"Raw vectors file not found: {self.vectors_path}")
-                
+            if not os.path.exists(self.vectors_path):
+                error_msg = f"Raw vectors file not found: {self.vectors_path}"
+                print(f"[RAG] ❌ {error_msg}")
+                print(f"[RAG] 💡 Run 'python3 scripts/rebuild_embeddings.py' to generate vectors.npy")
+                raise FileNotFoundError(error_msg)
+            
+            vectors = np.load(self.vectors_path)
+            print(f"[RAG] 🔍 Loaded vectors shape: {vectors.shape}, dtype: {vectors.dtype}")
+            
+            # Validate vectors
+            if len(vectors.shape) != 2:
+                raise ValueError(f"Vectors must be 2D array, got shape {vectors.shape}")
+            
+            if vectors.shape[1] != self.index.d:
+                raise ValueError(f"Vector dimension {vectors.shape[1]} doesn't match index dimension {self.index.d}")
+            
+            # Ensure float32
+            if vectors.dtype != np.float32:
+                print(f"[RAG] 🔄 Converting vectors from {vectors.dtype} to float32")
+                vectors = vectors.astype(np.float32)
+            
+            # Allocate CUDA memory for vectors
+            print(f"[RAG] 🔧 Allocating CUDA memory for {vectors.shape[0]} vectors...")
+            self.cuda_vectors = cudaAllocMapped(vectors.shape, np.float32)
+            self.cuda_vectors['array'][:] = vectors
+            print(f"[RAG] ✅ CUDA vectors allocated: ptr={self.cuda_vectors['ptr']}")
+            
+            # Initialize vector norms (None for inner product metric)
+            self.cuda_vector_norms = None
+            
+            # Pre-compute L2 norms if using L2 metric
+            if self.index.metric_type == faiss.METRIC_L2:
+                n_vectors = vectors.shape[0]
+                print(f"[RAG] 🔧 Pre-computing L2 norms for {n_vectors} vectors...")
+                self.cuda_vector_norms = cudaAllocMapped((n_vectors,), np.float32)
+                result = cudaL2Norm(
+                    self.cuda_vectors['ptr'], 4,  # 4 bytes for float32
+                    n_vectors, self.index.d,
+                    self.cuda_vector_norms['ptr'], True, None
+                )
+                if not result:
+                    print("[RAG] ⚠️ Failed to compute L2 norms, will use NULL pointer")
+                    self.cuda_vector_norms = None
+                else:
+                    print(f"[RAG] ✅ L2 norms computed")
+            
+            print(f"[RAG] ✅ CUDA data prepared: {vectors.shape[0]} vectors, {vectors.shape[1]} dimensions")
+            print(f"[RAG] 🔍 Metric type: {self.index.metric_type} ({'Inner Product' if self.index.metric_type == 0 else 'L2'})")
+            
+        except FileNotFoundError as e:
+            print(f"[RAG] ❌ File not found: {e}")
+            print(f"[RAG] 💡 Make sure to run rebuild_embeddings.py first!")
+            raise
         except Exception as e:
             print(f"[RAG] ❌ Failed to prepare CUDA data: {e}")
+            import traceback
+            traceback.print_exc()
             raise
     
     def _search_with_faiss_lite(self, query_embedding, k):
