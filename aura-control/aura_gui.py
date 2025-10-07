@@ -95,6 +95,12 @@ class AuraGUI(QMainWindow):
         self.label.setScaledContents(False)
         layout.addWidget(self.label, alignment=Qt.AlignCenter)
         
+        # Create opacity effect for animations
+        from PyQt5.QtWidgets import QGraphicsOpacityEffect
+        self.opacity_effect = QGraphicsOpacityEffect()
+        self.opacity_effect.setOpacity(1.0)
+        self.label.setGraphicsEffect(self.opacity_effect)
+        
         # Store original pixmap for scaling effects
         self._original_pixmap = scaled_pixmap
         
@@ -488,10 +494,8 @@ class AuraGUI(QMainWindow):
         variation_range = 0.8  # Much larger variation range
         self.opacity = base_opacity + smoothed_intensity * variation_range  # 0.1 to 0.9 range
         
-        # Scale the pixmap based on intensity for visible pulsation
-        # Use opacity only - no pixmap scaling to prevent window edge movement
-        # (Pixmap scaling changes layout and causes edge pulsation)
-        pass
+        # Apply opacity using graphics effect (no pixmap scaling)
+        self.opacity_effect.setOpacity(self.opacity)
         
         # Debug: Print TTS animation values
         if hasattr(self, '_debug_counter'):
@@ -524,14 +528,14 @@ class AuraGUI(QMainWindow):
         # Gentle opacity variation (0.3 to 0.9)
         self.opacity = 0.3 + (breathing * 0.6)
         
-        # Apply opacity
-        self.label.setStyleSheet(f"opacity: {self.opacity};")
+        # Apply opacity using graphics effect
+        self.opacity_effect.setOpacity(self.opacity)
     
     def _set_aura_eye_static(self):
         """Set aura eye to static state - no animation, ready for interaction"""
         # Full opacity, no pulsation
         self.opacity = 1.0
-        self.label.setStyleSheet("opacity: 1.0;")
+        self.opacity_effect.setOpacity(1.0)
     
     def _animate_aura_eye_setup(self):
         """Gentle, meditative aura eye animation during initial setup"""
@@ -549,9 +553,8 @@ class AuraGUI(QMainWindow):
         # Setup opacity range - more visible than idle
         self.opacity = 0.1 + combined_intensity * 0.7  # 0.1 to 0.8 range
         
-        # Scale the pixmap based on intensity for visible pulsation
-        # Use opacity only - no pixmap scaling to prevent window edge movement
-        pass
+        # Apply opacity using graphics effect
+        self.opacity_effect.setOpacity(self.opacity)
         
         # Debug: Print setup animation values
         if hasattr(self, '_debug_counter'):
@@ -587,9 +590,8 @@ class AuraGUI(QMainWindow):
         # More visible opacity range for idle
         self.opacity = 0.1 + combined_intensity * 0.7  # 0.1 to 0.8 range (more dramatic)
         
-        # Scale the pixmap based on intensity for visible pulsation
-        # Use opacity only - no pixmap scaling to prevent window edge movement
-        pass
+        # Apply opacity using graphics effect
+        self.opacity_effect.setOpacity(self.opacity)
         
         # Debug: Print opacity values occasionally
         if hasattr(self, '_debug_counter'):
