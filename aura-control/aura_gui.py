@@ -60,7 +60,7 @@ class AuraGUI(QMainWindow):
         self.label.setPixmap(scaled_pixmap)
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setFixedSize(min_dim, min_dim)  # Lock size to prevent shifting
-        self.label.setScaledContents(False)  # Don't auto-scale, we'll handle it manually
+        self.label.setScaledContents(True)  # Let label handle scaling to prevent layout changes
         layout.addWidget(self.label, alignment=Qt.AlignCenter)  # Center in layout
         
         # Store original pixmap for scaling effects
@@ -470,15 +470,9 @@ class AuraGUI(QMainWindow):
         self.opacity = base_opacity + smoothed_intensity * variation_range  # 0.1 to 0.9 range
         
         # Scale the pixmap based on intensity for visible pulsation
-        if hasattr(self, '_original_pixmap') and self._original_pixmap:
-            # Create a scaled version based on intensity
-            scale_factor = 0.8 + (smoothed_intensity * 0.4)  # 0.8 to 1.2 scale
-            scaled_pixmap = self._original_pixmap.scaled(
-                int(self._original_pixmap.width() * scale_factor),
-                int(self._original_pixmap.height() * scale_factor),
-                Qt.KeepAspectRatio, Qt.SmoothTransformation
-            )
-            self.label.setPixmap(scaled_pixmap)
+        # Use opacity only - no pixmap scaling to prevent window edge movement
+        # (Pixmap scaling changes layout and causes edge pulsation)
+        pass
         
         # Debug: Print TTS animation values
         if hasattr(self, '_debug_counter'):
@@ -519,15 +513,8 @@ class AuraGUI(QMainWindow):
         self.opacity = 0.1 + combined_intensity * 0.7  # 0.1 to 0.8 range
         
         # Scale the pixmap based on intensity for visible pulsation
-        if hasattr(self, '_original_pixmap') and self._original_pixmap:
-            # Create a scaled version based on intensity
-            scale_factor = 0.85 + (combined_intensity * 0.3)  # 0.85 to 1.15 scale
-            scaled_pixmap = self._original_pixmap.scaled(
-                int(self._original_pixmap.width() * scale_factor),
-                int(self._original_pixmap.height() * scale_factor),
-                Qt.KeepAspectRatio, Qt.SmoothTransformation
-            )
-            self.label.setPixmap(scaled_pixmap)
+        # Use opacity only - no pixmap scaling to prevent window edge movement
+        pass
         
         # Debug: Print setup animation values
         if hasattr(self, '_debug_counter'):
@@ -564,15 +551,8 @@ class AuraGUI(QMainWindow):
         self.opacity = 0.1 + combined_intensity * 0.7  # 0.1 to 0.8 range (more dramatic)
         
         # Scale the pixmap based on intensity for visible pulsation
-        if hasattr(self, '_original_pixmap') and self._original_pixmap:
-            # Create a scaled version based on intensity
-            scale_factor = 0.9 + (combined_intensity * 0.2)  # 0.9 to 1.1 scale (subtle)
-            scaled_pixmap = self._original_pixmap.scaled(
-                int(self._original_pixmap.width() * scale_factor),
-                int(self._original_pixmap.height() * scale_factor),
-                Qt.KeepAspectRatio, Qt.SmoothTransformation
-            )
-            self.label.setPixmap(scaled_pixmap)
+        # Use opacity only - no pixmap scaling to prevent window edge movement
+        pass
         
         # Debug: Print opacity values occasionally
         if hasattr(self, '_debug_counter'):
