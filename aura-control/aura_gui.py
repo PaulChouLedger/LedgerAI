@@ -192,32 +192,39 @@ class AuraGUI(QMainWindow):
         
         # Add smooth fade-out animation for main GUI
         self.fade_out_animation = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_out_animation.setDuration(150)  # Quick fade-out
+        self.fade_out_animation.setDuration(200)  # Slightly longer for smoother transition
         self.fade_out_animation.setStartValue(1.0)
-        self.fade_out_animation.setEndValue(0.7)  # Slightly dimmed
+        self.fade_out_animation.setEndValue(0.0)  # Completely fade out to prevent desktop flash
         self.fade_out_animation.setEasingCurve(QEasingCurve.OutCubic)
-        self.fade_out_animation.start()
         
+        # Connect finished signal to show dialog after fade completes
+        self.fade_out_animation.finished.connect(self._show_upload_dialog_after_fade)
+        self.fade_out_animation.start()
+    
+    def _show_upload_dialog_after_fade(self):
+        """Show upload dialog after main GUI has faded out"""
         show_upload_dialog()
         
         # Add smooth fade-in animation when dialog closes
-        QTimer.singleShot(200, self._restore_gui_opacity)
+        QTimer.singleShot(100, self._restore_gui_opacity)
     
     def _restore_gui_opacity(self):
         """Restore main GUI opacity with smooth animation"""
+        # Ensure GUI is properly restored before fading in
+        self.showFullScreen()
+        self.raise_()
+        self.activateWindow()
+        
+        # Start fade-in animation from completely transparent
         self.fade_in_animation = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_in_animation.setDuration(200)  # Smooth fade-in
-        self.fade_in_animation.setStartValue(0.7)
+        self.fade_in_animation.setDuration(250)  # Slightly longer for smoother transition
+        self.fade_in_animation.setStartValue(0.0)
         self.fade_in_animation.setEndValue(1.0)
         self.fade_in_animation.setEasingCurve(QEasingCurve.OutCubic)
         self.fade_in_animation.start()
         
-        # Ensure GUI is properly restored after dialog closes
-        self.showFullScreen()
-        self.raise_()
-        self.activateWindow()
-        # Reset aura eye to original size
-        self._reset_aura_eye()
+        # Reset aura eye to original size after animation starts
+        QTimer.singleShot(50, self._reset_aura_eye)
     
     def _handle_settings(self):
         """Handle settings button click"""

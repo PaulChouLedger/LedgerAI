@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                              QPushButton, QFileDialog, QTextEdit, QProgressBar,
                              QMessageBox, QListWidget, QListWidgetItem, QInputDialog,
                              QLineEdit, QWidget, QApplication, QGridLayout)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont
 import requests
 import json
@@ -143,7 +143,7 @@ class FileUploadDialog(QDialog):
         super().mousePressEvent(event)
         
     def center_dialog(self):
-        """Center the dialog dynamically on the screen using proper PyQt methods"""
+        """Center the dialog properly on the screen"""
         from PyQt5.QtWidgets import QDesktopWidget
         
         # Get screen geometry
@@ -153,14 +153,10 @@ class FileUploadDialog(QDialog):
         # Get dialog size (use fixed size since we set it to 1080x1080)
         dialog_width = 1080
         dialog_height = 1080
-        print(f"[Upload] 🔍 Dialog size: {dialog_width}x{dialog_height}")
         
-        # For circular 1080x1080 screen, position dialog at (0,0) to fill entire screen
-        # This ensures the dialog perfectly matches the circular display area
-        x = 0
-        y = 0
-        
-        print(f"[Upload] 📐 Positioning for circular screen: ({x}, {y})")
+        # Calculate center position
+        x = (screen.width() - dialog_width) // 2
+        y = (screen.height() - dialog_height) // 2
         
         print(f"[Upload] 📐 Calculated center position: ({x}, {y})")
         
@@ -175,6 +171,24 @@ class FileUploadDialog(QDialog):
         # Ensure dialog is visible and active
         self.raise_()
         self.activateWindow()
+    
+    def closeEvent(self, event):
+        """Handle dialog close with smooth fade-out animation"""
+        print("[Upload] 🔄 Closing dialog with fade-out animation...")
+        
+        # Create fade-out animation
+        self.fade_out = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_out.setDuration(200)
+        self.fade_out.setStartValue(1.0)
+        self.fade_out.setEndValue(0.0)
+        self.fade_out.setEasingCurve(QEasingCurve.OutCubic)
+        
+        # Connect finished signal to actually close the dialog
+        self.fade_out.finished.connect(lambda: self.accept())
+        self.fade_out.start()
+        
+        # Prevent immediate close
+        event.ignore()
 
     def center_dialog_manually(self, screen_center_x, screen_center_y):
         """Manually center the dialog based on screen center coordinates"""
