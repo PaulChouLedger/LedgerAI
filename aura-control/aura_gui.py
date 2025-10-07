@@ -96,14 +96,16 @@ class AuraGUI(QMainWindow):
         self.label.setScaledContents(False)
         layout.addWidget(self.label, alignment=Qt.AlignCenter)
         
-        # Create opacity effect for animations
+        # Store original pixmap for scaling effects
+        self._original_pixmap = scaled_pixmap
+        
+        # Create opacity effect for animations (apply to label for direct control)
         from PyQt5.QtWidgets import QGraphicsOpacityEffect
-        self.opacity_effect = QGraphicsOpacityEffect()
+        self.opacity_effect = QGraphicsOpacityEffect(self.label)
         self.opacity_effect.setOpacity(1.0)
         self.label.setGraphicsEffect(self.opacity_effect)
         
-        # Store original pixmap for scaling effects
-        self._original_pixmap = scaled_pixmap
+        print(f"[GUI] 🎨 Opacity effect created and applied to label")
         
         main_widget.setLayout(layout)
         self.setCentralWidget(main_widget)
@@ -293,11 +295,23 @@ class AuraGUI(QMainWindow):
     def animate_pulse(self):
         global _listening_ready, _transcribing, _tts_playing, _tts_frequency, _setup_complete, _welcome_played
         
+        # Verify opacity effect is still attached
+        if not hasattr(self, '_opacity_check_done'):
+            if self.label.graphicsEffect() == self.opacity_effect:
+                print(f"[GUI] ✅ Opacity effect is properly attached")
+            else:
+                print(f"[GUI] ❌ Opacity effect is NOT attached! Re-attaching...")
+                self.label.setGraphicsEffect(self.opacity_effect)
+            self._opacity_check_done = True
+        
         # Debug state changes
+        # After setup complete: only care about transcribing, tts_playing, and listening_ready
+        # During setup: use _welcome_played to control breathing vs static
         current_state = (
             "transcribing" if _transcribing else
             "tts_playing" if _tts_playing else
-            "static_ready" if _welcome_played else
+            "listening_ready" if _setup_complete and _listening_ready else
+            "static_ready" if _setup_complete and _welcome_played else
             "setup_breathing" if not _setup_complete else
             "waiting_for_welcome"
         )
@@ -308,6 +322,7 @@ class AuraGUI(QMainWindow):
         if self._last_state != current_state:
             print(f"[GUI] 🎭 Animation state changed: {self._last_state} → {current_state}")
             print(f"      _setup_complete={_setup_complete}, _welcome_played={_welcome_played}, _listening_ready={_listening_ready}, _transcribing={_transcribing}, _tts_playing={_tts_playing}")
+            print(f"      Current opacity: {self.opacity_effect.opacity():.3f}")
         self._last_state = current_state
         
         # PRIORITY: Check transcription state FIRST to avoid it being hidden by other states
@@ -383,24 +398,29 @@ class AuraGUI(QMainWindow):
             self.border_overlay.raise_()  # Keep on top every frame
             self.border_overlay.update()  # Trigger overlay paintEvent
             
-        # State 1: Initial setup - breathing animation (faster, more noticeable)
-        elif not _setup_complete:
-            self._animate_aura_eye_breathing()  # Breathing during setup
-            self.show_red_border = False
-            
-        # State 2: Setup complete but welcome not played - continue breathing
-        elif _setup_complete and not _welcome_played:
-            self._animate_aura_eye_breathing()  # Continue breathing until welcome plays
-            self.show_red_border = False
-            
-        # State 3: TTS playing - dramatic pulsation
+        # State 1: TTS playing - dramatic pulsation (priority after transcribing)
         elif _tts_playing:
             self._animate_aura_eye_tts(_tts_frequency)
             self.show_red_border = False
             
-        # State 4: Welcome played - STATIC (no animation, ready for interaction)
-        elif _welcome_played:
-            self._set_aura_eye_static()  # Static, ready state
+        # State 2: Setup complete AND listening ready - STATIC (normal idle state)
+        elif _setup_complete and _listening_ready:
+            self._set_aura_eye_static()  # Static, ready for interaction
+            self.show_red_border = False
+            
+        # State 3: Setup complete but welcome not played - continue breathing
+        elif _setup_complete and not _welcome_played:
+            self._animate_aura_eye_breathing()  # Continue breathing until welcome plays
+            self.show_red_border = False
+            
+        # State 4: Welcome played but listener not ready yet - STATIC
+        elif _setup_complete and _welcome_played:
+            self._set_aura_eye_static()  # Static while waiting for listener
+            self.show_red_border = False
+            
+        # State 5: Initial setup - breathing animation (faster, more noticeable)
+        elif not _setup_complete:
+            self._animate_aura_eye_breathing()  # Breathing during setup
             self.show_red_border = False
     
     def _update_border_style(self, static=True, pulsating=False, width=5, opacity=0.7):
@@ -530,12 +550,24 @@ class AuraGUI(QMainWindow):
         
         # Apply opacity using graphics effect
         self.opacity_effect.setOpacity(self.opacity)
+        
+        # Debug output
+        if not hasattr(self, '_breathing_debug_counter'):
+            self._breathing_debug_counter = 0
+        self._breathing_debug_counter += 1
+        if self._breathing_debug_counter % 20 == 0:
+            print(f"[GUI] 🌬️ BREATHING: opacity={self.opacity:.3f}, phase={self.aura_breathing_phase:.3f}, breathing={breathing:.3f}")
     
     def _set_aura_eye_static(self):
         """Set aura eye to static state - no animation, ready for interaction"""
         # Full opacity, no pulsation
         self.opacity = 1.0
         self.opacity_effect.setOpacity(1.0)
+        
+        # Debug output
+        if not hasattr(self, '_static_debug_logged'):
+            self._static_debug_logged = True
+            print(f"[GUI] 👁️ STATIC: opacity={self.opacity:.3f} (no animation)")
     
     def _animate_aura_eye_setup(self):
         """Gentle, meditative aura eye animation during initial setup"""
