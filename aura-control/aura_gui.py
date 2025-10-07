@@ -491,37 +491,57 @@ class AuraGUI(QMainWindow):
                 pass
     
     def _animate_aura_eye_tts(self, tts_frequency):
-        """Dramatic pulsation during TTS - same as red border during transcription"""
-        # Use the same multi-layer pulsation as the red border for consistency
-        
-        # Primary pulse (fast, responsive)
-        primary_speed = 0.4 + (tts_frequency * 1.0)  # 0.4 to 1.4 range
+        """Organic TTS pulsation - matches speech rhythm and energy"""
+        # Initialize phases and organic timers
         if not hasattr(self, 'tts_pulse_phase'):
             self.tts_pulse_phase = 0.0
-        self.tts_pulse_phase += primary_speed
-        primary_pulse = (math.sin(self.tts_pulse_phase) + 1) / 2
+        if not hasattr(self, 'tts_organic_timer'):
+            self.tts_organic_timer = 0.0
+        if not hasattr(self, 'tts_energy_smooth'):
+            self.tts_energy_smooth = 0.5
         
-        # Secondary pulse (adds organic variation)
-        if not hasattr(self, 'tts_secondary_phase'):
-            self.tts_secondary_phase = 0.0
-        self.tts_secondary_phase += 0.25
-        secondary_pulse = (math.sin(self.tts_secondary_phase) + 1) / 2
+        # Update organic timer for natural variation
+        self.tts_organic_timer += 0.03
+        organic_drift = math.sin(self.tts_organic_timer * 0.4) * 0.15
         
-        # Tertiary pulse (micro variations for organic feel)
-        if not hasattr(self, 'tts_tertiary_phase'):
-            self.tts_tertiary_phase = 0.0
-        self.tts_tertiary_phase += 0.45
-        tertiary_pulse = (math.sin(self.tts_tertiary_phase) + 1) / 2
+        # Smooth the TTS frequency for less jittery movement
+        target_energy = max(0.1, min(tts_frequency, 1.5))
+        self.tts_energy_smooth += (target_energy - self.tts_energy_smooth) * 0.15  # Smoothing
         
-        # Combine with weighted influence (60% primary, 25% secondary, 15% tertiary)
-        combined_pulse = (
-            primary_pulse * 0.60 +
-            secondary_pulse * 0.25 +
-            tertiary_pulse * 0.15
+        # Primary rhythm - follows speech energy closely
+        rhythm_speed = 0.5 + (self.tts_energy_smooth * 1.2)  # 0.5 to 1.7 range
+        self.tts_pulse_phase += rhythm_speed + organic_drift
+        primary_rhythm = (math.sin(self.tts_pulse_phase) + 1) / 2
+        
+        # Breathing layer - slow, continuous (mimics natural breath)
+        if not hasattr(self, 'tts_breath_phase'):
+            self.tts_breath_phase = 0.0
+        self.tts_breath_phase += 0.04
+        breath_rhythm = (math.sin(self.tts_breath_phase) + 1) / 2
+        
+        # Micro variations - adds life and prevents robotic feel
+        micro_phase = self.tts_organic_timer * 1.3
+        micro_variation = (math.sin(micro_phase) + math.sin(micro_phase * 2.7)) / 4
+        
+        # Accent emphasis - occasional peaks during speech
+        accent_phase = self.tts_pulse_phase * 0.6
+        accent_emphasis = max(0, math.sin(accent_phase)) * self.tts_energy_smooth
+        
+        # Combine all layers organically
+        combined_intensity = (
+            primary_rhythm * 0.50 +           # 50% speech rhythm (main driver)
+            breath_rhythm * 0.20 +            # 20% breathing (smooth base)
+            micro_variation * 0.10 +          # 10% micro variations (organic)
+            accent_emphasis * 0.20            # 20% accent peaks (speech dynamics)
         )
         
-        # Calculate dramatic opacity variation (0.2 to 1.0)
-        self.opacity = 0.2 + combined_pulse * 0.8
+        # Apply non-linear scaling for more dramatic but natural pulsation
+        # Use sigmoid for smooth transitions and more pronounced peaks
+        normalized = (combined_intensity - 0.5) * 2  # -1 to 1
+        sigmoid = 1 / (1 + math.exp(-4 * normalized))  # Smooth S-curve
+        
+        # Map to opacity range (0.15 to 0.95 for dramatic but visible range)
+        self.opacity = 0.15 + sigmoid * 0.80
         
         # Apply opacity using graphics effect
         self.opacity_effect.setOpacity(self.opacity)
@@ -533,7 +553,7 @@ class AuraGUI(QMainWindow):
             self._debug_counter = 0
             
         if self._debug_counter % 20 == 0:  # Print every second during TTS
-            print(f"[GUI] 👁️ Aura Eye TTS: opacity={self.opacity:.3f}, pulse={combined_pulse:.3f}, freq={tts_frequency:.3f}")
+            print(f"[GUI] 👁️ Aura Eye TTS: opacity={self.opacity:.3f}, energy={self.tts_energy_smooth:.3f}, rhythm={primary_rhythm:.3f}, breath={breath_rhythm:.3f}")
         
         # Temporarily disable glow effect to test aura eye pulsation
         # Dynamic glow effect that responds to TTS
