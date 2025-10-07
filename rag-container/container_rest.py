@@ -186,10 +186,20 @@ def rag_search():
         rag = get_rag()
         results = rag.search(query, k)
         
+        # Format results for LLM container compatibility
+        formatted_results = []
+        for result in results:
+            formatted_results.append({
+                'text': result.get('chunk', ''),
+                'score': result.get('score', 0.0),
+                'distance': result.get('distance', 0.0),
+                'rank': result.get('rank', 0)
+            })
+        
         return jsonify({
             'query': query,
-            'results': results,
-            'count': len(results)
+            'results': formatted_results,
+            'count': len(formatted_results)
         })
         
     except Exception as e:
