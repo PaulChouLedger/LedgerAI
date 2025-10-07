@@ -55,12 +55,12 @@ print(f"[Whisper] 📋 Using model: {model_name}")
 # Map model names to their actual HuggingFace repo names
 # For better accuracy with proper names, consider upgrading to small.en or medium.en
 model_mapping = {
-    "distil-small.en": "models--Systran--faster-distil-whisper-small.en",
-    "small.en": "models--Systran--faster-small-whisper.en",      # Better accuracy
-    "medium.en": "models--Systran--faster-medium-whisper.en",    # Much better for names
-    "base.en": "models--Systran--faster-base-whisper.en",
-    "large-v3-turbo": "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo",  # Best accuracy, higher latency
-    "distil-large-v3": "models--Systran--faster-distil-whisper-large-v3"  # Great accuracy, low latency (RECOMMENDED)
+    "distil-small.en": "models--Systran--faster-distil-whisper-small.en",      # Fast, lower accuracy
+    "small.en": "models--Systran--faster-small-whisper.en",                    # Better accuracy
+    "medium.en": "models--Systran--faster-medium-whisper.en",                  # Much better for names
+    "base.en": "models--Systran--faster-base-whisper.en",                      # Basic model
+    "large-v3-turbo": "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo", # Best accuracy, higher latency
+    "distil-large-v3": "models--Systran--faster-distil-whisper-large-v3"       # Excellent accuracy, low latency ⭐ RECOMMENDED
 }
 
 # Get the actual model repo name
