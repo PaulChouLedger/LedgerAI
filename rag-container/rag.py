@@ -160,13 +160,23 @@ class AuraRAG:
             print("[RAG] ❌ CUDA vectors not prepared")
             return None, None
         
+        # Clean up any previous CUDA allocations
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()  # Wait for previous operations
+            torch.cuda.empty_cache()  # Clear cache
+        
         try:
             print(f"[RAG] 🔍 Query embedding: shape={query_embedding.shape}, dtype={query_embedding.dtype}")
+            print(f"[RAG] 🔍 Query embedding preview: {query_embedding[0][:5]}")  # Check if non-zero
             print(f"[RAG] 🔍 CUDA vectors: shape={self.cuda_vectors['array'].shape}, dtype={self.cuda_vectors['array'].dtype}")
             
-            # Allocate CUDA memory for query
+            # Allocate fresh CUDA memory for this query
             cuda_query = cudaAllocMapped(query_embedding.shape, np.float32)
             cuda_query['array'][:] = query_embedding
+            
+            # Verify query was copied correctly
+            print(f"[RAG] 🔍 CUDA query preview: {cuda_query['array'][0][:5]}")
             
             # Allocate CUDA memory for results
             cuda_distances = cudaAllocMapped((1, k), np.float32)
@@ -276,11 +286,19 @@ class AuraRAG:
             print(f"[RAG] 🔍 Hybrid search enabled: filtering for '{person_name}'")
         
         try:
-            # Simple encoding like the container test
-            query_embedding = self.encoder.encode([query], convert_to_numpy=True)
-            query_embedding = query_embedding.astype(np.float32)
+            # Encode query - ensure it's on CPU for numpy conversion
+            import torch
+            with torch.no_grad():
+                query_embedding = self.encoder.encode([query], convert_to_numpy=True, show_progress_bar=False)
+                query_embedding = query_embedding.astype(np.float32)
+            
+            # Normalize for Inner Product metric (required for cosine similarity)
+            if self.index.metric_type == faiss.METRIC_INNER_PRODUCT:
+                faiss.normalize_L2(query_embedding)
+                print(f"[RAG] 🔧 Query normalized for Inner Product metric")
             
             print(f"[RAG] 🔍 Query embedding shape: {query_embedding.shape}, dtype: {query_embedding.dtype}")
+            print(f"[RAG] 🔍 Query embedding preview: {query_embedding[0][:5]}")  # First 5 values
             
             # Use faiss_lite CUDA functions (the working approach)
             print(f"[RAG] 🔧 Using faiss_lite CUDA search...")
