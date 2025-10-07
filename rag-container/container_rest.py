@@ -196,14 +196,50 @@ def rag_search():
                 'rank': result.get('rank', 0)
             })
         
+        # Also provide a properly formatted prompt for LLM compatibility
+        if formatted_results:
+            context_parts = []
+            for result in formatted_results:
+                context_parts.append(result['text'])
+            context = "\n\n".join(context_parts)
+            formatted_prompt = f"Based on the following information:\n\n{context}\n\nPlease answer: {query}"
+        else:
+            formatted_prompt = query
+        
         return jsonify({
             'query': query,
             'results': formatted_results,
-            'count': len(formatted_results)
+            'count': len(formatted_results),
+            'formatted_prompt': formatted_prompt,
+            'used_rag': len(formatted_results) > 0
         })
         
     except Exception as e:
         logger.error(f"Error in RAG search: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/rag/augment', methods=['POST'])
+def rag_augment():
+    """Augment prompt with RAG context"""
+    try:
+        data = request.get_json()
+        query = data.get('query', '').strip()
+        k = data.get('k', TOP_K)
+        
+        if not query:
+            return jsonify({'error': 'Query is required'}), 400
+        
+        # Use search_medical_info to get properly formatted prompt
+        augmented_prompt = search_medical_info(query, k)
+        
+        return jsonify({
+            'query': query,
+            'augmented_prompt': augmented_prompt,
+            'used_rag': augmented_prompt != query
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in RAG augment: {e}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
