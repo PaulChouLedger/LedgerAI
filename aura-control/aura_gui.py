@@ -5,7 +5,7 @@ import sys
 import math
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsDropShadowEffect
 from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QTransform
-from PyQt5.QtCore import Qt, QTimer, QPoint, QPropertyAnimation, QEasingCurve
+from PyQt5.QtCore import Qt, QTimer, QPoint, QPropertyAnimation, QEasingCurve, QMetaObject, Q_ARG, pyqtSlot
 
 _app = None
 _window = None
@@ -528,6 +528,23 @@ class AuraGUI(QMainWindow):
         except Exception as e:
             pass
     
+    @pyqtSlot(bool)
+    def _update_transcribing_state(self, active):
+        """Thread-safe method to update transcribing state (must be called from GUI thread)"""
+        global _transcribing
+        _transcribing = active
+        if active:
+            print("[AuraGUI] 🔴 Transcription active - red edge should start pulsating")
+            if hasattr(self, 'border_widget'):
+                self.border_widget.show()
+                self.border_widget.raise_()
+                print(f"[AuraGUI] 🔴 Border widget forced visible: {self.border_widget.isVisible()}")
+        else:
+            print("[AuraGUI] ⚫ Transcription ended - returning to fixed mode")
+            if hasattr(self, 'border_widget'):
+                self.border_widget.hide()
+        print(f"[AuraGUI] 🔴 State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
+    
     def closeEvent(self, event):
         """Handle application close event"""
         print("[AuraGUI] 🚪 Close event triggered - requesting shutdown")
@@ -580,21 +597,15 @@ def set_listening_ready():
     print(f"[AuraGUI] 🎯 State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
 
 def set_transcribing(active):
-    """Set transcription state - red edge pulsation when user is speaking"""
-    global _transcribing, _window
-    _transcribing = active
-    if active:
-        print("[AuraGUI] 🔴 Transcription active - red edge should start pulsating")
-        # Force border to show immediately
-        if _window and hasattr(_window, 'border_widget'):
-            _window.border_widget.show()
-            _window.border_widget.raise_()
-            print(f"[AuraGUI] 🔴 Border widget forced visible: {_window.border_widget.isVisible()}")
+    """Set transcription state - red edge pulsation when user is speaking (thread-safe)"""
+    global _window
+    if _window:
+        # Use Qt's thread-safe mechanism to update GUI from any thread
+        QMetaObject.invokeMethod(_window, "_update_transcribing_state",
+                                Qt.QueuedConnection,
+                                Q_ARG(bool, active))
     else:
-        print("[AuraGUI] ⚫ Transcription ended - returning to fixed mode")
-        if _window and hasattr(_window, 'border_widget'):
-            _window.border_widget.hide()
-    print(f"[AuraGUI] 🔴 State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
+        print("[AuraGUI] ⚠️ Window not initialized, cannot update transcribing state")
 
 def set_tts_playing(active):
     """Set TTS state - aura eye pulsation when AI is speaking"""

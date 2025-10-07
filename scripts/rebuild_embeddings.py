@@ -70,18 +70,46 @@ def rebuild_embeddings():
     
     print(f"📝 Total text length: {sum(len(text) for text in all_texts)} characters")
     
-    # Split into chunks (simple chunking)
+    # Split into chunks with smart overlap for better context
     chunk_size = 1000  # characters per chunk
+    overlap = 200  # overlap between chunks to avoid splitting important content
     chunks = []
     
     for text in all_texts:
-        # Simple chunking by character count
-        for i in range(0, len(text), chunk_size):
-            chunk = text[i:i + chunk_size].strip()
-            if len(chunk) > 100:  # Only keep substantial chunks
+        # Smart chunking with overlap
+        text_len = len(text)
+        start = 0
+        
+        while start < text_len:
+            # Get chunk with overlap
+            end = start + chunk_size
+            chunk = text[start:end].strip()
+            
+            # Only keep substantial chunks
+            if len(chunk) > 100:
                 chunks.append(chunk)
+            
+            # Move forward by chunk_size - overlap
+            start += (chunk_size - overlap)
+            
+            # If we're at the end, break
+            if end >= text_len:
+                break
     
     print(f"📦 Created {len(chunks)} text chunks")
+    
+    # Verify important content is in chunks
+    print("\n🔍 Verifying important names are in chunks...")
+    important_names = ["Bob Carella", "David Lara", "Paul Chou"]
+    for name in important_names:
+        found_in = []
+        for i, chunk in enumerate(chunks):
+            if name in chunk:
+                found_in.append(i)
+        if found_in:
+            print(f"  ✅ '{name}' found in {len(found_in)} chunk(s): {found_in[:3]}...")
+        else:
+            print(f"  ❌ '{name}' NOT FOUND in any chunks!")
     
     # Generate embeddings
     print("🔢 Generating embeddings...")
@@ -121,6 +149,31 @@ def rebuild_embeddings():
     print("✅ Embeddings rebuilt successfully!")
     print(f"📊 Index: {index.ntotal} vectors, dimension: {dimension}")
     print(f"📦 Chunks: {len(chunks)} text chunks")
+    
+    # Test the index with sample queries
+    print("\n🧪 Testing index with sample queries...")
+    test_queries = ["Who is David Lara?", "Who is Bob Carella?", "What is AuraVision?"]
+    
+    for query in test_queries:
+        query_embedding = encoder.encode([query], convert_to_numpy=True).astype(np.float32)
+        faiss.normalize_L2(query_embedding)
+        distances, indices = index.search(query_embedding, 3)
+        
+        print(f"\n  Query: '{query}'")
+        print(f"  Top 3 results:")
+        for i, (dist, idx) in enumerate(zip(distances[0], indices[0])):
+            idx = int(idx)
+            if idx < len(chunks):
+                preview = chunks[idx][:100].replace('\n', ' ')
+                print(f"    {i+1}. idx={idx}, distance={dist:.4f}, preview: '{preview}...'")
+        
+        # Check for duplicate indices
+        if len(set(indices[0])) < len(indices[0]):
+            print(f"  ⚠️ WARNING: Search returned duplicate indices!")
+        elif all(indices[0] == 0):
+            print(f"  ❌ CRITICAL: All results point to index 0!")
+        else:
+            print(f"  ✅ Search returns diverse results")
     
     return True
 
