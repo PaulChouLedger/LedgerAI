@@ -6,7 +6,6 @@ import math
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsDropShadowEffect
 from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QTransform, QPainter, QPen
 from PyQt5.QtCore import Qt, QTimer, QPoint, QPropertyAnimation, QEasingCurve, QMetaObject, Q_ARG, pyqtSlot
-from circular_border import FixedCircularBorder, DynamicCircularBorder, CircularBorderConfig
 
 _app = None
 _window = None
@@ -19,8 +18,6 @@ _tts_frequency = 0.15  # Current TTS frequency for pulsation speed
 
 # Debug: Print initial state
 print(f"[AuraGUI] 🎯 Initial state: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
-
-# Removed BorderOverlay class - borders now drawn directly in main window paintEvent
 
 class AuraGUI(QMainWindow):
     def __init__(self):
@@ -41,42 +38,28 @@ class AuraGUI(QMainWindow):
         print(f"[AuraGUI] ✅ Loaded image: {img_path}")
         pixmap = QPixmap(img_path)
 
-        screen = self.screen()
-        screen_rect = screen.availableGeometry()
+        # Simple: use 1080x1080 for circular screen
+        window_size = 1080
+        scaled_pixmap = pixmap.scaled(window_size, window_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         
-        # For circular display: use FULL screen size (not minimum dimension)
-        # This ensures no desktop background shows through
-        window_width = screen_rect.width()
-        window_height = screen_rect.height()
+        # Set fixed size and position at top-left
+        self.setFixedSize(window_size, window_size)
+        self.move(0, 0)
         
-        # Scale pixmap to fit the larger dimension
-        display_size = max(window_width, window_height)
-        scaled_pixmap = pixmap.scaled(display_size, display_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        
-        # CRITICAL: Set window to FULL SCREEN size to prevent edge pulsation and cover entire display
-        self.setFixedSize(window_width, window_height)
-        
-        # Position at top-left (fill entire screen)
-        self.move(screen_rect.x(), screen_rect.y())
-        
-        print(f"[AuraGUI] 🔒 Window locked to {window_width}x{window_height} at ({screen_rect.x()},{screen_rect.y()}) - fills entire screen")
+        print(f"[AuraGUI] 📐 Window: {window_size}x{window_size} at (0,0)")
 
         # === Create main widget with image and circular buttons ===
         main_widget = QWidget()
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         
-        # Image label - fill entire window
+        # Image label - simple fixed size
         self.label = QLabel()
         self.label.setPixmap(scaled_pixmap)
         self.label.setAlignment(Qt.AlignCenter)
-        self.label.setFixedSize(window_width, window_height)  # Fill entire screen
-        self.label.setScaledContents(True)  # Let label handle scaling to prevent layout changes
-        layout.addWidget(self.label, alignment=Qt.AlignCenter)  # Center in layout
-        
-        # Store screen dimensions for buttons and borders
-        self.screen_width = window_width
-        self.screen_height = window_height
+        self.label.setFixedSize(window_size, window_size)
+        self.label.setScaledContents(False)
+        layout.addWidget(self.label, alignment=Qt.AlignCenter)
         
         # Store original pixmap for scaling effects
         self._original_pixmap = scaled_pixmap
@@ -87,17 +70,12 @@ class AuraGUI(QMainWindow):
         # Make central widget ignore mouse events so border can be on top
         main_widget.setAttribute(Qt.WA_TransparentForMouseEvents, False)  # Keep mouse events for buttons
         
-        # Store border state for animation
-        self.border_width = 8
-        self.border_pulse_speed = 0.1  # Will be randomized during transcription
-        
         # Store border state for direct painting
+        self.border_width = 8
+        self.border_pulse_speed = 0.1
         self.red_border_width = 10
         self.red_border_opacity = 0.7
         self.show_red_border = False
-        
-        print(f"[Borders] ⚪ White border: {CircularBorderConfig.FIXED_BORDER_WIDTH}px at radius {CircularBorderConfig.FIXED_BORDER_RADIUS}px")
-        print(f"[Borders] 🔴 Red border: will pulsate 10-25px at same radius")
         
         # Create 6 buttons equally spaced around the circular edge (after borders)
         # Buttons will be on top of borders
@@ -620,44 +598,27 @@ class AuraGUI(QMainWindow):
         print(f"[AuraGUI] 🔴 State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
     
     def paintEvent(self, event):
-        """Draw borders directly on main window - ALWAYS on top"""
+        """Draw circular borders for 1080x1080 circular screen"""
         super().paintEvent(event)
         
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
-        painter.setRenderHint(QPainter.HighQualityAntialiasing, True)
         painter.setBrush(Qt.NoBrush)
         
-        # Get window dimensions
-        size = self.size()
-        width = size.width()
-        height = size.height()
-        center_x = width // 2
-        center_y = height // 2
+        # For 1080x1080 circular screen
+        center = 540
         
-        # 1. ALWAYS draw white RECTANGLE around screen perimeter (to see available area)
-        perimeter_pen = QPen()
-        perimeter_pen.setWidth(5)  # Thick for visibility
-        perimeter_pen.setColor(QColor(255, 255, 255))  # Solid white
-        perimeter_pen.setStyle(Qt.SolidLine)
-        painter.setPen(perimeter_pen)
-        # Draw rectangle at the edge (inset by half pen width to stay inside)
-        painter.drawRect(2, 2, width - 4, height - 4)
+        # 1. ALWAYS draw white reference circle at screen edge
+        white_pen = QPen()
+        white_pen.setWidth(8)  # Thick white border
+        white_pen.setColor(QColor(255, 255, 255))  # Solid white
+        white_pen.setStyle(Qt.SolidLine)
+        painter.setPen(white_pen)
+        # Draw at edge of circular screen (radius 540 - margin for border width)
+        white_radius = 535  # Just inside the 540px edge
+        painter.drawEllipse(center - white_radius, center - white_radius, white_radius * 2, white_radius * 2)
         
-        # 2. Draw circular reference border (smaller, inside the rectangle)
-        # Calculate safe radius that fits entirely within the screen
-        safe_radius = min(width, height) // 2 - 20  # -20px margin from edge
-        
-        circle_pen = QPen()
-        circle_pen.setWidth(CircularBorderConfig.FIXED_BORDER_WIDTH)  # 8px
-        circle_pen.setColor(QColor(0, 255, 0))  # Green to differentiate from rectangle
-        circle_pen.setStyle(Qt.SolidLine)
-        circle_pen.setCapStyle(Qt.RoundCap)
-        circle_pen.setJoinStyle(Qt.RoundJoin)
-        painter.setPen(circle_pen)
-        painter.drawEllipse(center_x - safe_radius, center_y - safe_radius, safe_radius * 2, safe_radius * 2)
-        
-        # 3. Draw red border ONLY when transcribing
+        # 2. Draw red border when transcribing
         if self.show_red_border:
             red_pen = QPen()
             red_pen.setWidth(self.red_border_width)
@@ -665,20 +626,18 @@ class AuraGUI(QMainWindow):
             color.setAlphaF(self.red_border_opacity)
             red_pen.setColor(color)
             red_pen.setStyle(Qt.SolidLine)
-            red_pen.setCapStyle(Qt.RoundCap)
-            red_pen.setJoinStyle(Qt.RoundJoin)
             painter.setPen(red_pen)
-            painter.drawEllipse(center_x - safe_radius, center_y - safe_radius, safe_radius * 2, safe_radius * 2)
+            # Draw at same radius as white
+            painter.drawEllipse(center - white_radius, center - white_radius, white_radius * 2, white_radius * 2)
         
         painter.end()
         
         # Debug once
         if not hasattr(self, '_paint_debug'):
             self._paint_debug = True
-            print(f"[PaintEvent] Window size: {width}x{height}, Center: ({center_x},{center_y})")
-            print(f"[PaintEvent] White rectangle: screen perimeter")
-            print(f"[PaintEvent] Green circle: safe radius {safe_radius}px")
-            print(f"[PaintEvent] Red circle: transcription indicator (when active)")
+            print(f"[PaintEvent] 1080x1080 circular screen")
+            print(f"[PaintEvent] White border: radius={white_radius}px, width=8px")
+            print(f"[PaintEvent] Red border: same radius, width={self.red_border_width}px (when active)")
     
     def closeEvent(self, event):
         """Handle application close event"""
