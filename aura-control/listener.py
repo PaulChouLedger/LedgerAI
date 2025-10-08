@@ -35,10 +35,11 @@ DEBUG_AUDIO_LEVELS = True  # Set to False to disable
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
-# Global noise profile (learned continuously during startup)
+# Noise profile path (pre-recorded using scripts/record_noise_profile.py)
+NOISE_PROFILE_PATH = os.path.expanduser("~/LedgerAI/data/noise_profile.npy")
+
+# Global noise profile (loaded from disk at startup)
 noise_profile = None
-noise_samples = []  # Accumulate noise samples from GUI load until welcome prompt
-is_sampling_noise = False  # Flag to control noise sampling
 
 # === Detect correct mic index ===
 def find_device_index():
@@ -57,15 +58,25 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 
 # === Audio Processing Functions ===
 
-def bandpass_filter(audio, lowcut=80, highcut=8000, order=5):
+def bandpass_filter(audio, lowcut=80, highcut=7000, order=5):
     """
     Apply bandpass filter to focus on human voice frequencies
     - Removes low-frequency fan rumble (< 80 Hz)
-    - Removes high-frequency hiss (> 8000 Hz)
+    - Removes high-frequency hiss (> 7000 Hz)
+    - Note: highcut must be < Nyquist (8000 Hz for 16kHz sample rate)
     """
     nyquist = SAMPLE_RATE / 2
     low = lowcut / nyquist
     high = highcut / nyquist
+    
+    # Ensure frequencies are in valid range (0 < Wn < 1)
+    low = max(0.01, min(low, 0.99))
+    high = max(0.01, min(high, 0.99))
+    
+    # Ensure low < high
+    if low >= high:
+        print(f"[Audio] ⚠️ Invalid filter frequencies: low={low}, high={high}")
+        return audio
     
     try:
         b, a = signal.butter(order, [low, high], btype='band')
@@ -102,48 +113,40 @@ def spectral_noise_subtraction(audio, noise_profile, strength=0.5):
         print(f"[Audio] ⚠️ Spectral subtraction failed: {e}")
         return audio
 
-def start_noise_sampling():
+def load_noise_profile():
     """
-    Start accumulating background noise samples
-    Called as soon as the listener starts (GUI loaded)
+    Load pre-recorded noise profile from disk
+    Created using scripts/record_noise_profile.py
     """
-    global is_sampling_noise, noise_samples
-    noise_samples = []
-    is_sampling_noise = True
-    print("[Audio] 🔇 Started continuous noise sampling (accumulating until welcome prompt)...")
-    print("[Audio] 💡 Fan noise pattern is being learned in the background...")
-
-def stop_noise_sampling_and_compute_profile():
-    """
-    Stop sampling and compute the final noise profile from all accumulated samples
-    Called right before playing the welcome prompt
-    """
-    global is_sampling_noise, noise_profile, noise_samples
+    global noise_profile
     
-    is_sampling_noise = False
-    
-    if len(noise_samples) == 0:
-        print("[Audio] ⚠️ No noise samples collected - noise reduction disabled")
-        noise_profile = None
+    if not ENABLE_NOISE_REDUCTION:
+        print("[Audio] ℹ️  Noise reduction disabled")
         return
     
-    # Concatenate all accumulated noise samples
-    noise_audio = np.concatenate(noise_samples)
-    
-    duration = len(noise_audio) / SAMPLE_RATE
-    print(f"[Audio] 🔧 Computing noise profile from {duration:.1f}s of accumulated samples...")
-    
-    # Compute average noise spectrum (FFT)
-    noise_fft = np.fft.rfft(noise_audio)
-    noise_magnitude = np.abs(noise_fft)
-    
-    noise_profile = noise_magnitude
-    
-    # Clear samples to free memory
-    noise_samples = []
-    
-    print(f"[Audio] ✅ Noise profile captured: {len(noise_magnitude)} frequency bins from {duration:.1f}s of data")
-    print(f"[Audio] 🎯 Noise reduction ready (strength=0.5)")
+    try:
+        if not os.path.exists(NOISE_PROFILE_PATH):
+            print(f"[Audio] ⚠️  Noise profile not found: {NOISE_PROFILE_PATH}")
+            print(f"[Audio] 💡 Run: python3 scripts/record_noise_profile.py")
+            print(f"[Audio] ⚠️  Noise reduction disabled")
+            noise_profile = None
+            return
+        
+        # Load the noise profile
+        noise_profile = np.load(NOISE_PROFILE_PATH)
+        
+        print("\n" + "="*70)
+        print("[Audio] ✅ Noise profile loaded successfully!")
+        print(f"[Audio] 📁 Source: {NOISE_PROFILE_PATH}")
+        print(f"[Audio] 📊 Frequency bins: {len(noise_profile)}")
+        print(f"[Audio] 🎯 Spectral subtraction enabled (strength=0.5)")
+        print("[Audio] 🎤 Fan noise reduction active!")
+        print("="*70 + "\n")
+        
+    except Exception as e:
+        print(f"[Audio] ❌ Failed to load noise profile: {e}")
+        print(f"[Audio] ⚠️  Noise reduction disabled")
+        noise_profile = None
 
 def process_audio(audio):
     """
@@ -196,11 +199,6 @@ def transcribe(audio):
 # === Welcome prompt (pause mic before playing) ===
 def play_welcome_prompt(stream):
     try:
-        # Step 1: Stop noise sampling and compute final noise profile
-        if ENABLE_NOISE_REDUCTION:
-            stop_noise_sampling_and_compute_profile()
-        
-        # Step 2: Play welcome prompt
         print("[Aura] 🔊 Playing welcome prompt...")
         stream.stop()
         subprocess.run(["aplay", WELCOME_AUDIO_PATH])
@@ -224,15 +222,13 @@ def play_welcome_prompt(stream):
 def listen():
     find_device_index()
     print("🎤 Listening (6-channel input, VAD on channel 0)...")
+    
+    # Load pre-recorded noise profile for noise reduction
+    load_noise_profile()
 
     with sd.InputStream(device=DEVICE_INDEX, channels=6, samplerate=SAMPLE_RATE,
                         blocksize=FRAME_SIZE, dtype="float32") as stream:
-        # ✅ Start noise sampling as soon as stream is ready (GUI loaded)
-        if ENABLE_NOISE_REDUCTION:
-            start_noise_sampling()
-        
-        # ✅ Play welcome.wav before entering listening loop
-        # (This will stop noise sampling and compute the profile)
+        # Play welcome.wav before entering listening loop
         play_welcome_prompt(stream)
 
         while True:
@@ -254,10 +250,6 @@ def listen():
 
                 audio_block, _ = stream.read(FRAME_SIZE)
                 channel_0 = audio_block[:, 0]
-                
-                # Accumulate noise samples if we're still sampling background noise
-                if is_sampling_noise:
-                    noise_samples.append(channel_0.copy())
                 
                 # Run VAD on raw audio (no processing)
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
