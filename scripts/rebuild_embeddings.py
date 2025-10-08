@@ -73,10 +73,25 @@ def rebuild_embeddings(data_root="data"):
     # Load sentence transformer
     print("🧠 Loading sentence transformer model...")
     
-    # Model is pre-downloaded in container (WiFi-independent)
-    model_name = "all-MiniLM-L6-v2"
-    encoder = SentenceTransformer(model_name, device='cuda')
-    print(f"✅ Loaded model: {model_name}")
+    # Use local model directory if available (from rag-container)
+    import os
+    local_model_path = "rag-container/models--sentence-transformers--all-MiniLM-L6-v2/snapshots/c9745ed1d9f207416be6d2e6f8de32d1f16199bf"
+    if os.path.exists(local_model_path):
+        print(f"📁 Using local model: {local_model_path}")
+        
+        # Set environment to use local cache and avoid downloads
+        os.environ['HF_HOME'] = os.path.abspath('rag-container')
+        os.environ['TRANSFORMERS_CACHE'] = os.path.abspath('rag-container')
+        os.environ['HF_HUB_OFFLINE'] = '1'
+        os.environ['TRANSFORMERS_OFFLINE'] = '1'
+        
+        encoder = SentenceTransformer(local_model_path, device='cuda')
+        print(f"✅ Loaded local model: {local_model_path}")
+    else:
+        # Fallback to downloading (requires internet and permissions)
+        model_name = "all-MiniLM-L6-v2"
+        encoder = SentenceTransformer(model_name, device='cuda')
+        print(f"✅ Loaded model: {model_name}")
     
     # Read all parsed text
     all_texts = []
