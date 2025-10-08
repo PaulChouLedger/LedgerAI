@@ -176,16 +176,18 @@ class AutoIngest:
             chunks = self.chunk_text(text)
             print(f"[Ingest] 📦 Created {len(chunks)} chunks")
             
-            # Generate embeddings using RAG's encoder (exactly like rebuild_embeddings.py)
+            # Generate embeddings using RAG's encoder
             print(f"[Ingest] 🔧 Generating embeddings...")
             embeddings = self.rag.encoder.encode(chunks, convert_to_numpy=True, show_progress_bar=False)
             embeddings = embeddings.astype(np.float32)
             
+            # Manual L2 normalization (faiss.normalize_L2 fails in container environment)
+            norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+            embeddings = embeddings / norms
+            
             # Ensure contiguous array (important for FAISS)
             embeddings = np.ascontiguousarray(embeddings)
             
-            # Normalize for Inner Product metric (using FAISS method like rebuild_embeddings.py)
-            faiss.normalize_L2(embeddings)
             print(f"[Ingest] ✅ Normalized {len(embeddings)} embeddings")
             
             # Update RAG index and chunks in memory
