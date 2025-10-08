@@ -27,7 +27,7 @@ RECORDING_DURATION = 30.0  # Monitor for 30 seconds
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 
 # Audio processing (same as listener.py)
-AUDIO_GAIN = 1.0  # No gain (testing native microphone level)
+AUDIO_GAIN = 4.0  # Moderate gain for far-field speech (matches listener.py)
 ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
 NOISE_REDUCTION_METHOD = "highpass"  # "highpass" or "spectral" - highpass removes <200Hz (fan noise)
 HIGHPASS_CUTOFF = 200  # Hz - Fan noise < 200Hz, speech > 200Hz
@@ -37,7 +37,7 @@ NOISE_REDUCTION_STRENGTH = 0.6  # Spectral subtraction strength (only if method=
 ENABLE_NOISE_GATE = True  # Enable RMS-based noise gate
 NOISE_GATE_MODE = "adaptive"  # "fixed" or "adaptive"
 NOISE_GATE_FIXED_THRESHOLD = 0.008  # Used if mode="fixed"
-NOISE_GATE_RATIO = 3.0  # Adaptive: speech must be 3x louder than noise floor
+NOISE_GATE_RATIO = 2.0  # Adaptive: speech must be 2x louder than noise floor (more sensitive for far speech)
 NOISE_FLOOR_LEARNING_RATE = 0.1  # How fast to adapt to changing noise (0.1 = slow, 0.5 = fast)
 
 DISPLAY_EVERY_N_FRAMES = 5  # Update display every N frames (~0.16s)

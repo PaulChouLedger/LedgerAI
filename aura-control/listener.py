@@ -32,7 +32,7 @@ NOISE_REDUCTION_STRENGTH = 0.6  # Spectral subtraction strength (only if method=
 ENABLE_NOISE_GATE = True  # Enable RMS-based noise gate
 NOISE_GATE_MODE = "adaptive"  # "fixed" or "adaptive"
 NOISE_GATE_FIXED_THRESHOLD = 0.008  # Used if mode="fixed"
-NOISE_GATE_RATIO = 3.0  # Adaptive: speech must be 3x louder than noise floor
+NOISE_GATE_RATIO = 2.0  # Adaptive: speech must be 2x louder than noise floor (lower = more sensitive for far speech)
 NOISE_FLOOR_LEARNING_RATE = 0.1  # How fast to adapt to changing noise (0.1 = slow, 0.5 = fast)
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
