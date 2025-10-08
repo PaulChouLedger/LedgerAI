@@ -165,6 +165,7 @@ UPLOAD_TEMPLATE = """
                 <h3>📤 Drop files here or click to select</h3>
                 <p>Supported formats: PDF, DOC, TXT, MD, RTF, ODT, WAV, MP3, MP4, AVI, MOV, PNG, JPG, GIF</p>
                 <input type="file" id="fileInput" name="files" multiple class="file-input" onchange="handleFiles(this.files)">
+                <div id="fileStatus"></div>
             </div>
             <div style="text-align: center; margin: 20px 0;">
                 <button type="submit" class="upload-btn">🚀 Upload Files</button>
@@ -219,10 +220,13 @@ UPLOAD_TEMPLATE = """
         function handleFiles(files) {
             const fileList = Array.from(files);
             const fileNames = fileList.map(f => f.name).join(', ');
-            uploadArea.innerHTML = `
-                <h3>📤 ${fileList.length} file(s) selected</h3>
-                <p>${fileNames}</p>
-                <p>Click "Upload Files" to proceed</p>
+            const fileStatus = document.getElementById('fileStatus');
+            fileStatus.innerHTML = `
+                <div style="margin-top: 20px; padding: 15px; background: rgba(76, 175, 80, 0.2); border-radius: 10px;">
+                    <h3>✅ ${fileList.length} file(s) selected</h3>
+                    <p style="font-size: 0.9em; margin: 5px 0;">${fileNames}</p>
+                    <p style="font-size: 0.9em; color: #4CAF50;">Ready to upload! Click the button below.</p>
+                </div>
             `;
         }
     </script>

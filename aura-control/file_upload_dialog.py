@@ -308,16 +308,9 @@ class FileUploadDialog(QDialog):
         file_layout.addWidget(self.file_list)
         
         button_layout = QVBoxLayout()
-        button_layout.setSpacing(10)  # Compact spacing for circular screen
+        button_layout.setSpacing(20)  # More spacing for larger buttons
         
-        self.select_files_btn = QPushButton("📁 Select Files")
-        self.select_files_btn.clicked.connect(self.select_files)
-        button_layout.addWidget(self.select_files_btn)
-        
-        self.url_btn = QPushButton("🌐 Add URL")
-        self.url_btn.clicked.connect(self.add_url)
-        button_layout.addWidget(self.url_btn)
-        
+        # Only keep Google Drive and QR Code options
         self.gdrive_btn = QPushButton("☁️ Google Drive")
         self.gdrive_btn.clicked.connect(self.add_google_drive)
         button_layout.addWidget(self.gdrive_btn)
@@ -326,20 +319,16 @@ class FileUploadDialog(QDialog):
         self.qr_btn.clicked.connect(self.show_qr_code)
         button_layout.addWidget(self.qr_btn)
         
-        self.clear_btn = QPushButton("🗑️ Clear All")
-        self.clear_btn.clicked.connect(self.clear_files)
-        button_layout.addWidget(self.clear_btn)
-        
-        # Apply Apple-style styling to all action buttons
+        # Apply Apple-style styling to all action buttons (larger for fewer buttons)
         action_button_style = """
             QPushButton {
                 background-color: rgba(142, 142, 147, 0.2);
                 color: #ffffff;
-                font-size: 12px;
-                font-weight: 500;
-                padding: 10px 15px;
-                min-height: 35px;
-                border-radius: 18px;
+                font-size: 32px;
+                font-weight: 600;
+                padding: 30px 40px;
+                min-height: 80px;
+                border-radius: 25px;
                 border: none;
             }
             QPushButton:hover {
@@ -350,7 +339,7 @@ class FileUploadDialog(QDialog):
             }
         """
         
-        for button in [self.select_files_btn, self.url_btn, self.gdrive_btn, self.qr_btn, self.clear_btn]:
+        for button in [self.gdrive_btn, self.qr_btn]:
             button.setStyleSheet(action_button_style)
         
         file_layout.addLayout(button_layout)
@@ -460,53 +449,6 @@ class FileUploadDialog(QDialog):
         # Edge buttons removed - separate GUI functions will have their own scripts
     
         
-    def select_files(self):
-        """Open file dialog to select multiple files"""
-        files, _ = QFileDialog.getOpenFileNames(
-            self,
-            "Select Documents to Upload",
-            "",
-            "All Supported (*.pdf *.txt *.docx *.md);;PDF Files (*.pdf);;Text Files (*.txt);;Word Documents (*.docx);;Markdown (*.md)"
-        )
-        
-        if files:
-            for file_path in files:
-                if file_path not in self.uploaded_files:
-                    self.uploaded_files.append(file_path)
-                    filename = os.path.basename(file_path)
-                    item = QListWidgetItem(f"📄 {filename}")
-                    item.setData(Qt.UserRole, file_path)
-                    self.file_list.addItem(item)
-            
-            self.upload_btn.setEnabled(len(self.uploaded_files) > 0)
-            self.log_status(f"Selected {len(files)} file(s)")
-    
-    def add_url(self):
-        """Add document from URL"""
-        url, ok = QInputDialog.getText(
-            self, 
-            "Add Document from URL", 
-            "Enter document URL:",
-            text="https://"
-        )
-        
-        if ok and url.strip():
-            if not url.startswith(('http://', 'https://')):
-                url = 'https://' + url
-            
-            # Add to list immediately
-            self.uploaded_files.append(url)
-            filename = os.path.basename(urllib.parse.urlparse(url).path) or "document"
-            if not filename or '.' not in filename:
-                filename += ".pdf"  # Default extension
-            
-            item = QListWidgetItem(f"🌐 {filename} ({url[:50]}...)")
-            item.setData(Qt.UserRole, url)
-            self.file_list.addItem(item)
-            
-            self.upload_btn.setEnabled(len(self.uploaded_files) > 0)
-            self.log_status(f"Added URL: {url}")
-    
     def add_google_drive(self):
         """Add document from Google Drive"""
         # Show options for Google Drive integration
