@@ -334,7 +334,7 @@ def process_audio(audio, vad_active=False, learning_phase=False, debug=False):
     Returns:
         Processed audio, actual gain applied
     """
-    applied_gain = AUDIO_GAIN
+    applied_gain = 1.0  # Default (no gain)
     
     if ENABLE_NOISE_REDUCTION:
         if NOISE_REDUCTION_METHOD == "highpass":

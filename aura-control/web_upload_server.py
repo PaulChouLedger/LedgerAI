@@ -160,7 +160,7 @@ UPLOAD_TEMPLATE = """
             <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=http://{{ ip }}:{{ port }}" alt="QR Code">
         </div>
         
-        <form method="post" enctype="multipart/form-data" id="uploadForm">
+        <form method="post" action="/upload" enctype="multipart/form-data" id="uploadForm">
             <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                 <h3>📤 Drop files here or click to select</h3>
                 <p>Supported formats: PDF, DOC, TXT, MD, RTF, ODT, WAV, MP3, MP4, AVI, MOV, PNG, JPG, GIF</p>
