@@ -22,7 +22,7 @@ VAD_SILENCE_THRESHOLD = 0.10  # Threshold for silence (closer to actual silence 
 MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 
 # Audio processing
-AUDIO_GAIN = 0.5  # Optimal gain after noise reduction (0.5 prevents over-amplification)
+AUDIO_GAIN = 1.0  # No gain (testing native microphone level)
 ENABLE_NOISE_REDUCTION = True  # Enable spectral noise subtraction
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
