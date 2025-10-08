@@ -24,7 +24,7 @@ MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 # Audio processing
 USE_AUTO_GAIN = True  # Enable automatic gain control (prevents clipping)
 AGC_TARGET_RMS = 0.15  # Target RMS after processing (good level for Whisper)
-AGC_MAX_GAIN = 15.0  # Maximum gain to apply (extended range for far-field speech)
+AGC_MAX_GAIN = 12.0  # Maximum gain to apply
 # Note: AUDIO_GAIN not needed with USE_AUTO_GAIN enabled (AGC calculates optimal gain per frame)
 ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
 HIGHPASS_CUTOFF = 200  # Hz - Fan noise < 200Hz, speech > 200Hz

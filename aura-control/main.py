@@ -414,11 +414,14 @@ def start_services():
             if processed > 0:
                 print(f"[Aura] 🔧 Running rebuild_embeddings.py on host...")
                 import subprocess
+                workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+                rebuild_script = os.path.join(workspace_root, 'rag-container', 'rebuild_embeddings.py')
                 rebuild_result = subprocess.run(
-                    ["python3", "scripts/rebuild_embeddings.py"],
+                    ["python3", rebuild_script],
                     capture_output=True,
                     text=True,
-                    timeout=120
+                    timeout=120,
+                    cwd=workspace_root
                 )
                 
                 if rebuild_result.returncode == 0:
@@ -454,11 +457,14 @@ def start_services():
                         
                         # Host generates embeddings
                         import subprocess
+                        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+                        rebuild_script = os.path.join(workspace_root, 'rag-container', 'rebuild_embeddings.py')
                         rebuild_result = subprocess.run(
-                            ["python3", "scripts/rebuild_embeddings.py"],
+                            ["python3", rebuild_script],
                             capture_output=True,
                             text=True,
-                            timeout=120
+                            timeout=120,
+                            cwd=workspace_root
                         )
                         
                         if rebuild_result.returncode == 0:
