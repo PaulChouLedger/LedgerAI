@@ -23,13 +23,14 @@ MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 
 # Audio processing
 USE_AUTO_GAIN = True  # Enable automatic gain control
-AGC_TARGET_RMS = 0.12  # Target RMS for Whisper (optimal speech recognition)
-AGC_MAX_GAIN = 10.0  # Maximum gain to apply (prevents over-amplification)
+AGC_TARGET_RMS = 0.18  # Target RMS for Whisper (increased for far-field)
+AGC_MAX_GAIN = 40.0  # Maximum gain to apply (increased for 16m range)
+AGC_SOFT_CLIP_THRESHOLD = 0.95  # Start soft-clipping above this level
 ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
 
 # Filter options: "highpass", "bandpass", or "none"
 FILTER_TYPE = "bandpass"  # bandpass filters speech range (80-3400 Hz)
-HIGHPASS_CUTOFF = 80  # Hz - Low cutoff (removes rumble)
+HIGHPASS_CUTOFF = 60  # Hz - Low cutoff (lowered to preserve more speech energy)
 LOWPASS_CUTOFF = 3400  # Hz - High cutoff (removes hiss/noise above speech)
 
 
@@ -61,10 +62,29 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 
 # === Audio Processing Functions ===
 
+def soft_clip(audio, threshold=0.95):
+    """
+    Soft clipping using tanh compression
+    - Smoothly compresses peaks above threshold
+    - Preserves waveform shape better than hard clipping
+    - Reduces distortion for far-field speech
+    """
+    # For samples above threshold, apply smooth compression
+    mask = np.abs(audio) > threshold
+    if np.any(mask):
+        # Use tanh for smooth compression (asymptotic approach to ±1.0)
+        excess = audio[mask] - np.sign(audio[mask]) * threshold
+        compressed = threshold + np.tanh(excess / (1 - threshold)) * (1 - threshold)
+        audio[mask] = np.sign(audio[mask]) * compressed
+    
+    return audio
+
 def auto_gain_control(audio):
     """
-    Automatic gain control - adapts gain based on input level
-    Prevents clipping while maximizing signal strength
+    Automatic gain control with soft clipping
+    - Adapts gain based on input level (far-field support)
+    - Uses soft clipping instead of hard clipping
+    - Maximizes signal strength while preserving waveform
     """
     rms = np.sqrt(np.mean(audio ** 2))
     if rms < 1e-6:  # Avoid division by zero
@@ -76,9 +96,11 @@ def auto_gain_control(audio):
     # Limit gain to prevent over-amplification
     actual_gain = min(required_gain, AGC_MAX_GAIN)
     
-    # Apply gain with clipping prevention
+    # Apply gain
     audio = audio * actual_gain
-    audio = np.clip(audio, -1.0, 1.0)
+    
+    # Apply soft clipping instead of hard clipping
+    audio = soft_clip(audio, threshold=AGC_SOFT_CLIP_THRESHOLD)
     
     return audio, actual_gain
 
@@ -231,15 +253,16 @@ def listen():
     # Audio processing configuration
     print("\n" + "="*70)
     if FILTER_TYPE == "bandpass":
-        print(f"[Audio] ✅ Audio processing pipeline: Band-Pass ({HIGHPASS_CUTOFF}-{LOWPASS_CUTOFF} Hz) → AGC")
+        print(f"[Audio] ✅ Audio processing pipeline: Band-Pass ({HIGHPASS_CUTOFF}-{LOWPASS_CUTOFF} Hz) → AGC + Soft Clip")
         print(f"[Audio] 🔧 Band-pass filter: {HIGHPASS_CUTOFF}-{LOWPASS_CUTOFF} Hz (speech band)")
     elif FILTER_TYPE == "highpass":
-        print(f"[Audio] ✅ Audio processing pipeline: High-Pass ({HIGHPASS_CUTOFF} Hz) → AGC")
+        print(f"[Audio] ✅ Audio processing pipeline: High-Pass ({HIGHPASS_CUTOFF} Hz) → AGC + Soft Clip")
         print(f"[Audio] 🔧 High-pass filter: {HIGHPASS_CUTOFF} Hz")
     else:
-        print("[Audio] ✅ Audio processing pipeline: No filtering → AGC")
+        print("[Audio] ✅ Audio processing pipeline: No filtering → AGC + Soft Clip")
     print(f"[Audio] 🔧 Auto Gain Control: Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x")
-    print(f"[Audio] 💡 AGC adapts to speech distance (near/far)")
+    print(f"[Audio] 🔧 Soft Clipping: Threshold={AGC_SOFT_CLIP_THRESHOLD} (preserves waveform)")
+    print(f"[Audio] 💡 Optimized for far-field speech (up to 16 meters)")
     print(f"[Audio] 💡 VAD handles speech detection")
     print("="*70 + "\n")
 

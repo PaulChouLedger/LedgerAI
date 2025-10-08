@@ -28,13 +28,14 @@ DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 
 # Audio processing (matches listener.py exactly)
 USE_AUTO_GAIN = True  # Enable automatic gain control
-AGC_TARGET_RMS = 0.12  # Target RMS for Whisper (optimal speech recognition)
-AGC_MAX_GAIN = 10.0  # Maximum gain to apply (prevents over-amplification)
+AGC_TARGET_RMS = 0.18  # Target RMS for Whisper (increased for far-field)
+AGC_MAX_GAIN = 40.0  # Maximum gain to apply (increased for 16m range)
+AGC_SOFT_CLIP_THRESHOLD = 0.95  # Start soft-clipping above this level
 ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
 
 # Filter options: "highpass", "bandpass", or "none"
 FILTER_TYPE = "bandpass"  # bandpass filters speech range (80-3400 Hz)
-HIGHPASS_CUTOFF = 80  # Hz - Low cutoff (removes rumble)
+HIGHPASS_CUTOFF = 60  # Hz - Low cutoff (lowered to preserve more speech energy)
 LOWPASS_CUTOFF = 3400  # Hz - High cutoff (removes hiss/noise above speech)
 
 DISPLAY_EVERY_N_FRAMES = 5  # Update display every N frames (~0.16s)
@@ -116,10 +117,29 @@ def bandpass_filter(audio, low_cutoff=80, high_cutoff=3400, order=5):
         print(f"[Audio] ⚠️ Band-pass filter failed: {e}")
         return audio
 
+def soft_clip(audio, threshold=0.95):
+    """
+    Soft clipping using tanh compression
+    - Smoothly compresses peaks above threshold
+    - Preserves waveform shape better than hard clipping
+    - Reduces distortion for far-field speech
+    """
+    # For samples above threshold, apply smooth compression
+    mask = np.abs(audio) > threshold
+    if np.any(mask):
+        # Use tanh for smooth compression (asymptotic approach to ±1.0)
+        excess = audio[mask] - np.sign(audio[mask]) * threshold
+        compressed = threshold + np.tanh(excess / (1 - threshold)) * (1 - threshold)
+        audio[mask] = np.sign(audio[mask]) * compressed
+    
+    return audio
+
 def auto_gain_control(audio):
     """
-    Automatic gain control - adapts gain based on input level
-    Prevents clipping while maximizing signal strength
+    Automatic gain control with soft clipping
+    - Adapts gain based on input level (far-field support)
+    - Uses soft clipping instead of hard clipping
+    - Maximizes signal strength while preserving waveform
     """
     rms = np.sqrt(np.mean(audio ** 2))
     if rms < 1e-6:  # Avoid division by zero
@@ -131,9 +151,11 @@ def auto_gain_control(audio):
     # Limit gain to prevent over-amplification
     actual_gain = min(required_gain, AGC_MAX_GAIN)
     
-    # Apply gain with clipping prevention
+    # Apply gain
     audio = audio * actual_gain
-    audio = np.clip(audio, -1.0, 1.0)
+    
+    # Apply soft clipping instead of hard clipping
+    audio = soft_clip(audio, threshold=AGC_SOFT_CLIP_THRESHOLD)
     
     return audio, actual_gain
 
@@ -186,11 +208,12 @@ def process_audio_realtime(device_index, duration):
     print(f"{'='*90}")
     print(f"  Duration: {duration}s")
     if FILTER_TYPE == "bandpass":
-        print(f"  Pipeline: Band-Pass ({HIGHPASS_CUTOFF}-{LOWPASS_CUTOFF} Hz) → AGC (Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x)")
+        print(f"  Pipeline: Band-Pass ({HIGHPASS_CUTOFF}-{LOWPASS_CUTOFF} Hz) → AGC (Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x) → Soft Clip")
     elif FILTER_TYPE == "highpass":
-        print(f"  Pipeline: High-Pass ({HIGHPASS_CUTOFF} Hz) → AGC (Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x)")
+        print(f"  Pipeline: High-Pass ({HIGHPASS_CUTOFF} Hz) → AGC (Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x) → Soft Clip")
     else:
-        print(f"  Pipeline: No filtering → AGC (Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x)")
+        print(f"  Pipeline: No filtering → AGC (Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x) → Soft Clip")
+    print(f"  Optimized for: Far-field speech (up to 16 meters)")
     print(f"  Display Update: Every {DISPLAY_EVERY_N_FRAMES} frames (~{DISPLAY_EVERY_N_FRAMES * FRAME_DURATION:.2f}s)")
     print(f"{'='*90}\n")
     
@@ -276,19 +299,24 @@ def process_audio_realtime(device_index, duration):
         
         print(f"\n  💡 INTERPRETATION:")
         
-        if avg_clean_rms < 0.10:
-            print(f"     ⚠️  Low output RMS (<0.10) - may be too quiet for Whisper")
+        if avg_clean_rms < 0.12:
+            print(f"     ⚠️  Low output RMS (<0.12) - may be too quiet for Whisper")
             print(f"        → Increase AGC_MAX_GAIN or AGC_TARGET_RMS")
-        elif avg_clean_rms > 0.20:
-            print(f"     ⚠️  High output RMS (>0.20) - risk of clipping")
+        elif avg_clean_rms > 0.25:
+            print(f"     ⚠️  High output RMS (>0.25) - risk of excessive soft clipping")
             print(f"        → Decrease AGC_TARGET_RMS or check for over-amplification")
         else:
-            print(f"     ✅ Output RMS looks good (0.10-0.20 range)")
+            print(f"     ✅ Output RMS looks good (0.12-0.25 range)")
             print(f"        → Optimal for Whisper transcription")
         
         if avg_gain > AGC_MAX_GAIN * 0.9:
             print(f"\n     ⚠️  AGC frequently hitting max gain ({AGC_MAX_GAIN}x)")
-            print(f"        → Consider increasing AGC_MAX_GAIN for far-field speech")
+            print(f"        → Consider increasing AGC_MAX_GAIN for even more far-field speech")
+        
+        print(f"\n     📏 FAR-FIELD CAPABILITY:")
+        print(f"        At current settings (Max Gain: {AGC_MAX_GAIN}x):")
+        print(f"        - Near speech (RMS ~0.020): Gain ~{AGC_TARGET_RMS/0.020:.1f}x → Good")
+        print(f"        - Far speech  (RMS ~0.007): Gain ~{min(AGC_TARGET_RMS/0.007, AGC_MAX_GAIN):.1f}x → {'Good' if AGC_TARGET_RMS/0.007 < AGC_MAX_GAIN else 'Max Gain'}")
         
         print(f"{'='*90}\n")
 
@@ -311,7 +339,8 @@ def main():
         elif FILTER_TYPE == "highpass":
             print(f"  High-Pass Cutoff: {HIGHPASS_CUTOFF} Hz")
         print(f"  AGC Target RMS: {AGC_TARGET_RMS}")
-        print(f"  AGC Max Gain: {AGC_MAX_GAIN}x")
+        print(f"  AGC Max Gain: {AGC_MAX_GAIN}x (far-field optimized)")
+        print(f"  Soft Clip Threshold: {AGC_SOFT_CLIP_THRESHOLD}")
         
         # Start real-time processing
         process_audio_realtime(device_index, RECORDING_DURATION)
