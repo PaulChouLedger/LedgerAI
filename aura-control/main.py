@@ -481,6 +481,8 @@ def main():
     # Launch GUI FIRST so user sees something immediately
     launch_gui()
     
+    time.sleep(3)
+
     # Start TTS warm-up and services in background while GUI is visible
     warm_up_tts()
     threading.Thread(target=start_services, daemon=True).start()
