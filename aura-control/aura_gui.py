@@ -167,12 +167,12 @@ class AuraGUI(QMainWindow):
         """Create 6 buttons equally spaced around the circular edge"""
         # Button configurations: (text, icon, function, color)
         button_configs = [
-            ("↑", "Upload", self._handle_upload, "#0080FF"),      # Upload files - Darker blue
-            ("⚙", "Settings", self._handle_settings, "#0080FF"),  # Settings - Darker blue
-            ("📊", "Analytics", self._handle_analytics, "#0080FF"), # Analytics - Darker blue
-            ("🎤", "Voice", self._handle_voice, "#0080FF"),        # Voice control - Darker blue
-            ("📱", "Mobile", self._handle_mobile, "#0080FF"),     # Mobile sync - Darker blue
-            ("ℹ", "Info", self._handle_info, "#0080FF")          # Information - Darker blue
+            ("↑", "Upload", self._handle_upload, "#0060CC"),      # Upload files - Even darker blue
+            ("⚙", "Settings", self._handle_settings, "#0060CC"),  # Settings - Even darker blue
+            ("📊", "Analytics", self._handle_analytics, "#0060CC"), # Analytics - Even darker blue
+            ("🎤", "Voice", self._handle_voice, "#0060CC"),        # Voice control - Even darker blue
+            ("📱", "Mobile", self._handle_mobile, "#0060CC"),     # Mobile sync - Even darker blue
+            ("ℹ", "Info", self._handle_info, "#0060CC")          # Information - Even darker blue
         ]
         
         # Calculate positions for 6 buttons around a circle
@@ -199,9 +199,10 @@ class AuraGUI(QMainWindow):
             btn.move(int(x), int(y))
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    /* Solid blue/white gradient - no transparency */
-                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                        stop:0 {color}, stop:0.5 #FFFFFF, stop:1 {color});
+                    /* Radial gradient - white center fading to blue edges */
+                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
+                        fx:0.5, fy:0.5,
+                        stop:0 #FFFFFF, stop:0.7 {color}, stop:1 {color});
                     color: black;
                     font-size: 36px;
                     font-weight: bold;
@@ -211,15 +212,17 @@ class AuraGUI(QMainWindow):
                     padding: 0px;
                 }}
                 QPushButton:hover {{
-                    /* Brighter on hover */
-                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                        stop:0 #FFFFFF, stop:0.5 {color}, stop:1 #FFFFFF);
+                    /* Brighter radial on hover */
+                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
+                        fx:0.5, fy:0.5,
+                        stop:0 #FFFFFF, stop:0.5 #CCDDFF, stop:1 {color});
                     border: 3px solid #FFFFFF;
                 }}
                 QPushButton:pressed {{
-                    /* Darker when pressed */
-                    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                        stop:0 {color}, stop:0.5 {color}, stop:1 {color});
+                    /* Darker radial when pressed */
+                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
+                        fx:0.5, fy:0.5,
+                        stop:0 {color}, stop:1 #000040);
                     border: 3px solid {color};
                 }}
             """)
