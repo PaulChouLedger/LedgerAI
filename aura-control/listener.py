@@ -10,6 +10,7 @@ import subprocess
 from speaker import speak_llm_response, is_playing
 from pydub import AudioSegment
 from aura_gui import set_transcribing
+from scipy import signal
 
 # === Config ===
 SAMPLE_RATE = 16000
@@ -20,8 +21,9 @@ VAD_START_THRESHOLD = 0.25  # Threshold to START detecting speech
 VAD_SILENCE_THRESHOLD = 0.10  # Threshold for silence (closer to actual silence ~0.05, minimizes dead air to Whisper)
 MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 
-# Simple audio gain
-AUDIO_GAIN = 1.0  # Simple gain multiplier
+# Audio processing
+AUDIO_GAIN = 2.0  # Simple gain multiplier
+ENABLE_NOISE_REDUCTION = True  # Enable spectral noise subtraction
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -32,6 +34,11 @@ prompt_history = []
 DEBUG_AUDIO_LEVELS = True  # Set to False to disable
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
+
+# Global noise profile (learned continuously during startup)
+noise_profile = None
+noise_samples = []  # Accumulate noise samples from GUI load until welcome prompt
+is_sampling_noise = False  # Flag to control noise sampling
 
 # === Detect correct mic index ===
 def find_device_index():
@@ -48,7 +55,116 @@ def find_device_index():
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
 (get_speech_timestamps, _, read_audio, _, _) = utils
 
-# === Simple Audio Gain ===
+# === Audio Processing Functions ===
+
+def bandpass_filter(audio, lowcut=80, highcut=8000, order=5):
+    """
+    Apply bandpass filter to focus on human voice frequencies
+    - Removes low-frequency fan rumble (< 80 Hz)
+    - Removes high-frequency hiss (> 8000 Hz)
+    """
+    nyquist = SAMPLE_RATE / 2
+    low = lowcut / nyquist
+    high = highcut / nyquist
+    
+    try:
+        b, a = signal.butter(order, [low, high], btype='band')
+        filtered = signal.filtfilt(b, a, audio)
+        return filtered
+    except Exception as e:
+        print(f"[Audio] ⚠️ Bandpass filter failed: {e}")
+        return audio
+
+def spectral_noise_subtraction(audio, noise_profile, strength=0.5):
+    """
+    Subtract noise spectrum from audio using spectral subtraction
+    - noise_profile: FFT of background noise
+    - strength: how much noise to subtract (0.0-1.0)
+    """
+    if noise_profile is None:
+        return audio
+    
+    try:
+        # Compute FFT of signal
+        fft_signal = np.fft.rfft(audio)
+        magnitude = np.abs(fft_signal)
+        phase = np.angle(fft_signal)
+        
+        # Subtract noise profile from magnitude
+        magnitude_clean = np.maximum(magnitude - strength * noise_profile, 0)
+        
+        # Reconstruct signal with cleaned magnitude
+        fft_clean = magnitude_clean * np.exp(1j * phase)
+        audio_clean = np.fft.irfft(fft_clean, n=len(audio))
+        
+        return audio_clean
+    except Exception as e:
+        print(f"[Audio] ⚠️ Spectral subtraction failed: {e}")
+        return audio
+
+def start_noise_sampling():
+    """
+    Start accumulating background noise samples
+    Called as soon as the listener starts (GUI loaded)
+    """
+    global is_sampling_noise, noise_samples
+    noise_samples = []
+    is_sampling_noise = True
+    print("[Audio] 🔇 Started continuous noise sampling (accumulating until welcome prompt)...")
+    print("[Audio] 💡 Fan noise pattern is being learned in the background...")
+
+def stop_noise_sampling_and_compute_profile():
+    """
+    Stop sampling and compute the final noise profile from all accumulated samples
+    Called right before playing the welcome prompt
+    """
+    global is_sampling_noise, noise_profile, noise_samples
+    
+    is_sampling_noise = False
+    
+    if len(noise_samples) == 0:
+        print("[Audio] ⚠️ No noise samples collected - noise reduction disabled")
+        noise_profile = None
+        return
+    
+    # Concatenate all accumulated noise samples
+    noise_audio = np.concatenate(noise_samples)
+    
+    duration = len(noise_audio) / SAMPLE_RATE
+    print(f"[Audio] 🔧 Computing noise profile from {duration:.1f}s of accumulated samples...")
+    
+    # Compute average noise spectrum (FFT)
+    noise_fft = np.fft.rfft(noise_audio)
+    noise_magnitude = np.abs(noise_fft)
+    
+    noise_profile = noise_magnitude
+    
+    # Clear samples to free memory
+    noise_samples = []
+    
+    print(f"[Audio] ✅ Noise profile captured: {len(noise_magnitude)} frequency bins from {duration:.1f}s of data")
+    print(f"[Audio] 🎯 Noise reduction ready (strength=0.5)")
+
+def process_audio(audio):
+    """
+    Full audio processing pipeline:
+    1. Bandpass filter (remove fan rumble and high-freq hiss)
+    2. Spectral noise subtraction (remove learned fan noise)
+    3. Gain normalization
+    """
+    # Step 1: Bandpass filter (removes extreme frequencies)
+    audio = bandpass_filter(audio, lowcut=80, highcut=8000)
+    
+    # Step 2: Spectral noise subtraction (removes learned noise pattern)
+    if ENABLE_NOISE_REDUCTION and noise_profile is not None:
+        audio = spectral_noise_subtraction(audio, noise_profile, strength=0.5)
+    
+    # Step 3: Apply gain
+    audio = np.clip(audio * AUDIO_GAIN, -1.0, 1.0)
+    
+    return audio
+
+# === Simple Audio Gain (kept for backward compatibility) ===
 def apply_gain(audio):
     """Apply simple gain to audio signal"""
     return np.clip(audio * AUDIO_GAIN, -1.0, 1.0)
@@ -80,6 +196,11 @@ def transcribe(audio):
 # === Welcome prompt (pause mic before playing) ===
 def play_welcome_prompt(stream):
     try:
+        # Step 1: Stop noise sampling and compute final noise profile
+        if ENABLE_NOISE_REDUCTION:
+            stop_noise_sampling_and_compute_profile()
+        
+        # Step 2: Play welcome prompt
         print("[Aura] 🔊 Playing welcome prompt...")
         stream.stop()
         subprocess.run(["aplay", WELCOME_AUDIO_PATH])
@@ -106,7 +227,12 @@ def listen():
 
     with sd.InputStream(device=DEVICE_INDEX, channels=6, samplerate=SAMPLE_RATE,
                         blocksize=FRAME_SIZE, dtype="float32") as stream:
+        # ✅ Start noise sampling as soon as stream is ready (GUI loaded)
+        if ENABLE_NOISE_REDUCTION:
+            start_noise_sampling()
+        
         # ✅ Play welcome.wav before entering listening loop
+        # (This will stop noise sampling and compute the profile)
         play_welcome_prompt(stream)
 
         while True:
@@ -128,6 +254,10 @@ def listen():
 
                 audio_block, _ = stream.read(FRAME_SIZE)
                 channel_0 = audio_block[:, 0]
+                
+                # Accumulate noise samples if we're still sampling background noise
+                if is_sampling_noise:
+                    noise_samples.append(channel_0.copy())
                 
                 # Run VAD on raw audio (no processing)
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
@@ -179,8 +309,8 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono_mix = full_audio[:, 0]
             
-            # Apply simple gain
-            mono_mix = apply_gain(mono_mix)
+            # Apply full audio processing pipeline (bandpass + noise reduction + gain)
+            mono_mix = process_audio(mono_mix)
 
             if len(mono_mix) < MIN_AUDIO_SAMPLES:
                 print("⚠️ Skipped: too short")
