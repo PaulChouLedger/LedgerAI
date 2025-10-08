@@ -162,18 +162,16 @@ def load_noise_profile():
 def process_audio(audio):
     """
     Full audio processing pipeline:
-    1. Bandpass filter (remove fan rumble and high-freq hiss)
-    2. Spectral noise subtraction (remove learned fan noise)
-    3. Gain normalization
-    """
-    # Step 1: Bandpass filter (removes extreme frequencies)
-    audio = bandpass_filter(audio, lowcut=80, highcut=8000)
+    1. Spectral noise subtraction (removes pre-recorded fan noise signature)
+    2. Gain normalization
     
-    # Step 2: Spectral noise subtraction (removes learned noise pattern)
+    Note: Bandpass filter removed - spectral subtraction handles fan noise directly
+    """
+    # Step 1: Spectral noise subtraction (removes exact fan noise pattern)
     if ENABLE_NOISE_REDUCTION and noise_profile is not None:
         audio = spectral_noise_subtraction(audio, noise_profile, strength=0.5)
     
-    # Step 3: Apply gain
+    # Step 2: Apply gain
     audio = np.clip(audio * AUDIO_GAIN, -1.0, 1.0)
     
     return audio
