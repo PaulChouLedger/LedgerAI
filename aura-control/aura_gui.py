@@ -401,14 +401,6 @@ class AuraGUI(QMainWindow):
             border_opacity = 0.6 + combined_pulse * 0.3  # 0.6 to 0.9 opacity (more visible)
             
             # Debug logging (occasional)
-            if hasattr(self, '_border_debug_counter'):
-                self._border_debug_counter += 1
-            else:
-                self._border_debug_counter = 0
-            
-            if self._border_debug_counter % 20 == 0:  # Print every second
-                print(f"[GUI] 🔴 Transcribing: freq={voice_freq:.3f}, width={self.border_width}px, pulse={combined_pulse:.3f}, opacity={border_opacity:.3f}")
-            
             # Update red border state and trigger overlay repaint
             self.red_border_width = int(self.border_width)
             self.red_border_opacity = border_opacity
@@ -576,15 +568,6 @@ class AuraGUI(QMainWindow):
         # Apply opacity using graphics effect
         self.opacity_effect.setOpacity(self.opacity)
         
-        # Debug: Print TTS animation values
-        if hasattr(self, '_debug_counter'):
-            self._debug_counter += 1
-        else:
-            self._debug_counter = 0
-            
-        if self._debug_counter % 20 == 0:  # Print every second during TTS
-            print(f"[GUI] 👁️ TTS: opacity={self.opacity:.3f}, slow={slow:.3f}, medium={medium:.3f}, fast={fast:.3f}, smoothed={self.tts_opacity_smooth:.3f}")
-        
         # Temporarily disable glow effect to test aura eye pulsation
         # Dynamic glow effect that responds to TTS
         # glow_intensity = (heartbeat_intensity + breathing_intensity) / 2
@@ -609,26 +592,12 @@ class AuraGUI(QMainWindow):
         
         # Apply opacity using graphics effect
         self.opacity_effect.setOpacity(self.opacity)
-        
-        # Debug output
-        if not hasattr(self, '_breathing_debug_counter'):
-            self._breathing_debug_counter = 0
-        self._breathing_debug_counter += 1
-        if self._breathing_debug_counter % 20 == 0:
-            print(f"[GUI] 🌬️ BREATHING: opacity={self.opacity:.3f}, effect_opacity={self.opacity_effect.opacity():.3f}, is_enabled={self.opacity_effect.isEnabled()}")
     
     def _set_aura_eye_static(self):
         """Set aura eye to static state - no animation, ready for interaction"""
         # Full opacity, no pulsation
         self.opacity = 1.0
         self.opacity_effect.setOpacity(1.0)
-        
-        # Debug output - log every time, not just once
-        if not hasattr(self, '_static_debug_counter'):
-            self._static_debug_counter = 0
-        self._static_debug_counter += 1
-        if self._static_debug_counter % 20 == 0:
-            print(f"[GUI] 👁️ STATIC: opacity={self.opacity:.3f}, effect_opacity={self.opacity_effect.opacity():.3f}, is_enabled={self.opacity_effect.isEnabled()}")
     
     def _animate_aura_eye_setup(self):
         """Gentle, meditative aura eye animation during initial setup"""
@@ -650,14 +619,6 @@ class AuraGUI(QMainWindow):
         self.opacity_effect.setOpacity(self.opacity)
         
         # Debug: Print setup animation values
-        if hasattr(self, '_debug_counter'):
-            self._debug_counter += 1
-        else:
-            self._debug_counter = 0
-            
-        if self._debug_counter % 100 == 0:  # Print every 5 seconds
-            print(f"[GUI] 👁️ Aura Eye Setup: opacity={self.opacity:.3f}, breathing={breathing_intensity:.3f}, glow={glow_intensity:.3f}")
-        
         # Remove blue glow effect - was causing issues
         # glow_alpha = int(40 + combined_intensity * 50)  # 40-90 alpha
         # glow_color = QColor(0, 100, 255, glow_alpha)
@@ -685,15 +646,6 @@ class AuraGUI(QMainWindow):
         
         # Apply opacity using graphics effect
         self.opacity_effect.setOpacity(self.opacity)
-        
-        # Debug: Print opacity values occasionally
-        if hasattr(self, '_debug_counter'):
-            self._debug_counter += 1
-        else:
-            self._debug_counter = 0
-            
-        if self._debug_counter % 100 == 0:  # Print every 5 seconds
-            print(f"[GUI] 👁️ Aura Eye Idle: opacity={self.opacity:.3f}, breathing={breathing_intensity:.3f}, glow={glow_intensity:.3f}")
         
         # Remove blue glow effect - was causing issues
         # glow_alpha = int(30 + combined_intensity * 40)  # 30-70 alpha
