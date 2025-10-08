@@ -24,7 +24,7 @@ MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 # Audio processing
 USE_AUTO_GAIN = True  # Enable automatic gain control (prevents clipping)
 AGC_TARGET_RMS = 0.15  # Target RMS after processing (good level for Whisper)
-AGC_MAX_GAIN = 10.0  # Maximum gain to apply (increased for far-field speech)
+AGC_MAX_GAIN = 15.0  # Maximum gain to apply (extended range for far-field speech)
 # Note: AUDIO_GAIN not needed with USE_AUTO_GAIN enabled (AGC calculates optimal gain per frame)
 ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
 HIGHPASS_CUTOFF = 200  # Hz - Fan noise < 200Hz, speech > 200Hz
@@ -78,15 +78,14 @@ def highpass_filter(audio, cutoff=200, order=5):
         print(f"[Audio] ⚠️ High-pass filter failed: {e}")
         return audio
 
-def auto_gain_control(audio, target_rms=0.15, max_gain=10.0):
+def auto_gain_control(audio):
     """
     Automatic Gain Control - dynamically adjust gain to hit target RMS
     Prevents clipping by calculating safe gain based on peak value
     
-    Args:
-        audio: Audio to amplify
-        target_rms: Desired RMS level (0.15 is good for Whisper)
-        max_gain: Maximum allowed gain (safety limit)
+    Uses global config:
+        AGC_TARGET_RMS: Desired RMS level
+        AGC_MAX_GAIN: Maximum allowed gain
     
     Returns:
         Amplified audio, actual gain applied
@@ -94,17 +93,17 @@ def auto_gain_control(audio, target_rms=0.15, max_gain=10.0):
     rms = np.sqrt(np.mean(audio ** 2))
     peak = np.max(np.abs(audio))
     
-    if rms < 1e-6:  # Silent/gated audio
+    if rms < 1e-6:  # Silent audio
         return audio, 1.0
     
     # Calculate gain needed to reach target RMS
-    rms_gain = target_rms / rms
+    rms_gain = AGC_TARGET_RMS / rms
     
     # Calculate max safe gain to prevent clipping (leave 10% headroom)
-    peak_gain = 0.9 / peak if peak > 0 else max_gain
+    peak_gain = 0.9 / peak if peak > 0 else AGC_MAX_GAIN
     
-    # Use the smaller of: rms_gain, peak_gain, max_gain
-    actual_gain = min(rms_gain, peak_gain, max_gain)
+    # Use the smaller of: rms_gain, peak_gain, AGC_MAX_GAIN
+    actual_gain = min(rms_gain, peak_gain, AGC_MAX_GAIN)
     
     # Apply gain
     audio = audio * actual_gain
@@ -136,7 +135,7 @@ def process_audio(audio):
     
     # Step 2: Automatic gain control (prevent clipping, normalize volume)
     if USE_AUTO_GAIN:
-        audio, applied_gain = auto_gain_control(audio, target_rms=AGC_TARGET_RMS, max_gain=AGC_MAX_GAIN)
+        audio, applied_gain = auto_gain_control(audio)
     else:
         applied_gain = 1.0
     
