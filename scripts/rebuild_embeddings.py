@@ -49,11 +49,11 @@ DETECT_PERSON_BIOS = True  # Enable person bio detection for team/about pages
 #    DETECT_PERSON_BIOS = True
 #    (Will auto-detect and use best strategy per section)
 
-def rebuild_embeddings(data_root="/app/data"):
+def rebuild_embeddings(data_root="data"):
     """Rebuild FAISS index and document chunks"""
     print("🔄 Rebuilding RAG embeddings...")
     
-    # Paths (container-safe)
+    # Paths (host default, container can override)
     data_dir = Path(data_root)
     embeddings_dir = data_dir / "embeddings"
     parsed_dir = data_dir / "parsed"
