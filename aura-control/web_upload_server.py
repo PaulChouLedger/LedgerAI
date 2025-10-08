@@ -281,18 +281,46 @@ def upload_files():
     if uploaded_count > 0:
         flash(f'Successfully uploaded {uploaded_count} file(s)', 'success')
         
-        # Trigger auto-ingest via RAG container
+        # Trigger ingest pipeline: container extracts → host builds → container reloads
         try:
             import requests
-            print(f"[Aura-Upload] 🔄 Triggering auto-ingest for {uploaded_count} new file(s)...")
+            import subprocess
+            
+            print(f"[Aura-Upload] 🔄 Processing {uploaded_count} new file(s)...")
+            
+            # Step 1: Container extracts text from PDFs
             response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
             if response.status_code == 200:
                 result = response.json()
-                print(f"[Aura-Upload] ✅ Auto-ingest completed: {result.get('processed', 0)} processed")
+                processed = result.get('processed', 0)
+                print(f"[Aura-Upload] ✅ Text extracted: {processed} files")
+                
+                # Step 2: Host generates embeddings (working FAISS)
+                if processed > 0:
+                    print(f"[Aura-Upload] 🔧 Generating embeddings on host...")
+                    rebuild_result = subprocess.run(
+                        ["python3", "scripts/rebuild_embeddings.py"],
+                        capture_output=True,
+                        text=True,
+                        timeout=120
+                    )
+                    
+                    if rebuild_result.returncode == 0:
+                        print(f"[Aura-Upload] ✅ Embeddings generated successfully")
+                        
+                        # Step 3: Container reloads the new index
+                        reload_response = requests.post("http://localhost:11435/rag/reload", timeout=10)
+                        if reload_response.status_code == 200:
+                            reload_result = reload_response.json()
+                            print(f"[Aura-Upload] ✅ RAG reloaded: {reload_result.get('total_chunks', 0)} chunks")
+                        else:
+                            print(f"[Aura-Upload] ⚠️ RAG reload failed: {reload_response.status_code}")
+                    else:
+                        print(f"[Aura-Upload] ❌ Embedding generation failed")
             else:
-                print(f"[Aura-Upload] ⚠️ Auto-ingest failed: {response.status_code}")
+                print(f"[Aura-Upload] ⚠️ Text extraction failed: {response.status_code}")
         except Exception as e:
-            print(f"[Aura-Upload] ⚠️ Auto-ingest error: {e}")
+            print(f"[Aura-Upload] ⚠️ Processing error: {e}")
     
     return redirect(url_for('index'))
 

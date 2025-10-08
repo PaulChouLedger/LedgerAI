@@ -398,15 +398,41 @@ def start_services():
     else:
         print("[Aura] ⚠️ Upload server skipped (Flask not available)")
     
-    # Step 7: Start auto-ingest monitoring (runs in RAG container)
+    # Step 7: Start auto-ingest monitoring (container extracts, host generates embeddings)
     print("[Aura] 📂 Starting auto-ingest monitoring...")
     
     # Trigger initial ingest scan
     try:
+        # Container extracts text from PDFs
         response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
         if response.status_code == 200:
             result = response.json()
-            print(f"[Aura] ✅ Initial ingest: {result.get('processed', 0)} processed, {result.get('skipped', 0)} skipped")
+            processed = result.get('processed', 0)
+            print(f"[Aura] ✅ Text extraction: {processed} processed, {result.get('skipped', 0)} skipped")
+            
+            # If new files were processed, run rebuild_embeddings on HOST
+            if processed > 0:
+                print(f"[Aura] 🔧 Running rebuild_embeddings.py on host...")
+                import subprocess
+                rebuild_result = subprocess.run(
+                    ["python3", "scripts/rebuild_embeddings.py"],
+                    capture_output=True,
+                    text=True,
+                    timeout=120
+                )
+                
+                if rebuild_result.returncode == 0:
+                    print(f"[Aura] ✅ Host embeddings generated successfully")
+                    
+                    # Tell container to reload the new index
+                    reload_response = requests.post("http://localhost:11435/rag/reload", timeout=10)
+                    if reload_response.status_code == 200:
+                        reload_result = reload_response.json()
+                        print(f"[Aura] ✅ RAG reloaded: {reload_result.get('total_chunks', 0)} chunks")
+                    else:
+                        print(f"[Aura] ⚠️ RAG reload failed: {reload_response.status_code}")
+                else:
+                    print(f"[Aura] ❌ Host rebuild failed: {rebuild_result.stderr[:200]}")
         else:
             print(f"[Aura] ⚠️ Initial ingest failed: {response.status_code}")
     except Exception as e:
@@ -417,17 +443,36 @@ def start_services():
         while True:
             time.sleep(60)  # Check every 60 seconds
             try:
+                # Container extracts text
                 response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
                 if response.status_code == 200:
                     result = response.json()
-                    if result.get('processed', 0) > 0:
-                        print(f"[Aura] 📂 Auto-ingest: {result['processed']} new files processed")
+                    processed = result.get('processed', 0)
+                    
+                    if processed > 0:
+                        print(f"[Aura] 📂 New files: {processed} processed")
+                        
+                        # Host generates embeddings
+                        import subprocess
+                        rebuild_result = subprocess.run(
+                            ["python3", "scripts/rebuild_embeddings.py"],
+                            capture_output=True,
+                            text=True,
+                            timeout=120
+                        )
+                        
+                        if rebuild_result.returncode == 0:
+                            # Container reloads
+                            requests.post("http://localhost:11435/rag/reload", timeout=10)
+                            print(f"[Aura] ✅ Embeddings rebuilt and reloaded")
+                        else:
+                            print(f"[Aura] ⚠️ Rebuild failed")
             except Exception as e:
                 print(f"[Aura] ⚠️ Auto-ingest error: {e}")
     
     monitor_thread = threading.Thread(target=monitor_files, daemon=True)
     monitor_thread.start()
-    print("[Aura] ✅ Auto-ingest monitoring active (via RAG container, checking every 60s)")
+    print("[Aura] ✅ Auto-ingest monitoring active (container extracts, host builds, checking every 60s)")
     
     # Step 8: Start listener (after RAG is initialized)
     print("[Aura] 🎙️ Starting listener...")

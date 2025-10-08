@@ -311,7 +311,7 @@ def rag_augment():
 
 @app.route('/rag/ingest', methods=['POST'])
 def rag_ingest():
-    """Trigger auto-ingest to process files from data/input"""
+    """Trigger auto-ingest to process files from data/input (text extraction only)"""
     try:
         from ingest import AutoIngest
         
@@ -323,7 +323,7 @@ def rag_ingest():
         # Create ingest instance (reuses RAG encoder)
         ingest = AutoIngest(rag)
         
-        # Scan and process files
+        # Scan and process files (text extraction only, no embedding generation)
         result = ingest.scan_and_process()
         
         return jsonify({
@@ -331,11 +331,48 @@ def rag_ingest():
             'processed': result['processed'],
             'skipped': result['skipped'],
             'errors': result['errors'],
-            'total_chunks': result['total_chunks']
+            'message': 'Text extracted - host will generate embeddings'
         })
         
     except Exception as e:
         logger.error(f"Error in auto-ingest: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/rag/reload', methods=['POST'])
+def rag_reload():
+    """Reload RAG index after host generates new embeddings"""
+    try:
+        import faiss
+        import numpy as np
+        from pathlib import Path
+        
+        # Get RAG instance
+        rag = get_rag()
+        if not rag:
+            return jsonify({'error': 'RAG not initialized'}), 500
+        
+        # Reload index and chunks
+        embeddings_dir = Path("data/embeddings")
+        
+        print("[RAG] 🔄 Reloading index after host embedding generation...")
+        rag.index = faiss.read_index(str(embeddings_dir / "index.faiss"))
+        rag.chunks = np.load(str(embeddings_dir / "doc_chunks.npy"), allow_pickle=True)
+        
+        # Reload CUDA vectors for faiss_lite
+        print("[RAG] 🔧 Reloading CUDA vectors...")
+        rag._prepare_cuda_data()
+        
+        print(f"[RAG] ✅ Reloaded: {rag.index.ntotal} vectors")
+        
+        return jsonify({
+            'status': 'success',
+            'total_chunks': rag.index.ntotal
+        })
+        
+    except Exception as e:
+        logger.error(f"Error reloading RAG: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500

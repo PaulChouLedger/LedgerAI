@@ -173,44 +173,8 @@ class AutoIngest:
             print(f"[Ingest] ✅ Saved parsed text: {parsed_path.name}")
             
             # File successfully parsed - text is saved to data/parsed/
-            # Now trigger rebuild_embeddings.py to regenerate index
-            print(f"[Ingest] 🔧 Triggering rebuild_embeddings.py...")
-            
-            import subprocess
-            try:
-                # Call local script to rebuild embeddings
-                result = subprocess.run(
-                    ["python3", "/app/rebuild_embeddings.py"],
-                    capture_output=True,
-                    text=True,
-                    timeout=120,
-                    cwd="/app"
-                )
-                
-                if result.returncode == 0:
-                    print(f"[Ingest] ✅ rebuild_embeddings completed successfully")
-                    print(f"[Ingest] 📊 Output: {result.stdout[-200:]}")  # Last 200 chars
-                    
-                    # Reload RAG index and chunks
-                    print(f"[Ingest] 🔄 Reloading RAG index...")
-                    self.rag.index = faiss.read_index(str(self.embeddings_dir / "index.faiss"))
-                    self.rag.chunks = np.load(str(self.embeddings_dir / "doc_chunks.npy"), allow_pickle=True)
-                    
-                    # Reload CUDA vectors for faiss_lite
-                    print(f"[Ingest] 🔧 Reloading CUDA vectors...")
-                    self.rag._prepare_cuda_data()
-                    
-                    print(f"[Ingest] ✅ RAG reloaded with {self.rag.index.ntotal} vectors")
-                else:
-                    print(f"[Ingest] ❌ rebuild_embeddings failed: {result.stderr}")
-                    return False
-                    
-            except subprocess.TimeoutExpired:
-                print(f"[Ingest] ❌ rebuild_embeddings timed out after 120s")
-                return False
-            except Exception as e:
-                print(f"[Ingest] ❌ Error calling rebuild_embeddings: {e}")
-                return False
+            # The HOST will handle embedding generation (has working FAISS)
+            print(f"[Ingest] ✅ Parsed text saved - ready for embedding generation by host")
             
             # Update state
             self.state["processed_files"][file_path.name] = {
