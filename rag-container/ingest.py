@@ -181,14 +181,24 @@ class AutoIngest:
             embeddings = self.rag.encoder.encode(chunks, convert_to_numpy=True, show_progress_bar=False)
             embeddings = embeddings.astype('float32')
             
-            # Normalize for Inner Product metric
-            faiss.normalize_L2(embeddings)
+            # Normalize for Inner Product metric (manual normalization to avoid faiss issues)
+            norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+            embeddings = embeddings / norms
+            print(f"[Ingest] ✅ Normalized {len(embeddings)} embeddings")
             
-            # Update RAG index and chunks
+            # Update RAG index and chunks in memory
             self.rag.index.add(embeddings)
             self.rag.chunks = np.append(self.rag.chunks, chunks) if self.rag.chunks is not None else np.array(chunks)
             
-            # Save updated index and chunks
+            # Reload CUDA vectors for faiss_lite (important!)
+            print(f"[Ingest] 🔧 Updating CUDA vectors for faiss_lite...")
+            try:
+                self.rag._prepare_cuda_data()
+                print(f"[Ingest] ✅ CUDA vectors updated")
+            except Exception as e:
+                print(f"[Ingest] ⚠️ CUDA update failed: {e}")
+            
+            # Save updated index and chunks to disk
             faiss.write_index(self.rag.index, str(self.embeddings_dir / "index.faiss"))
             np.save(str(self.embeddings_dir / "doc_chunks.npy"), self.rag.chunks)
             
@@ -198,6 +208,7 @@ class AutoIngest:
             for i in range(n_vectors):
                 vectors[i] = self.rag.index.reconstruct(int(i))
             np.save(str(self.embeddings_dir / "vectors.npy"), vectors)
+            print(f"[Ingest] 💾 Saved index and vectors to disk")
             
             # Update state
             self.state["processed_files"][file_path.name] = {
