@@ -199,30 +199,28 @@ class AuraGUI(QMainWindow):
             btn.move(int(x), int(y))
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    /* Futuristic glassmorphism background */
+                    /* Solid blue/white gradient - no transparency */
                     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                        stop:0 {color}AA, stop:0.5 {color}CC, stop:1 {color}AA);
-                    color: white;
+                        stop:0 {color}, stop:0.5 #FFFFFF, stop:1 {color});
+                    color: black;
                     font-size: 36px;
                     font-weight: bold;
                     border-radius: 50px;
                     /* Glowing border effect */
-                    border: 3px solid {color}66;
+                    border: 3px solid {color};
                     padding: 0px;
-                    /* Subtle inner shadow for depth */
                 }}
                 QPushButton:hover {{
-                    /* Brighter, more intense on hover */
+                    /* Brighter on hover */
                     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                        stop:0 {color}FF, stop:0.3 #FFFFFFAA, stop:0.7 {color}FF, stop:1 {color}DD);
-                    border: 3px solid {color}FF;
-                    /* Scale up slightly */
+                        stop:0 #FFFFFF, stop:0.5 {color}, stop:1 #FFFFFF);
+                    border: 3px solid #FFFFFF;
                 }}
                 QPushButton:pressed {{
-                    /* Dimmer when pressed */
+                    /* Darker when pressed */
                     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                        stop:0 {color}88, stop:0.5 {color}AA, stop:1 {color}88);
-                    border: 3px solid {color}AA;
+                        stop:0 {color}, stop:0.5 {color}, stop:1 {color});
+                    border: 3px solid {color};
                 }}
             """)
             
