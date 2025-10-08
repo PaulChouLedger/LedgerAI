@@ -24,7 +24,7 @@ MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 # Audio processing
 AUDIO_GAIN = 1.0  # No gain (testing native microphone level)
 ENABLE_NOISE_REDUCTION = True  # Enable spectral noise subtraction
-NOISE_REDUCTION_STRENGTH = 0.85  # Spectral subtraction strength (0.0-1.0, higher = more aggressive)
+NOISE_REDUCTION_STRENGTH = 0.6  # Spectral subtraction strength (0.0-1.0, higher = more aggressive)
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
