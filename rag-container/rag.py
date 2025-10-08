@@ -69,6 +69,17 @@ class AuraRAG:
             if self.cuda_vectors is None:
                 raise RuntimeError("CUDA vectors not initialized - _prepare_cuda_data() failed silently")
             
+            # Warm up CUDA buffers with dummy search (fixes first-query initialization bug)
+            print(f"[RAG] 🔧 Warming up CUDA buffers with test search...")
+            warmup_query = self.encoder.encode(["test"], convert_to_numpy=True).astype(np.float32)
+            warmup_norms = np.linalg.norm(warmup_query, axis=1, keepdims=True)
+            warmup_query = warmup_query / warmup_norms
+            warmup_distances, warmup_indices = self._search_with_faiss_lite(warmup_query, k=3)
+            if warmup_distances is not None:
+                print(f"[RAG] ✅ CUDA buffers warmed up successfully")
+            else:
+                print(f"[RAG] ⚠️ CUDA warmup failed - first query might have issues")
+            
             print(f"[RAG] ✅ Initialization complete: index ready, CUDA data ready, encoder ready")
             print(f"[RAG] 🎯 System status: {self.index.ntotal} vectors indexed, {len(self.chunks)} chunks loaded")
             
