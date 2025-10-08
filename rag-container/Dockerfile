@@ -12,6 +12,10 @@ RUN pip install --no-cache-dir --ignore-installed \
     sentence-transformers \
     cuda-python
 
+# Pre-download sentence transformer model (makes it WiFi-independent)
+RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')" && \
+    echo "✅ Sentence transformer model pre-downloaded into image"
+
 # Copy RAG service and module
 COPY container_rest.py /app/
 COPY rag.py /app/
