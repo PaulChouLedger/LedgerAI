@@ -62,29 +62,33 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 
 # === Audio Processing Functions ===
 
-def soft_clip(audio, threshold=0.95):
+def soft_clip(audio, threshold=0.85, max_peak=0.98):
     """
-    Soft clipping using tanh compression
-    - Smoothly compresses peaks above threshold
-    - Preserves waveform shape better than hard clipping
-    - Reduces distortion for far-field speech
+    Two-stage soft clipping with dynamic range compression
+    Stage 1: Gradual compression above threshold (0.85)
+    Stage 2: Hard limit at max_peak (0.98) to prevent distortion
+    
+    This preserves waveform shape while preventing peaks from destroying audio
     """
-    # For samples above threshold, apply smooth compression
+    # Stage 1: Soft compression for peaks above threshold
     mask = np.abs(audio) > threshold
     if np.any(mask):
-        # Use tanh for smooth compression (asymptotic approach to ±1.0)
+        # Use tanh for smooth compression
         excess = audio[mask] - np.sign(audio[mask]) * threshold
-        compressed = threshold + np.tanh(excess / (1 - threshold)) * (1 - threshold)
+        compressed = threshold + np.tanh(excess / (max_peak - threshold)) * (max_peak - threshold)
         audio[mask] = np.sign(audio[mask]) * compressed
+    
+    # Stage 2: Safety hard limit (should rarely trigger after soft compression)
+    audio = np.clip(audio, -max_peak, max_peak)
     
     return audio
 
 def auto_gain_control(audio):
     """
-    Automatic gain control with soft clipping
-    - Adapts gain based on input level (far-field support)
-    - Uses soft clipping instead of hard clipping
-    - Maximizes signal strength while preserving waveform
+    Automatic gain control with two-stage soft clipping
+    - Adapts gain based on input level (far-field support up to 40x)
+    - Uses progressive soft clipping to preserve waveform shape
+    - Prevents distortion while maximizing signal strength
     """
     rms = np.sqrt(np.mean(audio ** 2))
     if rms < 1e-6:  # Avoid division by zero
@@ -93,14 +97,16 @@ def auto_gain_control(audio):
     # Calculate required gain to reach target RMS
     required_gain = AGC_TARGET_RMS / rms
     
-    # Limit gain to prevent over-amplification
+    # Limit gain to maximum
     actual_gain = min(required_gain, AGC_MAX_GAIN)
     
     # Apply gain
     audio = audio * actual_gain
     
-    # Apply soft clipping instead of hard clipping
-    audio = soft_clip(audio, threshold=AGC_SOFT_CLIP_THRESHOLD)
+    # Apply two-stage soft clipping to preserve waveform
+    # Stage 1: Soft compression starts at 0.85 (gradual)
+    # Stage 2: Hard limit at 0.98 (prevents peak distortion)
+    audio = soft_clip(audio, threshold=0.85, max_peak=0.98)
     
     return audio, actual_gain
 
