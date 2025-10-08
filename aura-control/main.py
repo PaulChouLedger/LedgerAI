@@ -397,27 +397,36 @@ def start_services():
     else:
         print("[Aura] ⚠️ Upload server skipped (Flask not available)")
     
-    # Step 7: Start auto-ingest monitoring (if available)
+    # Step 7: Start auto-ingest monitoring (runs in RAG container)
+    print("[Aura] 📂 Starting auto-ingest monitoring...")
+    
+    # Trigger initial ingest scan
     try:
-        from auto_ingest import AutoIngestPipeline
-        print("[Aura] 📂 Starting auto-ingest monitoring...")
-        auto_ingest = AutoIngestPipeline()
-        # Run initial scan for any new files
-        auto_ingest.run_once()
-        # Start continuous monitoring in background thread
-        def monitor_files():
-            while True:
-                time.sleep(60)  # Check every 60 seconds
-                try:
-                    auto_ingest.run_once()
-                except Exception as e:
-                    print(f"[Aura] ⚠️ Auto-ingest error: {e}")
-        
-        monitor_thread = threading.Thread(target=monitor_files, daemon=True)
-        monitor_thread.start()
-        print("[Aura] ✅ Auto-ingest monitoring active (checking every 60s)")
+        response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
+        if response.status_code == 200:
+            result = response.json()
+            print(f"[Aura] ✅ Initial ingest: {result.get('processed', 0)} processed, {result.get('skipped', 0)} skipped")
+        else:
+            print(f"[Aura] ⚠️ Initial ingest failed: {response.status_code}")
     except Exception as e:
-        print(f"[Aura] ⚠️ Auto-ingest not available: {e}")
+        print(f"[Aura] ⚠️ Initial ingest error: {e}")
+    
+    # Start periodic monitoring in background
+    def monitor_files():
+        while True:
+            time.sleep(60)  # Check every 60 seconds
+            try:
+                response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get('processed', 0) > 0:
+                        print(f"[Aura] 📂 Auto-ingest: {result['processed']} new files processed")
+            except Exception as e:
+                print(f"[Aura] ⚠️ Auto-ingest error: {e}")
+    
+    monitor_thread = threading.Thread(target=monitor_files, daemon=True)
+    monitor_thread.start()
+    print("[Aura] ✅ Auto-ingest monitoring active (via RAG container, checking every 60s)")
     
     # Step 8: Start listener (after RAG is initialized)
     print("[Aura] 🎙️ Starting listener...")

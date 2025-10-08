@@ -281,15 +281,18 @@ def upload_files():
     if uploaded_count > 0:
         flash(f'Successfully uploaded {uploaded_count} file(s)', 'success')
         
-        # Trigger auto-ingest for new files
+        # Trigger auto-ingest via RAG container
         try:
-            from auto_ingest import AutoIngestPipeline
+            import requests
             print(f"[Aura-Upload] 🔄 Triggering auto-ingest for {uploaded_count} new file(s)...")
-            auto_ingest = AutoIngestPipeline()
-            auto_ingest.run_once()
-            print(f"[Aura-Upload] ✅ Auto-ingest completed")
+            response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
+            if response.status_code == 200:
+                result = response.json()
+                print(f"[Aura-Upload] ✅ Auto-ingest completed: {result.get('processed', 0)} processed")
+            else:
+                print(f"[Aura-Upload] ⚠️ Auto-ingest failed: {response.status_code}")
         except Exception as e:
-            print(f"[Aura-Upload] ⚠️ Auto-ingest failed: {e}")
+            print(f"[Aura-Upload] ⚠️ Auto-ingest error: {e}")
     
     return redirect(url_for('index'))
 

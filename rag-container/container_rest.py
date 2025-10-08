@@ -309,6 +309,37 @@ def rag_augment():
         logger.error(f"Error in RAG augment: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/rag/ingest', methods=['POST'])
+def rag_ingest():
+    """Trigger auto-ingest to process files from data/input"""
+    try:
+        from ingest import AutoIngest
+        
+        # Get RAG instance
+        rag = get_rag()
+        if not rag:
+            return jsonify({'error': 'RAG not initialized'}), 500
+        
+        # Create ingest instance (reuses RAG encoder)
+        ingest = AutoIngest(rag)
+        
+        # Scan and process files
+        result = ingest.scan_and_process()
+        
+        return jsonify({
+            'status': 'success',
+            'processed': result['processed'],
+            'skipped': result['skipped'],
+            'errors': result['errors'],
+            'total_chunks': result['total_chunks']
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in auto-ingest: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Initialize service
     if initialize_service():
