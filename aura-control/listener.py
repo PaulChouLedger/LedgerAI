@@ -26,7 +26,7 @@ USE_AUTO_GAIN = True  # Enable automatic gain control
 AGC_TARGET_RMS = 0.10  # Target RMS for Whisper (optimal speech recognition)
 AGC_MAX_GAIN = 10.0  # Maximum gain to apply (prevents over-amplification)
 ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
-HIGHPASS_CUTOFF = 50  # Hz - Fan noise < 50Hz, speech > 80Hz (preserves all voice frequencies)
+HIGHPASS_CUTOFF = 30  # Hz - Fan noise < 50Hz, speech > 80Hz (preserves all voice frequencies)
 
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
