@@ -24,6 +24,7 @@ MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 # Audio processing
 AUDIO_GAIN = 1.0  # No gain (testing native microphone level)
 ENABLE_NOISE_REDUCTION = True  # Enable spectral noise subtraction
+NOISE_REDUCTION_STRENGTH = 0.85  # Spectral subtraction strength (0.0-1.0, higher = more aggressive)
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -192,7 +193,7 @@ def process_audio(audio, debug=False):
     """
     # Step 1: Spectral noise subtraction (removes exact fan noise pattern)
     if ENABLE_NOISE_REDUCTION and noise_profile is not None:
-        audio = spectral_noise_subtraction(audio, noise_profile, strength=0.5, debug=debug)
+        audio = spectral_noise_subtraction(audio, noise_profile, strength=NOISE_REDUCTION_STRENGTH, debug=debug)
     
     # Step 2: Apply gain
     audio = np.clip(audio * AUDIO_GAIN, -1.0, 1.0)
