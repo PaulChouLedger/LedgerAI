@@ -256,7 +256,8 @@ def rebuild_embeddings(data_root="/app/data"):
     # Manual L2 normalization (faiss_lite container compatibility)
     norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
     embeddings = embeddings / norms
-    embeddings = embeddings.astype(np.float32)
+    # Ensure C-contiguous for FAISS (critical!)
+    embeddings = np.ascontiguousarray(embeddings, dtype=np.float32)
     print(f"✅ Normalized embeddings manually (faiss_lite compatible)")
     
     index.add(embeddings)
@@ -290,6 +291,7 @@ def rebuild_embeddings(data_root="/app/data"):
         # Manual L2 normalization (faiss_lite container compatibility)
         norms = np.linalg.norm(query_embedding, axis=1, keepdims=True)
         query_embedding = query_embedding / norms
+        query_embedding = np.ascontiguousarray(query_embedding, dtype=np.float32)
         distances, indices = index.search(query_embedding, 10)  # Get top 10 to see ranking
         
         print(f"\n  Query: '{query}'")
