@@ -320,6 +320,7 @@ def upload_files():
                             print(f"[Aura-Upload] ⚠️ RAG reload failed: {reload_response.status_code}")
                     else:
                         print(f"[Aura-Upload] ❌ Embedding generation failed")
+                        print(f"[Aura-Upload] 💥 Error: {rebuild_result.stderr[:500]}")  # Show error details
             else:
                 print(f"[Aura-Upload] ⚠️ Text extraction failed: {response.status_code}")
         except Exception as e:

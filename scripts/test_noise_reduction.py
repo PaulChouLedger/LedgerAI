@@ -26,33 +26,14 @@ FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 RECORDING_DURATION = 30.0  # Monitor for 30 seconds
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 
-# Audio processing (same as listener.py)
-AUDIO_GAIN = 4.0  # Moderate gain for far-field speech (matches listener.py)
+# Audio processing (matches listener.py exactly)
+USE_AUTO_GAIN = True  # Enable automatic gain control
+AGC_TARGET_RMS = 0.15  # Target RMS for Whisper (optimal speech recognition)
+AGC_MAX_GAIN = 10.0  # Maximum gain to apply (prevents over-amplification)
 ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
-NOISE_REDUCTION_METHOD = "highpass"  # "highpass" or "spectral" - highpass removes <200Hz (fan noise)
 HIGHPASS_CUTOFF = 200  # Hz - Fan noise < 200Hz, speech > 200Hz
-NOISE_REDUCTION_STRENGTH = 0.6  # Spectral subtraction strength (only if method="spectral")
-
-# Adaptive RMS-based noise gate
-ENABLE_NOISE_GATE = True  # Enable RMS-based noise gate
-NOISE_GATE_MODE = "adaptive"  # "fixed" or "adaptive"
-NOISE_GATE_FIXED_THRESHOLD = 0.008  # Used if mode="fixed"
-NOISE_GATE_RATIO = 2.0  # Adaptive: speech must be 2x louder than noise floor (more sensitive for far speech)
-NOISE_FLOOR_LEARNING_RATE = 0.1  # How fast to adapt to changing noise (0.1 = slow, 0.5 = fast)
 
 DISPLAY_EVERY_N_FRAMES = 5  # Update display every N frames (~0.16s)
-
-# Paths
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
-NOISE_PROFILE_PATH = os.path.join(PROJECT_DIR, "data", "noise_profile.npy")
-
-# Global noise profile and adaptive noise floor
-noise_profile = None
-noise_floor_rms = 0.003  # Initial estimate (will adapt quickly)
-noise_floor_locked = False  # Lock after initial learning to prevent drift
-learning_frames_count = 0  # Counter for learning phase
-LEARNING_FRAMES_MAX = 30  # Learn from first 30 frames of silence
 
 def find_device_index():
     """Find the ReSpeaker device index"""
@@ -83,129 +64,47 @@ def highpass_filter(audio, cutoff=200, order=5):
         print(f"[Audio] ⚠️ High-pass filter failed: {e}")
         return audio
 
-def noise_gate(audio, vad_active=False, learning_phase=False):
+def auto_gain_control(audio):
     """
-    Adaptive RMS-based noise gate - zeros out audio below dynamic threshold
-    (Mirroring listener.py implementation)
-    
-    Learns during initial silence, then locks threshold to prevent drift
+    Automatic gain control - adapts gain based on input level
+    Prevents clipping while maximizing signal strength
     """
-    global noise_floor_rms, noise_floor_locked, learning_frames_count
-    
     rms = np.sqrt(np.mean(audio ** 2))
+    if rms < 1e-6:  # Avoid division by zero
+        return audio, 1.0
     
-    if NOISE_GATE_MODE == "adaptive":
-        # Adaptive: Only update noise floor during learning phase
-        if learning_phase and not vad_active and not noise_floor_locked:
-            # Exponential moving average - slowly adapt to noise floor
-            noise_floor_rms = (1 - NOISE_FLOOR_LEARNING_RATE) * noise_floor_rms + NOISE_FLOOR_LEARNING_RATE * rms
-            learning_frames_count += 1
-            
-            # Lock after learning enough frames
-            if learning_frames_count >= LEARNING_FRAMES_MAX:
-                noise_floor_locked = True
-                threshold = noise_floor_rms * NOISE_GATE_RATIO
-                print(f"\n[Audio] 🔒 Noise floor LOCKED after {learning_frames_count} frames")
-                print(f"[Audio] ✅ Final noise floor: {noise_floor_rms:.6f}")
-                print(f"[Audio] 🎯 Final threshold: {threshold:.6f}\n")
-        
-        # Threshold is a multiple of current noise floor
-        threshold = noise_floor_rms * NOISE_GATE_RATIO
-    else:
-        # Fixed threshold mode
-        threshold = NOISE_GATE_FIXED_THRESHOLD
+    # Calculate required gain to reach target RMS
+    required_gain = AGC_TARGET_RMS / rms
     
-    if rms < threshold:
-        # Below threshold - it's noise, zero it out
-        return np.zeros_like(audio), threshold, True  # (audio, threshold, gated)
-    else:
-        # Above threshold - it's likely speech, keep it
-        return audio, threshold, False  # (audio, threshold, gated)
+    # Limit gain to prevent over-amplification
+    actual_gain = min(required_gain, AGC_MAX_GAIN)
+    
+    # Apply gain with clipping prevention
+    audio = audio * actual_gain
+    audio = np.clip(audio, -1.0, 1.0)
+    
+    return audio, actual_gain
 
-def spectral_noise_subtraction(audio, noise_profile_global, strength=0.85):
-    """Apply spectral noise subtraction to a single frame"""
-    # Compute FFT of signal
-    fft_signal = np.fft.rfft(audio)
-    magnitude = np.abs(fft_signal)
-    phase = np.angle(fft_signal)
-    
-    # Match noise profile length to signal length
-    if len(noise_profile_global) != len(magnitude):
-        x_old = np.linspace(0, 1, len(noise_profile_global))
-        x_new = np.linspace(0, 1, len(magnitude))
-        f = interpolate.interp1d(x_old, noise_profile_global, kind='linear', fill_value='extrapolate')
-        noise_profile_matched = f(x_new)
-    else:
-        noise_profile_matched = noise_profile_global
-    
-    # Calculate energies before subtraction
-    signal_energy = np.sum(magnitude ** 2)
-    noise_energy = np.sum(noise_profile_matched ** 2)
-    
-    # Subtract noise profile from magnitude
-    magnitude_clean = np.maximum(magnitude - strength * noise_profile_matched, 0)
-    
-    # Calculate energies after subtraction
-    clean_energy = np.sum(magnitude_clean ** 2)
-    energy_removed = signal_energy - clean_energy
-    
-    # Reconstruct signal
-    fft_clean = magnitude_clean * np.exp(1j * phase)
-    audio_clean = np.fft.irfft(fft_clean, n=len(audio))
-    
-    return audio_clean, {
-        'signal_energy': signal_energy,
-        'noise_energy': noise_energy,
-        'clean_energy': clean_energy,
-        'energy_removed': energy_removed,
-        'reduction_pct': (energy_removed / signal_energy * 100) if signal_energy > 0 else 0
-    }
-
-def process_audio(audio, vad_active=False, learning_phase=False):
+def process_audio(audio):
     """
     Process audio exactly like listener.py:
-    1. Noise reduction (highpass or spectral)
-    2. Adaptive RMS-based noise gate (learns during learning_phase only)
-    3. Gain normalization
+    1. High-pass filter (removes fan noise < 200Hz)
+    2. Automatic gain control (adapts to speech distance)
     
-    Returns: (processed_audio, stats_dict)
+    Returns: (processed_audio, applied_gain)
     """
-    stats = {
-        'signal_energy': 0,
-        'noise_energy': 0,
-        'clean_energy': 0,
-        'energy_removed': 0,
-        'reduction_pct': 0,
-        'noise_gate_threshold': 0,
-        'gated': False
-    }
-    
-    # Step 1: Noise reduction
+    # Step 1: High-pass filter to remove fan noise
     if ENABLE_NOISE_REDUCTION:
-        if NOISE_REDUCTION_METHOD == "highpass":
-            # High-pass filter
-            before_energy = np.sum(audio ** 2)
-            audio = highpass_filter(audio, cutoff=HIGHPASS_CUTOFF)
-            after_energy = np.sum(audio ** 2)
-            stats['signal_energy'] = before_energy
-            stats['clean_energy'] = after_energy
-            stats['energy_removed'] = before_energy - after_energy
-            stats['reduction_pct'] = (stats['energy_removed'] / before_energy * 100) if before_energy > 0 else 0
-        elif NOISE_REDUCTION_METHOD == "spectral" and noise_profile is not None:
-            # Spectral subtraction
-            audio, spectral_stats = spectral_noise_subtraction(audio, noise_profile, strength=NOISE_REDUCTION_STRENGTH)
-            stats.update(spectral_stats)
+        audio = highpass_filter(audio, cutoff=HIGHPASS_CUTOFF)
     
-    # Step 2: Adaptive noise gate (only learns during learning_phase)
-    if ENABLE_NOISE_GATE:
-        audio, threshold, gated = noise_gate(audio, vad_active=vad_active, learning_phase=learning_phase)
-        stats['noise_gate_threshold'] = threshold
-        stats['gated'] = gated
+    # Step 2: Automatic gain control
+    if USE_AUTO_GAIN:
+        audio, applied_gain = auto_gain_control(audio)
+    else:
+        audio = np.clip(audio, -1.0, 1.0)
+        applied_gain = 1.0
     
-    # Step 3: Apply gain (same as listener.py)
-    audio = np.clip(audio * AUDIO_GAIN, -1.0, 1.0)
-    
-    return audio, stats
+    return audio, applied_gain
 
 def get_top_frequencies(audio, top_n=3):
     """Get top N dominant frequencies from audio"""
@@ -224,27 +123,15 @@ def format_freq_list(freqs):
     """Format frequency list for display"""
     return ", ".join([f"{freq:.0f}Hz" for freq, _ in freqs])
 
-def process_audio_realtime(device_index, noise_profile, duration):
+def process_audio_realtime(device_index, duration):
     """Process audio in real-time and display properties"""
-    print(f"\n{'='*110}")
+    print(f"\n{'='*90}")
     print(f"  🎤 REAL-TIME AUDIO PROCESSING MONITOR (Mirrors listener.py)")
-    print(f"{'='*110}")
+    print(f"{'='*90}")
     print(f"  Duration: {duration}s")
-    print(f"  Noise Reduction: {NOISE_REDUCTION_METHOD.upper()}")
-    if NOISE_REDUCTION_METHOD == "highpass":
-        print(f"  High-Pass Cutoff: {HIGHPASS_CUTOFF} Hz")
-    else:
-        print(f"  Spectral Strength: {NOISE_REDUCTION_STRENGTH}")
-    print(f"  Audio Gain: {AUDIO_GAIN}x")
-    if ENABLE_NOISE_GATE:
-        print(f"  Noise Gate: {NOISE_GATE_MODE.upper()} (ratio={NOISE_GATE_RATIO}x, learning_rate={NOISE_FLOOR_LEARNING_RATE})")
+    print(f"  Pipeline: High-Pass ({HIGHPASS_CUTOFF}Hz) → AGC (Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x)")
     print(f"  Display Update: Every {DISPLAY_EVERY_N_FRAMES} frames (~{DISPLAY_EVERY_N_FRAMES * FRAME_DURATION:.2f}s)")
-    print(f"{'='*110}\n")
-    
-    if NOISE_GATE_MODE == "adaptive":
-        learning_duration = LEARNING_FRAMES_MAX * FRAME_DURATION
-        print(f"  ⚠️  IMPORTANT: Stay SILENT for first {learning_duration:.1f}s (learning noise floor)")
-        print(f"  💡 After that, you can speak normally")
+    print(f"{'='*90}\n")
     
     print("\n  Starting in 3...")
     time.sleep(1)
@@ -252,20 +139,20 @@ def process_audio_realtime(device_index, noise_profile, duration):
     time.sleep(1)
     print("  Starting in 1...")
     time.sleep(1)
-    print("\n  🔴 MONITORING... (stay silent initially)\n")
+    print("\n  🔴 MONITORING...\n")
     
     # Print header
-    print(f"\n{'='*110}")
-    print(f"{'Frame':<8} {'RAW':<30} │ {'FILTER':<20} │ {'GATE':<20} │ {'CLEAN':<25}")
-    print(f"{'-'*8} {'-'*30} │ {'-'*20} │ {'-'*20} │ {'-'*25}")
-    print(f"{'#':<8} {'RMS':<10} {'Peak':<10} {'Top Hz':<10} │ {'%':<10} {'Energy':<10} │ {'Thresh':<10} {'Status':<10} │ {'RMS':<10} {'Peak':<10} {'Top Hz':<5}")
-    print(f"{'='*110}")
+    print(f"\n{'='*90}")
+    print(f"{'Frame':<8} {'RAW':<30} │ {'PROCESSED':<30} │ {'AGC':<15}")
+    print(f"{'-'*8} {'-'*30} │ {'-'*30} │ {'-'*15}")
+    print(f"{'#':<8} {'RMS':<10} {'Peak':<10} {'Top Hz':<10} │ {'RMS':<10} {'Peak':<10} {'Top Hz':<10} │ {'Gain':<15}")
+    print(f"{'='*90}")
     
     # Running statistics
     frame_count = 0
     total_raw_rms = 0
     total_clean_rms = 0
-    total_reduction = 0
+    total_gain = 0
     
     frames_needed = int(SAMPLE_RATE * duration / FRAME_SIZE)
     
@@ -283,9 +170,7 @@ def process_audio_realtime(device_index, noise_profile, duration):
                 raw_freqs = get_top_frequencies(raw_audio, top_n=1)
                 
                 # Apply full processing pipeline (same as listener.py)
-                # Learning phase only for first 30 frames, then locked
-                is_learning = (frame_count < LEARNING_FRAMES_MAX)
-                clean_audio, stats = process_audio(raw_audio, vad_active=False, learning_phase=is_learning)
+                clean_audio, applied_gain = process_audio(raw_audio)
                 
                 # Analyze clean audio
                 clean_rms = np.sqrt(np.mean(clean_audio ** 2))
@@ -296,24 +181,17 @@ def process_audio_realtime(device_index, noise_profile, duration):
                 frame_count += 1
                 total_raw_rms += raw_rms
                 total_clean_rms += clean_rms
-                total_reduction += stats['reduction_pct']
+                total_gain += applied_gain
                 
                 # Display every N frames
                 if frame_count % DISPLAY_EVERY_N_FRAMES == 0:
                     raw_freq_str = f"{raw_freqs[0][0]:.0f}" if raw_freqs else "N/A"
                     clean_freq_str = f"{clean_freqs[0][0]:.0f}" if clean_freqs else "N/A"
                     
-                    # Show gate status with learning indicator
-                    if noise_floor_locked:
-                        gate_status = "🔒GATED" if stats['gated'] else "🔒PASS"
-                    else:
-                        gate_status = "📚GATED" if stats['gated'] else "📚PASS"
-                    
                     print(f"{frame_count:<8} "
                           f"{raw_rms:.6f}  {raw_peak:.4f}  {raw_freq_str:<10} │ "
-                          f"{stats['reduction_pct']:<10.1f} {stats['energy_removed']:<10.2f} │ "
-                          f"{stats['noise_gate_threshold']:.6f}  {gate_status:<10} │ "
-                          f"{clean_rms:.6f}  {clean_peak:.4f}  {clean_freq_str:<5}")
+                          f"{clean_rms:.6f}  {clean_peak:.4f}  {clean_freq_str:<10} │ "
+                          f"{applied_gain:.2f}x")
     
     except KeyboardInterrupt:
         print(f"\n\n{'='*110}")
@@ -324,80 +202,54 @@ def process_audio_realtime(device_index, noise_profile, duration):
     if frame_count > 0:
         avg_raw_rms = total_raw_rms / frame_count
         avg_clean_rms = total_clean_rms / frame_count
-        avg_reduction = total_reduction / frame_count
-        overall_reduction = (1 - avg_clean_rms / avg_raw_rms) * 100 if avg_raw_rms > 0 else 0
+        avg_gain = total_gain / frame_count
+        amplification_ratio = avg_clean_rms / avg_raw_rms if avg_raw_rms > 0 else 0
         
-        print(f"\n{'='*110}")
+        print(f"\n{'='*90}")
         print(f"  📊 SUMMARY STATISTICS (from {frame_count} frames)")
-        print(f"{'='*110}")
+        print(f"{'='*90}")
         print(f"  Average Raw RMS:       {avg_raw_rms:.6f}")
-        print(f"  Average Clean RMS:     {avg_clean_rms:.6f}")
-        print(f"  Average Reduction:     {avg_reduction:.1f}%")
-        print(f"  Overall RMS Reduction: {overall_reduction:.1f}%")
-        
-        if NOISE_GATE_MODE == "adaptive":
-            print(f"\n  🔧 Adaptive Noise Gate:")
-            print(f"     Final noise floor:     {noise_floor_rms:.6f}")
-            print(f"     Final gate threshold:  {noise_floor_rms * NOISE_GATE_RATIO:.6f}")
-            print(f"     Ratio (multiplier):    {NOISE_GATE_RATIO}x")
+        print(f"  Average Processed RMS: {avg_clean_rms:.6f}")
+        print(f"  Average AGC Gain:      {avg_gain:.2f}x")
+        print(f"  Amplification Ratio:   {amplification_ratio:.2f}x")
         
         print(f"\n  💡 INTERPRETATION:")
         
-        if avg_reduction < 20:
-            print(f"     ⚠️  Low noise reduction (<20%)")
-            print(f"        → Increase NOISE_GATE_RATIO (try 4.0 or 5.0)")
-            print(f"        → Or increase HIGHPASS_CUTOFF (try 250 Hz)")
-        elif avg_reduction > 70:
-            print(f"     ⚠️  Very high reduction (>70%)")
-            print(f"        → May be removing speech content")
-            print(f"        → Decrease NOISE_GATE_RATIO (try 2.0)")
+        if avg_clean_rms < 0.10:
+            print(f"     ⚠️  Low output RMS (<0.10) - may be too quiet for Whisper")
+            print(f"        → Increase AGC_MAX_GAIN or AGC_TARGET_RMS")
+        elif avg_clean_rms > 0.20:
+            print(f"     ⚠️  High output RMS (>0.20) - risk of clipping")
+            print(f"        → Decrease AGC_TARGET_RMS or check for over-amplification")
         else:
-            print(f"     ✅ Noise reduction looks good (20-70% range)")
-            print(f"        → Current settings appear optimal")
+            print(f"     ✅ Output RMS looks good (0.10-0.20 range)")
+            print(f"        → Optimal for Whisper transcription")
         
-        print(f"{'='*110}\n")
+        if avg_gain > AGC_MAX_GAIN * 0.9:
+            print(f"\n     ⚠️  AGC frequently hitting max gain ({AGC_MAX_GAIN}x)")
+            print(f"        → Consider increasing AGC_MAX_GAIN for far-field speech")
+        
+        print(f"{'='*90}\n")
 
 def main():
     """Main execution"""
-    print("\n" + "="*110)
-    print("  🧪 REAL-TIME NOISE REDUCTION MONITOR")
-    print("="*110)
+    print("\n" + "="*90)
+    print("  🧪 REAL-TIME AUDIO PROCESSING MONITOR")
+    print("="*90)
     
     try:
-        # Reset adaptive noise gate state
-        global noise_profile, noise_floor_rms, noise_floor_locked, learning_frames_count
-        noise_floor_rms = 0.003
-        noise_floor_locked = False
-        learning_frames_count = 0
-        
-        # Load noise profile (only if using spectral method)
-        
-        if NOISE_REDUCTION_METHOD == "highpass":
-            print(f"\n[Audio] ✅ Using high-pass filter (no noise profile needed)")
-            print(f"[Audio] 🔧 Cutoff: {HIGHPASS_CUTOFF} Hz")
-            noise_profile = None
-        elif NOISE_REDUCTION_METHOD == "spectral":
-            print(f"\n[Audio] 🔍 Loading noise profile for spectral subtraction...")
-            
-            if not os.path.exists(NOISE_PROFILE_PATH):
-                print(f"[Audio] ❌ Noise profile not found: {NOISE_PROFILE_PATH}")
-                print(f"[Audio] 💡 Run: python3 scripts/record_noise_profile.py")
-                return 1
-            
-            noise_profile = np.load(NOISE_PROFILE_PATH)
-            print(f"[Audio] ✅ Loaded: {len(noise_profile)} frequency bins")
-            
-            # Show noise profile stats
-            noise_mean = np.mean(noise_profile)
-            noise_energy = np.sum(noise_profile ** 2)
-            print(f"[Audio] 📊 Noise profile energy: {noise_energy:.2f}, mean: {noise_mean:.6f}")
-        
         # Find microphone
         print(f"\n[Audio] 🔍 Searching for microphone...")
         device_index = find_device_index()
         
+        # Show configuration
+        print(f"\n[Audio] 📋 Configuration:")
+        print(f"  High-Pass Filter: {HIGHPASS_CUTOFF} Hz")
+        print(f"  AGC Target RMS: {AGC_TARGET_RMS}")
+        print(f"  AGC Max Gain: {AGC_MAX_GAIN}x")
+        
         # Start real-time processing
-        process_audio_realtime(device_index, noise_profile, RECORDING_DURATION)
+        process_audio_realtime(device_index, RECORDING_DURATION)
         
         return 0
         

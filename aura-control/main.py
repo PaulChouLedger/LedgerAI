@@ -448,7 +448,8 @@ def start_services():
                     else:
                         print(f"[Aura] ⚠️ RAG reload failed: {reload_response.status_code}")
                 else:
-                    print(f"[Aura] ❌ Host rebuild failed: {rebuild_result.stderr[:200]}")
+                    print(f"[Aura] ❌ Host rebuild failed")
+                    print(f"[Aura] 💥 Error: {rebuild_result.stderr[:500]}")
         else:
             print(f"[Aura] ⚠️ Initial ingest failed: {response.status_code}")
     except Exception as e:
@@ -485,7 +486,8 @@ def start_services():
                             requests.post("http://localhost:11435/rag/reload", timeout=10)
                             print(f"[Aura] ✅ Embeddings rebuilt and reloaded")
                         else:
-                            print(f"[Aura] ⚠️ Rebuild failed")
+                            print(f"[Aura] ❌ Rebuild failed")
+                            print(f"[Aura] 💥 Error: {rebuild_result.stderr[:500]}")
             except Exception as e:
                 print(f"[Aura] ⚠️ Auto-ingest error: {e}")
     
