@@ -26,7 +26,7 @@ USE_AUTO_GAIN = True  # Enable automatic gain control
 AGC_TARGET_RMS = 0.10  # Target RMS for Whisper (optimal speech recognition)
 AGC_MAX_GAIN = 10.0  # Maximum gain to apply (prevents over-amplification)
 ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
-HIGHPASS_CUTOFF = 200  # Hz - Fan noise < 200Hz, speech > 200Hz
+HIGHPASS_CUTOFF = 50  # Hz - Fan noise < 50Hz, speech > 80Hz (preserves all voice frequencies)
 
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
@@ -176,7 +176,7 @@ def listen():
     # Audio processing configuration
     print("\n" + "="*70)
     print("[Audio] ✅ Audio processing pipeline: High-Pass → AGC")
-    print(f"[Audio] 🔧 High-pass filter: {HIGHPASS_CUTOFF} Hz (removes fan noise)")
+    print(f"[Audio] 🔧 High-pass filter: {HIGHPASS_CUTOFF} Hz (preserves speech >80Hz)")
     print(f"[Audio] 🔧 Auto Gain Control: Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x")
     print(f"[Audio] 💡 AGC adapts to speech distance (near/far)")
     print(f"[Audio] 💡 VAD handles speech detection")
