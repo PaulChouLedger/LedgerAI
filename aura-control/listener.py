@@ -89,7 +89,7 @@ def bandpass_filter(audio, lowcut=80, highcut=7000, order=5):
 def spectral_noise_subtraction(audio, noise_profile, strength=0.5):
     """
     Subtract noise spectrum from audio using spectral subtraction
-    - noise_profile: FFT of background noise
+    - noise_profile: FFT of background noise (pre-recorded)
     - strength: how much noise to subtract (0.0-1.0)
     """
     if noise_profile is None:
@@ -101,8 +101,19 @@ def spectral_noise_subtraction(audio, noise_profile, strength=0.5):
         magnitude = np.abs(fft_signal)
         phase = np.angle(fft_signal)
         
+        # Match noise profile length to signal length
+        if len(noise_profile) != len(magnitude):
+            # Interpolate noise profile to match signal length
+            from scipy import interpolate
+            x_old = np.linspace(0, 1, len(noise_profile))
+            x_new = np.linspace(0, 1, len(magnitude))
+            f = interpolate.interp1d(x_old, noise_profile, kind='linear', fill_value='extrapolate')
+            noise_profile_matched = f(x_new)
+        else:
+            noise_profile_matched = noise_profile
+        
         # Subtract noise profile from magnitude
-        magnitude_clean = np.maximum(magnitude - strength * noise_profile, 0)
+        magnitude_clean = np.maximum(magnitude - strength * noise_profile_matched, 0)
         
         # Reconstruct signal with cleaned magnitude
         fft_clean = magnitude_clean * np.exp(1j * phase)
