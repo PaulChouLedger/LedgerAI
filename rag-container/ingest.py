@@ -173,22 +173,22 @@ class AutoIngest:
             print(f"[Ingest] ✅ Saved parsed text: {parsed_path.name}")
             
             # File successfully parsed - text is saved to data/parsed/
-            # Now trigger host rebuild_embeddings.py to regenerate index
-            print(f"[Ingest] 🔧 Triggering host rebuild_embeddings.py...")
+            # Now trigger rebuild_embeddings.py to regenerate index
+            print(f"[Ingest] 🔧 Triggering rebuild_embeddings.py...")
             
             import subprocess
             try:
-                # Call host script to rebuild embeddings
+                # Call local script to rebuild embeddings
                 result = subprocess.run(
-                    ["python3", "/workspace/scripts/rebuild_embeddings.py"],
+                    ["python3", "/app/rebuild_embeddings.py"],
                     capture_output=True,
                     text=True,
                     timeout=120,
-                    cwd="/workspace"
+                    cwd="/app"
                 )
                 
                 if result.returncode == 0:
-                    print(f"[Ingest] ✅ Host rebuild_embeddings completed successfully")
+                    print(f"[Ingest] ✅ rebuild_embeddings completed successfully")
                     print(f"[Ingest] 📊 Output: {result.stdout[-200:]}")  # Last 200 chars
                     
                     # Reload RAG index and chunks
@@ -202,14 +202,14 @@ class AutoIngest:
                     
                     print(f"[Ingest] ✅ RAG reloaded with {self.rag.index.ntotal} vectors")
                 else:
-                    print(f"[Ingest] ❌ Host rebuild failed: {result.stderr}")
+                    print(f"[Ingest] ❌ rebuild_embeddings failed: {result.stderr}")
                     return False
                     
             except subprocess.TimeoutExpired:
-                print(f"[Ingest] ❌ Host rebuild timed out after 120s")
+                print(f"[Ingest] ❌ rebuild_embeddings timed out after 120s")
                 return False
             except Exception as e:
-                print(f"[Ingest] ❌ Error calling host rebuild: {e}")
+                print(f"[Ingest] ❌ Error calling rebuild_embeddings: {e}")
                 return False
             
             # Update state
