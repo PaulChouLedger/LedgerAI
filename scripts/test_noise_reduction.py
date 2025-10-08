@@ -28,10 +28,14 @@ DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 
 # Audio processing (matches listener.py exactly)
 USE_AUTO_GAIN = True  # Enable automatic gain control
-AGC_TARGET_RMS = 0.15  # Target RMS for Whisper (optimal speech recognition)
+AGC_TARGET_RMS = 0.12  # Target RMS for Whisper (optimal speech recognition)
 AGC_MAX_GAIN = 10.0  # Maximum gain to apply (prevents over-amplification)
 ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
-HIGHPASS_CUTOFF = 50  # Hz - Fan noise < 200Hz, speech > 200Hz
+
+# Filter options: "highpass", "bandpass", or "none"
+FILTER_TYPE = "bandpass"  # bandpass filters speech range (80-3400 Hz)
+HIGHPASS_CUTOFF = 80  # Hz - Low cutoff (removes rumble)
+LOWPASS_CUTOFF = 3400  # Hz - High cutoff (removes hiss/noise above speech)
 
 DISPLAY_EVERY_N_FRAMES = 5  # Update display every N frames (~0.16s)
 
@@ -47,8 +51,8 @@ def find_device_index():
 def highpass_filter(audio, cutoff=200, order=5):
     """
     Apply high-pass filter to remove low-frequency fan noise
-    - Removes everything below cutoff frequency (typically 200 Hz)
-    - Preserves speech frequencies (>200 Hz)
+    - Removes everything below cutoff frequency
+    - Preserves speech frequencies above cutoff
     """
     nyquist = SAMPLE_RATE / 2
     normalized_cutoff = cutoff / nyquist
@@ -62,6 +66,54 @@ def highpass_filter(audio, cutoff=200, order=5):
         return filtered
     except Exception as e:
         print(f"[Audio] ⚠️ High-pass filter failed: {e}")
+        return audio
+
+def lowpass_filter(audio, cutoff=3400, order=5):
+    """
+    Apply low-pass filter to remove high-frequency noise
+    - Removes everything above cutoff frequency
+    - Preserves speech frequencies below cutoff
+    """
+    nyquist = SAMPLE_RATE / 2
+    normalized_cutoff = cutoff / nyquist
+    
+    # Ensure frequency is in valid range (0 < Wn < 1)
+    normalized_cutoff = max(0.01, min(normalized_cutoff, 0.99))
+    
+    try:
+        b, a = signal.butter(order, normalized_cutoff, btype='low')
+        filtered = signal.filtfilt(b, a, audio)
+        return filtered
+    except Exception as e:
+        print(f"[Audio] ⚠️ Low-pass filter failed: {e}")
+        return audio
+
+def bandpass_filter(audio, low_cutoff=80, high_cutoff=3400, order=5):
+    """
+    Apply band-pass filter to isolate speech frequencies
+    - Removes frequencies below low_cutoff (rumble/fan noise)
+    - Removes frequencies above high_cutoff (hiss/high-freq noise)
+    - Preserves speech band (typically 80-3400 Hz)
+    """
+    nyquist = SAMPLE_RATE / 2
+    low_norm = low_cutoff / nyquist
+    high_norm = high_cutoff / nyquist
+    
+    # Ensure frequencies are in valid range
+    low_norm = max(0.01, min(low_norm, 0.98))
+    high_norm = max(0.02, min(high_norm, 0.99))
+    
+    # Ensure low < high
+    if low_norm >= high_norm:
+        print(f"[Audio] ⚠️ Invalid bandpass range: {low_cutoff}-{high_cutoff} Hz")
+        return audio
+    
+    try:
+        b, a = signal.butter(order, [low_norm, high_norm], btype='band')
+        filtered = signal.filtfilt(b, a, audio)
+        return filtered
+    except Exception as e:
+        print(f"[Audio] ⚠️ Band-pass filter failed: {e}")
         return audio
 
 def auto_gain_control(audio):
@@ -88,14 +140,18 @@ def auto_gain_control(audio):
 def process_audio(audio):
     """
     Process audio exactly like listener.py:
-    1. High-pass filter (removes fan noise < 200Hz)
+    1. Frequency filtering (highpass/bandpass/none)
     2. Automatic gain control (adapts to speech distance)
     
     Returns: (processed_audio, applied_gain)
     """
-    # Step 1: High-pass filter to remove fan noise
+    # Step 1: Frequency filtering
     if ENABLE_NOISE_REDUCTION:
-        audio = highpass_filter(audio, cutoff=HIGHPASS_CUTOFF)
+        if FILTER_TYPE == "bandpass":
+            audio = bandpass_filter(audio, low_cutoff=HIGHPASS_CUTOFF, high_cutoff=LOWPASS_CUTOFF)
+        elif FILTER_TYPE == "highpass":
+            audio = highpass_filter(audio, cutoff=HIGHPASS_CUTOFF)
+        # "none" or other values = no filtering
     
     # Step 2: Automatic gain control
     if USE_AUTO_GAIN:
@@ -129,7 +185,12 @@ def process_audio_realtime(device_index, duration):
     print(f"  🎤 REAL-TIME AUDIO PROCESSING MONITOR (Mirrors listener.py)")
     print(f"{'='*90}")
     print(f"  Duration: {duration}s")
-    print(f"  Pipeline: High-Pass ({HIGHPASS_CUTOFF}Hz) → AGC (Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x)")
+    if FILTER_TYPE == "bandpass":
+        print(f"  Pipeline: Band-Pass ({HIGHPASS_CUTOFF}-{LOWPASS_CUTOFF} Hz) → AGC (Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x)")
+    elif FILTER_TYPE == "highpass":
+        print(f"  Pipeline: High-Pass ({HIGHPASS_CUTOFF} Hz) → AGC (Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x)")
+    else:
+        print(f"  Pipeline: No filtering → AGC (Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x)")
     print(f"  Display Update: Every {DISPLAY_EVERY_N_FRAMES} frames (~{DISPLAY_EVERY_N_FRAMES * FRAME_DURATION:.2f}s)")
     print(f"{'='*90}\n")
     
@@ -244,7 +305,11 @@ def main():
         
         # Show configuration
         print(f"\n[Audio] 📋 Configuration:")
-        print(f"  High-Pass Filter: {HIGHPASS_CUTOFF} Hz")
+        print(f"  Filter Type: {FILTER_TYPE}")
+        if FILTER_TYPE == "bandpass":
+            print(f"  Band-Pass Range: {HIGHPASS_CUTOFF}-{LOWPASS_CUTOFF} Hz")
+        elif FILTER_TYPE == "highpass":
+            print(f"  High-Pass Cutoff: {HIGHPASS_CUTOFF} Hz")
         print(f"  AGC Target RMS: {AGC_TARGET_RMS}")
         print(f"  AGC Max Gain: {AGC_MAX_GAIN}x")
         
