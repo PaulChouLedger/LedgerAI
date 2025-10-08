@@ -395,8 +395,8 @@ class AuraRAG:
                     
                     # Apply keyword filter if enabled (HYBRID SEARCH with fuzzy matching)
                     if use_keyword_filter:
-                        # Use fuzzy matching to handle typos/variations
-                        if not self._fuzzy_name_search(person_name, chunk, threshold=0.75):
+                        # Use fuzzy matching to handle typos/variations (0.65 catches Raphael↔Rafael)
+                        if not self._fuzzy_name_search(person_name, chunk, threshold=0.65):
                             print(f"[RAG] 🔍 Filtered out: no fuzzy match for '{person_name}' in chunk")
                             continue
                         else:
@@ -455,7 +455,7 @@ class AuraRAG:
             print(f"[RAG] ❌ Search error: {e}")
             return []
     
-    def _fuzzy_name_search(self, person_name: str, chunk: str, threshold: float = 0.8) -> bool:
+    def _fuzzy_name_search(self, person_name: str, chunk: str, threshold: float = 0.65) -> bool:
         """
         Check if a chunk contains a fuzzy match for the person name
         Handles typos like "Bob Corella" matching "Bob Carella"

@@ -16,7 +16,7 @@ import socket
 # Configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'data', 'input')
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'doc', 'docx', 'md', 'rtf', 'odt', 'wav', 'mp3', 'mp4', 'avi', 'mov', 'png', 'jpg', 'jpeg', 'gif'}
-MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100MB max file size
+MAX_CONTENT_LENGTH = 1024 * 1024 * 1024  # 1GB max file size
 
 # Get local IP address
 def get_local_ip():
