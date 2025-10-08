@@ -172,54 +172,55 @@ class AutoIngest:
                 f.write(text)
             print(f"[Ingest] ✅ Saved parsed text: {parsed_path.name}")
             
-            # Chunk text
-            chunks = self.chunk_text(text)
-            print(f"[Ingest] 📦 Created {len(chunks)} chunks")
+            # File successfully parsed - text is saved to data/parsed/
+            # Now trigger host rebuild_embeddings.py to regenerate index
+            print(f"[Ingest] 🔧 Triggering host rebuild_embeddings.py...")
             
-            # Generate embeddings (EXACT code from rebuild_embeddings.py)
-            print(f"[Ingest] 🔧 Generating embeddings...")
-            embeddings = self.rag.encoder.encode(chunks, convert_to_numpy=True, show_progress_bar=False)
-            embeddings = embeddings.astype(np.float32)
-            
-            # Normalize embeddings for cosine similarity (EXACT code from rebuild_embeddings.py)
-            faiss.normalize_L2(embeddings)
-            
-            print(f"[Ingest] ✅ Normalized {len(embeddings)} embeddings")
-            
-            # Add to index (EXACT code from rebuild_embeddings.py)
-            self.rag.index.add(embeddings)
-            self.rag.chunks = np.append(self.rag.chunks, chunks) if self.rag.chunks is not None else np.array(chunks)
-            
-            # Reload CUDA vectors for faiss_lite (important!)
-            print(f"[Ingest] 🔧 Updating CUDA vectors for faiss_lite...")
+            import subprocess
             try:
-                self.rag._prepare_cuda_data()
-                print(f"[Ingest] ✅ CUDA vectors updated")
+                # Call host script to rebuild embeddings
+                result = subprocess.run(
+                    ["python3", "/workspace/scripts/rebuild_embeddings.py"],
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                    cwd="/workspace"
+                )
+                
+                if result.returncode == 0:
+                    print(f"[Ingest] ✅ Host rebuild_embeddings completed successfully")
+                    print(f"[Ingest] 📊 Output: {result.stdout[-200:]}")  # Last 200 chars
+                    
+                    # Reload RAG index and chunks
+                    print(f"[Ingest] 🔄 Reloading RAG index...")
+                    self.rag.index = faiss.read_index(str(self.embeddings_dir / "index.faiss"))
+                    self.rag.chunks = np.load(str(self.embeddings_dir / "doc_chunks.npy"), allow_pickle=True)
+                    
+                    # Reload CUDA vectors for faiss_lite
+                    print(f"[Ingest] 🔧 Reloading CUDA vectors...")
+                    self.rag._prepare_cuda_data()
+                    
+                    print(f"[Ingest] ✅ RAG reloaded with {self.rag.index.ntotal} vectors")
+                else:
+                    print(f"[Ingest] ❌ Host rebuild failed: {result.stderr}")
+                    return False
+                    
+            except subprocess.TimeoutExpired:
+                print(f"[Ingest] ❌ Host rebuild timed out after 120s")
+                return False
             except Exception as e:
-                print(f"[Ingest] ⚠️ CUDA update failed: {e}")
-            
-            # Save updated index and chunks to disk
-            faiss.write_index(self.rag.index, str(self.embeddings_dir / "index.faiss"))
-            np.save(str(self.embeddings_dir / "doc_chunks.npy"), self.rag.chunks)
-            
-            # Reconstruct vectors from index for faiss_lite
-            n_vectors = self.rag.index.ntotal
-            vectors = np.zeros((n_vectors, self.rag.index.d), dtype=np.float32)
-            for i in range(n_vectors):
-                vectors[i] = self.rag.index.reconstruct(int(i))
-            np.save(str(self.embeddings_dir / "vectors.npy"), vectors)
-            print(f"[Ingest] 💾 Saved index and vectors to disk")
+                print(f"[Ingest] ❌ Error calling host rebuild: {e}")
+                return False
             
             # Update state
             self.state["processed_files"][file_path.name] = {
                 "hash": file_hash,
-                "chunks": len(chunks),
                 "timestamp": str(Path(file_path).stat().st_mtime)
             }
             self.state["total_chunks"] = self.rag.index.ntotal
             self.save_state()
             
-            print(f"[Ingest] ✅ Processed {file_path.name}: {len(chunks)} chunks added")
+            print(f"[Ingest] ✅ Processed {file_path.name}")
             print(f"[Ingest] 📊 Total chunks in RAG: {self.rag.index.ntotal}")
             
             return True

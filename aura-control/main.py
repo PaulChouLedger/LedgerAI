@@ -187,9 +187,12 @@ def run_container(name, port, image, timeout=15):
             "--gpus", "all"  # Add GPU support for faster-whisper
         ]
     elif name == "aura-rag":
-        # RAG container - minimal communication service
+        # RAG container - mount data and scripts for rebuild_embeddings
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         cmd += [
-            "-v", f"{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))}:/app/data"  # Mount embeddings data
+            "-v", f"{workspace_root}/data:/app/data",  # Mount embeddings data
+            "-v", f"{workspace_root}/scripts:/workspace/scripts",  # Mount scripts for rebuild_embeddings
+            "-v", f"{workspace_root}/rag-container:/workspace/rag-container",  # Mount model cache
         ]
 
 
