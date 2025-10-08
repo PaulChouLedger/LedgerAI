@@ -50,56 +50,74 @@ def setup_display():
     - Keep screen on for at least 5 minutes
     - Hide mouse cursor for clean interface
     """
+    print("[Aura] 🖥️  Configuring display...")
+    
+    # Wake the screen and turn on display
     try:
-        print("[Aura] 🖥️  Configuring display...")
-        
-        # Wake the screen and turn on display
-        subprocess.run(["xset", "dpms", "force", "on"], check=False)
-        
-        # Deactivate screensaver (dismisses any screensaver overlay)
+        subprocess.run(["xset", "dpms", "force", "on"], check=False, 
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+    
+    # Deactivate screensaver (dismisses any screensaver overlay)
+    try:
         subprocess.run(["xscreensaver-command", "-deactivate"], check=False, 
                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        
-        # Kill gnome-screensaver if running
+    except Exception:
+        pass
+    
+    # Kill gnome-screensaver if running
+    try:
         subprocess.run(["gnome-screensaver-command", "-d"], check=False,
                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        
-        # Simulate user activity to dismiss any lock/blank screen
+    except Exception:
+        pass
+    
+    # Simulate user activity to dismiss any lock/blank screen
+    try:
+        subprocess.run(["xdotool", "key", "shift"], check=False,
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+    
+    # Disable screen blanking and power saving for 5 minutes (300 seconds)
+    try:
+        subprocess.run(["xset", "s", "off"], check=False, 
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["xset", "s", "noblank"], check=False,
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["xset", "-dpms"], check=False,
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["xset", "+dpms"], check=False,
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["xset", "dpms", "300", "300", "300"], check=False,
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+    
+    # Hide mouse cursor (try unclutter first, fallback to xdotool)
+    cursor_hidden = False
+    try:
+        # unclutter hides cursor when idle (best option)
+        subprocess.Popen(["unclutter", "-idle", "0.1", "-root"], 
+                       stdout=subprocess.DEVNULL, 
+                       stderr=subprocess.DEVNULL)
+        print("[Aura] ✅ Mouse cursor hidden (unclutter)")
+        cursor_hidden = True
+    except FileNotFoundError:
+        # Fallback: move cursor to corner using xdotool
         try:
-            subprocess.run(["xdotool", "key", "shift"], check=False,
+            subprocess.run(["xdotool", "mousemove", "0", "0"], check=False,
                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except FileNotFoundError:
+            print("[Aura] ✅ Mouse cursor moved to corner")
+            cursor_hidden = True
+        except Exception:
             pass
-        
-        # Disable screen blanking and power saving for 5 minutes (300 seconds)
-        subprocess.run(["xset", "s", "off"], check=False)  # Disable screensaver
-        subprocess.run(["xset", "s", "noblank"], check=False)  # Disable screen blanking
-        subprocess.run(["xset", "-dpms"], check=False)  # Disable DPMS entirely for now
-        
-        # Re-enable DPMS with 5-minute timeout
-        subprocess.run(["xset", "+dpms"], check=False)
-        subprocess.run(["xset", "dpms", "300", "300", "300"], check=False)  # 5 min timeout
-        
-        # Hide mouse cursor (try unclutter first, fallback to xdotool)
-        try:
-            # unclutter hides cursor when idle (best option)
-            subprocess.Popen(["unclutter", "-idle", "0.1", "-root"], 
-                           stdout=subprocess.DEVNULL, 
-                           stderr=subprocess.DEVNULL)
-            print("[Aura] ✅ Mouse cursor hidden (unclutter)")
-        except FileNotFoundError:
-            # Fallback: move cursor to corner using xdotool
-            try:
-                subprocess.run(["xdotool", "mousemove", "0", "0"], check=False)
-                print("[Aura] ✅ Mouse cursor moved to corner")
-            except FileNotFoundError:
-                print("[Aura] ⚠️  unclutter/xdotool not found")
-                print("[Aura] 💡 Install: sudo apt install unclutter xdotool wmctrl")
-        
-        print("[Aura] ✅ Display configured: screen awake, no sleep for 5 min")
-        
-    except Exception as e:
-        print(f"[Aura] ⚠️  Display setup warning: {e}")
+    
+    if not cursor_hidden:
+        print("[Aura] 💡 Install cursor tools: sudo apt install unclutter xdotool wmctrl")
+    
+    print("[Aura] ✅ Display configured: screen awake, no sleep for 5 min")
 
 # === Utility: Stop and remove container if it exists ===
 def remove_existing_container(name):
