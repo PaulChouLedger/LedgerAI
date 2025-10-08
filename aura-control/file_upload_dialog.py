@@ -310,7 +310,11 @@ class FileUploadDialog(QDialog):
         button_layout = QVBoxLayout()
         button_layout.setSpacing(20)  # More spacing for larger buttons
         
-        # Only keep Google Drive and QR Code options
+        # Keep 4 main options (removed URL option)
+        self.select_files_btn = QPushButton("📁 Select Files")
+        self.select_files_btn.clicked.connect(self.select_files)
+        button_layout.addWidget(self.select_files_btn)
+        
         self.gdrive_btn = QPushButton("☁️ Google Drive")
         self.gdrive_btn.clicked.connect(self.add_google_drive)
         button_layout.addWidget(self.gdrive_btn)
@@ -318,6 +322,10 @@ class FileUploadDialog(QDialog):
         self.qr_btn = QPushButton("📱 Show QR Code")
         self.qr_btn.clicked.connect(self.show_qr_code)
         button_layout.addWidget(self.qr_btn)
+        
+        self.clear_btn = QPushButton("🗑️ Clear All")
+        self.clear_btn.clicked.connect(self.clear_files)
+        button_layout.addWidget(self.clear_btn)
         
         # Apply Apple-style styling to all action buttons (larger for fewer buttons)
         action_button_style = """
@@ -339,7 +347,7 @@ class FileUploadDialog(QDialog):
             }
         """
         
-        for button in [self.gdrive_btn, self.qr_btn]:
+        for button in [self.select_files_btn, self.gdrive_btn, self.qr_btn, self.clear_btn]:
             button.setStyleSheet(action_button_style)
         
         file_layout.addLayout(button_layout)
@@ -448,6 +456,33 @@ class FileUploadDialog(QDialog):
         
         # Edge buttons removed - separate GUI functions will have their own scripts
     
+    def select_files(self):
+        """Open file dialog to select multiple files"""
+        files, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Select Documents to Upload",
+            "",
+            "All Supported (*.pdf *.txt *.docx *.md);;PDF Files (*.pdf);;Text Files (*.txt);;Word Documents (*.docx);;Markdown (*.md)"
+        )
+        
+        if files:
+            for file_path in files:
+                if file_path not in self.uploaded_files:
+                    self.uploaded_files.append(file_path)
+                    filename = os.path.basename(file_path)
+                    item = QListWidgetItem(f"📄 {filename}")
+                    item.setData(Qt.UserRole, file_path)
+                    self.file_list.addItem(item)
+            
+            self.upload_btn.setEnabled(len(self.uploaded_files) > 0)
+            self.log_status(f"Selected {len(files)} file(s)")
+    
+    def clear_files(self):
+        """Clear all files from the upload list"""
+        self.uploaded_files.clear()
+        self.file_list.clear()
+        self.upload_btn.setEnabled(False)
+        self.log_status("Cleared all files")
         
     def add_google_drive(self):
         """Add document from Google Drive"""
