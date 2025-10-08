@@ -149,11 +149,10 @@ def listen():
     
     # Audio processing configuration
     print("\n" + "="*70)
-    print("[Audio] ✅ Audio processing pipeline: High-Pass → AGC")
+    print("[Audio] ✅ Audio processing pipeline: High-Pass → Gain")
     print(f"[Audio] 🔧 High-pass filter: {HIGHPASS_CUTOFF} Hz (removes fan noise)")
-    print(f"[Audio] 🔧 Auto Gain Control: Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x")
-    print(f"[Audio] 💡 AGC prevents clipping and adapts to speech distance")
-    print(f"[Audio] 💡 VAD handles speech detection (no noise gate needed)")
+    print(f"[Audio] 🔧 Audio gain: {AUDIO_GAIN}x")
+    print(f"[Audio] 💡 VAD handles speech detection")
     print("="*70 + "\n")
 
     with sd.InputStream(device=DEVICE_INDEX, channels=6, samplerate=SAMPLE_RATE,
