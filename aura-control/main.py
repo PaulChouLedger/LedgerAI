@@ -10,7 +10,7 @@ import requests
 import concurrent.futures
 from dotenv import dotenv_values   # 👈 load host .env
 
-from aura_gui import launch_gui, run_gui_loop
+from aura_gui import launch_gui, run_gui_loop, is_gui_ready
 from listener import listen
 import speaker  # ✅ Starts TTS playback loop and queue
 try:
@@ -481,7 +481,17 @@ def main():
     # Launch GUI FIRST so user sees something immediately
     launch_gui()
     
-    time.sleep(3)
+    # Wait for GUI to be fully ready (instead of fixed delay)
+    print("[Aura] ⏳ Waiting for GUI to be ready...")
+    max_wait = 5.0  # Maximum 5 seconds
+    start_time = time.time()
+    while not is_gui_ready() and (time.time() - start_time) < max_wait:
+        time.sleep(0.05)  # Check every 50ms
+    
+    if is_gui_ready():
+        print("[Aura] ✅ GUI ready - starting services")
+    else:
+        print("[Aura] ⚠️  GUI ready timeout - continuing anyway")
 
     # Start TTS warm-up and services in background while GUI is visible
     warm_up_tts()

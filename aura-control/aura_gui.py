@@ -712,6 +712,10 @@ def launch_gui():
     _window.showFullScreen()
     _app.processEvents()  # ✅ Ensure GUI renders before returning
 
+def is_gui_ready():
+    """Check if GUI is fully initialized and visible"""
+    return _gui_ready
+
 def run_gui_loop():
     global _app
     try:

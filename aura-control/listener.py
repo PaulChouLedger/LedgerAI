@@ -22,10 +22,10 @@ VAD_SILENCE_THRESHOLD = 0.10  # Threshold for silence (closer to actual silence 
 MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 
 # Audio processing
-AUDIO_GAIN = 4.0  # Target gain for far-field speech
 USE_AUTO_GAIN = True  # Enable automatic gain control (prevents clipping)
 AGC_TARGET_RMS = 0.15  # Target RMS after processing (good level for Whisper)
 AGC_MAX_GAIN = 6.0  # Maximum gain to apply (prevents over-amplification)
+# Note: AUDIO_GAIN not needed with USE_AUTO_GAIN enabled (AGC calculates optimal gain per frame)
 ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
 NOISE_REDUCTION_METHOD = "highpass"  # "highpass" or "spectral" - highpass removes <200Hz (fan noise)
 HIGHPASS_CUTOFF = 200  # Hz - Fan noise < 200Hz, speech > 200Hz
@@ -348,20 +348,20 @@ def process_audio(audio, vad_active=False, learning_phase=False, debug=False):
     if ENABLE_NOISE_GATE:
         audio = noise_gate(audio, vad_active=vad_active, learning_phase=learning_phase)
     
-    # Step 3: Apply gain (auto or fixed)
+    # Step 3: Apply gain (auto only - no fixed mode with current config)
     if USE_AUTO_GAIN:
         # Automatic gain control - prevents clipping, adapts to signal level
         audio, applied_gain = auto_gain_control(audio, target_rms=AGC_TARGET_RMS, max_gain=AGC_MAX_GAIN)
     else:
-        # Fixed gain
-        audio = np.clip(audio * AUDIO_GAIN, -1.0, 1.0)
+        # No gain applied
+        applied_gain = 1.0
     
     return audio, applied_gain
 
-# === Simple Audio Gain (kept for backward compatibility) ===
+# === Simple Audio Gain (deprecated - use AGC instead) ===
 def apply_gain(audio):
-    """Apply simple gain to audio signal"""
-    return np.clip(audio * AUDIO_GAIN, -1.0, 1.0)
+    """Apply simple gain to audio signal (deprecated)"""
+    return audio  # No-op since we use AGC now
 
 # === Simple frequency function for GUI border (placeholder) ===
 def get_transcription_frequency():
