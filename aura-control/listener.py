@@ -22,7 +22,9 @@ VAD_SILENCE_THRESHOLD = 0.10  # Threshold for silence (closer to actual silence 
 MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 
 # Audio processing
-AUDIO_GAIN = 4.0  # No gain (testing native microphone level)
+USE_AUTO_GAIN = True  # Enable automatic gain control
+AGC_TARGET_RMS = 0.15  # Target RMS for Whisper (optimal speech recognition)
+AGC_MAX_GAIN = 10.0  # Maximum gain to apply (prevents over-amplification)
 ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
 HIGHPASS_CUTOFF = 200  # Hz - Fan noise < 200Hz, speech > 200Hz
 
@@ -55,6 +57,27 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 
 # === Audio Processing Functions ===
 
+def auto_gain_control(audio):
+    """
+    Automatic gain control - adapts gain based on input level
+    Prevents clipping while maximizing signal strength
+    """
+    rms = np.sqrt(np.mean(audio ** 2))
+    if rms < 1e-6:  # Avoid division by zero
+        return audio, 1.0
+    
+    # Calculate required gain to reach target RMS
+    required_gain = AGC_TARGET_RMS / rms
+    
+    # Limit gain to prevent over-amplification
+    actual_gain = min(required_gain, AGC_MAX_GAIN)
+    
+    # Apply gain with clipping prevention
+    audio = audio * actual_gain
+    audio = np.clip(audio, -1.0, 1.0)
+    
+    return audio, actual_gain
+
 def highpass_filter(audio, cutoff=200, order=5):
     """
     Apply high-pass filter to remove low-frequency fan noise
@@ -80,21 +103,24 @@ def process_audio(audio):
     """
     Simple audio processing pipeline:
     1. High-pass filter (removes fan noise < 200Hz)
-    2. Gain normalization
+    2. Automatic gain control (adapts to speech distance)
+    
+    Returns:
+        processed_audio, applied_gain
     """
     # Step 1: High-pass filter to remove fan noise
     if ENABLE_NOISE_REDUCTION:
         audio = highpass_filter(audio, cutoff=HIGHPASS_CUTOFF)
     
-    # Step 2: Apply gain
-    audio = np.clip(audio * AUDIO_GAIN, -1.0, 1.0)
+    # Step 2: Automatic gain control
+    if USE_AUTO_GAIN:
+        audio, applied_gain = auto_gain_control(audio)
+    else:
+        audio = np.clip(audio, -1.0, 1.0)
+        applied_gain = 1.0
     
-    return audio
+    return audio, applied_gain
 
-# === Simple Audio Gain (kept for backward compatibility) ===
-def apply_gain(audio):
-    """Apply simple gain to audio signal"""
-    return np.clip(audio * AUDIO_GAIN, -1.0, 1.0)
 
 # === Simple frequency function for GUI border (placeholder) ===
 def get_transcription_frequency():
@@ -149,9 +175,10 @@ def listen():
     
     # Audio processing configuration
     print("\n" + "="*70)
-    print("[Audio] ✅ Audio processing pipeline: High-Pass → Gain")
+    print("[Audio] ✅ Audio processing pipeline: High-Pass → AGC")
     print(f"[Audio] 🔧 High-pass filter: {HIGHPASS_CUTOFF} Hz (removes fan noise)")
-    print(f"[Audio] 🔧 Audio gain: {AUDIO_GAIN}x")
+    print(f"[Audio] 🔧 Auto Gain Control: Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x")
+    print(f"[Audio] 💡 AGC adapts to speech distance (near/far)")
     print(f"[Audio] 💡 VAD handles speech detection")
     print("="*70 + "\n")
 
@@ -237,15 +264,15 @@ def listen():
                 print(f"\n[Audio] 📊 RAW: RMS={raw_rms:.6f}, Peak={raw_peak:.4f}, Length={len(mono_mix)} samples")
             
             # Apply full audio processing pipeline
-            mono_mix = process_audio(mono_mix)
+            mono_mix, applied_gain = process_audio(mono_mix)
             
             # Debug: Show processed audio stats
             if DEBUG_NOISE_REDUCTION:
                 clean_rms = np.sqrt(np.mean(mono_mix ** 2))
                 clean_peak = np.max(np.abs(mono_mix))
                 
-                print(f"[Audio] ✅ CLEAN: RMS={clean_rms:.6f}, Peak={clean_peak:.4f}, Gain={AUDIO_GAIN}x")
-                print(f"[Audio] 📈 BOOST: {raw_rms:.6f} → {clean_rms:.6f} (×{clean_rms/raw_rms if raw_rms > 0 else 0:.2f})")
+                print(f"[Audio] ✅ PROCESSED: RMS={clean_rms:.6f}, Peak={clean_peak:.4f}, AGC={applied_gain:.2f}x")
+                print(f"[Audio] 📈 AMPLIFICATION: {raw_rms:.6f} → {clean_rms:.6f} (×{clean_rms/raw_rms if raw_rms > 0 else 0:.2f})")
 
             if len(mono_mix) < MIN_AUDIO_SAMPLES:
                 print("⚠️ Skipped: too short")
@@ -256,7 +283,9 @@ def listen():
             
             # Debug: Show transcription result with audio quality
             if DEBUG_NOISE_REDUCTION and text:
-                print(f"[Audio] 🎤 TRANSCRIBED: '{text}' (Clean RMS: {clean_rms:.6f})")
+                print(f"[Audio] 🎤 ✅ TRANSCRIBED: '{text}' (Clean RMS: {clean_rms:.6f}, Gain: {applied_gain:.2f}x)")
+            elif DEBUG_NOISE_REDUCTION and not text:
+                print(f"[Audio] 🎤 ❌ FAILED: No transcription (Clean RMS: {clean_rms:.6f}, Peak: {clean_peak:.4f})")
             
             if not text:
                 set_transcribing(False)  # Reset transcribing state
