@@ -69,18 +69,27 @@ class AuraRAG:
             if self.cuda_vectors is None:
                 raise RuntimeError("CUDA vectors not initialized - _prepare_cuda_data() failed silently")
             
-            # Warm up CUDA buffers with comprehensive search (fixes lazy-loading bug)
-            print(f"[RAG] 🔧 Warming up CUDA buffers - accessing all vectors...")
-            warmup_query = self.encoder.encode(["initialization"], convert_to_numpy=True).astype(np.float32)
-            warmup_norms = np.linalg.norm(warmup_query, axis=1, keepdims=True)
-            warmup_query = warmup_query / warmup_norms
-            # Search with high k to touch as many vectors as possible
-            warmup_k = min(20, self.index.ntotal)  # Top 20 or all vectors if less
-            warmup_distances, warmup_indices = self._search_with_faiss_lite(warmup_query, k=warmup_k)
-            if warmup_distances is not None:
-                print(f"[RAG] ✅ CUDA buffers warmed up - touched {warmup_k} vectors")
-            else:
-                print(f"[RAG] ⚠️ CUDA warmup failed - first query might have issues")
+            # Force all vectors into GPU memory (prevents lazy-loading bugs)
+            print(f"[RAG] 🔧 Prefetching all {self.index.ntotal} vectors to GPU...")
+            try:
+                import faiss_lite
+                # Prefetch ALL vectors to GPU device 0 (not lazy - immediate load)
+                faiss_lite.cudaMemPrefetchAsync(
+                    self.cuda_vectors_ptr,
+                    self.cuda_vectors.nbytes,
+                    device=0  # GPU device 0
+                )
+                # Wait for prefetch to complete
+                faiss_lite.cudaDeviceSynchronize()
+                print(f"[RAG] ✅ All {self.index.ntotal} vectors prefetched to GPU memory")
+            except Exception as e:
+                print(f"[RAG] ⚠️ GPU prefetch failed, using warmup search: {e}")
+                # Fallback: warmup search
+                warmup_query = self.encoder.encode(["warmup"], convert_to_numpy=True).astype(np.float32)
+                warmup_norms = np.linalg.norm(warmup_query, axis=1, keepdims=True)
+                warmup_query = warmup_query / warmup_norms
+                self._search_with_faiss_lite(warmup_query, k=min(20, self.index.ntotal))
+                print(f"[RAG] ✅ Warmup search completed")
             
             print(f"[RAG] ✅ Initialization complete: index ready, CUDA data ready, encoder ready")
             print(f"[RAG] 🎯 System status: {self.index.ntotal} vectors indexed, {len(self.chunks)} chunks loaded")
