@@ -17,7 +17,7 @@ SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.20  # Time of continuous silence to stop - balance between responsiveness and cutoff prevention
-VAD_START_THRESHOLD = 0.20  # Threshold to START detecting speech
+VAD_START_THRESHOLD = 0.35  # Threshold to START detecting speech
 VAD_SILENCE_THRESHOLD = 0.10  # Threshold for silence (closer to actual silence ~0.05, minimizes dead air to Whisper)
 MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 

@@ -19,13 +19,20 @@ import numpy as np
 import sounddevice as sd
 from scipy import interpolate
 
-# === Config ===
+# === Config (mirroring listener.py) ===
 SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 RECORDING_DURATION = 30.0  # Monitor for 30 seconds
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
-NOISE_REDUCTION_STRENGTH = 0.85
+
+# Audio processing (same as listener.py)
+AUDIO_GAIN = 1.0  # No gain (testing native microphone level)
+ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
+NOISE_REDUCTION_METHOD = "highpass"  # "highpass" or "spectral"
+HIGHPASS_CUTOFF = 200  # Hz - Fan noise < 200Hz, speech > 200Hz
+NOISE_REDUCTION_STRENGTH = 0.6  # Spectral subtraction strength (only if method="spectral")
+
 DISPLAY_EVERY_N_FRAMES = 5  # Update display every N frames (~0.16s)
 
 # Paths
@@ -44,6 +51,28 @@ def find_device_index():
             print(f"[Audio] 🎧 Found device: {device['name']} (index {i})")
             return i
     raise RuntimeError(f"Microphone '{DEVICE_NAME}' not found.")
+
+def highpass_filter(audio, cutoff=200, order=5):
+    """
+    Apply high-pass filter to remove low-frequency fan noise
+    - Removes everything below cutoff frequency (typically 200 Hz)
+    - Preserves speech frequencies (>200 Hz)
+    """
+    from scipy import signal
+    
+    nyquist = SAMPLE_RATE / 2
+    normalized_cutoff = cutoff / nyquist
+    
+    # Ensure frequency is in valid range (0 < Wn < 1)
+    normalized_cutoff = max(0.01, min(normalized_cutoff, 0.99))
+    
+    try:
+        b, a = signal.butter(order, normalized_cutoff, btype='high')
+        filtered = signal.filtfilt(b, a, audio)
+        return filtered
+    except Exception as e:
+        print(f"[Audio] ⚠️ High-pass filter failed: {e}")
+        return audio
 
 def spectral_noise_subtraction(audio, noise_profile_global, strength=0.85):
     """Apply spectral noise subtraction to a single frame"""
@@ -84,6 +113,41 @@ def spectral_noise_subtraction(audio, noise_profile_global, strength=0.85):
         'reduction_pct': (energy_removed / signal_energy * 100) if signal_energy > 0 else 0
     }
 
+def process_audio(audio):
+    """
+    Process audio exactly like listener.py:
+    1. Noise reduction (highpass or spectral)
+    2. Gain normalization
+    
+    Returns: (processed_audio, stats_dict)
+    """
+    stats = {
+        'signal_energy': 0,
+        'noise_energy': 0,
+        'clean_energy': 0,
+        'energy_removed': 0,
+        'reduction_pct': 0
+    }
+    
+    if ENABLE_NOISE_REDUCTION:
+        if NOISE_REDUCTION_METHOD == "highpass":
+            # High-pass filter
+            before_energy = np.sum(audio ** 2)
+            audio = highpass_filter(audio, cutoff=HIGHPASS_CUTOFF)
+            after_energy = np.sum(audio ** 2)
+            stats['signal_energy'] = before_energy
+            stats['clean_energy'] = after_energy
+            stats['energy_removed'] = before_energy - after_energy
+            stats['reduction_pct'] = (stats['energy_removed'] / before_energy * 100) if before_energy > 0 else 0
+        elif NOISE_REDUCTION_METHOD == "spectral" and noise_profile is not None:
+            # Spectral subtraction
+            audio, stats = spectral_noise_subtraction(audio, noise_profile, strength=NOISE_REDUCTION_STRENGTH)
+    
+    # Apply gain (same as listener.py)
+    audio = np.clip(audio * AUDIO_GAIN, -1.0, 1.0)
+    
+    return audio, stats
+
 def get_top_frequencies(audio, top_n=3):
     """Get top N dominant frequencies from audio"""
     fft = np.fft.rfft(audio)
@@ -104,9 +168,15 @@ def format_freq_list(freqs):
 def process_audio_realtime(device_index, noise_profile, duration):
     """Process audio in real-time and display properties"""
     print(f"\n{'='*90}")
-    print(f"  🎤 REAL-TIME AUDIO PROCESSING MONITOR")
+    print(f"  🎤 REAL-TIME AUDIO PROCESSING MONITOR (Mirrors listener.py)")
     print(f"{'='*90}")
-    print(f"  Duration: {duration}s | Noise Reduction Strength: {NOISE_REDUCTION_STRENGTH}")
+    print(f"  Duration: {duration}s")
+    print(f"  Noise Reduction: {NOISE_REDUCTION_METHOD.upper()}")
+    if NOISE_REDUCTION_METHOD == "highpass":
+        print(f"  High-Pass Cutoff: {HIGHPASS_CUTOFF} Hz")
+    else:
+        print(f"  Spectral Strength: {NOISE_REDUCTION_STRENGTH}")
+    print(f"  Audio Gain: {AUDIO_GAIN}x")
     print(f"  Display Update: Every {DISPLAY_EVERY_N_FRAMES} frames (~{DISPLAY_EVERY_N_FRAMES * FRAME_DURATION:.2f}s)")
     print(f"{'='*90}\n")
     
@@ -147,8 +217,8 @@ def process_audio_realtime(device_index, noise_profile, duration):
                 raw_peak = np.max(np.abs(raw_audio))
                 raw_freqs = get_top_frequencies(raw_audio, top_n=1)
                 
-                # Apply noise reduction
-                clean_audio, stats = spectral_noise_subtraction(raw_audio, noise_profile, NOISE_REDUCTION_STRENGTH)
+                # Apply full processing pipeline (same as listener.py)
+                clean_audio, stats = process_audio(raw_audio)
                 
                 # Analyze clean audio
                 clean_rms = np.sqrt(np.mean(clean_audio ** 2))
@@ -214,22 +284,28 @@ def main():
     print("="*90)
     
     try:
-        # Load noise profile
+        # Load noise profile (only if using spectral method)
         global noise_profile
-        print(f"\n[Audio] 🔍 Loading noise profile...")
         
-        if not os.path.exists(NOISE_PROFILE_PATH):
-            print(f"[Audio] ❌ Noise profile not found: {NOISE_PROFILE_PATH}")
-            print(f"[Audio] 💡 Run: python3 scripts/record_noise_profile.py")
-            return 1
-        
-        noise_profile = np.load(NOISE_PROFILE_PATH)
-        print(f"[Audio] ✅ Loaded: {len(noise_profile)} frequency bins")
-        
-        # Show noise profile stats
-        noise_mean = np.mean(noise_profile)
-        noise_energy = np.sum(noise_profile ** 2)
-        print(f"[Audio] 📊 Noise profile energy: {noise_energy:.2f}, mean: {noise_mean:.6f}")
+        if NOISE_REDUCTION_METHOD == "highpass":
+            print(f"\n[Audio] ✅ Using high-pass filter (no noise profile needed)")
+            print(f"[Audio] 🔧 Cutoff: {HIGHPASS_CUTOFF} Hz")
+            noise_profile = None
+        elif NOISE_REDUCTION_METHOD == "spectral":
+            print(f"\n[Audio] 🔍 Loading noise profile for spectral subtraction...")
+            
+            if not os.path.exists(NOISE_PROFILE_PATH):
+                print(f"[Audio] ❌ Noise profile not found: {NOISE_PROFILE_PATH}")
+                print(f"[Audio] 💡 Run: python3 scripts/record_noise_profile.py")
+                return 1
+            
+            noise_profile = np.load(NOISE_PROFILE_PATH)
+            print(f"[Audio] ✅ Loaded: {len(noise_profile)} frequency bins")
+            
+            # Show noise profile stats
+            noise_mean = np.mean(noise_profile)
+            noise_energy = np.sum(noise_profile ** 2)
+            print(f"[Audio] 📊 Noise profile energy: {noise_energy:.2f}, mean: {noise_mean:.6f}")
         
         # Find microphone
         print(f"\n[Audio] 🔍 Searching for microphone...")
