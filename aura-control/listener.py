@@ -30,8 +30,13 @@ ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
 
 # Filter options: "highpass", "bandpass", or "none"
 FILTER_TYPE = "bandpass"  # bandpass filters speech range (80-3400 Hz)
-HIGHPASS_CUTOFF = 60  # Hz - Low cutoff (lowered to preserve more speech energy)
+HIGHPASS_CUTOFF = 100  # Hz - Low cutoff (increased to remove more noise at high gain)
 LOWPASS_CUTOFF = 3400  # Hz - High cutoff (removes hiss/noise above speech)
+
+# Noise gate for far-field (high gain scenarios)
+ENABLE_NOISE_GATE = True  # Apply noise gate when gain > threshold
+NOISE_GATE_GAIN_THRESHOLD = 12.0  # Apply gate when gain exceeds this
+NOISE_GATE_THRESHOLD = 0.02  # Frames below this RMS are zeroed (removes inter-word noise)
 
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
@@ -83,11 +88,35 @@ def soft_clip(audio, threshold=0.85, max_peak=0.98):
     
     return audio
 
-def auto_gain_control(audio):
+def noise_gate(audio, threshold=0.02, frame_size=512):
+    """
+    Frame-level noise gate for far-field speech
+    - Analyzes audio in short frames
+    - Zeros out frames below threshold (removes inter-word noise)
+    - Preserves speech frames above threshold
+    - Uses smooth transitions to avoid clicks
+    """
+    # Process in overlapping frames to avoid artifacts
+    hop_size = frame_size // 2
+    gated_audio = audio.copy()
+    
+    for i in range(0, len(audio) - frame_size, hop_size):
+        frame = audio[i:i + frame_size]
+        frame_rms = np.sqrt(np.mean(frame ** 2))
+        
+        if frame_rms < threshold:
+            # Apply exponential decay instead of hard zeroing
+            fade = np.linspace(1.0, 0.1, len(frame))
+            gated_audio[i:i + frame_size] *= fade
+    
+    return gated_audio
+
+def auto_gain_control(audio, apply_noise_gate=False):
     """
     Automatic gain control with two-stage soft clipping
     - Adapts gain based on input level (far-field support up to 40x)
     - Uses progressive soft clipping to preserve waveform shape
+    - Optionally applies noise gate for high-gain scenarios
     - Prevents distortion while maximizing signal strength
     """
     rms = np.sqrt(np.mean(audio ** 2))
@@ -99,6 +128,16 @@ def auto_gain_control(audio):
     
     # Limit gain to maximum
     actual_gain = min(required_gain, AGC_MAX_GAIN)
+    
+    # Apply noise gate BEFORE gain if high gain is needed (far-field)
+    if apply_noise_gate and actual_gain > NOISE_GATE_GAIN_THRESHOLD:
+        audio = noise_gate(audio, threshold=NOISE_GATE_THRESHOLD)
+        # Recalculate RMS after gating
+        rms = np.sqrt(np.mean(audio ** 2))
+        if rms < 1e-6:
+            return audio, 1.0
+        required_gain = AGC_TARGET_RMS / rms
+        actual_gain = min(required_gain, AGC_MAX_GAIN)
     
     # Apply gain
     audio = audio * actual_gain
@@ -181,8 +220,10 @@ def bandpass_filter(audio, low_cutoff=80, high_cutoff=3400, order=5):
 def process_audio(audio):
     """
     Audio processing pipeline:
-    1. Frequency filtering (highpass/bandpass/none)
-    2. Automatic gain control (adapts to speech distance)
+    1. Frequency filtering (highpass/bandpass/none) - removes noise bands
+    2. Noise gate (optional, for high-gain scenarios) - removes inter-word noise
+    3. Automatic gain control (adapts to speech distance) - amplifies signal
+    4. Soft clipping (prevents distortion)
     
     Returns:
         processed_audio, applied_gain
@@ -195,9 +236,9 @@ def process_audio(audio):
             audio = highpass_filter(audio, cutoff=HIGHPASS_CUTOFF)
         # "none" or other values = no filtering
     
-    # Step 2: Automatic gain control
+    # Step 2 & 3: Noise gate + Automatic gain control
     if USE_AUTO_GAIN:
-        audio, applied_gain = auto_gain_control(audio)
+        audio, applied_gain = auto_gain_control(audio, apply_noise_gate=ENABLE_NOISE_GATE)
     else:
         audio = np.clip(audio, -1.0, 1.0)
         applied_gain = 1.0
@@ -259,15 +300,18 @@ def listen():
     # Audio processing configuration
     print("\n" + "="*70)
     if FILTER_TYPE == "bandpass":
-        print(f"[Audio] ✅ Audio processing pipeline: Band-Pass ({HIGHPASS_CUTOFF}-{LOWPASS_CUTOFF} Hz) → AGC + Soft Clip")
+        print(f"[Audio] ✅ Processing: Band-Pass ({HIGHPASS_CUTOFF}-{LOWPASS_CUTOFF}Hz) → Noise Gate → AGC → Soft Clip")
         print(f"[Audio] 🔧 Band-pass filter: {HIGHPASS_CUTOFF}-{LOWPASS_CUTOFF} Hz (speech band)")
     elif FILTER_TYPE == "highpass":
-        print(f"[Audio] ✅ Audio processing pipeline: High-Pass ({HIGHPASS_CUTOFF} Hz) → AGC + Soft Clip")
+        print(f"[Audio] ✅ Processing: High-Pass ({HIGHPASS_CUTOFF}Hz) → Noise Gate → AGC → Soft Clip")
         print(f"[Audio] 🔧 High-pass filter: {HIGHPASS_CUTOFF} Hz")
     else:
-        print("[Audio] ✅ Audio processing pipeline: No filtering → AGC + Soft Clip")
+        print("[Audio] ✅ Processing: No filtering → Noise Gate → AGC → Soft Clip")
+    
+    if ENABLE_NOISE_GATE:
+        print(f"[Audio] 🔧 Noise Gate: Active when gain >{NOISE_GATE_GAIN_THRESHOLD}x (removes background noise)")
     print(f"[Audio] 🔧 Auto Gain Control: Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x")
-    print(f"[Audio] 🔧 Soft Clipping: Threshold={AGC_SOFT_CLIP_THRESHOLD} (preserves waveform)")
+    print(f"[Audio] 🔧 Soft Clipping: 0.85→0.98 (preserves waveform, prevents distortion)")
     print(f"[Audio] 💡 Optimized for far-field speech (up to 16 meters)")
     print(f"[Audio] 💡 VAD handles speech detection")
     print("="*70 + "\n")
