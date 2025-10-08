@@ -23,8 +23,10 @@ MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 
 # Audio processing
 AUDIO_GAIN = 1.0  # No gain (testing native microphone level)
-ENABLE_NOISE_REDUCTION = True  # Enable spectral noise subtraction
-NOISE_REDUCTION_STRENGTH = 0.6  # Spectral subtraction strength (0.0-1.0, higher = more aggressive)
+ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
+NOISE_REDUCTION_METHOD = "highpass"  # "highpass" or "spectral" - highpass removes <200Hz (fan noise)
+HIGHPASS_CUTOFF = 200  # Hz - Fan noise < 200Hz, speech > 200Hz
+NOISE_REDUCTION_STRENGTH = 0.6  # Spectral subtraction strength (only if method="spectral")
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -58,6 +60,27 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 (get_speech_timestamps, _, read_audio, _, _) = utils
 
 # === Audio Processing Functions ===
+
+def highpass_filter(audio, cutoff=200, order=5):
+    """
+    Apply high-pass filter to remove low-frequency fan noise
+    - Removes everything below cutoff frequency (typically 200 Hz)
+    - Preserves speech frequencies (>200 Hz)
+    - Simple and artifact-free solution for fan noise
+    """
+    nyquist = SAMPLE_RATE / 2
+    normalized_cutoff = cutoff / nyquist
+    
+    # Ensure frequency is in valid range (0 < Wn < 1)
+    normalized_cutoff = max(0.01, min(normalized_cutoff, 0.99))
+    
+    try:
+        b, a = signal.butter(order, normalized_cutoff, btype='high')
+        filtered = signal.filtfilt(b, a, audio)
+        return filtered
+    except Exception as e:
+        print(f"[Audio] ⚠️ High-pass filter failed: {e}")
+        return audio
 
 def bandpass_filter(audio, lowcut=80, highcut=7000, order=5):
     """
@@ -159,11 +182,22 @@ def load_noise_profile():
         print("[Audio] ℹ️  Noise reduction disabled")
         return
     
+    if NOISE_REDUCTION_METHOD == "highpass":
+        print("\n" + "="*70)
+        print("[Audio] ✅ Using high-pass filter for noise reduction")
+        print(f"[Audio] 🔧 Cutoff frequency: {HIGHPASS_CUTOFF} Hz")
+        print(f"[Audio] 💡 Removes: Fan noise (<{HIGHPASS_CUTOFF} Hz)")
+        print(f"[Audio] 💡 Preserves: Speech (>{HIGHPASS_CUTOFF} Hz)")
+        print("="*70 + "\n")
+        noise_profile = None
+        return
+    
+    # Spectral method requires noise profile
     try:
         if not os.path.exists(NOISE_PROFILE_PATH):
             print(f"[Audio] ⚠️  Noise profile not found: {NOISE_PROFILE_PATH}")
             print(f"[Audio] 💡 Run: python3 scripts/record_noise_profile.py")
-            print(f"[Audio] ⚠️  Noise reduction disabled")
+            print(f"[Audio] ⚠️  Falling back to no noise reduction")
             noise_profile = None
             return
         
@@ -171,10 +205,10 @@ def load_noise_profile():
         noise_profile = np.load(NOISE_PROFILE_PATH)
         
         print("\n" + "="*70)
-        print("[Audio] ✅ Noise profile loaded successfully!")
+        print("[Audio] ✅ Noise profile loaded for spectral subtraction!")
         print(f"[Audio] 📁 Source: {NOISE_PROFILE_PATH}")
         print(f"[Audio] 📊 Frequency bins: {len(noise_profile)}")
-        print(f"[Audio] 🎯 Spectral subtraction enabled (strength=0.5)")
+        print(f"[Audio] 🎯 Spectral subtraction enabled (strength={NOISE_REDUCTION_STRENGTH})")
         print("[Audio] 🎤 Fan noise reduction active!")
         print("="*70 + "\n")
         
@@ -186,16 +220,22 @@ def load_noise_profile():
 def process_audio(audio, debug=False):
     """
     Full audio processing pipeline:
-    1. Spectral noise subtraction (removes pre-recorded fan noise signature)
+    1. Noise reduction (highpass or spectral)
     2. Gain normalization
     
-    Note: Bandpass filter removed - spectral subtraction handles fan noise directly
+    Method selection:
+    - "highpass": Simple high-pass filter (removes <200Hz fan noise, keeps speech)
+    - "spectral": Spectral subtraction using pre-recorded noise profile
     """
-    # Step 1: Spectral noise subtraction (removes exact fan noise pattern)
-    if ENABLE_NOISE_REDUCTION and noise_profile is not None:
-        audio = spectral_noise_subtraction(audio, noise_profile, strength=NOISE_REDUCTION_STRENGTH, debug=debug)
+    if ENABLE_NOISE_REDUCTION:
+        if NOISE_REDUCTION_METHOD == "highpass":
+            # Simple and reliable: Remove all frequencies below cutoff
+            audio = highpass_filter(audio, cutoff=HIGHPASS_CUTOFF)
+        elif NOISE_REDUCTION_METHOD == "spectral" and noise_profile is not None:
+            # Complex: Subtract learned noise pattern
+            audio = spectral_noise_subtraction(audio, noise_profile, strength=NOISE_REDUCTION_STRENGTH, debug=debug)
     
-    # Step 2: Apply gain
+    # Apply gain
     audio = np.clip(audio * AUDIO_GAIN, -1.0, 1.0)
     
     return audio
