@@ -16,13 +16,13 @@ from scipy import signal
 SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
-SILENCE_TIMEOUT = 0.2  # Time of continuous silence to stop - balance between responsiveness and cutoff prevention
-VAD_START_THRESHOLD = 0.25  # Threshold to START detecting speech
+SILENCE_TIMEOUT = 0.20  # Time of continuous silence to stop - balance between responsiveness and cutoff prevention
+VAD_START_THRESHOLD = 0.20  # Threshold to START detecting speech
 VAD_SILENCE_THRESHOLD = 0.10  # Threshold for silence (closer to actual silence ~0.05, minimizes dead air to Whisper)
 MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 
 # Audio processing
-AUDIO_GAIN = 2.0  # No gain (testing native microphone level)
+AUDIO_GAIN = 1.0  # No gain (testing native microphone level)
 ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
 NOISE_REDUCTION_METHOD = "highpass"  # "highpass" or "spectral" - highpass removes <200Hz (fan noise)
 HIGHPASS_CUTOFF = 200  # Hz - Fan noise < 200Hz, speech > 200Hz
