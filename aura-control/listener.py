@@ -22,7 +22,7 @@ VAD_SILENCE_THRESHOLD = 0.10  # Threshold for silence (closer to actual silence 
 MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 
 # Audio processing
-AUDIO_GAIN = 1.0  # No gain (testing native microphone level)
+AUDIO_GAIN = 2.0  # No gain (testing native microphone level)
 ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
 NOISE_REDUCTION_METHOD = "highpass"  # "highpass" or "spectral" - highpass removes <200Hz (fan noise)
 HIGHPASS_CUTOFF = 200  # Hz - Fan noise < 200Hz, speech > 200Hz
