@@ -23,20 +23,19 @@ MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 
 # Audio processing
 USE_AUTO_GAIN = True  # Enable automatic gain control
-AGC_TARGET_RMS = 0.18  # Target RMS for Whisper (increased for far-field)
+AGC_TARGET_RMS = 0.15  # Target RMS for Whisper (balanced for near+far field)
 AGC_MAX_GAIN = 40.0  # Maximum gain to apply (increased for 16m range)
 AGC_SOFT_CLIP_THRESHOLD = 0.95  # Start soft-clipping above this level
 ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
 
 # Filter options: "highpass", "bandpass", or "none"
 FILTER_TYPE = "bandpass"  # bandpass filters speech range (80-3400 Hz)
-HIGHPASS_CUTOFF = 100  # Hz - Low cutoff (increased to remove more noise at high gain)
+HIGHPASS_CUTOFF = 80  # Hz - Low cutoff (balanced - preserves speech, removes rumble)
 LOWPASS_CUTOFF = 3400  # Hz - High cutoff (removes hiss/noise above speech)
 
-# Noise gate for far-field (high gain scenarios)
-ENABLE_NOISE_GATE = True  # Apply noise gate when gain > threshold
-NOISE_GATE_GAIN_THRESHOLD = 12.0  # Apply gate when gain exceeds this
-NOISE_GATE_THRESHOLD = 0.02  # Frames below this RMS are zeroed (removes inter-word noise)
+# Beam forming for far-field (uses all 6 microphones)
+ENABLE_BEAM_FORMING = True  # Use all 6 mics for directional enhancement
+BEAM_FORMING_MODE = "delay_sum"  # Options: "delay_sum", "average"
 
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
@@ -67,6 +66,63 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 
 # === Audio Processing Functions ===
 
+def beam_forming(audio_channels, mode="delay_sum"):
+    """
+    Multi-channel beam forming for far-field speech enhancement
+    Uses all 6 microphones to create directional beam
+    
+    Args:
+        audio_channels: (N, 6) array where N is samples, 6 is channels
+        mode: "delay_sum" or "average"
+    
+    Returns:
+        mono_audio: Enhanced mono signal
+    """
+    if mode == "average":
+        # Simple averaging - sums all channels with equal weight
+        # This provides ~3dB SNR improvement (√6 = 2.45x)
+        mono = np.mean(audio_channels, axis=1)
+        return mono
+    
+    elif mode == "delay_sum":
+        # Delay-and-sum beam forming
+        # Aligns signals from all mics toward target direction
+        # Provides directional gain and noise rejection
+        
+        # For ReSpeaker 4 Mic Array, mics are typically in circular pattern
+        # Without exact geometry, we use cross-correlation to align
+        
+        # Use channel 0 as reference
+        reference = audio_channels[:, 0]
+        aligned_channels = []
+        
+        for ch in range(6):
+            channel = audio_channels[:, ch]
+            
+            # Find optimal delay using cross-correlation
+            correlation = np.correlate(reference, channel, mode='full')
+            delay = len(channel) - 1 - np.argmax(correlation)
+            
+            # Apply delay compensation (shift signal)
+            if delay > 0:
+                # Delay is positive: pad beginning
+                shifted = np.pad(channel, (delay, 0), mode='constant')[:len(channel)]
+            elif delay < 0:
+                # Delay is negative: pad end
+                shifted = np.pad(channel, (0, -delay), mode='constant')[-len(channel):]
+            else:
+                shifted = channel
+            
+            aligned_channels.append(shifted)
+        
+        # Sum aligned channels and normalize
+        mono = np.sum(aligned_channels, axis=0) / 6.0
+        return mono
+    
+    else:
+        # Fallback: just use channel 0
+        return audio_channels[:, 0]
+
 def soft_clip(audio, threshold=0.85, max_peak=0.98):
     """
     Two-stage soft clipping with dynamic range compression
@@ -88,35 +144,11 @@ def soft_clip(audio, threshold=0.85, max_peak=0.98):
     
     return audio
 
-def noise_gate(audio, threshold=0.02, frame_size=512):
-    """
-    Frame-level noise gate for far-field speech
-    - Analyzes audio in short frames
-    - Zeros out frames below threshold (removes inter-word noise)
-    - Preserves speech frames above threshold
-    - Uses smooth transitions to avoid clicks
-    """
-    # Process in overlapping frames to avoid artifacts
-    hop_size = frame_size // 2
-    gated_audio = audio.copy()
-    
-    for i in range(0, len(audio) - frame_size, hop_size):
-        frame = audio[i:i + frame_size]
-        frame_rms = np.sqrt(np.mean(frame ** 2))
-        
-        if frame_rms < threshold:
-            # Apply exponential decay instead of hard zeroing
-            fade = np.linspace(1.0, 0.1, len(frame))
-            gated_audio[i:i + frame_size] *= fade
-    
-    return gated_audio
-
-def auto_gain_control(audio, apply_noise_gate=False):
+def auto_gain_control(audio):
     """
     Automatic gain control with two-stage soft clipping
     - Adapts gain based on input level (far-field support up to 40x)
     - Uses progressive soft clipping to preserve waveform shape
-    - Optionally applies noise gate for high-gain scenarios
     - Prevents distortion while maximizing signal strength
     """
     rms = np.sqrt(np.mean(audio ** 2))
@@ -128,16 +160,6 @@ def auto_gain_control(audio, apply_noise_gate=False):
     
     # Limit gain to maximum
     actual_gain = min(required_gain, AGC_MAX_GAIN)
-    
-    # Apply noise gate BEFORE gain if high gain is needed (far-field)
-    if apply_noise_gate and actual_gain > NOISE_GATE_GAIN_THRESHOLD:
-        audio = noise_gate(audio, threshold=NOISE_GATE_THRESHOLD)
-        # Recalculate RMS after gating
-        rms = np.sqrt(np.mean(audio ** 2))
-        if rms < 1e-6:
-            return audio, 1.0
-        required_gain = AGC_TARGET_RMS / rms
-        actual_gain = min(required_gain, AGC_MAX_GAIN)
     
     # Apply gain
     audio = audio * actual_gain
@@ -221,9 +243,8 @@ def process_audio(audio):
     """
     Audio processing pipeline:
     1. Frequency filtering (highpass/bandpass/none) - removes noise bands
-    2. Noise gate (optional, for high-gain scenarios) - removes inter-word noise
-    3. Automatic gain control (adapts to speech distance) - amplifies signal
-    4. Soft clipping (prevents distortion)
+    2. Automatic gain control (adapts to speech distance) - amplifies signal
+    3. Soft clipping (prevents distortion)
     
     Returns:
         processed_audio, applied_gain
@@ -236,9 +257,9 @@ def process_audio(audio):
             audio = highpass_filter(audio, cutoff=HIGHPASS_CUTOFF)
         # "none" or other values = no filtering
     
-    # Step 2 & 3: Noise gate + Automatic gain control
+    # Step 2: Automatic gain control with soft clipping
     if USE_AUTO_GAIN:
-        audio, applied_gain = auto_gain_control(audio, apply_noise_gate=ENABLE_NOISE_GATE)
+        audio, applied_gain = auto_gain_control(audio)
     else:
         audio = np.clip(audio, -1.0, 1.0)
         applied_gain = 1.0
@@ -299,17 +320,17 @@ def listen():
     
     # Audio processing configuration
     print("\n" + "="*70)
+    if ENABLE_BEAM_FORMING:
+        print(f"[Audio] ✅ Processing: 6-Mic Beam Forming ({BEAM_FORMING_MODE}) → Band-Pass → AGC → Soft Clip")
+        print(f"[Audio] 🔧 Beam forming: {BEAM_FORMING_MODE} (uses all 6 microphones)")
+    else:
+        print(f"[Audio] ✅ Processing: Single Mic → Band-Pass → AGC → Soft Clip")
+    
     if FILTER_TYPE == "bandpass":
-        print(f"[Audio] ✅ Processing: Band-Pass ({HIGHPASS_CUTOFF}-{LOWPASS_CUTOFF}Hz) → Noise Gate → AGC → Soft Clip")
         print(f"[Audio] 🔧 Band-pass filter: {HIGHPASS_CUTOFF}-{LOWPASS_CUTOFF} Hz (speech band)")
     elif FILTER_TYPE == "highpass":
-        print(f"[Audio] ✅ Processing: High-Pass ({HIGHPASS_CUTOFF}Hz) → Noise Gate → AGC → Soft Clip")
         print(f"[Audio] 🔧 High-pass filter: {HIGHPASS_CUTOFF} Hz")
-    else:
-        print("[Audio] ✅ Processing: No filtering → Noise Gate → AGC → Soft Clip")
     
-    if ENABLE_NOISE_GATE:
-        print(f"[Audio] 🔧 Noise Gate: Active when gain >{NOISE_GATE_GAIN_THRESHOLD}x (removes background noise)")
     print(f"[Audio] 🔧 Auto Gain Control: Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x")
     print(f"[Audio] 🔧 Soft Clipping: 0.85→0.98 (preserves waveform, prevents distortion)")
     print(f"[Audio] 💡 Optimized for far-field speech (up to 16 meters)")
@@ -389,13 +410,18 @@ def listen():
                 continue
 
             full_audio = np.concatenate(buffer)
-            mono_mix = full_audio[:, 0]
+            
+            # Apply beam forming to combine all 6 microphones
+            if ENABLE_BEAM_FORMING:
+                mono_mix = beam_forming(full_audio, mode=BEAM_FORMING_MODE)
+            else:
+                mono_mix = full_audio[:, 0]  # Fallback: use channel 0 only
             
             # Debug: Show raw audio stats before processing
             if DEBUG_NOISE_REDUCTION:
                 raw_rms = np.sqrt(np.mean(mono_mix ** 2))
                 raw_peak = np.max(np.abs(mono_mix))
-                print(f"\n[Audio] 📊 RAW: RMS={raw_rms:.6f}, Peak={raw_peak:.4f}, Length={len(mono_mix)} samples")
+                print(f"\n[Audio] 📊 RAW (6-mic beam formed): RMS={raw_rms:.6f}, Peak={raw_peak:.4f}, Length={len(mono_mix)} samples")
             
             # Apply full audio processing pipeline
             mono_mix, applied_gain = process_audio(mono_mix)
