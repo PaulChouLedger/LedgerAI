@@ -327,16 +327,16 @@ class FileUploadDialog(QDialog):
         self.clear_btn.clicked.connect(self.clear_files)
         button_layout.addWidget(self.clear_btn)
         
-        # Apply Apple-style styling to all action buttons (larger for fewer buttons)
+        # Apply Apple-style styling to all action buttons (compact for 4 buttons)
         action_button_style = """
             QPushButton {
                 background-color: rgba(142, 142, 147, 0.2);
                 color: #ffffff;
-                font-size: 32px;
+                font-size: 22px;
                 font-weight: 600;
-                padding: 30px 40px;
-                min-height: 80px;
-                border-radius: 25px;
+                padding: 15px 20px;
+                min-height: 50px;
+                border-radius: 15px;
                 border: none;
             }
             QPushButton:hover {

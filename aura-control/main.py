@@ -306,25 +306,38 @@ def initialize_rag_delayed():
         else:
             print("[Aura] ⚠️ RAG stats endpoint not available after 3 attempts")
             
-        # Test RAG search
-        for attempt in range(3):
+        # Test RAG search with CUDA verification
+        print("[Aura] 🔍 Verifying RAG search with CUDA vectors...")
+        rag_ready = False
+        for attempt in range(5):  # More attempts for CUDA loading
             try:
                 search_response = requests.post(
                     "http://localhost:11435/rag/search",
-                    json={"query": "test", "k": 1},
+                    json={"query": "test", "k": 3},
                     timeout=30
                 )
                 if search_response.status_code == 200:
-                    print("[Aura] ✅ RAG search working")
-                    break
+                    result = search_response.json()
+                    # Verify we got actual results (CUDA vectors loaded)
+                    if result.get('results') and len(result['results']) > 0:
+                        print(f"[Aura] ✅ RAG search working - {len(result['results'])} results returned")
+                        rag_ready = True
+                        break
+                    else:
+                        print(f"[Aura] ⚠️ RAG search returned empty (CUDA loading?), attempt {attempt + 1}/5")
                 else:
-                    print(f"[Aura] ⚠️ RAG search attempt {attempt + 1} failed: {search_response.status_code}")
+                    print(f"[Aura] ⚠️ RAG search attempt {attempt + 1}/5 failed: {search_response.status_code}")
             except requests.exceptions.RequestException as e:
-                print(f"[Aura] ⚠️ RAG search attempt {attempt + 1} failed: {e}")
-                if attempt < 2:
-                    time.sleep(2)
+                print(f"[Aura] ⚠️ RAG search attempt {attempt + 1}/5 failed: {e}")
+            
+            if attempt < 4:
+                time.sleep(3)  # Wait for CUDA vectors to load
+        
+        if not rag_ready:
+            print("[Aura] ❌ RAG search not returning results after 5 attempts - listener may have issues")
+            print("[Aura] 💡 Continuing anyway, but first queries may fail...")
         else:
-            print("[Aura] ⚠️ RAG search endpoint not working after 3 attempts")
+            print("[Aura] ✅ RAG fully initialized and ready for queries")
             
     except Exception as e:
         print(f"[Aura] ⚠️ Delayed RAG initialization failed: {e}")
@@ -480,7 +493,22 @@ def start_services():
     monitor_thread.start()
     print("[Aura] ✅ Auto-ingest monitoring active (container extracts, host builds, checking every 60s)")
     
-    # Step 8: Start listener (after RAG is initialized)
+    # Step 8: Final RAG ready check before starting listener
+    print("[Aura] 🔍 Final RAG ready check before starting listener...")
+    try:
+        final_check = requests.post(
+            "http://localhost:11435/rag/search",
+            json={"query": "system check", "k": 1},
+            timeout=10
+        )
+        if final_check.status_code == 200 and final_check.json().get('results'):
+            print("[Aura] ✅ RAG confirmed ready - starting listener")
+        else:
+            print("[Aura] ⚠️ RAG may not be fully ready, but starting listener anyway")
+    except Exception as e:
+        print(f"[Aura] ⚠️ RAG final check failed: {e}, starting listener anyway")
+    
+    # Step 9: Start listener (after RAG is confirmed ready)
     print("[Aura] 🎙️ Starting listener...")
     threading.Thread(target=listen, daemon=True).start()
     
