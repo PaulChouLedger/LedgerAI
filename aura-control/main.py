@@ -41,6 +41,45 @@ def signal_handler(sig, frame):
 
 signal.signal(signal.SIGINT, signal_handler)
 
+# === Display Setup ===
+def setup_display():
+    """
+    Configure display settings for Aura:
+    - Wake screen from sleep
+    - Keep screen on for at least 5 minutes
+    - Hide mouse cursor for clean interface
+    """
+    try:
+        print("[Aura] 🖥️  Configuring display...")
+        
+        # Wake the screen and turn on display
+        subprocess.run(["xset", "dpms", "force", "on"], check=False)
+        
+        # Disable screen blanking and power saving for 5 minutes (300 seconds)
+        subprocess.run(["xset", "s", "off"], check=False)  # Disable screensaver
+        subprocess.run(["xset", "s", "noblank"], check=False)  # Disable screen blanking
+        subprocess.run(["xset", "dpms", "300", "300", "300"], check=False)  # DPMS: standby, suspend, off (all 5 min)
+        
+        # Hide mouse cursor (try unclutter first, fallback to xdotool)
+        try:
+            # unclutter hides cursor when idle (best option)
+            subprocess.Popen(["unclutter", "-idle", "0.1", "-root"], 
+                           stdout=subprocess.DEVNULL, 
+                           stderr=subprocess.DEVNULL)
+            print("[Aura] ✅ Mouse cursor hidden (unclutter)")
+        except FileNotFoundError:
+            # Fallback: move cursor to corner using xdotool
+            try:
+                subprocess.run(["xdotool", "mousemove", "0", "0"], check=False)
+                print("[Aura] ✅ Mouse cursor moved to corner")
+            except FileNotFoundError:
+                print("[Aura] ⚠️  unclutter/xdotool not found - cursor visible")
+        
+        print("[Aura] ✅ Display configured: screen awake, no sleep for 5 min")
+        
+    except Exception as e:
+        print(f"[Aura] ⚠️  Display setup warning: {e}")
+
 # === Utility: Stop and remove container if it exists ===
 def remove_existing_container(name):
     try:
@@ -349,7 +388,12 @@ def start_services():
 
 # === Main Entrypoint ===
 def main():
-    print("[Aura] 🌀 Launching Aura GUI...")
+    print("[Aura] 🌀 Launching Aura...")
+    
+    # Setup display first (wake screen, hide cursor)
+    setup_display()
+    
+    # Start GUI and services
     warm_up_tts()
     threading.Thread(target=start_services, daemon=True).start()
     launch_gui()
