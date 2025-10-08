@@ -69,27 +69,18 @@ class AuraRAG:
             if self.cuda_vectors is None:
                 raise RuntimeError("CUDA vectors not initialized - _prepare_cuda_data() failed silently")
             
-            # Force GPU prefetch for managed memory (fixes lazy-loading bug)
-            print(f"[RAG] 🔧 Prefetching all vectors to GPU memory...")
-            try:
-                import faiss_lite
-                # Prefetch ALL vectors to GPU (not lazy - forces immediate load)
-                faiss_lite.cudaMemPrefetchAsync(
-                    self.cuda_vectors_ptr,
-                    self.cuda_vectors.nbytes,
-                    device=0  # GPU 0
-                )
-                # Synchronize to ensure prefetch completes
-                faiss_lite.cudaDeviceSynchronize()
-                print(f"[RAG] ✅ All {self.index.ntotal} vectors prefetched to GPU")
-            except Exception as e:
-                print(f"[RAG] ⚠️ Prefetch failed (will use lazy loading): {e}")
-                # Fallback: warmup search to trigger loading
-                warmup_query = self.encoder.encode(["warmup"], convert_to_numpy=True).astype(np.float32)
-                warmup_norms = np.linalg.norm(warmup_query, axis=1, keepdims=True)
-                warmup_query = warmup_query / warmup_norms
-                self._search_with_faiss_lite(warmup_query, k=10)
-                print(f"[RAG] ✅ Warmup search completed")
+            # Warm up CUDA buffers with comprehensive search (fixes lazy-loading bug)
+            print(f"[RAG] 🔧 Warming up CUDA buffers - accessing all vectors...")
+            warmup_query = self.encoder.encode(["initialization"], convert_to_numpy=True).astype(np.float32)
+            warmup_norms = np.linalg.norm(warmup_query, axis=1, keepdims=True)
+            warmup_query = warmup_query / warmup_norms
+            # Search with high k to touch as many vectors as possible
+            warmup_k = min(20, self.index.ntotal)  # Top 20 or all vectors if less
+            warmup_distances, warmup_indices = self._search_with_faiss_lite(warmup_query, k=warmup_k)
+            if warmup_distances is not None:
+                print(f"[RAG] ✅ CUDA buffers warmed up - touched {warmup_k} vectors")
+            else:
+                print(f"[RAG] ⚠️ CUDA warmup failed - first query might have issues")
             
             print(f"[RAG] ✅ Initialization complete: index ready, CUDA data ready, encoder ready")
             print(f"[RAG] 🎯 System status: {self.index.ntotal} vectors indexed, {len(self.chunks)} chunks loaded")
@@ -326,22 +317,20 @@ class AuraRAG:
         Returns:
             Extracted name or empty string if no name found
         """
-        # Common patterns for name queries (case-insensitive for entire pattern)
+        # Common patterns for name queries
         patterns = [
-            r"who (?:is|was) ([a-z]+(?:\s+[a-z]+)*)",              # "Who is david lara"
-            r"who'?s ([a-z]+(?:\s+[a-z]+)*)",                      # "Who's bob carella"
-            r"tell me about ([a-z]+(?:\s+[a-z]+)*)",               # "Tell me about paul"
-            r"about ([a-z]+(?:\s+[a-z]+)*)",                       # "About jorge"
-            r"describe ([a-z]+(?:\s+[a-z]+)*)",                    # "Describe liam"
-            r"what (?:do you know )?about ([a-z]+(?:\s+[a-z]+)*)", # "What about X"
+            r"who is ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",              # "Who is David Lara"
+            r"who's ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",               # "Who's Bob Carella"
+            r"tell me about ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",       # "Tell me about Paul Chou"
+            r"about ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",               # "About Jorge Guinovart"
+            r"describe ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",            # "Describe Liam Hugill"
+            r"what (?:do you know )?about ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",  # "What about X" or "What do you know about X"
         ]
         
         for pattern in patterns:
             match = re.search(pattern, query, re.IGNORECASE)
             if match:
-                # Capitalize name for matching (Rafael Cabello, not rafael cabello)
-                name = match.group(1).strip()
-                name = ' '.join(word.capitalize() for word in name.split())
+                name = match.group(1)
                 print(f"[RAG] 🔍 Detected name query: '{name}'")
                 return name
         
