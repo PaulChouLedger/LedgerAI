@@ -256,9 +256,10 @@ def rebuild_embeddings(data_root="/app/data"):
     # Manual L2 normalization (faiss_lite container compatibility)
     norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
     embeddings = embeddings / norms
-    # Ensure C-contiguous for FAISS (critical!)
-    embeddings = np.ascontiguousarray(embeddings, dtype=np.float32)
+    # Create completely fresh array (faiss_lite is very picky!)
+    embeddings = np.array(embeddings, dtype=np.float32, order='C', copy=True)
     print(f"✅ Normalized embeddings manually (faiss_lite compatible)")
+    print(f"🔍 Array check: type={type(embeddings)}, dtype={embeddings.dtype}, C-contig={embeddings.flags['C_CONTIGUOUS']}")
     
     index.add(embeddings)
     
