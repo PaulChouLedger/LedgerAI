@@ -12,9 +12,9 @@ import time
 
 # === Transcription Configuration ===
 # Tune these parameters for your needs:
-BEAM_SIZE = 10                      # Higher = better accuracy, slower (5=fast, 10=balanced, 20=best) - MUST be int
+BEAM_SIZE = 5                      # Higher = better accuracy, slower (5=fast, 10=balanced, 20=best) - MUST be int
 TEMPERATURE = 0.0                 # 0.0 = deterministic, 0.1+ = more creative
-PATIENCE = 1.0                    # Wait time for better results
+PATIENCE = 0.5                    # Wait time for better results
 LENGTH_PENALTY = 0.0              # Don't penalize longer outputs
 INITIAL_PROMPT = "This is a conversation about people and medical information. Proper names and technical terms are important."
 
