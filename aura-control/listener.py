@@ -86,11 +86,12 @@ def bandpass_filter(audio, lowcut=80, highcut=7000, order=5):
         print(f"[Audio] ⚠️ Bandpass filter failed: {e}")
         return audio
 
-def spectral_noise_subtraction(audio, noise_profile, strength=0.5):
+def spectral_noise_subtraction(audio, noise_profile, strength=0.5, debug=False):
     """
     Subtract noise spectrum from audio using spectral subtraction
     - noise_profile: FFT of background noise (pre-recorded)
     - strength: how much noise to subtract (0.0-1.0)
+    - debug: show detailed noise subtraction stats
     """
     if noise_profile is None:
         return audio
@@ -112,8 +113,30 @@ def spectral_noise_subtraction(audio, noise_profile, strength=0.5):
         else:
             noise_profile_matched = noise_profile
         
+        # Calculate noise energy before subtraction
+        noise_energy = np.mean(noise_profile_matched)
+        signal_energy = np.mean(magnitude)
+        
         # Subtract noise profile from magnitude
         magnitude_clean = np.maximum(magnitude - strength * noise_profile_matched, 0)
+        
+        # Calculate reduction stats
+        clean_energy = np.mean(magnitude_clean)
+        noise_removed = signal_energy - clean_energy
+        reduction_db = 20 * np.log10(signal_energy / (clean_energy + 1e-10))
+        
+        # Debug output (periodic)
+        if debug and hasattr(spectral_noise_subtraction, '_debug_counter'):
+            spectral_noise_subtraction._debug_counter += 1
+            if spectral_noise_subtraction._debug_counter % 20 == 0:  # Every ~1 second
+                print(f"[Noise] 🔇 Spectral subtraction:")
+                print(f"        Signal energy: {signal_energy:.6f}")
+                print(f"        Noise profile: {noise_energy:.6f}")
+                print(f"        Clean energy: {clean_energy:.6f}")
+                print(f"        Noise removed: {noise_removed:.6f} ({reduction_db:.1f} dB)")
+                print(f"        Reduction: {(noise_removed/signal_energy)*100:.1f}%")
+        elif debug:
+            spectral_noise_subtraction._debug_counter = 0
         
         # Reconstruct signal with cleaned magnitude
         fft_clean = magnitude_clean * np.exp(1j * phase)
@@ -159,7 +182,7 @@ def load_noise_profile():
         print(f"[Audio] ⚠️  Noise reduction disabled")
         noise_profile = None
 
-def process_audio(audio):
+def process_audio(audio, debug=False):
     """
     Full audio processing pipeline:
     1. Spectral noise subtraction (removes pre-recorded fan noise signature)
@@ -169,7 +192,7 @@ def process_audio(audio):
     """
     # Step 1: Spectral noise subtraction (removes exact fan noise pattern)
     if ENABLE_NOISE_REDUCTION and noise_profile is not None:
-        audio = spectral_noise_subtraction(audio, noise_profile, strength=0.5)
+        audio = spectral_noise_subtraction(audio, noise_profile, strength=0.5, debug=debug)
     
     # Step 2: Apply gain
     audio = np.clip(audio * AUDIO_GAIN, -1.0, 1.0)
@@ -311,7 +334,7 @@ def listen():
             mono_mix = full_audio[:, 0]
             
             # Apply full audio processing pipeline (bandpass + noise reduction + gain)
-            mono_mix = process_audio(mono_mix)
+            mono_mix = process_audio(mono_mix, debug=True)  # Enable debug for noise reduction stats
 
             if len(mono_mix) < MIN_AUDIO_SAMPLES:
                 print("⚠️ Skipped: too short")
