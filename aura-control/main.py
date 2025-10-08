@@ -465,13 +465,25 @@ def focus_gui_window():
 def main():
     print("[Aura] 🌀 Launching Aura...")
     
-    # Setup display first (wake screen, hide cursor)
+    # FIRST: Wake screen immediately before anything else
+    print("[Aura] 🖥️  Waking display...")
+    try:
+        subprocess.run(["xset", "dpms", "force", "on"], check=False, 
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["xscreensaver-command", "-deactivate"], check=False, 
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+    
+    # Setup display fully (cursor hide, etc.)
     setup_display()
     
-    # Start GUI and services
+    # Launch GUI FIRST so user sees something immediately
+    launch_gui()
+    
+    # Start TTS warm-up and services in background while GUI is visible
     warm_up_tts()
     threading.Thread(target=start_services, daemon=True).start()
-    launch_gui()
     
     # Bring GUI to front after launch
     threading.Thread(target=focus_gui_window, daemon=True).start()
