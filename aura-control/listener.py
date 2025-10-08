@@ -46,6 +46,7 @@ noise_floor_locked = False  # Lock after initial learning to prevent drift
 
 # Debug: Show audio levels to help diagnose mic issues
 DEBUG_AUDIO_LEVELS = True  # Set to False to disable
+DEBUG_NOISE_REDUCTION = True  # Show detailed noise reduction stats during transcription
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
@@ -477,9 +478,27 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono_mix = full_audio[:, 0]
             
+            # Debug: Show raw audio stats before processing
+            if DEBUG_NOISE_REDUCTION:
+                raw_rms = np.sqrt(np.mean(mono_mix ** 2))
+                raw_peak = np.max(np.abs(mono_mix))
+                print(f"\n[Audio] 📊 RAW: RMS={raw_rms:.6f}, Peak={raw_peak:.4f}, Length={len(mono_mix)} samples")
+            
             # Apply full audio processing pipeline
             # Note: VAD was active during recording, noise floor already learned and locked
             mono_mix = process_audio(mono_mix, vad_active=True, learning_phase=False, debug=False)
+            
+            # Debug: Show processed audio stats and gate info
+            if DEBUG_NOISE_REDUCTION:
+                clean_rms = np.sqrt(np.mean(mono_mix ** 2))
+                clean_peak = np.max(np.abs(mono_mix))
+                threshold = noise_floor_rms * NOISE_GATE_RATIO if NOISE_GATE_MODE == "adaptive" else NOISE_GATE_FIXED_THRESHOLD
+                was_gated = clean_rms < 0.001  # If RMS is near zero, it was gated
+                status = "🔒GATED" if was_gated else "🔒PASS"
+                
+                print(f"[Audio] 🎯 GATE: Threshold={threshold:.6f}, Noise_Floor={noise_floor_rms:.6f}, Status={status}")
+                print(f"[Audio] ✅ CLEAN: RMS={clean_rms:.6f}, Peak={clean_peak:.4f}, Gain={AUDIO_GAIN}x")
+                print(f"[Audio] 📈 BOOST: {raw_rms:.6f} → {clean_rms:.6f} (×{clean_rms/raw_rms if raw_rms > 0 else 0:.2f})")
 
             if len(mono_mix) < MIN_AUDIO_SAMPLES:
                 print("⚠️ Skipped: too short")
@@ -487,6 +506,11 @@ def listen():
                 continue
 
             text = transcribe(mono_mix)
+            
+            # Debug: Show transcription result with audio quality
+            if DEBUG_NOISE_REDUCTION and text:
+                print(f"[Audio] 🎤 TRANSCRIBED: '{text}' (Clean RMS: {clean_rms:.6f})")
+            
             if not text:
                 set_transcribing(False)  # Reset transcribing state
                 continue
