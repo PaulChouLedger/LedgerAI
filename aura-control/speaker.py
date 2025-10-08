@@ -20,7 +20,7 @@ client = ElevenLabs(api_key=ELEVEN_API_KEY)
 PCM_SAMPLE_RATE = 22050
 PCM_FORMAT = "pcm_22050"
 VOLUME_SET = False
-TTS_VOLUME = 70  # percent
+TTS_VOLUME = 80  # percent
 
 # Device identification
 DEVICE_NAME = "UACDemoV1.0"   # part of the USB device name from `aplay -l`
