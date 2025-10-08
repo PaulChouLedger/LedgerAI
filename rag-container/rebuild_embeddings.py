@@ -253,8 +253,12 @@ def rebuild_embeddings(data_root="/app/data"):
     dimension = embeddings.shape[1]
     index = faiss.IndexFlatIP(dimension)  # Inner product for cosine similarity
     
-    # Normalize embeddings for cosine similarity
-    faiss.normalize_L2(embeddings)
+    # Manual L2 normalization (faiss_lite container compatibility)
+    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+    embeddings = embeddings / norms
+    embeddings = embeddings.astype(np.float32)
+    print(f"✅ Normalized embeddings manually (faiss_lite compatible)")
+    
     index.add(embeddings)
     
     print(f"✅ FAISS index created with {index.ntotal} vectors")
@@ -283,7 +287,9 @@ def rebuild_embeddings(data_root="/app/data"):
     
     for query in test_queries:
         query_embedding = encoder.encode([query], convert_to_numpy=True).astype(np.float32)
-        faiss.normalize_L2(query_embedding)
+        # Manual L2 normalization (faiss_lite container compatibility)
+        norms = np.linalg.norm(query_embedding, axis=1, keepdims=True)
+        query_embedding = query_embedding / norms
         distances, indices = index.search(query_embedding, 10)  # Get top 10 to see ranking
         
         print(f"\n  Query: '{query}'")
