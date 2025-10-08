@@ -42,6 +42,7 @@ prompt_history = []
 
 # Adaptive noise floor tracking
 noise_floor_rms = 0.003  # Initial estimate (will adapt quickly)
+noise_floor_locked = False  # Lock after initial learning to prevent drift
 
 # Debug: Show audio levels to help diagnose mic issues
 DEBUG_AUDIO_LEVELS = True  # Set to False to disable
@@ -92,12 +93,13 @@ def highpass_filter(audio, cutoff=200, order=5):
         print(f"[Audio] ⚠️ High-pass filter failed: {e}")
         return audio
 
-def noise_gate(audio, vad_active=False):
+def noise_gate(audio, vad_active=False, learning_phase=False):
     """
     Adaptive RMS-based noise gate - zeros out audio below dynamic threshold
     
     Adaptive Mode:
-    - Learns noise floor during silence (when VAD is inactive)
+    - Learns noise floor during initial silence (first 30 frames after startup)
+    - Locks threshold to prevent learning from speech
     - Threshold = noise_floor * NOISE_GATE_RATIO
     - Adapts to different environments (quiet room, noisy cafe, etc.)
     
@@ -106,15 +108,16 @@ def noise_gate(audio, vad_active=False):
     
     Args:
         audio: Audio frame to process
-        vad_active: Whether VAD detected speech (don't update noise floor during speech)
+        vad_active: Whether VAD detected speech
+        learning_phase: Whether we're in initial learning phase (only learn then)
     """
-    global noise_floor_rms
+    global noise_floor_rms, noise_floor_locked
     
     rms = np.sqrt(np.mean(audio ** 2))
     
     if NOISE_GATE_MODE == "adaptive":
-        # Adaptive: Update noise floor when no speech is detected
-        if not vad_active:
+        # Adaptive: Only update noise floor during learning phase AND when no speech
+        if learning_phase and not vad_active and not noise_floor_locked:
             # Exponential moving average - slowly adapt to noise floor
             noise_floor_rms = (1 - NOISE_FLOOR_LEARNING_RATE) * noise_floor_rms + NOISE_FLOOR_LEARNING_RATE * rms
         
@@ -271,7 +274,7 @@ def load_noise_profile():
         print(f"[Audio] ⚠️  Noise reduction disabled")
         noise_profile = None
 
-def process_audio(audio, vad_active=False, debug=False):
+def process_audio(audio, vad_active=False, learning_phase=False, debug=False):
     """
     Full audio processing pipeline:
     1. Noise reduction (highpass or spectral)
@@ -280,7 +283,8 @@ def process_audio(audio, vad_active=False, debug=False):
     
     Args:
         audio: Audio frame to process
-        vad_active: Whether VAD detected speech (for adaptive noise gate)
+        vad_active: Whether VAD detected speech
+        learning_phase: Whether in initial noise floor learning phase
         debug: Show debug output
     """
     if ENABLE_NOISE_REDUCTION:
@@ -293,7 +297,7 @@ def process_audio(audio, vad_active=False, debug=False):
     
     # Step 2: Adaptive RMS-based noise gate (learns environment, removes low-energy noise)
     if ENABLE_NOISE_GATE:
-        audio = noise_gate(audio, vad_active=vad_active)
+        audio = noise_gate(audio, vad_active=vad_active, learning_phase=learning_phase)
     
     # Step 3: Apply gain
     audio = np.clip(audio * AUDIO_GAIN, -1.0, 1.0)
@@ -351,6 +355,42 @@ def play_welcome_prompt(stream):
     except Exception as e:
         print(f"[Aura] ❌ Failed to play welcome prompt: {e}")
 
+# === Learn Noise Floor ===
+def learn_noise_floor(stream, num_frames=30):
+    """
+    Learn the noise floor from initial silence
+    Called once after welcome prompt to set adaptive noise gate threshold
+    """
+    global noise_floor_rms, noise_floor_locked
+    
+    if not ENABLE_NOISE_GATE or NOISE_GATE_MODE != "adaptive":
+        return
+    
+    print(f"[Audio] 🔇 Learning noise floor from {num_frames} frames of silence...")
+    
+    rms_samples = []
+    for i in range(num_frames):
+        audio_block, _ = stream.read(FRAME_SIZE)
+        channel_0 = audio_block[:, 0]
+        
+        # Apply high-pass filter first
+        if ENABLE_NOISE_REDUCTION and NOISE_REDUCTION_METHOD == "highpass":
+            channel_0 = highpass_filter(channel_0, cutoff=HIGHPASS_CUTOFF)
+        
+        # Calculate RMS
+        rms = np.sqrt(np.mean(channel_0 ** 2))
+        rms_samples.append(rms)
+    
+    # Set noise floor to average RMS during silence
+    noise_floor_rms = np.mean(rms_samples)
+    threshold = noise_floor_rms * NOISE_GATE_RATIO
+    
+    # Lock the noise floor to prevent learning from speech
+    noise_floor_locked = True
+    
+    print(f"[Audio] ✅ Noise floor learned: {noise_floor_rms:.6f}")
+    print(f"[Audio] 🎯 Noise gate threshold locked: {threshold:.6f} (floor × {NOISE_GATE_RATIO})")
+
 # === Main Loop ===
 def listen():
     find_device_index()
@@ -363,6 +403,9 @@ def listen():
                         blocksize=FRAME_SIZE, dtype="float32") as stream:
         # Play welcome.wav before entering listening loop
         play_welcome_prompt(stream)
+        
+        # Learn noise floor from initial silence (before any speech)
+        learn_noise_floor(stream, num_frames=30)
 
         while True:
             if is_playing():
@@ -435,8 +478,8 @@ def listen():
             mono_mix = full_audio[:, 0]
             
             # Apply full audio processing pipeline
-            # Note: VAD was active during recording, so tell noise gate not to learn from this
-            mono_mix = process_audio(mono_mix, vad_active=True, debug=False)
+            # Note: VAD was active during recording, noise floor already learned and locked
+            mono_mix = process_audio(mono_mix, vad_active=True, learning_phase=False, debug=False)
 
             if len(mono_mix) < MIN_AUDIO_SAMPLES:
                 print("⚠️ Skipped: too short")

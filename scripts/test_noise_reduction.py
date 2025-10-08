@@ -50,6 +50,9 @@ NOISE_PROFILE_PATH = os.path.join(PROJECT_DIR, "data", "noise_profile.npy")
 # Global noise profile and adaptive noise floor
 noise_profile = None
 noise_floor_rms = 0.003  # Initial estimate (will adapt quickly)
+noise_floor_locked = False  # Lock after initial learning to prevent drift
+learning_frames_count = 0  # Counter for learning phase
+LEARNING_FRAMES_MAX = 30  # Learn from first 30 frames of silence
 
 def find_device_index():
     """Find the ReSpeaker device index"""
@@ -80,20 +83,31 @@ def highpass_filter(audio, cutoff=200, order=5):
         print(f"[Audio] ⚠️ High-pass filter failed: {e}")
         return audio
 
-def noise_gate(audio, vad_active=False):
+def noise_gate(audio, vad_active=False, learning_phase=False):
     """
     Adaptive RMS-based noise gate - zeros out audio below dynamic threshold
     (Mirroring listener.py implementation)
+    
+    Learns during initial silence, then locks threshold to prevent drift
     """
-    global noise_floor_rms
+    global noise_floor_rms, noise_floor_locked, learning_frames_count
     
     rms = np.sqrt(np.mean(audio ** 2))
     
     if NOISE_GATE_MODE == "adaptive":
-        # Adaptive: Update noise floor when no speech is detected
-        if not vad_active:
+        # Adaptive: Only update noise floor during learning phase
+        if learning_phase and not vad_active and not noise_floor_locked:
             # Exponential moving average - slowly adapt to noise floor
             noise_floor_rms = (1 - NOISE_FLOOR_LEARNING_RATE) * noise_floor_rms + NOISE_FLOOR_LEARNING_RATE * rms
+            learning_frames_count += 1
+            
+            # Lock after learning enough frames
+            if learning_frames_count >= LEARNING_FRAMES_MAX:
+                noise_floor_locked = True
+                threshold = noise_floor_rms * NOISE_GATE_RATIO
+                print(f"\n[Audio] 🔒 Noise floor LOCKED after {learning_frames_count} frames")
+                print(f"[Audio] ✅ Final noise floor: {noise_floor_rms:.6f}")
+                print(f"[Audio] 🎯 Final threshold: {threshold:.6f}\n")
         
         # Threshold is a multiple of current noise floor
         threshold = noise_floor_rms * NOISE_GATE_RATIO
@@ -147,11 +161,11 @@ def spectral_noise_subtraction(audio, noise_profile_global, strength=0.85):
         'reduction_pct': (energy_removed / signal_energy * 100) if signal_energy > 0 else 0
     }
 
-def process_audio(audio, vad_active=False):
+def process_audio(audio, vad_active=False, learning_phase=False):
     """
     Process audio exactly like listener.py:
     1. Noise reduction (highpass or spectral)
-    2. Adaptive RMS-based noise gate
+    2. Adaptive RMS-based noise gate (learns during learning_phase only)
     3. Gain normalization
     
     Returns: (processed_audio, stats_dict)
@@ -182,9 +196,9 @@ def process_audio(audio, vad_active=False):
             audio, spectral_stats = spectral_noise_subtraction(audio, noise_profile, strength=NOISE_REDUCTION_STRENGTH)
             stats.update(spectral_stats)
     
-    # Step 2: Adaptive noise gate
+    # Step 2: Adaptive noise gate (only learns during learning_phase)
     if ENABLE_NOISE_GATE:
-        audio, threshold, gated = noise_gate(audio, vad_active=vad_active)
+        audio, threshold, gated = noise_gate(audio, vad_active=vad_active, learning_phase=learning_phase)
         stats['noise_gate_threshold'] = threshold
         stats['gated'] = gated
     
@@ -227,14 +241,18 @@ def process_audio_realtime(device_index, noise_profile, duration):
     print(f"  Display Update: Every {DISPLAY_EVERY_N_FRAMES} frames (~{DISPLAY_EVERY_N_FRAMES * FRAME_DURATION:.2f}s)")
     print(f"{'='*110}\n")
     
-    print("  Please speak or let ambient noise be captured...")
+    if NOISE_GATE_MODE == "adaptive":
+        learning_duration = LEARNING_FRAMES_MAX * FRAME_DURATION
+        print(f"  ⚠️  IMPORTANT: Stay SILENT for first {learning_duration:.1f}s (learning noise floor)")
+        print(f"  💡 After that, you can speak normally")
+    
     print("\n  Starting in 3...")
     time.sleep(1)
     print("  Starting in 2...")
     time.sleep(1)
     print("  Starting in 1...")
     time.sleep(1)
-    print("\n  🔴 MONITORING...")
+    print("\n  🔴 MONITORING... (stay silent initially)\n")
     
     # Print header
     print(f"\n{'='*110}")
@@ -265,8 +283,9 @@ def process_audio_realtime(device_index, noise_profile, duration):
                 raw_freqs = get_top_frequencies(raw_audio, top_n=1)
                 
                 # Apply full processing pipeline (same as listener.py)
-                # Note: vad_active=False during monitoring, so noise gate will learn
-                clean_audio, stats = process_audio(raw_audio, vad_active=False)
+                # Learning phase only for first 30 frames, then locked
+                is_learning = (frame_count < LEARNING_FRAMES_MAX)
+                clean_audio, stats = process_audio(raw_audio, vad_active=False, learning_phase=is_learning)
                 
                 # Analyze clean audio
                 clean_rms = np.sqrt(np.mean(clean_audio ** 2))
@@ -283,7 +302,12 @@ def process_audio_realtime(device_index, noise_profile, duration):
                 if frame_count % DISPLAY_EVERY_N_FRAMES == 0:
                     raw_freq_str = f"{raw_freqs[0][0]:.0f}" if raw_freqs else "N/A"
                     clean_freq_str = f"{clean_freqs[0][0]:.0f}" if clean_freqs else "N/A"
-                    gate_status = "GATED" if stats['gated'] else "PASS"
+                    
+                    # Show gate status with learning indicator
+                    if noise_floor_locked:
+                        gate_status = "🔒GATED" if stats['gated'] else "🔒PASS"
+                    else:
+                        gate_status = "📚GATED" if stats['gated'] else "📚PASS"
                     
                     print(f"{frame_count:<8} "
                           f"{raw_rms:.6f}  {raw_peak:.4f}  {raw_freq_str:<10} │ "
@@ -340,8 +364,13 @@ def main():
     print("="*110)
     
     try:
+        # Reset adaptive noise gate state
+        global noise_profile, noise_floor_rms, noise_floor_locked, learning_frames_count
+        noise_floor_rms = 0.003
+        noise_floor_locked = False
+        learning_frames_count = 0
+        
         # Load noise profile (only if using spectral method)
-        global noise_profile
         
         if NOISE_REDUCTION_METHOD == "highpass":
             print(f"\n[Audio] ✅ Using high-pass filter (no noise profile needed)")
