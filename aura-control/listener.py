@@ -23,7 +23,7 @@ MIN_AUDIO_SAMPLES = 4000  # Reduced from 8000 to allow shorter utterances
 
 # Audio processing
 USE_AUTO_GAIN = True  # Enable automatic gain control
-AGC_TARGET_RMS = 0.15  # Target RMS for Whisper (optimal speech recognition)
+AGC_TARGET_RMS = 0.20  # Target RMS for Whisper (optimal speech recognition)
 AGC_MAX_GAIN = 15.0  # Maximum gain to apply (prevents over-amplification)
 ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
 HIGHPASS_CUTOFF = 20  # Hz - Fan noise < 50Hz, speech > 80Hz (preserves all voice frequencies)
