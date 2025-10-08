@@ -31,7 +31,7 @@ USE_AUTO_GAIN = True  # Enable automatic gain control
 AGC_TARGET_RMS = 0.15  # Target RMS for Whisper (optimal speech recognition)
 AGC_MAX_GAIN = 10.0  # Maximum gain to apply (prevents over-amplification)
 ENABLE_NOISE_REDUCTION = True  # Enable noise reduction
-HIGHPASS_CUTOFF = 200  # Hz - Fan noise < 200Hz, speech > 200Hz
+HIGHPASS_CUTOFF = 50  # Hz - Fan noise < 200Hz, speech > 200Hz
 
 DISPLAY_EVERY_N_FRAMES = 5  # Update display every N frames (~0.16s)
 
