@@ -167,12 +167,12 @@ class AuraGUI(QMainWindow):
         """Create 6 buttons equally spaced around the circular edge"""
         # Button configurations: (text, icon, function, color)
         button_configs = [
-            ("↑", "Upload", self._handle_upload, "#66B3FF"),      # Upload files - Even lighter blue
-            ("⚙", "Settings", self._handle_settings, "#66B3FF"),  # Settings - Even lighter blue
-            ("📊", "Analytics", self._handle_analytics, "#66B3FF"), # Analytics - Even lighter blue
-            ("🎤", "Voice", self._handle_voice, "#66B3FF"),        # Voice control - Even lighter blue
-            ("📱", "Mobile", self._handle_mobile, "#66B3FF"),     # Mobile sync - Even lighter blue
-            ("ℹ", "Info", self._handle_info, "#66B3FF")          # Information - Even lighter blue
+            ("↑", "Upload", self._handle_upload, "#4D94D9"),      # Upload files - Muted blue
+            ("⚙", "Settings", self._handle_settings, "#4D94D9"),  # Settings - Muted blue
+            ("📊", "Analytics", self._handle_analytics, "#4D94D9"), # Analytics - Muted blue
+            ("🎤", "Voice", self._handle_voice, "#4D94D9"),        # Voice control - Muted blue
+            ("📱", "Mobile", self._handle_mobile, "#4D94D9"),     # Mobile sync - Muted blue
+            ("ℹ", "Info", self._handle_info, "#4D94D9")          # Information - Muted blue
         ]
         
         # Calculate positions for 6 buttons around a circle
@@ -199,45 +199,40 @@ class AuraGUI(QMainWindow):
             btn.move(int(x), int(y))
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    /* Radial gradient - white center fading to blue edges */
+                    /* Muted radial gradient with softer center */
                     background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
                         fx:0.5, fy:0.5,
-                        stop:0 #FFFFFF, stop:0.7 {color}, stop:1 {color});
-                    color: black;
+                        stop:0 #E6E6E6, stop:0.6 {color}, stop:1 {color});
+                    color: #1A1A1A;
                     font-size: 36px;
                     font-weight: bold;
                     border-radius: 50px;
-                    /* Glowing border effect */
-                    border: 3px solid {color};
+                    /* Subtle border */
+                    border: 2px solid rgba(0, 0, 0, 0.2);
                     padding: 0px;
                 }}
                 QPushButton:hover {{
-                    /* Brighter radial on hover */
+                    /* Slightly brighter on hover */
                     background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
                         fx:0.5, fy:0.5,
-                        stop:0 #FFFFFF, stop:0.5 #CCDDFF, stop:1 {color});
-                    border: 3px solid #FFFFFF;
+                        stop:0 #F2F2F2, stop:0.5 #99BBE6, stop:1 {color});
+                    border: 2px solid rgba(255, 255, 255, 0.3);
                 }}
                 QPushButton:pressed {{
-                    /* Darker radial when pressed */
+                    /* Darker when pressed */
                     background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
                         fx:0.5, fy:0.5,
-                        stop:0 {color}, stop:1 #000040);
-                    border: 3px solid {color};
+                        stop:0 {color}, stop:1 #002040);
+                    border: 2px solid rgba(0, 0, 0, 0.4);
                 }}
             """)
             
-            # Add futuristic glow effect (colored shadow)
-            # Parse color hex to RGB for glow
-            r = int(color[1:3], 16) if len(color) >= 7 else 255
-            g = int(color[3:5], 16) if len(color) >= 7 else 255
-            b = int(color[5:7], 16) if len(color) >= 7 else 255
-            
-            glow_effect = QGraphicsDropShadowEffect()
-            glow_effect.setBlurRadius(25)  # Larger blur for glow effect
-            glow_effect.setColor(QColor(r, g, b, 120))  # Colored glow matching button
-            glow_effect.setOffset(0, 0)  # Centered glow (not shadow)
-            btn.setGraphicsEffect(glow_effect)
+            # Add depth shadow effect (dark shadow for depth, not colored glow)
+            shadow_effect = QGraphicsDropShadowEffect()
+            shadow_effect.setBlurRadius(20)  # Moderate blur for soft shadow
+            shadow_effect.setColor(QColor(0, 0, 0, 100))  # Dark shadow with transparency
+            shadow_effect.setOffset(0, 3)  # Slight downward offset for depth
+            btn.setGraphicsEffect(shadow_effect)
             
             # Connect handler
             btn.clicked.connect(handler)
