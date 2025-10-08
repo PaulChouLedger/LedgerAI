@@ -54,8 +54,8 @@ class FileUploadDialog(QDialog):
             QDialog {
                 background-color: rgba(28, 28, 30, 1.0);  /* Solid dark background */
                 color: white;
-                border: 8px solid #ff0000;  /* Red border for circular screen edge */
-                border-radius: 536px;  /* Slightly smaller radius to account for border width */
+                border: none;  /* No border */
+                border-radius: 536px;
             }
             /* Remove red border from message boxes */
             QMessageBox {
