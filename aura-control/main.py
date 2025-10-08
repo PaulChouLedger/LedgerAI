@@ -46,6 +46,7 @@ def setup_display():
     """
     Configure display settings for Aura:
     - Wake screen from sleep
+    - Dismiss screensaver/lock screen
     - Keep screen on for at least 5 minutes
     - Hide mouse cursor for clean interface
     """
@@ -55,10 +56,29 @@ def setup_display():
         # Wake the screen and turn on display
         subprocess.run(["xset", "dpms", "force", "on"], check=False)
         
+        # Deactivate screensaver (dismisses any screensaver overlay)
+        subprocess.run(["xscreensaver-command", "-deactivate"], check=False, 
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        # Kill gnome-screensaver if running
+        subprocess.run(["gnome-screensaver-command", "-d"], check=False,
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        # Simulate user activity to dismiss any lock/blank screen
+        try:
+            subprocess.run(["xdotool", "key", "shift"], check=False,
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except FileNotFoundError:
+            pass
+        
         # Disable screen blanking and power saving for 5 minutes (300 seconds)
         subprocess.run(["xset", "s", "off"], check=False)  # Disable screensaver
         subprocess.run(["xset", "s", "noblank"], check=False)  # Disable screen blanking
-        subprocess.run(["xset", "dpms", "300", "300", "300"], check=False)  # DPMS: standby, suspend, off (all 5 min)
+        subprocess.run(["xset", "-dpms"], check=False)  # Disable DPMS entirely for now
+        
+        # Re-enable DPMS with 5-minute timeout
+        subprocess.run(["xset", "+dpms"], check=False)
+        subprocess.run(["xset", "dpms", "300", "300", "300"], check=False)  # 5 min timeout
         
         # Hide mouse cursor (try unclutter first, fallback to xdotool)
         try:
@@ -73,7 +93,8 @@ def setup_display():
                 subprocess.run(["xdotool", "mousemove", "0", "0"], check=False)
                 print("[Aura] ✅ Mouse cursor moved to corner")
             except FileNotFoundError:
-                print("[Aura] ⚠️  unclutter/xdotool not found - cursor visible")
+                print("[Aura] ⚠️  unclutter/xdotool not found")
+                print("[Aura] 💡 Install: sudo apt install unclutter xdotool wmctrl")
         
         print("[Aura] ✅ Display configured: screen awake, no sleep for 5 min")
         
@@ -386,6 +407,42 @@ def start_services():
     
     print("[Aura] ✅ Core services started successfully!")
 
+# === Bring GUI to Front ===
+def focus_gui_window():
+    """
+    Bring Aura GUI window to front and focus it
+    Called after GUI is launched to ensure it's visible
+    """
+    try:
+        time.sleep(0.5)  # Give GUI time to create window
+        
+        # Try wmctrl first (most reliable)
+        try:
+            subprocess.run(["wmctrl", "-a", "Aura"], check=False,
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print("[Aura] ✅ GUI window brought to front (wmctrl)")
+            return
+        except FileNotFoundError:
+            pass
+        
+        # Fallback: Use xdotool to find and activate window
+        try:
+            # Find window by class name
+            result = subprocess.run(["xdotool", "search", "--class", "aura"],
+                                   capture_output=True, text=True, check=False)
+            if result.stdout.strip():
+                window_id = result.stdout.strip().split()[0]
+                subprocess.run(["xdotool", "windowactivate", window_id], check=False)
+                print("[Aura] ✅ GUI window activated (xdotool)")
+                return
+        except FileNotFoundError:
+            pass
+        
+        print("[Aura] ⚠️  Could not auto-focus GUI window")
+        
+    except Exception as e:
+        print(f"[Aura] ⚠️  Window focus warning: {e}")
+
 # === Main Entrypoint ===
 def main():
     print("[Aura] 🌀 Launching Aura...")
@@ -397,6 +454,10 @@ def main():
     warm_up_tts()
     threading.Thread(target=start_services, daemon=True).start()
     launch_gui()
+    
+    # Bring GUI to front after launch
+    threading.Thread(target=focus_gui_window, daemon=True).start()
+    
     run_gui_loop()
 
 if __name__ == "__main__":
