@@ -27,7 +27,7 @@ import io
 SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
-RECORDING_DURATION = 10.0  # 3 seconds for test phrase
+RECORDING_DURATION = 4.0  # 3 seconds for test phrase
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 
 # Test RMS levels

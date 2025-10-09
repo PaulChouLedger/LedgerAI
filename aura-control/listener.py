@@ -38,7 +38,7 @@ FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.20
 VAD_START_THRESHOLD = 0.3
-VAD_SILENCE_THRESHOLD = 0.05  # Lower threshold - don't cut off trailing words (was 0.10)
+VAD_SILENCE_THRESHOLD = 0.03  # Lower threshold - don't cut off trailing words (was 0.10)
 MIN_AUDIO_SAMPLES = 4000
 MIN_SPEECH_RMS = 0.010  # Minimum RMS to consider as speech (filter out noise/drift)
 

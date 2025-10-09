@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from glob import glob
 from nlg import rewrite as nlg_rewrite
 import requests
+from clinician import ClinicianSession, is_clinician_trigger, create_clinician_session
 
 # RAG functionality moved to separate RAG container (port 11435)
 
@@ -249,18 +250,35 @@ def detect_condition(prompt, session_id: str | None = None):
         print(f"[Aura-LLM] 👤 User name set: {name}")
     
     # Check for casual greetings first - don't trigger triage for these
-    # Only block if it's JUST a greeting without any medical content
-    casual_greetings = ["hello", "hi", "hey", "good morning", "good afternoon", "good evening", "hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]
-    if any(greeting in p for greeting in casual_greetings):
-        # Check if there are any medical symptoms mentioned
-        medical_keywords = ["pain", "hurt", "ache", "symptom", "problem", "issue", "concern", "worried", "sick", "ill", "unwell"]
-        has_medical_content = any(keyword in p for keyword in medical_keywords)
+    # Only block if it's JUST a greeting without any medical/knowledge content
+    # Use word boundaries to avoid false matches (e.g., "hello" in "tell me everything")
+    import re
+    
+    casual_greeting_patterns = [
+        r'\bhello\b', r'\bhi\b', r'\bhey\b', r'\bhowdy\b',
+        r'\bgood morning\b', r'\bgood afternoon\b', r'\bgood evening\b',
+        r'\bhello aura\b', r'\bhi aura\b', r'\bhey aura\b'
+    ]
+    
+    # Check if it's a knowledge query - DON'T block these
+    knowledge_indicators = ["tell me", "what is", "who is", "explain", "describe", "information about", 
+                           "details about", "everything about", "all about"]
+    is_knowledge_query = any(indicator in p for indicator in knowledge_indicators)
+    
+    if not is_knowledge_query:
+        # Only check for greetings if it's NOT a knowledge query
+        is_casual_greeting = any(re.search(pattern, p) for pattern in casual_greeting_patterns)
         
-        if not has_medical_content:
-            print(f"[Aura-LLM] 💬 Casual greeting detected: '{p}' -> no triage trigger")
-            return None
-        else:
-            print(f"[Aura-LLM] 💬 Greeting with medical content detected: '{p}' -> proceeding with triage")
+        if is_casual_greeting:
+            # Check if there are any medical symptoms mentioned
+            medical_keywords = ["pain", "hurt", "ache", "symptom", "problem", "issue", "concern", "worried", "sick", "ill", "unwell"]
+            has_medical_content = any(keyword in p for keyword in medical_keywords)
+            
+            if not has_medical_content:
+                print(f"[Aura-LLM] 💬 Casual greeting detected: '{p}' -> no triage trigger")
+                return None
+            else:
+                print(f"[Aura-LLM] 💬 Greeting with medical content detected: '{p}' -> proceeding with triage")
     
     # Apply synonym expansion
     p_expanded = apply_synonym_expansion(p)
@@ -1311,21 +1329,67 @@ def chat():
 
         return Response(stream_with_context(generate()),mimetype="text/plain")
 
-    # New triage or casual
+    # Check for active clinician session first
+    state = load_state(session_id)
+    if state.get("mode") == "clinician":
+        print(f"[Aura-LLM] 🩺 Continuing CLINICIAN mode session")
+        # Load existing clinician session
+        # For now, just handle it in the generate function
+        pass
+    
+    # Check if this should trigger CLINICIAN mode (instead of TRIAGE)
+    # TODO: Once clinician is stable, this will replace detect_condition entirely
+    use_clinician_mode = False  # Feature flag - set to True to enable
+    
+    if use_clinician_mode and is_clinician_trigger(prompt):
+        print(f"[Aura-LLM] 🩺 CLINICIAN mode triggered (RAG-powered diagnosis)")
+        
+        # Create new clinician session
+        state.update({
+            "mode": "clinician",
+            "chief_complaint": prompt,
+            "clinician_session_started": time.time()
+        })
+        save_state(state, session_id)
+        
+        # Start clinician session
+        clinician = create_clinician_session(session_id, prompt)
+        opening = clinician.start_session()
+        
+        def generate_clinician():
+            yield f"<sentence_start>\n{opening}\n<sentence_end>\n"
+        
+        return Response(stream_with_context(generate_clinician()), mimetype="text/plain")
+    
+    # Fall back to existing TRIAGE or CASUAL/THINKER modes
     condition=detect_condition(prompt, session_id); state=load_state(session_id)
     print(f"[Aura-LLM] 🔍 Detected condition: {condition}")
     def generate():
         nonlocal condition, prompt, state
         if not condition:
-            # Try RAG search first for medical/person queries
+            # Try RAG search first for knowledge/person queries
             final_prompt = prompt
             used_rag = False
             
-            # Check if this might be a medical or person query
-            medical_keywords = ["who is", "what is", "tell me about", "information about", "details about"]
-            person_keywords = ["who is", "tell me about", "information about"]
+            # Classify query type
+            # True casual greetings - NO RAG needed
+            simple_greetings = ["hello", "hi", "hey", "how are you", "hows it going", "whats up", 
+                               "good morning", "good afternoon", "good evening", "how do you do"]
+            is_simple_greeting = any(prompt_norm.strip() == greeting or 
+                                    prompt_norm.strip() == f"{greeting} aura" 
+                                    for greeting in simple_greetings)
             
-            if any(keyword in prompt_norm for keyword in medical_keywords):
+            # Knowledge queries - TRIGGER RAG
+            knowledge_patterns = [
+                "who is", "who was", "what is", "what was", 
+                "tell me about", "tell me everything", "tell me all",
+                "information about", "all information", "everything about",
+                "details about", "explain", "describe",
+                "what do you know", "everything you know"
+            ]
+            is_knowledge_query = any(keyword in prompt_norm for keyword in knowledge_patterns)
+            
+            if is_knowledge_query and not is_simple_greeting:
                 try:
                     rag_response = requests.post("http://localhost:11435/rag/search", 
                                               json={"query": prompt, "k": 3}, 
@@ -1347,12 +1411,20 @@ def chat():
                     print(f"[Aura-LLM] ⚠️ RAG search failed: {e}")
                     # Continue with regular prompt
             
-            # Check for casual greetings
-            casual_greetings = ["hello aura", "hi aura", "hey aura", "good morning aura", "good afternoon aura", "good evening aura"]
-            if any(greeting in prompt_norm for greeting in casual_greetings):
+            # Set appropriate system message based on query type
+            if is_simple_greeting:
                 system_msg = "I am AuraVision, your friendly personal assistant. Respond warmly to greetings and ask how I can help."
+                print(f"[Aura-LLM] 💬 Mode: CASUAL (simple greeting)")
+            elif is_knowledge_query:
+                if used_rag:
+                    system_msg = "I am AuraVision, an insightful AI assistant. Provide comprehensive, detailed answers based on the information provided. Be thorough and informative."
+                    print(f"[Aura-LLM] 🧠 Mode: THINKER (knowledge query with RAG)")
+                else:
+                    system_msg = "I am AuraVision, an insightful AI assistant. Provide thoughtful, detailed responses even without specific documents."
+                    print(f"[Aura-LLM] 🧠 Mode: THINKER (knowledge query, no RAG)")
             else:
                 system_msg = "I am AuraVision, your friendly personal assistant."
+                print(f"[Aura-LLM] 💬 Mode: CASUAL (general conversation)")
             
             msgs = [{"role": "system", "content": system_msg}, {"role": "user", "content": final_prompt}]
             

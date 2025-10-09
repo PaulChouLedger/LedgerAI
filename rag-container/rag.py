@@ -320,29 +320,36 @@ class AuraRAG:
         Returns:
             Extracted name or empty string if no name found
         """
-        # Common patterns for name queries
+        # Common patterns for name queries (case-insensitive)
+        # Use [a-z] since query is already lowercased
         patterns = [
-            # Multi-word names (e.g., "Bob Carella", "David Lara")
-            r"who is ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",              # "Who is David Lara"
-            r"who's ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",               # "Who's Bob Carella"
-            r"tell me about ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",       # "Tell me about Paul Chou"
-            r"about ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",               # "About Jorge Guinovart"
-            r"describe ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",            # "Describe Liam Hugill"
-            r"what (?:do you know )?about ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",  # "What about X" or "What do you know about X"
-            # Single names (e.g., "Raphael", "Peter")
-            r"who is ([A-Z][a-z]+)\??$",                           # "Who is Raphael?"
-            r"who's ([A-Z][a-z]+)\??$",                            # "Who's Raphael?"
-            r"tell me about ([A-Z][a-z]+)\??$",                    # "Tell me about Raphael?"
-            r"about ([A-Z][a-z]+)\??$",                            # "About Raphael?"
-            r"describe ([A-Z][a-z]+)\??$",                         # "Describe Raphael?"
+            # Multi-word names (e.g., "bob carella", "david lara")  
+            r"who (?:is|was) ([a-z]+(?: [a-z]+)+)",                           # "who is david lara"
+            r"who'?s ([a-z]+(?: [a-z]+)+)",                                    # "who's bob carella"
+            r"tell me (?:about|everything .*? about) ([a-z]+(?: [a-z]+)+)",   # "tell me about/everything you know about paul chou"
+            r"(?:all )?(?:the )?information .*? about ([a-z]+(?: [a-z]+)+)",  # "all the information you know about X"
+            r"everything .*? about ([a-z]+(?: [a-z]+)+)",                      # "everything about X"
+            r"about ([a-z]+(?: [a-z]+)+)",                                     # "about jorge guinovart"
+            r"describe ([a-z]+(?: [a-z]+)+)",                                  # "describe liam hugill"
+            r"what (?:do you know )?about ([a-z]+(?: [a-z]+)+)",              # "what about X" or "what do you know about X"
+            # Single names (e.g., "raphael", "peter")
+            r"who (?:is|was) ([a-z]+)\??$",                                    # "who is raphael?"
+            r"who'?s ([a-z]+)\??$",                                            # "who's raphael?"
+            r"tell me (?:about|everything .*? about) ([a-z]+)\??$",           # "tell me about raphael?"
+            r"(?:all )?(?:the )?information .*? about ([a-z]+)\??$",          # "information about X"
+            r"everything .*? about ([a-z]+)\??$",                              # "everything about X"
+            r"about ([a-z]+)\??$",                                             # "about raphael?"
+            r"describe ([a-z]+)\??$",                                          # "describe raphael?"
         ]
         
         for pattern in patterns:
             match = re.search(pattern, query, re.IGNORECASE)
             if match:
                 name = match.group(1)
-                print(f"[RAG] 🔍 Detected name query: '{name}'")
-                return name
+                # Capitalize each word for matching against document text
+                name_capitalized = ' '.join(word.capitalize() for word in name.split())
+                print(f"[RAG] 🔍 Detected name query: '{name_capitalized}' (from '{name}')")
+                return name_capitalized
         
         return ""
     
@@ -770,10 +777,78 @@ class AuraRAG:
         print(f"[RAG] ✅ Returning {len(results)} keyword-filtered results")
         return results
     
+    def _phonetic_match(self, word1: str, word2: str) -> bool:
+        """
+        Check if two words sound the same using Metaphone phonetic algorithm
+        
+        Args:
+            word1: First word
+            word2: Second word
+            
+        Returns:
+            True if words have same phonetic encoding
+        """
+        # Simple Metaphone implementation (consonant-based)
+        def metaphone(word):
+            """Simplified Metaphone algorithm"""
+            word = word.upper()
+            if not word:
+                return ""
+            
+            # Phonetic transformations
+            result = []
+            prev = ''
+            
+            for i, char in enumerate(word):
+                # Skip vowels except at start
+                if char in 'AEIOU':
+                    if i == 0:
+                        result.append(char)
+                    continue
+                
+                # Handle consonant pairs and transformations
+                if char == 'C':
+                    if i + 1 < len(word) and word[i + 1] == 'H':
+                        result.append('X')
+                    elif i + 1 < len(word) and word[i + 1] in 'EIY':
+                        result.append('S')
+                    else:
+                        result.append('K')
+                elif char == 'G':
+                    if i + 1 < len(word) and word[i + 1] in 'EIY':
+                        result.append('J')
+                    else:
+                        result.append('G')
+                elif char == 'P' and i + 1 < len(word) and word[i + 1] == 'H':
+                    result.append('F')
+                elif char == 'Q':
+                    result.append('K')
+                elif char == 'S' and i + 1 < len(word) and word[i + 1] == 'H':
+                    result.append('X')
+                elif char == 'T' and i + 1 < len(word) and word[i + 1] == 'H':
+                    result.append('0')  # TH sound
+                elif char == 'W' and prev in 'AEIOU':
+                    continue  # Silent W after vowel
+                elif char == 'X':
+                    result.append('KS')
+                elif char == 'Y' and prev not in 'AEIOU':
+                    result.append('Y')
+                elif char in 'BDFHJKLMNPRSTVZ':
+                    # Skip doubles
+                    if not result or result[-1] != char:
+                        result.append(char)
+                
+                prev = char
+            
+            return ''.join(result)[:4]  # Return first 4 chars
+        
+        return metaphone(word1) == metaphone(word2)
+    
     def _fuzzy_name_search(self, person_name: str, chunk: str, threshold: float = 0.65) -> bool:
         """
-        Check if a chunk contains a fuzzy match for the person name using character-level similarity
-        Handles typos like "Bob Corella" matching "Bob Carella" (6/7 chars match = 0.857)
+        Check if a chunk contains a fuzzy match for the person name using:
+        1. Phonetic matching (Metaphone) - handles "Rafael"/"Raphael", "Smith"/"Smyth"
+        2. Character-level similarity - handles typos like "Corella"/"Carella"
         
         Args:
             person_name: Person name from query (e.g., "Bob Corella")
@@ -798,24 +873,36 @@ class AuraRAG:
         query_words = person_name.split()
         print(f"[RAG] 🔍 Query words: {query_words}")
         
-        # Match each query word against chunk words using character-level similarity
+        # Match each query word against chunk words using phonetic + character-level similarity
         matches = 0
         matched_pairs = []
         
         for query_word in query_words:
             best_match = None
             best_similarity = 0.0
+            match_type = None
             
             for chunk_word in chunk_words:
-                # Calculate character-level similarity (e.g., "Corella" vs "Carella" = 6/7 = 0.857)
+                # Try phonetic matching first (sounds the same?)
+                if self._phonetic_match(query_word, chunk_word):
+                    best_similarity = 1.0
+                    best_match = chunk_word
+                    match_type = "phonetic"
+                    break
+                
+                # Fall back to character-level similarity
                 similarity = SequenceMatcher(None, query_word.lower(), chunk_word.lower()).ratio()
                 
                 if similarity > best_similarity:
                     best_similarity = similarity
                     best_match = chunk_word
+                    match_type = "character"
             
             if best_match and best_similarity >= threshold:
-                print(f"[RAG] ✅ Character match: '{query_word}' ~ '{best_match}' (similarity: {best_similarity:.3f}, {int(best_similarity * max(len(query_word), len(best_match)))}/{max(len(query_word), len(best_match))} chars)")
+                if match_type == "phonetic":
+                    print(f"[RAG] ✅ Phonetic match: '{query_word}' ~ '{best_match}' (sounds alike)")
+                else:
+                    print(f"[RAG] ✅ Character match: '{query_word}' ~ '{best_match}' (similarity: {best_similarity:.3f}, {int(best_similarity * max(len(query_word), len(best_match)))}/{max(len(query_word), len(best_match))} chars)")
                 matches += 1
                 matched_pairs.append(f"{query_word}~{best_match}")
             else:
