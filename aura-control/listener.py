@@ -21,7 +21,7 @@ VAD_SILENCE_THRESHOLD = 0.10
 MIN_AUDIO_SAMPLES = 4000
 
 # Simple noise reduction (fast and effective)
-ENABLE_HIGHPASS_FILTER = True  # Fast and effective
+ENABLE_HIGHPASS_FILTER = False  # TEST: Disabled to check if filtering hurts far-field
 HIGHPASS_CUTOFF = 80  # Hz - Removes fan noise, preserves speech
 
 # Auto Gain Control (AGC)
@@ -181,10 +181,10 @@ def listen():
     
     # Show configuration
     print("\n" + "="*70)
-    print("[Audio] ✅ Simple pipeline: High-Pass Filter → AGC → Whisper")
-    print(f"[Audio] 🔧 High-pass filter: {HIGHPASS_CUTOFF} Hz (removes fan noise)")
+    print("[Audio] ✅ Minimal pipeline: RAW → AGC → Whisper")
+    print(f"[Audio] 🔧 NO FILTERING (testing if filters hurt far-field)")
     print(f"[Audio] 🔧 Auto Gain Control: Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x")
-    print(f"[Audio] ⚡ Fast and clean - no complex processing")
+    print(f"[Audio] ⚡ Pure amplification, no signal modification")
     print("="*70 + "\n")
 
     with sd.InputStream(device=DEVICE_INDEX, channels=6, samplerate=SAMPLE_RATE,
