@@ -12,9 +12,9 @@ import time
 
 # === Transcription Configuration ===
 # Tune these parameters for your needs:
-BEAM_SIZE = 50                      # Higher = better accuracy, slower (5=fast, 10=balanced, 20=best) - MUST be int
+BEAM_SIZE = 5                      # Higher = better accuracy, slower (5=fast, 10=balanced, 20=best) - MUST be int
 TEMPERATURE = 0.0                 # 0.0 = deterministic, 0.1+ = more creative
-PATIENCE = 1.0                    # Wait time for better results
+PATIENCE = 0.5                    # Wait time for better results
 LENGTH_PENALTY = 0.0              # Don't penalize longer outputs
 INITIAL_PROMPT = "This is a conversation about people and medical information. Proper names and technical terms are important."
 
@@ -24,36 +24,16 @@ INITIAL_PROMPT = "This is a conversation about people and medical information. P
 # BEAM_SIZE=20: ~4x latency, best accuracy
 
 app = Flask(__name__)
-# Use faster-whisper with large-v3-turbo for better accuracy
-# Set cache directory to avoid re-downloading models
-cache_dir = "/app/cache/whisper"
-print(f"[Whisper] 🚀 Loading faster-whisper model: large-v3-turbo")
-print(f"[Whisper] 📁 Cache directory: {cache_dir}")
-
-# Check if cache directory exists and what's in it
-import os
-if os.path.exists(cache_dir):
-    print(f"[Whisper] 📁 Cache directory exists")
-    cache_contents = os.listdir(cache_dir)
-    print(f"[Whisper] 📁 Cache contents: {cache_contents}")
-else:
-    print(f"[Whisper] ⚠️ Cache directory does not exist")
-
-# Check Hugging Face cache
-hf_cache = "/root/.cache/huggingface"
-if os.path.exists(hf_cache):
-    print(f"[Whisper] 📁 HF cache exists: {hf_cache}")
-    hf_contents = os.listdir(hf_cache)
-    print(f"[Whisper] 📁 HF cache contents: {hf_contents}")
-else:
-    print(f"[Whisper] ⚠️ HF cache does not exist: {hf_cache}")
 
 # Check if model is available in the built-in cache
-model_name = os.getenv("WHISPER_MODEL", "distil-small.en")
-print(f"[Whisper] 📋 Using model: {model_name}")
+import os
+model_name = os.getenv("WHISPER_MODEL", "distil-large-v3")
+cache_dir = "/app/cache/whisper"
+
+print(f"[Whisper] 🚀 Loading faster-whisper model: {model_name}")
+print(f"[Whisper] 📁 Cache directory: {cache_dir}")
 
 # Map model names to their actual HuggingFace repo names
-# For better accuracy with proper names, consider upgrading to small.en or medium.en
 model_mapping = {
     "distil-small.en": "models--Systran--faster-distil-whisper-small.en",      # Fast, lower accuracy
     "small.en": "models--Systran--faster-small-whisper.en",                    # Better accuracy
@@ -68,33 +48,9 @@ model_repo = model_mapping.get(model_name, f"models--Systran--faster-{model_name
 model_cache_path = f"/root/.cache/huggingface/hub/{model_repo}"
 
 if os.path.exists(model_cache_path):
-    print(f"[Whisper] ✅ Model found in built-in cache: {model_repo}")
+    print(f"[Whisper] ✅ Model found in cache: {model_name}")
 else:
-    print(f"[Whisper] ⚠️ Model not found in built-in cache: {model_repo}")
-    print(f"[Whisper] 📁 Available models:")
-    hf_hub_dir = "/root/.cache/huggingface/hub"
-    if os.path.exists(hf_hub_dir):
-        for item in os.listdir(hf_hub_dir):
-            if item.startswith("models--"):
-                print(f"[Whisper]   - {item}")
-    else:
-        print(f"[Whisper]   - No HuggingFace hub directory found")
-
-# Let faster_whisper handle CUDA/PyTorch initialization internally
-print(f"[Whisper] 🚀 Initializing faster-whisper with GPU support...")
-
-# faster_whisper will handle GPU detection and initialization
-print(f"[Whisper] ✅ Ready to initialize faster-whisper model")
-
-# Debug: Check what's in the HuggingFace cache
-hf_cache_dir = "/root/.cache/huggingface/hub/models--Systran--faster-distil-whisper-small.en/snapshots/ef77d90526ccd62cde3808ee70626a01e5cf83e4"
-print(f"[Whisper] 🔍 Checking HuggingFace cache: {hf_cache_dir}")
-if os.path.exists(hf_cache_dir):
-    print(f"[Whisper] 📁 HuggingFace cache directory exists")
-    files = os.listdir(hf_cache_dir)
-    print(f"[Whisper] 📄 Files in cache directory: {files}")
-else:
-    print(f"[Whisper] ⚠️ HuggingFace cache directory does not exist: {hf_cache_dir}")
+    print(f"[Whisper] ⚠️ Model not in cache, will download: {model_name}")
 
 # Load GPU model - NO CPU FALLBACK
 try:
