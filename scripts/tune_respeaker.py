@@ -6,7 +6,7 @@ Configures the hardware DSP on the ReSpeaker for optimal
 far-field speech recognition (ASR).
 
 Usage:
-    python3 scripts/tune_respeaker.py [preset]
+    sudo python3 scripts/tune_respeaker.py [preset]
     
 Presets:
     - far_field: Optimized for 8-16 feet (default)
@@ -17,7 +17,11 @@ Presets:
 
 import sys
 import os
-sys.path.insert(0, os.path.expanduser('~/usb_4_mic_array'))
+
+# Add tuning module path (expand ~ properly even with sudo)
+home_dir = os.path.expanduser('~aura') if os.geteuid() == 0 else os.path.expanduser('~')
+tuning_path = os.path.join(home_dir, 'usb_4_mic_array')
+sys.path.insert(0, tuning_path)
 
 from tuning import Tuning
 
