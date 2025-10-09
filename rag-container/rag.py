@@ -346,9 +346,133 @@ class AuraRAG:
         
         return ""
     
+    def _extract_medical_term(self, query: str) -> str:
+        """
+        Extract medical terms from queries like "What is myocardial infarction?", 
+        "Tell me about diabetes", "Explain COPD", etc.
+        
+        Args:
+            query: User query
+            
+        Returns:
+            Extracted medical term or empty string if no term found
+        """
+        # Patterns for medical/technical queries
+        patterns = [
+            r"what is ([a-z][a-z\s]+?)(?:\?|$)",                          # "What is myocardial infarction?"
+            r"what's ([a-z][a-z\s]+?)(?:\?|$)",                           # "What's diabetes mellitus?"
+            r"define ([a-z][a-z\s]+?)(?:\?|$)",                           # "Define hypertension"
+            r"tell me about ([a-z][a-z\s]+?)(?:\?|$)",                    # "Tell me about COPD"
+            r"explain ([a-z][a-z\s]+?)(?:\?|$)",                          # "Explain pneumonia"
+            r"describe ([a-z][a-z\s]+?)(?:\?|$)",                         # "Describe asthma"
+            r"information (?:on|about) ([a-z][a-z\s]+?)(?:\?|$)",        # "Information on heart disease"
+            r"symptoms of ([a-z][a-z\s]+?)(?:\?|$)",                      # "Symptoms of COVID-19"
+            r"treatment for ([a-z][a-z\s]+?)(?:\?|$)",                    # "Treatment for depression"
+            r"diagnosis of ([a-z][a-z\s]+?)(?:\?|$)",                     # "Diagnosis of cancer"
+        ]
+        
+        query_lower = query.lower()
+        
+        for pattern in patterns:
+            match = re.search(pattern, query_lower)
+            if match:
+                term = match.group(1).strip()
+                # Filter out very short or common words
+                if len(term) > 3 and term not in ['that', 'this', 'there', 'their', 'those']:
+                    print(f"[RAG] 🔍 Detected medical term query: '{term}'")
+                    return term
+        
+        return ""
+    
+    def _extract_key_terms(self, query: str) -> List[str]:
+        """
+        Extract key terms from ANY query for keyword filtering
+        
+        Extracts:
+        - Capitalized names (e.g., "Bob Carella", "Rafael")
+        - Multi-word technical terms (e.g., "myocardial infarction", "neural pathways")
+        - Significant single words (nouns, medical terms, 4+ chars)
+        
+        Filters out:
+        - Common stop words (the, is, how, what, etc.)
+        - Very short words (< 4 chars)
+        - Question words
+        
+        Args:
+            query: User query
+            
+        Returns:
+            List of key terms to use for filtering
+        """
+        # Stop words to exclude (common question words and articles)
+        stop_words = {
+            'what', 'how', 'why', 'when', 'where', 'who', 'does', 'is', 'are', 'was', 'were',
+            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
+            'from', 'about', 'like', 'this', 'that', 'these', 'those', 'can', 'could', 'would',
+            'should', 'will', 'do', 'did', 'have', 'has', 'had', 'be', 'been', 'being', 'me',
+            'you', 'your', 'my', 'it', 'its', 'tell', 'explain', 'describe', 'define'
+        }
+        
+        key_terms = []
+        
+        # 1. Check for capitalized names (highest priority)
+        person_name = self._extract_person_name(query)
+        if person_name:
+            key_terms.append(person_name)
+            return key_terms  # Names are specific enough, use only the name
+        
+        # 2. Extract multi-word phrases (technical terms like "heart disease", "brain function")
+        # Look for 2-3 word phrases of significant words
+        words = re.findall(r'\b[a-zA-Z]+\b', query.lower())
+        
+        for i in range(len(words) - 1):
+            # Check if this could be a multi-word term
+            word1, word2 = words[i], words[i + 1]
+            
+            if (word1 not in stop_words and word2 not in stop_words and 
+                len(word1) >= 4 and len(word2) >= 4):
+                phrase = f"{word1} {word2}"
+                key_terms.append(phrase)
+                
+                # Also try 3-word phrases
+                if i + 2 < len(words):
+                    word3 = words[i + 2]
+                    if word3 not in stop_words and len(word3) >= 4:
+                        phrase3 = f"{word1} {word2} {word3}"
+                        key_terms.append(phrase3)
+        
+        # 3. Extract significant single words (medical terms, nouns, etc.)
+        for word in words:
+            if (word not in stop_words and 
+                len(word) >= 4 and 
+                word not in key_terms):  # Don't duplicate if already in a phrase
+                key_terms.append(word)
+        
+        # Remove duplicates while preserving order, prioritize longer terms
+        seen = set()
+        unique_terms = []
+        for term in sorted(key_terms, key=len, reverse=True):
+            if term not in seen:
+                seen.add(term)
+                unique_terms.append(term)
+        
+        # Return top 5 most significant terms (longer = more specific)
+        return unique_terms[:5]
+    
     def search(self, query: str, k: int = 3) -> List[Dict[str, Any]]:
         """
-        Search documents using RAG with hybrid keyword filtering
+        Search documents using RAG with intelligent hybrid filtering
+        
+        Strategy:
+        1. Extract key terms from ANY query (names, medical terms, technical words)
+        2. Filter chunks that contain those terms (fast O(n) scan)
+        3. Semantic search on filtered chunks (or all if no filter matches)
+        
+        Works with queries like:
+        - "Who is Bob Carella?" (name extraction)
+        - "What is myocardial infarction?" (medical term)
+        - "How does the brain function?" (key term: brain)
+        - "Tell me about diabetes treatment" (key terms: diabetes, treatment)
         
         Args:
             query: Search query
@@ -360,13 +484,22 @@ class AuraRAG:
         if not query or not isinstance(query, str):
             return []
         
-        # Extract person name if this is a biographical query
-        person_name = self._extract_person_name(query)
-        use_keyword_filter = bool(person_name)
+        # Extract key terms from query (names, medical terms, significant words)
+        key_terms = self._extract_key_terms(query)
         
-        if use_keyword_filter:
-            print(f"[RAG] 🔍 Hybrid search enabled: filtering for '{person_name}'")
+        if key_terms:
+            print(f"[RAG] 🔍 Key terms detected: {key_terms}")
+            # Pre-filter chunks by keyword match BEFORE semantic search
+            filtered_indices = self._filter_chunks_by_terms(key_terms)
+            
+            if filtered_indices:
+                print(f"[RAG] 🔍 Keyword filter: {len(filtered_indices)}/{len(self.chunks)} chunks contain key terms")
+                # Do semantic search on filtered subset (much faster!)
+                return self._search_filtered_chunks(query, filtered_indices, k)
+            else:
+                print(f"[RAG] ⚠️ No chunks contain key terms, using full semantic search")
         
+        # Regular semantic search for non-name queries
         try:
             # Encode query - ensure it's on CPU for numpy conversion
             import torch
@@ -389,9 +522,7 @@ class AuraRAG:
             # Use faiss_lite CUDA functions (the working approach)
             print(f"[RAG] 🔧 Using faiss_lite CUDA search...")
             
-            # Request more results if using keyword filter (we'll filter down)
-            search_k = k * 3 if use_keyword_filter else k
-            distances, indices = self._search_with_faiss_lite(query_embedding, search_k)
+            distances, indices = self._search_with_faiss_lite(query_embedding, k)
             
             if distances is None:
                 raise Exception("faiss_lite CUDA search failed")
@@ -416,16 +547,6 @@ class AuraRAG:
                     print(f"[RAG] 🔍 Result {i+1}: idx={idx}, distance={distance:.4f}, score={similarity_score:.4f}, threshold={self.relevance_threshold}")
                     print(f"[RAG] 🔍 Chunk preview: '{chunk[:100]}...'")
                     
-                    # Apply keyword filter if enabled (HYBRID SEARCH with character-level fuzzy matching)
-                    if use_keyword_filter:
-                        # Use character-level matching (0.75 threshold = 75% character similarity)
-                        print(f"[RAG] 🔍 Applying character-level fuzzy filter for '{person_name}'...")
-                        if not self._fuzzy_name_search(person_name, chunk, threshold=0.75):
-                            print(f"[RAG] ❌ Filtered out: no character match for '{person_name}' in chunk")
-                            continue
-                        else:
-                            print(f"[RAG] ✅ Character-level match found for '{person_name}'")
-                    
                     if similarity_score >= self.relevance_threshold:
                         results.append({
                             'chunk': chunk,
@@ -447,7 +568,7 @@ class AuraRAG:
             print(f"[RAG] 🔍 Final results: {len(results)} unique documents above threshold")
             
             # If we have fewer results than requested, try to get more diverse results
-            if len(results) < k and len(results) > 0 and not use_keyword_filter:
+            if len(results) < k and len(results) > 0:
                 print(f"[RAG] 🔧 Only found {len(results)} unique results, requesting more for diversity...")
                 # Try to get additional results by increasing k and filtering out seen indices
                 additional_k = k * 2  # Request more results
@@ -479,7 +600,223 @@ class AuraRAG:
             print(f"[RAG] ❌ Search error: {e}")
             return []
     
-    def _fuzzy_name_search(self, person_name: str, chunk: str, threshold: float = 0.75) -> bool:
+    def _filter_chunks_by_name(self, person_name: str, threshold: float = 0.65) -> List[int]:
+        """
+        Fast keyword filter: returns indices of chunks that contain fuzzy name matches
+        This is O(n) in chunk count but avoids expensive semantic search on irrelevant chunks
+        
+        Args:
+            person_name: Name to search for (e.g., "Bob Corella")
+            threshold: Character similarity threshold (default 0.65 for phonetic variations)
+            
+        Returns:
+            List of chunk indices that match
+        """
+        matching_indices = []
+        query_words = person_name.split()
+        
+        print(f"[RAG] 🔍 Scanning {len(self.chunks)} chunks for '{person_name}'...")
+        
+        for idx, chunk in enumerate(self.chunks):
+            if self._fuzzy_name_search(person_name, chunk, threshold):
+                matching_indices.append(idx)
+        
+        return matching_indices
+    
+    def _filter_chunks_by_terms(self, key_terms: List[str], threshold: float = 0.75) -> List[int]:
+        """
+        Filter chunks by multiple key terms (OR logic with fuzzy matching)
+        Returns chunks that contain ANY of the key terms
+        
+        Args:
+            key_terms: List of key terms to search for (e.g., ["brain", "neural pathways"])
+            threshold: Fuzzy match threshold (default 0.75)
+            
+        Returns:
+            List of chunk indices that contain at least one key term
+        """
+        if not key_terms:
+            return []
+        
+        matching_indices = set()  # Use set to avoid duplicates
+        
+        print(f"[RAG] 🔍 Scanning {len(self.chunks)} chunks for terms: {key_terms}")
+        
+        for term in key_terms:
+            term_lower = term.lower()
+            
+            # Check if this is a name (capitalized multi-word)
+            if ' ' in term and term[0].isupper():
+                # Use name-specific fuzzy matching
+                for idx, chunk in enumerate(self.chunks):
+                    if self._fuzzy_name_search(term, chunk, threshold=0.65):
+                        matching_indices.add(idx)
+            else:
+                # Use general term matching (case-insensitive)
+                for idx, chunk in enumerate(self.chunks):
+                    chunk_lower = chunk.lower()
+                    
+                    # Try exact match first (fastest)
+                    if term_lower in chunk_lower:
+                        matching_indices.add(idx)
+                        continue
+                    
+                    # Try fuzzy matching for misspellings
+                    if ' ' in term_lower:
+                        # Multi-word term: match all words with fuzzy logic
+                        term_words = term_lower.split()
+                        chunk_words = re.findall(r'\b[a-z]+\b', chunk_lower)
+                        
+                        matches = 0
+                        for term_word in term_words:
+                            for chunk_word in chunk_words:
+                                similarity = SequenceMatcher(None, term_word, chunk_word).ratio()
+                                if similarity >= threshold:
+                                    matches += 1
+                                    break
+                        
+                        if matches >= len(term_words):
+                            matching_indices.add(idx)
+                    else:
+                        # Single word: fuzzy match against chunk words
+                        chunk_words = re.findall(r'\b[a-z]+\b', chunk_lower)
+                        for chunk_word in chunk_words:
+                            similarity = SequenceMatcher(None, term_lower, chunk_word).ratio()
+                            if similarity >= threshold:
+                                matching_indices.add(idx)
+                                break
+        
+        result = sorted(list(matching_indices))
+        print(f"[RAG] 🔍 Found {len(result)} chunks matching key terms")
+        return result
+    
+    def _filter_chunks_by_term(self, medical_term: str, threshold: float = 0.75) -> List[int]:
+        """
+        Fast keyword filter: returns indices of chunks that contain medical term matches
+        Uses case-insensitive fuzzy matching to handle variations like:
+        - "myocardial infarction" vs "Myocardial Infarction"
+        - "MI" vs "myocardial infarction" (if both present)
+        
+        Args:
+            medical_term: Medical term to search for (e.g., "myocardial infarction")
+            threshold: Character similarity threshold (default 0.75 for medical terms)
+            
+        Returns:
+            List of chunk indices that match
+        """
+        matching_indices = []
+        term_lower = medical_term.lower()
+        term_words = term_lower.split()
+        
+        print(f"[RAG] 🔍 Scanning {len(self.chunks)} chunks for medical term '{medical_term}'...")
+        
+        for idx, chunk in enumerate(self.chunks):
+            chunk_lower = chunk.lower()
+            
+            # First try exact match (fastest)
+            if term_lower in chunk_lower:
+                matching_indices.append(idx)
+                continue
+            
+            # Try fuzzy matching for each term word
+            chunk_words = re.findall(r'\b[a-z]+\b', chunk_lower)
+            matches = 0
+            
+            for term_word in term_words:
+                best_similarity = 0.0
+                for chunk_word in chunk_words:
+                    similarity = SequenceMatcher(None, term_word, chunk_word).ratio()
+                    if similarity > best_similarity:
+                        best_similarity = similarity
+                
+                if best_similarity >= threshold:
+                    matches += 1
+            
+            # If all term words fuzzy match, include this chunk
+            if matches >= len(term_words):
+                matching_indices.append(idx)
+        
+        return matching_indices
+    
+    def _search_filtered_chunks(self, query: str, filtered_indices: List[int], k: int) -> List[Dict[str, Any]]:
+        """
+        Semantic search on a pre-filtered subset of chunks
+        Creates a temporary FAISS index with only the filtered chunks
+        
+        Args:
+            query: Search query
+            filtered_indices: List of chunk indices to search
+            k: Number of results to return
+            
+        Returns:
+            List of search results
+        """
+        try:
+            # Encode query
+            import torch
+            with torch.no_grad():
+                query_embedding = self.encoder.encode([query], convert_to_numpy=True, show_progress_bar=False)
+                query_embedding = query_embedding.astype(np.float32)
+            
+            # Normalize for Inner Product metric
+            if self.index.metric_type == faiss.METRIC_INNER_PRODUCT:
+                norms = np.linalg.norm(query_embedding, axis=1, keepdims=True)
+                query_embedding = query_embedding / norms
+            
+            # Extract embeddings for filtered chunks only
+            print(f"[RAG] 🔍 Creating temporary index with {len(filtered_indices)} filtered chunks...")
+            
+            # Get vectors for filtered chunks
+            if self.cuda_vectors is not None:
+                # Use numpy view of CUDA vectors
+                import ctypes
+                c_float_p = ctypes.POINTER(ctypes.c_float)
+                ptr = ctypes.cast(self.cuda_vectors, c_float_p)
+                total_size = len(self.chunks) * self.index.d
+                vectors_np = np.ctypeslib.as_array(ptr, shape=(len(self.chunks), self.index.d))
+                filtered_vectors = vectors_np[filtered_indices].copy()
+            else:
+                # Fallback: reconstruct from FAISS index
+                filtered_vectors = np.zeros((len(filtered_indices), self.index.d), dtype=np.float32)
+                for i, idx in enumerate(filtered_indices):
+                    filtered_vectors[i] = self.index.reconstruct(idx)
+            
+            # Create temporary index
+            temp_index = faiss.IndexFlatIP(self.index.d)
+            temp_index.add(filtered_vectors)
+            
+            # Search temporary index
+            distances, temp_indices = temp_index.search(query_embedding, min(k, len(filtered_indices)))
+            
+            # Map back to original indices
+            results = []
+            for i, (distance, temp_idx) in enumerate(zip(distances[0], temp_indices[0])):
+                original_idx = filtered_indices[int(temp_idx)]
+                chunk = self.chunks[original_idx]
+                similarity_score = float(1.0 / (1.0 + distance))
+                
+                print(f"[RAG] 🔍 Result {i+1}: idx={original_idx}, score={similarity_score:.4f}")
+                print(f"[RAG] 🔍 Chunk preview: '{chunk[:100]}...'")
+                
+                if similarity_score >= self.relevance_threshold:
+                    results.append({
+                        'chunk': chunk,
+                        'score': similarity_score,
+                        'distance': float(distance),
+                        'rank': i + 1
+                    })
+                    print(f"[RAG] ✅ Added to results")
+            
+            print(f"[RAG] ✅ Found {len(results)} results from filtered chunks")
+            return results[:k]
+            
+        except Exception as e:
+            print(f"[RAG] ❌ Filtered search error: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+    
+    def _fuzzy_name_search(self, person_name: str, chunk: str, threshold: float = 0.65) -> bool:
         """
         Check if a chunk contains a fuzzy match for the person name using character-level similarity
         Handles typos like "Bob Corella" matching "Bob Carella" (6/7 chars match = 0.857)
@@ -487,7 +824,7 @@ class AuraRAG:
         Args:
             person_name: Person name from query (e.g., "Bob Corella")
             chunk: Document chunk
-            threshold: Character similarity threshold (0.0 to 1.0, default 0.75)
+            threshold: Character similarity threshold (0.0 to 1.0, default 0.65 for phonetic variations)
             
         Returns:
             True if fuzzy match found, False otherwise

@@ -89,7 +89,8 @@ def get_person_names():
     try:
         rag = get_rag()
         
-        if not rag.chunks:
+        # Check if chunks is empty (handle numpy arrays properly)
+        if rag.chunks is None or len(rag.chunks) == 0:
             return jsonify({'names': []}), 200
         
         import re
