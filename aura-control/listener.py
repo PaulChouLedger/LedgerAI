@@ -26,7 +26,7 @@ AGC_KEEPALIVE_INTERVAL = 30.0  # Reset AGC every 30 seconds of idle
 # Hardware AGC on ReSpeaker handles initial processing
 # Software AGC boosts to optimal level for Whisper
 USE_SOFTWARE_AGC = True
-AGC_TARGET_RMS = 0.15  # Target RMS for Whisper
+AGC_TARGET_RMS = 0.20  # Target RMS for Whisper
 AGC_MAX_GAIN = 8.0  # Maximum software boost
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
