@@ -23,7 +23,7 @@ MIN_AUDIO_SAMPLES = 4000
 # Hardware AGC on ReSpeaker handles initial processing
 # Software AGC boosts to consistent level (hardware may not reach target at far-field)
 USE_SOFTWARE_AGC = True  # Light boost on top of hardware processing
-AGC_TARGET_RMS = 0.10  # Target RMS for Whisper
+AGC_TARGET_RMS = 0.20  # Target RMS for Whisper
 AGC_MAX_GAIN = 5.0  # Light boost only (hardware already did most work)
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
