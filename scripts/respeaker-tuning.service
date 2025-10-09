@@ -1,0 +1,16 @@
+[Unit]
+Description=ReSpeaker Hardware DSP Configuration
+After=multi-user.target
+Wants=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+ExecStart=/usr/bin/python3 /home/aura/LedgerAI/scripts/tune_respeaker.py far_field
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

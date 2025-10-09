@@ -174,8 +174,8 @@ def listen():
     available_channels = find_device_index()
     print(f"🎤 Listening ({available_channels}-channel hardware, using channel 0 only)...")
     
-    # Auto-configure hardware
-    configure_respeaker_hardware()
+    # Note: Hardware configured by systemd service (respeaker-tuning.service)
+    # No need to configure here - boot service handles it
     
     # Show configuration
     print("\n" + "="*70)
