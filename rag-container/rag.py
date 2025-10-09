@@ -323,12 +323,19 @@ class AuraRAG:
         """
         # Common patterns for name queries
         patterns = [
+            # Multi-word names (e.g., "Bob Carella", "David Lara")
             r"who is ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",              # "Who is David Lara"
             r"who's ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",               # "Who's Bob Carella"
             r"tell me about ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",       # "Tell me about Paul Chou"
             r"about ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",               # "About Jorge Guinovart"
             r"describe ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",            # "Describe Liam Hugill"
             r"what (?:do you know )?about ([A-Z][a-z]+(?: [A-Z][a-z]+)+)",  # "What about X" or "What do you know about X"
+            # Single names (e.g., "Raphael", "Peter")
+            r"who is ([A-Z][a-z]+)\??$",                           # "Who is Raphael?"
+            r"who's ([A-Z][a-z]+)\??$",                            # "Who's Raphael?"
+            r"tell me about ([A-Z][a-z]+)\??$",                    # "Tell me about Raphael?"
+            r"about ([A-Z][a-z]+)\??$",                            # "About Raphael?"
+            r"describe ([A-Z][a-z]+)\??$",                         # "Describe Raphael?"
         ]
         
         for pattern in patterns:
@@ -492,11 +499,11 @@ class AuraRAG:
         for chunk_name in chunk_names:
             chunk_metaphone = doublemetaphone(chunk_name)
             
-            # Check if any phonetic codes match
-            if (query_metaphone[0] == chunk_metaphone[0] or 
-                query_metaphone[1] == chunk_metaphone[1] or
-                query_metaphone[0] == chunk_metaphone[1] or
-                query_metaphone[1] == chunk_metaphone[0]):
+            # Check if any phonetic codes match (must be non-empty)
+            if (query_metaphone[0] and chunk_metaphone[0] and query_metaphone[0] == chunk_metaphone[0]) or \
+               (query_metaphone[1] and chunk_metaphone[1] and query_metaphone[1] == chunk_metaphone[1]) or \
+               (query_metaphone[0] and chunk_metaphone[1] and query_metaphone[0] == chunk_metaphone[1]) or \
+               (query_metaphone[1] and chunk_metaphone[0] and query_metaphone[1] == chunk_metaphone[0]):
                 print(f"[RAG] 🔊 Phonetic match: '{person_name}' ~ '{chunk_name}' (codes: {query_metaphone} ~ {chunk_metaphone})")
                 return True
         
@@ -514,12 +521,14 @@ class AuraRAG:
         matches = 0
         for query_word in query_words:
             for chunk_word in chunk_words:
-                # Check phonetic similarity for individual words
+                # Check phonetic similarity for individual words (must be non-empty)
                 query_word_metaphone = doublemetaphone(query_word)
                 chunk_word_metaphone = doublemetaphone(chunk_word)
                 
-                if (query_word_metaphone[0] == chunk_word_metaphone[0] or
-                    query_word_metaphone[1] == chunk_word_metaphone[1]):
+                if (query_word_metaphone[0] and chunk_word_metaphone[0] and query_word_metaphone[0] == chunk_word_metaphone[0]) or \
+                   (query_word_metaphone[1] and chunk_word_metaphone[1] and query_word_metaphone[1] == chunk_word_metaphone[1]) or \
+                   (query_word_metaphone[0] and chunk_word_metaphone[1] and query_word_metaphone[0] == chunk_word_metaphone[1]) or \
+                   (query_word_metaphone[1] and chunk_word_metaphone[0] and query_word_metaphone[1] == chunk_word_metaphone[0]):
                     print(f"[RAG] 🔊 Phonetic word match: '{query_word}' ~ '{chunk_word}' (codes: {query_word_metaphone} ~ {chunk_word_metaphone})")
                     matches += 1
                     break
