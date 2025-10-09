@@ -78,9 +78,10 @@ def find_device_index():
     for i, device in enumerate(devices):
         if DEVICE_NAME.lower() in device["name"].lower():
             DEVICE_INDEX = i
-            channels = device["max_input_channels"]
+            # Always use 6 channels for best quality (matches find_optimal_rms.py)
+            channels = 6
             print(f"[Aura/listener] 🎧 Using input device: {device['name']} (index {i})")
-            print(f"[Aura/listener] 🎙️  Available input channels: {channels}")
+            print(f"[Aura/listener] 🎙️  Using 6-channel mode (channel 0 only)")
             return channels
     raise RuntimeError("Microphone not found. Check DEVICE_NAME.")
 
@@ -328,9 +329,7 @@ def listen():
     
     # Show configuration
     print("\n" + "="*70)
-    print(f"[Audio] ✅ Single-Channel Processing ({available_channels}-ch firmware detected)")
-    if available_channels == 1:
-        print("[Audio] 🎉 Using single-channel firmware (cleaner signal!)")
+    print(f"[Audio] ✅ 6-Channel Processing (using channel 0 only)")
     print("[Audio] 🔧 Hardware: Gentle AGC → ~0.03 RMS (prevents clipping & drift)")
     print(f"[Audio] 🔧 Software: Boost to {AGC_TARGET_RMS} RMS (max {AGC_MAX_GAIN}x, does main work)")
     print(f"[Audio] 🔧 Low-RMS Filter: Skips audio below {MIN_SPEECH_RMS} RMS (filters noise)")
@@ -385,11 +384,8 @@ def listen():
                     stream.start()
                     continue
                 
-                # Extract channel 0 (handle both 1-ch and multi-ch firmware)
-                if available_channels == 1:
-                    channel_0 = audio_block.flatten()  # Ensure 1D array
-                else:
-                    channel_0 = audio_block[:, 0]  # Extract channel 0
+                # Extract channel 0 (always 6-channel mode)
+                channel_0 = audio_block[:, 0]
                 
                 # Check if we have enough samples for VAD (minimum 512 samples)
                 # VAD model requires: sr / samples > 31.25 → samples >= sr/31.25 = 512
@@ -458,11 +454,8 @@ def listen():
                     set_transcribing(False)
                     break
                 
-                # Extract channel 0 (handle both 1-ch and multi-ch firmware)
-                if available_channels == 1:
-                    channel_0 = audio_block.flatten()  # Ensure 1D array
-                else:
-                    channel_0 = audio_block[:, 0]  # Extract channel 0
+                # Extract channel 0 (always 6-channel mode)
+                channel_0 = audio_block[:, 0]
                 
                 # Check if we have enough samples for VAD (minimum 512 samples)
                 if channel_0.size < 512:
@@ -488,14 +481,9 @@ def listen():
                 set_transcribing(False)
                 continue
 
-            # Concatenate buffer and extract channel 0
+            # Concatenate buffer and extract channel 0 (always 6-channel mode)
             full_audio = np.concatenate(buffer)
-            
-            # Handle both 1-ch and multi-ch firmware
-            if available_channels == 1:
-                mono_mix = full_audio.flatten()  # Ensure 1D array
-            else:
-                mono_mix = full_audio[:, 0]  # Extract channel 0
+            mono_mix = full_audio[:, 0]
             
             # Debug: Show hardware output and check for AGC drift
             if DEBUG_NOISE_REDUCTION:
