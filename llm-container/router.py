@@ -97,10 +97,12 @@ def route_prompt(prompt: str, state: dict, session_id: str) -> Tuple[str, dict]:
         })
         return ConversationMode.TRIAGE, state
     
-    # 5. Default to THINKER for anything else (general conversation with potential RAG)
-    print(f"[Router] 🧠 → THINKER mode (default for general queries)")
-    state['mode'] = ConversationMode.THINKER
-    return ConversationMode.THINKER, state
+    # 5. Default to CASUAL for anything else (safer for mistranscriptions)
+    # If user has a real knowledge query, they'll use clear trigger words
+    # If it's a mistranscription, we'll politely ask for clarification
+    print(f"[Router] 💬 → CASUAL mode (default fallback)")
+    state['mode'] = ConversationMode.CASUAL
+    return ConversationMode.CASUAL, state
 
 
 def get_active_mode(state: dict) -> Optional[str]:
