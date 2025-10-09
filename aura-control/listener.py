@@ -7,7 +7,6 @@ import soundfile as sf
 import sounddevice as sd
 import requests
 import subprocess
-from scipy import signal
 from speaker import speak_llm_response, is_playing
 from aura_gui import set_transcribing
 
@@ -19,10 +18,6 @@ SILENCE_TIMEOUT = 0.20
 VAD_START_THRESHOLD = 0.25
 VAD_SILENCE_THRESHOLD = 0.10
 MIN_AUDIO_SAMPLES = 4000
-
-# Simple noise reduction (fast and effective)
-ENABLE_HIGHPASS_FILTER = False  # TEST: Disabled to check if filtering hurts far-field
-HIGHPASS_CUTOFF = 80  # Hz - Removes fan noise, preserves speech
 
 # Auto Gain Control (AGC)
 USE_AUTO_GAIN = True
@@ -57,25 +52,6 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 
 # === Audio Processing Functions ===
 
-def highpass_filter(audio, cutoff=80, order=5):
-    """
-    High-pass filter - removes low-frequency noise
-    - Removes frequencies below cutoff (fan noise, rumble)
-    - Preserves speech frequencies (>80 Hz)
-    - Simple and artifact-free
-    """
-    nyquist = SAMPLE_RATE / 2
-    normalized_cutoff = cutoff / nyquist
-    normalized_cutoff = max(0.01, min(normalized_cutoff, 0.99))
-    
-    try:
-        b, a = signal.butter(order, normalized_cutoff, btype='high')
-        filtered = signal.filtfilt(b, a, audio)
-        return filtered
-    except Exception as e:
-        print(f"[Audio] ⚠️ High-pass filter failed: {e}")
-        return audio
-
 def auto_gain_control(audio):
     """
     Simple automatic gain control
@@ -107,9 +83,10 @@ def auto_gain_control(audio):
 
 def process_audio(audio):
     """
-    Simple audio processing pipeline:
-    1. High-pass filter (removes low-frequency fan noise)
-    2. Auto gain control (amplifies to optimal level)
+    Minimal audio processing:
+    Just AGC - amplifies raw audio to optimal level
+    
+    No filtering preserves all frequency content for far-field speech
     
     Args:
         audio: Raw audio to process
@@ -117,17 +94,11 @@ def process_audio(audio):
     Returns:
         Processed audio, gain applied
     """
-    applied_gain = 1.0
-    
-    # Step 1: High-pass filter
-    if ENABLE_HIGHPASS_FILTER:
-        audio = highpass_filter(audio, cutoff=HIGHPASS_CUTOFF)
-    
-    # Step 2: Auto gain control
     if USE_AUTO_GAIN:
         audio, applied_gain = auto_gain_control(audio)
-    
-    return audio, applied_gain
+        return audio, applied_gain
+    else:
+        return audio, 1.0
 
 # === Simple frequency function for GUI border (placeholder) ===
 def get_transcription_frequency():
