@@ -29,7 +29,7 @@ HIGHPASS_CUTOFF = 80  # Hz - Removes fan noise, preserves speech
 
 # Auto Gain Control (AGC)
 USE_AUTO_GAIN = True
-AGC_TARGET_RMS = 0.05  # Target RMS for Whisper
+AGC_TARGET_RMS = 0.10  # Target RMS for Whisper
 AGC_MAX_GAIN = 20.0  # Maximum amplification
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
