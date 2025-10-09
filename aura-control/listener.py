@@ -205,7 +205,6 @@ def listen():
                     break
                 
                 # Check if AGC needs reset after long idle
-                global last_speech_time
                 idle_time = time.time() - last_speech_time
                 if idle_time > AGC_KEEPALIVE_INTERVAL:
                     try:
