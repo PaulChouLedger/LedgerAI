@@ -109,7 +109,6 @@ def software_agc_boost(audio):
 def extract_user_name(text):
     """Extract user's name from phrases like 'My name is Rafael'"""
     import re
-    from metaphone import doublemetaphone
     global user_name
     
     patterns = [
@@ -143,27 +142,31 @@ def extract_user_name(text):
 
 def correct_name_from_rag(detected_name):
     """Check if detected name has a phonetically similar match in RAG database"""
-    from metaphone import doublemetaphone
-    
     try:
         # Query RAG for person names in the database
         response = requests.get("http://localhost:11435/rag/names", timeout=2)
         if response.status_code == 200:
             known_names = response.json().get('names', [])
             
-            # Check phonetic similarity
-            detected_metaphone = doublemetaphone(detected_name)
+            # Use simple string similarity check (no metaphone needed on host)
+            from difflib import SequenceMatcher
+            
+            best_match = None
+            best_score = 0.0
+            threshold = 0.65  # Same as RAG fuzzy matching
             
             for known_name in known_names:
                 # Extract first name from full name (e.g., "Rafael Cabello" → "Rafael")
                 first_name = known_name.split()[0] if ' ' in known_name else known_name
-                known_metaphone = doublemetaphone(first_name)
                 
-                # Check if phonetic codes match
-                if (detected_metaphone[0] and known_metaphone[0] and detected_metaphone[0] == known_metaphone[0]) or \
-                   (detected_metaphone[1] and known_metaphone[1] and detected_metaphone[1] == known_metaphone[1]):
-                    # Phonetic match found - use the database spelling
-                    return first_name
+                # Calculate similarity
+                similarity = SequenceMatcher(None, detected_name.lower(), first_name.lower()).ratio()
+                
+                if similarity > best_score and similarity >= threshold:
+                    best_score = similarity
+                    best_match = first_name
+            
+            return best_match
     except:
         pass
     
