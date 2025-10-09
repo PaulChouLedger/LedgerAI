@@ -43,15 +43,17 @@ DEBUG_NOISE_REDUCTION = True
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
-# === Detect correct mic index ===
+# === Detect correct mic index and channels ===
 def find_device_index():
     global DEVICE_INDEX
     devices = sd.query_devices()
     for i, device in enumerate(devices):
         if DEVICE_NAME.lower() in device["name"].lower():
             DEVICE_INDEX = i
+            channels = device["max_input_channels"]
             print(f"[Aura/listener] 🎧 Using input device: {device['name']} (index {i})")
-            return
+            print(f"[Aura/listener] 🎙️  Available input channels: {channels}")
+            return channels
     raise RuntimeError("Microphone not found. Check DEVICE_NAME.")
 
 # === Load Silero VAD ===
@@ -168,22 +170,23 @@ def listen():
     global last_speech_time
     last_speech_time = time.time()
     
-    find_device_index()
-    print("🎤 Listening (6-channel hardware, using channel 0 only)...")
+    # Detect device and available channels
+    available_channels = find_device_index()
+    print(f"🎤 Listening ({available_channels}-channel hardware, using channel 0 only)...")
     
     # Auto-configure hardware
     configure_respeaker_hardware()
     
     # Show configuration
     print("\n" + "="*70)
-    print("[Audio] ✅ Single-Channel Processing (Channel 0 from 6-ch firmware)")
+    print(f"[Audio] ✅ Single-Channel Processing (Channel 0 from {available_channels}-ch firmware)")
     print("[Audio] 🔧 Hardware: Gentle AGC → ~0.05 RMS")
     print(f"[Audio] 🔧 Software: Boost to {AGC_TARGET_RMS} RMS (max {AGC_MAX_GAIN}x)")
-    print("[Audio] 💡 Using existing 6-ch firmware, reading only channel 0")
+    print("[Audio] 💡 Auto-detects firmware type, reads only channel 0")
     print("="*70 + "\n")
 
-    # Keep 6 channels, but only use channel 0
-    with sd.InputStream(device=DEVICE_INDEX, channels=6, samplerate=SAMPLE_RATE,
+    # Use detected channel count
+    with sd.InputStream(device=DEVICE_INDEX, channels=available_channels, samplerate=SAMPLE_RATE,
                         blocksize=FRAME_SIZE, dtype="float32") as stream:
         play_welcome_prompt(stream)
 
