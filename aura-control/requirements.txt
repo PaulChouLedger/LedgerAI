@@ -1,0 +1,45 @@
+# Core Python Dependencies for LedgerAI Aura Control
+# Install with: pip install -r requirements.txt
+
+# PyTorch (CPU version - adjust for GPU if needed)
+# For macOS: pip install torch torchvision torchaudio
+# For Linux: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
+# Audio Processing
+sounddevice>=0.4.6
+soundfile>=0.12.1
+numpy>=1.24.0
+scipy>=1.10.0
+
+# GUI Framework
+PyQt5>=5.15.0
+
+# HTTP and Networking
+requests>=2.31.0
+urllib3>=1.26.0
+
+# Environment Configuration
+python-dotenv>=1.0.0
+
+# Text-to-Speech
+elevenlabs>=0.2.0
+
+# USB Device Access (for ReSpeaker)
+pyusb>=1.2.1
+
+# Web Server (for upload functionality)
+flask>=2.3.3
+werkzeug>=2.3.7
+
+# Google Drive Integration (optional)
+google-api-python-client>=2.0.0
+google-auth>=2.0.0
+google-auth-oauthlib>=1.0.0
+google-auth-httplib2>=0.1.0
+
+# Telegram Bot (optional)
+python-telegram-bot>=20.0
+

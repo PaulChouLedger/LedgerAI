@@ -766,20 +766,10 @@ class AuraRAG:
             # Extract embeddings for filtered chunks only
             print(f"[RAG] 🔍 Creating temporary index with {len(filtered_indices)} filtered chunks...")
             
-            # Get vectors for filtered chunks
-            if self.cuda_vectors is not None:
-                # Use numpy view of CUDA vectors
-                import ctypes
-                c_float_p = ctypes.POINTER(ctypes.c_float)
-                ptr = ctypes.cast(self.cuda_vectors, c_float_p)
-                total_size = len(self.chunks) * self.index.d
-                vectors_np = np.ctypeslib.as_array(ptr, shape=(len(self.chunks), self.index.d))
-                filtered_vectors = vectors_np[filtered_indices].copy()
-            else:
-                # Fallback: reconstruct from FAISS index
-                filtered_vectors = np.zeros((len(filtered_indices), self.index.d), dtype=np.float32)
-                for i, idx in enumerate(filtered_indices):
-                    filtered_vectors[i] = self.index.reconstruct(idx)
+            # Get vectors for filtered chunks from FAISS index
+            filtered_vectors = np.zeros((len(filtered_indices), self.index.d), dtype=np.float32)
+            for i, idx in enumerate(filtered_indices):
+                filtered_vectors[i] = self.index.reconstruct(idx)
             
             # Create temporary index
             temp_index = faiss.IndexFlatIP(self.index.d)
