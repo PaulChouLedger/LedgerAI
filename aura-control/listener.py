@@ -369,13 +369,39 @@ def listen():
                 if is_playing():
                     break
                 
-                # Check if AGC needs reset after long idle
+                # Check if stream needs refresh after long idle (prevents timeout/stall)
                 idle_time = time.time() - last_speech_time
                 if idle_time > AGC_KEEPALIVE_INTERVAL:
                     reset_hardware_agc(f"idle for {idle_time:.0f}s")
+                    # Refresh stream to prevent staleness
+                    print(f"\n[Listener] 🔄 Refreshing audio stream after {idle_time:.0f}s idle")
+                    stream.close()
+                    stream = sd.InputStream(
+                        device=DEVICE_INDEX,
+                        samplerate=SAMPLE_RATE,
+                        channels=available_channels,
+                        dtype='float32',
+                        blocksize=FRAME_SIZE
+                    )
+                    stream.start()
+                    print("[Listener] ✅ Stream refreshed")
                     last_speech_time = time.time()
 
-                audio_block, _ = stream.read(FRAME_SIZE)
+                try:
+                    audio_block, _ = stream.read(FRAME_SIZE)
+                except Exception as e:
+                    print(f"\n[Listener] ⚠️  Stream read error: {e}")
+                    print("[Listener] 🔄 Restarting stream...")
+                    stream.close()
+                    stream = sd.InputStream(
+                        device=DEVICE_INDEX,
+                        samplerate=SAMPLE_RATE,
+                        channels=available_channels,
+                        dtype='float32',
+                        blocksize=FRAME_SIZE
+                    )
+                    stream.start()
+                    continue
                 
                 # Extract channel 0 (handle both 1-ch and multi-ch firmware)
                 if available_channels == 1:
@@ -413,7 +439,23 @@ def listen():
                     set_transcribing(False)
                     break
 
-                audio_block, _ = stream.read(FRAME_SIZE)
+                try:
+                    audio_block, _ = stream.read(FRAME_SIZE)
+                except Exception as e:
+                    print(f"\n[Listener] ⚠️  Stream read error during recording: {e}")
+                    print("[Listener] 🔄 Restarting stream...")
+                    stream.close()
+                    stream = sd.InputStream(
+                        device=DEVICE_INDEX,
+                        samplerate=SAMPLE_RATE,
+                        channels=available_channels,
+                        dtype='float32',
+                        blocksize=FRAME_SIZE
+                    )
+                    stream.start()
+                    # Restart speech detection
+                    set_transcribing(False)
+                    break
                 
                 # Extract channel 0 (handle both 1-ch and multi-ch firmware)
                 if available_channels == 1:

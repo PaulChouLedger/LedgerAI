@@ -312,7 +312,8 @@ class AuraRAG:
     
     def _extract_person_name(self, query: str) -> str:
         """
-        Extract person name from queries like "Who is X?", "Tell me about Y", etc.
+        Extract person name from queries like "Who is X?", "Tell me about Y", 
+        "Where does X work?", etc.
         
         Args:
             query: User query
@@ -332,6 +333,10 @@ class AuraRAG:
             r"about ([a-z]+(?: [a-z]+)+)",                                     # "about jorge guinovart"
             r"describe ([a-z]+(?: [a-z]+)+)",                                  # "describe liam hugill"
             r"what (?:do you know )?about ([a-z]+(?: [a-z]+)+)",              # "what about X" or "what do you know about X"
+            # Location/work/contact queries about multi-word names
+            r"where (?:does|did|is) ([a-z]+(?: [a-z]+)+) (?:work|live|study)",  # "where does david lara work"
+            r"what (?:is|was) ([a-z]+(?: [a-z]+)+)'?s? (?:job|role|position|title|company|workplace)",  # "what is paul chou's job"
+            r"(?:where|what) (?:can|do) (?:i |you )?(?:find|contact|reach) ([a-z]+(?: [a-z]+)+)",  # "where can i find bob carella"
             # Single names (e.g., "raphael", "peter")
             r"who (?:is|was) ([a-z]+)\??$",                                    # "who is raphael?"
             r"who'?s ([a-z]+)\??$",                                            # "who's raphael?"
@@ -340,6 +345,10 @@ class AuraRAG:
             r"everything .*? about ([a-z]+)\??$",                              # "everything about X"
             r"about ([a-z]+)\??$",                                             # "about raphael?"
             r"describe ([a-z]+)\??$",                                          # "describe raphael?"
+            # Location/work/contact queries about single names
+            r"where (?:does|did|is) ([a-z]+) (?:work|live|study)",            # "where does raphael work"
+            r"what (?:is|was) ([a-z]+)'?s? (?:job|role|position|title|company|workplace)",  # "what is paul's job"
+            r"(?:where|what) (?:can|do) (?:i |you )?(?:find|contact|reach) ([a-z]+)",  # "where can i contact bob"
         ]
         
         for pattern in patterns:
@@ -849,6 +858,10 @@ class AuraRAG:
         Check if a chunk contains a fuzzy match for the person name using:
         1. Phonetic matching (Metaphone) - handles "Rafael"/"Raphael", "Smith"/"Smyth"
         2. Character-level similarity - handles typos like "Corella"/"Carella"
+        3. Proximity check - ensures name words appear TOGETHER (not scattered across chunk)
+        
+        This prevents false matches like finding "Bob Cabello" when document has
+        "Bob Kabeyo" and "Rafael Cabello" as separate people.
         
         Args:
             person_name: Person name from query (e.g., "Bob Corella")
@@ -860,63 +873,116 @@ class AuraRAG:
         """
         print(f"[RAG] 🔍 Fuzzy search: looking for '{person_name}' in chunk")
         
-        # Extract ALL capitalized words from chunk (not just multi-word sequences)
-        chunk_words = re.findall(r'\b[A-Z][a-z]+\b', chunk)
+        # Extract ALL capitalized words from chunk WITH their positions
+        chunk_words = []
+        for match in re.finditer(r'\b[A-Z][a-z]+\b', chunk):
+            chunk_words.append({
+                'word': match.group(),
+                'position': match.start()
+            })
         
         if not chunk_words:
             print(f"[RAG] 🔍 No capitalized words found in chunk")
             return False
         
-        print(f"[RAG] 🔍 Found {len(chunk_words)} capitalized words: {chunk_words[:10]}")  # Show first 10
+        print(f"[RAG] 🔍 Found {len(chunk_words)} capitalized words: {[w['word'] for w in chunk_words[:10]]}")  # Show first 10
         
         # Split query name into individual words
         query_words = person_name.split()
         print(f"[RAG] 🔍 Query words: {query_words}")
         
-        # Match each query word against chunk words using phonetic + character-level similarity
-        matches = 0
-        matched_pairs = []
+        # For each query word, find ALL possible matches in the chunk
+        query_word_matches = []
         
-        for query_word in query_words:
-            best_match = None
-            best_similarity = 0.0
-            match_type = None
+        for query_idx, query_word in enumerate(query_words):
+            matches_for_this_word = []
             
-            for chunk_word in chunk_words:
+            for chunk_word_info in chunk_words:
+                chunk_word = chunk_word_info['word']
+                position = chunk_word_info['position']
+                
+            best_similarity = 0.0
+                match_type = None
+                
                 # Try phonetic matching first (sounds the same?)
                 if self._phonetic_match(query_word, chunk_word):
                     best_similarity = 1.0
-                    best_match = chunk_word
                     match_type = "phonetic"
-                    break
-                
-                # Fall back to character-level similarity
+                else:
+                    # Fall back to character-level similarity
                 similarity = SequenceMatcher(None, query_word.lower(), chunk_word.lower()).ratio()
                 
-                if similarity > best_similarity:
+                    # Additional length check to prevent short words from matching
+                    len_query = len(query_word)
+                    len_chunk = len(chunk_word)
+                    len_diff = abs(len_query - len_chunk)
+                    
+                    # Penalize if length difference is too large (>40% of the longer word)
+                    max_len = max(len_query, len_chunk)
+                    if len_diff > max_len * 0.4:
+                        similarity *= 0.5  # Heavily penalize length mismatches
+                    
+                    # Also require minimum absolute character matches (at least 70% of shorter word)
+                    min_len = min(len_query, len_chunk)
+                    if similarity * max_len < min_len * 0.7:
+                        similarity = 0.0  # Not enough actual character overlap
+                    
                     best_similarity = similarity
-                    best_match = chunk_word
                     match_type = "character"
+                
+                if best_similarity >= threshold:
+                    matches_for_this_word.append({
+                        'chunk_word': chunk_word,
+                        'position': position,
+                        'similarity': best_similarity,
+                        'match_type': match_type
+                    })
             
-            if best_match and best_similarity >= threshold:
-                if match_type == "phonetic":
-                    print(f"[RAG] ✅ Phonetic match: '{query_word}' ~ '{best_match}' (sounds alike)")
+            query_word_matches.append(matches_for_this_word)
+        
+        # Check if ALL query words have at least one match
+        if any(len(matches) == 0 for matches in query_word_matches):
+            missing_words = [query_words[i] for i, matches in enumerate(query_word_matches) if len(matches) == 0]
+            print(f"[RAG] ❌ Missing matches for: {missing_words}")
+            return False
+        
+        # Now check if there's a valid sequence where matched words appear close together
+        # For a 2-word name like "Bob Cabello", the matched words should be within ~50 characters
+        MAX_NAME_SPAN = 50  # Maximum characters between first and last word of a name
+        
+        def check_proximity(match_combo):
+            """Check if a combination of matches forms a valid name (words close together)"""
+            positions = [m['position'] for m in match_combo]
+            positions.sort()
+            span = positions[-1] - positions[0]
+            return span <= MAX_NAME_SPAN
+        
+        # Try all combinations of matches to find one where words are close together
+        import itertools
+        all_combinations = list(itertools.product(*query_word_matches))
+        
+        valid_combinations = []
+        for combo in all_combinations:
+            if check_proximity(combo):
+                valid_combinations.append(combo)
+        
+        if valid_combinations:
+            # Found at least one valid combination where all words match and are close together
+            best_combo = valid_combinations[0]
+            matched_pairs = []
+            for i, match in enumerate(best_combo):
+                matched_pairs.append(f"{query_words[i]}~{match['chunk_word']}")
+                if match['match_type'] == "phonetic":
+                    print(f"[RAG] ✅ Phonetic match: '{query_words[i]}' ~ '{match['chunk_word']}' (sounds alike)")
                 else:
-                    print(f"[RAG] ✅ Character match: '{query_word}' ~ '{best_match}' (similarity: {best_similarity:.3f}, {int(best_similarity * max(len(query_word), len(best_match)))}/{max(len(query_word), len(best_match))} chars)")
-                matches += 1
-                matched_pairs.append(f"{query_word}~{best_match}")
-            else:
-                print(f"[RAG] ❌ No match for '{query_word}' (best: '{best_match}' @ {best_similarity:.3f})")
-        
-        # Require ALL query words to match (e.g., both "Bob" and "Corella" must match)
-        min_matches = len(query_words)
-        print(f"[RAG] 🔍 Matched {matches}/{len(query_words)} words (need {min_matches}): {matched_pairs}")
-        
-        if matches >= min_matches:
-            print(f"[RAG] ✅ All words matched! Person found in chunk.")
+                    print(f"[RAG] ✅ Character match: '{query_words[i]}' ~ '{match['chunk_word']}' (similarity: {match['similarity']:.3f})")
+            
+            positions = sorted([m['position'] for m in best_combo])
+            span = positions[-1] - positions[0]
+            print(f"[RAG] ✅ All words matched and close together (span: {span} chars): {matched_pairs}")
             return True
-        
-        print(f"[RAG] ❌ Insufficient matches ({matches}/{min_matches})")
+        else:
+            print(f"[RAG] ❌ Words match individually but not close together (not a valid name)")
         return False
 
     def diagnose_index_issues(self) -> Dict[str, Any]:

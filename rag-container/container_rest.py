@@ -321,6 +321,21 @@ def rag_diagnose():
         logger.error(f"Error diagnosing RAG: {e}")
         return jsonify({'error': str(e)}), 500
 
+def extract_names_from_text(text: str) -> list:
+    """Extract person names from text (simple heuristic: capitalized consecutive words)"""
+    import re
+    # Find sequences of 2-3 capitalized words (likely names)
+    # This pattern looks for full names like "Rafael Cabello", "Bob Carella", etc.
+    name_pattern = r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\b'
+    names = re.findall(name_pattern, text)
+    
+    # Filter out common false positives
+    stopwords = {'The', 'This', 'That', 'These', 'Those', 'What', 'When', 'Where', 'Who', 'How', 'Why'}
+    filtered_names = [name for name in names if not any(word in stopwords for word in name.split())]
+    
+    # Return unique names
+    return list(set(filtered_names))
+
 @app.route('/rag/search', methods=['POST'])
 def rag_search():
     """Search using RAG system"""
@@ -338,13 +353,23 @@ def rag_search():
         
         # Format results for LLM container compatibility
         formatted_results = []
+        all_extracted_names = []
+        
         for result in results:
+            chunk_text = result.get('chunk', '')
             formatted_results.append({
-                'text': result.get('chunk', ''),
+                'text': chunk_text,
                 'score': result.get('score', 0.0),
                 'distance': result.get('distance', 0.0),
                 'rank': result.get('rank', 0)
             })
+            
+            # Extract names from this chunk
+            names_in_chunk = extract_names_from_text(chunk_text)
+            all_extracted_names.extend(names_in_chunk)
+        
+        # Get unique names
+        unique_names = list(set(all_extracted_names))
         
         # Also provide a properly formatted prompt for LLM compatibility
         if formatted_results:
@@ -361,7 +386,8 @@ def rag_search():
             'results': formatted_results,
             'count': len(formatted_results),
             'formatted_prompt': formatted_prompt,
-            'used_rag': len(formatted_results) > 0
+            'used_rag': len(formatted_results) > 0,
+            'extracted_names': unique_names  # NEW: Names found in the chunks
         })
         
     except Exception as e:

@@ -35,6 +35,8 @@ def is_thinker_trigger(prompt: str) -> bool:
     knowledge_patterns = [
         "who is", "who was", "who are",
         "what is", "what was", "what are",
+        "where is", "where was", "where does", "where did", "where can",
+        "when is", "when was", "when does", "when did",
         "tell me about", "tell me everything", "tell me all",
         "information about", "all information", "everything about",
         "details about", "explain", "describe",
