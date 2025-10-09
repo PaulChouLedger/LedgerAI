@@ -169,21 +169,21 @@ def listen():
     last_speech_time = time.time()
     
     find_device_index()
-    print("🎤 Listening (single channel input)...")
+    print("🎤 Listening (6-channel hardware, using channel 0 only)...")
     
     # Auto-configure hardware
     configure_respeaker_hardware()
     
     # Show configuration
     print("\n" + "="*70)
-    print("[Audio] ✅ Single-Channel Processing (after firmware flash)")
+    print("[Audio] ✅ Single-Channel Processing (Channel 0 from 6-ch firmware)")
     print("[Audio] 🔧 Hardware: Gentle AGC → ~0.05 RMS")
     print(f"[Audio] 🔧 Software: Boost to {AGC_TARGET_RMS} RMS (max {AGC_MAX_GAIN}x)")
-    print("[Audio] 💡 Clean and simple - optimal for voice recognition")
+    print("[Audio] 💡 Using existing 6-ch firmware, reading only channel 0")
     print("="*70 + "\n")
 
-    # Single channel: channels=1
-    with sd.InputStream(device=DEVICE_INDEX, channels=1, samplerate=SAMPLE_RATE,
+    # Keep 6 channels, but only use channel 0
+    with sd.InputStream(device=DEVICE_INDEX, channels=6, samplerate=SAMPLE_RATE,
                         blocksize=FRAME_SIZE, dtype="float32") as stream:
         play_welcome_prompt(stream)
 
@@ -227,8 +227,8 @@ def listen():
 
                 audio_block, _ = stream.read(FRAME_SIZE)
                 
-                # Single channel: audio_block is already 1D array
-                channel_0 = audio_block if len(audio_block.shape) == 1 else audio_block[:, 0]
+                # Extract channel 0 from 6-channel input
+                channel_0 = audio_block[:, 0]
                 
                 # Run VAD
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
@@ -252,7 +252,7 @@ def listen():
                     break
 
                 audio_block, _ = stream.read(FRAME_SIZE)
-                channel_0 = audio_block if len(audio_block.shape) == 1 else audio_block[:, 0]
+                channel_0 = audio_block[:, 0]
                 buffer.append(audio_block)
                 
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
@@ -273,9 +273,9 @@ def listen():
                 set_transcribing(False)
                 continue
 
-            # Concatenate buffer (single channel)
+            # Concatenate buffer and extract channel 0
             full_audio = np.concatenate(buffer)
-            mono_mix = full_audio if len(full_audio.shape) == 1 else full_audio[:, 0]
+            mono_mix = full_audio[:, 0]
             
             # Debug: Show hardware output
             if DEBUG_NOISE_REDUCTION:
