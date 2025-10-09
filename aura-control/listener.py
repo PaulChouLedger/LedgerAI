@@ -157,13 +157,9 @@ def configure_respeaker_hardware():
         tuning.write("AGCDESIREDLEVEL", 0.10)  # 0.10 RMS = -10 dBov
         tuning.write("AGCMAXGAIN", 31.6)  # 30 dB = 31.6x
         
-        # Enable noise suppression for ASR
-        tuning.write("STATNOISEONOFF_SR", 1)  # Stationary noise (fan, hum)
-        tuning.write("NONSTATNOISEONOFF_SR", 1)  # Non-stationary noise (AC, etc)
-        
-        # Gentle over-subtraction
-        tuning.write("GAMMA_NS_SR", 1.0)
-        tuning.write("GAMMA_NN_SR", 1.1)
+        # DISABLE noise suppression (test if it's hurting far-field recognition)
+        tuning.write("STATNOISEONOFF_SR", 0)  # Stationary noise OFF
+        tuning.write("NONSTATNOISEONOFF_SR", 0)  # Non-stationary noise OFF
         
         # Disable echo cancellation (not needed)
         tuning.write("ECHOONOFF", 0)
@@ -188,10 +184,10 @@ def listen():
     
     # Show configuration
     print("\n" + "="*70)
-    print("[Audio] ✅ Hybrid processing: Hardware DSP + Software Boost")
-    print("[Audio] 🔧 Hardware: Noise Suppression + Initial AGC (ReSpeaker XMOS)")
-    print(f"[Audio] 🔧 Software: Light AGC boost (max {AGC_MAX_GAIN}x) to ensure {AGC_TARGET_RMS} RMS")
-    print("[Audio] 💡 Best of both: Hardware quality + Software consistency")
+    print("[Audio] ✅ Hybrid processing: Hardware AGC + Software Boost")
+    print("[Audio] 🔧 Hardware: AGC only (NO noise suppression - preserves speech)")
+    print(f"[Audio] 🔧 Software: Light boost (max {AGC_MAX_GAIN}x) to ensure {AGC_TARGET_RMS} RMS")
+    print("[Audio] 💡 Clean amplification, no aggressive filtering")
     print("="*70 + "\n")
 
     with sd.InputStream(device=DEVICE_INDEX, channels=6, samplerate=SAMPLE_RATE,
