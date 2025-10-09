@@ -24,6 +24,11 @@ ENABLE_SPECTRAL_FILTERING = True
 NOISE_PROFILE_PATH = os.path.expanduser("~/LedgerAI/data/noise_profile.npy")
 NOISE_REDUCTION_STRENGTH = 0.7  # How much noise to subtract (0.0-1.0)
 
+# Auto Gain Control (AGC)
+USE_AUTO_GAIN = True
+AGC_TARGET_RMS = 0.15  # Target RMS for Whisper
+AGC_MAX_GAIN = 20.0  # Maximum amplification
+
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
@@ -125,23 +130,58 @@ def spectral_subtraction(audio, noise_profile, strength=0.7):
     
     return cleaned_audio
 
+def auto_gain_control(audio):
+    """
+    Simple automatic gain control
+    - Amplifies audio to target RMS
+    - Prevents clipping by limiting max gain
+    
+    Args:
+        audio: Audio to amplify
+    
+    Returns:
+        Amplified audio, actual gain applied
+    """
+    rms = np.sqrt(np.mean(audio ** 2))
+    
+    if rms < 1e-6:
+        return audio, 1.0
+    
+    # Calculate gain needed to reach target
+    required_gain = AGC_TARGET_RMS / rms
+    
+    # Limit to max gain
+    actual_gain = min(required_gain, AGC_MAX_GAIN)
+    
+    # Apply gain with clipping prevention
+    audio = audio * actual_gain
+    audio = np.clip(audio, -0.95, 0.95)
+    
+    return audio, actual_gain
+
 def process_audio(audio):
     """
-    Simple audio processing pipeline:
+    Clean audio processing pipeline:
     1. Spectral filtering (removes noise using digital signature)
-    
-    That's it! No AGC, no noise gate, just clean noise removal.
+    2. Auto gain control (amplifies to optimal level for Whisper)
     
     Args:
         audio: Raw audio to process
     
     Returns:
-        Cleaned audio
+        Cleaned and amplified audio, gain applied
     """
+    applied_gain = 1.0
+    
+    # Step 1: Spectral filtering
     if ENABLE_SPECTRAL_FILTERING and noise_profile is not None:
         audio = spectral_subtraction(audio, noise_profile, strength=NOISE_REDUCTION_STRENGTH)
     
-    return audio
+    # Step 2: Auto gain control
+    if USE_AUTO_GAIN:
+        audio, applied_gain = auto_gain_control(audio)
+    
+    return audio, applied_gain
 
 # === Simple frequency function for GUI border (placeholder) ===
 def get_transcription_frequency():
@@ -198,13 +238,15 @@ def listen():
     
     # Show configuration
     print("\n" + "="*70)
-    print("[Audio] ✅ Simple pipeline: Spectral Filtering → Whisper")
+    print("[Audio] ✅ Clean pipeline: Spectral Filtering → AGC → Whisper")
     if noise_profile is not None:
         print(f"[Audio] 🔧 Spectral filtering: strength={NOISE_REDUCTION_STRENGTH}")
         print(f"[Audio] 🎯 Noise signature: {len(noise_profile)} frequency bins")
     else:
-        print(f"[Audio] ⚠️  No noise profile - raw audio only")
-    print(f"[Audio] 💡 No AGC, no noise gate, just clean filtering")
+        print(f"[Audio] ⚠️  No noise profile - skipping spectral filtering")
+    if USE_AUTO_GAIN:
+        print(f"[Audio] 🔧 Auto Gain Control: Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x")
+    print(f"[Audio] 💡 Simple and effective: Remove noise → Amplify → Transcribe")
     print("="*70 + "\n")
 
     with sd.InputStream(device=DEVICE_INDEX, channels=6, samplerate=SAMPLE_RATE,
@@ -279,22 +321,33 @@ def listen():
             mono_mix = full_audio[:, 0]
             
             # Debug: Show raw audio stats
+            raw_rms = 0
             if DEBUG_NOISE_REDUCTION:
                 raw_rms = np.sqrt(np.mean(mono_mix ** 2))
                 raw_peak = np.max(np.abs(mono_mix))
                 print(f"\n[Audio] 📊 RAW: RMS={raw_rms:.6f}, Peak={raw_peak:.4f}, Length={len(mono_mix)} samples")
             
-            # Apply spectral filtering
-            mono_mix = process_audio(mono_mix)
+            # Step 1: Spectral filtering (show effect)
+            if ENABLE_SPECTRAL_FILTERING and noise_profile is not None:
+                filtered_audio = spectral_subtraction(mono_mix, noise_profile, strength=NOISE_REDUCTION_STRENGTH)
+                if DEBUG_NOISE_REDUCTION:
+                    filtered_rms = np.sqrt(np.mean(filtered_audio ** 2))
+                    noise_removed = (1 - filtered_rms / raw_rms) * 100 if raw_rms > 0 else 0
+                    print(f"[Audio] 🧹 FILTERED: RMS={filtered_rms:.6f} ({noise_removed:.1f}% noise removed)")
+                mono_mix = filtered_audio
             
-            # Debug: Show processed audio stats
-            if DEBUG_NOISE_REDUCTION:
-                clean_rms = np.sqrt(np.mean(mono_mix ** 2))
-                clean_peak = np.max(np.abs(mono_mix))
-                
-                print(f"[Audio] ✅ CLEANED: RMS={clean_rms:.6f}, Peak={clean_peak:.4f}")
-                if noise_profile is not None:
-                    print(f"[Audio] 📈 CHANGE: RMS {raw_rms:.6f} → {clean_rms:.6f} ({clean_rms/raw_rms*100:.1f}% of original)")
+            # Step 2: Auto gain control
+            if USE_AUTO_GAIN:
+                mono_mix, applied_gain = auto_gain_control(mono_mix)
+                if DEBUG_NOISE_REDUCTION:
+                    final_rms = np.sqrt(np.mean(mono_mix ** 2))
+                    final_peak = np.max(np.abs(mono_mix))
+                    print(f"[Audio] 📢 AMPLIFIED: RMS={final_rms:.6f}, Peak={final_peak:.4f}, Gain={applied_gain:.2f}x")
+            else:
+                if DEBUG_NOISE_REDUCTION:
+                    final_rms = np.sqrt(np.mean(mono_mix ** 2))
+                    final_peak = np.max(np.abs(mono_mix))
+                    print(f"[Audio] ✅ FINAL: RMS={final_rms:.6f}, Peak={final_peak:.4f} (no AGC)")
 
             if len(mono_mix) < MIN_AUDIO_SAMPLES:
                 print("⚠️ Skipped: too short")
@@ -302,6 +355,12 @@ def listen():
                 continue
 
             text = transcribe(mono_mix)
+            
+            # Debug: Show transcription result
+            if DEBUG_NOISE_REDUCTION and text:
+                print(f"[Audio] 🎤 ✅ TRANSCRIBED: '{text}'")
+            elif DEBUG_NOISE_REDUCTION and not text:
+                print(f"[Audio] 🎤 ❌ FAILED: No transcription")
             
             if not text:
                 set_transcribing(False)
