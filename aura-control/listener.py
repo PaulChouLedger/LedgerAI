@@ -20,9 +20,11 @@ VAD_SILENCE_THRESHOLD = 0.10
 MIN_AUDIO_SAMPLES = 4000
 
 # Auto Gain Control (AGC)
-# NOTE: Using HARDWARE AGC on ReSpeaker DSP (configured via tune_respeaker.py)
-# Software AGC disabled - hardware is faster and more effective
-USE_AUTO_GAIN = False  # Disabled - using hardware AGC instead
+# Hardware AGC on ReSpeaker handles initial processing
+# Software AGC boosts to consistent level (hardware may not reach target at far-field)
+USE_SOFTWARE_AGC = True  # Light boost on top of hardware processing
+AGC_TARGET_RMS = 0.10  # Target RMS for Whisper
+AGC_MAX_GAIN = 5.0  # Light boost only (hardware already did most work)
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -51,8 +53,30 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 (get_speech_timestamps, _, read_audio, _, _) = utils
 
 # === Audio Processing Functions ===
-# NOTE: All processing now done in HARDWARE DSP
-# No software processing needed!
+
+def software_agc_boost(audio):
+    """
+    Light software AGC boost on top of hardware processing
+    - Hardware DSP does most of the work
+    - Software ensures consistent 0.10 RMS for Whisper
+    - Max 5x gain (just a light boost)
+    """
+    rms = np.sqrt(np.mean(audio ** 2))
+    
+    if rms < 1e-6:
+        return audio, 1.0
+    
+    # Calculate gain needed to reach target
+    required_gain = AGC_TARGET_RMS / rms
+    
+    # Limit to max gain (light boost only)
+    actual_gain = min(required_gain, AGC_MAX_GAIN)
+    
+    # Apply gain with clipping prevention
+    audio = audio * actual_gain
+    audio = np.clip(audio, -0.95, 0.95)
+    
+    return audio, actual_gain
 
 # === Simple frequency function for GUI border (placeholder) ===
 def get_transcription_frequency():
@@ -164,9 +188,10 @@ def listen():
     
     # Show configuration
     print("\n" + "="*70)
-    print("[Audio] ✅ Using HARDWARE DSP processing (ReSpeaker XMOS chip)")
-    print("[Audio] 🔧 Hardware AGC + Noise Suppression (auto-configured on startup)")
-    print("[Audio] ⚡ No software processing - clean audio from hardware")
+    print("[Audio] ✅ Hybrid processing: Hardware DSP + Software Boost")
+    print("[Audio] 🔧 Hardware: Noise Suppression + Initial AGC (ReSpeaker XMOS)")
+    print(f"[Audio] 🔧 Software: Light AGC boost (max {AGC_MAX_GAIN}x) to ensure {AGC_TARGET_RMS} RMS")
+    print("[Audio] 💡 Best of both: Hardware quality + Software consistency")
     print("="*70 + "\n")
 
     with sd.InputStream(device=DEVICE_INDEX, channels=6, samplerate=SAMPLE_RATE,
@@ -240,11 +265,20 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono_mix = full_audio[:, 0]
             
-            # Debug: Show audio stats (already processed by hardware DSP)
+            # Debug: Show audio stats from hardware DSP
             if DEBUG_NOISE_REDUCTION:
-                rms = np.sqrt(np.mean(mono_mix ** 2))
-                peak = np.max(np.abs(mono_mix))
-                print(f"\n[Audio] 📊 FROM HARDWARE DSP: RMS={rms:.6f}, Peak={peak:.4f}, Length={len(mono_mix)} samples")
+                hw_rms = np.sqrt(np.mean(mono_mix ** 2))
+                hw_peak = np.max(np.abs(mono_mix))
+                print(f"\n[Audio] 📊 FROM HARDWARE DSP: RMS={hw_rms:.6f}, Peak={hw_peak:.4f}, Length={len(mono_mix)} samples")
+            
+            # Apply light software AGC boost (ensures consistent 0.10 RMS)
+            if USE_SOFTWARE_AGC:
+                mono_mix, sw_gain = software_agc_boost(mono_mix)
+                if DEBUG_NOISE_REDUCTION:
+                    final_rms = np.sqrt(np.mean(mono_mix ** 2))
+                    final_peak = np.max(np.abs(mono_mix))
+                    print(f"[Audio] 📢 SOFTWARE BOOST: RMS={final_rms:.6f}, Peak={final_peak:.4f}, Gain={sw_gain:.2f}x")
+                    print(f"[Audio] 📈 TOTAL: {hw_rms:.6f} → {final_rms:.6f} (×{final_rms/hw_rms if hw_rms > 0 else 0:.2f})")
 
             if len(mono_mix) < MIN_AUDIO_SAMPLES:
                 print("⚠️ Skipped: too short")
