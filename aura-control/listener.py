@@ -20,11 +20,11 @@ VAD_SILENCE_THRESHOLD = 0.10
 MIN_AUDIO_SAMPLES = 4000
 
 # Auto Gain Control (AGC)
-# Hardware AGC on ReSpeaker handles initial processing
-# Software AGC boosts to consistent level (hardware may not reach target at far-field)
-USE_SOFTWARE_AGC = True  # Light boost on top of hardware processing
-AGC_TARGET_RMS = 0.20  # Target RMS for Whisper
-AGC_MAX_GAIN = 5.0  # Light boost only (hardware already did most work)
+# Hardware AGC on ReSpeaker handles initial processing (targets 0.05 RMS)
+# Software AGC boosts to optimal level for Whisper
+USE_SOFTWARE_AGC = True  # Boost on top of hardware processing
+AGC_TARGET_RMS = 0.15  # Target RMS for Whisper (lowered from 0.20)
+AGC_MAX_GAIN = 8.0  # Allow higher boost (hardware outputs ~0.05, need ~3x boost)
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -152,9 +152,9 @@ def configure_respeaker_hardware():
         # Disable hardware high-pass (we found it hurts far-field)
         tuning.write("HPFONOFF", 0)
         
-        # Enable hardware AGC
+        # Enable hardware AGC with conservative target (prevents clipping)
         tuning.write("AGCONOFF", 1)
-        tuning.write("AGCDESIREDLEVEL", 0.10)  # 0.10 RMS = -10 dBov
+        tuning.write("AGCDESIREDLEVEL", 0.05)  # 0.05 RMS (gentle, prevents clipping)
         tuning.write("AGCMAXGAIN", 31.6)  # 30 dB = 31.6x
         
         # DISABLE noise suppression (test if it's hurting far-field recognition)
@@ -184,10 +184,10 @@ def listen():
     
     # Show configuration
     print("\n" + "="*70)
-    print("[Audio] ✅ Hybrid processing: Hardware AGC + Software Boost")
-    print("[Audio] 🔧 Hardware: AGC only (NO noise suppression - preserves speech)")
-    print(f"[Audio] 🔧 Software: Light boost (max {AGC_MAX_GAIN}x) to ensure {AGC_TARGET_RMS} RMS")
-    print("[Audio] 💡 Clean amplification, no aggressive filtering")
+    print("[Audio] ✅ Two-stage AGC: Hardware (conservative) + Software (boost)")
+    print("[Audio] 🔧 Hardware: Gentle AGC → ~0.05 RMS (prevents clipping)")
+    print(f"[Audio] 🔧 Software: Boost to {AGC_TARGET_RMS} RMS (max {AGC_MAX_GAIN}x)")
+    print("[Audio] 💡 Hardware prevents clipping, software ensures optimal level")
     print("="*70 + "\n")
 
     with sd.InputStream(device=DEVICE_INDEX, channels=6, samplerate=SAMPLE_RATE,
