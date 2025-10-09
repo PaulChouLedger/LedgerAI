@@ -83,12 +83,12 @@ def handle_thinker(prompt: str, llm_chat_fn, session_id: str = None):
 
 ---
 
-Please provide a comprehensive answer to: {prompt}
+User question: {prompt}
 
-Be thorough, insightful, and educational. Synthesize the information provided."""
+Provide a concise, conversational summary that highlights the most important points. Keep it natural and organic - don't read out everything verbatim. Focus on what's most relevant and interesting."""
             
             # Use LLM to generate response
-            system_msg = "I am AuraVision, an insightful AI assistant. Provide comprehensive, detailed answers based on the information provided. Be thorough and informative."
+            system_msg = "I am AuraVision, a friendly AI assistant. Provide concise, natural summaries. Don't list everything - just highlight key points in a conversational way. Be organic and human-like, not robotic."
             
         else:
             augmented_prompt = prompt
