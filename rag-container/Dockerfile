@@ -13,7 +13,8 @@ RUN pip install --no-cache-dir --ignore-installed \
     cuda-python \
     PyPDF2==3.0.1 \
     python-docx==0.8.11 \
-    watchdog>=3.0.0
+    watchdog>=3.0.0 \
+    metaphone
 
 # Pre-download sentence transformer model (makes it WiFi-independent)
 RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')" && \

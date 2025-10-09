@@ -455,45 +455,8 @@ def start_services():
     except Exception as e:
         print(f"[Aura] ⚠️ Initial ingest error: {e}")
     
-    # Start periodic monitoring in background
-    def monitor_files():
-        while True:
-            time.sleep(60)  # Check every 60 seconds
-            try:
-                # Container extracts text
-                response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
-                if response.status_code == 200:
-                    result = response.json()
-                    processed = result.get('processed', 0)
-                    
-                    if processed > 0:
-                        print(f"[Aura] 📂 New files: {processed} processed")
-                        
-                        # Host generates embeddings
-                        import subprocess
-                        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-                        rebuild_script = os.path.join(workspace_root, 'rag-container', 'rebuild_embeddings.py')
-                        rebuild_result = subprocess.run(
-                            ["python3", rebuild_script],
-                            capture_output=True,
-                            text=True,
-                            timeout=120,
-                            cwd=workspace_root
-                        )
-                        
-                        if rebuild_result.returncode == 0:
-                            # Container reloads
-                            requests.post("http://localhost:11435/rag/reload", timeout=10)
-                            print(f"[Aura] ✅ Embeddings rebuilt and reloaded")
-                        else:
-                            print(f"[Aura] ❌ Rebuild failed")
-                            print(f"[Aura] 💥 Error: {rebuild_result.stderr[:500]}")
-            except Exception as e:
-                print(f"[Aura] ⚠️ Auto-ingest error: {e}")
-    
-    monitor_thread = threading.Thread(target=monitor_files, daemon=True)
-    monitor_thread.start()
-    print("[Aura] ✅ Auto-ingest monitoring active (container extracts, host builds, checking every 60s)")
+    # Auto-ingest is triggered by file uploads via web server (no periodic polling needed)
+    print("[Aura] ✅ Auto-ingest enabled (triggered by file uploads via web server)")
     
     # Step 8: Final RAG ready check before starting listener
     print("[Aura] 🔍 Final RAG ready check before starting listener...")

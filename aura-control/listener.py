@@ -10,6 +10,28 @@ import subprocess
 from speaker import speak_llm_response, is_playing
 from aura_gui import set_transcribing
 
+def wait_for_rag_ready(timeout=30):
+    """Wait for RAG system to be fully initialized"""
+    print("[Listener] 🔧 Waiting for RAG system to initialize...")
+    start_time = time.time()
+    
+    while time.time() - start_time < timeout:
+        try:
+            response = requests.get("http://localhost:11435/ready", timeout=2)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('ready'):
+                    print(f"[Listener] ✅ RAG system ready: {data.get('rag_components', {}).get('index_size', 0)} vectors, {data.get('rag_components', {}).get('chunks_loaded', 0)} chunks")
+                    return True
+        except:
+            pass
+        
+        time.sleep(1)
+        print(f"[Listener] ⏳ Waiting for RAG... ({int(time.time() - start_time)}s)")
+    
+    print(f"[Listener] ⚠️  RAG initialization timeout - proceeding anyway")
+    return False
+
 # === Config ===
 SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
@@ -170,6 +192,9 @@ def listen():
     global last_speech_time
     last_speech_time = time.time()
     
+    # Wait for RAG to be ready before starting
+    wait_for_rag_ready()
+    
     # Detect device and available channels
     available_channels = find_device_index()
     print(f"🎤 Listening ({available_channels}-channel hardware, using channel 0 only)...")
@@ -197,7 +222,17 @@ def listen():
                 while is_playing():
                     time.sleep(0.1)
                 stream.start()
-                print("[Listener] ▶️ Mic resumed after playback")
+                
+                # Flush buffer - discard stale audio from before/during TTS playback
+                print("[Listener] 🧹 Flushing mic buffer...")
+                flush_frames = 5  # Discard ~160ms of audio
+                for _ in range(flush_frames):
+                    try:
+                        stream.read(FRAME_SIZE)
+                    except:
+                        break
+                
+                print("[Listener] ▶️ Mic resumed after playback (buffer flushed)")
 
             buffer = []
             silence_start = None

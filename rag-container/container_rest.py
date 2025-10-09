@@ -80,6 +80,53 @@ def health_check():
             'timestamp': time.time()
         }), 500
 
+@app.route('/ready', methods=['GET'])
+def readiness_check():
+    """
+    Readiness check - blocks until RAG is fully initialized
+    Use this before starting services that depend on RAG
+    """
+    try:
+        rag = get_rag()
+        stats = rag.get_stats()
+        
+        # Check if RAG is actually ready
+        is_ready = (
+            stats.get('status') == 'ready' and
+            stats.get('index_size', 0) > 0 and
+            stats.get('chunks_loaded', 0) > 0
+        )
+        
+        if is_ready:
+            return jsonify({
+                'ready': True,
+                'service': SERVICE_NAME,
+                'rag_components': {
+                    'index_size': stats.get('index_size', 0),
+                    'chunks_loaded': stats.get('chunks_loaded', 0),
+                    'model_name': stats.get('model_name', 'unknown')
+                },
+                'message': 'RAG system fully initialized and ready',
+                'timestamp': time.time()
+            })
+        else:
+            return jsonify({
+                'ready': False,
+                'service': SERVICE_NAME,
+                'rag_status': stats.get('status', 'unknown'),
+                'message': 'RAG system not yet ready',
+                'timestamp': time.time()
+            }), 503  # Service Unavailable
+            
+    except Exception as e:
+        return jsonify({
+            'ready': False,
+            'service': SERVICE_NAME,
+            'error': str(e),
+            'message': 'RAG system initialization failed',
+            'timestamp': time.time()
+        }), 503
+
 @app.route('/services/status', methods=['GET'])
 def get_services_status():
     """Check status of all services"""
