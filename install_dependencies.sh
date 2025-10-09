@@ -48,13 +48,29 @@ if [ "$OS" = "linux" ]; then
         libudev-dev \
         libusb-1.0-0-dev \
         python3-pyqt5 \
-        python3-pyqt5.qtmultimedia \
-        docker.io \
-        docker-compose
+        python3-pyqt5.qtmultimedia
     
-    # Add user to docker group
-    sudo usermod -aG docker $USER
-    echo "⚠️  You may need to log out and back in for docker group changes"
+    # Docker installation - handle Jetson devices differently
+    if command_exists docker; then
+        echo "⚠️  Docker already installed, skipping Docker setup"
+    else
+        echo "📦 Installing Docker..."
+        # Check if this is a Jetson device (has nvidia jetson repos)
+        if grep -q "jetson" /etc/apt/sources.list.d/* 2>/dev/null || grep -q "nvidia" /etc/nv_tegra_release 2>/dev/null; then
+            echo "🔧 Detected Jetson device - using docker.io instead of docker-ce"
+            sudo apt-get install -y docker.io docker-compose
+        else
+            # Standard Ubuntu/Debian Docker installation would go here
+            sudo apt-get install -y docker.io docker-compose
+        fi
+    fi
+    
+    # Add user to docker group if Docker is installed
+    if command_exists docker; then
+        sudo usermod -aG docker $USER
+        echo "✅ Added user to docker group"
+        echo "⚠️  Log out and back in for docker group changes to take effect"
+    fi
     
 elif [ "$OS" = "macos" ]; then
     # Check for Homebrew

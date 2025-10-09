@@ -368,24 +368,6 @@ def listen():
             while True:
                 if is_playing():
                     break
-                
-                # Check if stream needs refresh after long idle (prevents timeout/stall)
-                idle_time = time.time() - last_speech_time
-                if idle_time > AGC_KEEPALIVE_INTERVAL:
-                    reset_hardware_agc(f"idle for {idle_time:.0f}s")
-                    # Refresh stream to prevent staleness
-                    print(f"\n[Listener] 🔄 Refreshing audio stream after {idle_time:.0f}s idle")
-                    stream.close()
-                    stream = sd.InputStream(
-                        device=DEVICE_INDEX,
-                        samplerate=SAMPLE_RATE,
-                        channels=available_channels,
-                        dtype='float32',
-                        blocksize=FRAME_SIZE
-                    )
-                    stream.start()
-                    print("[Listener] ✅ Stream refreshed")
-                    last_speech_time = time.time()
 
                 try:
                     audio_block, _ = stream.read(FRAME_SIZE)
@@ -424,6 +406,25 @@ def listen():
                 
                 if DEBUG_AUDIO_LEVELS:
                     print(f"[Debug] VAD: {vad_prob:.2f}, RMS: {rms:.4f}", end="\r")
+                
+                # Check if we should refresh stream (only when NO speech detected)
+                idle_time = time.time() - last_speech_time
+                if idle_time > AGC_KEEPALIVE_INTERVAL and vad_prob < VAD_START_THRESHOLD:
+                    reset_hardware_agc(f"idle for {idle_time:.0f}s")
+                    # Refresh stream to prevent staleness (only when silent)
+                    print(f"\n[Listener] 🔄 Refreshing audio stream after {idle_time:.0f}s idle")
+                    stream.close()
+                    stream = sd.InputStream(
+                        device=DEVICE_INDEX,
+                        samplerate=SAMPLE_RATE,
+                        channels=available_channels,
+                        dtype='float32',
+                        blocksize=FRAME_SIZE
+                    )
+                    stream.start()
+                    print("[Listener] ✅ Stream refreshed")
+                    last_speech_time = time.time()
+                    continue  # Skip this frame and read fresh audio
                 
                 if vad_prob > VAD_START_THRESHOLD:
                     print(f"\n[VAD] 🔊 Speech started (prob={vad_prob:.2f})")
