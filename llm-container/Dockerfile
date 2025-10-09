@@ -4,9 +4,15 @@ FROM dustynv/llama_cpp:0.3.7-r36.4.0
 # Set working directory
 WORKDIR /app
 
-# Copy application logic
+# Copy application logic (modular architecture)
 COPY container_rest.py .
 COPY nlg.py .
+COPY router.py .
+COPY casual.py .
+COPY thinker.py .
+COPY triage.py .
+COPY clinician.py .
+COPY llm_inference.py .
 COPY triage_defs/ /app/triage_defs/
 COPY synonyms/ /app/synonyms/
 

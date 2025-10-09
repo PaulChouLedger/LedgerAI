@@ -44,24 +44,7 @@ llm = Llama(
     verbose=False,
 )
 
-# === Load triage defs ===
-TRIAGE_DEFS = {}
-triage_dir = os.getenv("TRIAGE_DEFINITIONS_DIR", "/app/triage_defs")
-print(f"[Aura-LLM] 🔍 Loading triage definitions from: {triage_dir}")
-if os.path.isdir(triage_dir):
-    for path in glob(os.path.join(triage_dir, "*.json")):
-        try:
-            with open(path, "r") as f:
-                data = json.load(f)
-                TRIAGE_DEFS.update(data)
-                print(f"[Aura-LLM] ✅ Loaded triage defs: {os.path.basename(path)}")
-                print(f"[Aura-LLM] 🔍 Loaded conditions: {list(data.keys())}")
-        except Exception as e:
-            print(f"[Aura-LLM] ⚠️ Failed to load triage defs {path}: {e}")
-else:
-    print(f"[Aura-LLM] ❌ Triage definitions directory not found: {triage_dir}")
-print(f"[Aura-LLM] 🔍 Total loaded conditions: {len(TRIAGE_DEFS)}")
-
+# Note: TRIAGE_DEFS is loaded automatically by triage.py when imported
 
 # === Normalize text helper (used by router) ===
 def normalize_text(text: str) -> str:

@@ -19,42 +19,34 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
 from glob import glob
 
-# Import triage definitions
-from triage_defs.Cardiovascular import *
-from triage_defs.Respiratory import *
-from triage_defs.Endocrine import *
-from triage_defs.Neuro import *
-from triage_defs.GI import *
-from triage_defs.GU import *
-from triage_defs.Renal import *
-from triage_defs.Dermatology import *
-
 # Global triage definitions dictionary
 TRIAGE_DEFS = {}
 
-def load_triage_definitions():
-    """Load all triage definitions from organ system modules"""
+def load_triage_definitions(triage_dir="/app/triage_defs"):
+    """Load all triage definitions from JSON files"""
     global TRIAGE_DEFS
+    
+    if not os.path.isdir(triage_dir):
+        print(f"[Triage] ❌ Triage definitions directory not found: {triage_dir}")
+        return
+    
+    print(f"[Triage] 🔍 Loading triage definitions from: {triage_dir}")
+    
+    for path in glob(os.path.join(triage_dir, "*.json")):
+        try:
+            with open(path, "r") as f:
+                data = json.load(f)
+                TRIAGE_DEFS.update(data)
+                print(f"[Triage] ✅ Loaded triage defs: {os.path.basename(path)}")
+                print(f"[Triage] 🔍 Loaded conditions: {list(data.keys())}")
+        except Exception as e:
+            print(f"[Triage] ⚠️ Failed to load triage defs {path}: {e}")
+    
+    print(f"[Triage] 🔍 Total loaded conditions: {len(TRIAGE_DEFS)}")
 
-    # Load from each organ system module
-    organ_systems = [
-        ("Cardiovascular", Cardiovascular),
-        ("Respiratory", Respiratory),
-        ("Endocrine", Endocrine),
-        ("Neuro", Neuro),
-        ("GI", GI),
-        ("GU", GU),
-        ("Renal", Renal),
-        ("Dermatology", Dermatology)
-    ]
 
-    for system_name, module in organ_systems:
-        for attr_name in dir(module):
-            if not attr_name.startswith('_'):
-                attr = getattr(module, attr_name)
-                if isinstance(attr, dict) and 'triggers' in attr:
-                    TRIAGE_DEFS[attr_name] = attr
-                    print(f"[Triage] ✅ Loaded {system_name}: {attr_name}")
+# Load triage definitions on module import
+load_triage_definitions(os.getenv("TRIAGE_DEFINITIONS_DIR", "/app/triage_defs"))
 
 
 # === Core Triage Functions ===
