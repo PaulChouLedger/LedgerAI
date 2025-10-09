@@ -80,6 +80,41 @@ def health_check():
             'timestamp': time.time()
         }), 500
 
+@app.route('/rag/names', methods=['GET'])
+def get_person_names():
+    """
+    Extract all person names from RAG database for name correction
+    Returns list of names found in document chunks
+    """
+    try:
+        rag = get_rag()
+        
+        if not rag.chunks:
+            return jsonify({'names': []}), 200
+        
+        import re
+        names = set()
+        
+        # Extract capitalized names (2+ words) from all chunks
+        for chunk in rag.chunks:
+            # Find patterns like "Rafael Cabello", "Bob Carella", etc.
+            chunk_names = re.findall(r'([A-Z][a-z]+(?: [A-Z][a-z]+)+)', chunk)
+            names.update(chunk_names)
+        
+        # Convert to sorted list
+        names_list = sorted(list(names))
+        
+        logger.info(f"[RAG] 📋 Extracted {len(names_list)} person names from database")
+        
+        return jsonify({
+            'names': names_list,
+            'count': len(names_list)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error extracting names: {e}")
+        return jsonify({'error': str(e), 'names': []}), 500
+
 @app.route('/ready', methods=['GET'])
 def readiness_check():
     """

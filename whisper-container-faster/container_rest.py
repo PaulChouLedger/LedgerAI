@@ -94,6 +94,9 @@ def transcribe():
 
     audio_file = request.files["audio"]
     
+    # Check for custom initial_prompt (for guiding spelling of names)
+    custom_prompt = request.form.get("initial_prompt", INITIAL_PROMPT)
+    
     # Time file processing
     file_processing_start = time.time()
     
@@ -133,7 +136,7 @@ def transcribe():
                 temperature=TEMPERATURE,
                 patience=PATIENCE,
                 length_penalty=LENGTH_PENALTY,
-                initial_prompt=INITIAL_PROMPT
+                initial_prompt=custom_prompt
             )
             # Process segments
             segment_list = list(segments)
@@ -154,7 +157,7 @@ def transcribe():
                         language="en",
                         beam_size=BEAM_SIZE,
                         temperature=TEMPERATURE,
-                        initial_prompt=INITIAL_PROMPT
+                        initial_prompt=custom_prompt
                     )
                     segment_list = list(segments)
                     text = " ".join([s.text.strip() for s in segment_list if s.text.strip()])

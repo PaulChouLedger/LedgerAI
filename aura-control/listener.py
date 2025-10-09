@@ -58,6 +58,7 @@ prompt_history = []
 
 # Global state
 last_speech_time = 0
+user_name = None  # Track user's name for Whisper initial_prompt
 
 # Debug
 DEBUG_AUDIO_LEVELS = True
@@ -104,15 +105,89 @@ def software_agc_boost(audio):
     
     return audio, actual_gain
 
+# === Extract user's name from text ===
+def extract_user_name(text):
+    """Extract user's name from phrases like 'My name is Rafael'"""
+    import re
+    from metaphone import doublemetaphone
+    global user_name
+    
+    patterns = [
+        r"my name is ([A-Z][a-z]+)",
+        r"i'm ([A-Z][a-z]+)",
+        r"i am ([A-Z][a-z]+)",
+        r"this is ([A-Z][a-z]+)",
+        r"call me ([A-Z][a-z]+)"
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            detected_name = match.group(1).capitalize()
+            
+            # Check RAG database for phonetically similar names to correct spelling
+            corrected_name = correct_name_from_rag(detected_name)
+            
+            if corrected_name:
+                name = corrected_name
+                print(f"[Listener] 🔍 Name correction: '{detected_name}' → '{corrected_name}' (from RAG database)")
+            else:
+                name = detected_name
+            
+            if user_name != name:
+                user_name = name
+                print(f"[Listener] 👤 User name set: '{user_name}' (will guide Whisper spelling)")
+            return name
+    
+    return None
+
+def correct_name_from_rag(detected_name):
+    """Check if detected name has a phonetically similar match in RAG database"""
+    from metaphone import doublemetaphone
+    
+    try:
+        # Query RAG for person names in the database
+        response = requests.get("http://localhost:11435/rag/names", timeout=2)
+        if response.status_code == 200:
+            known_names = response.json().get('names', [])
+            
+            # Check phonetic similarity
+            detected_metaphone = doublemetaphone(detected_name)
+            
+            for known_name in known_names:
+                # Extract first name from full name (e.g., "Rafael Cabello" → "Rafael")
+                first_name = known_name.split()[0] if ' ' in known_name else known_name
+                known_metaphone = doublemetaphone(first_name)
+                
+                # Check if phonetic codes match
+                if (detected_metaphone[0] and known_metaphone[0] and detected_metaphone[0] == known_metaphone[0]) or \
+                   (detected_metaphone[1] and known_metaphone[1] and detected_metaphone[1] == known_metaphone[1]):
+                    # Phonetic match found - use the database spelling
+                    return first_name
+    except:
+        pass
+    
+    # No correction found - use detected name as-is
+    return None
+
 # === Transcribe with Whisper container ===
 def transcribe(audio):
     wav_io = io.BytesIO()
     sf.write(wav_io, audio, SAMPLE_RATE, format="WAV")
     wav_io.seek(0)
+    
+    # Build custom initial_prompt if we know the user's name
+    data = {}
+    if user_name:
+        # Guide Whisper to use the correct spelling
+        data["initial_prompt"] = f"{user_name} is speaking. This is a medical conversation with proper names."
+        print(f"[Whisper] 🎯 Using name guidance: '{user_name}'")
+    
     try:
         response = requests.post(
             "http://localhost:5000/transcribe",
             files={"audio": ("speech.wav", wav_io, "audio/wav")},
+            data=data,
             timeout=10
         )
         result = response.json()
@@ -338,6 +413,9 @@ def listen():
             if not text:
                 set_transcribing(False)
                 continue
+            
+            # Extract user's name to guide future Whisper transcriptions
+            extract_user_name(text)
 
             prompt_history.append(text)
             if len(prompt_history) > CONTEXT_DEPTH:
