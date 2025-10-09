@@ -51,14 +51,14 @@ def configure_far_field():
     dev.write("AGCONOFF", 1)
     
     # Set AGC desired level (target output power)
-    # -23 dBov = 0.005 RMS, -20 dBov = 0.01 RMS, -16 dBov = 0.025 RMS
-    # For Whisper, we want ~0.10 RMS = -10 dBov
-    print("[3/8] AGC Desired Level: -10 dBov (0.10 RMS, optimal for Whisper)")
-    dev.write("AGCDESIREDLEVEL", 0.10)  # 0.10 = -10 dBov
+    # Conservative level to prevent hardware clipping while avoiding drift
+    # Software will do the main boosting to prevent distortion
+    print("[3/8] AGC Desired Level: 0.03 RMS (gentle, prevents clipping & drift)")
+    dev.write("AGCDESIREDLEVEL", 0.03)  # Gentle but stable
     
-    # Set max AGC gain (30 dB = 31.6x, good for far-field)
-    print("[4/8] AGC Max Gain: 30 dB (31.6x, for far-field)")
-    dev.write("AGCMAXGAIN", 31.6)
+    # Set max AGC gain (26 dB = 20x, conservative to prevent clipping)
+    print("[4/8] AGC Max Gain: 26 dB (20x, conservative to prevent clipping)")
+    dev.write("AGCMAXGAIN", 20.0)
     
     # Enable stationary noise suppression for ASR
     print("[5/8] Stationary Noise Suppression (ASR): ON")

@@ -37,7 +37,7 @@ SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 SILENCE_TIMEOUT = 0.40
-VAD_START_THRESHOLD = 0.25
+VAD_START_THRESHOLD = 0.3
 VAD_SILENCE_THRESHOLD = 0.10
 MIN_AUDIO_SAMPLES = 4000
 
@@ -45,11 +45,11 @@ MIN_AUDIO_SAMPLES = 4000
 AGC_KEEPALIVE_INTERVAL = 30.0  # Reset AGC every 30 seconds of idle
 
 # Auto Gain Control (AGC)
-# Hardware AGC on ReSpeaker handles initial processing
-# Software AGC boosts to optimal level for Whisper
+# Hardware AGC on ReSpeaker handles initial processing (gentle, no clipping)
+# Software AGC boosts to optimal level for Whisper (does most of the work)
 USE_SOFTWARE_AGC = True
 AGC_TARGET_RMS = 0.20  # Target RMS for Whisper
-AGC_MAX_GAIN = 8.0  # Maximum software boost
+AGC_MAX_GAIN = 10.0  # Maximum software boost (hardware outputs ~0.03, need ~7x)
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -247,10 +247,10 @@ def configure_respeaker_hardware():
         # Disable hardware high-pass (preserves all speech frequencies)
         tuning.write("HPFONOFF", 0)
         
-        # Enable hardware AGC with conservative target
+        # Enable hardware AGC with conservative target (prevent clipping & drift)
         tuning.write("AGCONOFF", 1)
-        tuning.write("AGCDESIREDLEVEL", 0.05)  # Gentle, prevents clipping
-        tuning.write("AGCMAXGAIN", 31.6)  # 30 dB = 31.6x
+        tuning.write("AGCDESIREDLEVEL", 0.03)  # Gentle but stable - prevents clipping & drift
+        tuning.write("AGCMAXGAIN", 20.0)  # 26 dB - conservative to prevent clipping
         
         # Disable all noise suppression (preserves speech quality)
         tuning.write("STATNOISEONOFF_SR", 0)
@@ -283,9 +283,10 @@ def listen():
     # Show configuration
     print("\n" + "="*70)
     print(f"[Audio] ✅ Single-Channel Processing (Channel 0 from {available_channels}-ch firmware)")
-    print("[Audio] 🔧 Hardware: Gentle AGC → ~0.05 RMS")
-    print(f"[Audio] 🔧 Software: Boost to {AGC_TARGET_RMS} RMS (max {AGC_MAX_GAIN}x)")
-    print("[Audio] 💡 Auto-detects firmware type, reads only channel 0")
+    print("[Audio] 🔧 Hardware: Gentle AGC → ~0.03 RMS (prevents clipping & drift)")
+    print(f"[Audio] 🔧 Software: Boost to {AGC_TARGET_RMS} RMS (max {AGC_MAX_GAIN}x, does main work)")
+    print("[Audio] 🔧 Auto-Reset: If RMS < 0.01, AGC resets automatically")
+    print("[Audio] 💡 Strategy: Clean hardware + software boost = no clipping, no drift")
     print("="*70 + "\n")
 
     # Use detected channel count
@@ -392,11 +393,34 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono_mix = full_audio[:, 0]
             
-            # Debug: Show hardware output
+            # Debug: Show hardware output and check for AGC drift
             if DEBUG_NOISE_REDUCTION:
                 hw_rms = np.sqrt(np.mean(mono_mix ** 2))
                 hw_peak = np.max(np.abs(mono_mix))
                 print(f"\n[Audio] 📊 FROM HARDWARE: RMS={hw_rms:.6f}, Peak={hw_peak:.4f}, Length={len(mono_mix)} samples")
+                
+                # Check if hardware AGC has drifted too low (indicates sleep/drift)
+                if hw_rms < 0.01:  # Way below 0.02 target
+                    print(f"[Hardware] ⚠️  AGC drifted too low (RMS={hw_rms:.6f}), resetting...")
+                    try:
+                        import usb.core
+                        import sys
+                        tuning_path = os.path.expanduser('~/usb_4_mic_array')
+                        if tuning_path not in sys.path:
+                            sys.path.insert(0, tuning_path)
+                        from tuning import Tuning
+                        usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+                        if usb_dev:
+                            tuning = Tuning(usb_dev)
+                            # Force reset: OFF → ON with settings
+                            tuning.write("AGCONOFF", 0)
+                            time.sleep(0.2)
+                            tuning.write("AGCONOFF", 1)
+                            tuning.write("AGCDESIREDLEVEL", 0.03)
+                            tuning.write("AGCMAXGAIN", 20.0)
+                            print(f"[Hardware] ✅ AGC reset complete")
+                    except Exception as e:
+                        print(f"[Hardware] ❌ AGC reset failed: {e}")
             
             # Apply software AGC boost
             if USE_SOFTWARE_AGC:
