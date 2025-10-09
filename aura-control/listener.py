@@ -7,6 +7,7 @@ import soundfile as sf
 import sounddevice as sd
 import requests
 import subprocess
+from scipy import signal
 from speaker import speak_llm_response, is_playing
 from aura_gui import set_transcribing
 
@@ -19,10 +20,12 @@ VAD_START_THRESHOLD = 0.35
 VAD_SILENCE_THRESHOLD = 0.10
 MIN_AUDIO_SAMPLES = 4000
 
-# Spectral noise reduction (using digital signature)
-ENABLE_SPECTRAL_FILTERING = True
+# Hybrid noise reduction: Digital signature + high-pass
+ENABLE_SPECTRAL_SUBTRACTION = True  # Use digital noise signature
 NOISE_PROFILE_PATH = os.path.expanduser("~/LedgerAI/data/noise_profile.npy")
-NOISE_REDUCTION_STRENGTH = 0.7  # How much noise to subtract (0.0-1.0)
+SPECTRAL_STRENGTH = 0.3  # Gentle subtraction (0.3 = 30% removal, reduces artifacts)
+ENABLE_HIGHPASS_FILTER = True  # Also apply high-pass as safety
+HIGHPASS_CUTOFF = 80  # Hz - Removes fan noise, preserves speech
 
 # Auto Gain Control (AGC)
 USE_AUTO_GAIN = True
@@ -34,7 +37,7 @@ DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
 prompt_history = []
 
-# Global noise profile (loaded from disk at startup)
+# Global noise profile (loaded at startup)
 noise_profile = None
 
 # Debug
@@ -58,7 +61,7 @@ def find_device_index():
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
 (get_speech_timestamps, _, read_audio, _, _) = utils
 
-# === Spectral Filtering Functions ===
+# === Audio Processing Functions ===
 
 def load_noise_profile():
     """Load pre-recorded noise profile from disk"""
@@ -67,7 +70,7 @@ def load_noise_profile():
     if not os.path.exists(NOISE_PROFILE_PATH):
         print(f"[Audio] ⚠️  No noise profile found at {NOISE_PROFILE_PATH}")
         print(f"[Audio] ℹ️  Run: python3 scripts/record_noise_profile.py")
-        print(f"[Audio] ℹ️  Proceeding without spectral filtering...")
+        print(f"[Audio] ℹ️  Proceeding without spectral subtraction...")
         noise_profile = None
         return
     
@@ -88,17 +91,17 @@ def load_noise_profile():
         print(f"[Audio] ⚠️  Failed to load noise profile: {e}")
         noise_profile = None
 
-def spectral_subtraction(audio, noise_profile, strength=0.7):
+def spectral_subtraction(audio, noise_profile, strength=0.3):
     """
-    Spectral subtraction - removes noise using pre-recorded digital signature
+    GENTLE spectral subtraction using digital noise signature
     
     Args:
         audio: Audio signal to clean
         noise_profile: Pre-recorded noise spectrum
-        strength: How much noise to subtract (0.0-1.0)
+        strength: How much noise to subtract (0.3 = gentle, reduces artifacts)
     
     Returns:
-        Cleaned audio with noise removed
+        Cleaned audio with specific device noise removed
     """
     if noise_profile is None:
         return audio
@@ -118,17 +121,36 @@ def spectral_subtraction(audio, noise_profile, strength=0.7):
     else:
         noise_profile_resized = noise_profile
     
-    # Subtract noise profile (scaled by strength)
+    # GENTLE subtraction - only remove a small percentage
     cleaned_magnitude = magnitude - (strength * noise_profile_resized)
     
-    # Ensure non-negative (keep at least 10% of original to avoid artifacts)
-    cleaned_magnitude = np.maximum(cleaned_magnitude, 0.1 * magnitude)
+    # Floor to prevent over-subtraction (keep at least 50% to avoid artifacts)
+    cleaned_magnitude = np.maximum(cleaned_magnitude, 0.5 * magnitude)
     
     # Reconstruct signal with cleaned magnitude and original phase
     cleaned_fft = cleaned_magnitude * np.exp(1j * phase)
     cleaned_audio = np.fft.irfft(cleaned_fft, n=len(audio))
     
     return cleaned_audio
+
+def highpass_filter(audio, cutoff=80, order=5):
+    """
+    High-pass filter - removes low-frequency noise
+    - Removes frequencies below cutoff (fan noise, rumble)
+    - Preserves speech frequencies (>80 Hz)
+    - Simple and artifact-free
+    """
+    nyquist = SAMPLE_RATE / 2
+    normalized_cutoff = cutoff / nyquist
+    normalized_cutoff = max(0.01, min(normalized_cutoff, 0.99))
+    
+    try:
+        b, a = signal.butter(order, normalized_cutoff, btype='high')
+        filtered = signal.filtfilt(b, a, audio)
+        return filtered
+    except Exception as e:
+        print(f"[Audio] ⚠️ High-pass filter failed: {e}")
+        return audio
 
 def auto_gain_control(audio):
     """
@@ -161,23 +183,28 @@ def auto_gain_control(audio):
 
 def process_audio(audio):
     """
-    Clean audio processing pipeline:
-    1. Spectral filtering (removes noise using digital signature)
-    2. Auto gain control (amplifies to optimal level for Whisper)
+    Hybrid audio processing pipeline:
+    1. Spectral subtraction (removes specific device noise using digital signature)
+    2. High-pass filter (removes remaining low-frequency noise)
+    3. Auto gain control (amplifies clean signal)
     
     Args:
         audio: Raw audio to process
     
     Returns:
-        Cleaned and amplified audio, gain applied
+        Processed audio, gain applied
     """
     applied_gain = 1.0
     
-    # Step 1: Spectral filtering
-    if ENABLE_SPECTRAL_FILTERING and noise_profile is not None:
-        audio = spectral_subtraction(audio, noise_profile, strength=NOISE_REDUCTION_STRENGTH)
+    # Step 1: Spectral subtraction (gentle, targets specific device noise)
+    if ENABLE_SPECTRAL_SUBTRACTION and noise_profile is not None:
+        audio = spectral_subtraction(audio, noise_profile, strength=SPECTRAL_STRENGTH)
     
-    # Step 2: Auto gain control
+    # Step 2: High-pass filter (removes any remaining low-freq noise)
+    if ENABLE_HIGHPASS_FILTER:
+        audio = highpass_filter(audio, cutoff=HIGHPASS_CUTOFF)
+    
+    # Step 3: Auto gain control
     if USE_AUTO_GAIN:
         audio, applied_gain = auto_gain_control(audio)
     
@@ -238,15 +265,17 @@ def listen():
     
     # Show configuration
     print("\n" + "="*70)
-    print("[Audio] ✅ Clean pipeline: Spectral Filtering → AGC → Whisper")
-    if noise_profile is not None:
-        print(f"[Audio] 🔧 Spectral filtering: strength={NOISE_REDUCTION_STRENGTH}")
+    print("[Audio] ✅ Hybrid pipeline: Spectral Subtraction → High-Pass → AGC")
+    if ENABLE_SPECTRAL_SUBTRACTION and noise_profile is not None:
+        print(f"[Audio] 🔧 Spectral subtraction: {SPECTRAL_STRENGTH*100:.0f}% (gentle, targets device noise)")
         print(f"[Audio] 🎯 Noise signature: {len(noise_profile)} frequency bins")
-    else:
-        print(f"[Audio] ⚠️  No noise profile - skipping spectral filtering")
+    elif ENABLE_SPECTRAL_SUBTRACTION:
+        print(f"[Audio] ⚠️  Spectral subtraction disabled (no noise profile)")
+    if ENABLE_HIGHPASS_FILTER:
+        print(f"[Audio] 🔧 High-pass filter: {HIGHPASS_CUTOFF} Hz (removes remaining low-freq noise)")
     if USE_AUTO_GAIN:
         print(f"[Audio] 🔧 Auto Gain Control: Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x")
-    print(f"[Audio] 💡 Simple and effective: Remove noise → Amplify → Transcribe")
+    print(f"[Audio] 💡 Removes specific device noise BEFORE amplifying")
     print("="*70 + "\n")
 
     with sd.InputStream(device=DEVICE_INDEX, channels=6, samplerate=SAMPLE_RATE,
@@ -327,27 +356,31 @@ def listen():
                 raw_peak = np.max(np.abs(mono_mix))
                 print(f"\n[Audio] 📊 RAW: RMS={raw_rms:.6f}, Peak={raw_peak:.4f}, Length={len(mono_mix)} samples")
             
-            # Step 1: Spectral filtering (show effect)
-            if ENABLE_SPECTRAL_FILTERING and noise_profile is not None:
-                filtered_audio = spectral_subtraction(mono_mix, noise_profile, strength=NOISE_REDUCTION_STRENGTH)
+            # Step 1: Spectral subtraction (if available)
+            if ENABLE_SPECTRAL_SUBTRACTION and noise_profile is not None:
+                mono_mix = spectral_subtraction(mono_mix, noise_profile, strength=SPECTRAL_STRENGTH)
                 if DEBUG_NOISE_REDUCTION:
-                    filtered_rms = np.sqrt(np.mean(filtered_audio ** 2))
-                    noise_removed = (1 - filtered_rms / raw_rms) * 100 if raw_rms > 0 else 0
-                    print(f"[Audio] 🧹 FILTERED: RMS={filtered_rms:.6f} ({noise_removed:.1f}% noise removed)")
-                mono_mix = filtered_audio
+                    spectral_rms = np.sqrt(np.mean(mono_mix ** 2))
+                    noise_removed = (1 - spectral_rms / raw_rms) * 100 if raw_rms > 0 else 0
+                    print(f"[Audio] 🎯 SPECTRAL: RMS={spectral_rms:.6f} ({noise_removed:.1f}% device noise removed)")
             
-            # Step 2: Auto gain control
+            # Step 2: High-pass filter
+            if ENABLE_HIGHPASS_FILTER:
+                before_hp_rms = np.sqrt(np.mean(mono_mix ** 2))
+                mono_mix = highpass_filter(mono_mix, cutoff=HIGHPASS_CUTOFF)
+                if DEBUG_NOISE_REDUCTION:
+                    after_hp_rms = np.sqrt(np.mean(mono_mix ** 2))
+                    hp_removed = (1 - after_hp_rms / before_hp_rms) * 100 if before_hp_rms > 0 else 0
+                    print(f"[Audio] 🔊 HIGHPASS: RMS={after_hp_rms:.6f} ({hp_removed:.1f}% low-freq noise removed)")
+            
+            # Step 3: Auto gain control
             if USE_AUTO_GAIN:
                 mono_mix, applied_gain = auto_gain_control(mono_mix)
                 if DEBUG_NOISE_REDUCTION:
                     final_rms = np.sqrt(np.mean(mono_mix ** 2))
                     final_peak = np.max(np.abs(mono_mix))
                     print(f"[Audio] 📢 AMPLIFIED: RMS={final_rms:.6f}, Peak={final_peak:.4f}, Gain={applied_gain:.2f}x")
-            else:
-                if DEBUG_NOISE_REDUCTION:
-                    final_rms = np.sqrt(np.mean(mono_mix ** 2))
-                    final_peak = np.max(np.abs(mono_mix))
-                    print(f"[Audio] ✅ FINAL: RMS={final_rms:.6f}, Peak={final_peak:.4f} (no AGC)")
+                    print(f"[Audio] 📈 TOTAL: {raw_rms:.6f} → {final_rms:.6f} (×{final_rms/raw_rms if raw_rms > 0 else 0:.2f})")
 
             if len(mono_mix) < MIN_AUDIO_SAMPLES:
                 print("⚠️ Skipped: too short")
@@ -355,12 +388,6 @@ def listen():
                 continue
 
             text = transcribe(mono_mix)
-            
-            # Debug: Show transcription result
-            if DEBUG_NOISE_REDUCTION and text:
-                print(f"[Audio] 🎤 ✅ TRANSCRIBED: '{text}'")
-            elif DEBUG_NOISE_REDUCTION and not text:
-                print(f"[Audio] 🎤 ❌ FAILED: No transcription")
             
             if not text:
                 set_transcribing(False)
