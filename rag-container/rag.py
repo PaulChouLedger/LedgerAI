@@ -740,73 +740,35 @@ class AuraRAG:
     
     def _search_filtered_chunks(self, query: str, filtered_indices: List[int], k: int) -> List[Dict[str, Any]]:
         """
-        Semantic search on a pre-filtered subset of chunks
-        Creates a temporary FAISS index with only the filtered chunks
+        Return filtered chunks sorted by relevance
+        Since we've already filtered by keyword, just return those chunks
         
         Args:
-            query: Search query
-            filtered_indices: List of chunk indices to search
+            query: Search query  
+            filtered_indices: List of chunk indices to return
             k: Number of results to return
             
         Returns:
-            List of search results
+            List of filtered chunks
         """
-        try:
-            # Encode query
-            import torch
-            with torch.no_grad():
-                query_embedding = self.encoder.encode([query], convert_to_numpy=True, show_progress_bar=False)
-                query_embedding = query_embedding.astype(np.float32)
+        print(f"[RAG] 🔍 Returning {len(filtered_indices)} keyword-matched chunks...")
+        
+        results = []
+        for i, idx in enumerate(filtered_indices[:k]):
+            chunk = self.chunks[idx]
+            print(f"[RAG] 🔍 Result {i+1}: idx={idx}")
+            print(f"[RAG] 🔍 Chunk preview: '{chunk[:100]}...'")
             
-            # Normalize for Inner Product metric
-            if self.index.metric_type == faiss.METRIC_INNER_PRODUCT:
-                norms = np.linalg.norm(query_embedding, axis=1, keepdims=True)
-                query_embedding = query_embedding / norms
-            
-            # Extract embeddings for filtered chunks only
-            print(f"[RAG] 🔍 Creating temporary index with {len(filtered_indices)} filtered chunks...")
-            
-            # Get vectors for filtered chunks from FAISS index
-            # Allocate array and use reconstruct for each vector
-            filtered_vectors = np.empty((len(filtered_indices), self.index.d), dtype=np.float32)
-            for i, idx in enumerate(filtered_indices):
-                # Reconstruct writes to the array in-place
-                self.index.reconstruct(int(idx), filtered_vectors[i])
-            
-            # Create temporary index
-            temp_index = faiss.IndexFlatIP(self.index.d)
-            temp_index.add(filtered_vectors)
-            
-            # Search temporary index
-            distances, temp_indices = temp_index.search(query_embedding, min(k, len(filtered_indices)))
-            
-            # Map back to original indices
-            results = []
-            for i, (distance, temp_idx) in enumerate(zip(distances[0], temp_indices[0])):
-                original_idx = filtered_indices[int(temp_idx)]
-                chunk = self.chunks[original_idx]
-                similarity_score = float(1.0 / (1.0 + distance))
-                
-                print(f"[RAG] 🔍 Result {i+1}: idx={original_idx}, score={similarity_score:.4f}")
-                print(f"[RAG] 🔍 Chunk preview: '{chunk[:100]}...'")
-                
-                if similarity_score >= self.relevance_threshold:
-                    results.append({
-                        'chunk': chunk,
-                        'score': similarity_score,
-                        'distance': float(distance),
-                        'rank': i + 1
-                    })
-                    print(f"[RAG] ✅ Added to results")
-            
-            print(f"[RAG] ✅ Found {len(results)} results from filtered chunks")
-            return results[:k]
-            
-        except Exception as e:
-            print(f"[RAG] ❌ Filtered search error: {e}")
-            import traceback
-            traceback.print_exc()
-            return []
+            results.append({
+                'chunk': chunk,
+                'score': 1.0,  # High score since it matched keywords
+                'distance': 0.0,
+                'rank': i + 1
+            })
+            print(f"[RAG] ✅ Added to results")
+        
+        print(f"[RAG] ✅ Returning {len(results)} keyword-filtered results")
+        return results
     
     def _fuzzy_name_search(self, person_name: str, chunk: str, threshold: float = 0.65) -> bool:
         """
