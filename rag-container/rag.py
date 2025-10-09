@@ -901,7 +901,7 @@ class AuraRAG:
                 chunk_word = chunk_word_info['word']
                 position = chunk_word_info['position']
                 
-            best_similarity = 0.0
+                best_similarity = 0.0
                 match_type = None
                 
                 # Try phonetic matching first (sounds the same?)
@@ -910,7 +910,7 @@ class AuraRAG:
                     match_type = "phonetic"
                 else:
                     # Fall back to character-level similarity
-                similarity = SequenceMatcher(None, query_word.lower(), chunk_word.lower()).ratio()
+                    similarity = SequenceMatcher(None, query_word.lower(), chunk_word.lower()).ratio()
                 
                     # Additional length check to prevent short words from matching
                     len_query = len(query_word)
