@@ -767,9 +767,11 @@ class AuraRAG:
             print(f"[RAG] 🔍 Creating temporary index with {len(filtered_indices)} filtered chunks...")
             
             # Get vectors for filtered chunks from FAISS index
-            # Use reconstruct_n for batch reconstruction (more efficient)
-            filtered_vectors = self.index.reconstruct_n(0, self.index.ntotal)  # Get all vectors
-            filtered_vectors = filtered_vectors[filtered_indices]  # Select only filtered indices
+            # Allocate array and use reconstruct for each vector
+            filtered_vectors = np.empty((len(filtered_indices), self.index.d), dtype=np.float32)
+            for i, idx in enumerate(filtered_indices):
+                # Reconstruct writes to the array in-place
+                self.index.reconstruct(int(idx), filtered_vectors[i])
             
             # Create temporary index
             temp_index = faiss.IndexFlatIP(self.index.d)
