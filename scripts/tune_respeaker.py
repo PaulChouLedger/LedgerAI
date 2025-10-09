@@ -211,6 +211,17 @@ def show_current_settings():
 
 def main():
     """Main execution"""
+    # Check if running with sudo
+    if os.geteuid() != 0:
+        print("\n" + "="*80)
+        print("  ⚠️  PERMISSION ERROR")
+        print("="*80)
+        print("\n  USB device access requires root permissions.")
+        print("\n  Please run with sudo:")
+        print(f"    sudo python3 {' '.join(sys.argv)}")
+        print("\n" + "="*80 + "\n")
+        return 1
+    
     preset = sys.argv[1] if len(sys.argv) > 1 else "far_field"
     
     print("\n" + "="*80)

@@ -148,7 +148,11 @@ def configure_respeaker_hardware():
         
     except Exception as e:
         print(f"[Hardware] ⚠️  Could not configure ReSpeaker DSP: {e}")
-        print(f"[Hardware] ℹ️  Proceeding with default settings...")
+        if "Access denied" in str(e) or "insufficient permissions" in str(e):
+            print(f"[Hardware] 💡 USB permissions needed. Run once with sudo:")
+            print(f"[Hardware]    sudo python3 scripts/tune_respeaker.py far_field")
+            print(f"[Hardware]    (Settings persist until USB unplug/replug)")
+        print(f"[Hardware] ℹ️  Proceeding with current hardware settings...")
 
 # === Main Loop ===
 def listen():
