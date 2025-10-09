@@ -107,33 +107,42 @@ def configure_respeaker_hardware():
     """
     try:
         import sys
+        import usb.core
         tuning_path = os.path.expanduser('~/usb_4_mic_array')
         if tuning_path not in sys.path:
             sys.path.insert(0, tuning_path)
         
         from tuning import Tuning
-        dev = Tuning()
+        
+        # Find ReSpeaker USB device
+        dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+        if dev is None:
+            print("[Hardware] ⚠️  ReSpeaker USB device not found")
+            return
+        
+        # Initialize tuning with device
+        tuning = Tuning(dev)
         
         print("[Hardware] 🔧 Configuring ReSpeaker DSP for far-field...")
         
         # Disable hardware high-pass (we found it hurts far-field)
-        dev.write("HPFONOFF", 0)
+        tuning.write("HPFONOFF", 0)
         
         # Enable hardware AGC
-        dev.write("AGCONOFF", 1)
-        dev.write("AGCDESIREDLEVEL", 0.10)  # 0.10 RMS = -10 dBov
-        dev.write("AGCMAXGAIN", 31.6)  # 30 dB = 31.6x
+        tuning.write("AGCONOFF", 1)
+        tuning.write("AGCDESIREDLEVEL", 0.10)  # 0.10 RMS = -10 dBov
+        tuning.write("AGCMAXGAIN", 31.6)  # 30 dB = 31.6x
         
         # Enable noise suppression for ASR
-        dev.write("STATNOISEONOFF_SR", 1)  # Stationary noise (fan, hum)
-        dev.write("NONSTATNOISEONOFF_SR", 1)  # Non-stationary noise (AC, etc)
+        tuning.write("STATNOISEONOFF_SR", 1)  # Stationary noise (fan, hum)
+        tuning.write("NONSTATNOISEONOFF_SR", 1)  # Non-stationary noise (AC, etc)
         
         # Gentle over-subtraction
-        dev.write("GAMMA_NS_SR", 1.0)
-        dev.write("GAMMA_NN_SR", 1.1)
+        tuning.write("GAMMA_NS_SR", 1.0)
+        tuning.write("GAMMA_NN_SR", 1.1)
         
         # Disable echo cancellation (not needed)
-        dev.write("ECHOONOFF", 0)
+        tuning.write("ECHOONOFF", 0)
         
         print("[Hardware] ✅ ReSpeaker DSP configured for far-field (8-16 feet)")
         

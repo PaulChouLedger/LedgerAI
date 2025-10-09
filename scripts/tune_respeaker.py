@@ -23,7 +23,16 @@ from tuning import Tuning
 
 def configure_far_field():
     """Configure for far-field speech recognition (8-16 feet)"""
-    dev = Tuning()
+    import usb.core
+    
+    # Find ReSpeaker USB device
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found (Vendor: 0x2886, Product: 0x0018)")
+        print("     Check USB connection and run: lsusb | grep 2886\n")
+        return False
+    
+    dev = Tuning(usb_dev)
     
     print("\n" + "="*80)
     print("  🎯 CONFIGURING FOR FAR-FIELD SPEECH RECOGNITION (8-16 feet)")
@@ -74,10 +83,20 @@ def configure_far_field():
     print("    - Remove non-stationary noise (air conditioning, etc.)")
     print("    - Preserve all speech frequencies")
     print("\n  Restart your listener to use the new hardware settings.\n")
+    
+    return True
 
 def configure_near_field():
     """Configure for near-field speech recognition (1-6 feet)"""
-    dev = Tuning()
+    import usb.core
+    
+    # Find ReSpeaker USB device
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
     
     print("\n" + "="*80)
     print("  🎯 CONFIGURING FOR NEAR-FIELD SPEECH RECOGNITION (1-6 feet)")
@@ -118,10 +137,19 @@ def configure_near_field():
     print("\n" + "="*80)
     print("  ✅ NEAR-FIELD CONFIGURATION COMPLETE")
     print("="*80 + "\n")
+    
+    return True
 
 def reset_defaults():
     """Reset to factory defaults"""
-    dev = Tuning()
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
     
     print("\n" + "="*80)
     print("  🔄 RESETTING TO FACTORY DEFAULTS")
@@ -134,10 +162,19 @@ def reset_defaults():
     dev.write("ECHOONOFF", 0)
     
     print("  ✅ Reset complete\n")
+    
+    return True
 
 def show_current_settings():
     """Show current ReSpeaker settings"""
-    dev = Tuning()
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
     
     print("\n" + "="*80)
     print("  📊 CURRENT RESPEAKER SETTINGS")
@@ -169,6 +206,8 @@ def show_current_settings():
             print(f"  {label:<25} ERROR")
     
     print("\n" + "="*80 + "\n")
+    
+    return True
 
 def main():
     """Main execution"""
@@ -180,14 +219,16 @@ def main():
     print("="*80)
     
     try:
+        success = False
+        
         if preset == "far_field":
-            configure_far_field()
+            success = configure_far_field()
         elif preset == "near_field":
-            configure_near_field()
+            success = configure_near_field()
         elif preset == "reset":
-            reset_defaults()
+            success = reset_defaults()
         elif preset == "show":
-            show_current_settings()
+            success = show_current_settings()
         else:
             print(f"\n  ❌ Unknown preset: {preset}")
             print(f"\n  Available presets:")
@@ -197,7 +238,7 @@ def main():
             print(f"    - show       : Show current settings\n")
             return 1
         
-        return 0
+        return 0 if success else 1
         
     except Exception as e:
         print(f"\n\n  ❌ Error: {e}")
