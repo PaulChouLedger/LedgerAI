@@ -20,9 +20,9 @@ VAD_SILENCE_THRESHOLD = 0.10
 MIN_AUDIO_SAMPLES = 4000
 
 # Auto Gain Control (AGC)
-USE_AUTO_GAIN = True
-AGC_TARGET_RMS = 0.10  # Target RMS for Whisper
-AGC_MAX_GAIN = 20.0  # Maximum amplification
+# NOTE: Using HARDWARE AGC on ReSpeaker DSP (configured via tune_respeaker.py)
+# Software AGC disabled - hardware is faster and more effective
+USE_AUTO_GAIN = False  # Disabled - using hardware AGC instead
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -51,54 +51,8 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 (get_speech_timestamps, _, read_audio, _, _) = utils
 
 # === Audio Processing Functions ===
-
-def auto_gain_control(audio):
-    """
-    Simple automatic gain control
-    - Amplifies audio to target RMS
-    - Prevents clipping by limiting max gain
-    
-    Args:
-        audio: Audio to amplify
-    
-    Returns:
-        Amplified audio, actual gain applied
-    """
-    rms = np.sqrt(np.mean(audio ** 2))
-    
-    if rms < 1e-6:
-        return audio, 1.0
-    
-    # Calculate gain needed to reach target
-    required_gain = AGC_TARGET_RMS / rms
-    
-    # Limit to max gain
-    actual_gain = min(required_gain, AGC_MAX_GAIN)
-    
-    # Apply gain with clipping prevention
-    audio = audio * actual_gain
-    audio = np.clip(audio, -0.95, 0.95)
-    
-    return audio, actual_gain
-
-def process_audio(audio):
-    """
-    Minimal audio processing:
-    Just AGC - amplifies raw audio to optimal level
-    
-    No filtering preserves all frequency content for far-field speech
-    
-    Args:
-        audio: Raw audio to process
-    
-    Returns:
-        Processed audio, gain applied
-    """
-    if USE_AUTO_GAIN:
-        audio, applied_gain = auto_gain_control(audio)
-        return audio, applied_gain
-    else:
-        return audio, 1.0
+# NOTE: All processing now done in HARDWARE DSP
+# No software processing needed!
 
 # === Simple frequency function for GUI border (placeholder) ===
 def get_transcription_frequency():
@@ -145,17 +99,61 @@ def play_welcome_prompt(stream):
     except Exception as e:
         print(f"[Aura] ❌ Failed to play welcome prompt: {e}")
 
+# === Configure ReSpeaker Hardware DSP ===
+def configure_respeaker_hardware():
+    """
+    Auto-configure ReSpeaker hardware DSP for far-field speech recognition
+    This runs on every startup to ensure settings are applied
+    """
+    try:
+        import sys
+        tuning_path = os.path.expanduser('~/usb_4_mic_array')
+        if tuning_path not in sys.path:
+            sys.path.insert(0, tuning_path)
+        
+        from tuning import Tuning
+        dev = Tuning()
+        
+        print("[Hardware] 🔧 Configuring ReSpeaker DSP for far-field...")
+        
+        # Disable hardware high-pass (we found it hurts far-field)
+        dev.write("HPFONOFF", 0)
+        
+        # Enable hardware AGC
+        dev.write("AGCONOFF", 1)
+        dev.write("AGCDESIREDLEVEL", 0.10)  # 0.10 RMS = -10 dBov
+        dev.write("AGCMAXGAIN", 31.6)  # 30 dB = 31.6x
+        
+        # Enable noise suppression for ASR
+        dev.write("STATNOISEONOFF_SR", 1)  # Stationary noise (fan, hum)
+        dev.write("NONSTATNOISEONOFF_SR", 1)  # Non-stationary noise (AC, etc)
+        
+        # Gentle over-subtraction
+        dev.write("GAMMA_NS_SR", 1.0)
+        dev.write("GAMMA_NN_SR", 1.1)
+        
+        # Disable echo cancellation (not needed)
+        dev.write("ECHOONOFF", 0)
+        
+        print("[Hardware] ✅ ReSpeaker DSP configured for far-field (8-16 feet)")
+        
+    except Exception as e:
+        print(f"[Hardware] ⚠️  Could not configure ReSpeaker DSP: {e}")
+        print(f"[Hardware] ℹ️  Proceeding with default settings...")
+
 # === Main Loop ===
 def listen():
     find_device_index()
     print("🎤 Listening (6-channel input, VAD on channel 0)...")
     
+    # Auto-configure ReSpeaker hardware on startup
+    configure_respeaker_hardware()
+    
     # Show configuration
     print("\n" + "="*70)
-    print("[Audio] ✅ Minimal pipeline: RAW → AGC → Whisper")
-    print(f"[Audio] 🔧 NO FILTERING (testing if filters hurt far-field)")
-    print(f"[Audio] 🔧 Auto Gain Control: Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x")
-    print(f"[Audio] ⚡ Pure amplification, no signal modification")
+    print("[Audio] ✅ Using HARDWARE DSP processing (ReSpeaker XMOS chip)")
+    print("[Audio] 🔧 Hardware AGC + Noise Suppression (auto-configured on startup)")
+    print("[Audio] ⚡ No software processing - clean audio from hardware")
     print("="*70 + "\n")
 
     with sd.InputStream(device=DEVICE_INDEX, channels=6, samplerate=SAMPLE_RATE,
@@ -229,22 +227,11 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono_mix = full_audio[:, 0]
             
-            # Debug: Show raw audio stats
+            # Debug: Show audio stats (already processed by hardware DSP)
             if DEBUG_NOISE_REDUCTION:
-                raw_rms = np.sqrt(np.mean(mono_mix ** 2))
-                raw_peak = np.max(np.abs(mono_mix))
-                print(f"\n[Audio] 📊 RAW: RMS={raw_rms:.6f}, Peak={raw_peak:.4f}, Length={len(mono_mix)} samples")
-            
-            # Apply processing (fast!)
-            mono_mix, applied_gain = process_audio(mono_mix)
-            
-            # Debug: Show processed audio stats
-            if DEBUG_NOISE_REDUCTION:
-                clean_rms = np.sqrt(np.mean(mono_mix ** 2))
-                clean_peak = np.max(np.abs(mono_mix))
-                
-                print(f"[Audio] ✅ PROCESSED: RMS={clean_rms:.6f}, Peak={clean_peak:.4f}, AGC={applied_gain:.2f}x")
-                print(f"[Audio] 📈 AMPLIFICATION: {raw_rms:.6f} → {clean_rms:.6f} (×{clean_rms/raw_rms if raw_rms > 0 else 0:.2f})")
+                rms = np.sqrt(np.mean(mono_mix ** 2))
+                peak = np.max(np.abs(mono_mix))
+                print(f"\n[Audio] 📊 FROM HARDWARE DSP: RMS={rms:.6f}, Peak={peak:.4f}, Length={len(mono_mix)} samples")
 
             if len(mono_mix) < MIN_AUDIO_SAMPLES:
                 print("⚠️ Skipped: too short")
