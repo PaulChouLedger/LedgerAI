@@ -43,6 +43,7 @@ MIN_AUDIO_SAMPLES = 4000
 MIN_SPEECH_RMS = 0.010  # Minimum RMS to consider as speech (filter out noise/drift)
 
 # Hardware AGC monitoring (prevents drift)
+AGC_ENABLE_RUNTIME_RESET = False  # Requires sudo - use systemd service instead
 AGC_KEEPALIVE_INTERVAL = 30.0  # Reset AGC every 30 seconds of idle
 AGC_MIN_RMS_THRESHOLD = 0.015  # If frame RMS below this during speech, reset AGC immediately
 AGC_RESET_COOLDOWN = 5.0  # Don't reset AGC more than once per 5 seconds
@@ -91,6 +92,10 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 def reset_hardware_agc(reason=""):
     """Reset hardware AGC to prevent drift/sleep"""
     global last_agc_reset_time
+    
+    # Check if runtime reset is enabled
+    if not AGC_ENABLE_RUNTIME_RESET:
+        return False
     
     # Check cooldown
     if time.time() - last_agc_reset_time < AGC_RESET_COOLDOWN:
@@ -323,11 +328,13 @@ def listen():
     
     # Show configuration
     print("\n" + "="*70)
-    print(f"[Audio] ✅ Single-Channel Processing (Channel 0 from {available_channels}-ch firmware)")
+    print(f"[Audio] ✅ Single-Channel Processing ({available_channels}-ch firmware detected)")
+    if available_channels == 1:
+        print("[Audio] 🎉 Using single-channel firmware (cleaner signal!)")
     print("[Audio] 🔧 Hardware: Gentle AGC → ~0.03 RMS (prevents clipping & drift)")
     print(f"[Audio] 🔧 Software: Boost to {AGC_TARGET_RMS} RMS (max {AGC_MAX_GAIN}x, does main work)")
-    print("[Audio] 🔧 Auto-Reset: If RMS < 0.01, AGC resets automatically")
-    print("[Audio] 💡 Strategy: Clean hardware + software boost = no clipping, no drift")
+    print(f"[Audio] 🔧 Low-RMS Filter: Skips audio below {MIN_SPEECH_RMS} RMS (filters noise)")
+    print("[Audio] 💡 Hardware tuned by systemd service (boot-time configuration)")
     print("="*70 + "\n")
 
     # Use detected channel count
@@ -370,13 +377,16 @@ def listen():
 
                 audio_block, _ = stream.read(FRAME_SIZE)
                 
-                # Extract channel 0 from 6-channel input
-                channel_0 = audio_block[:, 0]
+                # Extract channel 0 (handle both 1-ch and multi-ch firmware)
+                if available_channels == 1:
+                    channel_0 = audio_block  # Already mono
+                else:
+                    channel_0 = audio_block[:, 0]  # Extract channel 0
                 
-                # Check if AGC has drifted too low
+                # Calculate RMS for debugging
                 rms = np.sqrt(np.mean(channel_0 ** 2))
-                if rms > 0.001 and rms < AGC_MIN_RMS_THRESHOLD:  # Audio present but too quiet
-                    reset_hardware_agc(f"RMS too low ({rms:.4f} < {AGC_MIN_RMS_THRESHOLD})")
+                # Note: Real-time AGC reset disabled (requires sudo)
+                # Hardware configured by systemd service on boot
                 
                 # Run VAD
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
@@ -399,7 +409,13 @@ def listen():
                     break
 
                 audio_block, _ = stream.read(FRAME_SIZE)
-                channel_0 = audio_block[:, 0]
+                
+                # Extract channel 0 (handle both 1-ch and multi-ch firmware)
+                if available_channels == 1:
+                    channel_0 = audio_block  # Already mono
+                else:
+                    channel_0 = audio_block[:, 0]  # Extract channel 0
+                    
                 buffer.append(audio_block)
                 
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
@@ -422,7 +438,12 @@ def listen():
 
             # Concatenate buffer and extract channel 0
             full_audio = np.concatenate(buffer)
-            mono_mix = full_audio[:, 0]
+            
+            # Handle both 1-ch and multi-ch firmware
+            if available_channels == 1:
+                mono_mix = full_audio  # Already mono
+            else:
+                mono_mix = full_audio[:, 0]  # Extract channel 0
             
             # Debug: Show hardware output and check for AGC drift
             if DEBUG_NOISE_REDUCTION:
@@ -433,11 +454,7 @@ def listen():
                 # Check if audio is too quiet (AGC drift or noise, not speech)
                 if hw_rms < MIN_SPEECH_RMS:
                     print(f"[Audio] ⚠️  RMS too low ({hw_rms:.6f} < {MIN_SPEECH_RMS}), skipping (likely noise/drift)")
-                    print(f"[Audio] 💡 Try speaking louder or closer to mic")
-                    
-                    # Also try to reset AGC for next time
-                    reset_hardware_agc(f"drift detected (RMS={hw_rms:.6f})")
-                    
+                    print(f"[Audio] 💡 AGC may have drifted - restart listener or speak louder")
                     set_transcribing(False)
                     continue
             

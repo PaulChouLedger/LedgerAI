@@ -11,7 +11,6 @@ from typing import List, Dict, Any
 import time
 import re
 from difflib import SequenceMatcher
-from metaphone import doublemetaphone
 
 # Configure for GPU acceleration (faiss_lite container)
 os.environ['OMP_NUM_THREADS'] = '4'
@@ -417,14 +416,15 @@ class AuraRAG:
                     print(f"[RAG] 🔍 Result {i+1}: idx={idx}, distance={distance:.4f}, score={similarity_score:.4f}, threshold={self.relevance_threshold}")
                     print(f"[RAG] 🔍 Chunk preview: '{chunk[:100]}...'")
                     
-                    # Apply keyword filter if enabled (HYBRID SEARCH with fuzzy matching)
+                    # Apply keyword filter if enabled (HYBRID SEARCH with character-level fuzzy matching)
                     if use_keyword_filter:
-                        # Use fuzzy matching to handle typos/variations (0.65 catches Raphael↔Rafael)
-                        if not self._fuzzy_name_search(person_name, chunk, threshold=0.65):
-                            print(f"[RAG] 🔍 Filtered out: no fuzzy match for '{person_name}' in chunk")
+                        # Use character-level matching (0.75 threshold = 75% character similarity)
+                        print(f"[RAG] 🔍 Applying character-level fuzzy filter for '{person_name}'...")
+                        if not self._fuzzy_name_search(person_name, chunk, threshold=0.75):
+                            print(f"[RAG] ❌ Filtered out: no character match for '{person_name}' in chunk")
                             continue
                         else:
-                            print(f"[RAG] ✅ Fuzzy name match found for '{person_name}'")
+                            print(f"[RAG] ✅ Character-level match found for '{person_name}'")
                     
                     if similarity_score >= self.relevance_threshold:
                         results.append({
@@ -479,71 +479,66 @@ class AuraRAG:
             print(f"[RAG] ❌ Search error: {e}")
             return []
     
-    def _fuzzy_name_search(self, person_name: str, chunk: str, threshold: float = 0.65) -> bool:
+    def _fuzzy_name_search(self, person_name: str, chunk: str, threshold: float = 0.75) -> bool:
         """
-        Check if a chunk contains a fuzzy match for the person name
-        Handles typos AND phonetic matches (e.g., "Bob Kerala" matching "Bob Carella")
+        Check if a chunk contains a fuzzy match for the person name using character-level similarity
+        Handles typos like "Bob Corella" matching "Bob Carella" (6/7 chars match = 0.857)
         
         Args:
             person_name: Person name from query (e.g., "Bob Corella")
             chunk: Document chunk
-            threshold: Similarity threshold (0.0 to 1.0)
+            threshold: Character similarity threshold (0.0 to 1.0, default 0.75)
             
         Returns:
             True if fuzzy match found, False otherwise
         """
-        # Method 1: Check phonetic similarity (catches sound-alikes)
-        chunk_names = re.findall(r'[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+', chunk)
-        query_metaphone = doublemetaphone(person_name)
+        print(f"[RAG] 🔍 Fuzzy search: looking for '{person_name}' in chunk")
         
-        for chunk_name in chunk_names:
-            chunk_metaphone = doublemetaphone(chunk_name)
-            
-            # Check if any phonetic codes match (must be non-empty)
-            if (query_metaphone[0] and chunk_metaphone[0] and query_metaphone[0] == chunk_metaphone[0]) or \
-               (query_metaphone[1] and chunk_metaphone[1] and query_metaphone[1] == chunk_metaphone[1]) or \
-               (query_metaphone[0] and chunk_metaphone[1] and query_metaphone[0] == chunk_metaphone[1]) or \
-               (query_metaphone[1] and chunk_metaphone[0] and query_metaphone[1] == chunk_metaphone[0]):
-                print(f"[RAG] 🔊 Phonetic match: '{person_name}' ~ '{chunk_name}' (codes: {query_metaphone} ~ {chunk_metaphone})")
-                return True
-        
-        # Method 2: Check full name similarity with all name-like sequences in chunk
-        for chunk_name in chunk_names:
-            similarity = SequenceMatcher(None, person_name.lower(), chunk_name.lower()).ratio()
-            if similarity >= threshold:
-                print(f"[RAG] 🔍 Fuzzy full name match: '{person_name}' ~ '{chunk_name}' (similarity: {similarity:.3f})")
-                return True
-        
-        # Method 3: Check individual word matches (for partial names)
-        query_words = person_name.split()
+        # Extract ALL capitalized words from chunk (not just multi-word sequences)
         chunk_words = re.findall(r'\b[A-Z][a-z]+\b', chunk)
         
-        matches = 0
-        for query_word in query_words:
-            for chunk_word in chunk_words:
-                # Check phonetic similarity for individual words (must be non-empty)
-                query_word_metaphone = doublemetaphone(query_word)
-                chunk_word_metaphone = doublemetaphone(chunk_word)
-                
-                if (query_word_metaphone[0] and chunk_word_metaphone[0] and query_word_metaphone[0] == chunk_word_metaphone[0]) or \
-                   (query_word_metaphone[1] and chunk_word_metaphone[1] and query_word_metaphone[1] == chunk_word_metaphone[1]) or \
-                   (query_word_metaphone[0] and chunk_word_metaphone[1] and query_word_metaphone[0] == chunk_word_metaphone[1]) or \
-                   (query_word_metaphone[1] and chunk_word_metaphone[0] and query_word_metaphone[1] == chunk_word_metaphone[0]):
-                    print(f"[RAG] 🔊 Phonetic word match: '{query_word}' ~ '{chunk_word}' (codes: {query_word_metaphone} ~ {chunk_word_metaphone})")
-                    matches += 1
-                    break
-                
-                # Check string similarity for individual words
-                similarity = SequenceMatcher(None, query_word.lower(), chunk_word.lower()).ratio()
-                if similarity >= threshold:
-                    print(f"[RAG] 🔍 Fuzzy word match: '{query_word}' ~ '{chunk_word}' (similarity: {similarity:.3f})")
-                    matches += 1
-                    break
+        if not chunk_words:
+            print(f"[RAG] 🔍 No capitalized words found in chunk")
+            return False
         
-        # Require at least 2 words to match (first + last name)
-        if matches >= min(2, len(query_words)):
+        print(f"[RAG] 🔍 Found {len(chunk_words)} capitalized words: {chunk_words[:10]}")  # Show first 10
+        
+        # Split query name into individual words
+        query_words = person_name.split()
+        print(f"[RAG] 🔍 Query words: {query_words}")
+        
+        # Match each query word against chunk words using character-level similarity
+        matches = 0
+        matched_pairs = []
+        
+        for query_word in query_words:
+            best_match = None
+            best_similarity = 0.0
+            
+            for chunk_word in chunk_words:
+                # Calculate character-level similarity (e.g., "Corella" vs "Carella" = 6/7 = 0.857)
+                similarity = SequenceMatcher(None, query_word.lower(), chunk_word.lower()).ratio()
+                
+                if similarity > best_similarity:
+                    best_similarity = similarity
+                    best_match = chunk_word
+            
+            if best_match and best_similarity >= threshold:
+                print(f"[RAG] ✅ Character match: '{query_word}' ~ '{best_match}' (similarity: {best_similarity:.3f}, {int(best_similarity * max(len(query_word), len(best_match)))}/{max(len(query_word), len(best_match))} chars)")
+                matches += 1
+                matched_pairs.append(f"{query_word}~{best_match}")
+            else:
+                print(f"[RAG] ❌ No match for '{query_word}' (best: '{best_match}' @ {best_similarity:.3f})")
+        
+        # Require ALL query words to match (e.g., both "Bob" and "Corella" must match)
+        min_matches = len(query_words)
+        print(f"[RAG] 🔍 Matched {matches}/{len(query_words)} words (need {min_matches}): {matched_pairs}")
+        
+        if matches >= min_matches:
+            print(f"[RAG] ✅ All words matched! Person found in chunk.")
             return True
         
+        print(f"[RAG] ❌ Insufficient matches ({matches}/{min_matches})")
         return False
 
     def diagnose_index_issues(self) -> Dict[str, Any]:
