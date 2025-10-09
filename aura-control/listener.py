@@ -20,11 +20,8 @@ VAD_START_THRESHOLD = 0.25
 VAD_SILENCE_THRESHOLD = 0.10
 MIN_AUDIO_SAMPLES = 4000
 
-# Hybrid noise reduction: Digital signature + high-pass
-ENABLE_SPECTRAL_SUBTRACTION = True  # Use digital noise signature
-NOISE_PROFILE_PATH = os.path.expanduser("~/LedgerAI/data/noise_profile.npy")
-SPECTRAL_STRENGTH = 0.3  # Gentle subtraction (0.3 = 30% removal, reduces artifacts)
-ENABLE_HIGHPASS_FILTER = True  # Also apply high-pass as safety
+# Simple noise reduction (fast and effective)
+ENABLE_HIGHPASS_FILTER = True  # Fast and effective
 HIGHPASS_CUTOFF = 80  # Hz - Removes fan noise, preserves speech
 
 # Auto Gain Control (AGC)
@@ -36,9 +33,6 @@ DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
 prompt_history = []
-
-# Global noise profile (loaded at startup)
-noise_profile = None
 
 # Debug
 DEBUG_AUDIO_LEVELS = True
@@ -62,76 +56,6 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 (get_speech_timestamps, _, read_audio, _, _) = utils
 
 # === Audio Processing Functions ===
-
-def load_noise_profile():
-    """Load pre-recorded noise profile from disk"""
-    global noise_profile
-    
-    if not os.path.exists(NOISE_PROFILE_PATH):
-        print(f"[Audio] ⚠️  No noise profile found at {NOISE_PROFILE_PATH}")
-        print(f"[Audio] ℹ️  Run: python3 scripts/record_noise_profile.py")
-        print(f"[Audio] ℹ️  Proceeding without spectral subtraction...")
-        noise_profile = None
-        return
-    
-    try:
-        noise_profile = np.load(NOISE_PROFILE_PATH)
-        print(f"[Audio] ✅ Loaded noise profile: {len(noise_profile)} frequency bins")
-        
-        # Show dominant noise frequencies
-        freqs = np.fft.rfftfreq(len(noise_profile) * 2 - 2, 1/SAMPLE_RATE)
-        top_indices = np.argsort(noise_profile)[-3:][::-1]
-        print(f"[Audio] 🎵 Top noise frequencies: ", end="")
-        for idx in top_indices:
-            if idx < len(freqs):
-                print(f"{freqs[idx]:.0f}Hz ", end="")
-        print()
-        
-    except Exception as e:
-        print(f"[Audio] ⚠️  Failed to load noise profile: {e}")
-        noise_profile = None
-
-def spectral_subtraction(audio, noise_profile, strength=0.3):
-    """
-    GENTLE spectral subtraction using digital noise signature
-    
-    Args:
-        audio: Audio signal to clean
-        noise_profile: Pre-recorded noise spectrum
-        strength: How much noise to subtract (0.3 = gentle, reduces artifacts)
-    
-    Returns:
-        Cleaned audio with specific device noise removed
-    """
-    if noise_profile is None:
-        return audio
-    
-    # FFT of input audio
-    fft = np.fft.rfft(audio)
-    magnitude = np.abs(fft)
-    phase = np.angle(fft)
-    
-    # Resize noise profile to match audio length if needed
-    if len(noise_profile) != len(magnitude):
-        from scipy import interpolate
-        x_old = np.linspace(0, 1, len(noise_profile))
-        x_new = np.linspace(0, 1, len(magnitude))
-        f = interpolate.interp1d(x_old, noise_profile, kind='linear', fill_value='extrapolate')
-        noise_profile_resized = f(x_new)
-    else:
-        noise_profile_resized = noise_profile
-    
-    # GENTLE subtraction - only remove a small percentage
-    cleaned_magnitude = magnitude - (strength * noise_profile_resized)
-    
-    # Floor to prevent over-subtraction (keep at least 50% to avoid artifacts)
-    cleaned_magnitude = np.maximum(cleaned_magnitude, 0.5 * magnitude)
-    
-    # Reconstruct signal with cleaned magnitude and original phase
-    cleaned_fft = cleaned_magnitude * np.exp(1j * phase)
-    cleaned_audio = np.fft.irfft(cleaned_fft, n=len(audio))
-    
-    return cleaned_audio
 
 def highpass_filter(audio, cutoff=80, order=5):
     """
@@ -183,10 +107,9 @@ def auto_gain_control(audio):
 
 def process_audio(audio):
     """
-    Hybrid audio processing pipeline:
-    1. Spectral subtraction (removes specific device noise using digital signature)
-    2. High-pass filter (removes remaining low-frequency noise)
-    3. Auto gain control (amplifies clean signal)
+    Simple audio processing pipeline:
+    1. High-pass filter (removes low-frequency fan noise)
+    2. Auto gain control (amplifies to optimal level)
     
     Args:
         audio: Raw audio to process
@@ -196,15 +119,11 @@ def process_audio(audio):
     """
     applied_gain = 1.0
     
-    # Step 1: Spectral subtraction (gentle, targets specific device noise)
-    if ENABLE_SPECTRAL_SUBTRACTION and noise_profile is not None:
-        audio = spectral_subtraction(audio, noise_profile, strength=SPECTRAL_STRENGTH)
-    
-    # Step 2: High-pass filter (removes any remaining low-freq noise)
+    # Step 1: High-pass filter
     if ENABLE_HIGHPASS_FILTER:
         audio = highpass_filter(audio, cutoff=HIGHPASS_CUTOFF)
     
-    # Step 3: Auto gain control
+    # Step 2: Auto gain control
     if USE_AUTO_GAIN:
         audio, applied_gain = auto_gain_control(audio)
     
@@ -260,22 +179,12 @@ def listen():
     find_device_index()
     print("🎤 Listening (6-channel input, VAD on channel 0)...")
     
-    # Load noise profile
-    load_noise_profile()
-    
     # Show configuration
     print("\n" + "="*70)
-    print("[Audio] ✅ Hybrid pipeline: Spectral Subtraction → High-Pass → AGC")
-    if ENABLE_SPECTRAL_SUBTRACTION and noise_profile is not None:
-        print(f"[Audio] 🔧 Spectral subtraction: {SPECTRAL_STRENGTH*100:.0f}% (gentle, targets device noise)")
-        print(f"[Audio] 🎯 Noise signature: {len(noise_profile)} frequency bins")
-    elif ENABLE_SPECTRAL_SUBTRACTION:
-        print(f"[Audio] ⚠️  Spectral subtraction disabled (no noise profile)")
-    if ENABLE_HIGHPASS_FILTER:
-        print(f"[Audio] 🔧 High-pass filter: {HIGHPASS_CUTOFF} Hz (removes remaining low-freq noise)")
-    if USE_AUTO_GAIN:
-        print(f"[Audio] 🔧 Auto Gain Control: Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x")
-    print(f"[Audio] 💡 Removes specific device noise BEFORE amplifying")
+    print("[Audio] ✅ Simple pipeline: High-Pass Filter → AGC → Whisper")
+    print(f"[Audio] 🔧 High-pass filter: {HIGHPASS_CUTOFF} Hz (removes fan noise)")
+    print(f"[Audio] 🔧 Auto Gain Control: Target={AGC_TARGET_RMS}, Max={AGC_MAX_GAIN}x")
+    print(f"[Audio] ⚡ Fast and clean - no complex processing")
     print("="*70 + "\n")
 
     with sd.InputStream(device=DEVICE_INDEX, channels=6, samplerate=SAMPLE_RATE,
@@ -350,37 +259,21 @@ def listen():
             mono_mix = full_audio[:, 0]
             
             # Debug: Show raw audio stats
-            raw_rms = 0
             if DEBUG_NOISE_REDUCTION:
                 raw_rms = np.sqrt(np.mean(mono_mix ** 2))
                 raw_peak = np.max(np.abs(mono_mix))
                 print(f"\n[Audio] 📊 RAW: RMS={raw_rms:.6f}, Peak={raw_peak:.4f}, Length={len(mono_mix)} samples")
             
-            # Step 1: Spectral subtraction (if available)
-            if ENABLE_SPECTRAL_SUBTRACTION and noise_profile is not None:
-                mono_mix = spectral_subtraction(mono_mix, noise_profile, strength=SPECTRAL_STRENGTH)
-                if DEBUG_NOISE_REDUCTION:
-                    spectral_rms = np.sqrt(np.mean(mono_mix ** 2))
-                    noise_removed = (1 - spectral_rms / raw_rms) * 100 if raw_rms > 0 else 0
-                    print(f"[Audio] 🎯 SPECTRAL: RMS={spectral_rms:.6f} ({noise_removed:.1f}% device noise removed)")
+            # Apply processing (fast!)
+            mono_mix, applied_gain = process_audio(mono_mix)
             
-            # Step 2: High-pass filter
-            if ENABLE_HIGHPASS_FILTER:
-                before_hp_rms = np.sqrt(np.mean(mono_mix ** 2))
-                mono_mix = highpass_filter(mono_mix, cutoff=HIGHPASS_CUTOFF)
-                if DEBUG_NOISE_REDUCTION:
-                    after_hp_rms = np.sqrt(np.mean(mono_mix ** 2))
-                    hp_removed = (1 - after_hp_rms / before_hp_rms) * 100 if before_hp_rms > 0 else 0
-                    print(f"[Audio] 🔊 HIGHPASS: RMS={after_hp_rms:.6f} ({hp_removed:.1f}% low-freq noise removed)")
-            
-            # Step 3: Auto gain control
-            if USE_AUTO_GAIN:
-                mono_mix, applied_gain = auto_gain_control(mono_mix)
-                if DEBUG_NOISE_REDUCTION:
-                    final_rms = np.sqrt(np.mean(mono_mix ** 2))
-                    final_peak = np.max(np.abs(mono_mix))
-                    print(f"[Audio] 📢 AMPLIFIED: RMS={final_rms:.6f}, Peak={final_peak:.4f}, Gain={applied_gain:.2f}x")
-                    print(f"[Audio] 📈 TOTAL: {raw_rms:.6f} → {final_rms:.6f} (×{final_rms/raw_rms if raw_rms > 0 else 0:.2f})")
+            # Debug: Show processed audio stats
+            if DEBUG_NOISE_REDUCTION:
+                clean_rms = np.sqrt(np.mean(mono_mix ** 2))
+                clean_peak = np.max(np.abs(mono_mix))
+                
+                print(f"[Audio] ✅ PROCESSED: RMS={clean_rms:.6f}, Peak={clean_peak:.4f}, AGC={applied_gain:.2f}x")
+                print(f"[Audio] 📈 AMPLIFICATION: {raw_rms:.6f} → {clean_rms:.6f} (×{clean_rms/raw_rms if raw_rms > 0 else 0:.2f})")
 
             if len(mono_mix) < MIN_AUDIO_SAMPLES:
                 print("⚠️ Skipped: too short")
