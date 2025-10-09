@@ -137,17 +137,21 @@ def listen():
         while True:
             # Pause during TTS
             if is_playing():
+                print("[Listener] ⏸️ Pausing mic during playback")
                 stream.stop()
                 while is_playing():
                     time.sleep(0.1)
                 stream.start()
                 
                 # Flush buffer
+                print("[Listener] 🧹 Flushing mic buffer...")
                 for _ in range(5):
                     try:
                         stream.read(FRAME_SIZE)
                     except:
                         break
+                
+                print("[Listener] ▶️ Mic resumed after playback (buffer flushed)")
             
             buffer = []
             silence_start = None
