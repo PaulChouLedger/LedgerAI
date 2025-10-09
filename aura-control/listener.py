@@ -40,9 +40,13 @@ SILENCE_TIMEOUT = 0.40
 VAD_START_THRESHOLD = 0.3
 VAD_SILENCE_THRESHOLD = 0.05  # Lower threshold - don't cut off trailing words (was 0.10)
 MIN_AUDIO_SAMPLES = 4000
+MIN_SPEECH_RMS = 0.010  # Minimum RMS to consider as speech (filter out noise/drift)
 
-# Hardware AGC keep-alive (prevents drift during idle)
+# Hardware AGC monitoring (prevents drift)
 AGC_KEEPALIVE_INTERVAL = 30.0  # Reset AGC every 30 seconds of idle
+AGC_MIN_RMS_THRESHOLD = 0.015  # If frame RMS below this during speech, reset AGC immediately
+AGC_RESET_COOLDOWN = 5.0  # Don't reset AGC more than once per 5 seconds
+last_agc_reset_time = 0
 
 # Auto Gain Control (AGC)
 # Hardware AGC on ReSpeaker handles initial processing (gentle, no clipping)
@@ -82,6 +86,43 @@ def find_device_index():
 # === Load Silero VAD ===
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
 (get_speech_timestamps, _, read_audio, _, _) = utils
+
+# === AGC Reset Helper ===
+def reset_hardware_agc(reason=""):
+    """Reset hardware AGC to prevent drift/sleep"""
+    global last_agc_reset_time
+    
+    # Check cooldown
+    if time.time() - last_agc_reset_time < AGC_RESET_COOLDOWN:
+        return False
+    
+    try:
+        import usb.core
+        import sys
+        tuning_path = os.path.expanduser('~/usb_4_mic_array')
+        if tuning_path not in sys.path:
+            sys.path.insert(0, tuning_path)
+        from tuning import Tuning
+        usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+        if usb_dev:
+            tuning = Tuning(usb_dev)
+            # Force reset: OFF → ON with settings
+            tuning.write("AGCONOFF", 0)
+            time.sleep(0.2)
+            tuning.write("AGCONOFF", 1)
+            tuning.write("AGCDESIREDLEVEL", 0.03)
+            tuning.write("AGCMAXGAIN", 20.0)
+            last_agc_reset_time = time.time()
+            print(f"\n[Hardware] 🔄 AGC reset: {reason}")
+            return True
+    except Exception as e:
+        if "Access denied" in str(e) or "insufficient permissions" in str(e):
+            print(f"\n[Hardware] ⚠️  AGC reset failed: insufficient permissions")
+            print(f"[Hardware] 💡 Install boot-time tuning service (run once):")
+            print(f"[Hardware]    sudo bash scripts/install_auto_tune.sh")
+        else:
+            print(f"[Hardware] ❌ AGC reset failed: {e}")
+        return False
 
 # === Audio Processing Functions ===
 
@@ -324,21 +365,7 @@ def listen():
                 # Check if AGC needs reset after long idle
                 idle_time = time.time() - last_speech_time
                 if idle_time > AGC_KEEPALIVE_INTERVAL:
-                    try:
-                        import usb.core
-                        tuning_path = os.path.expanduser('~/usb_4_mic_array')
-                        if tuning_path not in sys.path:
-                            sys.path.insert(0, tuning_path)
-                        from tuning import Tuning
-                        usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
-                        if usb_dev:
-                            tuning = Tuning(usb_dev)
-                            tuning.write("AGCONOFF", 0)
-                            time.sleep(0.1)
-                            tuning.write("AGCONOFF", 1)
-                            print(f"\n[Hardware] 🔄 AGC reset after {idle_time:.0f}s idle")
-                    except:
-                        pass
+                    reset_hardware_agc(f"idle for {idle_time:.0f}s")
                     last_speech_time = time.time()
 
                 audio_block, _ = stream.read(FRAME_SIZE)
@@ -346,11 +373,15 @@ def listen():
                 # Extract channel 0 from 6-channel input
                 channel_0 = audio_block[:, 0]
                 
+                # Check if AGC has drifted too low
+                rms = np.sqrt(np.mean(channel_0 ** 2))
+                if rms > 0.001 and rms < AGC_MIN_RMS_THRESHOLD:  # Audio present but too quiet
+                    reset_hardware_agc(f"RMS too low ({rms:.4f} < {AGC_MIN_RMS_THRESHOLD})")
+                
                 # Run VAD
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 
                 if DEBUG_AUDIO_LEVELS:
-                    rms = np.sqrt(np.mean(channel_0 ** 2))
                     print(f"[Debug] VAD: {vad_prob:.2f}, RMS: {rms:.4f}", end="\r")
                 
                 if vad_prob > VAD_START_THRESHOLD:
@@ -399,28 +430,16 @@ def listen():
                 hw_peak = np.max(np.abs(mono_mix))
                 print(f"\n[Audio] 📊 FROM HARDWARE: RMS={hw_rms:.6f}, Peak={hw_peak:.4f}, Length={len(mono_mix)} samples")
                 
-                # Check if hardware AGC has drifted too low (indicates sleep/drift)
-                if hw_rms < 0.01:  # Way below 0.02 target
-                    print(f"[Hardware] ⚠️  AGC drifted too low (RMS={hw_rms:.6f}), resetting...")
-                    try:
-                        import usb.core
-                        import sys
-                        tuning_path = os.path.expanduser('~/usb_4_mic_array')
-                        if tuning_path not in sys.path:
-                            sys.path.insert(0, tuning_path)
-                        from tuning import Tuning
-                        usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
-                        if usb_dev:
-                            tuning = Tuning(usb_dev)
-                            # Force reset: OFF → ON with settings
-                            tuning.write("AGCONOFF", 0)
-                            time.sleep(0.2)
-                            tuning.write("AGCONOFF", 1)
-                            tuning.write("AGCDESIREDLEVEL", 0.03)
-                            tuning.write("AGCMAXGAIN", 20.0)
-                            print(f"[Hardware] ✅ AGC reset complete")
-                    except Exception as e:
-                        print(f"[Hardware] ❌ AGC reset failed: {e}")
+                # Check if audio is too quiet (AGC drift or noise, not speech)
+                if hw_rms < MIN_SPEECH_RMS:
+                    print(f"[Audio] ⚠️  RMS too low ({hw_rms:.6f} < {MIN_SPEECH_RMS}), skipping (likely noise/drift)")
+                    print(f"[Audio] 💡 Try speaking louder or closer to mic")
+                    
+                    # Also try to reset AGC for next time
+                    reset_hardware_agc(f"drift detected (RMS={hw_rms:.6f})")
+                    
+                    set_transcribing(False)
+                    continue
             
             # Apply software AGC boost
             if USE_SOFTWARE_AGC:
