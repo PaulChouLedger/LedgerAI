@@ -13,6 +13,7 @@ The noise profile will be saved to: data/noise_profile.npy
 """
 
 import sys
+import os
 import time
 import numpy as np
 import sounddevice as sd
