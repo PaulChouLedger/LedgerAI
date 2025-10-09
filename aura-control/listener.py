@@ -383,6 +383,10 @@ def listen():
                 else:
                     channel_0 = audio_block[:, 0]  # Extract channel 0
                 
+                # Check if we have enough samples for VAD (minimum 512 samples)
+                if len(channel_0) < 512:
+                    continue
+                
                 # Calculate RMS for debugging
                 rms = np.sqrt(np.mean(channel_0 ** 2))
                 # Note: Real-time AGC reset disabled (requires sudo)
@@ -415,6 +419,10 @@ def listen():
                     channel_0 = audio_block  # Already mono
                 else:
                     channel_0 = audio_block[:, 0]  # Extract channel 0
+                
+                # Check if we have enough samples for VAD (minimum 512 samples)
+                if len(channel_0) < 512:
+                    continue
                     
                 buffer.append(audio_block)
                 
