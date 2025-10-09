@@ -379,12 +379,13 @@ def listen():
                 
                 # Extract channel 0 (handle both 1-ch and multi-ch firmware)
                 if available_channels == 1:
-                    channel_0 = audio_block  # Already mono
+                    channel_0 = audio_block.flatten()  # Ensure 1D array
                 else:
                     channel_0 = audio_block[:, 0]  # Extract channel 0
                 
                 # Check if we have enough samples for VAD (minimum 512 samples)
-                if len(channel_0) < 512:
+                # VAD model requires: sr / samples > 31.25 → samples >= sr/31.25 = 512
+                if channel_0.size < 512:
                     continue
                 
                 # Calculate RMS for debugging
@@ -416,12 +417,12 @@ def listen():
                 
                 # Extract channel 0 (handle both 1-ch and multi-ch firmware)
                 if available_channels == 1:
-                    channel_0 = audio_block  # Already mono
+                    channel_0 = audio_block.flatten()  # Ensure 1D array
                 else:
                     channel_0 = audio_block[:, 0]  # Extract channel 0
                 
                 # Check if we have enough samples for VAD (minimum 512 samples)
-                if len(channel_0) < 512:
+                if channel_0.size < 512:
                     continue
                     
                 buffer.append(audio_block)
@@ -449,7 +450,7 @@ def listen():
             
             # Handle both 1-ch and multi-ch firmware
             if available_channels == 1:
-                mono_mix = full_audio  # Already mono
+                mono_mix = full_audio.flatten()  # Ensure 1D array
             else:
                 mono_mix = full_audio[:, 0]  # Extract channel 0
             
