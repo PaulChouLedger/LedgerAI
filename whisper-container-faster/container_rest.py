@@ -78,8 +78,8 @@ TEMPERATURE = 0.0                  # 0.0 = deterministic, 0.1+ = more creative
 PATIENCE = 1.0                     # Wait time for better results (increased for better accuracy)
 LENGTH_PENALTY = 1.0               # Slight penalty to prevent cutting off words
 
-# Load medical terms and build initial prompt dynamically
-INITIAL_PROMPT = load_medical_terms()
+# Simple initial prompt (medical vocabulary disabled for now)
+INITIAL_PROMPT = "This is a conversation."
 
 # Performance vs Accuracy Guide:
 # BEAM_SIZE=5:  ~1x latency, good accuracy
