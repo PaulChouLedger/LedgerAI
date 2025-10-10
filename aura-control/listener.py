@@ -18,11 +18,6 @@ VAD_START_THRESHOLD = 0.2
 VAD_SILENCE_THRESHOLD = 0.1  # Sensitive to detect speech continuation
 MIN_AUDIO_SAMPLES = 2000
 
-# Adaptive AGC (compress near-field only)
-AGC_NEAR_FIELD_THRESHOLD = 0.02  # RMS above this = near-field (compress)
-AGC_TARGET_RMS = 0.015  # Compress near-field down to this level
-AGC_ENABLED = True
-
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
@@ -44,49 +39,12 @@ def find_device_index():
 # === Load VAD ===
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
 
-# === Adaptive AGC ===
-def adaptive_agc(audio):
-    """
-    Smart AGC: Compress near-field, leave far-field alone
-    - Near-field (RMS > threshold): Compress down to prevent distortion
-    - Far-field (RMS < threshold): Leave as-is (already accurate)
-    """
-    current_rms = np.sqrt(np.mean(audio ** 2))
-    
-    if current_rms < 1e-6:
-        return audio, 1.0
-    
-    # Only compress if too loud (near-field)
-    if current_rms > AGC_NEAR_FIELD_THRESHOLD:
-        # Reduce gain to bring down to target
-        gain = AGC_TARGET_RMS / current_rms
-        audio = audio * gain
-        audio = np.clip(audio, -0.95, 0.95)
-        return audio, gain
-    
-    # Far-field: leave as-is
-    return audio, 1.0
-
 # === Transcribe ===
 def transcribe(audio):
-    """Send audio to Whisper with adaptive AGC"""
-    raw_rms = np.sqrt(np.mean(audio ** 2))
-    raw_peak = np.max(np.abs(audio))
-    print(f"[Audio] Raw: RMS={raw_rms:.6f}, Peak={raw_peak:.4f}, Duration={len(audio)/SAMPLE_RATE:.2f}s")
-    
-    # Apply adaptive AGC (compress near-field only)
-    if AGC_ENABLED:
-        audio, gain = adaptive_agc(audio)
-    else:
-        gain = 1.0
-    
-    final_rms = np.sqrt(np.mean(audio ** 2))
-    final_peak = np.max(np.abs(audio))
-    
-    if gain < 1.0:
-        print(f"[Audio] AGC: RMS={final_rms:.6f}, Peak={final_peak:.4f}, Gain={gain:.2f}x (near-field compression)")
-    else:
-        print(f"[Audio] No processing (far-field, already optimal)")
+    """Send raw audio to Whisper"""
+    rms = np.sqrt(np.mean(audio ** 2))
+    peak = np.max(np.abs(audio))
+    print(f"[Audio] RMS={rms:.6f}, Peak={peak:.4f}, Duration={len(audio)/SAMPLE_RATE:.2f}s")
     
     wav_io = io.BytesIO()
     sf.write(wav_io, audio, SAMPLE_RATE, format="WAV")
@@ -154,12 +112,8 @@ def listen():
     channels = find_device_index()
     
     print("\n" + "="*70)
-    if AGC_ENABLED:
-        print("[Audio] ADAPTIVE AGC MODE")
-        print(f"[Audio] Near-field (>{AGC_NEAR_FIELD_THRESHOLD} RMS): Compress to {AGC_TARGET_RMS}")
-        print(f"[Audio] Far-field (<{AGC_NEAR_FIELD_THRESHOLD} RMS): Leave as-is")
-    else:
-        print("[Audio] RAW MODE - No AGC")
+    print("[Audio] RAW MODE - No processing")
+    print("[Audio] 6-channel → channel 0 → Whisper")
     print("="*70 + "\n")
     
     with sd.InputStream(device=DEVICE_INDEX, channels=channels, samplerate=SAMPLE_RATE,
