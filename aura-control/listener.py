@@ -116,7 +116,9 @@ def highpass_filter(audio_data, cutoff=60, order=5):
     # Apply filter
     filtered = signal.filtfilt(b, a, audio_data)
     
-    return filtered
+    # Ensure positive strides for PyTorch compatibility
+    # filtfilt can return arrays with negative strides
+    return np.ascontiguousarray(filtered)
 
 # === Transcribe ===
 def transcribe(audio):
