@@ -188,8 +188,11 @@ def chat():
         # Check if this is a NEW triage session (just detected condition)
         if updated_state.get('is_new_triage'):
             print(f"[Triage] 🆕 NEW triage session - asking first question")
-            # Clear the new session flag
+            # Clear the new session flag AND SAVE immediately
             updated_state['is_new_triage'] = False
+            updated_state['step_index'] = 1  # We're asking step 0, so next answer goes to step 1
+            updated_state['last_key'] = get_steps(updated_state['condition'], updated_state)[0].get('key')
+            save_state(updated_state, session_id)  # CRITICAL: Save state before generating response
 
             condition = updated_state.get('condition')
             steps = get_steps(condition, updated_state)
