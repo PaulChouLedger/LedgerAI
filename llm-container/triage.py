@@ -140,12 +140,39 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
     if not condition:
         return "Please describe your symptoms to begin triage.", state
 
+    current_step_index = state.get("step_index", 0)
+    steps = get_steps(condition, state)
+    
+    # Check if this is the very first question (NEW triage session)
+    if current_step_index == 0 and len(state.get("answers", [])) == 0:
+        # First trigger - ask the first question without processing an answer
+        first_step = steps[0] if steps else None
+        if first_step:
+            question = first_step.get("question", "")
+            
+            # Apply NLG rewriting
+            from nlg import rewrite
+            rewritten_question = rewrite(
+                question,
+                "question",
+                {
+                    "name": state.get("user_name"),
+                    "condition": state["condition"],
+                    "key": first_step.get("key"),
+                    "allowed_answers": list(first_step.get("answers", {}).keys())
+                },
+                state.get("phrasing_history", []),
+                lambda messages, gen_kwargs: {"content": question}
+            )
+            
+            final_question = substitute_name(rewritten_question, state.get("user_name"))
+            return final_question, state
+    
+    # Normal flow - process answer and advance
     # Add answer to state
     state["answers"].append(prompt)
 
     # Update flags from the answer
-    current_step_index = state.get("step_index", 0)
-    steps = get_steps(condition, state)
     current_step = steps[current_step_index] if current_step_index < len(steps) else None
 
     if current_step:
@@ -496,6 +523,8 @@ def load_state(session_id: str) -> Dict[str, Any]:
         if os.path.exists(state_file):
             with open(state_file, 'r') as f:
                 state = json.load(f)
+            
+            print(f"[State] 📂 Loaded state for {session_id}: condition={state.get('condition')}, step={state.get('step_index')}")
 
             # Check if state is stale
             if triage_is_stale(state):
@@ -507,6 +536,7 @@ def load_state(session_id: str) -> Dict[str, Any]:
 
             return state
         else:
+            print(f"[State] 📂 No state file found for {session_id}, creating new")
             return {"condition": None, "step_index": 0, "answers": [], "flags": {},
                    "last_key": None, "user_name": None, "active_pathway": None,
                    "entered_pathway": False, "updated_at": None, "phrasing_history": [],
@@ -541,6 +571,8 @@ def save_state(state: Dict[str, Any], session_id: str):
 
         with open(state_file, 'w') as f:
             json.dump(state, f, indent=2)
+        
+        print(f"[State] 💾 Saved state for {session_id}: condition={state.get('condition')}, step={state.get('step_index')}")
 
     except Exception as e:
         print(f"[Triage] ❌ Error saving state for session {session_id}: {e}")
