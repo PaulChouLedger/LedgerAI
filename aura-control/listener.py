@@ -24,6 +24,10 @@ DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
 prompt_history = []
 
+# Stream refresh interval (prevents idle staleness)
+STREAM_REFRESH_INTERVAL = 30.0  # Refresh stream after 30s idle
+last_activity_time = 0
+
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
 # === Find Device ===
@@ -226,10 +230,36 @@ def listen():
                 if is_playing():
                     break
                 
+                # Check if stream needs refresh after long idle
+                global last_activity_time
+                idle_time = time.time() - last_activity_time
+                if idle_time > STREAM_REFRESH_INTERVAL:
+                    print(f"\n[Listener] 🔄 Refreshing stream after {idle_time:.0f}s idle...")
+                    stream.stop()
+                    time.sleep(0.1)
+                    stream.start()
+                    # Flush stale buffer
+                    for _ in range(3):
+                        try:
+                            stream.read(FRAME_SIZE)
+                        except:
+                            break
+                    print("[Listener] ✅ Stream refreshed")
+                    last_activity_time = time.time()
+                
                 try:
                     audio_block, _ = stream.read(FRAME_SIZE)
                 except Exception as e:
-                    print(f"[Listener] ⚠️  Error: {e}")
+                    print(f"\n[Listener] ⚠️  Error: {e}")
+                    # Try to recover by refreshing stream
+                    try:
+                        stream.stop()
+                        time.sleep(0.1)
+                        stream.start()
+                        print("[Listener] 🔄 Stream restarted after error")
+                        last_activity_time = time.time()
+                    except:
+                        pass
                     time.sleep(0.1)
                     continue
                 
@@ -244,9 +274,10 @@ def listen():
                 print(f"[VAD] {vad_prob:.2f} | RMS {rms:.6f}", end="\r")
                 
                 if vad_prob > VAD_START_THRESHOLD:
-                    print(f"\n[VAD] 🔊 Speech started")
+                    print(f"\n[VAD] 🔊 Speech started (VAD={vad_prob:.2f}, RMS={rms:.6f})")
                     set_transcribing(True)
                     buffer.append(audio_block)
+                    last_activity_time = time.time()
                     break
             
             # === Record speech ===
