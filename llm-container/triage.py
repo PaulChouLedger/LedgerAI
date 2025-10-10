@@ -381,21 +381,31 @@ def get_pathway_detailed_symptom(cond: str, pathway: str, state: Dict[str, Any])
 def is_valid_answer(cond: str, key: str, ans: str, state: Dict[str, Any]) -> bool:
     """Check if answer is valid for question"""
     ans_norm = normalize_text(ans)
+    print(f"[Triage] 🔍 Validating answer: key='{key}', ans='{ans}' (norm='{ans_norm}')")
 
     if key and key.startswith("clarify_") and state.get("pending_clarify") and state["pending_clarify"].get("key") == key:
         opt, score = match_answer_option(ans_norm, state["pending_clarify"].get("answers", {}), use_synonyms=False, key=key)
+        print(f"[Triage] 🔍 Clarify validation: opt='{opt}', score={score}, threshold={MIN_MATCH}")
         return opt and score >= MIN_MATCH
 
     steps = get_steps(cond, state)
+    print(f"[Triage] 🔍 Found {len(steps)} steps for condition '{cond}'")
+
     for s in steps:
         if isinstance(s, dict) and s.get("key") == key:
             answers = s.get("answers", {})
+            print(f"[Triage] 🔍 Checking step with key '{key}', answers: {answers}")
+
             # If answers is empty, accept any answer (like onset questions)
             if not answers:
+                print(f"[Triage] ✅ Empty answers - accepting any answer for '{key}'")
                 return True
+
             opt, score = match_answer_option(ans_norm, answers, key=key)
+            print(f"[Triage] 🔍 Answer matching: opt='{opt}', score={score}, threshold={MIN_MATCH}")
             return opt and score >= MIN_MATCH
 
+    print(f"[Triage] ❌ No step found with key '{key}'")
     return False
 
 
@@ -777,8 +787,12 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
     step_list = [s if isinstance(s, dict) else {"key": None, "question": str(s)} for s in steps]
     current_step = step_list[current_step_index] if current_step_index < len(step_list) else None
 
+    print(f"[Triage] 🔍 Processing step: condition={condition}, step_index={current_step_index}, last_key={state.get('last_key')}")
+    print(f"[Triage] 🔍 Steps: {len(steps)}, current_step: {current_step}")
+
     if current_step:
         current_key = state.get("last_key") or current_step.get("key")
+        print(f"[Triage] 🔍 Current key: {current_key}, prompt: '{prompt}'")
 
         # Validate answer before accepting (OLD LOGIC)
         if current_key and not is_valid_answer(condition, current_key, prompt, state):
@@ -787,12 +801,14 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
             return f"I didn't quite catch that. {substitute_name(current_step.get('question', ''), state.get('user_name'))}", state
 
         # Answer is valid - add it and update flags
+        print(f"[Triage] ✅ Valid answer, adding to state")
         state["answers"].append(prompt)
 
         if current_key:
             update_flags_from_answer(condition, current_key, prompt, state, session_id)
 
         # Advance to next step
+        print(f"[Triage] 🔄 Advancing from step {current_step_index} to {current_step_index + 1}")
         state["step_index"] = current_step_index + 1
     
     # Get next step
