@@ -116,9 +116,9 @@ def highpass_filter(audio_data, cutoff=60, order=5):
     # Apply filter
     filtered = signal.filtfilt(b, a, audio_data)
     
-    # Ensure positive strides for PyTorch compatibility
-    # filtfilt can return arrays with negative strides
-    return np.ascontiguousarray(filtered)
+    # Ensure positive strides and correct dtype for PyTorch compatibility
+    # filtfilt returns float64, but VAD model expects float32
+    return np.ascontiguousarray(filtered, dtype=np.float32)
 
 # === Transcribe ===
 def transcribe(audio):
