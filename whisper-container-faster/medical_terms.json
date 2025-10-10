@@ -1,0 +1,152 @@
+{
+  "cardiovascular": [
+    "myocardial infarction", "MI", "heart attack", "angina", "pectoris",
+    "hypertension", "hypotension", "arrhythmia", "atrial fibrillation", "AFib",
+    "bradycardia", "tachycardia", "palpitations", "congestive heart failure", "CHF",
+    "coronary artery disease", "CAD", "atherosclerosis", "cardiomyopathy",
+    "endocarditis", "pericarditis", "valvular disease", "aortic stenosis",
+    "mitral regurgitation", "deep vein thrombosis", "DVT", "pulmonary embolism", "PE",
+    "peripheral artery disease", "PAD", "aneurysm", "stroke", "CVA", "TIA"
+  ],
+  "respiratory": [
+    "pneumonia", "bronchitis", "asthma", "COPD", "emphysema",
+    "chronic obstructive pulmonary disease", "tuberculosis", "TB",
+    "pulmonary fibrosis", "pleural effusion", "pneumothorax", "atelectasis",
+    "dyspnea", "shortness of breath", "SOB", "wheezing", "cough",
+    "hemoptysis", "hypoxia", "respiratory failure", "acute respiratory distress",
+    "ARDS", "sleep apnea", "pulmonary hypertension", "sarcoidosis",
+    "bronchiectasis", "laryngitis", "pharyngitis", "sinusitis", "rhinitis"
+  ],
+  "gastrointestinal": [
+    "gastroesophageal reflux disease", "GERD", "peptic ulcer", "gastritis",
+    "inflammatory bowel disease", "IBD", "Crohn's disease", "ulcerative colitis",
+    "irritable bowel syndrome", "IBS", "diverticulitis", "diverticulosis",
+    "appendicitis", "cholecystitis", "pancreatitis", "hepatitis", "cirrhosis",
+    "ascites", "jaundice", "nausea", "vomiting", "diarrhea", "constipation",
+    "dysphagia", "hemorrhoids", "celiac disease", "gastroenteritis",
+    "bowel obstruction", "paralytic ileus", "esophageal varices",
+    "Mallory Weiss tear", "Barrett's esophagus", "fatty liver disease", "NAFLD"
+  ],
+  "renal": [
+    "acute kidney injury", "AKI", "chronic kidney disease", "CKD",
+    "end stage renal disease", "ESRD", "glomerulonephritis", "nephrotic syndrome",
+    "nephritic syndrome", "pyelonephritis", "urinary tract infection", "UTI",
+    "cystitis", "interstitial nephritis", "renal calculi", "kidney stones",
+    "hydronephrosis", "renal artery stenosis", "polycystic kidney disease", "PKD",
+    "hematuria", "proteinuria", "dysuria", "oliguria", "anuria", "polyuria",
+    "nocturia", "uremia", "dialysis", "hemodialysis", "peritoneal dialysis"
+  ],
+  "endocrine": [
+    "diabetes mellitus", "type 1 diabetes", "type 2 diabetes", "DM",
+    "diabetic ketoacidosis", "DKA", "hyperglycemia", "hypoglycemia",
+    "hypothyroidism", "hyperthyroidism", "Graves disease", "Hashimoto's thyroiditis",
+    "thyroid nodule", "goiter", "Cushing's syndrome", "Addison's disease",
+    "hypercalcemia", "hypocalcemia", "hyperkalemia", "hypokalemia",
+    "hypernatremia", "hyponatremia", "metabolic syndrome", "obesity",
+    "pituitary adenoma", "acromegaly", "diabetes insipidus", "SIADH",
+    "adrenal insufficiency", "hyperparathyroidism", "hypoparathyroidism"
+  ],
+  "neurological": [
+    "stroke", "cerebrovascular accident", "CVA", "transient ischemic attack", "TIA",
+    "seizure", "epilepsy", "status epilepticus", "migraine", "headache",
+    "tension headache", "cluster headache", "Alzheimer's disease", "dementia",
+    "Parkinson's disease", "multiple sclerosis", "MS", "myasthenia gravis",
+    "Guillain Barre syndrome", "peripheral neuropathy", "diabetic neuropathy",
+    "radiculopathy", "sciatica", "carpal tunnel syndrome", "Bell's palsy",
+    "encephalitis", "meningitis", "subdural hematoma", "epidural hematoma",
+    "subarachnoid hemorrhage", "hydrocephalus", "brain tumor", "glioblastoma",
+    "ALS", "amyotrophic lateral sclerosis", "tremor", "ataxia", "vertigo", "syncope"
+  ],
+  "musculoskeletal": [
+    "osteoarthritis", "rheumatoid arthritis", "RA", "gout", "pseudogout",
+    "osteoporosis", "osteopenia", "fracture", "sprain", "strain",
+    "tendinitis", "bursitis", "rotator cuff tear", "meniscus tear", "ACL tear",
+    "herniated disc", "degenerative disc disease", "spinal stenosis", "scoliosis",
+    "kyphosis", "lordosis", "fibromyalgia", "polymyalgia rheumatica",
+    "ankylosing spondylitis", "lumbar radiculopathy", "cervical radiculopathy",
+    "plantar fasciitis", "tennis elbow", "golfer's elbow", "compartment syndrome",
+    "osteomyelitis", "septic arthritis", "rhabdomyolysis", "myositis"
+  ],
+  "dermatology": [
+    "eczema", "psoriasis", "dermatitis", "contact dermatitis", "atopic dermatitis",
+    "urticaria", "hives", "angioedema", "cellulitis", "abscess", "furuncle",
+    "impetigo", "folliculitis", "acne", "rosacea", "seborrheic dermatitis",
+    "tinea", "ringworm", "candidiasis", "herpes simplex", "herpes zoster", "shingles",
+    "melanoma", "basal cell carcinoma", "squamous cell carcinoma", "actinic keratosis",
+    "vitiligo", "alopecia", "erythema nodosum", "Stevens Johnson syndrome",
+    "toxic epidermal necrolysis", "pemphigus", "bullous pemphigoid", "scabies"
+  ],
+  "hematology": [
+    "anemia", "iron deficiency anemia", "pernicious anemia", "sickle cell disease",
+    "thalassemia", "hemolytic anemia", "aplastic anemia", "leukemia",
+    "acute myeloid leukemia", "AML", "acute lymphoblastic leukemia", "ALL",
+    "chronic myeloid leukemia", "CML", "chronic lymphocytic leukemia", "CLL",
+    "lymphoma", "Hodgkin lymphoma", "non Hodgkin lymphoma", "multiple myeloma",
+    "thrombocytopenia", "ITP", "thrombocytosis", "polycythemia vera",
+    "hemophilia", "von Willebrand disease", "disseminated intravascular coagulation", "DIC",
+    "hypercoagulable state", "pancytopenia", "neutropenia", "leukocytosis"
+  ],
+  "infectious_disease": [
+    "sepsis", "septic shock", "bacteremia", "viremia", "endocarditis",
+    "osteomyelitis", "abscess", "cellulitis", "necrotizing fasciitis",
+    "COVID-19", "coronavirus", "influenza", "flu", "pneumonia",
+    "urinary tract infection", "UTI", "pyelonephritis", "meningitis",
+    "encephalitis", "HIV", "AIDS", "hepatitis A", "hepatitis B", "hepatitis C",
+    "mononucleosis", "mono", "Epstein Barr virus", "EBV", "cytomegalovirus", "CMV",
+    "tuberculosis", "TB", "Lyme disease", "malaria", "fungal infection",
+    "candidiasis", "aspergillosis", "clostridium difficile", "C diff"
+  ],
+  "psychiatric": [
+    "depression", "major depressive disorder", "MDD", "bipolar disorder",
+    "manic episode", "hypomanic episode", "anxiety disorder", "generalized anxiety", "GAD",
+    "panic disorder", "panic attack", "post traumatic stress disorder", "PTSD",
+    "obsessive compulsive disorder", "OCD", "schizophrenia", "psychosis",
+    "schizoaffective disorder", "delirium", "dementia", "insomnia",
+    "sleep disorder", "attention deficit hyperactivity disorder", "ADHD",
+    "autism spectrum disorder", "ASD", "anorexia nervosa", "bulimia nervosa",
+    "substance use disorder", "alcohol use disorder", "opioid use disorder",
+    "withdrawal", "suicidal ideation"
+  ],
+  "genitourinary": [
+    "benign prostatic hyperplasia", "BPH", "prostatitis", "prostate cancer",
+    "erectile dysfunction", "ED", "testicular torsion", "epididymitis",
+    "orchitis", "varicocele", "hydrocele", "urinary incontinence",
+    "overactive bladder", "urinary retention", "kidney stones", "renal calculi",
+    "ovarian cyst", "polycystic ovary syndrome", "PCOS", "endometriosis",
+    "pelvic inflammatory disease", "PID", "fibroids", "uterine fibroids",
+    "cervical cancer", "ovarian cancer", "endometrial cancer", "breast cancer",
+    "menorrhagia", "dysmenorrhea", "amenorrhea", "vaginitis", "bacterial vaginosis"
+  ],
+  "ophthalmology": [
+    "glaucoma", "cataracts", "macular degeneration", "diabetic retinopathy",
+    "retinal detachment", "uveitis", "conjunctivitis", "pink eye", "keratitis",
+    "corneal ulcer", "blepharitis", "stye", "chalazion", "amblyopia", "lazy eye",
+    "strabismus", "optic neuritis", "papilledema", "presbyopia", "myopia",
+    "hyperopia", "astigmatism", "dry eye syndrome", "vitreous hemorrhage"
+  ],
+  "ent": [
+    "otitis media", "ear infection", "otitis externa", "swimmer's ear",
+    "tinnitus", "hearing loss", "vertigo", "Meniere's disease",
+    "benign paroxysmal positional vertigo", "BPPV", "sinusitis", "rhinitis",
+    "allergic rhinitis", "nasal polyps", "epistaxis", "nosebleed",
+    "pharyngitis", "strep throat", "tonsillitis", "laryngitis", "vocal cord nodules",
+    "epiglottitis", "peritonsillar abscess", "thyroid nodule", "goiter"
+  ],
+  "common_symptoms": [
+    "fever", "chills", "fatigue", "weakness", "malaise", "pain", "chest pain",
+    "abdominal pain", "nausea", "vomiting", "diarrhea", "constipation",
+    "dyspnea", "shortness of breath", "cough", "headache", "dizziness",
+    "syncope", "palpitations", "edema", "swelling", "rash", "pruritus", "itching",
+    "weight loss", "weight gain", "night sweats", "altered mental status", "confusion"
+  ],
+  "medications": [
+    "aspirin", "acetaminophen", "Tylenol", "ibuprofen", "naproxen", "NSAID",
+    "metformin", "insulin", "lisinopril", "losartan", "amlodipine", "metoprolol",
+    "atorvastatin", "simvastatin", "statin", "warfarin", "Coumadin", "apixaban",
+    "rivaroxaban", "clopidogrel", "Plavix", "omeprazole", "pantoprazole", "PPI",
+    "albuterol", "inhaler", "prednisone", "steroid", "levothyroxine", "Synthroid",
+    "gabapentin", "pregabalin", "oxycodone", "hydrocodone", "morphine",
+    "antibiotic", "amoxicillin", "azithromycin", "ciprofloxacin", "doxycycline"
+  ]
+}
+

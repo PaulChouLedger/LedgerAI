@@ -7,7 +7,6 @@ import soundfile as sf
 import sounddevice as sd
 import requests
 import subprocess
-from scipy import signal
 from speaker import speak_llm_response, is_playing
 from aura_gui import set_transcribing
 
@@ -19,10 +18,6 @@ VAD_START_THRESHOLD = 0.35  # Higher = less sensitive to fan noise
 VAD_SILENCE_THRESHOLD = 0.05  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
 MIN_SPEECH_RMS = 0.008  # Filter out low-level noise (more permissive for AGC)
-
-# High-pass filter to remove low-frequency noise (60Hz hum, rumble)
-USE_HIGHPASS_FILTER = True
-HIGHPASS_CUTOFF = 200  # Hz - removes bass noise below this frequency (higher cutoff for better speech preservation)
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -51,7 +46,7 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 
 # === Configure ReSpeaker Hardware ===
 def configure_respeaker_hardware():
-    """Enable stationary noise suppression for fan noise"""
+    """Configure ReSpeaker: Hardware HPF → AGC pipeline (filter before amplify)"""
     try:
         import sys
         import usb.core
@@ -68,57 +63,27 @@ def configure_respeaker_hardware():
         
         tuning = Tuning(dev)
         
-        print("[Hardware] 🔧 Enabling stationary noise suppression (fan noise rejection)...")
+        print("[Hardware] 🔧 Configuring ReSpeaker (filter then amplify)...")
         
-        # Enable stationary noise suppression (targets constant noise like fans)
-        tuning.write("STATNOISEONOFF_SR", 1)  # Enable
-        tuning.write("GAMMA_NS", 3.0)          # Aggressiveness (1.0-3.0)
+        # Enable hardware high-pass filter BEFORE AGC (removes noise before amplification)
+        tuning.write("HPFONOFF", 1)  # Enable hardware HPF (runs before AGC)
+        
+        # Disable aggressive noise suppression (causes artifacts)
+        tuning.write("STATNOISEONOFF_SR", 0)
+        tuning.write("NONSTATNOISEONOFF_SR", 0)
+        tuning.write("ECHOONOFF", 0)
         
         # Enable AGC with more aggressive settings for quiet speech
+        # This now amplifies CLEAN signal (after HPF removes noise)
         tuning.write("AGCONOFF", 1)
         tuning.write("AGCDESIREDLEVEL", 0.08)  # Higher target level
         tuning.write("AGCMAXGAIN", 30.0)      # More gain available
         
-        # Disable non-stationary noise suppression and echo cancellation
-        tuning.write("NONSTATNOISEONOFF_SR", 0)
-        tuning.write("ECHOONOFF", 0)
-        tuning.write("HPFONOFF", 0)
-        
-        print("[Hardware] ✅ Fan noise suppression enabled")
+        print("[Hardware] ✅ Hardware HPF → AGC pipeline configured")
         
     except Exception as e:
         print(f"[Hardware] ⚠️  Configuration failed: {e}")
         print(f"[Hardware] 💡 Continuing without hardware noise suppression...")
-
-# === High-pass Filter ===
-def highpass_filter(audio_data, cutoff=HIGHPASS_CUTOFF, order=5):
-    """
-    Apply high-pass Butterworth filter to remove low-frequency noise
-
-    Removes:
-    - 60Hz power line hum
-    - Low-frequency rumble (<60Hz)
-    - Fan noise
-
-    Preserves:
-    - Voice frequencies (typically 80-8000 Hz)
-    """
-    if not USE_HIGHPASS_FILTER:
-        return audio_data
-
-    # Design Butterworth high-pass filter
-    nyquist = SAMPLE_RATE / 2
-    normal_cutoff = cutoff / nyquist
-    
-    # Get filter coefficients
-    b, a = signal.butter(order, normal_cutoff, btype='high', analog=False)
-    
-    # Apply filter
-    filtered = signal.filtfilt(b, a, audio_data)
-    
-    # Ensure positive strides and correct dtype for PyTorch compatibility
-    # filtfilt returns float64, but VAD model expects float32
-    return np.ascontiguousarray(filtered, dtype=np.float32)
 
 # === Transcribe ===
 def transcribe(audio):
@@ -195,14 +160,16 @@ def listen():
     
     channels = find_device_index()
     
-    # Configure hardware noise suppression
+    # Configure hardware HPF → AGC pipeline (filter BEFORE amplify)
     configure_respeaker_hardware()
     
     print("\n" + "="*70)
-    print("[Audio] Stationary Noise Suppression ENABLED (fan noise rejection)")
-    if USE_HIGHPASS_FILTER:
-        print(f"[Audio] High-Pass Filter ENABLED ({HIGHPASS_CUTOFF}Hz cutoff)")
-    print("[Audio] 6-channel → channel 0 → Whisper")
+    print("[Audio] SIGNAL PROCESSING PIPELINE:")
+    print("[Audio]   1. Hardware HPF in DSP (removes low-freq noise FIRST)")
+    print("[Audio]   2. Hardware AGC in DSP (amplifies clean signal)")
+    print("[Audio]   3. Channel 0 selection (6ch → 1ch)")
+    print("[Audio]   4. VAD → Whisper")
+    print("[Audio] ✅ Optimal: Hardware filtering BEFORE amplification")
     print("="*70 + "\n")
     
     # ARM/Jetson-specific audio configuration
@@ -308,14 +275,9 @@ def listen():
                 if channel_0.size < 512:
                     continue
                 
-                # Apply high-pass filter to remove low-frequency noise before VAD
-                if USE_HIGHPASS_FILTER and len(channel_0) >= 64:  # Need enough samples for filter
-                    channel_0_filtered = highpass_filter(channel_0, cutoff=HIGHPASS_CUTOFF)
-                else:
-                    channel_0_filtered = channel_0
-                
-                vad_prob = model_vad(torch.from_numpy(channel_0_filtered), SAMPLE_RATE).item()
-                rms = np.sqrt(np.mean(channel_0_filtered ** 2))
+                # Hardware HPF already applied in ReSpeaker DSP
+                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
+                rms = np.sqrt(np.mean(channel_0 ** 2))
                 
                 print(f"[VAD] {vad_prob:.2f} | RMS {rms:.6f}", end="\r")
                 
@@ -346,13 +308,8 @@ def listen():
                 
                 buffer.append(audio_block)
                 
-                # Apply high-pass filter to remove low-frequency noise before VAD
-                if USE_HIGHPASS_FILTER and len(channel_0) >= 64:
-                    channel_0_filtered = highpass_filter(channel_0, cutoff=HIGHPASS_CUTOFF)
-                else:
-                    channel_0_filtered = channel_0
-                
-                vad_prob = model_vad(torch.from_numpy(channel_0_filtered), SAMPLE_RATE).item()
+                # Hardware HPF already applied in ReSpeaker DSP
+                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 
                 if vad_prob < VAD_SILENCE_THRESHOLD:
                     if silence_start is None:
@@ -375,12 +332,9 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono = full_audio[:, 0]  # Channel 0 only
             
-            # Apply high-pass filter to remove low-frequency noise before transcription
-            if USE_HIGHPASS_FILTER:
-                mono_filtered = highpass_filter(mono, cutoff=HIGHPASS_CUTOFF)
-                print(f"[Filter] 🎚️  Applied {HIGHPASS_CUTOFF}Hz high-pass filter")
-            else:
-                mono_filtered = mono
+            # Hardware HPF already applied in ReSpeaker DSP (before AGC)
+            # No software filtering needed
+            mono_filtered = mono
             
             # Check if audio RMS is too low (likely fan noise, not speech)
             rms = np.sqrt(np.mean(mono_filtered ** 2))

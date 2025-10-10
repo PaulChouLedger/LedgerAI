@@ -9,6 +9,67 @@ import numpy as np
 import scipy.signal
 import tempfile
 import time
+import json
+from pathlib import Path
+
+# === Medical Vocabulary Management ===
+def load_medical_terms():
+    """Load medical terms from JSON file and build initial prompt"""
+    medical_terms_file = Path("/app/medical_terms.json")
+    
+    if not medical_terms_file.exists():
+        print("[Whisper] ⚠️ Medical terms file not found, using basic prompt")
+        return "This is a medical conversation. Proper names and technical medical terms are important."
+    
+    try:
+        with open(medical_terms_file, 'r') as f:
+            terms_dict = json.load(f)
+        
+        # Sample terms from each category to build a concise but comprehensive prompt
+        # We'll include high-priority organ systems and common terms
+        priority_systems = ["cardiovascular", "respiratory", "gastrointestinal", 
+                           "endocrine", "neurological", "common_symptoms", "medications"]
+        
+        sampled_terms = []
+        for system in priority_systems:
+            if system in terms_dict:
+                # Take first 5 terms from each priority system
+                sampled_terms.extend(terms_dict[system][:5])
+        
+        # Build the prompt
+        terms_str = ", ".join(sampled_terms[:40])  # Limit to ~40 terms to keep prompt reasonable
+        prompt = f"This is a medical conversation. Common terms include: {terms_str}. Proper names and technical medical terms are important."
+        
+        print(f"[Whisper] 📚 Loaded {sum(len(v) for v in terms_dict.values())} medical terms from {len(terms_dict)} categories")
+        return prompt
+        
+    except Exception as e:
+        print(f"[Whisper] ⚠️ Error loading medical terms: {e}")
+        return "This is a medical conversation. Proper names and technical medical terms are important."
+
+def save_medical_term(term, category="learned"):
+    """Add a new medical term to the vocabulary (for future learning capability)"""
+    medical_terms_file = Path("/app/medical_terms.json")
+    
+    try:
+        with open(medical_terms_file, 'r') as f:
+            terms_dict = json.load(f)
+        
+        if category not in terms_dict:
+            terms_dict[category] = []
+        
+        if term.lower() not in [t.lower() for t in terms_dict[category]]:
+            terms_dict[category].append(term)
+            
+            with open(medical_terms_file, 'w') as f:
+                json.dump(terms_dict, f, indent=2)
+            
+            print(f"[Whisper] 📝 Added new term '{term}' to category '{category}'")
+            return True
+    except Exception as e:
+        print(f"[Whisper] ⚠️ Error saving term: {e}")
+    
+    return False
 
 # === Transcription Configuration ===
 # Tune these parameters for your needs:
@@ -16,7 +77,9 @@ BEAM_SIZE = 10                     # Higher = better accuracy, slower (5=fast, 1
 TEMPERATURE = 0.0                  # 0.0 = deterministic, 0.1+ = more creative
 PATIENCE = 1.0                     # Wait time for better results (increased for better accuracy)
 LENGTH_PENALTY = 1.0               # Slight penalty to prevent cutting off words
-INITIAL_PROMPT = "This is a conversation about people and medical information. Proper names and technical terms are important."
+
+# Load medical terms and build initial prompt dynamically
+INITIAL_PROMPT = load_medical_terms()
 
 # Performance vs Accuracy Guide:
 # BEAM_SIZE=5:  ~1x latency, good accuracy
@@ -249,6 +312,60 @@ def health():
             "overall_efficiency_rtf": round(overall_efficiency, 2)
         }
     })
+
+@app.route("/add_medical_term", methods=["POST"])
+def add_medical_term():
+    """Add a new medical term to the vocabulary"""
+    data = request.json
+    
+    if not data or "term" not in data:
+        return jsonify({"error": "Missing 'term' in request"}), 400
+    
+    term = data["term"]
+    category = data.get("category", "learned")
+    
+    success = save_medical_term(term, category)
+    
+    if success:
+        # Reload the prompt with new terms
+        global INITIAL_PROMPT
+        INITIAL_PROMPT = load_medical_terms()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Added term '{term}' to category '{category}'",
+            "updated_prompt": INITIAL_PROMPT
+        })
+    else:
+        return jsonify({
+            "success": False,
+            "message": "Term already exists or error occurred"
+        })
+
+@app.route("/medical_terms", methods=["GET"])
+def get_medical_terms():
+    """Get all medical terms organized by category"""
+    medical_terms_file = Path("/app/medical_terms.json")
+    
+    if not medical_terms_file.exists():
+        return jsonify({"error": "Medical terms file not found"}), 404
+    
+    try:
+        with open(medical_terms_file, 'r') as f:
+            terms_dict = json.load(f)
+        
+        # Calculate statistics
+        total_terms = sum(len(v) for v in terms_dict.values())
+        
+        return jsonify({
+            "total_terms": total_terms,
+            "categories": len(terms_dict),
+            "terms_by_category": {k: len(v) for k, v in terms_dict.items()},
+            "current_prompt": INITIAL_PROMPT,
+            "all_terms": terms_dict
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
