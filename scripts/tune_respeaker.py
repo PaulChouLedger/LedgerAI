@@ -3,15 +3,15 @@
 ReSpeaker 4 Mic Array Tuner
 
 Configures the hardware DSP on the ReSpeaker for optimal
-far-field speech recognition (ASR).
+speech recognition (ASR).
 
 Usage:
     sudo python3 scripts/tune_respeaker.py [preset]
     
 Presets:
-    - far_field: Optimized for 8-16 feet (default)
+    - reset: Restore factory defaults (default)
+    - far_field: Optimized for 8-16 feet
     - near_field: Optimized for 1-6 feet
-    - reset: Restore factory defaults
     - show: Show current settings
 """
 
@@ -206,8 +206,8 @@ def show_current_settings():
             else:
                 display = f"{value}"
             print(f"  {label:<25} {display}")
-        except:
-            print(f"  {label:<25} ERROR")
+        except Exception as e:
+            print(f"  {label:<25} ERROR: {e}")
     
     print("\n" + "="*80 + "\n")
     
@@ -226,7 +226,7 @@ def main():
         print("\n" + "="*80 + "\n")
         return 1
     
-    preset = sys.argv[1] if len(sys.argv) > 1 else "far_field"
+    preset = sys.argv[1] if len(sys.argv) > 1 else "reset"
     
     print("\n" + "="*80)
     print("  🎙️  RESPEAKER 4 MIC ARRAY TUNER")
