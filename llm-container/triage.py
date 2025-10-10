@@ -772,18 +772,45 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
     if not condition:
         return "Please describe your symptoms to begin triage.", state
     
-    # Add answer
-    state["answers"].append(prompt)
-    
-    # Update flags
+    # Get current step info
     current_step_index = state.get("step_index", 0)
     steps = get_steps(condition, state)
     current_step = steps[current_step_index] if current_step_index < len(steps) else None
     
     if current_step:
+        current_key = current_step.get("key")
+        
+        # Validate answer before accepting
+        if current_step.get("answers"):  # Only validate if there are expected answers
+            if not is_valid_answer(condition, current_key, prompt, state):
+                print(f"[Triage] ❌ Invalid answer '{prompt}' for question '{current_key}'")
+                print(f"[Triage] 🔄 Re-asking question (expected one of: {list(current_step.get('answers', {}).keys())})")
+                
+                # Re-ask the same question with clarification
+                question = current_step.get("question", "")
+                from nlg import rewrite
+                rewritten_question = rewrite(
+                    f"I didn't quite catch that. {question}",
+                    "question",
+                    {
+                        "name": state.get("user_name"),
+                        "condition": state["condition"],
+                        "key": current_key,
+                        "allowed_answers": list(current_step.get("answers", {}).keys())
+                    },
+                    state.get("phrasing_history", []),
+                    lambda messages, gen_kwargs: {"content": question}
+                )
+                
+                return substitute_name(rewritten_question, state.get("user_name")), state
+    
+    # Answer is valid - add it and update flags
+    state["answers"].append(prompt)
+    
+    if current_step:
         update_flags_from_answer(condition, current_step.get("key"), prompt, state, session_id)
     
-    # Advance
+    # Advance to next step
     state["step_index"] = current_step_index + 1
     
     # Get next step
