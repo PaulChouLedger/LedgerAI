@@ -102,6 +102,11 @@ def detect_condition(prompt: str, session_id: str | None = None) -> Optional[str
     p_expanded = apply_synonym_expansion(p)
     print(f"[Triage] 🔄 Expanded prompt: '{p_expanded}'")
     print(f"[Triage] 🔍 Checking for triage triggers in: '{p_expanded}'")
+    
+    # Filter out empty or punctuation-only prompts
+    if not p_expanded or len(p_expanded) < 3 or p_expanded.strip(string.punctuation + string.whitespace) == "":
+        print(f"[Triage] ❌ Prompt too short or empty after normalization")
+        return None
 
     # Check each condition's triggers
     for condition_name, condition_def in TRIAGE_DEFS.items():
