@@ -21,12 +21,12 @@ MIN_SPEECH_RMS = 0.008  # Filter out low-level noise (more permissive for AGC)
 
 # === AGC Testing Configuration ===
 # Enable/disable hardware AGC (in ReSpeaker DSP chip)
-USE_HARDWARE_AGC = True
+USE_HARDWARE_AGC = False  # DISABLED - testing without AGC
 HARDWARE_AGC_TARGET = 0.08  # Target RMS level (0.01-0.99)
 HARDWARE_AGC_MAX_GAIN = 30.0  # Maximum gain in dB
 
 # Enable/disable software AGC (in Python after audio capture)
-USE_SOFTWARE_AGC = False
+USE_SOFTWARE_AGC = False  # DISABLED - testing raw audio first
 SOFTWARE_AGC_TARGET = 0.1  # Target RMS level for normalization
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"

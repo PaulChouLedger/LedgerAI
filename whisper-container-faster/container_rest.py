@@ -192,7 +192,7 @@ def transcribe():
         try:
             # Using configurable transcription parameters
             print(f"[Whisper] 🧠 Starting transcription...")
-            segments, _ = model.transcribe(
+            segments, info = model.transcribe(
                 audio, 
                 language="en",
                 beam_size=BEAM_SIZE,
@@ -215,7 +215,7 @@ def transcribe():
                 torch.cuda.empty_cache()
                 print(f"[Whisper] 🔄 Cleared GPU memory, retrying...")
                 try:
-                    segments, _ = model.transcribe(
+                    segments, info = model.transcribe(
                         audio, 
                         language="en",
                         beam_size=BEAM_SIZE,
