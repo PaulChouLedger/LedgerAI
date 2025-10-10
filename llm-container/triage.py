@@ -142,10 +142,14 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
 
     current_step_index = state.get("step_index", 0)
     steps = get_steps(condition, state)
+    answers_count = len(state.get("answers", []))
+    
+    print(f"[Triage] 🔍 Processing step: step_index={current_step_index}, answers_count={answers_count}")
     
     # Check if this is the very first question (NEW triage session)
-    if current_step_index == 0 and len(state.get("answers", [])) == 0:
+    if current_step_index == 0 and answers_count == 0:
         # First trigger - ask the first question without processing an answer
+        print(f"[Triage] 🆕 First question - asking step 0 without advancing")
         first_step = steps[0] if steps else None
         if first_step:
             question = first_step.get("question", "")
@@ -169,6 +173,8 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
             return final_question, state
     
     # Normal flow - process answer and advance
+    print(f"[Triage] ⏭️  Processing answer '{prompt}' for step {current_step_index}")
+    
     # Add answer to state
     state["answers"].append(prompt)
 
@@ -176,10 +182,12 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
     current_step = steps[current_step_index] if current_step_index < len(steps) else None
 
     if current_step:
+        print(f"[Triage] 🔍 Updating flags for key '{current_step.get('key')}'")
         update_flags_from_answer(condition, current_step.get("key"), prompt, state, session_id)
 
     # Advance to next step
     state["step_index"] = current_step_index + 1
+    print(f"[Triage] ➡️  Advanced to step {state['step_index']}")
 
     # Get next step
     if state["step_index"] < len(steps):
