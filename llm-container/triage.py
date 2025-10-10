@@ -346,6 +346,18 @@ def match_all_options(ans_norm: str, valid_map: Dict[str, str]) -> List[str]:
 
 # === Pathway and Flag Management ===
 
+def get_intro(cond: str, state: Dict[str, Any]) -> str:
+    """Get intro message for condition"""
+    intro = TRIAGE_DEFS[cond].get("intro", "Let me ask you a few questions.")
+    # Substitute {name} placeholder if present
+    user_name = state.get("user_name")
+    if user_name and "{name}" in intro:
+        intro = intro.replace("{name}", user_name)
+    elif "{name}" in intro:
+        intro = intro.replace("{name}, ", "")  # Remove name placeholder if no name
+    return intro
+
+
 def get_steps(cond: str, state: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Get steps for condition (considers active pathway)"""
     steps = TRIAGE_DEFS[cond].get("steps", [])
@@ -555,7 +567,7 @@ def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: 
             else:
                 ans_out = raw
         
-        # Handle pathway routing
+               # Handle pathway routing
         if ans_out.endswith("_pathway"):
             display_name = ans_out.replace("_pathway", "").replace("_", " ").title()
             line = templ.format(answer=display_name).strip()
@@ -563,25 +575,8 @@ def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: 
             tail = re.sub(r"^\s*You\s+\{answer\}\s+", "", templ, flags=re.IGNORECASE).strip()
             line = f"You reported {tail} with {ans_out}"
         else:
-            # Handle denial answers
-            if ans_out.lower() in ["none", "no", "neither"]:
-                question_text = s.get("question", "").lower()
-                if "chest pain" in question_text and "palpitations" in question_text:
-                    line = "denied chest pain and palpitations"
-                elif "chest pain" in question_text:
-                    line = "denied chest pain"
-                elif "palpitations" in question_text:
-                    line = "denied palpitations"
-                elif "shortness of breath" in question_text:
-                    line = "denied shortness of breath"
-                elif "fainting" in question_text or "faint" in question_text:
-                    line = "denied fainting"
-                elif "dizziness" in question_text:
-                    line = "denied dizziness"
-                else:
-                    line = f"denied {ans_out}"
-            else:
-                line = templ.format(answer=ans_out).strip()
+            # Use the template as-is (JSON files should handle proper formatting)
+            line = templ.format(answer=ans_out).strip()
         
         # Categorize
         is_negative = "denied" in line.lower() or ans_out.lower() in ["none", "no", "neither"]
@@ -771,55 +766,42 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
     condition = state.get("condition")
     if not condition:
         return "Please describe your symptoms to begin triage.", state
-    
+
     # Get current step info
     current_step_index = state.get("step_index", 0)
     steps = get_steps(condition, state)
-    current_step = steps[current_step_index] if current_step_index < len(steps) else None
-    
+    step_list = [s if isinstance(s, dict) else {"key": None, "question": str(s)} for s in steps]
+    current_step = step_list[current_step_index] if current_step_index < len(step_list) else None
+
     if current_step:
-        current_key = current_step.get("key")
-        
-        # Validate answer before accepting
-        if current_step.get("answers"):  # Only validate if there are expected answers
-            if not is_valid_answer(condition, current_key, prompt, state):
-                print(f"[Triage] ❌ Invalid answer '{prompt}' for question '{current_key}'")
-                print(f"[Triage] 🔄 Re-asking question (expected one of: {list(current_step.get('answers', {}).keys())})")
-                
-                # Re-ask the same question with clarification
-                question = current_step.get("question", "")
-                from nlg import rewrite
-                rewritten_question = rewrite(
-                    f"I didn't quite catch that. {question}",
-                    "question",
-                    {
-                        "name": state.get("user_name"),
-                        "condition": state["condition"],
-                        "key": current_key,
-                        "allowed_answers": list(current_step.get("answers", {}).keys())
-                    },
-                    state.get("phrasing_history", []),
-                    lambda messages, gen_kwargs: {"content": question}
-                )
-                
-                return substitute_name(rewritten_question, state.get("user_name")), state
-    
-    # Answer is valid - add it and update flags
-    state["answers"].append(prompt)
-    
-    if current_step:
-        update_flags_from_answer(condition, current_step.get("key"), prompt, state, session_id)
-    
-    # Advance to next step
-    state["step_index"] = current_step_index + 1
+        current_key = state.get("last_key") or current_step.get("key")
+
+        # Validate answer before accepting (OLD LOGIC)
+        if current_key and not is_valid_answer(condition, current_key, prompt, state):
+            print(f"[Triage] ❌ Invalid answer '{prompt}' for question '{current_key}'")
+            print(f"[Triage] 🔄 Re-asking question (expected one of: {list(current_step.get('answers', {}).keys())})")
+            return f"I didn't quite catch that. {substitute_name(current_step.get('question', ''), state.get('user_name'))}", state
+
+        # Answer is valid - add it and update flags
+        state["answers"].append(prompt)
+
+        if current_key:
+            update_flags_from_answer(condition, current_key, prompt, state, session_id)
+
+        # Advance to next step
+        state["step_index"] = current_step_index + 1
     
     # Get next step
     if state["step_index"] < len(steps):
         next_step = steps[state["step_index"]]
         question = next_step.get("question", "")
-        
-        # Apply NLG rewriting
+
+        # Apply NLG rewriting (using simple fallback like old version)
         from nlg import rewrite
+        def llm_chat_once_fallback(messages, **kwargs):
+            """Simple fallback for NLG rewriting - just return the question"""
+            return {"content": question}
+
         rewritten_question = rewrite(
             question,
             "question",
@@ -830,12 +812,12 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
                 "allowed_answers": list(next_step.get("answers", {}).keys())
             },
             state.get("phrasing_history", []),
-            lambda messages, gen_kwargs: {"content": question}
+            llm_chat_once_fallback
         )
-        
+
         final_question = substitute_name(rewritten_question, state.get("user_name"))
         return final_question, state
-    
+
     else:
         # Triage complete
         recap_response = generate_triage_completion(state, session_id)

@@ -90,48 +90,26 @@ def chat_simple():
         else:
             # No active triage - check for new conditions
             condition = detect_condition(prompt, session_id)
-            
+
             if condition:
                 # New triage session - initialize state and ask first question
-                from triage import get_intro, get_steps
-                from nlg import rewrite, substitute_name
-                
-                # Set up initial triage state
-                state["condition"] = condition
-                state["step_index"] = 0
-                state["answers"] = []
-                state["flags"] = {}
-                
-                # Get intro message
-                intro = get_intro(condition, state)
-                
-                # Get first question
+                state.update({"condition": condition, "step_index": 0, "answers": [], "flags": {},
+                             "last_key": None, "user_name": None, "active_pathway": None,
+                             "entered_pathway": False, "detailed_symptoms": [prompt],
+                             "original_complaint": prompt, "expanded_prompt": prompt})
+                save_state(state, session_id)
+
+                # Get intro and first question
                 steps = get_steps(condition, state)
-                if steps and len(steps) > 0:
-                    first_step = steps[0]
-                    first_question = first_step.get("question", "")
-                    
-                    # Apply NLG rewriting
-                    rewritten_question = rewrite(
-                        first_question,
-                        "question",
-                        {
-                            "name": state.get("user_name"),
-                            "condition": condition,
-                            "key": first_step.get("key"),
-                            "allowed_answers": list(first_step.get("answers", {}).keys())
-                        },
-                        state.get("phrasing_history", []),
-                        lambda messages, gen_kwargs: {"content": first_question}
-                    )
-                    
-                    combined = f"{intro} {rewritten_question}"
-                    final_response = substitute_name(combined, state.get("user_name"))
-                    
-                    save_state(state, session_id)
-                    return jsonify({"response": final_response})
-                else:
-                    return jsonify({"response": intro})
+                intro = substitute_name(TRIAGE_DEFS[condition].get("intro", ""), state.get("user_name"))
+                first_question = substitute_name(steps[0].get('question', ''), state.get('user_name'))
+
+                response = ""
+                if intro:
+                    response += intro + " "
+                response += first_question
+
+                return jsonify({"response": response})
             else:
                 # Casual conversation - no triage active
                 casual_responses = [
@@ -205,57 +183,62 @@ def chat():
         return Response(stream_with_context(generate_thinker()), mimetype="text/plain")
 
     elif mode == ConversationMode.TRIAGE:
-        def generate_triage():
-            try:
-                # Check if this is a NEW triage session (don't process initial complaint as answer)
-                if updated_state.get('is_new_triage'):
-                    print(f"[Aura-LLM] 🆕 New triage session - asking first question")
-                    updated_state['is_new_triage'] = False  # Clear flag
-                    
-                    # Get intro and first question
-                    intro = get_intro(updated_state['condition'], updated_state)
-                    steps = get_steps(updated_state['condition'], updated_state)
-                    
-                    if steps and len(steps) > 0:
-                        first_step = steps[0]
-                        first_question = first_step.get("question", "")
-                        
-                        # Apply NLG rewriting
-                        from nlg import rewrite, substitute_name
-                        rewritten_question = rewrite(
-                            first_question,
-                            "question",
-                            {
-                                "name": updated_state.get("user_name"),
-                                "condition": updated_state['condition'],
-                                "key": first_step.get("key"),
-                                "allowed_answers": list(first_step.get("answers", {}).keys())
-                            },
-                            updated_state.get("phrasing_history", []),
-                            lambda messages, gen_kwargs: {"content": first_question}
-                        )
-                        
-                        combined = f"{intro} {rewritten_question}"
-                        final_response = substitute_name(combined, updated_state.get("user_name"))
-                        
-                        save_state(updated_state, session_id)
-                        yield f"<sentence_start>\n{final_response}\n<sentence_end>\n"
-                    else:
-                        save_state(updated_state, session_id)
-                        yield f"<sentence_start>\n{intro}\n<sentence_end>\n"
-                else:
-                    # Continue existing triage - process user's answer
+        # Continue existing triage
+        if updated_state.get("condition") and not updated_state.get('is_new_triage'):
+            def generate_triage_continue():
+                try:
                     question, final_state = process_triage_step(prompt, updated_state, session_id)
-                    # IMPORTANT: Save the updated state so step_index advances
                     save_state(final_state, session_id)
                     yield f"<sentence_start>\n{question}\n<sentence_end>\n"
-                    
-            except Exception as e:
-                print(f"[Aura-LLM] ❌ Error in triage: {e}")
-                import traceback
-                traceback.print_exc()
-                yield f"<sentence_start>\nI'm sorry, there was an error processing your triage.\n<sentence_end>\n"
-        return Response(stream_with_context(generate_triage()), mimetype="text/plain")
+                except Exception as e:
+                    print(f"[Aura-LLM] ❌ Error in triage: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    yield f"<sentence_start>\nI'm sorry, there was an error processing your triage.\n<sentence_end>\n"
+            return Response(stream_with_context(generate_triage_continue()), mimetype="text/plain")
+
+        # NEW triage - ask first question (don't process initial complaint as answer)
+        else:
+            condition = updated_state.get('condition')
+            steps = get_steps(condition, updated_state)
+            p_expanded = apply_synonym_expansion(normalize_text(prompt))
+
+            # Initialize triage state (OLD LOGIC - step_index = 1, not 0!)
+            updated_state.update({
+                "condition": condition,
+                "step_index": 1,  # We're asking step 0, so next will be step 1
+                "answers": [],
+                "flags": {},
+                "last_key": steps[0].get("key"),
+                "active_pathway": None,
+                "entered_pathway": False,
+                "phrasing_history": updated_state.get("phrasing_history", []),
+                "original_complaint": prompt,
+                "expanded_prompt": p_expanded,
+                "detailed_symptoms": updated_state.get("detailed_symptoms", [])
+            })
+            save_state(updated_state, session_id)
+
+            def generate_new_triage():
+                # Use NLG for intro and first question
+                intro = substitute_name(TRIAGE_DEFS[condition].get("intro", ""), updated_state.get("user_name"))
+                if intro:
+                    intro_nlg = nlg_rewrite(intro, "intro", {
+                        "name": updated_state.get("user_name"),
+                        "condition": condition
+                    }, updated_state.get("phrasing_history"), llm_chat_once)
+                    yield f"<sentence_start>\n{intro_nlg}\n<sentence_end>\n"
+
+                raw_q = substitute_name(steps[0].get('question', ''), updated_state.get('user_name'))
+                q_nlg = nlg_rewrite(raw_q, "question", {
+                    "name": updated_state.get("user_name"),
+                    "condition": condition,
+                    "key": steps[0].get('key'),
+                    "allowed_answers": list(steps[0].get('answers', {}).keys())
+                }, updated_state.get("phrasing_history"), llm_chat_once)
+                yield f"<sentence_start>\n{q_nlg}\n<sentence_end>\n"
+
+            return Response(stream_with_context(generate_new_triage()), mimetype="text/plain")
 
     elif mode == ConversationMode.CLINICIAN:
         def generate_clinician():
@@ -299,6 +282,11 @@ def llm_chat(messages, **kwargs):
         except Exception as e:
             print(f"[LLM] ❌ Error in llm_chat: {e}")
             return {"choices": [{"message": {"content": ""}}]}
+
+
+def llm_chat_once(messages, **kwargs):
+    """Single LLM call for NLG rewriting (used by triage)"""
+    return llm_chat(messages, **kwargs)
 
 
 # === Server Startup ===

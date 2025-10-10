@@ -14,7 +14,7 @@
       {
         "key": "quality",
         "question": "Can you describe the discomfort — is it sharp, heavy, or tight?",
-        "recap_template": "You have {answer} chest pain",
+        "recap_template": "You described the pain as {answer}",
         "answers": {
           "heavy": "emergency",
           "tight": "emergency",
@@ -27,60 +27,60 @@
       {
         "key": "exertion",
         "question": "Is the pain worse with exertion, such as walking or climbing stairs?",
-        "recap_template": "You {answer} pain worse with exertion",
+        "recap_template": "You {answer} that pain worsens with exertion",
         "answers": {
           "yes": "emergency",
-          "no": "non_urgent"
+          "no": "denied"
         }
       },
       {
         "key": "radiation",
         "question": "Does the pain spread anywhere, such as your arm, neck, jaw, or back?",
-        "recap_template": "You have {answer} pain radiation",
+        "recap_template": "You {answer} pain radiation",
         "answers": {
           "arm": "emergency",
           "neck": "emergency",
           "jaw": "emergency",
           "back": "emergency",
           "shoulder": "emergency",
-          "no": "non_urgent",
-          "none": "non_urgent"
+          "no": "denied",
+          "none": "denied"
         }
       },
       {
         "key": "shortness_of_breath",
         "question": "Do you experience shortness of breath?",
-        "recap_template": "You have {answer} shortness of breath",
+        "recap_template": "You {answer} shortness of breath",
         "answers": {
           "yes": "emergency",
-          "no": "non_urgent"
+          "no": "denied"
         }
       },
       {
         "key": "sweating",
         "question": "Are you experiencing sweating?",
-        "recap_template": "You have {answer} sweating",
+        "recap_template": "You {answer} sweating",
         "answers": {
           "yes": "emergency",
-          "no": "non_urgent"
+          "no": "denied"
         }
       },
       {
         "key": "fatigue",
         "question": "Do you feel unusually tired?",
-        "recap_template": "You have {answer} unusual fatigue",
+        "recap_template": "You {answer} unusual fatigue",
         "answers": {
           "yes": "urgent",
-          "no": "non_urgent"
+          "no": "denied"
         }
       },
       {
         "key": "fainting",
         "question": "Have you fainted or collapsed?",
-        "recap_template": "You have {answer} fainting or collapse",
+        "recap_template": "You {answer} fainting or collapse",
         "answers": {
           "yes": "emergency",
-          "no": "non_urgent"
+          "no": "denied"
         }
       },
       {
