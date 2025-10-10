@@ -84,13 +84,19 @@ def route_prompt(prompt: str, state: dict, session_id: str) -> Tuple[str, dict]:
         return ConversationMode.CLINICIAN, state
     
     # 4. TRIAGE - Hardcoded diagnostic system (only for NEW sessions)
-    # Don't detect new conditions if we're already in an active session
+    # Check if we're already in an active triage session
+    active_condition = state.get('condition')
+
+    if active_condition:
+        print(f"[Router] 🏥 → TRIAGE mode (continuing: {active_condition})")
+        state['mode'] = ConversationMode.TRIAGE
+        return ConversationMode.TRIAGE, state
+
+    # No active session - check for NEW conditions
     # Import here to avoid circular dependency
     from container_rest import detect_condition
-    
-    # Only detect NEW conditions if no active session
     condition = detect_condition(prompt, session_id)
-    
+
     if condition:
         print(f"[Router] 🏥 → TRIAGE mode (NEW condition: {condition})")
         state.update({
