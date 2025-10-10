@@ -235,7 +235,6 @@ def listen():
                     break
                 
                 # Check if stream needs refresh after long idle
-                global last_activity_time
                 idle_time = time.time() - last_activity_time
                 if idle_time > STREAM_REFRESH_INTERVAL:
                     print(f"\n[Listener] 🔄 Refreshing stream after {idle_time:.0f}s idle...")
