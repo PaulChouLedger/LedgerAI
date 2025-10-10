@@ -183,41 +183,16 @@ def chat():
         return Response(stream_with_context(generate_thinker()), mimetype="text/plain")
 
     elif mode == ConversationMode.TRIAGE:
-        # Continue existing triage
-        if updated_state.get("condition") and not updated_state.get('is_new_triage'):
-            def generate_triage_continue():
-                try:
-                    question, final_state = process_triage_step(prompt, updated_state, session_id)
-                    save_state(final_state, session_id)
-                    yield f"<sentence_start>\n{question}\n<sentence_end>\n"
-                except Exception as e:
-                    print(f"[Aura-LLM] ❌ Error in triage: {e}")
-                    import traceback
-                    traceback.print_exc()
-                    yield f"<sentence_start>\nI'm sorry, there was an error processing your triage.\n<sentence_end>\n"
-            return Response(stream_with_context(generate_triage_continue()), mimetype="text/plain")
+        print(f"[Triage] 🔍 Mode: TRIAGE, condition={updated_state.get('condition')}, is_new={updated_state.get('is_new_triage')}, step_index={updated_state.get('step_index')}")
 
-        # NEW triage - ask first question (don't process initial complaint as answer)
-        else:
+        # Check if this is a NEW triage session (just detected condition)
+        if updated_state.get('is_new_triage'):
+            print(f"[Triage] 🆕 NEW triage session - asking first question")
+            # Clear the new session flag
+            updated_state['is_new_triage'] = False
+
             condition = updated_state.get('condition')
             steps = get_steps(condition, updated_state)
-            p_expanded = apply_synonym_expansion(normalize_text(prompt))
-
-            # Initialize triage state (OLD LOGIC - step_index = 1, not 0!)
-            updated_state.update({
-                "condition": condition,
-                "step_index": 1,  # We're asking step 0, so next will be step 1
-                "answers": [],
-                "flags": {},
-                "last_key": steps[0].get("key"),
-                "active_pathway": None,
-                "entered_pathway": False,
-                "phrasing_history": updated_state.get("phrasing_history", []),
-                "original_complaint": prompt,
-                "expanded_prompt": p_expanded,
-                "detailed_symptoms": updated_state.get("detailed_symptoms", [])
-            })
-            save_state(updated_state, session_id)
 
             def generate_new_triage():
                 # Use NLG for intro and first question
@@ -239,6 +214,21 @@ def chat():
                 yield f"<sentence_start>\n{q_nlg}\n<sentence_end>\n"
 
             return Response(stream_with_context(generate_new_triage()), mimetype="text/plain")
+
+        # Continue existing triage - process user's answer
+        else:
+            print(f"[Triage] 🔄 Continuing triage - processing answer: '{prompt}'")
+            def generate_triage_continue():
+                try:
+                    question, final_state = process_triage_step(prompt, updated_state, session_id)
+                    save_state(final_state, session_id)
+                    yield f"<sentence_start>\n{question}\n<sentence_end>\n"
+                except Exception as e:
+                    print(f"[Aura-LLM] ❌ Error in triage: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    yield f"<sentence_start>\nI'm sorry, there was an error processing your triage.\n<sentence_end>\n"
+            return Response(stream_with_context(generate_triage_continue()), mimetype="text/plain")
 
     elif mode == ConversationMode.CLINICIAN:
         def generate_clinician():
