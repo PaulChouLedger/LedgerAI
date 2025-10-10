@@ -612,8 +612,8 @@ def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: 
     priority_negatives = _dedup(priority_negatives)
     
     # Extract main complaint from detailed symptoms
-    original_complaint = state.get("original_complaint", "").lower()
-    detailed_symptoms = state.get("detailed_symptoms", [])
+    original_complaint = (state.get("original_complaint") or "").lower()
+    detailed_symptoms = state.get("detailed_symptoms", []) or []
     
     main_complaint = None
     best_score = 0
