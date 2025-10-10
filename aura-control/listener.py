@@ -7,6 +7,7 @@ import soundfile as sf
 import sounddevice as sd
 import requests
 import subprocess
+from scipy import signal
 from speaker import speak_llm_response, is_playing
 from aura_gui import set_transcribing
 
@@ -18,6 +19,10 @@ VAD_START_THRESHOLD = 0.35  # Higher = less sensitive to fan noise
 VAD_SILENCE_THRESHOLD = 0.05  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
 MIN_SPEECH_RMS = 0.015  # Filter out low-level noise (fan noise rejection)
+
+# High-pass filter to remove low-frequency noise (60Hz hum, rumble)
+USE_HIGHPASS_FILTER = True
+HIGHPASS_CUTOFF = 60  # Hz - removes bass noise below this frequency
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -84,6 +89,34 @@ def configure_respeaker_hardware():
     except Exception as e:
         print(f"[Hardware] ⚠️  Configuration failed: {e}")
         print(f"[Hardware] 💡 Continuing without hardware noise suppression...")
+
+# === High-pass Filter ===
+def highpass_filter(audio_data, cutoff=60, order=5):
+    """
+    Apply high-pass Butterworth filter to remove low-frequency noise
+    
+    Removes:
+    - 60Hz power line hum
+    - Low-frequency rumble (<60Hz)
+    - Fan noise
+    
+    Preserves:
+    - Voice frequencies (typically 80-8000 Hz)
+    """
+    if not USE_HIGHPASS_FILTER:
+        return audio_data
+    
+    # Design Butterworth high-pass filter
+    nyquist = SAMPLE_RATE / 2
+    normal_cutoff = cutoff / nyquist
+    
+    # Get filter coefficients
+    b, a = signal.butter(order, normal_cutoff, btype='high', analog=False)
+    
+    # Apply filter
+    filtered = signal.filtfilt(b, a, audio_data)
+    
+    return filtered
 
 # === Transcribe ===
 def transcribe(audio):
@@ -165,6 +198,8 @@ def listen():
     
     print("\n" + "="*70)
     print("[Audio] Stationary Noise Suppression ENABLED (fan noise rejection)")
+    if USE_HIGHPASS_FILTER:
+        print(f"[Audio] High-Pass Filter ENABLED ({HIGHPASS_CUTOFF}Hz cutoff)")
     print("[Audio] 6-channel → channel 0 → Whisper")
     print("="*70 + "\n")
     
@@ -271,8 +306,14 @@ def listen():
                 if channel_0.size < 512:
                     continue
                 
-                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
-                rms = np.sqrt(np.mean(channel_0 ** 2))
+                # Apply high-pass filter to remove low-frequency noise before VAD
+                if USE_HIGHPASS_FILTER and len(channel_0) >= 64:  # Need enough samples for filter
+                    channel_0_filtered = highpass_filter(channel_0, cutoff=HIGHPASS_CUTOFF)
+                else:
+                    channel_0_filtered = channel_0
+                
+                vad_prob = model_vad(torch.from_numpy(channel_0_filtered), SAMPLE_RATE).item()
+                rms = np.sqrt(np.mean(channel_0_filtered ** 2))
                 
                 print(f"[VAD] {vad_prob:.2f} | RMS {rms:.6f}", end="\r")
                 
@@ -303,7 +344,13 @@ def listen():
                 
                 buffer.append(audio_block)
                 
-                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
+                # Apply high-pass filter to remove low-frequency noise before VAD
+                if USE_HIGHPASS_FILTER and len(channel_0) >= 64:
+                    channel_0_filtered = highpass_filter(channel_0, cutoff=HIGHPASS_CUTOFF)
+                else:
+                    channel_0_filtered = channel_0
+                
+                vad_prob = model_vad(torch.from_numpy(channel_0_filtered), SAMPLE_RATE).item()
                 
                 if vad_prob < VAD_SILENCE_THRESHOLD:
                     if silence_start is None:
@@ -326,18 +373,25 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono = full_audio[:, 0]  # Channel 0 only
             
+            # Apply high-pass filter to remove low-frequency noise before transcription
+            if USE_HIGHPASS_FILTER:
+                mono_filtered = highpass_filter(mono, cutoff=HIGHPASS_CUTOFF)
+                print(f"[Filter] 🎚️  Applied {HIGHPASS_CUTOFF}Hz high-pass filter")
+            else:
+                mono_filtered = mono
+            
             # Check if audio RMS is too low (likely fan noise, not speech)
-            rms = np.sqrt(np.mean(mono ** 2))
+            rms = np.sqrt(np.mean(mono_filtered ** 2))
             if rms < MIN_SPEECH_RMS:
                 print(f"⚠️  RMS too low ({rms:.4f} < {MIN_SPEECH_RMS}), likely noise - skipping\n")
                 set_transcribing(False)
                 continue
             
-            if len(mono) < MIN_AUDIO_SAMPLES:
+            if len(mono_filtered) < MIN_AUDIO_SAMPLES:
                 print("⚠️  Too short\n")
                 continue
             
-            text = transcribe(mono)
+            text = transcribe(mono_filtered)
             
             if text:
                 send_to_llm(text)
