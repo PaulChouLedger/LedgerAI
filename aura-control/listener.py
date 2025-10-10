@@ -22,7 +22,7 @@ MIN_SPEECH_RMS = 0.015  # Filter out low-level noise (fan noise rejection)
 
 # High-pass filter to remove low-frequency noise (60Hz hum, rumble)
 USE_HIGHPASS_FILTER = True
-HIGHPASS_CUTOFF = 80  # Hz - removes bass noise below this frequency (higher cutoff for better speech preservation)
+HIGHPASS_CUTOFF = 200  # Hz - removes bass noise below this frequency (higher cutoff for better speech preservation)
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
