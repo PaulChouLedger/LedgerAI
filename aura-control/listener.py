@@ -22,7 +22,7 @@ MIN_SPEECH_RMS = 0.015  # Filter out low-level noise (fan noise rejection)
 
 # High-pass filter to remove low-frequency noise (60Hz hum, rumble)
 USE_HIGHPASS_FILTER = True
-HIGHPASS_CUTOFF = 60  # Hz - removes bass noise below this frequency
+HIGHPASS_CUTOFF = 80  # Hz - removes bass noise below this frequency (higher cutoff for better speech preservation)
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -91,21 +91,21 @@ def configure_respeaker_hardware():
         print(f"[Hardware] 💡 Continuing without hardware noise suppression...")
 
 # === High-pass Filter ===
-def highpass_filter(audio_data, cutoff=60, order=5):
+def highpass_filter(audio_data, cutoff=HIGHPASS_CUTOFF, order=5):
     """
     Apply high-pass Butterworth filter to remove low-frequency noise
-    
+
     Removes:
     - 60Hz power line hum
     - Low-frequency rumble (<60Hz)
     - Fan noise
-    
+
     Preserves:
     - Voice frequencies (typically 80-8000 Hz)
     """
     if not USE_HIGHPASS_FILTER:
         return audio_data
-    
+
     # Design Butterworth high-pass filter
     nyquist = SAMPLE_RATE / 2
     normal_cutoff = cutoff / nyquist
