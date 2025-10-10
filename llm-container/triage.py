@@ -593,11 +593,8 @@ def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: 
         if ans_out.endswith("_pathway"):
             display_name = ans_out.replace("_pathway", "").replace("_", " ").title()
             line = templ.format(answer=display_name).strip()
-        elif re.match(r"^\s*You\s+\{answer\}\s+", templ, flags=re.IGNORECASE) and ans_out not in ("reported", "denied"):
-            tail = re.sub(r"^\s*You\s+\{answer\}\s+", "", templ, flags=re.IGNORECASE).strip()
-            line = f"You reported {tail} with {ans_out}"
         else:
-            # Use the template as-is (JSON files should handle proper formatting)
+            # Use the template as-is - let JSON templates handle proper formatting
             line = templ.format(answer=ans_out).strip()
         
         # Categorize
@@ -853,11 +850,13 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
     else:
         # Triage complete
         recap_response = generate_triage_completion(state, session_id)
-        return recap_response, state
+        # Return the reset state (already saved in generate_triage_completion)
+        reset_state = load_state(session_id)
+        return recap_response, reset_state
 
 
 def generate_triage_completion(state: Dict[str, Any], session_id: str) -> str:
-    """Generate final triage completion"""
+    """Generate final triage completion and reset session"""
     condition = state.get("condition")
     answers = state.get("answers", [])
     flags = state.get("flags", {})
@@ -891,6 +890,18 @@ def generate_triage_completion(state: Dict[str, Any], session_id: str) -> str:
             outcome = "Schedule appointment with primary care physician within 24-48 hours."
     
     outcome = substitute_name(outcome, state.get("user_name"))
+    
+    # Reset session state after completion (preserve user name)
+    user_name = state.get("user_name")
+    reset_state = {
+        "condition": None, "step_index": 0, "answers": [], "flags": {},
+        "last_key": None, "user_name": user_name,
+        "active_pathway": None, "entered_pathway": False,
+        "updated_at": None, "phrasing_history": [], "detailed_symptoms": [],
+        "original_complaint": None, "expanded_prompt": None, "mode": None
+    }
+    save_state(reset_state, session_id)
+    print(f"[Triage] ✅ Triage completed and session reset for session_id: {session_id}")
     
     return f"{recap} {outcome}"
 

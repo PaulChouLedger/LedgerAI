@@ -18,7 +18,7 @@ SILENCE_TIMEOUT = 0.3  # 300ms of silence before stopping
 VAD_START_THRESHOLD = 0.35  # Higher = less sensitive to fan noise
 VAD_SILENCE_THRESHOLD = 0.05  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
-MIN_SPEECH_RMS = 0.015  # Filter out low-level noise (fan noise rejection)
+MIN_SPEECH_RMS = 0.008  # Filter out low-level noise (more permissive for AGC)
 
 # High-pass filter to remove low-frequency noise (60Hz hum, rumble)
 USE_HIGHPASS_FILTER = True
@@ -74,10 +74,10 @@ def configure_respeaker_hardware():
         tuning.write("STATNOISEONOFF_SR", 1)  # Enable
         tuning.write("GAMMA_NS", 3.0)          # Aggressiveness (1.0-3.0)
         
-        # Keep AGC for consistent levels
+        # Enable AGC with more aggressive settings for quiet speech
         tuning.write("AGCONOFF", 1)
-        tuning.write("AGCDESIREDLEVEL", 0.03)
-        tuning.write("AGCMAXGAIN", 20.0)
+        tuning.write("AGCDESIREDLEVEL", 0.08)  # Higher target level
+        tuning.write("AGCMAXGAIN", 30.0)      # More gain available
         
         # Disable non-stationary noise suppression and echo cancellation
         tuning.write("NONSTATNOISEONOFF_SR", 0)
