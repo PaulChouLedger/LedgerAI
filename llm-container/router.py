@@ -98,7 +98,8 @@ def route_prompt(prompt: str, state: dict, session_id: str) -> Tuple[str, dict]:
             'condition': condition,
             'step_index': 0,
             'answers': [],
-            'flags': {}
+            'flags': {},
+            'is_new_triage': True  # Flag to indicate this is the initial trigger
         })
         return ConversationMode.TRIAGE, state
     

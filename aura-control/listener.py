@@ -13,10 +13,11 @@ from aura_gui import set_transcribing
 # === Config ===
 SAMPLE_RATE = 16000
 FRAME_SIZE = int(SAMPLE_RATE * 0.032)
-SILENCE_TIMEOUT = 0.2  # 200ms of silence before stopping (responsive)
-VAD_START_THRESHOLD = 0.2
-VAD_SILENCE_THRESHOLD = 0.1  # Sensitive to detect speech continuation
+SILENCE_TIMEOUT = 0.3  # 300ms of silence before stopping
+VAD_START_THRESHOLD = 0.35  # Higher = less sensitive to fan noise
+VAD_SILENCE_THRESHOLD = 0.05  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
+MIN_SPEECH_RMS = 0.015  # Filter out low-level noise (fan noise rejection)
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -38,6 +39,47 @@ def find_device_index():
 
 # === Load VAD ===
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
+
+# === Configure ReSpeaker Hardware ===
+def configure_respeaker_hardware():
+    """Enable stationary noise suppression for fan noise"""
+    try:
+        import sys
+        import usb.core
+        tuning_path = os.path.expanduser('~/usb_4_mic_array')
+        if tuning_path not in sys.path:
+            sys.path.insert(0, tuning_path)
+        
+        from tuning import Tuning
+        
+        dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+        if dev is None:
+            print("[Hardware] ⚠️  ReSpeaker not found")
+            return
+        
+        tuning = Tuning(dev)
+        
+        print("[Hardware] 🔧 Enabling stationary noise suppression (fan noise rejection)...")
+        
+        # Enable stationary noise suppression (targets constant noise like fans)
+        tuning.write("STATNOISEONOFF_SR", 1)  # Enable
+        tuning.write("GAMMA_NS", 3.0)          # Aggressiveness (1.0-3.0)
+        
+        # Keep AGC for consistent levels
+        tuning.write("AGCONOFF", 1)
+        tuning.write("AGCDESIREDLEVEL", 0.03)
+        tuning.write("AGCMAXGAIN", 20.0)
+        
+        # Disable non-stationary noise suppression and echo cancellation
+        tuning.write("NONSTATNOISEONOFF_SR", 0)
+        tuning.write("ECHOONOFF", 0)
+        tuning.write("HPFONOFF", 0)
+        
+        print("[Hardware] ✅ Fan noise suppression enabled")
+        
+    except Exception as e:
+        print(f"[Hardware] ⚠️  Configuration failed: {e}")
+        print(f"[Hardware] 💡 Continuing without hardware noise suppression...")
 
 # === Transcribe ===
 def transcribe(audio):
@@ -111,8 +153,11 @@ def play_welcome_prompt(stream):
 def listen():
     channels = find_device_index()
     
+    # Configure hardware noise suppression
+    configure_respeaker_hardware()
+    
     print("\n" + "="*70)
-    print("[Audio] RAW MODE - No processing")
+    print("[Audio] Stationary Noise Suppression ENABLED (fan noise rejection)")
     print("[Audio] 6-channel → channel 0 → Whisper")
     print("="*70 + "\n")
     
@@ -212,6 +257,13 @@ def listen():
             # === Process audio ===
             full_audio = np.concatenate(buffer)
             mono = full_audio[:, 0]  # Channel 0 only
+            
+            # Check if audio RMS is too low (likely fan noise, not speech)
+            rms = np.sqrt(np.mean(mono ** 2))
+            if rms < MIN_SPEECH_RMS:
+                print(f"⚠️  RMS too low ({rms:.4f} < {MIN_SPEECH_RMS}), likely noise - skipping\n")
+                set_transcribing(False)
+                continue
             
             if len(mono) < MIN_AUDIO_SAMPLES:
                 print("⚠️  Too short\n")

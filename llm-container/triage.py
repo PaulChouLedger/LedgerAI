@@ -143,13 +143,15 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
     current_step_index = state.get("step_index", 0)
     steps = get_steps(condition, state)
     answers_count = len(state.get("answers", []))
+    is_new_triage = state.get("is_new_triage", False)
     
-    print(f"[Triage] 🔍 Processing step: step_index={current_step_index}, answers_count={answers_count}")
+    print(f"[Triage] 🔍 Processing step: step_index={current_step_index}, answers_count={answers_count}, is_new={is_new_triage}")
     
-    # Check if this is the very first question (NEW triage session)
-    if current_step_index == 0 and answers_count == 0:
+    # Check if this is the very first question (initial trigger, not a continuation)
+    if is_new_triage:
         # First trigger - ask the first question without processing an answer
-        print(f"[Triage] 🆕 First question - asking step 0 without advancing")
+        print(f"[Triage] 🆕 Initial trigger - asking step 0 (onset)")
+        state["is_new_triage"] = False  # Clear flag after first question
         first_step = steps[0] if steps else None
         if first_step:
             question = first_step.get("question", "")
