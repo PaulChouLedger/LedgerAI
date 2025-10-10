@@ -381,17 +381,21 @@ def get_pathway_detailed_symptom(cond: str, pathway: str, state: Dict[str, Any])
 def is_valid_answer(cond: str, key: str, ans: str, state: Dict[str, Any]) -> bool:
     """Check if answer is valid for question"""
     ans_norm = normalize_text(ans)
-    
+
     if key and key.startswith("clarify_") and state.get("pending_clarify") and state["pending_clarify"].get("key") == key:
         opt, score = match_answer_option(ans_norm, state["pending_clarify"].get("answers", {}), use_synonyms=False, key=key)
         return opt and score >= MIN_MATCH
-    
+
     steps = get_steps(cond, state)
     for s in steps:
         if isinstance(s, dict) and s.get("key") == key:
-            opt, score = match_answer_option(ans_norm, s.get("answers", {}), key=key)
+            answers = s.get("answers", {})
+            # If answers is empty, accept any answer (like onset questions)
+            if not answers:
+                return True
+            opt, score = match_answer_option(ans_norm, answers, key=key)
             return opt and score >= MIN_MATCH
-    
+
     return False
 
 
