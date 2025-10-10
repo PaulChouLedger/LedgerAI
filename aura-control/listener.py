@@ -13,9 +13,9 @@ from aura_gui import set_transcribing
 # === Config ===
 SAMPLE_RATE = 16000
 FRAME_SIZE = int(SAMPLE_RATE * 0.032)
-SILENCE_TIMEOUT = 0.5  # 500ms of silence before stopping (responsive)
+SILENCE_TIMEOUT = 0.2  # 500ms of silence before stopping (responsive)
 VAD_START_THRESHOLD = 0.2
-VAD_SILENCE_THRESHOLD = 0.05  # Sensitive to detect speech continuation
+VAD_SILENCE_THRESHOLD = 0.1  # Sensitive to detect speech continuation
 MIN_AUDIO_SAMPLES = 2000
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
