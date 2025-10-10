@@ -239,6 +239,18 @@ def update_gui_frequency(frequency_speed):
 def tts_playback_thread(text, tts_start_time):
     with playback_lock:
         set_playing(True)
+        
+        # Track TTS generation token usage (based on text length)
+        try:
+            from wallet_integration import get_usage_tracker
+            tracker = get_usage_tracker()
+            # Approximate speech duration: ~150 words per minute = 2.5 words per second
+            words = len(text.split())
+            speech_duration_seconds = words / 2.5
+            tracker.record_usage('tts_generation', multiplier=speech_duration_seconds)
+        except Exception as e:
+            print(f"[TokenUsage] ⚠️ Failed to track TTS usage: {e}")
+        
         try:
             stream = client.text_to_speech.convert(
                 text=ssml_wrap(normalize_units(text)),
@@ -310,6 +322,27 @@ def speak_llm_response(prompt, context=""):
     global pending_initials
     import requests
     print(f"[LLM] ✅ Prompt to LLM: {prompt}")
+    
+    # Track token usage for this query
+    try:
+        from wallet_integration import get_usage_tracker
+        tracker = get_usage_tracker()
+        
+        # Determine query complexity
+        prompt_length = len(prompt.split())
+        has_context = bool(context)
+        
+        if prompt_length > 50 or has_context:
+            # Complex query with context/RAG
+            tracker.record_usage('complex_query', multiplier=1.0 + (prompt_length / 100))
+        elif prompt_length > 20:
+            # Medium complexity RAG query
+            tracker.record_usage('rag_query')
+        else:
+            # Simple query
+            tracker.record_usage('simple_query')
+    except Exception as e:
+        print(f"[TokenUsage] ⚠️ Failed to track usage: {e}")
     
     # Start TTS latency measurement
     tts_start_time = time.time()

@@ -266,10 +266,22 @@ class AuraGUI(QMainWindow):
         pass
     
     def _handle_analytics(self):
-        """Handle analytics button click"""
-        print("[AuraGUI] 📊 Analytics button clicked")
-        # TODO: Call analytics script
-        pass
+        """Handle analytics button click - show wallet & token balance"""
+        print("[AuraGUI] 📊 Analytics button clicked - opening wallet dialog")
+        
+        try:
+            from wallet_dialog import WalletDialog
+            
+            # Create and show wallet dialog
+            dialog = WalletDialog(parent=self)
+            dialog.show()  # Non-modal so user can keep interacting
+            
+            print("[AuraGUI] ✅ Wallet dialog opened")
+        except ImportError as e:
+            print(f"[AuraGUI] ❌ Wallet dialog not available: {e}")
+            print(f"[AuraGUI] 💡 Install web3: pip install web3")
+        except Exception as e:
+            print(f"[AuraGUI] ❌ Error opening wallet dialog: {e}")
     
     def _handle_voice(self):
         """Handle voice button click"""

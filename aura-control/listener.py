@@ -19,14 +19,12 @@ VAD_SILENCE_THRESHOLD = 0.05  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
 MIN_SPEECH_RMS = 0.008  # Filter out low-level noise (more permissive for AGC)
 
-# === AGC Testing Configuration ===
-# Enable/disable hardware AGC (in ReSpeaker DSP chip)
-USE_HARDWARE_AGC = False  # DISABLED - testing without AGC
-HARDWARE_AGC_TARGET = 0.08  # Target RMS level (0.01-0.99)
-HARDWARE_AGC_MAX_GAIN = 30.0  # Maximum gain in dB
+# === Software AGC Configuration ===
+# NOTE: Hardware configuration is done via tune_respeaker.py service on boot
+# The listener only reads and displays current hardware config (read-only)
 
 # Enable/disable software AGC (in Python after audio capture)
-USE_SOFTWARE_AGC = False  # DISABLED - testing raw audio first
+USE_SOFTWARE_AGC = False  # DISABLED by default - test if needed
 SOFTWARE_AGC_TARGET = 0.1  # Target RMS level for normalization
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
@@ -54,9 +52,9 @@ def find_device_index():
 # === Load VAD ===
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
 
-# === Configure ReSpeaker Hardware ===
-def configure_respeaker_hardware():
-    """Configure ReSpeaker: Hardware HPF and optional AGC"""
+# === Read Current ReSpeaker Configuration ===
+def read_respeaker_config():
+    """Read and display current ReSpeaker hardware configuration"""
     try:
         import sys
         import usb.core
@@ -69,33 +67,70 @@ def configure_respeaker_hardware():
         dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
         if dev is None:
             print("[Hardware] ⚠️  ReSpeaker not found")
-            return
+            return None
         
         tuning = Tuning(dev)
         
-        print("[Hardware] 🔧 Configuring ReSpeaker...")
+        # Read current settings
+        config = {
+            'AGCONOFF': tuning.read('AGCONOFF'),
+            'AGCDESIREDLEVEL': tuning.read('AGCDESIREDLEVEL'),
+            'AGCMAXGAIN': tuning.read('AGCMAXGAIN'),
+            'HPFONOFF': tuning.read('HPFONOFF'),
+            'STATNOISEONOFF_SR': tuning.read('STATNOISEONOFF_SR'),
+            'NONSTATNOISEONOFF_SR': tuning.read('NONSTATNOISEONOFF_SR'),
+            'GAMMA_NS': tuning.read('GAMMA_NS'),
+            'ECHOONOFF': tuning.read('ECHOONOFF'),
+        }
         
-        # Enable hardware high-pass filter (removes noise before amplification)
-        tuning.write("HPFONOFF", 1)  # Enable hardware HPF
-        
-        # Disable aggressive noise suppression (causes artifacts)
-        tuning.write("STATNOISEONOFF_SR", 0)
-        tuning.write("NONSTATNOISEONOFF_SR", 0)
-        tuning.write("ECHOONOFF", 0)
-        
-        # Configure AGC based on flag
-        if USE_HARDWARE_AGC:
-            tuning.write("AGCONOFF", 1)
-            tuning.write("AGCDESIREDLEVEL", HARDWARE_AGC_TARGET)
-            tuning.write("AGCMAXGAIN", HARDWARE_AGC_MAX_GAIN)
-            print(f"[Hardware] ✅ HPF + AGC enabled (target={HARDWARE_AGC_TARGET}, max_gain={HARDWARE_AGC_MAX_GAIN}dB)")
-        else:
-            tuning.write("AGCONOFF", 0)
-            print("[Hardware] ✅ HPF enabled, AGC disabled")
+        return config
         
     except Exception as e:
-        print(f"[Hardware] ⚠️  Configuration failed: {e}")
-        print(f"[Hardware] 💡 Continuing without hardware configuration...")
+        print(f"[Hardware] ⚠️  Failed to read configuration: {e}")
+        return None
+
+def display_respeaker_config(config):
+    """Display ReSpeaker configuration in a readable format"""
+    if config is None:
+        print("[Hardware] ℹ️  Unable to read ReSpeaker configuration")
+        return
+    
+    print("\n" + "="*70)
+    print("[Hardware] 📋 CURRENT ReSPEAKER CONFIGURATION:")
+    print("="*70)
+    
+    # AGC Status
+    agc_on = config['AGCONOFF'] == 1
+    if agc_on:
+        print(f"  AGC:                    ✅ ENABLED")
+        print(f"    Target Level:         {config['AGCDESIREDLEVEL']:.2f}")
+        print(f"    Max Gain:             {config['AGCMAXGAIN']:.1f} dB")
+    else:
+        print(f"  AGC:                    ❌ DISABLED")
+    
+    # High-pass Filter
+    hpf_on = config['HPFONOFF'] == 1
+    print(f"  High-Pass Filter:       {'✅ ENABLED' if hpf_on else '❌ DISABLED'}")
+    
+    # Noise Suppression
+    stat_ns_on = config['STATNOISEONOFF_SR'] == 1
+    nonstat_ns_on = config['NONSTATNOISEONOFF_SR'] == 1
+    
+    if stat_ns_on:
+        print(f"  Stationary Noise Supp:  ✅ ENABLED (gamma={config['GAMMA_NS']:.1f})")
+    else:
+        print(f"  Stationary Noise Supp:  ❌ DISABLED")
+    
+    if nonstat_ns_on:
+        print(f"  Non-Stat Noise Supp:    ✅ ENABLED")
+    else:
+        print(f"  Non-Stat Noise Supp:    ❌ DISABLED")
+    
+    # Echo Cancellation
+    echo_on = config['ECHOONOFF'] == 1
+    print(f"  Echo Cancellation:      {'✅ ENABLED' if echo_on else '❌ DISABLED'}")
+    
+    print("="*70 + "\n")
 
 # === Software AGC ===
 def apply_software_agc(audio, target_rms=SOFTWARE_AGC_TARGET):
@@ -130,7 +165,16 @@ def transcribe(audio):
     """Send raw audio to Whisper"""
     rms = np.sqrt(np.mean(audio ** 2))
     peak = np.max(np.abs(audio))
-    print(f"[Audio] RMS={rms:.6f}, Peak={peak:.4f}, Duration={len(audio)/SAMPLE_RATE:.2f}s")
+    audio_duration = len(audio) / SAMPLE_RATE
+    print(f"[Audio] RMS={rms:.6f}, Peak={peak:.4f}, Duration={audio_duration:.2f}s")
+    
+    # Track token usage for transcription (based on audio duration)
+    try:
+        from wallet_integration import get_usage_tracker
+        tracker = get_usage_tracker()
+        tracker.record_usage('transcription', multiplier=audio_duration)
+    except Exception as e:
+        print(f"[TokenUsage] ⚠️ Failed to track transcription usage: {e}")
     
     wav_io = io.BytesIO()
     sf.write(wav_io, audio, SAMPLE_RATE, format="WAV")
@@ -200,34 +244,24 @@ def listen():
     
     channels = find_device_index()
     
-    # Configure hardware HPF → AGC pipeline (filter BEFORE amplify)
-    configure_respeaker_hardware()
+    # Read and display current hardware configuration (read-only)
+    # Hardware modifications should be done via tune_respeaker.py service on boot
+    print("[Hardware] 📖 Reading current configuration...")
+    current_config = read_respeaker_config()
+    display_respeaker_config(current_config)
     
     print("\n" + "="*70)
     print("[Audio] SIGNAL PROCESSING PIPELINE:")
-    print("[Audio]   1. Hardware HPF in DSP (removes low-freq noise)")
+    print("[Audio]   1. Hardware DSP (see configuration above)")
+    print("[Audio]   2. Channel 0 selection (6ch → 1ch)")
     
-    # Show AGC configuration
-    if USE_HARDWARE_AGC and USE_SOFTWARE_AGC:
-        print("[Audio]   2. Hardware AGC in DSP ⚠️  BOTH AGC ENABLED - NOT RECOMMENDED")
-        print(f"[Audio]      - Hardware: target={HARDWARE_AGC_TARGET}, max={HARDWARE_AGC_MAX_GAIN}dB")
-        print(f"[Audio]   3. Software AGC in Python (target={SOFTWARE_AGC_TARGET})")
-        print("[Audio]   4. Channel 0 selection")
-        print("[Audio]   5. VAD → Whisper")
-    elif USE_HARDWARE_AGC:
-        print(f"[Audio]   2. Hardware AGC in DSP (target={HARDWARE_AGC_TARGET}, max={HARDWARE_AGC_MAX_GAIN}dB)")
-        print("[Audio]   3. Channel 0 selection")
+    if USE_SOFTWARE_AGC:
+        print(f"[Audio]   3. Software AGC (target={SOFTWARE_AGC_TARGET})")
         print("[Audio]   4. VAD → Whisper")
-        print("[Audio] ✅ Using HARDWARE AGC")
-    elif USE_SOFTWARE_AGC:
-        print("[Audio]   2. Channel 0 selection (NO hardware AGC)")
-        print(f"[Audio]   3. Software AGC in Python (target={SOFTWARE_AGC_TARGET})")
-        print("[Audio]   4. VAD → Whisper")
-        print("[Audio] ✅ Using SOFTWARE AGC")
+        print("[Audio] ℹ️  Software AGC enabled")
     else:
-        print("[Audio]   2. Channel 0 selection")
         print("[Audio]   3. VAD → Whisper")
-        print("[Audio] ⚠️  NO AGC ENABLED - audio may be too quiet")
+        print("[Audio] ℹ️  Using hardware DSP settings only (no software processing)")
     
     print("="*70 + "\n")
     
