@@ -39,33 +39,12 @@ def find_device_index():
 # === Load VAD ===
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
 
-# === Normalize Audio (from find_optimal_rms.py) ===
-def normalize_audio(audio, target_rms=0.15):
-    """Normalize audio to target RMS level (from find_optimal_rms.py lines 101-112)"""
-    current_rms = np.sqrt(np.mean(audio ** 2))
-    
-    if current_rms < 1e-6:
-        return audio
-    
-    gain = target_rms / current_rms
-    normalized = audio * gain
-    normalized = np.clip(normalized, -0.95, 0.95)
-    
-    return normalized
-
 # === Transcribe ===
 def transcribe(audio):
-    """Send normalized audio to Whisper (matches find_optimal_rms.py @ 0.15 RMS)"""
-    raw_rms = np.sqrt(np.mean(audio ** 2))
-    raw_peak = np.max(np.abs(audio))
-    print(f"[Audio] Raw: RMS={raw_rms:.6f}, Peak={raw_peak:.4f}, Duration={len(audio)/SAMPLE_RATE:.2f}s")
-    
-    # Normalize to optimal level (from find_optimal_rms.py results)
-    audio = normalize_audio(audio, target_rms=0.15)
-    
-    final_rms = np.sqrt(np.mean(audio ** 2))
-    final_peak = np.max(np.abs(audio))
-    print(f"[Audio] Normalized: RMS={final_rms:.4f}, Peak={final_peak:.4f}")
+    """Send raw audio to Whisper"""
+    rms = np.sqrt(np.mean(audio ** 2))
+    peak = np.max(np.abs(audio))
+    print(f"[Audio] RMS={rms:.6f}, Peak={peak:.4f}, Duration={len(audio)/SAMPLE_RATE:.2f}s")
     
     wav_io = io.BytesIO()
     sf.write(wav_io, audio, SAMPLE_RATE, format="WAV")
@@ -133,9 +112,8 @@ def listen():
     channels = find_device_index()
     
     print("\n" + "="*70)
-    print("[Audio] NORMALIZED MODE - matches find_optimal_rms.py")
-    print("[Audio] 6-channel input → channel 0 → normalize to 0.15 RMS → Whisper")
-    print("[Audio] Target RMS: 0.15 (optimal from testing)")
+    print("[Audio] RAW MODE - no processing")
+    print("[Audio] 6-channel input → channel 0 → Whisper")
     print("="*70 + "\n")
     
     with sd.InputStream(device=DEVICE_INDEX, channels=channels, samplerate=SAMPLE_RATE,
