@@ -99,22 +99,42 @@ Provide a concise, conversational summary that highlights the most important poi
         augmented_prompt = prompt
         system_msg = "I am AuraVision, an insightful AI assistant. Provide thoughtful, detailed responses even without specific documents."
     
-    # Generate response using LLM
+    # Generate response using LLM with streaming
     msgs = [
         {"role": "system", "content": system_msg},
         {"role": "user", "content": augmented_prompt}
     ]
     
-    # Stream response
+    # Stream response with sentence-level chunking for TTS
     try:
-        for chunk in llm_chat_fn(msgs, stream=True):
+        buffer = []
+        for chunk in llm_chat_fn(msgs, stream=True, temperature=0.7, max_tokens=512):
             token = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
             if token:
-                yield token
+                buffer.append(token)
+                
+                # Check if we have a complete sentence
+                full_text = "".join(buffer)
+                if any(full_text.rstrip().endswith(end) for end in [".", "!", "?"]):
+                    # Yield sentence markers for TTS
+                    yield "<sentence_start>\n"
+                    yield full_text
+                    yield "\n<sentence_end>\n"
+                    buffer = []
+        
+        # Yield any remaining text
+        if buffer:
+            remaining = "".join(buffer).strip()
+            if remaining:
+                yield "<sentence_start>\n"
+                yield remaining
+                yield "\n<sentence_end>\n"
                 
     except Exception as e:
         print(f"[THINKER] ❌ Error generating response: {e}")
+        yield "<sentence_start>\n"
         yield "I apologize, but I'm having trouble accessing that information right now."
+        yield "\n<sentence_end>\n"
 
 
 def search_rag(query: str, k: int = 3) -> List[Dict[str, Any]]:

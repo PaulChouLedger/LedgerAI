@@ -171,6 +171,8 @@ def chat():
         def generate_triage():
             try:
                 question, final_state = process_triage_step(prompt, updated_state, session_id)
+                # IMPORTANT: Save the updated state so step_index advances
+                save_state(final_state, session_id)
                 yield f"<sentence_start>\n{question}\n<sentence_end>\n"
             except Exception as e:
                 print(f"[Aura-LLM] ❌ Error in triage: {e}")
