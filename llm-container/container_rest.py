@@ -18,7 +18,7 @@ import requests
 from router import route_prompt, ConversationMode, format_mode_info
 from casual import handle_casual, stream_casual_response
 from thinker import handle_thinker
-from triage import detect_condition, process_triage_step, generate_triage_completion, load_state, save_state, get_intro, get_steps
+from triage import detect_condition, process_triage_step, generate_triage_completion, load_state, save_state, get_intro, get_steps, apply_synonym_expansion, normalize_text, substitute_name
 from clinician import ClinicianSession, is_clinician_trigger, create_clinician_session
 
 # RAG functionality moved to separate RAG container (port 11435)
