@@ -155,6 +155,9 @@ def play_welcome_prompt(stream):
 
 # === Main Loop ===
 def listen():
+    global last_activity_time
+    last_activity_time = time.time()  # Initialize activity timer
+    
     channels = find_device_index()
     
     # Configure hardware noise suppression
@@ -308,6 +311,7 @@ def listen():
                     elif time.time() - silence_start > SILENCE_TIMEOUT:
                         print(f"\n[VAD] ⏹️  Speech ended")
                         set_transcribing(False)
+                        last_activity_time = time.time()
                         break
                 else:
                     silence_start = None
