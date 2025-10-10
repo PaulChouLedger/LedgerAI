@@ -40,6 +40,7 @@ SERVICE_FILES=(
     "/etc/systemd/system/aura-listener.service"
     "/etc/systemd/system/ledgerai.service"
     "/etc/systemd/system/aura.service"
+    "/etc/systemd/system/respeaker-tuning.service"
 )
 
 SERVICE_FOUND=false
