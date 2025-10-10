@@ -396,9 +396,17 @@ def is_valid_answer(cond: str, key: str, ans: str, state: Dict[str, Any]) -> boo
             answers = s.get("answers", {})
             print(f"[Triage] 🔍 Checking step with key '{key}', answers: {answers}")
 
-            # If answers is empty, accept any answer (like onset questions)
+            # For onset questions with empty answers, use generic onset validation
+            if not answers and key == "onset":
+                print(f"[Triage] 🔍 Onset question - using generic time validation")
+                generic_onset_answers = get_generic_onset_answers()
+                opt, score = match_answer_option(ans_norm, generic_onset_answers, key=key)
+                print(f"[Triage] 🔍 Time matching: opt='{opt}', score={score}, threshold={MIN_MATCH}")
+                return opt and score >= MIN_MATCH
+            
+            # For other empty answers, accept any answer (rare case)
             if not answers:
-                print(f"[Triage] ✅ Empty answers - accepting any answer for '{key}'")
+                print(f"[Triage] ⚠️ Empty answers for '{key}' - accepting any answer")
                 return True
 
             opt, score = match_answer_option(ans_norm, answers, key=key)
@@ -815,6 +823,10 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
     if state["step_index"] < len(steps):
         next_step = steps[state["step_index"]]
         question = next_step.get("question", "")
+
+        # Update last_key to the question we're about to ask
+        state["last_key"] = next_step.get("key")
+        print(f"[Triage] 📝 Asking step {state['step_index']}, key='{state['last_key']}', question: {question[:50]}")
 
         # Apply NLG rewriting (using simple fallback like old version)
         from nlg import rewrite
