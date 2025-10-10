@@ -224,6 +224,7 @@ def listen():
                         break
                 
                 print("[Listener] ▶️ Mic resumed after playback (buffer flushed)")
+                last_activity_time = time.time()  # Reset idle timer after playback
             
             buffer = []
             silence_start = None
