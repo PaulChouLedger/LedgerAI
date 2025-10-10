@@ -19,6 +19,16 @@ VAD_SILENCE_THRESHOLD = 0.05  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
 MIN_SPEECH_RMS = 0.008  # Filter out low-level noise (more permissive for AGC)
 
+# === AGC Testing Configuration ===
+# Enable/disable hardware AGC (in ReSpeaker DSP chip)
+USE_HARDWARE_AGC = True
+HARDWARE_AGC_TARGET = 0.08  # Target RMS level (0.01-0.99)
+HARDWARE_AGC_MAX_GAIN = 30.0  # Maximum gain in dB
+
+# Enable/disable software AGC (in Python after audio capture)
+USE_SOFTWARE_AGC = False
+SOFTWARE_AGC_TARGET = 0.1  # Target RMS level for normalization
+
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
@@ -46,7 +56,7 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 
 # === Configure ReSpeaker Hardware ===
 def configure_respeaker_hardware():
-    """Configure ReSpeaker: Hardware HPF → AGC pipeline (filter before amplify)"""
+    """Configure ReSpeaker: Hardware HPF and optional AGC"""
     try:
         import sys
         import usb.core
@@ -63,27 +73,57 @@ def configure_respeaker_hardware():
         
         tuning = Tuning(dev)
         
-        print("[Hardware] 🔧 Configuring ReSpeaker (filter then amplify)...")
+        print("[Hardware] 🔧 Configuring ReSpeaker...")
         
-        # Enable hardware high-pass filter BEFORE AGC (removes noise before amplification)
-        tuning.write("HPFONOFF", 1)  # Enable hardware HPF (runs before AGC)
+        # Enable hardware high-pass filter (removes noise before amplification)
+        tuning.write("HPFONOFF", 1)  # Enable hardware HPF
         
         # Disable aggressive noise suppression (causes artifacts)
         tuning.write("STATNOISEONOFF_SR", 0)
         tuning.write("NONSTATNOISEONOFF_SR", 0)
         tuning.write("ECHOONOFF", 0)
         
-        # Enable AGC with more aggressive settings for quiet speech
-        # This now amplifies CLEAN signal (after HPF removes noise)
-        tuning.write("AGCONOFF", 1)
-        tuning.write("AGCDESIREDLEVEL", 0.08)  # Higher target level
-        tuning.write("AGCMAXGAIN", 30.0)      # More gain available
-        
-        print("[Hardware] ✅ Hardware HPF → AGC pipeline configured")
+        # Configure AGC based on flag
+        if USE_HARDWARE_AGC:
+            tuning.write("AGCONOFF", 1)
+            tuning.write("AGCDESIREDLEVEL", HARDWARE_AGC_TARGET)
+            tuning.write("AGCMAXGAIN", HARDWARE_AGC_MAX_GAIN)
+            print(f"[Hardware] ✅ HPF + AGC enabled (target={HARDWARE_AGC_TARGET}, max_gain={HARDWARE_AGC_MAX_GAIN}dB)")
+        else:
+            tuning.write("AGCONOFF", 0)
+            print("[Hardware] ✅ HPF enabled, AGC disabled")
         
     except Exception as e:
         print(f"[Hardware] ⚠️  Configuration failed: {e}")
-        print(f"[Hardware] 💡 Continuing without hardware noise suppression...")
+        print(f"[Hardware] 💡 Continuing without hardware configuration...")
+
+# === Software AGC ===
+def apply_software_agc(audio, target_rms=SOFTWARE_AGC_TARGET):
+    """
+    Apply software AGC by normalizing audio to target RMS level
+    Simple gain adjustment - not adaptive like hardware AGC
+    """
+    current_rms = np.sqrt(np.mean(audio ** 2))
+    
+    if current_rms < 0.001:  # Avoid division by zero for silence
+        return audio
+    
+    # Calculate required gain
+    gain = target_rms / current_rms
+    
+    # Limit gain to prevent excessive amplification
+    gain = min(gain, 10.0)  # Max 20dB gain
+    
+    # Apply gain
+    amplified = audio * gain
+    
+    # Soft clip to prevent harsh clipping
+    amplified = np.tanh(amplified)
+    
+    new_rms = np.sqrt(np.mean(amplified ** 2))
+    print(f"[Software AGC] 🎚️  RMS: {current_rms:.4f} → {new_rms:.4f} (gain={gain:.2f}x)")
+    
+    return amplified
 
 # === Transcribe ===
 def transcribe(audio):
@@ -165,11 +205,30 @@ def listen():
     
     print("\n" + "="*70)
     print("[Audio] SIGNAL PROCESSING PIPELINE:")
-    print("[Audio]   1. Hardware HPF in DSP (removes low-freq noise FIRST)")
-    print("[Audio]   2. Hardware AGC in DSP (amplifies clean signal)")
-    print("[Audio]   3. Channel 0 selection (6ch → 1ch)")
-    print("[Audio]   4. VAD → Whisper")
-    print("[Audio] ✅ Optimal: Hardware filtering BEFORE amplification")
+    print("[Audio]   1. Hardware HPF in DSP (removes low-freq noise)")
+    
+    # Show AGC configuration
+    if USE_HARDWARE_AGC and USE_SOFTWARE_AGC:
+        print("[Audio]   2. Hardware AGC in DSP ⚠️  BOTH AGC ENABLED - NOT RECOMMENDED")
+        print(f"[Audio]      - Hardware: target={HARDWARE_AGC_TARGET}, max={HARDWARE_AGC_MAX_GAIN}dB")
+        print(f"[Audio]   3. Software AGC in Python (target={SOFTWARE_AGC_TARGET})")
+        print("[Audio]   4. Channel 0 selection")
+        print("[Audio]   5. VAD → Whisper")
+    elif USE_HARDWARE_AGC:
+        print(f"[Audio]   2. Hardware AGC in DSP (target={HARDWARE_AGC_TARGET}, max={HARDWARE_AGC_MAX_GAIN}dB)")
+        print("[Audio]   3. Channel 0 selection")
+        print("[Audio]   4. VAD → Whisper")
+        print("[Audio] ✅ Using HARDWARE AGC")
+    elif USE_SOFTWARE_AGC:
+        print("[Audio]   2. Channel 0 selection (NO hardware AGC)")
+        print(f"[Audio]   3. Software AGC in Python (target={SOFTWARE_AGC_TARGET})")
+        print("[Audio]   4. VAD → Whisper")
+        print("[Audio] ✅ Using SOFTWARE AGC")
+    else:
+        print("[Audio]   2. Channel 0 selection")
+        print("[Audio]   3. VAD → Whisper")
+        print("[Audio] ⚠️  NO AGC ENABLED - audio may be too quiet")
+    
     print("="*70 + "\n")
     
     # ARM/Jetson-specific audio configuration
@@ -333,8 +392,11 @@ def listen():
             mono = full_audio[:, 0]  # Channel 0 only
             
             # Hardware HPF already applied in ReSpeaker DSP (before AGC)
-            # No software filtering needed
             mono_filtered = mono
+            
+            # Apply software AGC if enabled
+            if USE_SOFTWARE_AGC:
+                mono_filtered = apply_software_agc(mono_filtered, target_rms=SOFTWARE_AGC_TARGET)
             
             # Check if audio RMS is too low (likely fan noise, not speech)
             rms = np.sqrt(np.mean(mono_filtered ** 2))
