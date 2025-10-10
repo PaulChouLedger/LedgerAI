@@ -161,8 +161,41 @@ def listen():
     print("[Audio] 6-channel → channel 0 → Whisper")
     print("="*70 + "\n")
     
-    with sd.InputStream(device=DEVICE_INDEX, channels=channels, samplerate=SAMPLE_RATE,
-                        blocksize=FRAME_SIZE, dtype="float32") as stream:
+    # ARM/Jetson-specific audio configuration
+    import platform
+    is_arm = platform.machine().startswith('aarch') or platform.machine().startswith('arm')
+    
+    # Create stream with ARM-compatible settings
+    stream_params = {
+        'device': DEVICE_INDEX,
+        'channels': channels,
+        'samplerate': SAMPLE_RATE,
+        'blocksize': FRAME_SIZE,
+        'dtype': 'float32'
+    }
+    
+    # Add latency for ARM devices (helps with ALSA buffer issues)
+    if is_arm:
+        print("[Audio] 🔧 Detected ARM architecture - using latency='high' for stability")
+        stream_params['latency'] = 'high'
+    
+    try:
+        stream = sd.InputStream(**stream_params)
+    except Exception as e:
+        print(f"[Audio] ⚠️  Failed to open stream with default settings: {e}")
+        print("[Audio] 🔄 Trying alternative configuration...")
+        # Fallback: use lower latency or different blocksize
+        stream_params['latency'] = 0.2  # 200ms latency
+        stream_params['blocksize'] = 1024  # Smaller blocksize
+        try:
+            stream = sd.InputStream(**stream_params)
+            print("[Audio] ✅ Stream opened with fallback settings")
+        except Exception as e2:
+            print(f"[Audio] ❌ Failed to open audio stream: {e2}")
+            print("[Audio] 💡 Try: sudo apt-get install --reinstall libportaudio2")
+            raise
+    
+    with stream:
         
         play_welcome_prompt(stream)
         

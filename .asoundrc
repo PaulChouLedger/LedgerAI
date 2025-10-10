@@ -1,0 +1,47 @@
+# ALSA Configuration for ReSpeaker on ARM/Jetson
+# Fixes mmap and buffer alignment issues
+
+# Default PCM device
+pcm.!default {
+    type plug
+    slave.pcm "hw:ArrayUAC10,0"
+    hint {
+        show on
+        description "ReSpeaker 4 Mic Array (Jetson-compatible)"
+    }
+}
+
+# Capture device with explicit buffer settings
+pcm.respeaker {
+    type hw
+    card ArrayUAC10
+    device 0
+    channels 6
+    rate 16000
+    # Disable mmap to avoid ARM alignment issues
+    nonblock 0
+    # Use larger periods to reduce ALSA overhead
+    period_size 512
+    periods 4
+}
+
+# Safer alternative using plug (automatic conversion)
+pcm.respeaker_safe {
+    type plug
+    slave {
+        pcm "hw:ArrayUAC10,0"
+        rate 16000
+        channels 6
+        # Force buffer size to be ALSA-friendly
+        period_time 0
+        period_size 512
+        buffer_size 2048
+    }
+}
+
+# Control device
+ctl.!default {
+    type hw
+    card ArrayUAC10
+}
+
