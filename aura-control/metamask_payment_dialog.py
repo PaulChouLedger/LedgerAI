@@ -320,7 +320,7 @@ class MetaMaskPaymentDialog(QDialog):
             self.record_manual_payment(amount)
     
     def build_metamask_deeplink(self, amount: float, token_address: str) -> str:
-        """Build MetaMask deep link for token transfer (correct format)"""
+        """Build MetaMask deep link for token transfer"""
         from web3 import Web3
         
         # Convert amount to wei
@@ -335,17 +335,24 @@ class MetaMaskPaymentDialog(QDialog):
         # Correct MetaMask mobile deep link format for ERC-20 tokens:
         # https://metamask.app.link/send/{token_address}@{chain_id}/transfer?address={recipient}&uint256={amount}
         
-        metamask_link = (
-            f"https://metamask.app.link/send/"
-            f"{token_address}@1/"  # @1 = Ethereum mainnet, trailing slash important
-            f"transfer?"
-            f"address={self.CLIENT_WALLET}&"
-            f"uint256={amount_wei}"
-        )
+        # Encode recipient (32 bytes, left-padded)
+        recipient_padded = self.CLIENT_WALLET[2:].lower().zfill(64)
         
-        print(f"[MetaMask] 🔗 Deep link: {metamask_link}")
+        # Encode amount (32 bytes, left-padded)
+        amount_hex = hex(amount_wei)[2:].zfill(64)
         
-        return metamask_link
+        # Complete calldata
+        data = function_sig + recipient_padded + amount_hex
+        
+        print(f"[MetaMask]    Data: {data}")
+        
+        # Use standard ethereum: URI scheme (most compatible)
+        # This should work with MetaMask mobile without chain ID issues
+        ethereum_uri = f"ethereum:{token_address}?data={data}"
+        
+        print(f"[MetaMask] 🔗 Ethereum URI: {ethereum_uri}")
+        
+        return ethereum_uri
     
     def show_qr_code(self, url: str, amount: float):
         """Show QR code for MetaMask mobile"""

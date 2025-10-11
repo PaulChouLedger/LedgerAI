@@ -558,10 +558,21 @@ def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: 
             if opt_single:
                 opts = [opt_single]
         
-        # Map yes/no to reported/denied
+        # Determine answer format based on template pattern
+        # Templates like "You {answer} X" expect "reported"/"denied"
+        # Templates like "X {answer}" expect the actual answer text
+        
+        template_expects_reported_denied = re.match(r"^\s*You\s+\{answer\}\s+", templ, flags=re.IGNORECASE)
+        
         if len(opts) == 1 and opts[0] in ("yes", "no"):
-            ans_out = "reported" if opts[0] == "yes" else "denied"
+            # Yes/no questions
+            if template_expects_reported_denied:
+                ans_out = "reported" if opts[0] == "yes" else "denied"
+            else:
+                # For templates like "X {answer}", don't use reported/denied
+                ans_out = opts[0]
         elif opts:
+            # Multiple options or specific answers
             clean_opts = []
             for opt in opts:
                 is_redundant = False
@@ -575,29 +586,33 @@ def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: 
             if len(clean_opts) > 1:
                 clean_opts = [max(clean_opts, key=len)]
             
-            # Timing questions
-            if key in ["onset", "when", "timing", "duration"]:
-                ans_out = pretty_join(clean_opts or opts, 'and')
+            # For templates expecting reported/denied, add prefix
+            if template_expects_reported_denied:
+                # Check if this is a positive or negative response
+                normalized = normalize_yes_no_response(raw)
+                if normalized == "no":
+                    ans_out = "denied"
+                else:
+                    ans_out = f"reported {pretty_join(clean_opts or opts, 'and')}"
             else:
-                ans_out = f"reported {pretty_join(clean_opts or opts, 'and')}"
+                # Template expects actual answer, no prefix
+                ans_out = pretty_join(clean_opts or opts, 'and')
         else:
+            # No match found - fallback
             normalized = normalize_yes_no_response(raw)
             if normalized == "yes":
-                ans_out = f"reported {raw}"
+                ans_out = "reported" if template_expects_reported_denied else "yes"
             elif normalized == "no":
-                ans_out = "denied"
+                ans_out = "denied" if template_expects_reported_denied else "no"
             else:
                 ans_out = raw
         
-               # Handle pathway routing
+        # Handle pathway routing
         if ans_out.endswith("_pathway"):
             display_name = ans_out.replace("_pathway", "").replace("_", " ").title()
             line = templ.format(answer=display_name).strip()
-        elif re.match(r"^\s*You\s+\{answer\}\s+", templ, flags=re.IGNORECASE) and ans_out not in ("reported", "denied"):
-            tail = re.sub(r"^\s*You\s+\{answer\}\s+", "", templ, flags=re.IGNORECASE).strip()
-            line = f"You reported {tail} with {ans_out}"
         else:
-            # Use the template as-is (JSON files should handle proper formatting)
+            # Use the template as-is
             line = templ.format(answer=ans_out).strip()
         
         # Categorize
@@ -851,13 +866,15 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
         return final_question, state
 
     else:
-        # Triage complete
+        # Triage complete - generate recap and reset session
         recap_response = generate_triage_completion(state, session_id)
-        return recap_response, state
+        # Reload state after reset
+        reset_state = load_state(session_id)
+        return recap_response, reset_state
 
 
 def generate_triage_completion(state: Dict[str, Any], session_id: str) -> str:
-    """Generate final triage completion"""
+    """Generate final triage completion and reset session"""
     condition = state.get("condition")
     answers = state.get("answers", [])
     flags = state.get("flags", {})
@@ -891,6 +908,19 @@ def generate_triage_completion(state: Dict[str, Any], session_id: str) -> str:
             outcome = "Schedule appointment with primary care physician within 24-48 hours."
     
     outcome = substitute_name(outcome, state.get("user_name"))
+    
+    # IMPORTANT: Reset session state after completion to prevent infinite loop
+    # Preserve user name across resets
+    user_name = state.get("user_name")
+    reset_state = {
+        "condition": None, "step_index": 0, "answers": [], "flags": {},
+        "last_key": None, "user_name": user_name,
+        "active_pathway": None, "entered_pathway": False,
+        "updated_at": None, "phrasing_history": [], "detailed_symptoms": [],
+        "original_complaint": None, "expanded_prompt": None, "mode": None
+    }
+    save_state(reset_state, session_id)
+    print(f"[Triage] ✅ Triage completed - session reset for {session_id}")
     
     return f"{recap} {outcome}"
 
