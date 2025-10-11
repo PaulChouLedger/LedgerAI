@@ -15,7 +15,7 @@ SAMPLE_RATE = 16000
 FRAME_SIZE = int(SAMPLE_RATE * 0.032)
 SILENCE_TIMEOUT = 0.3  # 300ms of silence before stopping
 VAD_START_THRESHOLD = 0.35  # Higher = less sensitive to fan noise
-VAD_SILENCE_THRESHOLD = 0.05  # Lower = more conservative about ending
+VAD_SILENCE_THRESHOLD = 0.15  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
 MIN_SPEECH_RMS = 0.008  # Filter out low-level noise (more permissive for AGC)
 
