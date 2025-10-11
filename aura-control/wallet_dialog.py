@@ -2,9 +2,36 @@
 
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                             QPushButton, QLineEdit, QTextEdit, QGroupBox, QMessageBox)
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt5.QtGui import QFont, QColor
 from wallet_integration import get_wallet_manager, get_usage_tracker
+
+
+class BalanceFetchWorker(QThread):
+    """Background worker for fetching balance without blocking UI"""
+    
+    balance_ready = pyqtSignal(dict)  # Emits wallet_info when ready
+    
+    def __init__(self, wallet_manager):
+        super().__init__()
+        self.wallet_manager = wallet_manager
+    
+    def run(self):
+        """Fetch balance in background"""
+        try:
+            wallet_info = self.wallet_manager.get_wallet_info()
+            self.balance_ready.emit(wallet_info)
+        except Exception as e:
+            print(f"[BalanceFetch] ❌ Error: {e}")
+            # Emit empty info on error
+            self.balance_ready.emit({
+                'connected': False,
+                'address': None,
+                'eth_balance': None,
+                'token_balance': None,
+                'token_info': {}
+            })
+
 
 class WalletDialog(QDialog):
     """Dialog for connecting wallet and viewing token balance"""
@@ -70,15 +97,18 @@ class WalletDialog(QDialog):
         self.setup_ui()
         self.update_connection_status()
         
+        # Show usage stats immediately (instant, no network call)
+        self.update_usage_stats()
+        
         # Center the dialog on the actual screen
         self.center_dialog()
         
-        # Load balance immediately on dialog open
-        self.refresh_balance()
+        # Load balance in background (non-blocking, happens after dialog is visible)
+        QTimer.singleShot(100, self.refresh_balance_async)  # Small delay to ensure dialog is shown first
         
         # Auto-refresh timer for balance updates
         self.refresh_timer = QTimer()
-        self.refresh_timer.timeout.connect(self.refresh_balance)
+        self.refresh_timer.timeout.connect(self.refresh_balance_async)
         self.refresh_timer.start(30000)  # Refresh every 30 seconds
     
     def setup_ui(self):
@@ -322,7 +352,7 @@ class WalletDialog(QDialog):
         """Connect using the saved wallet address"""
         if self.wallet_manager.connect_wallet(address, auto_save=False):
             self.balance_label.setText("⏳ Fetching balance...")
-            self.refresh_balance()
+            self.refresh_balance_async()  # Non-blocking
         else:
             self.balance_label.setText("❌ Connection failed")
     
@@ -490,30 +520,46 @@ class WalletDialog(QDialog):
         
         # Attempt connection
         if self.wallet_manager.connect_wallet(address):
-            self.refresh_balance()
+            self.refresh_balance_async()  # Non-blocking
         else:
             self.balance_label.setText("❌ Connection failed")
             self.balance_label.setStyleSheet("color: #ff0000;")
             self.address_display.setText("Invalid address or network error")
     
-    def refresh_balance(self):
-        """Refresh wallet balance display"""
+    def refresh_balance_async(self):
+        """Refresh wallet balance in background (non-blocking)"""
         if not self.wallet_manager.connected_address:
+            # Still update usage stats even if no wallet connected
+            self.update_usage_stats()
             return
         
         # Show loading state
-        self.balance_label.setText("⏳ Loading balance...")
+        self.balance_label.setText("⏳ Loading...")
         self.balance_label.setStyleSheet("color: #8e8e93;")
         
-        wallet_info = self.wallet_manager.get_wallet_info()
+        # Start background fetch
+        self.balance_worker = BalanceFetchWorker(self.wallet_manager)
+        self.balance_worker.balance_ready.connect(self.on_balance_ready)
+        self.balance_worker.start()
+    
+    def on_balance_ready(self, wallet_info):
+        """Handle balance data received from background worker"""
         
         if wallet_info['connected']:
             # Display token balance
             token_balance = wallet_info.get('token_balance')
             if token_balance is not None:
                 token_symbol = wallet_info['token_info'].get('symbol', 'tokens')
-                self.balance_label.setText(f"💰 {token_balance:.6f} {token_symbol}")
-                self.balance_label.setStyleSheet("color: #00ff00;")
+                
+                # Check if balance is actually zero vs query error
+                if token_balance == 0.0:
+                    self.balance_label.setText(f"💰 0.000000 {token_symbol}")
+                    self.balance_label.setStyleSheet("color: #FF9500;")  # Orange for zero balance
+                    self.address_display.setText("⚠️ No tokens in wallet (ETH balance may exist)")
+                    self.address_display.setStyleSheet("color: #FF9500; font-size: 9pt;")
+                else:
+                    self.balance_label.setText(f"💰 {token_balance:.6f} {token_symbol}")
+                    self.balance_label.setStyleSheet("color: #00ff00;")
             else:
                 # RPC error - suggest upgrading to better provider
                 self.balance_label.setText("⚠️ RPC Error - Click Refresh")
@@ -531,6 +577,13 @@ class WalletDialog(QDialog):
             self.address_display.setText(f"Address: {short_addr}")
         
         # Update usage stats
+        self.update_usage_stats()
+        
+        # Update connection status
+        self.update_connection_status()
+    
+    def update_usage_stats(self):
+        """Update usage statistics display (can be called independently)"""
         session_usage = self.usage_tracker.get_session_usage()
         total_paid = self.usage_tracker.get_total_paid()
         balance_owed = self.usage_tracker.get_balance_owed()
@@ -538,9 +591,10 @@ class WalletDialog(QDialog):
         self.usage_label.setText(f"💳 {session_usage:.6f} tokens")
         self.paid_label.setText(f"💸 {total_paid:.6f} paid")
         self.owed_label.setText(f"📊 {balance_owed:.6f} owed")
-        
-        # Update connection status
-        self.update_connection_status()
+    
+    def refresh_balance(self):
+        """Legacy method - redirects to async version"""
+        self.refresh_balance_async()
     
     
     def center_dialog(self):
@@ -588,9 +642,9 @@ class WalletDialog(QDialog):
             result = payment_dialog.exec_()
             
             # Refresh balance after payment
-            if result == QMessageBox.Accepted:
+            if result == QDialog.Accepted:
                 print("[WalletDialog] ✅ Payment completed, refreshing balance")
-                self.refresh_balance()
+                self.refresh_balance_async()
                 
         except Exception as e:
             print(f"[WalletDialog] ❌ Error opening payment dialog: {e}")

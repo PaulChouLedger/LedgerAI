@@ -240,13 +240,18 @@ class WalletManager:
             for attempt in range(3):
                 try:
                     # Get balance in smallest unit
+                    print(f"[Wallet] 🔍 Querying balance for {target_address}")
+                    print(f"[Wallet] 📝 Token contract: {self.token_info.get('address', 'unknown')}")
+                    
                     balance_wei = self.token_contract.functions.balanceOf(target_address).call()
                     
                     # Convert to human-readable format
                     decimals = self.token_info.get('decimals', 18)
                     balance = balance_wei / (10 ** decimals)
                     
-                    print(f"[Wallet] 💰 Balance: {balance:.6f} {self.token_info.get('symbol', 'tokens')}")
+                    print(f"[Wallet] 💰 Raw balance: {balance_wei} wei")
+                    print(f"[Wallet] 💰 Decimals: {decimals}")
+                    print(f"[Wallet] 💰 Token balance: {balance:.6f} {self.token_info.get('symbol', 'tokens')}")
                     return balance
                     
                 except Exception as e:
