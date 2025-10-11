@@ -8,7 +8,8 @@ from typing import Optional, Dict, Any
 class WalletManager:
     """Manages Ethereum wallet connections and token balance tracking"""
     
-    # Your token contract address
+    # Real DEX-traded token contract address (Ethereum Mainnet)
+    # This token has real market value and can be traded on DEX platforms
     TOKEN_ADDRESS = "0xD1F2586790a5bD6DA1e443441df53aF6EC213D83"
     
     # ERC-20 Token ABI (minimal - just what we need for balanceOf and decimals)
@@ -306,7 +307,11 @@ def get_wallet_manager() -> WalletManager:
 
 # Token usage tracking for computational cost
 class TokenUsageTracker:
-    """Track token consumption based on computational complexity"""
+    """Track token consumption based on computational complexity
+    
+    Usage persists across reboots and is saved to disk.
+    No reset functionality to maintain accurate total usage tracking.
+    """
     
     # Cost per operation type (in tokens)
     COSTS = {
@@ -318,13 +323,62 @@ class TokenUsageTracker:
     }
     
     def __init__(self):
-        self.session_usage = 0.0
+        # File to store persistent usage data
+        self.usage_file = os.path.expanduser("~/LedgerAI/data/token_usage.json")
+        self.total_usage = 0.0
+        self.total_paid = 0.0  # Track how much has been paid to client
         self.operation_history = []
+        
+        # Client wallet address
+        self.client_wallet = "0x9F8081892c87DDAeD07D0bBD76CC2bd7fF6eE4c2"
+        
+        # Load saved usage data
+        self._load_usage()
+    
+    def _load_usage(self):
+        """Load usage data from file"""
+        try:
+            if os.path.exists(self.usage_file):
+                with open(self.usage_file, 'r') as f:
+                    data = json.load(f)
+                    self.total_usage = data.get('total_usage', 0.0)
+                    self.total_paid = data.get('total_paid', 0.0)
+                    self.operation_history = data.get('operation_history', [])
+                    print(f"[TokenUsage] 💾 Loaded saved usage: {self.total_usage:.6f} tokens")
+                    print(f"[TokenUsage] 💰 Total paid: {self.total_paid:.6f} tokens")
+                    print(f"[TokenUsage] 📊 Balance owed: {self.get_balance_owed():.6f} tokens")
+            else:
+                print(f"[TokenUsage] 🆕 Starting fresh usage tracking")
+        except Exception as e:
+            print(f"[TokenUsage] ⚠️ Failed to load usage data: {e}")
+            self.total_usage = 0.0
+            self.total_paid = 0.0
+            self.operation_history = []
+    
+    def _save_usage(self):
+        """Save usage data to file"""
+        try:
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(self.usage_file), exist_ok=True)
+            
+            # Save to file
+            data = {
+                'total_usage': self.total_usage,
+                'total_paid': self.total_paid,
+                'operation_history': self.operation_history[-100:],  # Keep last 100 operations
+                'client_wallet': self.client_wallet
+            }
+            
+            with open(self.usage_file, 'w') as f:
+                json.dump(data, f, indent=2)
+            
+        except Exception as e:
+            print(f"[TokenUsage] ⚠️ Failed to save usage data: {e}")
     
     def record_usage(self, operation_type: str, multiplier: float = 1.0):
         """Record token usage for an operation"""
         cost = self.COSTS.get(operation_type, 0.001) * multiplier
-        self.session_usage += cost
+        self.total_usage += cost
         
         self.operation_history.append({
             'type': operation_type,
@@ -332,18 +386,30 @@ class TokenUsageTracker:
             'multiplier': multiplier
         })
         
-        print(f"[TokenUsage] 💳 {operation_type}: {cost:.6f} tokens (total: {self.session_usage:.6f})")
+        print(f"[TokenUsage] 💳 {operation_type}: {cost:.6f} tokens (total: {self.total_usage:.6f})")
+        
+        # Save to disk after each operation
+        self._save_usage()
         
         return cost
     
     def get_session_usage(self) -> float:
-        """Get total token usage for current session"""
-        return self.session_usage
+        """Get total token usage (persists across reboots)"""
+        return self.total_usage
     
-    def reset_session(self):
-        """Reset session usage counter"""
-        self.session_usage = 0.0
-        self.operation_history = []
+    def record_payment(self, amount: float):
+        """Record a payment made to client"""
+        self.total_paid += amount
+        print(f"[TokenUsage] 💸 Payment recorded: {amount:.6f} tokens (total paid: {self.total_paid:.6f})")
+        self._save_usage()
+    
+    def get_balance_owed(self) -> float:
+        """Get balance owed to client (usage - paid)"""
+        return max(0, self.total_usage - self.total_paid)
+    
+    def get_total_paid(self) -> float:
+        """Get total paid to client"""
+        return self.total_paid
 
 
 # Singleton instance

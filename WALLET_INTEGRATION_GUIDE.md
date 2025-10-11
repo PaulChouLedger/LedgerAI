@@ -4,9 +4,12 @@
 
 LedgerAI Aura now includes Ethereum wallet integration that allows you to:
 - Connect to your Ethereum wallet (MetaMask, Coinbase, or any Ethereum address)
-- View your token balance for your custom token (0xD1F2586790a5bD6DA1e443441df53aF6EC213D83)
+- View your balance for a **real DEX-traded token** (0xD1F2586790a5bD6DA1e443441df53aF6EC213D83)
 - Track computational token consumption during Aura interactions
+- Send real token payments to the client wallet
 - Monitor usage based on query complexity
+
+**Important:** This integration uses a real token with actual market value that can be traded on decentralized exchanges.
 
 ## Setup
 
@@ -93,7 +96,18 @@ If you don't set up a provider, the system will automatically fall back to publi
 
 ## Token Consumption Tracking
 
-### How It Works
+### Storage Location
+
+Token usage is stored in:
+```
+~/LedgerAI/data/token_usage.json
+```
+
+This file contains:
+- Total token consumption
+- Last 100 operations history
+
+## How It Works
 
 Every Aura interaction consumes tokens based on computational complexity:
 
@@ -115,24 +129,26 @@ Every Aura interaction consumes tokens based on computational complexity:
 ### Viewing Usage
 
 The wallet dialog displays:
-- **Session Usage**: Total tokens consumed in the current session
+- **Total Usage**: All tokens consumed (saved to disk)
+- **Persistent Tracking**: Usage persists across reboots and system restarts
 - **Real-time Updates**: Automatically refreshes every 30 seconds
-
-### Resetting Usage
-
-Click **🔄 Reset Session Usage** to clear the current session counter.
+- **Saved Automatically**: Usage is saved after each operation to `~/LedgerAI/data/token_usage.json`
+- **Never Resets**: Usage accumulates permanently until manually cleared from disk
 
 ## Token Address
 
-Your custom token:
+**Real DEX-Traded Token:**
 ```
 0xD1F2586790a5bD6DA1e443441df53aF6EC213D83
 ```
 
-This is an ERC-20 token on Ethereum Mainnet. The integration automatically:
-- Detects token name and symbol
+This is a **real ERC-20 token traded on decentralized exchanges** (Ethereum Mainnet). The integration automatically:
+- Detects token name and symbol from the blockchain
 - Reads token decimals
 - Formats balance correctly
+- Supports real transactions with actual market value
+
+**Note:** This token has real market value and can be traded on DEX platforms.
 
 ## Future Enhancements
 
@@ -188,8 +204,23 @@ LLM processing → speak_llm_response() [0.001-0.010 tokens]
     ↓
 TTS generation → tts_playback_thread() [0.001 tokens/sec]
     ↓
+Total Usage Saved to ~/LedgerAI/data/token_usage.json
+    ↓
 Total Usage Displayed in Wallet Dialog
 ```
+
+### Resetting Usage (Manual Only)
+
+Usage is designed to accumulate permanently. To reset:
+
+```bash
+# Delete the usage file
+rm ~/LedgerAI/data/token_usage.json
+
+# Next time Aura starts, usage will begin at 0
+```
+
+**Note**: There is no reset button in the UI by design - this ensures accurate tracking of all computational costs.
 
 ## Troubleshooting
 
@@ -276,11 +307,8 @@ tracker = get_usage_tracker()
 tracker.record_usage('simple_query')
 tracker.record_usage('transcription', multiplier=5.0)  # 5 seconds
 
-# Get session total
+# Get total usage (persists until app restart)
 total = tracker.get_session_usage()
-
-# Reset session
-tracker.reset_session()
 ```
 
 ## Support

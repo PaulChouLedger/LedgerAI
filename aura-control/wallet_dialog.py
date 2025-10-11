@@ -1,7 +1,7 @@
 # wallet_dialog.py — Wallet Connection Dialog for Aura
 
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
-                            QPushButton, QLineEdit, QTextEdit, QGroupBox)
+                            QPushButton, QLineEdit, QTextEdit, QGroupBox, QMessageBox)
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont, QColor
 from wallet_integration import get_wallet_manager, get_usage_tracker
@@ -227,10 +227,10 @@ class WalletDialog(QDialog):
         layout.addWidget(balance_group)
         
         # === Token Usage Stats ===
-        usage_group = QGroupBox("Session Usage")
+        usage_group = QGroupBox("Token Usage & Payments")
         usage_layout = QVBoxLayout()
         
-        usage_info = QLabel("Tokens consumed this session based on computational complexity:")
+        usage_info = QLabel("Total tokens consumed based on computational complexity:")
         usage_info.setStyleSheet("color: #aaaaaa; font-size: 9pt;")
         usage_layout.addWidget(usage_info)
         
@@ -243,16 +243,57 @@ class WalletDialog(QDialog):
         self.usage_label.setStyleSheet("color: #FFD700;")
         usage_layout.addWidget(self.usage_label)
         
-        # Reset button
-        reset_btn = QPushButton("🔄 Reset Session Usage")
-        reset_btn.clicked.connect(self.reset_usage)
-        usage_layout.addWidget(reset_btn)
+        # Paid to client
+        self.paid_label = QLabel("💸 0.000000 tokens paid to client")
+        self.paid_label.setAlignment(Qt.AlignCenter)
+        self.paid_label.setStyleSheet("color: #34C759; font-size: 11pt; font-weight: bold;")
+        usage_layout.addWidget(self.paid_label)
+        
+        # Balance owed
+        self.owed_label = QLabel("📊 0.000000 tokens owed")
+        self.owed_label.setAlignment(Qt.AlignCenter)
+        owed_font = QFont()
+        owed_font.setPointSize(12)
+        owed_font.setBold(True)
+        self.owed_label.setFont(owed_font)
+        self.owed_label.setStyleSheet("color: #FF9500;")
+        usage_layout.addWidget(self.owed_label)
+        
+        # Note about persistent tracking
+        note = QLabel("Usage persists across reboots • Saved to disk")
+        note.setAlignment(Qt.AlignCenter)
+        note.setStyleSheet("color: #666666; font-size: 9pt; font-style: italic; margin-top: 5px;")
+        usage_layout.addWidget(note)
         
         usage_group.setLayout(usage_layout)
         layout.addWidget(usage_group)
         
         # === Action Buttons ===
         button_layout = QHBoxLayout()
+        button_layout.setSpacing(10)
+        
+        # Pay Client button
+        pay_client_btn = QPushButton("💸 Pay Client")
+        pay_client_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #34C759;
+                color: white;
+                font-size: 12pt;
+                font-weight: bold;
+                padding: 12px 20px;
+                border-radius: 15px;
+                border: none;
+                min-width: 120px;
+            }
+            QPushButton:hover {
+                background-color: #30B350;
+            }
+            QPushButton:pressed {
+                background-color: #2A9D47;
+            }
+        """)
+        pay_client_btn.clicked.connect(self.open_payment_dialog)
+        button_layout.addWidget(pay_client_btn)
         
         refresh_btn = QPushButton("🔄 Refresh")
         refresh_btn.clicked.connect(self.refresh_balance)
@@ -491,16 +532,16 @@ class WalletDialog(QDialog):
         
         # Update usage stats
         session_usage = self.usage_tracker.get_session_usage()
+        total_paid = self.usage_tracker.get_total_paid()
+        balance_owed = self.usage_tracker.get_balance_owed()
+        
         self.usage_label.setText(f"💳 {session_usage:.6f} tokens used")
+        self.paid_label.setText(f"💸 {total_paid:.6f} tokens paid to client")
+        self.owed_label.setText(f"📊 {balance_owed:.6f} tokens owed")
         
         # Update connection status
         self.update_connection_status()
     
-    def reset_usage(self):
-        """Reset session usage counter"""
-        self.usage_tracker.reset_session()
-        self.usage_label.setText("💳 0.000000 tokens used")
-        print("[WalletDialog] ✅ Session usage reset")
     
     def center_dialog(self):
         """Center the dialog properly on the screen"""
@@ -531,6 +572,29 @@ class WalletDialog(QDialog):
         # Ensure dialog is visible and active
         self.raise_()
         self.activateWindow()
+    
+    def open_payment_dialog(self):
+        """Open payment dialog to send tokens to client"""
+        if not self.wallet_manager.connected_address:
+            QMessageBox.warning(self, "Not Connected", 
+                              "Please connect your wallet first before making payments.")
+            return
+        
+        try:
+            from payment_dialog import PaymentDialog
+            
+            # Create and show payment dialog
+            payment_dialog = PaymentDialog(parent=self, user_address=self.wallet_manager.connected_address)
+            result = payment_dialog.exec_()
+            
+            # Refresh balance after payment
+            if result == QMessageBox.Accepted:
+                print("[WalletDialog] ✅ Payment completed, refreshing balance")
+                self.refresh_balance()
+                
+        except Exception as e:
+            print(f"[WalletDialog] ❌ Error opening payment dialog: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to open payment dialog:\n{str(e)}")
     
     def closeEvent(self, event):
         """Handle dialog close"""

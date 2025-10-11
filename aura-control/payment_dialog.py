@@ -1,0 +1,478 @@
+# payment_dialog.py — Payment Dialog for Sending Tokens to Client
+
+from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
+                             QPushButton, QLineEdit, QTextEdit, QMessageBox)
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtGui import QFont
+from wallet_integration import get_wallet_manager, get_usage_tracker
+
+class PaymentDialog(QDialog):
+    """Dialog for sending real DEX-traded tokens back to client wallet
+    
+    ⚠️ WARNING: This sends REAL tokens with actual market value!
+    Transactions are irreversible once confirmed on the blockchain.
+    """
+    
+    # Client wallet address (receives real token payments)
+    CLIENT_WALLET = "0x9F8081892c87DDAeD07D0bBD76CC2bd7fF6eE4c2"
+    
+    def __init__(self, parent=None, user_address=None):
+        super().__init__(parent)
+        self.wallet_manager = get_wallet_manager()
+        self.usage_tracker = get_usage_tracker()
+        self.user_address = user_address
+        
+        self.setWindowTitle("Send Payment to Client")
+        self.setFixedSize(1080, 1080)
+        
+        # Modal behavior
+        if parent:
+            self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+            self.setModal(True)
+        else:
+            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        
+        # Circular dark theme
+        self.setStyleSheet("""
+            QDialog {
+                background-color: rgba(28, 28, 30, 1.0);
+                color: #ffffff;
+                border: none;
+                border-radius: 536px;
+            }
+            QLabel {
+                color: #ffffff;
+            }
+            QLineEdit {
+                background-color: #3a3a3a;
+                color: #ffffff;
+                border: 2px solid #4D94D9;
+                border-radius: 8px;
+                padding: 15px;
+                font-size: 12pt;
+            }
+            QTextEdit {
+                background-color: #2a2a2a;
+                color: #ffffff;
+                border: 2px solid #4D94D9;
+                border-radius: 8px;
+                padding: 10px;
+                font-size: 10pt;
+            }
+            QPushButton {
+                background-color: #4D94D9;
+                color: #ffffff;
+                border: none;
+                border-radius: 8px;
+                padding: 15px 25px;
+                font-size: 12pt;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #5DA4E9;
+            }
+            QPushButton:pressed {
+                background-color: #3D84C9;
+            }
+            QPushButton:disabled {
+                background-color: #555555;
+                color: #999999;
+            }
+        """)
+        
+        self.setup_ui()
+        self.center_dialog()
+    
+    def setup_ui(self):
+        """Setup payment dialog UI"""
+        layout = QVBoxLayout()
+        layout.setContentsMargins(100, 80, 100, 80)
+        layout.setSpacing(20)
+        
+        # Vertical centering
+        layout.addStretch(1)
+        
+        # Title
+        title = QLabel("💸 Send Payment to Client")
+        title.setAlignment(Qt.AlignCenter)
+        title_font = QFont()
+        title_font.setPointSize(18)
+        title_font.setBold(True)
+        title.setFont(title_font)
+        layout.addWidget(title)
+        
+        # Client address display
+        client_label = QLabel(f"Client Address:\n{self.CLIENT_WALLET[:22]}\n{self.CLIENT_WALLET[22:]}")
+        client_label.setAlignment(Qt.AlignCenter)
+        client_label.setStyleSheet("color: #4D94D9; font-size: 10pt; font-family: 'Courier New'; margin: 10px;")
+        layout.addWidget(client_label)
+        
+        # From address (if connected)
+        if self.user_address:
+            from_label = QLabel(f"From: {self.user_address[:10]}...{self.user_address[-8:]}")
+            from_label.setAlignment(Qt.AlignCenter)
+            from_label.setStyleSheet("color: #888888; font-size: 10pt; margin-bottom: 10px;")
+            layout.addWidget(from_label)
+        
+        # Amount input section
+        amount_label = QLabel("Amount (tokens):")
+        amount_label.setStyleSheet("color: #aaaaaa; font-size: 11pt;")
+        layout.addWidget(amount_label)
+        
+        self.amount_input = QLineEdit()
+        self.amount_input.setPlaceholderText("0.000000")
+        self.amount_input.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.amount_input)
+        
+        # Quick amount buttons
+        quick_layout = QHBoxLayout()
+        quick_layout.setSpacing(10)
+        
+        for amount in [0.1, 0.5, 1.0, 5.0]:
+            btn = QPushButton(f"{amount}")
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: rgba(142, 142, 147, 0.3);
+                    padding: 10px;
+                    font-size: 10pt;
+                }
+                QPushButton:hover {
+                    background-color: rgba(142, 142, 147, 0.5);
+                }
+            """)
+            btn.clicked.connect(lambda checked, a=amount: self.set_amount(a))
+            quick_layout.addWidget(btn)
+        
+        layout.addLayout(quick_layout)
+        
+        # Warning message - REAL TOKENS
+        warning1 = QLabel("⚠️ WARNING: This sends REAL tokens with actual market value!")
+        warning1.setAlignment(Qt.AlignCenter)
+        warning1.setWordWrap(True)
+        warning1.setStyleSheet("color: #FF3B30; font-size: 11pt; font-weight: bold; margin: 10px;")
+        layout.addWidget(warning1)
+        
+        warning2 = QLabel("Transactions are irreversible once confirmed on blockchain")
+        warning2.setAlignment(Qt.AlignCenter)
+        warning2.setWordWrap(True)
+        warning2.setStyleSheet("color: #FF9500; font-size: 10pt; margin: 5px;")
+        layout.addWidget(warning2)
+        
+        warning3 = QLabel("You need your private key to sign transactions")
+        warning3.setAlignment(Qt.AlignCenter)
+        warning3.setWordWrap(True)
+        warning3.setStyleSheet("color: #888888; font-size: 9pt; margin: 5px;")
+        layout.addWidget(warning3)
+        
+        # Private key input (optional - for testing)
+        key_label = QLabel("Private Key (required for transaction):")
+        key_label.setStyleSheet("color: #aaaaaa; font-size: 10pt;")
+        layout.addWidget(key_label)
+        
+        self.private_key_input = QLineEdit()
+        self.private_key_input.setPlaceholderText("0x... (keep this secure!)")
+        self.private_key_input.setEchoMode(QLineEdit.Password)
+        layout.addWidget(self.private_key_input)
+        
+        # Transaction log
+        log_label = QLabel("Transaction Log:")
+        log_label.setStyleSheet("color: #aaaaaa; font-size: 10pt; margin-top: 10px;")
+        layout.addWidget(log_label)
+        
+        self.tx_log = QTextEdit()
+        self.tx_log.setReadOnly(True)
+        self.tx_log.setMaximumHeight(120)
+        self.tx_log.setPlaceholderText("Transaction status will appear here...")
+        layout.addWidget(self.tx_log)
+        
+        # Action buttons
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(15)
+        
+        cancel_btn = QPushButton("❌ Cancel")
+        cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF3B30;
+                font-size: 12pt;
+                padding: 15px 25px;
+            }
+            QPushButton:hover {
+                background-color: #D70015;
+            }
+            QPushButton:pressed {
+                background-color: #B30000;
+            }
+        """)
+        cancel_btn.clicked.connect(self.reject)
+        button_layout.addWidget(cancel_btn)
+        
+        self.send_btn = QPushButton("💸 Send Payment")
+        self.send_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #34C759;
+                font-size: 12pt;
+                padding: 15px 25px;
+            }
+            QPushButton:hover {
+                background-color: #30B350;
+            }
+            QPushButton:pressed {
+                background-color: #2A9D47;
+            }
+            QPushButton:disabled {
+                background-color: #555555;
+                color: #999999;
+            }
+        """)
+        self.send_btn.clicked.connect(self.send_payment)
+        button_layout.addWidget(self.send_btn)
+        
+        layout.addLayout(button_layout)
+        
+        # Note about MetaMask
+        note = QLabel("💡 For production, use MetaMask or hardware wallet integration")
+        note.setAlignment(Qt.AlignCenter)
+        note.setWordWrap(True)
+        note.setStyleSheet("color: #666666; font-size: 9pt; font-style: italic; margin-top: 5px;")
+        layout.addWidget(note)
+        
+        # Vertical centering
+        layout.addStretch(1)
+        
+        self.setLayout(layout)
+    
+    def set_amount(self, amount: float):
+        """Set amount from quick button"""
+        self.amount_input.setText(str(amount))
+    
+    def log_message(self, message: str):
+        """Add message to transaction log"""
+        self.tx_log.append(message)
+    
+    def send_payment(self):
+        """Send payment transaction"""
+        # Get amount
+        amount_text = self.amount_input.text().strip()
+        if not amount_text:
+            QMessageBox.warning(self, "Error", "Please enter an amount")
+            return
+        
+        try:
+            amount = float(amount_text)
+            if amount <= 0:
+                QMessageBox.warning(self, "Error", "Amount must be greater than 0")
+                return
+        except ValueError:
+            QMessageBox.warning(self, "Error", "Invalid amount format")
+            return
+        
+        # Get private key
+        private_key = self.private_key_input.text().strip()
+        if not private_key:
+            QMessageBox.warning(self, "Error", 
+                              "Private key required to sign transaction.\n\n"
+                              "For security, consider using MetaMask integration instead.")
+            return
+        
+        # Confirm transaction with strong warning
+        msg_box = QMessageBox(self)
+        msg_box.setIcon(QMessageBox.Warning)
+        msg_box.setWindowTitle("⚠️ Confirm Real Token Payment")
+        msg_box.setText("Send REAL tokens with actual market value?")
+        msg_box.setInformativeText(
+            f"⚠️ WARNING: This is a REAL transaction!\n\n"
+            f"To: {self.CLIENT_WALLET}\n"
+            f"Amount: {amount} tokens\n\n"
+            f"• Tokens have real market value\n"
+            f"• Transaction is IRREVERSIBLE\n"
+            f"• Gas fees will apply (paid in ETH)\n"
+            f"• Transaction goes to Ethereum Mainnet\n\n"
+            f"Are you absolutely sure?"
+        )
+        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg_box.setDefaultButton(QMessageBox.No)
+        
+        confirm = msg_box.exec_()
+        
+        if confirm != QMessageBox.Yes:
+            return
+        
+        # Disable button during transaction
+        self.send_btn.setEnabled(False)
+        self.log_message(f"🔄 Initiating payment of {amount} tokens...")
+        
+        # Start transaction in background thread
+        self.tx_worker = TransactionWorker(
+            wallet_manager=self.wallet_manager,
+            from_address=self.user_address,
+            to_address=self.CLIENT_WALLET,
+            amount=amount,
+            private_key=private_key
+        )
+        
+        self.tx_worker.log_signal.connect(self.log_message)
+        self.tx_worker.finished_signal.connect(self.on_transaction_finished)
+        self.tx_worker.start()
+    
+    def on_transaction_finished(self, success: bool, message: str, tx_hash: str = None):
+        """Handle transaction completion"""
+        self.send_btn.setEnabled(True)
+        
+        if success:
+            self.log_message(f"✅ {message}")
+            if tx_hash:
+                self.log_message(f"📝 Transaction: {tx_hash}")
+                self.log_message(f"🔗 View: https://etherscan.io/tx/{tx_hash}")
+            
+            # Record payment in usage tracker
+            amount = float(self.amount_input.text().strip())
+            self.usage_tracker.record_payment(amount)
+            self.log_message(f"💾 Payment recorded in usage tracker")
+            
+            QMessageBox.information(
+                self,
+                "Success",
+                f"Payment sent successfully!\n\n"
+                f"Transaction: {tx_hash[:20]}...\n\n"
+                f"View on Etherscan:\n{tx_hash}\n\n"
+                f"Payment recorded: {amount:.6f} tokens"
+            )
+            
+            # Close dialog after successful payment
+            self.accept()
+        else:
+            self.log_message(f"❌ {message}")
+            QMessageBox.critical(self, "Error", f"Transaction failed:\n\n{message}")
+    
+    def center_dialog(self):
+        """Center the dialog on screen"""
+        from PyQt5.QtWidgets import QDesktopWidget
+        
+        screen = QDesktopWidget().screenGeometry()
+        x = (screen.width() - 1080) // 2
+        y = (screen.height() - 1080) // 2
+        
+        self.move(x, y)
+        self.raise_()
+        self.activateWindow()
+
+
+class TransactionWorker(QThread):
+    """Worker thread for sending blockchain transactions"""
+    
+    log_signal = pyqtSignal(str)
+    finished_signal = pyqtSignal(bool, str, str)  # success, message, tx_hash
+    
+    def __init__(self, wallet_manager, from_address, to_address, amount, private_key):
+        super().__init__()
+        self.wallet_manager = wallet_manager
+        self.from_address = from_address
+        self.to_address = to_address
+        self.amount = amount
+        self.private_key = private_key
+    
+    def run(self):
+        """Execute transaction"""
+        try:
+            from web3 import Web3
+            from eth_account import Account
+            
+            # Ensure Web3 is connected
+            if not self.wallet_manager.is_connected():
+                self.finished_signal.emit(False, "Not connected to Ethereum network", "")
+                return
+            
+            w3 = self.wallet_manager.w3
+            
+            # Validate private key
+            try:
+                if not self.private_key.startswith('0x'):
+                    self.private_key = '0x' + self.private_key
+                account = Account.from_key(self.private_key)
+                
+                # Verify the from_address matches the private key
+                if account.address.lower() != self.from_address.lower():
+                    self.finished_signal.emit(False, "Private key doesn't match wallet address", "")
+                    return
+                
+            except Exception as e:
+                self.finished_signal.emit(False, f"Invalid private key: {str(e)}", "")
+                return
+            
+            self.log_signal.emit(f"📝 Preparing transaction...")
+            
+            # Get token contract
+            token_contract = self.wallet_manager.token_contract
+            if not token_contract:
+                self.finished_signal.emit(False, "Token contract not initialized", "")
+                return
+            
+            # Convert amount to smallest unit (considering decimals)
+            decimals = self.wallet_manager.token_info.get('decimals', 18)
+            amount_wei = int(self.amount * (10 ** decimals))
+            
+            self.log_signal.emit(f"💰 Amount: {self.amount} tokens ({amount_wei} wei)")
+            
+            # Check balance
+            balance = self.wallet_manager.get_token_balance(self.from_address)
+            if balance is None or balance < self.amount:
+                self.finished_signal.emit(False, f"Insufficient balance (have: {balance}, need: {self.amount})", "")
+                return
+            
+            # Get nonce
+            nonce = w3.eth.get_transaction_count(account.address)
+            self.log_signal.emit(f"🔢 Nonce: {nonce}")
+            
+            # Build transaction
+            transfer_function = token_contract.functions.transfer(
+                Web3.to_checksum_address(self.to_address),
+                amount_wei
+            )
+            
+            # Estimate gas
+            try:
+                gas_estimate = transfer_function.estimate_gas({'from': account.address})
+                self.log_signal.emit(f"⛽ Estimated gas: {gas_estimate}")
+            except Exception as e:
+                self.log_signal.emit(f"⚠️ Gas estimation failed: {e}")
+                gas_estimate = 100000  # Fallback
+            
+            # Get gas price
+            gas_price = w3.eth.gas_price
+            self.log_signal.emit(f"💵 Gas price: {w3.from_wei(gas_price, 'gwei')} gwei")
+            
+            # Build transaction dict
+            transaction = transfer_function.build_transaction({
+                'from': account.address,
+                'gas': gas_estimate,
+                'gasPrice': gas_price,
+                'nonce': nonce,
+                'chainId': 1  # Mainnet
+            })
+            
+            self.log_signal.emit(f"✍️ Signing transaction...")
+            
+            # Sign transaction
+            signed_txn = w3.eth.account.sign_transaction(transaction, self.private_key)
+            
+            self.log_signal.emit(f"📤 Broadcasting transaction...")
+            
+            # Send transaction
+            tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+            tx_hash_hex = w3.to_hex(tx_hash)
+            
+            self.log_signal.emit(f"⏳ Waiting for confirmation...")
+            
+            # Wait for receipt (with timeout)
+            receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+            
+            if receipt['status'] == 1:
+                self.finished_signal.emit(True, "Payment successful", tx_hash_hex)
+            else:
+                self.finished_signal.emit(False, "Transaction reverted", tx_hash_hex)
+                
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.finished_signal.emit(False, str(e), "")
+
