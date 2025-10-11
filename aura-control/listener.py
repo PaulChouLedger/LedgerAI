@@ -37,8 +37,8 @@ MIN_SPEECH_RMS = 0.008  # Filter out low-level noise (more permissive for AGC)
 #     - reset      : Factory defaults - all OFF
 #
 # SOFTWARE AGC (optional post-processing in Python):
-USE_SOFTWARE_AGC = False  # DISABLED by default - test if needed
-SOFTWARE_AGC_TARGET = 0.1  # Target RMS level for normalization
+USE_SOFTWARE_AGC = True  # DISABLED by default - test if needed
+SOFTWARE_AGC_TARGET = 0.15  # Target RMS level for normalization
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
