@@ -28,7 +28,7 @@ USE_CHANNEL = 0  # Already the best channel for speech recognition
 # === Software AGC (Adaptive Gain Control) ===
 # Hardware AGC doesn't help far-field, but software AGC can intelligently boost
 # Dynamically adjusts gain based on input level to avoid clipping near speech
-USE_SOFTWARE_AGC = True
+USE_SOFTWARE_AGC = False
 SOFTWARE_AGC_TARGET = 0.05  # Target RMS for optimal Whisper transcription
 SOFTWARE_AGC_MAX_GAIN = 5.0  # Maximum gain multiplier (safety limit)
 
