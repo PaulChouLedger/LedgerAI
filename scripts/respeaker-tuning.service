@@ -2,9 +2,9 @@
 # Automatically configures ReSpeaker hardware DSP on boot
 #
 # Available Presets (change in ExecStart line):
-#   - clean      : HPF only (70Hz), no AGC - removes EM noise, cleanest audio
-#   - near_field : HPF + moderate AGC - for 1-6 feet, normal volume
-#   - far_field  : No HPF + high AGC - for 8-16 feet, quiet speech
+#   - clean      : HPF only (70Hz), no AGC - removes EM noise, raw levels
+#   - near_field : HPF + moderate AGC (0.08 RMS) - for 1-6 feet
+#   - far_field  : High AGC + noise suppression (0.03 RMS) - for 8-16 feet
 #   - reset      : Factory defaults - all processing OFF
 #
 # To change preset:

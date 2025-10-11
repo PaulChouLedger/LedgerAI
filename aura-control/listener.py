@@ -31,9 +31,9 @@ MIN_SPEECH_RMS = 0.008  # Filter out low-level noise (more permissive for AGC)
 #     4. sudo systemctl restart respeaker-tuning.service
 #   
 #   Available presets (see scripts/tune_respeaker.py):
-#     - clean      : HPF only (70Hz), no AGC - cleanest audio, no clipping
-#     - near_field : HPF + moderate AGC - for 1-6 feet
-#     - far_field  : High AGC + noise suppression - for 8-16 feet
+#     - clean      : HPF only (70Hz), no AGC - raw levels, no clipping
+#     - near_field : HPF + moderate AGC (0.08 RMS) - for 1-6 feet
+#     - far_field  : High AGC + noise suppression (0.03 RMS) - for 8-16 feet
 #     - reset      : Factory defaults - all OFF
 #
 # SOFTWARE AGC (optional post-processing in Python):
