@@ -8,12 +8,21 @@ speech recognition (ASR).
 Usage:
     sudo python3 scripts/tune_respeaker.py [preset]
     
-Presets:
-    - clean: HPF + Optimal AGC (0.08 RMS) + Max NS (gamma=3.0) - DEFAULT
-    - far_field: Optimized for 8-16 feet (high AGC + noise suppression)
-    - near_field: Optimized for 1-6 feet (moderate AGC)
-    - reset: Factory defaults (all OFF)
-    - show: Show current settings
+STANDARD PRESETS:
+    - clean      : HPF + AGC (0.08) + NS (3.0) - DEFAULT
+    - far_field  : Optimized for 8-16 feet
+    - near_field : Optimized for 1-6 feet
+    - reset      : Factory defaults (all OFF)
+    - show       : Show current settings
+
+TEST PROFILES (systematic optimization):
+    - hp         : High-pass filter ONLY (70Hz)
+    - hp1        : HPF + NS gamma=1.0 (mild)
+    - hp2        : HPF + NS gamma=2.0 (moderate)
+    - hp3        : HPF + NS gamma=3.0 (aggressive)
+    - agc1       : AGC ONLY (0.05 RMS, 20dB max)
+    - agc2       : AGC ONLY (0.08 RMS, 30dB max)
+    - agc3       : AGC ONLY (0.12 RMS, 40dB max)
 """
 
 import sys
@@ -296,6 +305,282 @@ def configure_clean():
     
     return True
 
+# === ISOLATED TEST PROFILES ===
+# These profiles test ONE component at a time for systematic optimization
+
+def configure_hp():
+    """HP - High-Pass Filter ONLY (70Hz)"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🧪 TEST PROFILE: HP - High-Pass Filter ONLY")
+    print("="*80 + "\n")
+    
+    # Enable ONLY HPF
+    print("[1/1] High-Pass Filter: ON (70 Hz)")
+    dev.write("HPFONOFF", 1)
+    
+    # Disable everything else
+    dev.write("AGCONOFF", 0)
+    dev.write("STATNOISEONOFF_SR", 0)
+    dev.write("NONSTATNOISEONOFF_SR", 0)
+    dev.write("ECHOONOFF", 0)
+    
+    print("\n  ✅ HP Profile Complete")
+    print("  Only removes <70Hz noise - all else untouched\n")
+    
+    save_config_state('hp', {
+        'HPFONOFF': 1,
+        'AGCONOFF': 0,
+        'STATNOISEONOFF_SR': 0,
+        'GAMMA_NS_SR': 0.0
+    })
+    return True
+
+def configure_hp1():
+    """HP1 - High-Pass Filter + Mild Noise Suppression (gamma=1.0)"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🧪 TEST PROFILE: HP1 - HPF + Mild Noise Suppression (gamma=1.0)")
+    print("="*80 + "\n")
+    
+    print("[1/2] High-Pass Filter: ON (70 Hz)")
+    dev.write("HPFONOFF", 1)
+    
+    print("[2/2] Stationary Noise Suppression: ON (gamma=1.0 - mild)")
+    dev.write("STATNOISEONOFF_SR", 1)
+    dev.write("GAMMA_NS_SR", 1.0)
+    
+    # Disable other processing
+    dev.write("AGCONOFF", 0)
+    dev.write("NONSTATNOISEONOFF_SR", 0)
+    dev.write("ECHOONOFF", 0)
+    
+    print("\n  ✅ HP1 Profile Complete")
+    print("  HPF + gentle noise removal\n")
+    
+    save_config_state('hp1', {
+        'HPFONOFF': 1,
+        'AGCONOFF': 0,
+        'STATNOISEONOFF_SR': 1,
+        'GAMMA_NS_SR': 1.0
+    })
+    return True
+
+def configure_hp2():
+    """HP2 - High-Pass Filter + Moderate Noise Suppression (gamma=2.0)"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🧪 TEST PROFILE: HP2 - HPF + Moderate Noise Suppression (gamma=2.0)")
+    print("="*80 + "\n")
+    
+    print("[1/2] High-Pass Filter: ON (70 Hz)")
+    dev.write("HPFONOFF", 1)
+    
+    print("[2/2] Stationary Noise Suppression: ON (gamma=2.0 - moderate)")
+    dev.write("STATNOISEONOFF_SR", 1)
+    dev.write("GAMMA_NS_SR", 2.0)
+    
+    # Disable other processing
+    dev.write("AGCONOFF", 0)
+    dev.write("NONSTATNOISEONOFF_SR", 0)
+    dev.write("ECHOONOFF", 0)
+    
+    print("\n  ✅ HP2 Profile Complete")
+    print("  HPF + moderate noise removal\n")
+    
+    save_config_state('hp2', {
+        'HPFONOFF': 1,
+        'AGCONOFF': 0,
+        'STATNOISEONOFF_SR': 1,
+        'GAMMA_NS_SR': 2.0
+    })
+    return True
+
+def configure_hp3():
+    """HP3 - High-Pass Filter + Aggressive Noise Suppression (gamma=3.0)"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🧪 TEST PROFILE: HP3 - HPF + Aggressive Noise Suppression (gamma=3.0)")
+    print("="*80 + "\n")
+    
+    print("[1/2] High-Pass Filter: ON (70 Hz)")
+    dev.write("HPFONOFF", 1)
+    
+    print("[2/2] Stationary Noise Suppression: ON (gamma=3.0 - aggressive)")
+    dev.write("STATNOISEONOFF_SR", 1)
+    dev.write("GAMMA_NS_SR", 3.0)
+    
+    # Disable other processing
+    dev.write("AGCONOFF", 0)
+    dev.write("NONSTATNOISEONOFF_SR", 0)
+    dev.write("ECHOONOFF", 0)
+    
+    print("\n  ✅ HP3 Profile Complete")
+    print("  HPF + aggressive noise removal\n")
+    
+    save_config_state('hp3', {
+        'HPFONOFF': 1,
+        'AGCONOFF': 0,
+        'STATNOISEONOFF_SR': 1,
+        'GAMMA_NS_SR': 3.0
+    })
+    return True
+
+def configure_agc1():
+    """AGC1 - Mild AGC ONLY (0.05 RMS target)"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🧪 TEST PROFILE: AGC1 - Mild AGC (0.05 RMS, 20dB max)")
+    print("="*80 + "\n")
+    
+    print("[1/1] Hardware AGC: ON (mild - 0.05 RMS target)")
+    dev.write("AGCONOFF", 1)
+    dev.write("AGCDESIREDLEVEL", 0.05)
+    dev.write("AGCMAXGAIN", 20.0)
+    dev.write("AGCTIME", 0.2)
+    print("         - Target: 0.05 RMS, Max Gain: 20dB, Attack: 0.2s")
+    
+    # Disable other processing
+    dev.write("HPFONOFF", 0)
+    dev.write("STATNOISEONOFF_SR", 0)
+    dev.write("NONSTATNOISEONOFF_SR", 0)
+    dev.write("ECHOONOFF", 0)
+    
+    print("\n  ✅ AGC1 Profile Complete")
+    print("  Mild amplification only - no filtering\n")
+    
+    save_config_state('agc1', {
+        'HPFONOFF': 0,
+        'AGCONOFF': 1,
+        'AGCDESIREDLEVEL': 0.05,
+        'AGCMAXGAIN': 20.0,
+        'STATNOISEONOFF_SR': 0,
+        'GAMMA_NS_SR': 0.0
+    })
+    return True
+
+def configure_agc2():
+    """AGC2 - Moderate AGC ONLY (0.08 RMS target)"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🧪 TEST PROFILE: AGC2 - Moderate AGC (0.08 RMS, 30dB max)")
+    print("="*80 + "\n")
+    
+    print("[1/1] Hardware AGC: ON (moderate - 0.08 RMS target)")
+    dev.write("AGCONOFF", 1)
+    dev.write("AGCDESIREDLEVEL", 0.08)
+    dev.write("AGCMAXGAIN", 30.0)
+    dev.write("AGCTIME", 0.2)
+    print("         - Target: 0.08 RMS, Max Gain: 30dB, Attack: 0.2s")
+    
+    # Disable other processing
+    dev.write("HPFONOFF", 0)
+    dev.write("STATNOISEONOFF_SR", 0)
+    dev.write("NONSTATNOISEONOFF_SR", 0)
+    dev.write("ECHOONOFF", 0)
+    
+    print("\n  ✅ AGC2 Profile Complete")
+    print("  Moderate amplification only - no filtering\n")
+    
+    save_config_state('agc2', {
+        'HPFONOFF': 0,
+        'AGCONOFF': 1,
+        'AGCDESIREDLEVEL': 0.08,
+        'AGCMAXGAIN': 30.0,
+        'STATNOISEONOFF_SR': 0,
+        'GAMMA_NS_SR': 0.0
+    })
+    return True
+
+def configure_agc3():
+    """AGC3 - Aggressive AGC ONLY (0.12 RMS target)"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🧪 TEST PROFILE: AGC3 - Aggressive AGC (0.12 RMS, 40dB max)")
+    print("="*80 + "\n")
+    
+    print("[1/1] Hardware AGC: ON (aggressive - 0.12 RMS target)")
+    dev.write("AGCONOFF", 1)
+    dev.write("AGCDESIREDLEVEL", 0.12)
+    dev.write("AGCMAXGAIN", 40.0)
+    dev.write("AGCTIME", 0.2)
+    print("         - Target: 0.12 RMS, Max Gain: 40dB, Attack: 0.2s")
+    
+    # Disable other processing
+    dev.write("HPFONOFF", 0)
+    dev.write("STATNOISEONOFF_SR", 0)
+    dev.write("NONSTATNOISEONOFF_SR", 0)
+    dev.write("ECHOONOFF", 0)
+    
+    print("\n  ✅ AGC3 Profile Complete")
+    print("  Aggressive amplification only - no filtering\n")
+    
+    save_config_state('agc3', {
+        'HPFONOFF': 0,
+        'AGCONOFF': 1,
+        'AGCDESIREDLEVEL': 0.12,
+        'AGCMAXGAIN': 40.0,
+        'STATNOISEONOFF_SR': 0,
+        'GAMMA_NS_SR': 0.0
+    })
+    return True
+
 def show_current_settings():
     """Show current ReSpeaker settings"""
     import usb.core
@@ -363,6 +648,7 @@ def main():
     try:
         success = False
         
+        # Standard presets
         if preset == "far_field":
             success = configure_far_field()
         elif preset == "near_field":
@@ -373,14 +659,39 @@ def main():
             success = reset_defaults()
         elif preset == "show":
             success = show_current_settings()
+        
+        # Test profiles (isolated components)
+        elif preset == "hp":
+            success = configure_hp()
+        elif preset == "hp1":
+            success = configure_hp1()
+        elif preset == "hp2":
+            success = configure_hp2()
+        elif preset == "hp3":
+            success = configure_hp3()
+        elif preset == "agc1":
+            success = configure_agc1()
+        elif preset == "agc2":
+            success = configure_agc2()
+        elif preset == "agc3":
+            success = configure_agc3()
+        
         else:
             print(f"\n  ❌ Unknown preset: {preset}")
-            print(f"\n  Available presets:")
-            print(f"    - clean      : HPF + Optimal AGC (0.08 RMS) + Max NS (gamma=3.0)")
+            print(f"\n  📋 STANDARD PRESETS:")
+            print(f"    - clean      : HPF + Optimal AGC (0.08) + Max NS (3.0) - DEFAULT")
             print(f"    - far_field  : High AGC + noise suppression (8-16 feet)")
             print(f"    - near_field : Moderate AGC (1-6 feet)")
             print(f"    - reset      : Factory defaults (all OFF)")
-            print(f"    - show       : Show current settings\n")
+            print(f"    - show       : Show current settings")
+            print(f"\n  🧪 TEST PROFILES (systematic testing):")
+            print(f"    - hp         : High-pass filter ONLY (70Hz)")
+            print(f"    - hp1        : HPF + NS gamma=1.0 (mild)")
+            print(f"    - hp2        : HPF + NS gamma=2.0 (moderate)")
+            print(f"    - hp3        : HPF + NS gamma=3.0 (aggressive)")
+            print(f"    - agc1       : AGC ONLY (0.05 RMS, 20dB max)")
+            print(f"    - agc2       : AGC ONLY (0.08 RMS, 30dB max)")
+            print(f"    - agc3       : AGC ONLY (0.12 RMS, 40dB max)\n")
             return 1
         
         return 0 if success else 1

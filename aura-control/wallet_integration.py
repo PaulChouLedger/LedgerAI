@@ -71,8 +71,12 @@ class WalletManager:
             os.getenv("ALCHEMY_URL", "https://eth-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_KEY"),
             
             # Public endpoints (less reliable, rate-limited)
-            "https://cloudflare-eth.com",
             "https://ethereum.publicnode.com",
+            "https://cloudflare-eth.com",
+            "https://rpc.ankr.com/eth",
+            "https://eth.llamarpc.com",
+            "https://eth.drpc.org",
+            "https://1rpc.io/eth",
         ]
         
         for provider_url in providers:
@@ -249,7 +253,7 @@ class WalletManager:
                     if attempt < 2:
                         print(f"[Wallet] ⚠️ Balance query attempt {attempt + 1} failed: {e}, retrying...")
                         import time
-                        time.sleep(1)  # Wait 1 second before retry
+                        time.sleep(2)  # Wait 2 seconds before retry (avoid rate limit)
                     else:
                         raise  # Re-raise on final attempt
             
@@ -287,7 +291,7 @@ class WalletManager:
                     if attempt < 2:
                         print(f"[Wallet] ⚠️ ETH balance attempt {attempt + 1} failed, retrying...")
                         import time
-                        time.sleep(1)
+                        time.sleep(2)  # Wait 2 seconds before retry (avoid rate limit)
                     else:
                         raise
             

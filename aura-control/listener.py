@@ -44,15 +44,8 @@ DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
 prompt_history = []
 
-# Stream refresh interval (prevents idle staleness AND active buffer accumulation)
-STREAM_REFRESH_INTERVAL = 15.0  # Refresh stream after 15s idle (more frequent = more responsive)
-MAX_ACTIVE_TIME = 120.0  # Force refresh after 2 minutes even during active use
-# This prevents: 1) Stale audio after idle, 2) Buffer accumulation during heavy use,
-#                3) ALSA/hardware buffer issues, 4) VAD/PyTorch state accumulation,
-#                5) Stationary NS losing learned noise profile
-# After refresh: Quick warmup (10 frames ~0.3s) - VAD checks during warmup!
-last_activity_time = 0
-stream_start_time = 0  # Track when stream was last refreshed
+# No stream refresh - keeping it simple
+# If issues occur, we'll debug the root cause instead of working around it
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
@@ -219,51 +212,29 @@ def send_to_llm(text):
 # === Welcome Prompt ===
 def play_welcome_prompt(stream):
     try:
-        print("[Aura] 🔊 Playing welcome prompt...")
         stream.stop()
         subprocess.run(["aplay", WELCOME_AUDIO_PATH], check=False)
-        time.sleep(0.25)
         stream.start()
         
-        # Flush buffer
-        for _ in range(5):
+        # Brief buffer flush
+        for _ in range(3):
             try:
                 stream.read(FRAME_SIZE)
             except:
                 break
-        
-        print("[Aura] 🎤 Mic resumed after welcome prompt")
-        
-        # Quick warmup: flush buffer and prime VAD
-        print("[Aura] 🔧 Quick warmup...")
-        for i in range(10):  # Quick flush (10 frames ~0.3s)
-            try:
-                audio_block, _ = stream.read(FRAME_SIZE)
-                # Run VAD on first few frames to warm up PyTorch model
-                if i < 3:
-                    channel_0 = audio_block[:, 0]
-                    if channel_0.size >= 512:
-                        _ = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
-            except:
-                break
-        print("[Aura] ✅ Ready")
         
         try:
             from aura_gui import set_setup_complete, set_welcome_played, set_listening_ready
             set_setup_complete()
             set_welcome_played()
             set_listening_ready()
-            print("[Aura] ✅ Setup complete, listener ready")
         except ImportError:
             pass
     except Exception as e:
-        print(f"[Aura] ❌ Failed to play welcome prompt: {e}")
+        print(f"[Aura] ❌ Welcome prompt error: {e}")
 
 # === Main Loop ===
 def listen():
-    global last_activity_time, stream_start_time
-    last_activity_time = time.time()  # Initialize activity timer
-    stream_start_time = time.time()  # Initialize stream refresh timer
     
     channels = find_device_index()
     
@@ -315,45 +286,21 @@ def listen():
             raise
     
     with stream:
-        
-        # Initial warmup: Quick buffer flush and VAD prime
-        print("\n[Listener] 🔧 Initial warmup: clearing buffers and priming VAD...")
-        time.sleep(0.3)  # Let hardware settle after stream open
-        for i in range(10):  # Quick flush (10 frames ~0.3s)
-            try:
-                audio_block, _ = stream.read(FRAME_SIZE)
-                # Warm up VAD model on first few frames
-                if i < 3:
-                    channel_0 = audio_block[:, 0]
-                    if channel_0.size >= 512:
-                        _ = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
-            except Exception as e:
-                print(f"[Listener] ⚠️ Warmup frame {i} error: {e}")
-                break
-        print("[Listener] ✅ Hardware stabilized, VAD primed\n")
-        
         play_welcome_prompt(stream)
         
         while True:
             # Pause during TTS
             if is_playing():
-                print("[Listener] ⏸️ Pausing mic during playback")
                 stream.stop()
                 while is_playing():
                     time.sleep(0.1)
                 stream.start()
-                
-                # Flush buffer aggressively
-                print("[Listener] 🧹 Flushing mic buffer...")
-                for _ in range(10):  # More aggressive
+                # Brief buffer flush
+                for _ in range(5):
                     try:
                         stream.read(FRAME_SIZE)
                     except:
                         break
-                
-                print("[Listener] ▶️ Mic resumed after playback (buffer flushed)")
-                last_activity_time = time.time()  # Reset idle timer after playback
-                stream_start_time = time.time()  # Reset active timer too
             
             buffer = []
             silence_start = None
@@ -363,110 +310,10 @@ def listen():
                 if is_playing():
                     break
                 
-                # Check if stream needs refresh after long idle OR extended active use
-                idle_time = time.time() - last_activity_time
-                active_time = time.time() - stream_start_time
-                
-                if idle_time > STREAM_REFRESH_INTERVAL:
-                    print(f"\n[Listener] 🔄 Refreshing stream after {idle_time:.0f}s idle...")
-                    stream.stop()
-                    time.sleep(0.5)  # Longer pause for hardware to stabilize
-                    stream.start()
-                    
-                    # Quick warmup: Flush buffer and prime VAD
-                    print("[Listener] 🔧 Quick warmup after idle...")
-                    warmup_buffer = []
-                    speech_detected_during_warmup = False
-                    for i in range(10):  # Reduced from 20 to 10 (~0.3s)
-                        try:
-                            audio_block, _ = stream.read(FRAME_SIZE)
-                            channel_0 = audio_block[:, 0]
-                            
-                            # Always check VAD during warmup to avoid missing speech
-                            if channel_0.size >= 512:
-                                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
-                                # If speech detected during warmup, save it!
-                                if vad_prob > VAD_START_THRESHOLD and i >= 3:  # After first 3 frames
-                                    print(f"[Listener] 🎤 Speech detected during warmup! (VAD={vad_prob:.2f})")
-                                    warmup_buffer.append(audio_block)
-                                    speech_detected_during_warmup = True
-                                elif speech_detected_during_warmup:
-                                    warmup_buffer.append(audio_block)
-                        except:
-                            break
-                    
-                    print("[Listener] ✅ Stream refreshed (idle)")
-                    last_activity_time = time.time()
-                    stream_start_time = time.time()
-                    
-                    # If speech was detected during warmup, add it to main buffer
-                    if warmup_buffer:
-                        print(f"[Listener] 📦 Adding {len(warmup_buffer)} warmup frames to buffer")
-                        buffer.extend(warmup_buffer)
-                        # Skip the "wait for speech" phase since we already have speech
-                        if speech_detected_during_warmup:
-                            print("[Listener] ⏩ Skipping wait - speech already captured")
-                            break  # Exit wait loop, go to recording phase
-                elif active_time > MAX_ACTIVE_TIME:
-                    print(f"\n[Listener] 🔄 Force refreshing stream after {active_time:.0f}s active use...")
-                    stream.stop()
-                    time.sleep(0.5)  # Longer pause for full reset
-                    stream.start()
-                    
-                    # Quick warmup: Flush buffer and prime VAD
-                    print("[Listener] 🔧 Quick warmup after active use...")
-                    warmup_buffer = []
-                    speech_detected_during_warmup = False
-                    for i in range(10):  # Reduced from 20 to 10 (~0.3s)
-                        try:
-                            audio_block, _ = stream.read(FRAME_SIZE)
-                            channel_0 = audio_block[:, 0]
-                            
-                            # Always check VAD during warmup to avoid missing speech
-                            if channel_0.size >= 512:
-                                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
-                                # If speech detected during warmup, save it!
-                                if vad_prob > VAD_START_THRESHOLD and i >= 3:  # After first 3 frames
-                                    print(f"[Listener] 🎤 Speech detected during warmup! (VAD={vad_prob:.2f})")
-                                    warmup_buffer.append(audio_block)
-                                    speech_detected_during_warmup = True
-                                elif speech_detected_during_warmup:
-                                    warmup_buffer.append(audio_block)
-                        except:
-                            break
-                    
-                    print("[Listener] ✅ Stream force-refreshed")
-                    stream_start_time = time.time()
-                    
-                    # If speech was detected during warmup, add it to main buffer
-                    if warmup_buffer:
-                        print(f"[Listener] 📦 Adding {len(warmup_buffer)} warmup frames to buffer")
-                        buffer.extend(warmup_buffer)
-                        # Skip the "wait for speech" phase since we already have speech
-                        if speech_detected_during_warmup:
-                            print("[Listener] ⏩ Skipping wait - speech already captured")
-                            break  # Exit wait loop, go to recording phase
-                
                 try:
                     audio_block, _ = stream.read(FRAME_SIZE)
                 except Exception as e:
-                    print(f"\n[Listener] ⚠️  Error: {e}")
-                    # Try to recover by refreshing stream
-                    try:
-                        stream.stop()
-                        time.sleep(0.1)
-                        stream.start()
-                        # Flush stale buffer
-                        for _ in range(10):
-                            try:
-                                stream.read(FRAME_SIZE)
-                            except:
-                                break
-                        print("[Listener] 🔄 Stream restarted after error")
-                        last_activity_time = time.time()
-                        stream_start_time = time.time()
-                    except:
-                        pass
+                    print(f"\n[Listener] ⚠️  Stream error: {e}")
                     time.sleep(0.1)
                     continue
                 
@@ -485,7 +332,6 @@ def listen():
                     print(f"\n[VAD] 🔊 Speech started (VAD={vad_prob:.2f}, RMS={rms:.6f})")
                     set_transcribing(True)
                     buffer.append(audio_block)
-                    last_activity_time = time.time()
                     break
             
             # === Record speech ===
@@ -517,7 +363,6 @@ def listen():
                     elif time.time() - silence_start > SILENCE_TIMEOUT:
                         print(f"\n[VAD] ⏹️  Speech ended")
                         set_transcribing(False)
-                        last_activity_time = time.time()
                         break
                 else:
                     silence_start = None
@@ -544,19 +389,6 @@ def listen():
             # Send RAW hardware audio to Whisper (no RMS filtering)
             # Let Whisper handle low-level audio - hardware AGC should boost it anyway
             text = transcribe(mono)
-            
-            # Aggressive buffer cleanup after transcription
-            del buffer, full_audio, mono
-            import gc
-            gc.collect()
-            
-            # Flush hardware buffer to prevent stale audio accumulation
-            print("[Listener] 🧹 Flushing buffers after transcription...")
-            for _ in range(10):  # More aggressive than before
-                try:
-                    stream.read(FRAME_SIZE)
-                except:
-                    break
             
             if text:
                 send_to_llm(text)
