@@ -52,86 +52,6 @@ def find_device_index():
 # === Load VAD ===
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
 
-# === Read Current ReSpeaker Configuration ===
-def read_respeaker_config():
-    """Read and display current ReSpeaker hardware configuration"""
-    try:
-        import sys
-        import usb.core
-        tuning_path = os.path.expanduser('~/usb_4_mic_array')
-        if tuning_path not in sys.path:
-            sys.path.insert(0, tuning_path)
-        
-        from tuning import Tuning
-        
-        dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
-        if dev is None:
-            print("[Hardware] ⚠️  ReSpeaker not found")
-            return None
-        
-        tuning = Tuning(dev)
-        
-        # Read current settings
-        config = {
-            'AGCONOFF': tuning.read('AGCONOFF'),
-            'AGCDESIREDLEVEL': tuning.read('AGCDESIREDLEVEL'),
-            'AGCMAXGAIN': tuning.read('AGCMAXGAIN'),
-            'HPFONOFF': tuning.read('HPFONOFF'),
-            'STATNOISEONOFF_SR': tuning.read('STATNOISEONOFF_SR'),
-            'NONSTATNOISEONOFF_SR': tuning.read('NONSTATNOISEONOFF_SR'),
-            'GAMMA_NS': tuning.read('GAMMA_NS'),
-            'ECHOONOFF': tuning.read('ECHOONOFF'),
-        }
-        
-        return config
-        
-    except Exception as e:
-        print(f"[Hardware] ⚠️  Failed to read configuration: {e}")
-        return None
-
-def display_respeaker_config(config):
-    """Display ReSpeaker configuration in a readable format"""
-    if config is None:
-        print("[Hardware] ℹ️  Unable to read ReSpeaker configuration")
-        return
-    
-    print("\n" + "="*70)
-    print("[Hardware] 📋 CURRENT ReSPEAKER CONFIGURATION:")
-    print("="*70)
-    
-    # AGC Status
-    agc_on = config['AGCONOFF'] == 1
-    if agc_on:
-        print(f"  AGC:                    ✅ ENABLED")
-        print(f"    Target Level:         {config['AGCDESIREDLEVEL']:.2f}")
-        print(f"    Max Gain:             {config['AGCMAXGAIN']:.1f} dB")
-    else:
-        print(f"  AGC:                    ❌ DISABLED")
-    
-    # High-pass Filter
-    hpf_on = config['HPFONOFF'] == 1
-    print(f"  High-Pass Filter:       {'✅ ENABLED' if hpf_on else '❌ DISABLED'}")
-    
-    # Noise Suppression
-    stat_ns_on = config['STATNOISEONOFF_SR'] == 1
-    nonstat_ns_on = config['NONSTATNOISEONOFF_SR'] == 1
-    
-    if stat_ns_on:
-        print(f"  Stationary Noise Supp:  ✅ ENABLED (gamma={config['GAMMA_NS']:.1f})")
-    else:
-        print(f"  Stationary Noise Supp:  ❌ DISABLED")
-    
-    if nonstat_ns_on:
-        print(f"  Non-Stat Noise Supp:    ✅ ENABLED")
-    else:
-        print(f"  Non-Stat Noise Supp:    ❌ DISABLED")
-    
-    # Echo Cancellation
-    echo_on = config['ECHOONOFF'] == 1
-    print(f"  Echo Cancellation:      {'✅ ENABLED' if echo_on else '❌ DISABLED'}")
-    
-    print("="*70 + "\n")
-
 # === Software AGC ===
 def apply_software_agc(audio, target_rms=SOFTWARE_AGC_TARGET):
     """
@@ -244,15 +164,12 @@ def listen():
     
     channels = find_device_index()
     
-    # Read and display current hardware configuration (read-only)
-    # Hardware modifications should be done via tune_respeaker.py service on boot
-    print("[Hardware] 📖 Reading current configuration...")
-    current_config = read_respeaker_config()
-    display_respeaker_config(current_config)
+    # Hardware configuration is done via tune_respeaker.py service on boot
+    # To view config: sudo python3 scripts/tune_respeaker.py show
     
     print("\n" + "="*70)
     print("[Audio] SIGNAL PROCESSING PIPELINE:")
-    print("[Audio]   1. Hardware DSP (see configuration above)")
+    print("[Audio]   1. Hardware DSP (configured by tune_respeaker.py on boot)")
     print("[Audio]   2. Channel 0 selection (6ch → 1ch)")
     
     if USE_SOFTWARE_AGC:

@@ -9,9 +9,10 @@ Usage:
     sudo python3 scripts/tune_respeaker.py [preset]
     
 Presets:
-    - reset: Restore factory defaults (default)
-    - far_field: Optimized for 8-16 feet
-    - near_field: Optimized for 1-6 feet
+    - clean: HPF only, no AGC (removes 60Hz hum) - DEFAULT
+    - far_field: Optimized for 8-16 feet (with AGC)
+    - near_field: Optimized for 1-6 feet (with AGC)
+    - reset: Factory defaults (all OFF)
     - show: Show current settings
 """
 
@@ -169,6 +170,47 @@ def reset_defaults():
     
     return True
 
+def configure_clean():
+    """Minimal processing - just HPF to remove EM noise, no AGC"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🧹 CONFIGURING CLEAN AUDIO (HPF ONLY)")
+    print("="*80 + "\n")
+    
+    # Enable 70Hz high-pass filter to remove 60Hz hum and low-frequency noise
+    print("[1/3] High-Pass Filter: ON (70 Hz - removes EM noise)")
+    dev.write("HPFONOFF", 1)  # 1 = 70Hz cutoff
+    
+    # Disable AGC - no amplification
+    print("[2/3] Hardware AGC: OFF (no amplification)")
+    dev.write("AGCONOFF", 0)
+    
+    # Disable all noise suppression
+    print("[3/3] Noise Suppression: OFF (no artifacts)")
+    dev.write("STATNOISEONOFF_SR", 0)
+    dev.write("NONSTATNOISEONOFF_SR", 0)
+    dev.write("ECHOONOFF", 0)
+    
+    print("\n" + "="*80)
+    print("  ✅ CLEAN CONFIGURATION COMPLETE")
+    print("="*80)
+    print("\n  Minimal processing enabled:")
+    print("    - 70Hz high-pass filter removes 60Hz AC hum")
+    print("    - No AGC (raw volume levels)")
+    print("    - No noise suppression (clean audio)")
+    print("\n  This gives cleanest audio with minimal processing.")
+    print("  Use if AGC causes clipping or hallucinations.\n")
+    
+    return True
+
 def show_current_settings():
     """Show current ReSpeaker settings"""
     import usb.core
@@ -226,7 +268,7 @@ def main():
         print("\n" + "="*80 + "\n")
         return 1
     
-    preset = sys.argv[1] if len(sys.argv) > 1 else "reset"
+    preset = sys.argv[1] if len(sys.argv) > 1 else "clean"
     
     print("\n" + "="*80)
     print("  🎙️  RESPEAKER 4 MIC ARRAY TUNER")
@@ -240,6 +282,8 @@ def main():
             success = configure_far_field()
         elif preset == "near_field":
             success = configure_near_field()
+        elif preset == "clean":
+            success = configure_clean()
         elif preset == "reset":
             success = reset_defaults()
         elif preset == "show":
@@ -247,9 +291,10 @@ def main():
         else:
             print(f"\n  ❌ Unknown preset: {preset}")
             print(f"\n  Available presets:")
-            print(f"    - far_field  : Optimized for 8-16 feet")
-            print(f"    - near_field : Optimized for 1-6 feet")
-            print(f"    - reset      : Factory defaults")
+            print(f"    - clean      : HPF only (removes 60Hz hum, no AGC)")
+            print(f"    - far_field  : Optimized for 8-16 feet (with AGC)")
+            print(f"    - near_field : Optimized for 1-6 feet (with AGC)")
+            print(f"    - reset      : Factory defaults (all OFF)")
             print(f"    - show       : Show current settings\n")
             return 1
         
