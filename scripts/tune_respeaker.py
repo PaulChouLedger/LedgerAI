@@ -9,7 +9,7 @@ Usage:
     sudo python3 scripts/tune_respeaker.py [preset]
     
 Presets:
-    - clean: HPF + Balanced AGC (30dB) + Max Stationary NS + Software AGC - DEFAULT
+    - clean: HPF + Optimal AGC (0.08 RMS) + Max NS (gamma=3.0) - DEFAULT
     - far_field: Optimized for 8-16 feet (high AGC + noise suppression)
     - near_field: Optimized for 1-6 feet (moderate AGC)
     - reset: Factory defaults (all OFF)
@@ -244,14 +244,13 @@ def configure_clean():
     print("[1/4] High-Pass Filter: ON (70 Hz - removes low-freq EM noise)")
     dev.write("HPFONOFF", 1)  # 1 = 70Hz cutoff
     
-    # Enable balanced AGC for far-field pickup (3-6 feet)
-    # Not too aggressive - software AGC will handle final boost
-    print("[2/4] Hardware AGC: ON (balanced - 0.12 RMS target)")
+    # Enable optimal AGC for Whisper's sweet spot (0.05-0.08 RMS)
+    print("[2/4] Hardware AGC: ON (optimal - 0.08 RMS target for Whisper)")
     dev.write("AGCONOFF", 1)
-    dev.write("AGCDESIREDLEVEL", 0.12)  # Balanced target - clean but amplified
+    dev.write("AGCDESIREDLEVEL", 0.08)  # Whisper's sweet spot
     dev.write("AGCMAXGAIN", 30.0)  # Max 30dB gain (31x amplification)
     dev.write("AGCTIME", 0.2)  # Moderate attack (prevents distortion)
-    print("         - Target: 0.12 RMS, Max Gain: 30dB, Attack: 0.2s")
+    print("         - Target: 0.08 RMS (Whisper optimal), Max Gain: 30dB, Attack: 0.2s")
     
     # Enable stationary noise suppression to remove constant electrical tones
     print("[3/4] Stationary Noise Suppression: ON (removes 120Hz, 601Hz interference)")
@@ -269,27 +268,26 @@ def configure_clean():
     print("="*80)
     print("\n  Processing enabled:")
     print("    - 70Hz high-pass filter removes low-freq noise (<70Hz)")
-    print("    - Balanced AGC (0.12 RMS, 30dB max, 0.2s attack)")
-    print("      • Clean amplification without distortion")
-    print("      • 30dB = 31x amplification")
-    print("      • Moderate attack prevents artifacts")
-    print("    - Stationary noise suppression (gamma=3.0) removes constant tones:")
-    print("      • 120Hz (AC harmonic)")
-    print("      • 601Hz (USB/display interference)")
-    print("      • Other constant electrical noise")
-    print("\n  Pipeline: HPF → Hardware AGC (clean boost) → Stationary NS (remove noise)")
-    print("            → Software AGC (optional final boost in listener.py)")
-    print("  Two-stage AGC: Hardware for clean gain, software for fine-tuning.")
-    print("  Enable USE_SOFTWARE_AGC in listener.py for distant speech (3-6ft).\n")
+    print("    - Optimal AGC (0.08 RMS target, 30dB max, 0.2s attack)")
+    print("      • Targets Whisper's sweet spot (0.05-0.08 RMS)")
+    print("      • Testing shows >0.10 RMS causes hallucinations")
+    print("      • 30dB = 31x amplification capability")
+    print("      • Moderate attack prevents distortion")
+    print("    - Stationary noise suppression (gamma=3.0) removes interference:")
+    print("      • Removes 120Hz (AC harmonic)")
+    print("      • Removes 601Hz (USB/display interference)")
+    print("      • Maximum aggressiveness")
+    print("\n  Pipeline: HPF → Hardware AGC (0.08 target) → Stationary NS (max)")
+    print("  Whisper optimal: 0.05-0.08 RMS (testing one variable at a time)\n")
     
     # Save configuration state for listener
     config_dict = {
         'HPFONOFF': 1,
-        'AGCONOFF': 1,  # Enabled - balanced
-        'AGCDESIREDLEVEL': 0.12,
+        'AGCONOFF': 1,  # Enabled - optimal for Whisper
+        'AGCDESIREDLEVEL': 0.08,  # Whisper sweet spot
         'AGCMAXGAIN': 30.0,
         'AGCTIME': 0.2,
-        'STATNOISEONOFF_SR': 1,  # Enabled - fights 601Hz
+        'STATNOISEONOFF_SR': 1,  # Enabled - maximum
         'GAMMA_NS_SR': 3.0,  # Maximum aggressiveness
         'NONSTATNOISEONOFF_SR': 0,
         'ECHOONOFF': 0
@@ -378,7 +376,7 @@ def main():
         else:
             print(f"\n  ❌ Unknown preset: {preset}")
             print(f"\n  Available presets:")
-            print(f"    - clean      : HPF + Balanced AGC (30dB) + Max Stationary NS")
+            print(f"    - clean      : HPF + Optimal AGC (0.08 RMS) + Max NS (gamma=3.0)")
             print(f"    - far_field  : High AGC + noise suppression (8-16 feet)")
             print(f"    - near_field : Moderate AGC (1-6 feet)")
             print(f"    - reset      : Factory defaults (all OFF)")

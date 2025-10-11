@@ -99,7 +99,12 @@ def record_test_audio(device_index, duration):
     return audio
 
 def normalize_audio(audio, target_rms):
-    """Normalize audio to target RMS level"""
+    """
+    Normalize audio to target RMS level
+    This matches the listener.py pipeline:
+    - Simple gain multiplication
+    - Soft clip to ±0.95 to prevent distortion
+    """
     current_rms = np.sqrt(np.mean(audio ** 2))
     
     if current_rms < 1e-6:
@@ -107,6 +112,7 @@ def normalize_audio(audio, target_rms):
     
     gain = target_rms / current_rms
     normalized = audio * gain
+    # Soft clip (matches listener.py)
     normalized = np.clip(normalized, -0.95, 0.95)
     
     return normalized
@@ -217,9 +223,38 @@ def main():
     print("  Find the minimum RMS level for accurate transcription")
     print("="*80)
     
+    # Show current hardware configuration
+    print("\n" + "="*70)
+    print("[Hardware] Current ReSpeaker DSP Configuration:")
+    print("="*70)
+    try:
+        # Load hardware config from listener's saved state
+        import json
+        config_path = os.path.expanduser("~/LedgerAI/data/respeaker_config.json")
+        if os.path.exists(config_path):
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+            
+            # Display config
+            agc_status = "✅ ON" if config.get('AGCONOFF', 0) == 1 else "❌ OFF"
+            agc_target = config.get('AGCDESIREDLEVEL', 0.0)
+            agc_gain = config.get('AGCMAXGAIN', 0.0)
+            ns_status = "✅ ON" if config.get('STATNOISEONOFF_SR', 0) == 1 else "❌ OFF"
+            ns_gamma = config.get('GAMMA_NS_SR', 0.0)
+            
+            print(f"  Hardware AGC:           {agc_status} (target={agc_target:.2f}, max={agc_gain:.0f}dB)")
+            print(f"  Stationary Noise Supp:  {ns_status} (gamma={ns_gamma:.1f})")
+            print(f"\n  ℹ️  This test uses whatever hardware settings are currently active.")
+            print(f"  ℹ️  Results only valid for THESE settings!")
+        else:
+            print(f"  ⚠️  No saved config found - using current hardware state")
+    except Exception as e:
+        print(f"  ⚠️  Could not load config: {e}")
+    print("="*70 + "\n")
+    
     try:
         # Find microphone
-        print(f"\n[Audio] 🔍 Searching for microphone...")
+        print(f"[Audio] 🔍 Searching for microphone...")
         device_index = find_device_index()
         
         # Record test audio

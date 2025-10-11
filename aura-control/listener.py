@@ -17,7 +17,7 @@ SILENCE_TIMEOUT = 0.3  # 300ms of silence before stopping
 VAD_START_THRESHOLD = 0.35  # Higher = less sensitive to fan noise
 VAD_SILENCE_THRESHOLD = 0.15  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
-MIN_SPEECH_RMS = 0.008  # Filter out low-level noise (more permissive for AGC)
+MIN_SPEECH_RMS = 0.008  # Minimum RMS to consider as speech (hardware AGC should exceed this)
 
 # === Hardware & Software AGC Configuration ===
 # 
@@ -31,16 +31,14 @@ MIN_SPEECH_RMS = 0.008  # Filter out low-level noise (more permissive for AGC)
 #     4. sudo systemctl restart respeaker-tuning.service
 #   
 #   Available presets (see scripts/tune_respeaker.py):
-#     - clean      : HPF + Balanced AGC (30dB) + Max Stationary NS - DEFAULT
+#     - clean      : HPF + Optimal AGC (0.08 RMS) + Max NS (gamma=3.0) - DEFAULT
 #     - near_field : HPF + moderate AGC (0.08 RMS) - for 1-6 feet
 #     - far_field  : High AGC + noise suppression (0.03 RMS) - for 8-16 feet
 #     - reset      : Factory defaults - all OFF
 #
-# SOFTWARE AGC (two-stage amplification):
-# Hardware AGC (30dB): Clean amplification without distortion
-# Software AGC: Final boost for distant speech (3-6ft)
-USE_SOFTWARE_AGC = False  # ENABLED for far-field pickup
-SOFTWARE_AGC_TARGET = 0.08  # Target RMS level for normalization (conservative)
+# SOFTWARE PROCESSING: DISABLED
+# Using RAW audio from hardware DSP only
+# Optimize hardware first, then add software processing if needed
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -144,8 +142,8 @@ def display_hardware_config(state):
     
     print("="*70 + "\n")
 
-# === Software AGC ===
-def apply_software_agc(audio, target_rms=SOFTWARE_AGC_TARGET):
+# === Software AGC === (DISABLED - Hardware optimization first)
+def apply_software_agc(audio, target_rms=0.08):
     """
     Apply software AGC by normalizing audio to target RMS level
     Simple gain adjustment - not adaptive like hardware AGC
@@ -277,17 +275,11 @@ def listen():
     
     print("\n" + "="*70)
     print("[Audio] SIGNAL PROCESSING PIPELINE:")
-    print("[Audio]   1. Hardware DSP (configured by tune_respeaker.py on boot)")
+    print("[Audio]   1. Hardware DSP (HPF + AGC + NS via tune_respeaker.py)")
     print("[Audio]   2. Channel 0 selection (6ch → 1ch)")
-    
-    if USE_SOFTWARE_AGC:
-        print(f"[Audio]   3. Software AGC (target={SOFTWARE_AGC_TARGET})")
-        print("[Audio]   4. VAD → Whisper")
-        print("[Audio] ℹ️  Software AGC enabled")
-    else:
-        print("[Audio]   3. VAD → Whisper")
-        print("[Audio] ℹ️  Using hardware DSP settings only (no software processing)")
-    
+    print("[Audio]   3. VAD → Whisper")
+    print("[Audio] ℹ️  RAW audio from hardware - no software processing")
+    print("[Audio] ℹ️  Optimize hardware settings first!")
     print("="*70 + "\n")
     
     # ARM/Jetson-specific audio configuration
@@ -549,28 +541,26 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono = full_audio[:, 0]  # Channel 0 only
             
-            # Hardware HPF already applied in ReSpeaker DSP (before AGC)
-            mono_filtered = mono
+            # RAW audio from hardware DSP (HPF + AGC + NS already applied)
+            # NO software processing - testing hardware optimization only
             
-            # Apply software AGC if enabled
-            if USE_SOFTWARE_AGC:
-                mono_filtered = apply_software_agc(mono_filtered, target_rms=SOFTWARE_AGC_TARGET)
+            # Check if audio is too short
+            if len(mono) < MIN_AUDIO_SAMPLES:
+                print("⚠️  Too short\n")
+                set_transcribing(False)
+                continue
             
             # Check if audio RMS is too low (likely fan noise, not speech)
-            rms = np.sqrt(np.mean(mono_filtered ** 2))
+            rms = np.sqrt(np.mean(mono ** 2))
             if rms < MIN_SPEECH_RMS:
                 print(f"⚠️  RMS too low ({rms:.4f} < {MIN_SPEECH_RMS}), likely noise - skipping\n")
                 set_transcribing(False)
                 continue
             
-            if len(mono_filtered) < MIN_AUDIO_SAMPLES:
-                print("⚠️  Too short\n")
-                continue
-            
-            text = transcribe(mono_filtered)
+            text = transcribe(mono)
             
             # Aggressive buffer cleanup after transcription
-            del buffer, full_audio, mono, mono_filtered
+            del buffer, full_audio, mono
             import gc
             gc.collect()
             
