@@ -28,8 +28,8 @@ HOST_ENV = dotenv_values(os.path.expanduser("~/LedgerAI/llm-container/.env"))
 
 # === Whisper Container Configuration ===
 # Using faster-whisper with distil-small.en model
-WHISPER_IMAGE = "aura-whisper-faster:latest"
-WHISPER_NAME = "faster-whisper"
+WHISPER_IMAGE = "aura-whisper:latest"
+WHISPER_NAME = "aura-whisper"
 WHISPER_DESCRIPTION = "faster-whisper with distil-small.en"
 
 print(f"[Aura] 🎤 Whisper container: {WHISPER_DESCRIPTION}")
@@ -181,7 +181,7 @@ def run_container(name, port, image, timeout=15):
             "-e", f"N_CTX={n_ctx}",
             "-v", f"{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))}:/app/data"  # Mount embeddings data
         ]
-    elif name == "aura-whisper":
+    elif name == WHISPER_NAME:
         # faster-whisper model is baked into the image, no cache mounting needed
         cmd += [
             "--gpus", "all"  # Add GPU support for faster-whisper
@@ -204,7 +204,7 @@ def run_container(name, port, image, timeout=15):
             print(f"[Aura] ⚠️ Container command error: {e}")
         
         # Use appropriate health check endpoint
-        if name == "aura-whisper":
+        if name == WHISPER_NAME:
             health_url = f"http://localhost:{port}/health"
             time.sleep(5)   # Standard time for faster-whisper
         else:
@@ -355,7 +355,7 @@ def start_services():
     # Start all containers in parallel using threads
     def start_whisper():
         print(f"[Aura] 🎤 Starting Whisper container ({WHISPER_DESCRIPTION})...")
-        return run_container("aura-whisper", 5000, WHISPER_IMAGE, timeout=10)
+        return run_container(WHISPER_NAME, 5000, WHISPER_IMAGE, timeout=10)
     
     def start_llm():
         print("[Aura] 🧠 Starting LLM container...")

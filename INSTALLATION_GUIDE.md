@@ -210,7 +210,7 @@ docker compose logs -f rag
 
 ### Docker Containers
 
-1. **whisper-container-faster** (Port 5051)
+1. **whisper-container** (Port 5051)
    - Speech-to-text using faster-whisper
    - Model: distil-small.en
 

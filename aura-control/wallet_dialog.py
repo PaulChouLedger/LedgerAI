@@ -15,14 +15,24 @@ class WalletDialog(QDialog):
         self.usage_tracker = get_usage_tracker()
         
         self.setWindowTitle("Aura Token Wallet")
-        self.setModal(False)  # Allow interaction with main window
-        self.setMinimumSize(600, 500)
+        self.setFixedSize(1080, 1080)  # Full screen size to match main window
         
-        # Apply dark theme styling
+        # Use same window flags as upload dialog for proper modal behavior
+        if parent:
+            # If we have a parent, use Dialog flag for proper modal behavior
+            self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+            self.setModal(True)  # Make it modal to block parent interaction
+        else:
+            # If no parent, stay on top
+            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        
+        # Apply dark theme styling - match upload dialog's circular design
         self.setStyleSheet("""
             QDialog {
-                background-color: #1a1a1a;
+                background-color: rgba(28, 28, 30, 1.0);  /* Solid dark background */
                 color: #ffffff;
+                border: none;
+                border-radius: 536px;  /* Circular screen */
             }
             QGroupBox {
                 background-color: #2a2a2a;
@@ -82,6 +92,9 @@ class WalletDialog(QDialog):
         self.setup_ui()
         self.update_connection_status()
         
+        # Center the dialog on the actual screen
+        self.center_dialog()
+        
         # Auto-refresh timer for balance updates
         self.refresh_timer = QTimer()
         self.refresh_timer.timeout.connect(self.refresh_balance)
@@ -90,7 +103,11 @@ class WalletDialog(QDialog):
     def setup_ui(self):
         """Setup the dialog UI"""
         layout = QVBoxLayout()
-        layout.setSpacing(15)
+        layout.setContentsMargins(120, 100, 120, 100)  # Match upload dialog margins
+        layout.setSpacing(20)
+        
+        # Add top spacer for vertical centering
+        layout.addStretch(1)
         
         # === Title ===
         title = QLabel("🔗 Ethereum Wallet Connection")
@@ -203,6 +220,9 @@ class WalletDialog(QDialog):
         token_info.setStyleSheet("color: #666666; font-size: 9pt;")
         layout.addWidget(token_info)
         
+        # Add bottom spacer for vertical centering
+        layout.addStretch(1)
+        
         self.setLayout(layout)
     
     def update_connection_status(self):
@@ -275,8 +295,39 @@ class WalletDialog(QDialog):
         self.usage_label.setText("💳 0.000000 tokens used")
         print("[WalletDialog] ✅ Session usage reset")
     
+    def center_dialog(self):
+        """Center the dialog properly on the screen"""
+        from PyQt5.QtWidgets import QDesktopWidget
+        
+        # Get screen geometry
+        screen = QDesktopWidget().screenGeometry()
+        print(f"[WalletDialog] 🔍 Screen geometry: {screen.width()}x{screen.height()}")
+        
+        # Get dialog size (use fixed size since we set it to 1080x1080)
+        dialog_width = 1080
+        dialog_height = 1080
+        
+        # Calculate center position
+        x = (screen.width() - dialog_width) // 2
+        y = (screen.height() - dialog_height) // 2
+        
+        print(f"[WalletDialog] 📐 Calculated center position: ({x}, {y})")
+        
+        # Move to center
+        self.move(x, y)
+        print(f"[WalletDialog] ✅ Dialog centered at ({x}, {y})")
+        
+        # Verify final position
+        final_pos = self.pos()
+        print(f"[WalletDialog] 📐 Final dialog position: ({final_pos.x()}, {final_pos.y()})")
+        
+        # Ensure dialog is visible and active
+        self.raise_()
+        self.activateWindow()
+    
     def closeEvent(self, event):
         """Handle dialog close"""
         self.refresh_timer.stop()
+        print("[WalletDialog] ✅ Dialog closed")
         event.accept()
 

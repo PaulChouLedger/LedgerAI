@@ -1,79 +1,128 @@
+import os
+# Set NumPy compatibility before importing
+os.environ['NUMPY_DISABLE_ABI_COMPATIBILITY'] = '1'
+
 from flask import Flask, request, jsonify
-from whisper_trt import load_trt_model
+from faster_whisper import WhisperModel
 import soundfile as sf
 import numpy as np
 import scipy.signal
 import tempfile
-import os
 import time
+import json
+from pathlib import Path
 
-# TensorRT optimizations and memory fixes
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-os.environ['TRT_LOGGER_VERBOSITY'] = '1'
-os.environ['MALLOC_CHECK_'] = '0'  # Disable malloc debugging
-os.environ['PYTHONMALLOC'] = 'malloc'  # Use system malloc
-os.environ['PYTHONUNBUFFERED'] = '1'
-os.environ['PYTHONHASHSEED'] = '0'  # Fix hash randomization
-os.environ['PYTHONDONTWRITEBYTECODE'] = '1'  # Disable .pyc files
-os.environ['PYTHONIOENCODING'] = 'utf-8'  # Fix encoding issues
+# === Medical Vocabulary Management ===
+def load_medical_terms():
+    """Load medical terms from JSON file and build initial prompt"""
+    medical_terms_file = Path("/app/medical_terms.json")
+    
+    if not medical_terms_file.exists():
+        print("[Whisper] ⚠️ Medical terms file not found, using basic prompt")
+        return "This is a medical conversation. Proper names and technical medical terms are important."
+    
+    try:
+        with open(medical_terms_file, 'r') as f:
+            terms_dict = json.load(f)
+        
+        # Sample terms from each category to build a concise but comprehensive prompt
+        # We'll include high-priority organ systems and common terms
+        priority_systems = ["cardiovascular", "respiratory", "gastrointestinal", 
+                           "endocrine", "neurological", "common_symptoms", "medications"]
+        
+        sampled_terms = []
+        for system in priority_systems:
+            if system in terms_dict:
+                # Take first 5 terms from each priority system
+                sampled_terms.extend(terms_dict[system][:5])
+        
+        # Build the prompt
+        terms_str = ", ".join(sampled_terms[:40])  # Limit to ~40 terms to keep prompt reasonable
+        prompt = f"This is a medical conversation. Common terms include: {terms_str}. Proper names and technical medical terms are important."
+        
+        print(f"[Whisper] 📚 Loaded {sum(len(v) for v in terms_dict.values())} medical terms from {len(terms_dict)} categories")
+        return prompt
+        
+    except Exception as e:
+        print(f"[Whisper] ⚠️ Error loading medical terms: {e}")
+        return "This is a medical conversation. Proper names and technical medical terms are important."
+
+def save_medical_term(term, category="learned"):
+    """Add a new medical term to the vocabulary (for future learning capability)"""
+    medical_terms_file = Path("/app/medical_terms.json")
+    
+    try:
+        with open(medical_terms_file, 'r') as f:
+            terms_dict = json.load(f)
+        
+        if category not in terms_dict:
+            terms_dict[category] = []
+        
+        if term.lower() not in [t.lower() for t in terms_dict[category]]:
+            terms_dict[category].append(term)
+            
+            with open(medical_terms_file, 'w') as f:
+                json.dump(terms_dict, f, indent=2)
+            
+            print(f"[Whisper] 📝 Added new term '{term}' to category '{category}'")
+            return True
+    except Exception as e:
+        print(f"[Whisper] ⚠️ Error saving term: {e}")
+    
+    return False
+
+# === Transcription Configuration ===
+# Tune these parameters for your needs:
+BEAM_SIZE = 5                     # Higher = better accuracy, slower (5=fast, 10=balanced, 20=best) - MUST be int
+TEMPERATURE = 0.0                  # 0.0 = deterministic, 0.1+ = more creative
+PATIENCE = 0.5                     # Wait time for better results (increased for better accuracy)
+LENGTH_PENALTY = 1.0               # Slight penalty to prevent cutting off words
+
+# Simple initial prompt (medical vocabulary disabled for now)
+INITIAL_PROMPT = "This is a conversation."
+
+# Performance vs Accuracy Guide:
+# BEAM_SIZE=5:  ~1x latency, good accuracy
+# BEAM_SIZE=10: ~2x latency, better accuracy (current)
+# BEAM_SIZE=20: ~4x latency, best accuracy
 
 app = Flask(__name__)
 
-# Load TensorRT optimized model with memory management
-print("[Whisper] 🔧 Loading TensorRT model...")
-print("[Whisper] 🔧 Setting up TensorRT environment...")
+# Check if model is available in the built-in cache
+import os
+model_name = os.getenv("WHISPER_MODEL", "distil-small.en")
+cache_dir = "/app/cache/whisper"
 
-# Clear any existing CUDA context and set memory limits
+print(f"[Whisper] 🚀 Loading faster-whisper model: {model_name}")
+print(f"[Whisper] 📁 Cache directory: {cache_dir}")
+
+# Map model names to their actual HuggingFace repo names
+model_mapping = {
+    "distil-small.en": "models--Systran--faster-distil-whisper-small.en",      # Fast, lower accuracy
+    "small.en": "models--Systran--faster-small-whisper.en",                    # Better accuracy
+    "medium.en": "models--Systran--faster-medium-whisper.en",                  # Much better for names
+    "base.en": "models--Systran--faster-base-whisper.en",                      # Basic model
+    "large-v3-turbo": "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo", # Best accuracy, higher latency
+    "distil-large-v3": "models--Systran--faster-distil-whisper-large-v3"       # Excellent accuracy, low latency ⭐ RECOMMENDED
+}
+
+# Get the actual model repo name
+model_repo = model_mapping.get(model_name, f"models--Systran--faster-{model_name.replace('.', '-')}")
+model_cache_path = f"/root/.cache/huggingface/hub/{model_repo}"
+
+if os.path.exists(model_cache_path):
+    print(f"[Whisper] ✅ Model found in cache: {model_name}")
+else:
+    print(f"[Whisper] ⚠️ Model not in cache, will download: {model_name}")
+
+# Load GPU model - NO CPU FALLBACK
 try:
-    import torch
-    import gc
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-        torch.cuda.ipc_collect()  # Clear IPC resources
-        # Set memory fraction to prevent OOM
-        torch.cuda.set_per_process_memory_fraction(0.7)  # Reduced from 0.8
-        gc.collect()  # Force garbage collection
-        print("[Whisper] 🔧 Cleared CUDA cache and set memory limit")
+    model = WhisperModel(model_name, device="cuda", compute_type="int8_float16", download_root="/root/.cache/huggingface/hub")
+    print(f"[Whisper] ✅ GPU model '{model_name}' loaded successfully from HuggingFace cache")
 except Exception as e:
-    print(f"[Whisper] ⚠️ CUDA setup warning: {e}")
-
-# Load TensorRT model - no fallbacks
-print("[Whisper] 🔧 Loading TensorRT model with memory protection...")
-print(f"[Whisper] 🔍 Cache directories:")
-print(f"[Whisper] 🔍 /root/.cache/whisper: {os.path.exists('/root/.cache/whisper')}")
-print(f"[Whisper] 🔍 /root/.cache/whisper_trt: {os.path.exists('/root/.cache/whisper_trt')}")
-if os.path.exists('/root/.cache/whisper'):
-    print(f"[Whisper] 🔍 Whisper cache contents: {os.listdir('/root/.cache/whisper')}")
-if os.path.exists('/root/.cache/whisper_trt'):
-    print(f"[Whisper] 🔍 WhisperTRT cache contents: {os.listdir('/root/.cache/whisper_trt')}")
-
-# Check if we can find the cached model files
-import glob
-whisper_files = glob.glob('/root/.cache/whisper/*.pt')
-whisper_trt_files = glob.glob('/root/.cache/whisper_trt/*.pth')
-print(f"[Whisper] 🔍 Found whisper files: {whisper_files}")
-print(f"[Whisper] 🔍 Found whisper_trt files: {whisper_trt_files}")
-
-model = load_trt_model("base.en")
-print("[Whisper] ✅ TensorRT model loaded successfully")
-
-# Add cleanup function for graceful shutdown
-import atexit
-import signal
-
-def cleanup():
-    print("[Whisper] 🧹 Cleaning up resources...")
-    try:
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            torch.cuda.ipc_collect()
-        gc.collect()
-    except:
-        pass
-
-atexit.register(cleanup)
-signal.signal(signal.SIGTERM, lambda s, f: cleanup())
-signal.signal(signal.SIGINT, lambda s, f: cleanup())
+    print(f"[Whisper] ❌ GPU model loading failed: {e}")
+    print(f"[Whisper] 💥 FATAL: GPU required - no CPU fallback available")
+    raise RuntimeError("GPU initialization failed - GPU is required for this container")
 
 # Timing statistics tracking
 timing_stats = {
@@ -108,6 +157,9 @@ def transcribe():
 
     audio_file = request.files["audio"]
     
+    # Check for custom initial_prompt (for guiding spelling of names)
+    custom_prompt = request.form.get("initial_prompt", INITIAL_PROMPT)
+    
     # Time file processing
     file_processing_start = time.time()
     
@@ -123,23 +175,72 @@ def transcribe():
         audio = preprocess_audio(tmp_path)
         preprocessing_time = time.time() - preprocessing_start
         
-        # Time model transcription (using whisper_trt API)
+        # Audio properties (minimal logging)
+        audio_duration = len(audio) / 16000
+        print(f"[Whisper] 🔍 Audio duration: {audio_duration:.3f}s")
+        
+        # Check if audio is too quiet or silent (minimal logging)
+        if np.sqrt(np.mean(audio**2)) < 0.001:
+            print(f"[Whisper] ⚠️ Audio is very quiet")
+        
+        # Time model transcription
         transcription_start = time.time()
-        start_timestamp = time.strftime('%H:%M:%S') + f".{int((transcription_start % 1) * 1000000):06d}"
-        print(f"[Whisper] 🚀 TRANSCRIPTION PROCESSING START: {start_timestamp}")
         
-        print(f"[Whisper] 🔍 Audio data shape: {audio.shape}, duration: {len(audio) / 16000:.3f}s")
-        print(f"[Whisper] 🧠 Starting WhisperTRT transcription at {time.time():.6f}")
+        # Initialize text variable
+        text = ""
         
-        result = model.transcribe(audio)
-        text = result["text"].strip()
-        
-        transcription_end = time.time()
-        end_timestamp = time.strftime('%H:%M:%S') + f".{int((transcription_end % 1) * 1000000):06d}"
-        print(f"[Whisper] ✅ TRANSCRIPTION PROCESSING END: {end_timestamp}")
-        
-        transcription_time = transcription_end - transcription_start
-        print(f"[Whisper] 🧠 WhisperTRT transcription completed at {transcription_end:.6f}, latency: {transcription_time:.6f}s")
+        try:
+            # Using configurable transcription parameters
+            print(f"[Whisper] 🧠 Starting transcription...")
+            segments, info = model.transcribe(
+                audio, 
+                language="en",
+                beam_size=BEAM_SIZE,
+                temperature=TEMPERATURE,
+                patience=PATIENCE,
+                length_penalty=LENGTH_PENALTY,
+                initial_prompt=custom_prompt
+            )
+            # Process segments
+            segment_list = list(segments)
+            text = " ".join([s.text.strip() for s in segment_list if s.text.strip()])
+            print(f"[Whisper] 📝 Transcribed: '{text}'")
+            
+        except RuntimeError as e:
+            print(f"[Whisper] ❌ Runtime error: {e}")
+            if "cuDNN" in str(e) or "CUDNN_STATUS" in str(e):
+                print(f"[Whisper] 🔍 cuDNN error - GPU/CUDA initialization issue")
+                # Try to clear GPU memory and retry once
+                import torch
+                torch.cuda.empty_cache()
+                print(f"[Whisper] 🔄 Cleared GPU memory, retrying...")
+                try:
+                    segments, info = model.transcribe(
+                        audio, 
+                        language="en",
+                        beam_size=BEAM_SIZE,
+                        temperature=TEMPERATURE,
+                        initial_prompt=custom_prompt
+                    )
+                    segment_list = list(segments)
+                    text = " ".join([s.text.strip() for s in segment_list if s.text.strip()])
+                    print(f"[Whisper] ✅ Retry successful: '{text}'")
+                except Exception as retry_error:
+                    print(f"[Whisper] ❌ Retry also failed: {retry_error}")
+                    sys.stdout.flush()
+                    text = ""
+            else:
+                sys.stdout.flush()
+                text = ""
+        except Exception as e:
+            print(f"[Whisper] ❌ Transcription failed: {e}")
+            print(f"[Whisper] ❌ Error type: {type(e).__name__}")
+            import traceback
+            print(f"[Whisper] ❌ Traceback: {traceback.format_exc()}")
+            sys.stdout.flush()
+            text = ""
+            
+        transcription_time = time.time() - transcription_start
         
         # Calculate total processing time
         total_time = time.time() - request_start_time
@@ -158,16 +259,8 @@ def transcribe():
         timing_stats["min_transcription_time"] = min(timing_stats["min_transcription_time"], transcription_time)
         timing_stats["max_transcription_time"] = max(timing_stats["max_transcription_time"], transcription_time)
         
-        # Print timing information to console (like transcription tuner)
-        print(f"[Whisper] ⏱️ TIMING METRICS:")
-        print(f"  📥 Request to completion: {total_time:.3f}s")
-        print(f"  📁 File processing: {file_processing_time:.3f}s")
-        print(f"  🔧 Audio preprocessing: {preprocessing_time:.3f}s")
-        print(f"  🧠 WhisperTRT processing latency: {transcription_time:.3f}s")
-        print(f"  📊 Total audio duration: {audio_duration:.3f}s")
-        print(f"  ⚡ Efficiency RTF: {efficiency:.2f}x")
-        print(f"[Whisper] 📜 Transcribed Text: \"{text}\"")
-        print()  # Empty line for readability
+        # Show model transcription timing (important for performance monitoring)
+        print(f"[Whisper] ⏱️ Model transcription: {transcription_time:.3f}s")
         
         # Clean up temp file
         os.remove(tmp_path)
@@ -219,6 +312,60 @@ def health():
             "overall_efficiency_rtf": round(overall_efficiency, 2)
         }
     })
+
+@app.route("/add_medical_term", methods=["POST"])
+def add_medical_term():
+    """Add a new medical term to the vocabulary"""
+    data = request.json
+    
+    if not data or "term" not in data:
+        return jsonify({"error": "Missing 'term' in request"}), 400
+    
+    term = data["term"]
+    category = data.get("category", "learned")
+    
+    success = save_medical_term(term, category)
+    
+    if success:
+        # Reload the prompt with new terms
+        global INITIAL_PROMPT
+        INITIAL_PROMPT = load_medical_terms()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Added term '{term}' to category '{category}'",
+            "updated_prompt": INITIAL_PROMPT
+        })
+    else:
+        return jsonify({
+            "success": False,
+            "message": "Term already exists or error occurred"
+        })
+
+@app.route("/medical_terms", methods=["GET"])
+def get_medical_terms():
+    """Get all medical terms organized by category"""
+    medical_terms_file = Path("/app/medical_terms.json")
+    
+    if not medical_terms_file.exists():
+        return jsonify({"error": "Medical terms file not found"}), 404
+    
+    try:
+        with open(medical_terms_file, 'r') as f:
+            terms_dict = json.load(f)
+        
+        # Calculate statistics
+        total_terms = sum(len(v) for v in terms_dict.values())
+        
+        return jsonify({
+            "total_terms": total_terms,
+            "categories": len(terms_dict),
+            "terms_by_category": {k: len(v) for k, v in terms_dict.items()},
+            "current_prompt": INITIAL_PROMPT,
+            "all_terms": terms_dict
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

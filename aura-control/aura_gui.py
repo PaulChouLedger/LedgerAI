@@ -272,11 +272,11 @@ class AuraGUI(QMainWindow):
         try:
             from wallet_dialog import WalletDialog
             
-            # Create and show wallet dialog
+            # Create and show wallet dialog (modal, like upload dialog)
             dialog = WalletDialog(parent=self)
-            dialog.show()  # Non-modal so user can keep interacting
+            dialog.exec_()  # Modal blocking call, same as upload dialog
             
-            print("[AuraGUI] ✅ Wallet dialog opened")
+            print("[AuraGUI] ✅ Wallet dialog closed")
         except ImportError as e:
             print(f"[AuraGUI] ❌ Wallet dialog not available: {e}")
             print(f"[AuraGUI] 💡 Install web3: pip install web3")

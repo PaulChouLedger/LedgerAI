@@ -1,6 +1,6 @@
 services:
   whisper:
-    build: ./whisper-container-faster
+    build: ./whisper-container
     network_mode: host
     volumes:
       - ./shared:/shared

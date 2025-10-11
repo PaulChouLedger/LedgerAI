@@ -11,7 +11,7 @@ The Whisper transcription container now uses a **dynamic medical vocabulary syst
 ## What Was Changed
 
 ### 1. Medical Terms Database
-**File:** `whisper-container-faster/medical_terms.json`
+**File:** `whisper-container/medical_terms.json`
 
 A comprehensive JSON file containing medical terminology organized by:
 - **Organ Systems:** Cardiovascular, Respiratory, GI, Renal, Endocrine, Neurological, Musculoskeletal, Dermatology, Hematology
@@ -21,7 +21,7 @@ A comprehensive JSON file containing medical terminology organized by:
 **Total:** 600+ medical terms
 
 ### 2. Dynamic Prompt Generation
-**File:** `whisper-container-faster/container_rest.py`
+**File:** `whisper-container/container_rest.py`
 
 The container now:
 - Loads terms from JSON at startup
@@ -95,14 +95,14 @@ curl -X POST http://localhost:5000/add_medical_term \
 ### Rebuild Container
 ```bash
 cd /Users/rcabello/Documents/GitHub/LedgerAI
-docker-compose build whisper-container-faster
-docker-compose up -d whisper-container-faster
+docker-compose build whisper-container
+docker-compose up -d whisper-container
 ```
 
 ### Verify Medical Terms Loaded
 ```bash
 # Check container logs for:
-docker logs whisper-container-faster 2>&1 | grep "Loaded.*medical terms"
+docker logs whisper-container 2>&1 | grep "Loaded.*medical terms"
 # Should show: "[Whisper] 📚 Loaded 600+ medical terms from 15 categories"
 
 # Or query the API:
@@ -211,9 +211,9 @@ curl http://localhost:5000/medical_terms | jq '.total_terms'
      ```
 
 ### Container Won't Start
-- Ensure `medical_terms.json` exists in `whisper-container-faster/`
-- Rebuild container: `docker-compose build whisper-container-faster`
-- Check logs: `docker logs whisper-container-faster`
+- Ensure `medical_terms.json` exists in `whisper-container/`
+- Rebuild container: `docker-compose build whisper-container`
+- Check logs: `docker logs whisper-container`
 
 ## API Reference
 

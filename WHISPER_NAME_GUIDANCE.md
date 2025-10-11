@@ -59,7 +59,7 @@ All future transcriptions will prefer "Rafael" over "Raphael" automatically!
 
 ## 🔧 **Implementation Details**
 
-### **Whisper Container** (`whisper-container-faster/container_rest.py`)
+### **Whisper Container** (`whisper-container/container_rest.py`)
 
 **Added:**
 - Accepts optional `initial_prompt` form parameter
@@ -281,6 +281,6 @@ Restart the listener - `user_name` resets to `None`
 **Last Updated:** October 9, 2025
 
 **Files Modified:**
-- `whisper-container-faster/container_rest.py` - Accept custom prompts
+- `whisper-container/container_rest.py` - Accept custom prompts
 - `aura-control/listener.py` - Extract names and send guidance
 
