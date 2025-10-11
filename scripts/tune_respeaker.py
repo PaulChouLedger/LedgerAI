@@ -248,8 +248,8 @@ def configure_clean():
     print("[2/4] Hardware AGC: ON")
     dev.write("AGCONOFF", 1)
     
-    print("[3/4] AGC Target Level: 0.1 RMS (conservative to prevent clipping)")
-    dev.write("AGCDESIREDLEVEL", 0.1)
+    print("[3/4] AGC Target Level: 0.05 RMS (very conservative to prevent clipping)")
+    dev.write("AGCDESIREDLEVEL", 0.05)
     dev.write("AGCMAXGAIN", 20.0)  # 20dB max boost
     
     # Disable all noise suppression
@@ -263,16 +263,16 @@ def configure_clean():
     print("="*80)
     print("\n  Clean audio with conservative AGC:")
     print("    - 70Hz high-pass filter removes 60Hz AC hum")
-    print("    - Conservative AGC (target=0.1 RMS, max=20dB)")
+    print("    - Very conservative AGC (target=0.05 RMS, max=20dB)")
     print("    - No noise suppression (no artifacts)")
     print("\n  This balances clean audio with consistent levels.")
-    print("  Lower AGC target prevents clipping/hallucinations.\n")
+    print("  Low AGC target (0.05) prevents clipping/hallucinations.\n")
     
     # Save configuration state for listener
     config_dict = {
         'HPFONOFF': 1,
         'AGCONOFF': 1,  # Enabled
-        'AGCDESIREDLEVEL': 0.1,
+        'AGCDESIREDLEVEL': 0.05,
         'AGCMAXGAIN': 20.0,
         'STATNOISEONOFF_SR': 0,
         'NONSTATNOISEONOFF_SR': 0,

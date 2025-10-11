@@ -162,18 +162,39 @@ class WalletDialog(QDialog):
             separator.setStyleSheet("color: #666666; font-size: 9pt; margin: 10px 0;")
             wallet_layout.addWidget(separator)
         
-        instructions = QLabel("Enter your Ethereum wallet address:")
+        instructions = QLabel("Tap to enter wallet address:")
         instructions.setStyleSheet("color: #aaaaaa; font-size: 10pt;")
         wallet_layout.addWidget(instructions)
         
-        # Address input with default placeholder
-        self.address_input = QLineEdit()
-        self.address_input.setPlaceholderText("0x1234567890abcdef1234567890abcdef12345678")
-        self.address_input.returnPressed.connect(self.connect_wallet)
-        wallet_layout.addWidget(self.address_input)
+        # Clickable address display (replaced QLineEdit with button)
+        self.address_display_btn = QPushButton("⌨️  Tap to Enter Address")
+        self.address_display_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3a3a3a;
+                color: #888888;
+                border: 2px solid #4D94D9;
+                border-radius: 8px;
+                padding: 15px;
+                font-size: 11pt;
+                text-align: left;
+                min-height: 50px;
+            }
+            QPushButton:hover {
+                background-color: #4a4a4a;
+                border: 2px solid #5DA4E9;
+            }
+            QPushButton:pressed {
+                background-color: #5a5a5a;
+            }
+        """)
+        self.address_display_btn.clicked.connect(self.show_keyboard)
+        wallet_layout.addWidget(self.address_display_btn)
+        
+        # Store the entered address
+        self.entered_address = ""
         
         # Connect button
-        connect_btn = QPushButton("🔗 Connect New Wallet")
+        connect_btn = QPushButton("🔗 Connect Wallet")
         connect_btn.clicked.connect(self.connect_wallet)
         wallet_layout.addWidget(connect_btn)
         
@@ -279,9 +300,150 @@ class WalletDialog(QDialog):
             new_dialog = WalletDialog(self.parent())
             new_dialog.show()
     
+    def show_keyboard(self):
+        """Show custom keyboard for address entry"""
+        from custom_keyboard import CircularKeyboard
+        
+        # Create keyboard with current address
+        keyboard = CircularKeyboard(parent=self, initial_text=self.entered_address)
+        
+        # Connect signals
+        keyboard.text_confirmed.connect(self.on_address_entered)
+        keyboard.voice_input_requested.connect(self.handle_voice_input)
+        
+        # Show keyboard
+        keyboard.exec_()
+    
+    def on_address_entered(self, address: str):
+        """Handle address entered from keyboard"""
+        self.entered_address = address
+        
+        # Update button display
+        if address:
+            # Show shortened address
+            display_text = f"{address[:10]}...{address[-8:]}" if len(address) > 20 else address
+            self.address_display_btn.setText(display_text)
+            self.address_display_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #3a3a3a;
+                    color: #00ff00;
+                    border: 2px solid #4D94D9;
+                    border-radius: 8px;
+                    padding: 15px;
+                    font-size: 11pt;
+                    font-family: 'Courier New', monospace;
+                    font-weight: bold;
+                    text-align: left;
+                    min-height: 50px;
+                }
+                QPushButton:hover {
+                    background-color: #4a4a4a;
+                    border: 2px solid #5DA4E9;
+                }
+                QPushButton:pressed {
+                    background-color: #5a5a5a;
+                }
+            """)
+        
+        print(f"[WalletDialog] 📝 Address entered: {address}")
+    
+    def handle_voice_input(self):
+        """Handle voice input request from keyboard"""
+        print("[WalletDialog] 🎤 Voice input requested")
+        
+        # Import voice recording functionality
+        import io
+        import sounddevice as sd
+        import soundfile as sf
+        import numpy as np
+        import requests
+        
+        try:
+            # Show status
+            from PyQt5.QtWidgets import QMessageBox, QProgressDialog
+            from PyQt5.QtCore import Qt
+            
+            # Create progress dialog
+            progress = QProgressDialog("🎤 Speak your wallet address...", "Cancel", 0, 0, self)
+            progress.setWindowTitle("Voice Input")
+            progress.setWindowModality(Qt.WindowModal)
+            progress.setMinimumDuration(0)
+            progress.setCancelButton(None)  # No cancel during recording
+            progress.show()
+            
+            # Record audio (5 seconds)
+            sample_rate = 16000
+            duration = 5  # seconds
+            
+            progress.setLabelText("🎤 Recording... (5 seconds)")
+            
+            print("[VoiceInput] 🎤 Recording started...")
+            audio = sd.rec(int(duration * sample_rate), 
+                          samplerate=sample_rate, 
+                          channels=1, 
+                          dtype='float32')
+            sd.wait()  # Wait for recording to finish
+            print("[VoiceInput] ✅ Recording complete")
+            
+            progress.setLabelText("🔄 Transcribing...")
+            
+            # Convert to WAV format
+            wav_io = io.BytesIO()
+            sf.write(wav_io, audio, sample_rate, format="WAV")
+            wav_io.seek(0)
+            
+            # Send to Whisper for transcription
+            response = requests.post(
+                "http://localhost:5000/transcribe",
+                files={"audio": ("voice.wav", wav_io, "audio/wav")},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                text = result.get("text", {}).get("text", "").strip() if isinstance(result.get("text"), dict) else result.get("text", "").strip()
+                
+                print(f"[VoiceInput] 📝 Transcribed: {text}")
+                
+                progress.close()
+                
+                # Clean up the transcribed text - remove spaces and common words
+                # Ethereum addresses are typically spoken character by character
+                cleaned = text.lower().replace(" ", "").replace("zero", "0").replace("one", "1").replace("two", "2").replace("three", "3").replace("four", "4").replace("five", "5").replace("six", "6").replace("seven", "7").replace("eight", "8").replace("nine", "9")
+                
+                # Ensure it starts with 0x
+                if not cleaned.startswith("0x"):
+                    if cleaned.startswith("x"):
+                        cleaned = "0" + cleaned
+                    else:
+                        cleaned = "0x" + cleaned
+                
+                # Set the text in the keyboard (if still open)
+                # Or directly set it
+                if cleaned and len(cleaned) >= 10:  # At least 0x + some characters
+                    self.entered_address = cleaned[:42]  # Limit to valid address length
+                    self.on_address_entered(self.entered_address)
+                    
+                    QMessageBox.information(self, "Voice Input", 
+                                          f"Address captured:\n{self.entered_address}")
+                else:
+                    QMessageBox.warning(self, "Voice Input", 
+                                       f"Could not parse wallet address from: {text}\n\nPlease try again or use keyboard.")
+            else:
+                progress.close()
+                QMessageBox.warning(self, "Error", "Failed to transcribe audio. Please try again.")
+                
+        except Exception as e:
+            print(f"[VoiceInput] ❌ Error: {e}")
+            try:
+                progress.close()
+            except:
+                pass
+            QMessageBox.warning(self, "Error", f"Voice input failed: {str(e)}")
+    
     def connect_wallet(self):
         """Connect to the entered wallet address"""
-        address = self.address_input.text().strip()
+        address = self.entered_address.strip()
         
         if not address:
             self.balance_label.setText("❌ Please enter an address")
