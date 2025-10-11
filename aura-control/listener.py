@@ -39,7 +39,7 @@ MIN_SPEECH_RMS = 0.008  # Filter out low-level noise (more permissive for AGC)
 # SOFTWARE AGC (two-stage amplification):
 # Hardware AGC (30dB): Clean amplification without distortion
 # Software AGC: Final boost for distant speech (3-6ft)
-USE_SOFTWARE_AGC = True  # ENABLED for far-field pickup
+USE_SOFTWARE_AGC = False  # ENABLED for far-field pickup
 SOFTWARE_AGC_TARGET = 0.08  # Target RMS level for normalization (conservative)
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
