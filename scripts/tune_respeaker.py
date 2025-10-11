@@ -9,9 +9,9 @@ Usage:
     sudo python3 scripts/tune_respeaker.py [preset]
     
 Presets:
-    - clean: HPF only, no AGC (removes 60Hz hum) - DEFAULT
-    - far_field: Optimized for 8-16 feet (with AGC)
-    - near_field: Optimized for 1-6 feet (with AGC)
+    - clean: HPF + Conservative AGC (0.1 RMS target) - DEFAULT
+    - far_field: Optimized for 8-16 feet (high AGC + noise suppression)
+    - near_field: Optimized for 1-6 feet (moderate AGC)
     - reset: Factory defaults (all OFF)
     - show: Show current settings
 """
@@ -226,7 +226,7 @@ def reset_defaults():
     return True
 
 def configure_clean():
-    """Minimal processing - just HPF to remove EM noise, no AGC"""
+    """Clean audio with conservative AGC - HPF + dynamic gain to 0.1 RMS"""
     import usb.core
     
     usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
@@ -237,19 +237,23 @@ def configure_clean():
     dev = Tuning(usb_dev)
     
     print("\n" + "="*80)
-    print("  🧹 CONFIGURING CLEAN AUDIO (HPF ONLY)")
+    print("  🧹 CONFIGURING CLEAN AUDIO (HPF + Conservative AGC)")
     print("="*80 + "\n")
     
     # Enable 70Hz high-pass filter to remove 60Hz hum and low-frequency noise
-    print("[1/3] High-Pass Filter: ON (70 Hz - removes EM noise)")
+    print("[1/4] High-Pass Filter: ON (70 Hz - removes EM noise)")
     dev.write("HPFONOFF", 1)  # 1 = 70Hz cutoff
     
-    # Disable AGC - no amplification
-    print("[2/3] Hardware AGC: OFF (no amplification)")
-    dev.write("AGCONOFF", 0)
+    # Enable AGC with conservative settings
+    print("[2/4] Hardware AGC: ON")
+    dev.write("AGCONOFF", 1)
+    
+    print("[3/4] AGC Target Level: 0.1 RMS (conservative to prevent clipping)")
+    dev.write("AGCDESIREDLEVEL", 0.1)
+    dev.write("AGCMAXGAIN", 20.0)  # 20dB max boost
     
     # Disable all noise suppression
-    print("[3/3] Noise Suppression: OFF (no artifacts)")
+    print("[4/4] Noise Suppression: OFF (no artifacts)")
     dev.write("STATNOISEONOFF_SR", 0)
     dev.write("NONSTATNOISEONOFF_SR", 0)
     dev.write("ECHOONOFF", 0)
@@ -257,19 +261,19 @@ def configure_clean():
     print("\n" + "="*80)
     print("  ✅ CLEAN CONFIGURATION COMPLETE")
     print("="*80)
-    print("\n  Minimal processing enabled:")
+    print("\n  Clean audio with conservative AGC:")
     print("    - 70Hz high-pass filter removes 60Hz AC hum")
-    print("    - No AGC (raw volume levels)")
-    print("    - No noise suppression (clean audio)")
-    print("\n  This gives cleanest audio with minimal processing.")
-    print("  Use if AGC causes clipping or hallucinations.\n")
+    print("    - Conservative AGC (target=0.1 RMS, max=20dB)")
+    print("    - No noise suppression (no artifacts)")
+    print("\n  This balances clean audio with consistent levels.")
+    print("  Lower AGC target prevents clipping/hallucinations.\n")
     
     # Save configuration state for listener
     config_dict = {
         'HPFONOFF': 1,
-        'AGCONOFF': 0,
+        'AGCONOFF': 1,  # Enabled
         'AGCDESIREDLEVEL': 0.1,
-        'AGCMAXGAIN': 0.0,
+        'AGCMAXGAIN': 20.0,
         'STATNOISEONOFF_SR': 0,
         'NONSTATNOISEONOFF_SR': 0,
         'ECHOONOFF': 0
@@ -358,9 +362,9 @@ def main():
         else:
             print(f"\n  ❌ Unknown preset: {preset}")
             print(f"\n  Available presets:")
-            print(f"    - clean      : HPF only (removes 60Hz hum, no AGC)")
-            print(f"    - far_field  : Optimized for 8-16 feet (with AGC)")
-            print(f"    - near_field : Optimized for 1-6 feet (with AGC)")
+            print(f"    - clean      : HPF + Conservative AGC (0.1 RMS target)")
+            print(f"    - far_field  : High AGC + noise suppression (8-16 feet)")
+            print(f"    - near_field : Moderate AGC (1-6 feet)")
             print(f"    - reset      : Factory defaults (all OFF)")
             print(f"    - show       : Show current settings\n")
             return 1
