@@ -1,3 +1,21 @@
+# ReSpeaker Auto-Tuning Service
+# Automatically configures ReSpeaker hardware DSP on boot
+#
+# Available Presets (change in ExecStart line):
+#   - clean      : HPF only (70Hz), no AGC - removes EM noise, cleanest audio
+#   - near_field : HPF + moderate AGC - for 1-6 feet, normal volume
+#   - far_field  : No HPF + high AGC - for 8-16 feet, quiet speech
+#   - reset      : Factory defaults - all processing OFF
+#
+# To change preset:
+#   1. sudo nano /etc/systemd/system/respeaker-tuning.service
+#   2. Change "clean" to desired preset in ExecStart line below
+#   3. sudo systemctl daemon-reload
+#   4. sudo systemctl restart respeaker-tuning.service
+#
+# To disable auto-tune:
+#   sudo systemctl disable respeaker-tuning.service
+
 [Unit]
 Description=ReSpeaker Hardware DSP Configuration
 After=multi-user.target
@@ -7,7 +25,7 @@ Wants=network.target
 Type=oneshot
 RemainAfterExit=yes
 User=root
-ExecStart=/usr/bin/python3 /home/aura/LedgerAI/scripts/tune_respeaker.py far_field
+ExecStart=/usr/bin/python3 /home/aura/LedgerAI/scripts/tune_respeaker.py clean
 StandardOutput=journal
 StandardError=journal
 

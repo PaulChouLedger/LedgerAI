@@ -18,6 +18,7 @@ Presets:
 
 import sys
 import os
+import json
 
 # Add tuning module path (expand ~ properly even with sudo)
 home_dir = os.path.expanduser('~aura') if os.geteuid() == 0 else os.path.expanduser('~')
@@ -25,6 +26,24 @@ tuning_path = os.path.join(home_dir, 'usb_4_mic_array')
 sys.path.insert(0, tuning_path)
 
 from tuning import Tuning
+
+# State file for listener to read (no permissions needed)
+CONFIG_STATE_FILE = os.path.join(home_dir, 'LedgerAI', 'data', 'respeaker_config.json')
+
+def save_config_state(preset, config_dict):
+    """Save current configuration to a file for listener to read"""
+    try:
+        state = {
+            'preset': preset,
+            'timestamp': __import__('time').time(),
+            'config': config_dict
+        }
+        os.makedirs(os.path.dirname(CONFIG_STATE_FILE), exist_ok=True)
+        with open(CONFIG_STATE_FILE, 'w') as f:
+            json.dump(state, f, indent=2)
+        print(f"\n  📄 Configuration saved to: {CONFIG_STATE_FILE}")
+    except Exception as e:
+        print(f"\n  ⚠️  Could not save config state: {e}")
 
 def configure_far_field():
     """Configure for far-field speech recognition (8-16 feet)"""
@@ -89,6 +108,18 @@ def configure_far_field():
     print("    - Preserve all speech frequencies")
     print("\n  Restart your listener to use the new hardware settings.\n")
     
+    # Save configuration state for listener
+    config_dict = {
+        'HPFONOFF': 0,
+        'AGCONOFF': 1,
+        'AGCDESIREDLEVEL': 0.03,
+        'AGCMAXGAIN': 20.0,
+        'STATNOISEONOFF_SR': 1,
+        'NONSTATNOISEONOFF_SR': 1,
+        'ECHOONOFF': 0
+    }
+    save_config_state('far_field', config_dict)
+    
     return True
 
 def configure_near_field():
@@ -143,6 +174,18 @@ def configure_near_field():
     print("  ✅ NEAR-FIELD CONFIGURATION COMPLETE")
     print("="*80 + "\n")
     
+    # Save configuration state for listener
+    config_dict = {
+        'HPFONOFF': 1,
+        'AGCONOFF': 1,
+        'AGCDESIREDLEVEL': 0.08,
+        'AGCMAXGAIN': 15.8,
+        'STATNOISEONOFF_SR': 1,
+        'NONSTATNOISEONOFF_SR': 1,
+        'ECHOONOFF': 0
+    }
+    save_config_state('near_field', config_dict)
+    
     return True
 
 def reset_defaults():
@@ -167,6 +210,18 @@ def reset_defaults():
     dev.write("ECHOONOFF", 0)
     
     print("  ✅ Reset complete\n")
+    
+    # Save configuration state for listener
+    config_dict = {
+        'HPFONOFF': 0,
+        'AGCONOFF': 0,
+        'AGCDESIREDLEVEL': 0.03,
+        'AGCMAXGAIN': 20.0,
+        'STATNOISEONOFF_SR': 0,
+        'NONSTATNOISEONOFF_SR': 0,
+        'ECHOONOFF': 0
+    }
+    save_config_state('reset', config_dict)
     
     return True
 
@@ -208,6 +263,18 @@ def configure_clean():
     print("    - No noise suppression (clean audio)")
     print("\n  This gives cleanest audio with minimal processing.")
     print("  Use if AGC causes clipping or hallucinations.\n")
+    
+    # Save configuration state for listener
+    config_dict = {
+        'HPFONOFF': 1,
+        'AGCONOFF': 0,
+        'AGCDESIREDLEVEL': 0.0,
+        'AGCMAXGAIN': 0.0,
+        'STATNOISEONOFF_SR': 0,
+        'NONSTATNOISEONOFF_SR': 0,
+        'ECHOONOFF': 0
+    }
+    save_config_state('clean', config_dict)
     
     return True
 

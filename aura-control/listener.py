@@ -19,11 +19,24 @@ VAD_SILENCE_THRESHOLD = 0.05  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
 MIN_SPEECH_RMS = 0.008  # Filter out low-level noise (more permissive for AGC)
 
-# === Software AGC Configuration ===
-# NOTE: Hardware configuration is done via tune_respeaker.py service on boot
-# The listener only reads and displays current hardware config (read-only)
-
-# Enable/disable software AGC (in Python after audio capture)
+# === Hardware & Software AGC Configuration ===
+# 
+# HARDWARE CONFIGURATION (via systemd service on boot):
+#   The ReSpeaker hardware is configured by: /etc/systemd/system/respeaker-tuning.service
+#   
+#   To change hardware preset:
+#     1. sudo nano /etc/systemd/system/respeaker-tuning.service
+#     2. Edit line 28: Change "clean" to: clean/near_field/far_field/reset
+#     3. sudo systemctl daemon-reload
+#     4. sudo systemctl restart respeaker-tuning.service
+#   
+#   Available presets (see scripts/tune_respeaker.py):
+#     - clean      : HPF only (70Hz), no AGC - cleanest audio, no clipping
+#     - near_field : HPF + moderate AGC - for 1-6 feet
+#     - far_field  : High AGC + noise suppression - for 8-16 feet
+#     - reset      : Factory defaults - all OFF
+#
+# SOFTWARE AGC (optional post-processing in Python):
 USE_SOFTWARE_AGC = False  # DISABLED by default - test if needed
 SOFTWARE_AGC_TARGET = 0.1  # Target RMS level for normalization
 
@@ -51,6 +64,75 @@ def find_device_index():
 
 # === Load VAD ===
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
+
+# === Hardware Configuration Display (No Permissions Needed) ===
+def load_respeaker_config():
+    """Load ReSpeaker configuration from state file (no USB permissions needed)"""
+    import json
+    from datetime import datetime
+    
+    config_file = os.path.expanduser("~/LedgerAI/data/respeaker_config.json")
+    
+    if not os.path.exists(config_file):
+        return None
+    
+    try:
+        with open(config_file, 'r') as f:
+            state = json.load(f)
+        return state
+    except Exception as e:
+        print(f"[Hardware] ⚠️  Error reading config: {e}")
+        return None
+
+def display_hardware_config(state):
+    """Display hardware configuration from saved state"""
+    if state is None:
+        print("[Hardware] ℹ️  No configuration found")
+        print("[Hardware] 💡 Run: sudo python3 scripts/tune_respeaker.py [preset]")
+        return
+    
+    from datetime import datetime
+    timestamp = datetime.fromtimestamp(state['timestamp'])
+    config = state['config']
+    preset = state['preset']
+    
+    print("\n" + "="*70)
+    print(f"[Hardware] 📋 ReSPEAKER CONFIGURATION (Preset: {preset.upper()})")
+    print(f"[Hardware] ⏱️  Last updated: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
+    print("="*70)
+    
+    # AGC
+    if config['AGCONOFF'] == 1:
+        print(f"  AGC:                    ✅ ENABLED")
+        print(f"    Target Level:         {config['AGCDESIREDLEVEL']:.2f}")
+        print(f"    Max Gain:             {config['AGCMAXGAIN']:.1f} dB")
+    else:
+        print(f"  AGC:                    ❌ DISABLED")
+    
+    # High-pass Filter
+    hpf_labels = ["OFF", "70 Hz", "125 Hz", "180 Hz"]
+    hpf_val = config['HPFONOFF']
+    hpf_label = hpf_labels[hpf_val] if hpf_val < len(hpf_labels) else str(hpf_val)
+    print(f"  High-Pass Filter:       {hpf_label}")
+    
+    # Noise Suppression
+    if config['STATNOISEONOFF_SR'] == 1:
+        print(f"  Stationary Noise Supp:  ✅ ENABLED")
+    else:
+        print(f"  Stationary Noise Supp:  ❌ DISABLED")
+    
+    if config['NONSTATNOISEONOFF_SR'] == 1:
+        print(f"  Non-Stat Noise Supp:    ✅ ENABLED")
+    else:
+        print(f"  Non-Stat Noise Supp:    ❌ DISABLED")
+    
+    # Echo
+    if config['ECHOONOFF'] == 1:
+        print(f"  Echo Cancellation:      ✅ ENABLED")
+    else:
+        print(f"  Echo Cancellation:      ❌ DISABLED")
+    
+    print("="*70 + "\n")
 
 # === Software AGC ===
 def apply_software_agc(audio, target_rms=SOFTWARE_AGC_TARGET):
@@ -164,8 +246,9 @@ def listen():
     
     channels = find_device_index()
     
-    # Hardware configuration is done via tune_respeaker.py service on boot
-    # To view config: sudo python3 scripts/tune_respeaker.py show
+    # Display hardware configuration from saved state (no permissions needed)
+    config_state = load_respeaker_config()
+    display_hardware_config(config_state)
     
     print("\n" + "="*70)
     print("[Audio] SIGNAL PROCESSING PIPELINE:")
