@@ -25,7 +25,15 @@ DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
 prompt_history = []
 
-# No stream refresh - keeping it simple for debugging
+# Smart freeze detection - refresh when VAD appears stuck
+# Detects: VAD=0.00 continuously with non-zero RMS (frozen state)
+# Action: Immediate refresh when freeze detected (not timer-based)
+# Benefits: 
+#   - No missed speech during refresh
+#   - Only refreshes when actually frozen
+#   - ~1 second detection time (30 frames × 32ms = 0.96s)
+VAD_FREEZE_THRESHOLD = 30  # Consecutive 0.00 frames with RMS > 0.01
+vad_zero_count = 0
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
@@ -165,6 +173,7 @@ def play_welcome_prompt(stream):
 
 # === Main Loop ===
 def listen():
+    global vad_zero_count
     
     channels = find_device_index()
     
@@ -237,6 +246,7 @@ def listen():
             
             buffer = []
             silence_start = None
+            vad_zero_count = 0  # Reset freeze counter for each new listening session
             
             # === Wait for speech ===
             while True:
@@ -258,6 +268,27 @@ def listen():
                 # Hardware HPF already applied in ReSpeaker DSP
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 rms = np.sqrt(np.mean(channel_0 ** 2))
+                
+                # Smart freeze detection: VAD stuck at 0.00 with non-zero RMS
+                if vad_prob < 0.01 and rms > 0.01:  # VAD frozen
+                    vad_zero_count += 1
+                    if vad_zero_count >= VAD_FREEZE_THRESHOLD:
+                        print(f"\n[Listener] ⚠️  VAD appears frozen (0.00 for {vad_zero_count} frames with RMS={rms:.4f})")
+                        print("[Listener] 🔄 Refreshing stream to unfreeze...")
+                        stream.stop()
+                        time.sleep(0.1)
+                        stream.start()
+                        # Flush buffer
+                        for _ in range(3):
+                            try:
+                                stream.read(FRAME_SIZE)
+                            except:
+                                break
+                        vad_zero_count = 0
+                        print("[Listener] ✅ Stream refreshed")
+                        continue
+                else:
+                    vad_zero_count = 0  # Reset counter if VAD responds
                 
                 print(f"[VAD] {vad_prob:.2f} | RMS {rms:.6f}", end="\r")
                 
