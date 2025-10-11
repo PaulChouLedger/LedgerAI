@@ -18,6 +18,20 @@ VAD_START_THRESHOLD = 0.25  # Higher = less sensitive to fan noise
 VAD_SILENCE_THRESHOLD = 0.10  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 8000  # Minimum samples to send to Whisper
 
+# === ReSpeaker Channel Selection ===
+# Per Seeed Audio documentation:
+# Channel 0: Processed audio for ASR (beamformed, already optimized) ✅
+# Channel 1-4: Individual raw mic data
+# Channel 5: Merged playback
+USE_CHANNEL = 0  # Already the best channel for speech recognition
+
+# === Software AGC (Adaptive Gain Control) ===
+# Hardware AGC doesn't help far-field, but software AGC can intelligently boost
+# Dynamically adjusts gain based on input level to avoid clipping near speech
+USE_SOFTWARE_AGC = True
+SOFTWARE_AGC_TARGET = 0.05  # Target RMS for optimal Whisper transcription
+SOFTWARE_AGC_MAX_GAIN = 5.0  # Maximum gain multiplier (safety limit)
+
 # === Hardware & Software AGC Configuration ===
 # 
 # HARDWARE CONFIGURATION (via systemd service on boot):
@@ -244,11 +258,18 @@ def listen():
     
     print("\n" + "="*70)
     print("[Audio] SIGNAL PROCESSING PIPELINE:")
-    print("[Audio]   1. Hardware DSP (HPF + AGC + NS via tune_respeaker.py)")
-    print("[Audio]   2. Channel 0 selection (6ch → 1ch)")
-    print("[Audio]   3. VAD → Whisper")
-    print("[Audio] ℹ️  RAW audio from hardware - no software processing")
-    print("[Audio] ℹ️  Optimize hardware settings first!")
+    print("[Audio]   1. Hardware DSP (HPF + beamforming via ReSpeaker)")
+    channel_desc = "ASR processed (beamformed)" if USE_CHANNEL == 0 else f"mic {USE_CHANNEL}"
+    print(f"[Audio]   2. Channel {USE_CHANNEL} selection ({channel_desc}, 6ch → 1ch)")
+    
+    if USE_SOFTWARE_AGC:
+        print(f"[Audio]   3. Software AGC (adaptive, target={SOFTWARE_AGC_TARGET} RMS)")
+        print("[Audio]   4. VAD → Whisper")
+        print(f"[Audio] ℹ️  Software AGC enabled: adaptive gain (max {SOFTWARE_AGC_MAX_GAIN}x)")
+    else:
+        print("[Audio]   3. VAD → Whisper")
+        print("[Audio] ℹ️  RAW audio from hardware - no software processing")
+    
     print("="*70 + "\n")
     
     # ARM/Jetson-specific audio configuration
@@ -317,14 +338,14 @@ def listen():
                     time.sleep(0.1)
                     continue
                 
-                channel_0 = audio_block[:, 0]
+                channel_audio = audio_block[:, USE_CHANNEL]
                 
-                if channel_0.size < 512:
+                if channel_audio.size < 512:
                     continue
                 
                 # Hardware HPF already applied in ReSpeaker DSP
-                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
-                rms = np.sqrt(np.mean(channel_0 ** 2))
+                vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
+                rms = np.sqrt(np.mean(channel_audio ** 2))
                 
                 print(f"[VAD] {vad_prob:.2f} | RMS {rms:.6f}", end="\r")
                 
@@ -347,15 +368,15 @@ def listen():
                     set_transcribing(False)
                     break
                 
-                channel_0 = audio_block[:, 0]
+                channel_audio = audio_block[:, USE_CHANNEL]
                 
-                if channel_0.size < 512:
+                if channel_audio.size < 512:
                     continue
                 
                 buffer.append(audio_block)
                 
                 # Hardware HPF already applied in ReSpeaker DSP
-                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
+                vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
                 
                 if vad_prob < VAD_SILENCE_THRESHOLD:
                     if silence_start is None:
@@ -375,10 +396,31 @@ def listen():
             
             # === Process audio ===
             full_audio = np.concatenate(buffer)
-            mono = full_audio[:, 0]  # Channel 0 only
+            mono = full_audio[:, USE_CHANNEL]  # Use configured channel
             
-            # RAW audio from hardware DSP (HPF + AGC + NS already applied)
-            # NO software processing - testing hardware optimization only
+            # Apply software AGC if enabled (adaptive gain based on input level)
+            if USE_SOFTWARE_AGC:
+                original_rms = np.sqrt(np.mean(mono ** 2))
+                
+                if original_rms < 0.001:
+                    # Silence or near-silence, don't amplify noise
+                    gain = 1.0
+                else:
+                    # Calculate gain needed to reach target RMS
+                    gain = SOFTWARE_AGC_TARGET / original_rms
+                    # Limit maximum gain to prevent noise amplification
+                    gain = min(gain, SOFTWARE_AGC_MAX_GAIN)
+                    # If already loud enough, don't boost (prevents clipping near speech)
+                    gain = min(gain, 1.0) if original_rms >= SOFTWARE_AGC_TARGET else gain
+                
+                # Apply gain
+                mono = mono * gain
+                
+                # Soft clipping to prevent hard distortion
+                mono = np.clip(mono, -0.95, 0.95)
+                
+                new_rms = np.sqrt(np.mean(mono ** 2))
+                print(f"[AGC] 🎚️  RMS: {original_rms:.4f} → {new_rms:.4f} (gain={gain:.2f}x)")
             
             # Check if audio is too short
             if len(mono) < MIN_AUDIO_SAMPLES:
