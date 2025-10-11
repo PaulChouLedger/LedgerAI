@@ -90,7 +90,7 @@ app = Flask(__name__)
 
 # Check if model is available in the built-in cache
 import os
-model_name = os.getenv("WHISPER_MODEL", "distil-large-v3")
+model_name = os.getenv("WHISPER_MODEL", "distil-small.en")
 cache_dir = "/app/cache/whisper"
 
 print(f"[Whisper] 🚀 Loading faster-whisper model: {model_name}")
