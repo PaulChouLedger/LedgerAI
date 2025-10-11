@@ -16,8 +16,7 @@ FRAME_SIZE = int(SAMPLE_RATE * 0.032)
 SILENCE_TIMEOUT = 0.25  # 300ms of silence before stopping
 VAD_START_THRESHOLD = 0.25  # Higher = less sensitive to fan noise
 VAD_SILENCE_THRESHOLD = 0.10  # Lower = more conservative about ending
-MIN_AUDIO_SAMPLES = 2000
-MIN_SPEECH_RMS = 0.008  # Minimum RMS to consider as speech (hardware AGC should exceed this)
+MIN_AUDIO_SAMPLES = 2000  # Minimum samples to send to Whisper
 
 # === Hardware & Software AGC Configuration ===
 # 
@@ -550,13 +549,8 @@ def listen():
                 set_transcribing(False)
                 continue
             
-            # Check if audio RMS is too low (likely fan noise, not speech)
-            rms = np.sqrt(np.mean(mono ** 2))
-            if rms < MIN_SPEECH_RMS:
-                print(f"⚠️  RMS too low ({rms:.4f} < {MIN_SPEECH_RMS}), likely noise - skipping\n")
-                set_transcribing(False)
-                continue
-            
+            # Send RAW hardware audio to Whisper (no RMS filtering)
+            # Let Whisper handle low-level audio - hardware AGC should boost it anyway
             text = transcribe(mono)
             
             # Aggressive buffer cleanup after transcription
