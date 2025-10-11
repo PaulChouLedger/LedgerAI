@@ -100,33 +100,33 @@ def display_hardware_config(state):
     print("="*70)
     
     # AGC
-    if config['AGCONOFF'] == 1:
+    if config.get('AGCONOFF', 0) == 1:
         print(f"  AGC:                    ✅ ENABLED")
-        print(f"    Target Level:         {config['AGCDESIREDLEVEL']:.2f}")
-        print(f"    Max Gain:             {config['AGCMAXGAIN']:.1f} dB")
+        print(f"    Target Level:         {config.get('AGCDESIREDLEVEL', 0):.2f}")
+        print(f"    Max Gain:             {config.get('AGCMAXGAIN', 0):.1f} dB")
     else:
         print(f"  AGC:                    ❌ DISABLED")
     
     # High-pass Filter
     hpf_labels = ["OFF", "70 Hz", "125 Hz", "180 Hz"]
-    hpf_val = config['HPFONOFF']
+    hpf_val = config.get('HPFONOFF', 0)
     hpf_label = hpf_labels[hpf_val] if hpf_val < len(hpf_labels) else str(hpf_val)
     print(f"  High-Pass Filter:       {hpf_label}")
     
     # Noise Suppression
-    if config['STATNOISEONOFF_SR'] == 1:
+    if config.get('STATNOISEONOFF_SR', 0) == 1:
         gamma = config.get('GAMMA_NS_SR', 1.0)
         print(f"  Stationary Noise Supp:  ✅ ENABLED (gamma={gamma:.1f})")
     else:
         print(f"  Stationary Noise Supp:  ❌ DISABLED")
     
-    if config['NONSTATNOISEONOFF_SR'] == 1:
+    if config.get('NONSTATNOISEONOFF_SR', 0) == 1:
         print(f"  Non-Stat Noise Supp:    ✅ ENABLED")
     else:
         print(f"  Non-Stat Noise Supp:    ❌ DISABLED")
     
     # Echo
-    if config['ECHOONOFF'] == 1:
+    if config.get('ECHOONOFF', 0) == 1:
         print(f"  Echo Cancellation:      ✅ ENABLED")
     else:
         print(f"  Echo Cancellation:      ❌ DISABLED")
