@@ -358,10 +358,25 @@ def speak_llm_response(prompt, context=""):
             stream=True, timeout=60
         )
         buffer = []
+        in_think_block = False  # Track if we're inside <think> tags
         for line in response.iter_lines(decode_unicode=True):
             token = line.strip()
             if not token:
                 continue
+            
+            # Filter out Qwen3 chain-of-thought reasoning
+            if token == '<think>':
+                in_think_block = True
+                print(f"[LLM] 🤔 <think> block started (filtering CoT reasoning)")
+                continue
+            elif token == '</think>':
+                in_think_block = False
+                print(f"[LLM] ✅ </think> block ended")
+                continue
+            elif in_think_block:
+                print(f"[LLM] 🤫 (thinking: {token[:50]}...)" if len(token) > 50 else f"[LLM] 🤫 (thinking: {token})")
+                continue
+            
             print(f"[LLM] 🧠 {token}")
             buffer.append(token)
             

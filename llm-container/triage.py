@@ -530,6 +530,7 @@ def generate_llm_response(prompt: str, max_tokens: int = 150, temperature: float
     """Generate response using the LLM (imported from container_rest)"""
     # Import here to avoid circular dependency
     from container_rest import llm, llm_lock
+    import re
     
     try:
         with llm_lock:
@@ -539,7 +540,14 @@ def generate_llm_response(prompt: str, max_tokens: int = 150, temperature: float
                 temperature=temperature,
                 stream=False
             )
-            return response['choices'][0]['message']['content'].strip()
+            content = response['choices'][0]['message']['content'].strip()
+            
+            # Filter out Qwen3 chain-of-thought reasoning blocks
+            # Remove everything between <think> and </think> tags
+            content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
+            content = content.strip()
+            
+            return content
     except Exception as e:
         print(f"[Triage] ❌ LLM generation failed: {e}")
         return ""

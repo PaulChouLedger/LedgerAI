@@ -73,6 +73,9 @@ class WalletDialog(QDialog):
         # Center the dialog on the actual screen
         self.center_dialog()
         
+        # Load balance immediately on dialog open
+        self.refresh_balance()
+        
         # Auto-refresh timer for balance updates
         self.refresh_timer = QTimer()
         self.refresh_timer.timeout.connect(self.refresh_balance)
@@ -99,7 +102,10 @@ class WalletDialog(QDialog):
         # === Connection Status ===
         self.status_label = QLabel("⏳ Checking connection...")
         self.status_label.setAlignment(Qt.AlignCenter)
-        self.status_label.setStyleSheet("color: #8e8e93; font-size: 11px; margin: 5px;")  # Match upload dialog
+        status_font = QFont()
+        status_font.setPointSize(11)
+        status_font.setBold(True)
+        self.status_label.setFont(status_font)
         layout.addWidget(self.status_label)
         
         # === Wallet Address Input ===
@@ -307,10 +313,10 @@ class WalletDialog(QDialog):
         """Update network connection status"""
         if self.wallet_manager.is_connected():
             self.status_label.setText("✅ Connected to Ethereum Mainnet")
-            self.status_label.setStyleSheet("color: #34C759; font-size: 11px; margin: 5px;")
+            self.status_label.setStyleSheet("color: #34C759; font-weight: bold; margin: 5px;")
         else:
             self.status_label.setText("❌ Not connected to Ethereum network")
-            self.status_label.setStyleSheet("color: #FF3B30; font-size: 11px; margin: 5px;")
+            self.status_label.setStyleSheet("color: #FF3B30; font-weight: bold; margin: 5px;")
     
     def connect_saved_wallet(self, address: str):
         """Connect using the saved wallet address"""
