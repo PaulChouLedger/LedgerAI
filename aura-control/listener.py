@@ -45,9 +45,13 @@ DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
 prompt_history = []
 
-# Stream refresh interval (prevents idle staleness)
+# Stream refresh interval (prevents idle staleness AND active buffer accumulation)
 STREAM_REFRESH_INTERVAL = 30.0  # Refresh stream after 30s idle
+MAX_ACTIVE_TIME = 120.0  # Force refresh after 2 minutes even during active use
+# This prevents: 1) Stale audio after idle, 2) Buffer accumulation during heavy use,
+#                3) ALSA/hardware buffer issues, 4) VAD/PyTorch state accumulation
 last_activity_time = 0
+stream_start_time = 0  # Track when stream was last refreshed
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
@@ -229,6 +233,20 @@ def play_welcome_prompt(stream):
         
         print("[Aura] 🎤 Mic resumed after welcome prompt")
         
+        # Warmup phase: flush stale buffers and prime VAD
+        print("[Aura] 🔧 Warming up audio pipeline...")
+        for i in range(20):  # Flush 20 frames to clear any stale data
+            try:
+                audio_block, _ = stream.read(FRAME_SIZE)
+                # Run VAD on a few frames to warm up PyTorch model
+                if i < 5:
+                    channel_0 = audio_block[:, 0]
+                    if channel_0.size >= 512:
+                        _ = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
+            except:
+                break
+        print("[Aura] ✅ Audio pipeline warmed up (hardware stable, VAD primed)")
+        
         try:
             from aura_gui import set_setup_complete, set_welcome_played, set_listening_ready
             set_setup_complete()
@@ -242,8 +260,9 @@ def play_welcome_prompt(stream):
 
 # === Main Loop ===
 def listen():
-    global last_activity_time
+    global last_activity_time, stream_start_time
     last_activity_time = time.time()  # Initialize activity timer
+    stream_start_time = time.time()  # Initialize stream refresh timer
     
     channels = find_device_index()
     
@@ -302,6 +321,27 @@ def listen():
     
     with stream:
         
+        # Initial warmup: Critical for fixing "first transcription after restart" issues
+        # This handles:
+        # 1. ReSpeaker DSP initialization (HPF needs time to stabilize)
+        # 2. ALSA buffer clearing (may contain stale data from previous session)
+        # 3. PyTorch VAD model warmup (first inference is slower)
+        # 4. Audio driver state initialization
+        print("\n[Listener] 🔧 Initial warmup: stabilizing hardware and clearing buffers...")
+        time.sleep(0.5)  # Let hardware settle after stream open
+        for i in range(30):  # Flush 30 frames (~1 second of audio)
+            try:
+                audio_block, _ = stream.read(FRAME_SIZE)
+                # Warm up VAD model on first few frames
+                if i < 5:
+                    channel_0 = audio_block[:, 0]
+                    if channel_0.size >= 512:
+                        _ = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
+            except Exception as e:
+                print(f"[Listener] ⚠️ Warmup frame {i} error: {e}")
+                break
+        print("[Listener] ✅ Hardware stabilized, buffers clear, VAD model primed\n")
+        
         play_welcome_prompt(stream)
         
         while True:
@@ -313,9 +353,9 @@ def listen():
                     time.sleep(0.1)
                 stream.start()
                 
-                # Flush buffer
+                # Flush buffer aggressively
                 print("[Listener] 🧹 Flushing mic buffer...")
-                for _ in range(5):
+                for _ in range(10):  # More aggressive
                     try:
                         stream.read(FRAME_SIZE)
                     except:
@@ -323,6 +363,7 @@ def listen():
                 
                 print("[Listener] ▶️ Mic resumed after playback (buffer flushed)")
                 last_activity_time = time.time()  # Reset idle timer after playback
+                stream_start_time = time.time()  # Reset active timer too
             
             buffer = []
             silence_start = None
@@ -332,21 +373,37 @@ def listen():
                 if is_playing():
                     break
                 
-                # Check if stream needs refresh after long idle
+                # Check if stream needs refresh after long idle OR extended active use
                 idle_time = time.time() - last_activity_time
+                active_time = time.time() - stream_start_time
+                
                 if idle_time > STREAM_REFRESH_INTERVAL:
                     print(f"\n[Listener] 🔄 Refreshing stream after {idle_time:.0f}s idle...")
                     stream.stop()
                     time.sleep(0.1)
                     stream.start()
                     # Flush stale buffer
-                    for _ in range(3):
+                    for _ in range(10):  # More aggressive
                         try:
                             stream.read(FRAME_SIZE)
                         except:
                             break
-                    print("[Listener] ✅ Stream refreshed")
+                    print("[Listener] ✅ Stream refreshed (idle)")
                     last_activity_time = time.time()
+                    stream_start_time = time.time()
+                elif active_time > MAX_ACTIVE_TIME:
+                    print(f"\n[Listener] 🔄 Force refreshing stream after {active_time:.0f}s active use...")
+                    stream.stop()
+                    time.sleep(0.2)  # Longer pause for full reset
+                    stream.start()
+                    # Aggressive buffer flush
+                    for _ in range(15):
+                        try:
+                            stream.read(FRAME_SIZE)
+                        except:
+                            break
+                    print("[Listener] ✅ Stream force-refreshed (prevents stale buffer)")
+                    stream_start_time = time.time()
                 
                 try:
                     audio_block, _ = stream.read(FRAME_SIZE)
@@ -357,8 +414,15 @@ def listen():
                         stream.stop()
                         time.sleep(0.1)
                         stream.start()
+                        # Flush stale buffer
+                        for _ in range(10):
+                            try:
+                                stream.read(FRAME_SIZE)
+                            except:
+                                break
                         print("[Listener] 🔄 Stream restarted after error")
                         last_activity_time = time.time()
+                        stream_start_time = time.time()
                     except:
                         pass
                     time.sleep(0.1)
@@ -445,6 +509,19 @@ def listen():
                 continue
             
             text = transcribe(mono_filtered)
+            
+            # Aggressive buffer cleanup after transcription
+            del buffer, full_audio, mono, mono_filtered
+            import gc
+            gc.collect()
+            
+            # Flush hardware buffer to prevent stale audio accumulation
+            print("[Listener] 🧹 Flushing buffers after transcription...")
+            for _ in range(10):  # More aggressive than before
+                try:
+                    stream.read(FRAME_SIZE)
+                except:
+                    break
             
             if text:
                 send_to_llm(text)
