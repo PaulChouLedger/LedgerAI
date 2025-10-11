@@ -16,7 +16,7 @@ FRAME_SIZE = int(SAMPLE_RATE * 0.032)
 SILENCE_TIMEOUT = 0.25  # 300ms of silence before stopping
 VAD_START_THRESHOLD = 0.25  # Higher = less sensitive to fan noise
 VAD_SILENCE_THRESHOLD = 0.10  # Lower = more conservative about ending
-MIN_AUDIO_SAMPLES = 2000  # Minimum samples to send to Whisper
+MIN_AUDIO_SAMPLES = 8000  # Minimum samples to send to Whisper
 
 # === Hardware & Software AGC Configuration ===
 # 
@@ -45,13 +45,12 @@ CONTEXT_DEPTH = 6
 prompt_history = []
 
 # Stream refresh interval (prevents idle staleness AND active buffer accumulation)
-STREAM_REFRESH_INTERVAL = 30.0  # Refresh stream after 30s idle
+STREAM_REFRESH_INTERVAL = 15.0  # Refresh stream after 15s idle (more frequent = more responsive)
 MAX_ACTIVE_TIME = 120.0  # Force refresh after 2 minutes even during active use
 # This prevents: 1) Stale audio after idle, 2) Buffer accumulation during heavy use,
 #                3) ALSA/hardware buffer issues, 4) VAD/PyTorch state accumulation,
 #                5) Stationary NS losing learned noise profile
-# After refresh: VAD warmup (5 frames) + stationary NS re-learning (~0.6s)
-# IMPORTANT: VAD runs during warmup to capture speech if user starts talking
+# After refresh: Quick warmup (10 frames ~0.3s) - VAD checks during warmup!
 last_activity_time = 0
 stream_start_time = 0  # Track when stream was last refreshed
 
@@ -235,19 +234,19 @@ def play_welcome_prompt(stream):
         
         print("[Aura] 🎤 Mic resumed after welcome prompt")
         
-        # Warmup phase: flush stale buffers and prime VAD
-        print("[Aura] 🔧 Warming up audio pipeline...")
-        for i in range(20):  # Flush 20 frames to clear any stale data
+        # Quick warmup: flush buffer and prime VAD
+        print("[Aura] 🔧 Quick warmup...")
+        for i in range(10):  # Quick flush (10 frames ~0.3s)
             try:
                 audio_block, _ = stream.read(FRAME_SIZE)
-                # Run VAD on a few frames to warm up PyTorch model
-                if i < 5:
+                # Run VAD on first few frames to warm up PyTorch model
+                if i < 3:
                     channel_0 = audio_block[:, 0]
                     if channel_0.size >= 512:
                         _ = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
             except:
                 break
-        print("[Aura] ✅ Audio pipeline warmed up (hardware stable, VAD primed)")
+        print("[Aura] ✅ Ready")
         
         try:
             from aura_gui import set_setup_complete, set_welcome_played, set_listening_ready
@@ -317,26 +316,21 @@ def listen():
     
     with stream:
         
-        # Initial warmup: Critical for fixing "first transcription after restart" issues
-        # This handles:
-        # 1. ReSpeaker DSP initialization (HPF needs time to stabilize)
-        # 2. ALSA buffer clearing (may contain stale data from previous session)
-        # 3. PyTorch VAD model warmup (first inference is slower)
-        # 4. Audio driver state initialization
-        print("\n[Listener] 🔧 Initial warmup: stabilizing hardware and clearing buffers...")
-        time.sleep(0.5)  # Let hardware settle after stream open
-        for i in range(30):  # Flush 30 frames (~1 second of audio)
+        # Initial warmup: Quick buffer flush and VAD prime
+        print("\n[Listener] 🔧 Initial warmup: clearing buffers and priming VAD...")
+        time.sleep(0.3)  # Let hardware settle after stream open
+        for i in range(10):  # Quick flush (10 frames ~0.3s)
             try:
                 audio_block, _ = stream.read(FRAME_SIZE)
                 # Warm up VAD model on first few frames
-                if i < 5:
+                if i < 3:
                     channel_0 = audio_block[:, 0]
                     if channel_0.size >= 512:
                         _ = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
             except Exception as e:
                 print(f"[Listener] ⚠️ Warmup frame {i} error: {e}")
                 break
-        print("[Listener] ✅ Hardware stabilized, buffers clear, VAD model primed\n")
+        print("[Listener] ✅ Hardware stabilized, VAD primed\n")
         
         play_welcome_prompt(stream)
         
@@ -379,12 +373,11 @@ def listen():
                     time.sleep(0.5)  # Longer pause for hardware to stabilize
                     stream.start()
                     
-                    # Warmup: Flush buffer AND warm up VAD + let stationary NS re-learn
-                    # IMPORTANT: Check VAD during warmup to avoid missing speech
-                    print("[Listener] 🔧 Warming up after idle (VAD + stationary NS)...")
+                    # Quick warmup: Flush buffer and prime VAD
+                    print("[Listener] 🔧 Quick warmup after idle...")
                     warmup_buffer = []
                     speech_detected_during_warmup = False
-                    for i in range(20):  # ~0.6 seconds
+                    for i in range(10):  # Reduced from 20 to 10 (~0.3s)
                         try:
                             audio_block, _ = stream.read(FRAME_SIZE)
                             channel_0 = audio_block[:, 0]
@@ -393,7 +386,7 @@ def listen():
                             if channel_0.size >= 512:
                                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                                 # If speech detected during warmup, save it!
-                                if vad_prob > VAD_START_THRESHOLD and i >= 5:  # After first 5 frames
+                                if vad_prob > VAD_START_THRESHOLD and i >= 3:  # After first 3 frames
                                     print(f"[Listener] 🎤 Speech detected during warmup! (VAD={vad_prob:.2f})")
                                     warmup_buffer.append(audio_block)
                                     speech_detected_during_warmup = True
@@ -402,7 +395,7 @@ def listen():
                         except:
                             break
                     
-                    print("[Listener] ✅ Stream refreshed (idle) - VAD warmed, NS learning")
+                    print("[Listener] ✅ Stream refreshed (idle)")
                     last_activity_time = time.time()
                     stream_start_time = time.time()
                     
@@ -420,12 +413,11 @@ def listen():
                     time.sleep(0.5)  # Longer pause for full reset
                     stream.start()
                     
-                    # Warmup: Flush buffer AND warm up VAD + let stationary NS re-learn
-                    # IMPORTANT: Check VAD during warmup to avoid missing speech
-                    print("[Listener] 🔧 Warming up after active use (VAD + stationary NS)...")
+                    # Quick warmup: Flush buffer and prime VAD
+                    print("[Listener] 🔧 Quick warmup after active use...")
                     warmup_buffer = []
                     speech_detected_during_warmup = False
-                    for i in range(20):  # ~0.6 seconds
+                    for i in range(10):  # Reduced from 20 to 10 (~0.3s)
                         try:
                             audio_block, _ = stream.read(FRAME_SIZE)
                             channel_0 = audio_block[:, 0]
@@ -434,7 +426,7 @@ def listen():
                             if channel_0.size >= 512:
                                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                                 # If speech detected during warmup, save it!
-                                if vad_prob > VAD_START_THRESHOLD and i >= 5:  # After first 5 frames
+                                if vad_prob > VAD_START_THRESHOLD and i >= 3:  # After first 3 frames
                                     print(f"[Listener] 🎤 Speech detected during warmup! (VAD={vad_prob:.2f})")
                                     warmup_buffer.append(audio_block)
                                     speech_detected_during_warmup = True
@@ -443,7 +435,7 @@ def listen():
                         except:
                             break
                     
-                    print("[Listener] ✅ Stream force-refreshed - VAD warmed, NS learning")
+                    print("[Listener] ✅ Stream force-refreshed")
                     stream_start_time = time.time()
                     
                     # If speech was detected during warmup, add it to main buffer
