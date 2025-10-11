@@ -719,24 +719,24 @@ def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: 
 def detect_condition(prompt: str, session_id: str = None) -> Optional[str]:
     """Detect medical condition from prompt"""
     p = normalize_text(prompt)
-    
+
     # Check for casual greetings
     casual_greeting_patterns = [
         r'\bhello\b', r'\bhi\b', r'\bhey\b', r'\bhowdy\b',
         r'\bgood morning\b', r'\bgood afternoon\b', r'\bgood evening\b'
     ]
-    
+
     knowledge_indicators = ["tell me", "what is", "who is", "explain", "describe", "information about"]
     is_knowledge_query = any(indicator in p for indicator in knowledge_indicators)
-    
+
     if not is_knowledge_query:
-        is_casual_greeting = any(re.search(pattern, p) for pattern in casual_greeting_patterns)
-        if is_casual_greeting:
+    is_casual_greeting = any(re.search(pattern, p) for pattern in casual_greeting_patterns)
+    if is_casual_greeting:
             medical_keywords = ["pain", "hurt", "ache", "symptom", "problem", "issue"]
-            has_medical_content = any(keyword in p for keyword in medical_keywords)
-            if not has_medical_content:
-                return None
-    
+        has_medical_content = any(keyword in p for keyword in medical_keywords)
+        if not has_medical_content:
+            return None
+
     # Apply synonym expansion
     p_expanded = apply_synonym_expansion(p)
     
@@ -812,10 +812,10 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
         if current_key:
             update_flags_from_answer(condition, current_key, prompt, state, session_id)
 
-        # Advance to next step
+    # Advance to next step
         print(f"[Triage] 🔄 Advancing from step {current_step_index} to {current_step_index + 1}")
-        state["step_index"] = current_step_index + 1
-    
+    state["step_index"] = current_step_index + 1
+
     # Get next step
     if state["step_index"] < len(steps):
         next_step = steps[state["step_index"]]
@@ -860,10 +860,10 @@ def generate_triage_completion(state: Dict[str, Any], session_id: str) -> str:
     condition = state.get("condition")
     answers = state.get("answers", [])
     flags = state.get("flags", {})
-    
+
     if not condition:
         return "I'm sorry, there was an error processing your triage."
-    
+
     # Classify severity
     severity = classify_response(condition, flags)
     

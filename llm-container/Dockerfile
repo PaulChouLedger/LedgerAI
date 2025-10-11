@@ -1,5 +1,5 @@
 # Use NVIDIA Jetson-compatible llama.cpp image
-FROM dustynv/llama_cpp:0.3.7-r36.4.0
+FROM llama_cpp:r36.4.tegra-aarch64-cu126-22.04
 
 # Set working directory
 WORKDIR /app
@@ -21,6 +21,7 @@ COPY synonyms/ /app/synonyms/
 COPY models/qwen2.5-1.5b-instruct-q4_0.gguf /models/qwen2.5-1.5b-instruct-q4_0.gguf
 #COPY models/smollm2-1.7b-instruct-q4_k_m.gguf /models/smollm2-1.7b-instruct-q4_k_m.gguf
 #COPY models/DeepSeek-R1-Distill-Qwen-1.5B-Medical-COT.i1-Q4_K_M.gguf /models/DeepSeek-R1-Distill-Qwen-1.5B-Medical-COT.i1-Q4_K_M.gguf
+#COPY models/Qwen3-1.7B-Q4_K_M.gguf /models/Qwen3-1.7B-Q4_K_M.gguf
 
 # Install Python dependencies (LLM only)
 RUN pip3 install --no-cache-dir --ignore-installed \
