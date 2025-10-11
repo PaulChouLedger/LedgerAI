@@ -31,14 +31,16 @@ MIN_SPEECH_RMS = 0.008  # Filter out low-level noise (more permissive for AGC)
 #     4. sudo systemctl restart respeaker-tuning.service
 #   
 #   Available presets (see scripts/tune_respeaker.py):
-#     - clean      : HPF + Very Aggressive AGC (50dB) + Max Stationary NS - DEFAULT
+#     - clean      : HPF + Balanced AGC (30dB) + Max Stationary NS - DEFAULT
 #     - near_field : HPF + moderate AGC (0.08 RMS) - for 1-6 feet
 #     - far_field  : High AGC + noise suppression (0.03 RMS) - for 8-16 feet
 #     - reset      : Factory defaults - all OFF
 #
-# SOFTWARE AGC (optional post-processing in Python):
-USE_SOFTWARE_AGC = False  # DISABLED by default - test if needed
-SOFTWARE_AGC_TARGET = 0.35  # Target RMS level for normalization
+# SOFTWARE AGC (two-stage amplification):
+# Hardware AGC (30dB): Clean amplification without distortion
+# Software AGC: Final boost for distant speech (3-6ft)
+USE_SOFTWARE_AGC = True  # ENABLED for far-field pickup
+SOFTWARE_AGC_TARGET = 0.08  # Target RMS level for normalization (conservative)
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
