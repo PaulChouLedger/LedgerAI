@@ -9,7 +9,7 @@ Usage:
     sudo python3 scripts/tune_respeaker.py [preset]
     
 Presets:
-    - clean: HPF + Aggressive AGC + Max Stationary NS - DEFAULT
+    - clean: HPF + Very Aggressive AGC (50dB) + Max Stationary NS - DEFAULT
     - far_field: Optimized for 8-16 feet (high AGC + noise suppression)
     - near_field: Optimized for 1-6 feet (moderate AGC)
     - reset: Factory defaults (all OFF)
@@ -237,19 +237,20 @@ def configure_clean():
     dev = Tuning(usb_dev)
     
     print("\n" + "="*80)
-    print("  🧹 CONFIGURING CLEAN AUDIO (HPF + Aggressive AGC + Stationary NS)")
+    print("  🧹 CONFIGURING CLEAN AUDIO (HPF + Very Aggressive AGC + Stationary NS)")
     print("="*80 + "\n")
     
     # Enable 70Hz high-pass filter to remove 60Hz hum and low-frequency noise
     print("[1/4] High-Pass Filter: ON (70 Hz - removes low-freq EM noise)")
     dev.write("HPFONOFF", 1)  # 1 = 70Hz cutoff
     
-    # Enable aggressive AGC for far-field pickup
-    print("[2/4] Hardware AGC: ON (aggressive - 0.25 RMS target)")
+    # Enable very aggressive AGC for far-field pickup (3-6 feet)
+    print("[2/4] Hardware AGC: ON (very aggressive - 0.35 RMS target)")
     dev.write("AGCONOFF", 1)
-    dev.write("AGCDESIREDLEVEL", 0.25)  # Aggressive target for far-field
-    dev.write("AGCMAXGAIN", 40.0)  # Max 40dB gain
-    print("         - Target: 0.25 RMS, Max Gain: 40dB")
+    dev.write("AGCDESIREDLEVEL", 0.35)  # Very aggressive target for far-field
+    dev.write("AGCMAXGAIN", 50.0)  # Max 50dB gain (100x amplification)
+    dev.write("AGCTIME", 0.1)  # Fast attack (respond quickly to level changes)
+    print("         - Target: 0.35 RMS, Max Gain: 50dB, Attack: 0.1s")
     
     # Enable stationary noise suppression to remove constant electrical tones
     print("[3/4] Stationary Noise Suppression: ON (removes 120Hz, 601Hz interference)")
@@ -267,21 +268,25 @@ def configure_clean():
     print("="*80)
     print("\n  Processing enabled:")
     print("    - 70Hz high-pass filter removes low-freq noise (<70Hz)")
-    print("    - Aggressive AGC (0.25 RMS, 40dB max) for far-field pickup")
+    print("    - Very Aggressive AGC (0.35 RMS, 50dB max, 0.1s attack) for far-field")
+    print("      • Targets 5-6 feet distance")
+    print("      • 50dB = 100x amplification capability")
+    print("      • Fast attack prevents clipping")
     print("    - Stationary noise suppression (gamma=3.0) removes constant tones:")
     print("      • 120Hz (AC harmonic)")
-    print("      • 601Hz (USB/display interference - VERY STRONG)")
+    print("      • 601Hz (USB/display interference)")
     print("      • Other constant electrical noise")
-    print("\n  Pipeline: HPF → AGC (amplify) → Stationary NS (remove noise)")
-    print("  This amplifies distant speech up to 3x louder, then removes interference.")
+    print("\n  Pipeline: HPF → AGC (amplify up to 100x) → Stationary NS (remove noise)")
+    print("  This brings 5ft speech up to optimal levels, then removes interference.")
     print("  Stationary NS learns noise in first ~2-3 seconds, then subtracts it.\n")
     
     # Save configuration state for listener
     config_dict = {
         'HPFONOFF': 1,
-        'AGCONOFF': 1,  # Enabled - aggressive
-        'AGCDESIREDLEVEL': 0.25,
-        'AGCMAXGAIN': 40.0,
+        'AGCONOFF': 1,  # Enabled - very aggressive
+        'AGCDESIREDLEVEL': 0.35,
+        'AGCMAXGAIN': 50.0,
+        'AGCTIME': 0.1,
         'STATNOISEONOFF_SR': 1,  # Enabled - fights 601Hz
         'GAMMA_NS_SR': 3.0,  # Maximum aggressiveness
         'NONSTATNOISEONOFF_SR': 0,
@@ -371,7 +376,7 @@ def main():
         else:
             print(f"\n  ❌ Unknown preset: {preset}")
             print(f"\n  Available presets:")
-            print(f"    - clean      : HPF + Aggressive AGC + Max Stationary NS")
+            print(f"    - clean      : HPF + Very Aggressive AGC (50dB) + Max Stationary NS")
             print(f"    - far_field  : High AGC + noise suppression (8-16 feet)")
             print(f"    - near_field : Moderate AGC (1-6 feet)")
             print(f"    - reset      : Factory defaults (all OFF)")
