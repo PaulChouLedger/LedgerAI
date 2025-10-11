@@ -9,7 +9,7 @@ Usage:
     sudo python3 scripts/tune_respeaker.py [preset]
     
 Presets:
-    - clean: HPF + Conservative AGC (0.1 RMS target) - DEFAULT
+    - clean: HPF + Ultra Conservative AGC (0.03 RMS target) - DEFAULT
     - far_field: Optimized for 8-16 feet (high AGC + noise suppression)
     - near_field: Optimized for 1-6 feet (moderate AGC)
     - reset: Factory defaults (all OFF)
@@ -248,8 +248,8 @@ def configure_clean():
     print("[2/4] Hardware AGC: ON")
     dev.write("AGCONOFF", 1)
     
-    print("[3/4] AGC Target Level: 0.05 RMS (very conservative to prevent clipping)")
-    dev.write("AGCDESIREDLEVEL", 0.05)
+    print("[3/4] AGC Target Level: 0.03 RMS (ultra conservative to prevent clipping)")
+    dev.write("AGCDESIREDLEVEL", 0.03)
     dev.write("AGCMAXGAIN", 20.0)  # 20dB max boost
     
     # Disable all noise suppression
@@ -263,16 +263,16 @@ def configure_clean():
     print("="*80)
     print("\n  Clean audio with conservative AGC:")
     print("    - 70Hz high-pass filter removes 60Hz AC hum")
-    print("    - Very conservative AGC (target=0.05 RMS, max=20dB)")
+    print("    - Ultra conservative AGC (target=0.03 RMS, max=20dB)")
     print("    - No noise suppression (no artifacts)")
     print("\n  This balances clean audio with consistent levels.")
-    print("  Low AGC target (0.05) prevents clipping/hallucinations.\n")
+    print("  Very low AGC target (0.03) prevents clipping/hallucinations.\n")
     
     # Save configuration state for listener
     config_dict = {
         'HPFONOFF': 1,
         'AGCONOFF': 1,  # Enabled
-        'AGCDESIREDLEVEL': 0.05,
+        'AGCDESIREDLEVEL': 0.03,
         'AGCMAXGAIN': 20.0,
         'STATNOISEONOFF_SR': 0,
         'NONSTATNOISEONOFF_SR': 0,
@@ -362,7 +362,7 @@ def main():
         else:
             print(f"\n  ❌ Unknown preset: {preset}")
             print(f"\n  Available presets:")
-            print(f"    - clean      : HPF + Conservative AGC (0.1 RMS target)")
+            print(f"    - clean      : HPF + Ultra Conservative AGC (0.03 RMS target)")
             print(f"    - far_field  : High AGC + noise suppression (8-16 feet)")
             print(f"    - near_field : Moderate AGC (1-6 feet)")
             print(f"    - reset      : Factory defaults (all OFF)")
