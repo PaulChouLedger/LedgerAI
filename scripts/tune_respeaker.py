@@ -268,7 +268,7 @@ def configure_clean():
     config_dict = {
         'HPFONOFF': 1,
         'AGCONOFF': 0,
-        'AGCDESIREDLEVEL': 0.0,
+        'AGCDESIREDLEVEL': 0.1,
         'AGCMAXGAIN': 0.0,
         'STATNOISEONOFF_SR': 0,
         'NONSTATNOISEONOFF_SR': 0,
