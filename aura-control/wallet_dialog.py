@@ -106,10 +106,15 @@ class WalletDialog(QDialog):
         # Load balance in background (non-blocking, happens after dialog is visible)
         QTimer.singleShot(100, self.refresh_balance_async)  # Small delay to ensure dialog is shown first
         
-        # Auto-refresh timer for balance updates
-        self.refresh_timer = QTimer()
-        self.refresh_timer.timeout.connect(self.refresh_balance_async)
-        self.refresh_timer.start(30000)  # Refresh every 30 seconds
+        # Auto-refresh timer for balance updates (Ethereum queries)
+        self.balance_refresh_timer = QTimer()
+        self.balance_refresh_timer.timeout.connect(self.refresh_balance_async)
+        self.balance_refresh_timer.start(30000)  # Refresh balance every 30 seconds
+        
+        # Real-time usage stats timer (no network calls, instant)
+        self.usage_refresh_timer = QTimer()
+        self.usage_refresh_timer.timeout.connect(self.update_usage_stats)
+        self.usage_refresh_timer.start(1000)  # Update usage every 1 second for real-time feel
     
     def setup_ui(self):
         """Setup the dialog UI"""
@@ -697,7 +702,8 @@ class WalletDialog(QDialog):
     
     def closeEvent(self, event):
         """Handle dialog close"""
-        self.refresh_timer.stop()
+        self.balance_refresh_timer.stop()
+        self.usage_refresh_timer.stop()
         print("[WalletDialog] ✅ Dialog closed")
         event.accept()
 
