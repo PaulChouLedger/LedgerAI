@@ -117,7 +117,8 @@ def display_hardware_config(state):
     
     # Noise Suppression
     if config['STATNOISEONOFF_SR'] == 1:
-        print(f"  Stationary Noise Supp:  ✅ ENABLED")
+        gamma = config.get('GAMMA_NS_SR', 1.0)
+        print(f"  Stationary Noise Supp:  ✅ ENABLED (gamma={gamma:.1f})")
     else:
         print(f"  Stationary Noise Supp:  ❌ DISABLED")
     

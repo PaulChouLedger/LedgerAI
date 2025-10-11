@@ -251,7 +251,8 @@ def configure_clean():
     # Enable stationary noise suppression to remove constant tones (like 599Hz USB noise)
     print("[3/4] Stationary Noise Suppression: ON (learns and removes constant tones)")
     dev.write("STATNOISEONOFF_SR", 1)
-    dev.write("GAMMA_NS_SR", 1.0)  # Gentle subtraction factor
+    dev.write("GAMMA_NS_SR", 2.0)  # Moderate aggressiveness (1.0-3.0, higher = more removal)
+    print("         - Aggressiveness: 2.0 (targets 60Hz, 120Hz, 568Hz, 598Hz interference)")
     
     # Disable other noise suppression
     print("[4/4] Other Noise Suppression: OFF")
@@ -262,11 +263,14 @@ def configure_clean():
     print("  ✅ CLEAN CONFIGURATION COMPLETE")
     print("="*80)
     print("\n  Minimal processing enabled:")
-    print("    - 70Hz high-pass filter removes low-freq AC hum")
-    print("    - Stationary noise suppression removes constant tones (599Hz, etc.)")
+    print("    - 70Hz high-pass filter removes low-freq AC hum (60Hz)")
+    print("    - Stationary noise suppression (gamma=2.0) removes constant tones:")
+    print("      • 120Hz (AC harmonic)")
+    print("      • 568Hz, 598Hz (USB/display interference)")  
+    print("      • Other constant electrical noise")
     print("    - No AGC (raw volume levels)")
-    print("\n  This removes electrical interference without aggressive processing.")
-    print("  Stationary NS learns constant noise (USB, display, fans) and subtracts it.\n")
+    print("\n  This removes electrical interference while preserving speech.")
+    print("  Stationary NS learns constant noise in first ~2 seconds, then subtracts it.\n")
     
     # Save configuration state for listener
     config_dict = {
@@ -275,6 +279,7 @@ def configure_clean():
         'AGCDESIREDLEVEL': 0.0,
         'AGCMAXGAIN': 0.0,
         'STATNOISEONOFF_SR': 1,  # Enabled - removes constant tones
+        'GAMMA_NS_SR': 2.0,  # Aggressiveness factor
         'NONSTATNOISEONOFF_SR': 0,
         'ECHOONOFF': 0
     }
