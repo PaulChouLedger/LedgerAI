@@ -13,9 +13,9 @@ from aura_gui import set_transcribing
 # === Config ===
 SAMPLE_RATE = 16000
 FRAME_SIZE = int(SAMPLE_RATE * 0.032)
-SILENCE_TIMEOUT = 0.3  # 300ms of silence before stopping
+SILENCE_TIMEOUT = 0.25  # 300ms of silence before stopping
 VAD_START_THRESHOLD = 0.25  # Higher = less sensitive to fan noise
-VAD_SILENCE_THRESHOLD = 0.1  # Lower = more conservative about ending
+VAD_SILENCE_THRESHOLD = 0.10  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
 MIN_SPEECH_RMS = 0.008  # Minimum RMS to consider as speech (hardware AGC should exceed this)
 
