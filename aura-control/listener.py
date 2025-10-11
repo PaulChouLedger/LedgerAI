@@ -18,20 +18,15 @@ SILENCE_TIMEOUT = 0.3  # 300ms of silence before stopping
 VAD_START_THRESHOLD = 0.35  # Higher = less sensitive to fan noise
 VAD_SILENCE_THRESHOLD = 0.05  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
-MIN_SPEECH_RMS = 0.015  # Filter out low-level noise (fan noise rejection)
 
-# High-pass filter to remove low-frequency noise (60Hz hum, rumble)
-USE_HIGHPASS_FILTER = True
-HIGHPASS_CUTOFF = 80  # Hz - removes bass noise below this frequency (higher cutoff for better speech preservation)
+# BARE-BONES: No software processing - testing hardware optimization only
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
 prompt_history = []
 
-# Stream refresh interval (prevents idle staleness)
-STREAM_REFRESH_INTERVAL = 30.0  # Refresh stream after 30s idle
-last_activity_time = 0
+# No stream refresh - keeping it simple for debugging
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
@@ -190,19 +185,13 @@ def play_welcome_prompt(stream):
 
 # === Main Loop ===
 def listen():
-    global last_activity_time
-    last_activity_time = time.time()  # Initialize activity timer
     
     channels = find_device_index()
     
-    # Configure hardware noise suppression
-    configure_respeaker_hardware()
-    
     print("\n" + "="*70)
-    print("[Audio] Stationary Noise Suppression ENABLED (fan noise rejection)")
-    if USE_HIGHPASS_FILTER:
-        print(f"[Audio] High-Pass Filter ENABLED ({HIGHPASS_CUTOFF}Hz cutoff)")
-    print("[Audio] 6-channel → channel 0 → Whisper")
+    print("[Audio] BARE-BONES PIPELINE")
+    print("[Audio]   Hardware DSP → Channel 0 → VAD → Whisper")
+    print("[Audio]   (Configure hardware via: sudo python3 scripts/tune_respeaker.py [profile])")
     print("="*70 + "\n")
     
     # ARM/Jetson-specific audio configuration
@@ -261,7 +250,6 @@ def listen():
                         break
                 
                 print("[Listener] ▶️ Mic resumed after playback (buffer flushed)")
-                last_activity_time = time.time()  # Reset idle timer after playback
             
             buffer = []
             silence_start = None
@@ -271,35 +259,10 @@ def listen():
                 if is_playing():
                     break
                 
-                # Check if stream needs refresh after long idle
-                idle_time = time.time() - last_activity_time
-                if idle_time > STREAM_REFRESH_INTERVAL:
-                    print(f"\n[Listener] 🔄 Refreshing stream after {idle_time:.0f}s idle...")
-                    stream.stop()
-                    time.sleep(0.1)
-                    stream.start()
-                    # Flush stale buffer
-                    for _ in range(3):
-                        try:
-                            stream.read(FRAME_SIZE)
-                        except:
-                            break
-                    print("[Listener] ✅ Stream refreshed")
-                    last_activity_time = time.time()
-                
                 try:
                     audio_block, _ = stream.read(FRAME_SIZE)
                 except Exception as e:
-                    print(f"\n[Listener] ⚠️  Error: {e}")
-                    # Try to recover by refreshing stream
-                    try:
-                        stream.stop()
-                        time.sleep(0.1)
-                        stream.start()
-                        print("[Listener] 🔄 Stream restarted after error")
-                        last_activity_time = time.time()
-                    except:
-                        pass
+                    print(f"\n[Listener] ⚠️  Stream error: {e}")
                     time.sleep(0.1)
                     continue
                 
@@ -308,14 +271,9 @@ def listen():
                 if channel_0.size < 512:
                     continue
                 
-                # Apply high-pass filter to remove low-frequency noise before VAD
-                if USE_HIGHPASS_FILTER and len(channel_0) >= 64:  # Need enough samples for filter
-                    channel_0_filtered = highpass_filter(channel_0, cutoff=HIGHPASS_CUTOFF)
-                else:
-                    channel_0_filtered = channel_0
-                
-                vad_prob = model_vad(torch.from_numpy(channel_0_filtered), SAMPLE_RATE).item()
-                rms = np.sqrt(np.mean(channel_0_filtered ** 2))
+                # Hardware HPF already applied in ReSpeaker DSP
+                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
+                rms = np.sqrt(np.mean(channel_0 ** 2))
                 
                 print(f"[VAD] {vad_prob:.2f} | RMS {rms:.6f}", end="\r")
                 
@@ -323,7 +281,6 @@ def listen():
                     print(f"\n[VAD] 🔊 Speech started (VAD={vad_prob:.2f}, RMS={rms:.6f})")
                     set_transcribing(True)
                     buffer.append(audio_block)
-                    last_activity_time = time.time()
                     break
             
             # === Record speech ===
@@ -346,13 +303,8 @@ def listen():
                 
                 buffer.append(audio_block)
                 
-                # Apply high-pass filter to remove low-frequency noise before VAD
-                if USE_HIGHPASS_FILTER and len(channel_0) >= 64:
-                    channel_0_filtered = highpass_filter(channel_0, cutoff=HIGHPASS_CUTOFF)
-                else:
-                    channel_0_filtered = channel_0
-                
-                vad_prob = model_vad(torch.from_numpy(channel_0_filtered), SAMPLE_RATE).item()
+                # Hardware HPF already applied in ReSpeaker DSP
+                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 
                 if vad_prob < VAD_SILENCE_THRESHOLD:
                     if silence_start is None:
@@ -360,7 +312,6 @@ def listen():
                     elif time.time() - silence_start > SILENCE_TIMEOUT:
                         print(f"\n[VAD] ⏹️  Speech ended")
                         set_transcribing(False)
-                        last_activity_time = time.time()
                         break
                 else:
                     silence_start = None
@@ -375,25 +326,13 @@ def listen():
             full_audio = np.concatenate(buffer)
             mono = full_audio[:, 0]  # Channel 0 only
             
-            # Apply high-pass filter to remove low-frequency noise before transcription
-            if USE_HIGHPASS_FILTER:
-                mono_filtered = highpass_filter(mono, cutoff=HIGHPASS_CUTOFF)
-                print(f"[Filter] 🎚️  Applied {HIGHPASS_CUTOFF}Hz high-pass filter")
-            else:
-                mono_filtered = mono
-            
-            # Check if audio RMS is too low (likely fan noise, not speech)
-            rms = np.sqrt(np.mean(mono_filtered ** 2))
-            if rms < MIN_SPEECH_RMS:
-                print(f"⚠️  RMS too low ({rms:.4f} < {MIN_SPEECH_RMS}), likely noise - skipping\n")
+            # RAW audio from hardware - no software processing
+            if len(mono) < MIN_AUDIO_SAMPLES:
+                print("⚠️  Too short\n")
                 set_transcribing(False)
                 continue
             
-            if len(mono_filtered) < MIN_AUDIO_SAMPLES:
-                print("⚠️  Too short\n")
-                continue
-            
-            text = transcribe(mono_filtered)
+            text = transcribe(mono)
             
             if text:
                 send_to_llm(text)
