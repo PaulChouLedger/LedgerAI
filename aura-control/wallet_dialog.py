@@ -645,31 +645,31 @@ class WalletDialog(QDialog):
         msg.setWindowTitle("Choose Payment Method")
         msg.setText("How would you like to send payment?")
         msg.setInformativeText(
-            "🦊 MetaMask (Recommended):\n"
-            "  • No private key needed\n"
-            "  • More secure\n"
-            "  • Approve in MetaMask app\n\n"
-            "🔑 Direct (Advanced):\n"
-            "  • Requires private key\n"
+            "🦊 MetaMask QR (Recommended):\n"
+            "  • Scan QR with phone\n"
+            "  • Opens MetaMask automatically\n"
+            "  • Most secure - no key needed\n\n"
+            "🔑 Direct (Testing Only):\n"
             "  • Automated transaction\n"
-            "  • Less secure"
+            "  • Requires private key\n"
+            "  • Use only for testing"
         )
         
-        metamask_btn = msg.addButton("🦊 MetaMask", QMessageBox.AcceptRole)
+        metamask_btn = msg.addButton("🦊 MetaMask QR", QMessageBox.AcceptRole)
         direct_btn = msg.addButton("🔑 Direct", QMessageBox.ActionRole)
         cancel_btn = msg.addButton("❌ Cancel", QMessageBox.RejectRole)
         
         msg.exec_()
         
         if msg.clickedButton() == metamask_btn:
-            # Use MetaMask
+            # Use MetaMask QR code (corrected deep link format)
             self.open_metamask_payment()
         elif msg.clickedButton() == direct_btn:
             # Use direct (private key) method
             self.open_direct_payment()
     
     def open_metamask_payment(self):
-        """Open MetaMask payment dialog"""
+        """Open MetaMask QR code payment dialog"""
         try:
             from metamask_payment_dialog import MetaMaskPaymentDialog
             

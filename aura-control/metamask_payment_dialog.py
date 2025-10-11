@@ -320,30 +320,32 @@ class MetaMaskPaymentDialog(QDialog):
             self.record_manual_payment(amount)
     
     def build_metamask_deeplink(self, amount: float, token_address: str) -> str:
-        """Build MetaMask deep link for token transfer"""
-        # Convert amount to wei (assuming 18 decimals)
+        """Build MetaMask deep link for token transfer (correct format)"""
+        from web3 import Web3
+        
+        # Convert amount to wei
         decimals = self.wallet_manager.token_info.get('decimals', 18)
-        amount_wei = hex(int(amount * (10 ** decimals)))
+        amount_wei = int(amount * (10 ** decimals))
         
-        # ERC-20 transfer function signature
-        # transfer(address to, uint256 amount)
-        function_sig = "0xa9059cbb"  # transfer function
+        print(f"[MetaMask] 🔗 Building deep link:")
+        print(f"[MetaMask]    Token: {token_address}")
+        print(f"[MetaMask]    To: {self.CLIENT_WALLET}")
+        print(f"[MetaMask]    Amount: {amount} tokens ({amount_wei} wei)")
         
-        # Encode parameters
-        to_address = self.CLIENT_WALLET[2:].zfill(64)  # Remove 0x, pad to 64 chars
-        amount_hex = amount_wei[2:].zfill(64)  # Remove 0x, pad to 64 chars
+        # Correct MetaMask mobile deep link format for ERC-20 tokens:
+        # https://metamask.app.link/send/{token_address}@{chain_id}/transfer?address={recipient}&uint256={amount}
         
-        data = function_sig + to_address + amount_hex
-        
-        # Build deep link
-        deeplink = (
+        metamask_link = (
             f"https://metamask.app.link/send/"
-            f"{token_address}@1"  # @1 = Ethereum mainnet
-            f"?value=0"  # No ETH being sent
-            f"&data={data}"
+            f"{token_address}@1/"  # @1 = Ethereum mainnet, trailing slash important
+            f"transfer?"
+            f"address={self.CLIENT_WALLET}&"
+            f"uint256={amount_wei}"
         )
         
-        return deeplink
+        print(f"[MetaMask] 🔗 Deep link: {metamask_link}")
+        
+        return metamask_link
     
     def show_qr_code(self, url: str, amount: float):
         """Show QR code for MetaMask mobile"""

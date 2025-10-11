@@ -7,7 +7,6 @@ import soundfile as sf
 import sounddevice as sd
 import requests
 import subprocess
-from scipy import signal
 from speaker import speak_llm_response, is_playing
 from aura_gui import set_transcribing
 
@@ -44,76 +43,57 @@ def find_device_index():
 # === Load VAD ===
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
 
-# === Configure ReSpeaker Hardware ===
-def configure_respeaker_hardware():
-    """Enable stationary noise suppression for fan noise"""
+# === Load Hardware Config ===
+def load_respeaker_config():
+    """Load saved ReSpeaker configuration (no permissions needed)"""
+    config_file = os.path.expanduser("~/LedgerAI/data/respeaker_config.json")
     try:
-        import sys
-        import usb.core
-        tuning_path = os.path.expanduser('~/usb_4_mic_array')
-        if tuning_path not in sys.path:
-            sys.path.insert(0, tuning_path)
-        
-        from tuning import Tuning
-        
-        dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
-        if dev is None:
-            print("[Hardware] ⚠️  ReSpeaker not found")
-            return
-        
-        tuning = Tuning(dev)
-        
-        print("[Hardware] 🔧 Enabling stationary noise suppression (fan noise rejection)...")
-        
-        # Enable stationary noise suppression (targets constant noise like fans)
-        tuning.write("STATNOISEONOFF_SR", 1)  # Enable
-        tuning.write("GAMMA_NS", 3.0)          # Aggressiveness (1.0-3.0)
-        
-        # Keep AGC for consistent levels
-        tuning.write("AGCONOFF", 1)
-        tuning.write("AGCDESIREDLEVEL", 0.03)
-        tuning.write("AGCMAXGAIN", 20.0)
-        
-        # Disable non-stationary noise suppression and echo cancellation
-        tuning.write("NONSTATNOISEONOFF_SR", 0)
-        tuning.write("ECHOONOFF", 0)
-        tuning.write("HPFONOFF", 0)
-        
-        print("[Hardware] ✅ Fan noise suppression enabled")
-        
+        with open(config_file, 'r') as f:
+            import json
+            state = json.load(f)
+            return state
+    except FileNotFoundError:
+        return {}
     except Exception as e:
-        print(f"[Hardware] ⚠️  Configuration failed: {e}")
-        print(f"[Hardware] 💡 Continuing without hardware noise suppression...")
+        print(f"[Config] ⚠️ Could not load config: {e}")
+        return {}
 
-# === High-pass Filter ===
-def highpass_filter(audio_data, cutoff=HIGHPASS_CUTOFF, order=5):
-    """
-    Apply high-pass Butterworth filter to remove low-frequency noise
-
-    Removes:
-    - 60Hz power line hum
-    - Low-frequency rumble (<60Hz)
-    - Fan noise
-
-    Preserves:
-    - Voice frequencies (typically 80-8000 Hz)
-    """
-    if not USE_HIGHPASS_FILTER:
-        return audio_data
-
-    # Design Butterworth high-pass filter
-    nyquist = SAMPLE_RATE / 2
-    normal_cutoff = cutoff / nyquist
+def display_hardware_config(state):
+    """Display current hardware configuration"""
+    if not state:
+        print("\n[Hardware] ⚠️  No saved configuration found")
+        print("[Hardware] 💡 Run: sudo python3 scripts/tune_respeaker.py [profile]\n")
+        return
     
-    # Get filter coefficients
-    b, a = signal.butter(order, normal_cutoff, btype='high', analog=False)
+    preset = state.get('preset', 'unknown')
+    config = state.get('config', {})
     
-    # Apply filter
-    filtered = signal.filtfilt(b, a, audio_data)
+    print("\n" + "="*70)
+    print(f"  📊 HARDWARE CONFIGURATION: {preset.upper()}")
+    print("="*70)
     
-    # Ensure positive strides and correct dtype for PyTorch compatibility
-    # filtfilt returns float64, but VAD model expects float32
-    return np.ascontiguousarray(filtered, dtype=np.float32)
+    # AGC
+    if config.get('AGCONOFF', 0) == 1:
+        print(f"  AGC:                    ✅ ENABLED")
+        print(f"    Target Level:         {config.get('AGCDESIREDLEVEL', 0):.2f} RMS")
+        print(f"    Max Gain:             {config.get('AGCMAXGAIN', 0):.0f} dB")
+    else:
+        print(f"  AGC:                    ❌ DISABLED")
+    
+    # High-pass Filter
+    hpf_labels = ["OFF", "70 Hz", "125 Hz", "180 Hz"]
+    hpf_val = config.get('HPFONOFF', 0)
+    hpf_label = hpf_labels[hpf_val] if hpf_val < len(hpf_labels) else str(hpf_val)
+    print(f"  High-Pass Filter:       {hpf_label}")
+    
+    # Noise Suppression
+    if config.get('STATNOISEONOFF_SR', 0) == 1:
+        gamma = config.get('GAMMA_NS_SR', 1.0)
+        print(f"  Stationary Noise Supp:  ✅ ENABLED (gamma={gamma:.1f})")
+    else:
+        print(f"  Stationary Noise Supp:  ❌ DISABLED")
+    
+    print("="*70 + "\n")
 
 # === Transcribe ===
 def transcribe(audio):
@@ -188,10 +168,14 @@ def listen():
     
     channels = find_device_index()
     
-    print("\n" + "="*70)
+    # Display current hardware configuration
+    config = load_respeaker_config()
+    display_hardware_config(config)
+    
+    print("="*70)
     print("[Audio] BARE-BONES PIPELINE")
     print("[Audio]   Hardware DSP → Channel 0 → VAD → Whisper")
-    print("[Audio]   (Configure hardware via: sudo python3 scripts/tune_respeaker.py [profile])")
+    print("[Audio]   (Configure: sudo python3 scripts/tune_respeaker.py [profile])")
     print("="*70 + "\n")
     
     # ARM/Jetson-specific audio configuration
