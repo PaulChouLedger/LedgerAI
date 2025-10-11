@@ -50,8 +50,14 @@ class WalletManager:
         self.token_contract = None
         self.token_info: Dict[str, Any] = {}
         
+        # Persistent wallet storage
+        self.wallet_file = os.path.expanduser("~/LedgerAI/data/wallet_address.txt")
+        
         # Initialize connection
         self._init_web3_connection()
+        
+        # Try to load saved wallet
+        self._load_saved_wallet()
     
     def _init_web3_connection(self) -> bool:
         """Initialize Web3 connection with fallback providers"""
@@ -130,7 +136,54 @@ class WalletManager:
         """Check if connected to Ethereum network"""
         return self.w3 is not None and self.w3.is_connected()
     
-    def connect_wallet(self, address: str) -> bool:
+    def _save_wallet_address(self, address: str):
+        """Save wallet address to file for persistent storage"""
+        try:
+            os.makedirs(os.path.dirname(self.wallet_file), exist_ok=True)
+            with open(self.wallet_file, 'w') as f:
+                f.write(address)
+            print(f"[Wallet] 💾 Saved wallet address for next session")
+        except Exception as e:
+            print(f"[Wallet] ⚠️ Could not save wallet: {e}")
+    
+    def _load_saved_wallet(self):
+        """Load previously saved wallet address"""
+        try:
+            if os.path.exists(self.wallet_file):
+                with open(self.wallet_file, 'r') as f:
+                    saved_address = f.read().strip()
+                
+                if saved_address and self.is_connected():
+                    print(f"[Wallet] 🔄 Found saved wallet: {saved_address[:6]}...{saved_address[-4:]}")
+                    if self.connect_wallet(saved_address, auto_save=False):
+                        print(f"[Wallet] ✅ Auto-connected to saved wallet")
+                        return True
+        except Exception as e:
+            print(f"[Wallet] ⚠️ Could not load saved wallet: {e}")
+        return False
+    
+    def get_saved_wallet(self) -> Optional[str]:
+        """Get saved wallet address without connecting"""
+        try:
+            if os.path.exists(self.wallet_file):
+                with open(self.wallet_file, 'r') as f:
+                    return f.read().strip()
+        except:
+            pass
+        return None
+    
+    def clear_saved_wallet(self):
+        """Remove saved wallet address"""
+        try:
+            if os.path.exists(self.wallet_file):
+                os.remove(self.wallet_file)
+                print("[Wallet] 🗑️ Cleared saved wallet")
+                return True
+        except Exception as e:
+            print(f"[Wallet] ⚠️ Could not clear saved wallet: {e}")
+        return False
+    
+    def connect_wallet(self, address: str, auto_save: bool = True) -> bool:
         """Connect to a wallet address (for read-only operations)"""
         try:
             if not self.is_connected():
@@ -147,6 +200,11 @@ class WalletManager:
             
             self.connected_address = checksum_address
             print(f"[Wallet] ✅ Connected to wallet: {checksum_address}")
+            
+            # Save wallet address for next session (unless disabled)
+            if auto_save:
+                self._save_wallet_address(checksum_address)
+            
             return True
             
         except Exception as e:

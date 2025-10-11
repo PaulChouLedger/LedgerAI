@@ -98,7 +98,11 @@ def ssml_wrap(text):
     )
 
 def preprocess_for_tts(text):
-    return re.sub(r"<sentence_start>|<sentence_end>|<think>|</think>", "", text).strip()
+    # Remove thinking blocks (everything between <think> and </think>)
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    # Remove remaining control tags
+    text = re.sub(r"<sentence_start>|<sentence_end>", "", text)
+    return text.strip()
 
 def enqueue_tts_chunk(text):
     global pending_initials
@@ -428,7 +432,9 @@ def speak_llm_response(prompt, context=""):
             if should_split:
                 chunk_text = " ".join(buffer).strip()
                 # Remove sentence tags before TTS
-                clean_text = re.sub(r'<sentence_start>|<sentence_end>|<think>|</think>', '', chunk_text).strip()
+                # Remove thinking blocks and control tags
+                clean_text = re.sub(r'<think>.*?</think>', '', chunk_text, flags=re.DOTALL)
+                clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', clean_text).strip()
                 print(f"[TTS Debug] SPLITTING! Chunk: '{chunk_text}' -> Clean: '{clean_text}'")
                 if clean_text:
                     enqueue_tts_chunk(clean_text)

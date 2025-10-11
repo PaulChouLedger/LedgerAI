@@ -133,6 +133,35 @@ class WalletDialog(QDialog):
         wallet_group = QGroupBox("Wallet Address")
         wallet_layout = QVBoxLayout()
         
+        # Check if saved wallet exists
+        saved_wallet = self.wallet_manager.get_saved_wallet()
+        
+        if saved_wallet:
+            # Show saved wallet option
+            saved_label = QLabel(f"💾 Saved Wallet: {saved_wallet[:10]}...{saved_wallet[-8:]}")
+            saved_label.setStyleSheet("color: #4D94D9; font-size: 11pt; font-weight: bold;")
+            wallet_layout.addWidget(saved_label)
+            
+            # Quick connect buttons
+            button_row = QHBoxLayout()
+            
+            use_saved_btn = QPushButton("✅ Use Saved Wallet")
+            use_saved_btn.setStyleSheet("background-color: #4D94D9; font-weight: bold;")
+            use_saved_btn.clicked.connect(lambda: self.connect_saved_wallet(saved_wallet))
+            button_row.addWidget(use_saved_btn)
+            
+            clear_btn = QPushButton("🗑️ Clear Saved")
+            clear_btn.clicked.connect(self.clear_saved_wallet)
+            button_row.addWidget(clear_btn)
+            
+            wallet_layout.addLayout(button_row)
+            
+            # Separator
+            separator = QLabel("— OR enter different wallet —")
+            separator.setAlignment(Qt.AlignCenter)
+            separator.setStyleSheet("color: #666666; font-size: 9pt; margin: 10px 0;")
+            wallet_layout.addWidget(separator)
+        
         instructions = QLabel("Enter your Ethereum wallet address:")
         instructions.setStyleSheet("color: #aaaaaa; font-size: 10pt;")
         wallet_layout.addWidget(instructions)
@@ -144,7 +173,7 @@ class WalletDialog(QDialog):
         wallet_layout.addWidget(self.address_input)
         
         # Connect button
-        connect_btn = QPushButton("🔗 Connect Wallet")
+        connect_btn = QPushButton("🔗 Connect New Wallet")
         connect_btn.clicked.connect(self.connect_wallet)
         wallet_layout.addWidget(connect_btn)
         
@@ -233,6 +262,22 @@ class WalletDialog(QDialog):
         else:
             self.status_label.setText("❌ Not connected to Ethereum network")
             self.status_label.setStyleSheet("color: #ff0000; font-weight: bold;")
+    
+    def connect_saved_wallet(self, address: str):
+        """Connect using the saved wallet address"""
+        if self.wallet_manager.connect_wallet(address, auto_save=False):
+            self.balance_label.setText("⏳ Fetching balance...")
+            self.refresh_balance()
+        else:
+            self.balance_label.setText("❌ Connection failed")
+    
+    def clear_saved_wallet(self):
+        """Clear the saved wallet address"""
+        if self.wallet_manager.clear_saved_wallet():
+            # Reload dialog to update UI
+            self.close()
+            new_dialog = WalletDialog(self.parent())
+            new_dialog.show()
     
     def connect_wallet(self):
         """Connect to the entered wallet address"""
