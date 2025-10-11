@@ -356,10 +356,21 @@ class MetaMaskPaymentDialog(QDialog):
         addr_title.setStyleSheet("color: #8e8e93; font-size: 14px; margin: 10px;")
         layout.addWidget(addr_title)
         
-        # QR Code of client address
+        # QR Code with full payment info (EIP-681 format)
         try:
+            # Build EIP-681 URI with token transfer info
+            token_address = self.wallet_manager.TOKEN_ADDRESS
+            decimals = self.wallet_manager.token_info.get('decimals', 18)
+            amount_wei = int(amount * (10 ** decimals))
+            
+            # EIP-681 format for ERC-20 transfer:
+            # ethereum:{token_contract}/transfer?address={recipient}&uint256={amount_in_wei}
+            payment_uri = f"ethereum:{token_address}/transfer?address={self.CLIENT_WALLET}&uint256={amount_wei}"
+            
+            print(f"[Payment] 🔗 QR code contains: {payment_uri}")
+            
             qr = qrcode.QRCode(version=1, box_size=6, border=3)
-            qr.add_data(self.CLIENT_WALLET)
+            qr.add_data(payment_uri)
             qr.make(fit=True)
             
             img = qr.make_image(fill_color="black", back_color="white")

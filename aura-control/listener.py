@@ -31,8 +31,8 @@ prompt_history = []
 # Benefits: 
 #   - No missed speech during refresh
 #   - Only refreshes when actually frozen
-#   - ~1 second detection time (30 frames × 32ms = 0.96s)
-VAD_FREEZE_THRESHOLD = 30  # Consecutive 0.00 frames with RMS > 0.01
+#   - ~0.5 second detection time (15 frames × 32ms = 0.48s)
+VAD_FREEZE_THRESHOLD = 15  # Consecutive 0.00 frames with RMS > 0.01 (faster detection)
 vad_zero_count = 0
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
@@ -273,19 +273,23 @@ def listen():
                 if vad_prob < 0.01 and rms > 0.01:  # VAD frozen
                     vad_zero_count += 1
                     if vad_zero_count >= VAD_FREEZE_THRESHOLD:
-                        print(f"\n[Listener] ⚠️  VAD appears frozen (0.00 for {vad_zero_count} frames with RMS={rms:.4f})")
-                        print("[Listener] 🔄 Refreshing stream to unfreeze...")
+                        print(f"\n[Listener] ⚠️  VAD frozen (0.00 for {vad_zero_count} frames with RMS={rms:.4f})")
+                        print("[Listener] 🔄 Aggressive stream reset...")
+                        
+                        # Close and reopen stream completely
                         stream.stop()
-                        time.sleep(0.1)
+                        time.sleep(0.3)  # Longer pause for full reset
                         stream.start()
-                        # Flush buffer
-                        for _ in range(3):
+                        
+                        # Aggressive buffer flush (10 frames ~0.3s)
+                        for _ in range(10):
                             try:
                                 stream.read(FRAME_SIZE)
                             except:
                                 break
+                        
                         vad_zero_count = 0
-                        print("[Listener] ✅ Stream refreshed")
+                        print("[Listener] ✅ Stream reset complete")
                         continue
                 else:
                     vad_zero_count = 0  # Reset counter if VAD responds

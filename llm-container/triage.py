@@ -805,43 +805,58 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
         return "Please describe your symptoms to begin triage.", state
 
     # Get current step info
-    current_step_index = state.get("step_index", 0)
+    # step_index represents "the next step to ask", so we're processing the previous step's answer
+    next_step_index = state.get("step_index", 0)
     steps = get_steps(condition, state)
     step_list = [s if isinstance(s, dict) else {"key": None, "question": str(s)} for s in steps]
-    current_step = step_list[current_step_index] if current_step_index < len(step_list) else None
+    
+    # last_key tells us which question we actually asked and need to validate against
+    last_key = state.get("last_key")
 
-    print(f"[Triage] 🔍 Processing step: condition={condition}, step_index={current_step_index}, last_key={state.get('last_key')}")
-    print(f"[Triage] 🔍 Steps: {len(steps)}, current_step: {current_step}")
+    print(f"[Triage] 🔍 Processing answer: condition={condition}, next_step_index={next_step_index}, last_key={last_key}")
+    print(f"[Triage] 🔍 Total steps: {len(steps)}")
 
-    if current_step:
-        current_key = state.get("last_key") or current_step.get("key")
-        print(f"[Triage] 🔍 Current key: {current_key}, prompt: '{prompt}'")
+    # If we have a last_key, we're processing an answer to a previous question
+    if last_key:
+        print(f"[Triage] 🔍 Validating answer '{prompt}' for question key '{last_key}'")
 
-        # Validate answer before accepting (OLD LOGIC)
-        if current_key and not is_valid_answer(condition, current_key, prompt, state):
-            print(f"[Triage] ❌ Invalid answer '{prompt}' for question '{current_key}'")
-            print(f"[Triage] 🔄 Re-asking question (expected one of: {list(current_step.get('answers', {}).keys())})")
-            return f"I didn't quite catch that. {substitute_name(current_step.get('question', ''), state.get('user_name'))}", state
+        # Validate answer against the question we asked (last_key)
+        if not is_valid_answer(condition, last_key, prompt, state):
+            print(f"[Triage] ❌ Invalid answer '{prompt}' for question '{last_key}'")
+            
+            # Find the step that matches last_key to re-ask the correct question
+            step_to_reask = None
+            for s in step_list:
+                if s.get("key") == last_key:
+                    step_to_reask = s
+                    break
+            
+            if step_to_reask:
+                expected_answers = list(step_to_reask.get('answers', {}).keys())
+                print(f"[Triage] 🔄 Re-asking question for key '{last_key}' (expected one of: {expected_answers})")
+                return f"I didn't quite catch that. {substitute_name(step_to_reask.get('question', ''), state.get('user_name'))}", state
+            else:
+                # Fallback - this shouldn't happen
+                print(f"[Triage] ⚠️ Could not find step with key '{last_key}'")
+                return "I didn't quite catch that. Could you repeat your answer?", state
 
         # Answer is valid - add it and update flags
-        print(f"[Triage] ✅ Valid answer, adding to state")
+        print(f"[Triage] ✅ Valid answer for key '{last_key}', adding to state")
         state["answers"].append(prompt)
+        update_flags_from_answer(condition, last_key, prompt, state, session_id)
 
-        if current_key:
-            update_flags_from_answer(condition, current_key, prompt, state, session_id)
-
-        # Advance to next step
-        print(f"[Triage] 🔄 Advancing from step {current_step_index} to {current_step_index + 1}")
-        state["step_index"] = current_step_index + 1
+        # We've processed this answer, continue to ask next question below
+        print(f"[Triage] 🔄 Answer processed, will ask step {next_step_index}")
     
-    # Get next step
-    if state["step_index"] < len(steps):
-        next_step = steps[state["step_index"]]
+    # Ask next question
+    if next_step_index < len(steps):
+        next_step = steps[next_step_index]
         question = next_step.get("question", "")
 
-        # Update last_key to the question we're about to ask
+        # Update last_key and step_index for the question we're about to ask
         state["last_key"] = next_step.get("key")
-        print(f"[Triage] 📝 Asking step {state['step_index']}, key='{state['last_key']}', question: {question[:50]}")
+        state["step_index"] = next_step_index + 1  # Next time, we'll ask the following question
+        print(f"[Triage] 📝 Asking step {next_step_index}, key='{state['last_key']}', next_step_index will be {state['step_index']}")
 
         # Apply NLG rewriting (using simple fallback like old version)
         from nlg import rewrite
