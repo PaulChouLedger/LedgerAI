@@ -634,20 +634,65 @@ class WalletDialog(QDialog):
                               "Please connect your wallet first before making payments.")
             return
         
+        # Ask user which payment method they prefer
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Question)
+        msg.setWindowTitle("Choose Payment Method")
+        msg.setText("How would you like to send payment?")
+        msg.setInformativeText(
+            "🦊 MetaMask (Recommended):\n"
+            "  • No private key needed\n"
+            "  • More secure\n"
+            "  • Approve in MetaMask app\n\n"
+            "🔑 Direct (Advanced):\n"
+            "  • Requires private key\n"
+            "  • Automated transaction\n"
+            "  • Less secure"
+        )
+        
+        metamask_btn = msg.addButton("🦊 MetaMask", QMessageBox.AcceptRole)
+        direct_btn = msg.addButton("🔑 Direct", QMessageBox.ActionRole)
+        cancel_btn = msg.addButton("❌ Cancel", QMessageBox.RejectRole)
+        
+        msg.exec_()
+        
+        if msg.clickedButton() == metamask_btn:
+            # Use MetaMask
+            self.open_metamask_payment()
+        elif msg.clickedButton() == direct_btn:
+            # Use direct (private key) method
+            self.open_direct_payment()
+    
+    def open_metamask_payment(self):
+        """Open MetaMask payment dialog"""
         try:
-            from payment_dialog import PaymentDialog
+            from metamask_payment_dialog import MetaMaskPaymentDialog
             
-            # Create and show payment dialog
-            payment_dialog = PaymentDialog(parent=self, user_address=self.wallet_manager.connected_address)
+            payment_dialog = MetaMaskPaymentDialog(parent=self, user_address=self.wallet_manager.connected_address)
             result = payment_dialog.exec_()
             
-            # Refresh balance after payment
             if result == QDialog.Accepted:
-                print("[WalletDialog] ✅ Payment completed, refreshing balance")
+                print("[WalletDialog] ✅ MetaMask payment recorded, refreshing balance")
                 self.refresh_balance_async()
                 
         except Exception as e:
-            print(f"[WalletDialog] ❌ Error opening payment dialog: {e}")
+            print(f"[WalletDialog] ❌ Error opening MetaMask payment: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to open MetaMask payment:\n{str(e)}")
+    
+    def open_direct_payment(self):
+        """Open direct payment dialog (private key method)"""
+        try:
+            from payment_dialog import PaymentDialog
+            
+            payment_dialog = PaymentDialog(parent=self, user_address=self.wallet_manager.connected_address)
+            result = payment_dialog.exec_()
+            
+            if result == QDialog.Accepted:
+                print("[WalletDialog] ✅ Direct payment completed, refreshing balance")
+                self.refresh_balance_async()
+                
+        except Exception as e:
+            print(f"[WalletDialog] ❌ Error opening direct payment: {e}")
             QMessageBox.critical(self, "Error", f"Failed to open payment dialog:\n{str(e)}")
     
     def closeEvent(self, event):

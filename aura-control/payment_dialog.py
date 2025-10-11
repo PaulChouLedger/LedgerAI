@@ -101,17 +101,17 @@ class PaymentDialog(QDialog):
         title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 8px;")
         layout.addWidget(title)
         
-        # Client address display
-        client_label = QLabel(f"To: {self.CLIENT_WALLET[:10]}...{self.CLIENT_WALLET[-8:]}")
+        # Client address display (bigger for readability)
+        client_label = QLabel(f"To: {self.CLIENT_WALLET[:14]}...{self.CLIENT_WALLET[-10:]}")
         client_label.setAlignment(Qt.AlignCenter)
-        client_label.setStyleSheet("color: #8e8e93; font-size: 11px; font-family: 'Courier New'; margin: 5px;")
+        client_label.setStyleSheet("color: #34C759; font-size: 14px; font-family: 'Courier New'; font-weight: bold; margin: 8px;")
         layout.addWidget(client_label)
         
-        # From address (if connected)
+        # From address (if connected) - bigger for readability
         if self.user_address:
-            from_label = QLabel(f"From: {self.user_address[:10]}...{self.user_address[-8:]}")
+            from_label = QLabel(f"From: {self.user_address[:14]}...{self.user_address[-10:]}")
             from_label.setAlignment(Qt.AlignCenter)
-            from_label.setStyleSheet("color: #8e8e93; font-size: 11px; margin: 5px;")
+            from_label.setStyleSheet("color: #4D94D9; font-size: 14px; font-family: 'Courier New'; font-weight: bold; margin: 8px;")
             layout.addWidget(from_label)
         
         # Amount input section
@@ -136,26 +136,71 @@ class PaymentDialog(QDialog):
         """)
         layout.addWidget(self.amount_input)
         
-        # Quick amount buttons
+        # Quick amount buttons based on usage owed
         quick_layout = QHBoxLayout()
         quick_layout.setSpacing(8)
         
-        for amount in [0.1, 0.5, 1.0, 5.0]:
-            btn = QPushButton(f"{amount}")
-            btn.setStyleSheet("""
-                QPushButton {
-                    background-color: rgba(142, 142, 147, 0.3);
-                    padding: 8px;
-                    font-size: 11pt;
-                    min-height: 35px;
-                    max-height: 35px;
-                    border-radius: 12px;
-                }
-                QPushButton:hover {
-                    background-color: rgba(142, 142, 147, 0.5);
-                }
-            """)
-            btn.clicked.connect(lambda checked, a=amount: self.set_amount(a))
+        # Get current balance owed
+        balance_owed = self.usage_tracker.get_balance_owed()
+        
+        # Create smart quick payment buttons
+        if balance_owed > 0:
+            # Show percentage buttons
+            quick_amounts = [
+                ("25%", balance_owed * 0.25),
+                ("50%", balance_owed * 0.50),
+                ("75%", balance_owed * 0.75),
+                ("100%", balance_owed * 1.00)
+            ]
+        else:
+            # No balance owed, show fixed amounts
+            quick_amounts = [
+                ("0.1", 0.1),
+                ("0.5", 0.5),
+                ("1.0", 1.0),
+                ("All", 0.0)  # Disabled
+            ]
+        
+        for label, amount in quick_amounts:
+            btn = QPushButton(label)
+            
+            # Highlight "100%" button
+            if label == "100%":
+                btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #34C759;
+                        color: white;
+                        padding: 8px;
+                        font-size: 11pt;
+                        font-weight: bold;
+                        min-height: 35px;
+                        max-height: 35px;
+                        border-radius: 12px;
+                    }
+                    QPushButton:hover {
+                        background-color: #30B350;
+                    }
+                """)
+            else:
+                btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: rgba(142, 142, 147, 0.3);
+                        padding: 8px;
+                        font-size: 11pt;
+                        min-height: 35px;
+                        max-height: 35px;
+                        border-radius: 12px;
+                    }
+                    QPushButton:hover {
+                        background-color: rgba(142, 142, 147, 0.5);
+                    }
+                """)
+            
+            if amount > 0:
+                btn.clicked.connect(lambda checked, a=amount: self.set_amount(a))
+            else:
+                btn.setEnabled(False)
+            
             quick_layout.addWidget(btn)
         
         layout.addLayout(quick_layout)
@@ -279,7 +324,7 @@ class PaymentDialog(QDialog):
     
     def set_amount(self, amount: float):
         """Set amount from quick button"""
-        self.amount_input.setText(str(amount))
+        self.amount_input.setText(f"{amount:.6f}")
     
     def log_message(self, message: str):
         """Add message to transaction log"""
