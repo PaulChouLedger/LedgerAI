@@ -95,9 +95,23 @@ Provide a concise, conversational summary that highlights the most important poi
             system_msg = "I am AuraVision, an insightful AI assistant. Provide thoughtful, detailed responses."
     
     else:
-        print(f"[THINKER] ⚠️ No RAG results found, using general knowledge")
-        augmented_prompt = prompt
-        system_msg = "I am AuraVision, an insightful AI assistant. Provide thoughtful, detailed responses even without specific documents."
+        print(f"[THINKER] ⚠️ No RAG results found")
+        # Check if this is a person/name query - don't hallucinate
+        person_query_patterns = ["who is", "who was", "who are", "tell me about"]
+        is_person_query = any(pattern in prompt.lower() for pattern in person_query_patterns)
+        
+        if is_person_query:
+            print(f"[THINKER] 🚫 Person query with no RAG results - returning 'no information' response")
+            # Don't use LLM - just return a canned response
+            yield "<sentence_start>\n"
+            yield "I'm sorry, I don't have any information about that person in my knowledge base."
+            yield "\n<sentence_end>\n"
+            return
+        
+        # For non-person queries, try general knowledge (with caution)
+        print(f"[THINKER] 🤔 Attempting general knowledge response (no RAG)")
+        augmented_prompt = f"{prompt}\n\nIf you don't know the answer, please say 'I don't have information about that' instead of guessing."
+        system_msg = "I am AuraVision. Only answer if you're confident. If unsure, say you don't have that information. Never make things up or hallucinate."
     
     # Generate response using LLM with streaming
     msgs = [

@@ -7,59 +7,31 @@ import soundfile as sf
 import sounddevice as sd
 import requests
 import subprocess
+from scipy import signal
 from speaker import speak_llm_response, is_playing
 from aura_gui import set_transcribing
 
 # === Config ===
 SAMPLE_RATE = 16000
 FRAME_SIZE = int(SAMPLE_RATE * 0.032)
-SILENCE_TIMEOUT = 0.25  # 300ms of silence before stopping
-VAD_START_THRESHOLD = 0.25  # Higher = less sensitive to fan noise
-VAD_SILENCE_THRESHOLD = 0.10  # Lower = more conservative about ending
-MIN_AUDIO_SAMPLES = 8000  # Minimum samples to send to Whisper
+SILENCE_TIMEOUT = 0.3  # 300ms of silence before stopping
+VAD_START_THRESHOLD = 0.35  # Higher = less sensitive to fan noise
+VAD_SILENCE_THRESHOLD = 0.05  # Lower = more conservative about ending
+MIN_AUDIO_SAMPLES = 2000
+MIN_SPEECH_RMS = 0.015  # Filter out low-level noise (fan noise rejection)
 
-# === ReSpeaker Channel Selection ===
-# Per Seeed Audio documentation:
-# Channel 0: Processed audio for ASR (beamformed, already optimized) ✅
-# Channel 1-4: Individual raw mic data
-# Channel 5: Merged playback
-USE_CHANNEL = 0  # Already the best channel for speech recognition
-
-# === Software AGC (Adaptive Gain Control) ===
-# Hardware AGC doesn't help far-field, but software AGC can intelligently boost
-# Dynamically adjusts gain based on input level to avoid clipping near speech
-USE_SOFTWARE_AGC = False
-SOFTWARE_AGC_TARGET = 0.05  # Target RMS for optimal Whisper transcription
-SOFTWARE_AGC_MAX_GAIN = 5.0  # Maximum gain multiplier (safety limit)
-
-# === Hardware & Software AGC Configuration ===
-# 
-# HARDWARE CONFIGURATION (via systemd service on boot):
-#   The ReSpeaker hardware is configured by: /etc/systemd/system/respeaker-tuning.service
-#   
-#   To change hardware preset:
-#     1. sudo nano /etc/systemd/system/respeaker-tuning.service
-#     2. Edit line 28: Change "clean" to: clean/near_field/far_field/reset
-#     3. sudo systemctl daemon-reload
-#     4. sudo systemctl restart respeaker-tuning.service
-#   
-#   Available presets (see scripts/tune_respeaker.py):
-#     - clean      : HPF + Optimal AGC (0.08 RMS) + Max NS (gamma=3.0) - DEFAULT
-#     - near_field : HPF + moderate AGC (0.08 RMS) - for 1-6 feet
-#     - far_field  : High AGC + noise suppression (0.03 RMS) - for 8-16 feet
-#     - reset      : Factory defaults - all OFF
-#
-# SOFTWARE PROCESSING: DISABLED
-# Using RAW audio from hardware DSP only
-# Optimize hardware first, then add software processing if needed
+# High-pass filter to remove low-frequency noise (60Hz hum, rumble)
+USE_HIGHPASS_FILTER = True
+HIGHPASS_CUTOFF = 80  # Hz - removes bass noise below this frequency (higher cutoff for better speech preservation)
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
 prompt_history = []
 
-# No stream refresh - keeping it simple
-# If issues occur, we'll debug the root cause instead of working around it
+# Stream refresh interval (prevents idle staleness)
+STREAM_REFRESH_INTERVAL = 30.0  # Refresh stream after 30s idle
+last_activity_time = 0
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
@@ -77,119 +49,83 @@ def find_device_index():
 # === Load VAD ===
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
 
-# === Hardware Configuration Display (No Permissions Needed) ===
-def load_respeaker_config():
-    """Load ReSpeaker configuration from state file (no USB permissions needed)"""
-    import json
-    from datetime import datetime
-    
-    config_file = os.path.expanduser("~/LedgerAI/data/respeaker_config.json")
-    
-    if not os.path.exists(config_file):
-        return None
-    
+# === Configure ReSpeaker Hardware ===
+def configure_respeaker_hardware():
+    """Enable stationary noise suppression for fan noise"""
     try:
-        with open(config_file, 'r') as f:
-            state = json.load(f)
-        return state
+        import sys
+        import usb.core
+        tuning_path = os.path.expanduser('~/usb_4_mic_array')
+        if tuning_path not in sys.path:
+            sys.path.insert(0, tuning_path)
+        
+        from tuning import Tuning
+        
+        dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+        if dev is None:
+            print("[Hardware] ⚠️  ReSpeaker not found")
+            return
+        
+        tuning = Tuning(dev)
+        
+        print("[Hardware] 🔧 Enabling stationary noise suppression (fan noise rejection)...")
+        
+        # Enable stationary noise suppression (targets constant noise like fans)
+        tuning.write("STATNOISEONOFF_SR", 1)  # Enable
+        tuning.write("GAMMA_NS", 3.0)          # Aggressiveness (1.0-3.0)
+        
+        # Keep AGC for consistent levels
+        tuning.write("AGCONOFF", 1)
+        tuning.write("AGCDESIREDLEVEL", 0.03)
+        tuning.write("AGCMAXGAIN", 20.0)
+        
+        # Disable non-stationary noise suppression and echo cancellation
+        tuning.write("NONSTATNOISEONOFF_SR", 0)
+        tuning.write("ECHOONOFF", 0)
+        tuning.write("HPFONOFF", 0)
+        
+        print("[Hardware] ✅ Fan noise suppression enabled")
+        
     except Exception as e:
-        print(f"[Hardware] ⚠️  Error reading config: {e}")
-        return None
+        print(f"[Hardware] ⚠️  Configuration failed: {e}")
+        print(f"[Hardware] 💡 Continuing without hardware noise suppression...")
 
-def display_hardware_config(state):
-    """Display hardware configuration from saved state"""
-    if state is None:
-        print("[Hardware] ℹ️  No configuration found")
-        print("[Hardware] 💡 Run: sudo python3 scripts/tune_respeaker.py [preset]")
-        return
-    
-    from datetime import datetime
-    timestamp = datetime.fromtimestamp(state['timestamp'])
-    config = state['config']
-    preset = state['preset']
-    
-    print("\n" + "="*70)
-    print(f"[Hardware] 📋 ReSPEAKER CONFIGURATION (Preset: {preset.upper()})")
-    print(f"[Hardware] ⏱️  Last updated: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
-    print("="*70)
-    
-    # AGC
-    if config.get('AGCONOFF', 0) == 1:
-        print(f"  AGC:                    ✅ ENABLED")
-        print(f"    Target Level:         {config.get('AGCDESIREDLEVEL', 0):.2f}")
-        print(f"    Max Gain:             {config.get('AGCMAXGAIN', 0):.1f} dB")
-    else:
-        print(f"  AGC:                    ❌ DISABLED")
-    
-    # High-pass Filter
-    hpf_labels = ["OFF", "70 Hz", "125 Hz", "180 Hz"]
-    hpf_val = config.get('HPFONOFF', 0)
-    hpf_label = hpf_labels[hpf_val] if hpf_val < len(hpf_labels) else str(hpf_val)
-    print(f"  High-Pass Filter:       {hpf_label}")
-    
-    # Noise Suppression
-    if config.get('STATNOISEONOFF_SR', 0) == 1:
-        gamma = config.get('GAMMA_NS_SR', 1.0)
-        print(f"  Stationary Noise Supp:  ✅ ENABLED (gamma={gamma:.1f})")
-    else:
-        print(f"  Stationary Noise Supp:  ❌ DISABLED")
-    
-    if config.get('NONSTATNOISEONOFF_SR', 0) == 1:
-        print(f"  Non-Stat Noise Supp:    ✅ ENABLED")
-    else:
-        print(f"  Non-Stat Noise Supp:    ❌ DISABLED")
-    
-    # Echo
-    if config.get('ECHOONOFF', 0) == 1:
-        print(f"  Echo Cancellation:      ✅ ENABLED")
-    else:
-        print(f"  Echo Cancellation:      ❌ DISABLED")
-    
-    print("="*70 + "\n")
+# === High-pass Filter ===
+def highpass_filter(audio_data, cutoff=HIGHPASS_CUTOFF, order=5):
+    """
+    Apply high-pass Butterworth filter to remove low-frequency noise
 
-# === Software AGC === (DISABLED - Hardware optimization first)
-def apply_software_agc(audio, target_rms=0.08):
+    Removes:
+    - 60Hz power line hum
+    - Low-frequency rumble (<60Hz)
+    - Fan noise
+
+    Preserves:
+    - Voice frequencies (typically 80-8000 Hz)
     """
-    Apply software AGC by normalizing audio to target RMS level
-    Simple gain adjustment - not adaptive like hardware AGC
-    """
-    current_rms = np.sqrt(np.mean(audio ** 2))
+    if not USE_HIGHPASS_FILTER:
+        return audio_data
+
+    # Design Butterworth high-pass filter
+    nyquist = SAMPLE_RATE / 2
+    normal_cutoff = cutoff / nyquist
     
-    if current_rms < 0.001:  # Avoid division by zero for silence
-        return audio
+    # Get filter coefficients
+    b, a = signal.butter(order, normal_cutoff, btype='high', analog=False)
     
-    # Calculate required gain
-    gain = target_rms / current_rms
+    # Apply filter
+    filtered = signal.filtfilt(b, a, audio_data)
     
-    # Limit gain to prevent excessive amplification
-    gain = min(gain, 10.0)  # Max 20dB gain
-    
-    # Apply gain
-    amplified = audio * gain
-    
-    # Soft clip to prevent harsh clipping
-    amplified = np.tanh(amplified)
-    
-    new_rms = np.sqrt(np.mean(amplified ** 2))
-    print(f"[Software AGC] 🎚️  RMS: {current_rms:.4f} → {new_rms:.4f} (gain={gain:.2f}x)")
-    
-    return amplified
+    # Ensure positive strides and correct dtype for PyTorch compatibility
+    # filtfilt returns float64, but VAD model expects float32
+    return np.ascontiguousarray(filtered, dtype=np.float32)
 
 # === Transcribe ===
 def transcribe(audio):
     """Send raw audio to Whisper"""
     rms = np.sqrt(np.mean(audio ** 2))
     peak = np.max(np.abs(audio))
-    audio_duration = len(audio) / SAMPLE_RATE
-    print(f"[Audio] RMS={rms:.6f}, Peak={peak:.4f}, Duration={audio_duration:.2f}s")
-    
-    # Track token usage for transcription (based on audio duration)
-    try:
-        from wallet_integration import get_usage_tracker
-        tracker = get_usage_tracker()
-        tracker.record_usage('transcription', multiplier=audio_duration)
-    except Exception as e:
-        print(f"[TokenUsage] ⚠️ Failed to track transcription usage: {e}")
+    print(f"[Audio] RMS={rms:.6f}, Peak={peak:.4f}, Duration={len(audio)/SAMPLE_RATE:.2f}s")
     
     wav_io = io.BytesIO()
     sf.write(wav_io, audio, SAMPLE_RATE, format="WAV")
@@ -226,50 +162,47 @@ def send_to_llm(text):
 # === Welcome Prompt ===
 def play_welcome_prompt(stream):
     try:
+        print("[Aura] 🔊 Playing welcome prompt...")
         stream.stop()
         subprocess.run(["aplay", WELCOME_AUDIO_PATH], check=False)
+        time.sleep(0.25)
         stream.start()
         
-        # Brief buffer flush
-        for _ in range(3):
+        # Flush buffer
+        for _ in range(5):
             try:
                 stream.read(FRAME_SIZE)
             except:
                 break
+        
+        print("[Aura] 🎤 Mic resumed after welcome prompt")
         
         try:
             from aura_gui import set_setup_complete, set_welcome_played, set_listening_ready
             set_setup_complete()
             set_welcome_played()
             set_listening_ready()
+            print("[Aura] ✅ Setup complete, listener ready")
         except ImportError:
             pass
     except Exception as e:
-        print(f"[Aura] ❌ Welcome prompt error: {e}")
+        print(f"[Aura] ❌ Failed to play welcome prompt: {e}")
 
 # === Main Loop ===
 def listen():
+    global last_activity_time
+    last_activity_time = time.time()  # Initialize activity timer
     
     channels = find_device_index()
     
-    # Display hardware configuration from saved state (no permissions needed)
-    config_state = load_respeaker_config()
-    display_hardware_config(config_state)
+    # Configure hardware noise suppression
+    configure_respeaker_hardware()
     
     print("\n" + "="*70)
-    print("[Audio] SIGNAL PROCESSING PIPELINE:")
-    print("[Audio]   1. Hardware DSP (HPF + beamforming via ReSpeaker)")
-    channel_desc = "ASR processed (beamformed)" if USE_CHANNEL == 0 else f"mic {USE_CHANNEL}"
-    print(f"[Audio]   2. Channel {USE_CHANNEL} selection ({channel_desc}, 6ch → 1ch)")
-    
-    if USE_SOFTWARE_AGC:
-        print(f"[Audio]   3. Software AGC (adaptive, target={SOFTWARE_AGC_TARGET} RMS)")
-        print("[Audio]   4. VAD → Whisper")
-        print(f"[Audio] ℹ️  Software AGC enabled: adaptive gain (max {SOFTWARE_AGC_MAX_GAIN}x)")
-    else:
-        print("[Audio]   3. VAD → Whisper")
-        print("[Audio] ℹ️  RAW audio from hardware - no software processing")
-    
+    print("[Audio] Stationary Noise Suppression ENABLED (fan noise rejection)")
+    if USE_HIGHPASS_FILTER:
+        print(f"[Audio] High-Pass Filter ENABLED ({HIGHPASS_CUTOFF}Hz cutoff)")
+    print("[Audio] 6-channel → channel 0 → Whisper")
     print("="*70 + "\n")
     
     # ARM/Jetson-specific audio configuration
@@ -307,21 +240,28 @@ def listen():
             raise
     
     with stream:
+        
         play_welcome_prompt(stream)
         
         while True:
             # Pause during TTS
             if is_playing():
+                print("[Listener] ⏸️ Pausing mic during playback")
                 stream.stop()
                 while is_playing():
                     time.sleep(0.1)
                 stream.start()
-                # Brief buffer flush
+                
+                # Flush buffer
+                print("[Listener] 🧹 Flushing mic buffer...")
                 for _ in range(5):
                     try:
                         stream.read(FRAME_SIZE)
                     except:
                         break
+                
+                print("[Listener] ▶️ Mic resumed after playback (buffer flushed)")
+                last_activity_time = time.time()  # Reset idle timer after playback
             
             buffer = []
             silence_start = None
@@ -331,21 +271,51 @@ def listen():
                 if is_playing():
                     break
                 
+                # Check if stream needs refresh after long idle
+                idle_time = time.time() - last_activity_time
+                if idle_time > STREAM_REFRESH_INTERVAL:
+                    print(f"\n[Listener] 🔄 Refreshing stream after {idle_time:.0f}s idle...")
+                    stream.stop()
+                    time.sleep(0.1)
+                    stream.start()
+                    # Flush stale buffer
+                    for _ in range(3):
+                        try:
+                            stream.read(FRAME_SIZE)
+                        except:
+                            break
+                    print("[Listener] ✅ Stream refreshed")
+                    last_activity_time = time.time()
+                
                 try:
                     audio_block, _ = stream.read(FRAME_SIZE)
                 except Exception as e:
-                    print(f"\n[Listener] ⚠️  Stream error: {e}")
+                    print(f"\n[Listener] ⚠️  Error: {e}")
+                    # Try to recover by refreshing stream
+                    try:
+                        stream.stop()
+                        time.sleep(0.1)
+                        stream.start()
+                        print("[Listener] 🔄 Stream restarted after error")
+                        last_activity_time = time.time()
+                    except:
+                        pass
                     time.sleep(0.1)
                     continue
                 
-                channel_audio = audio_block[:, USE_CHANNEL]
+                channel_0 = audio_block[:, 0]
                 
-                if channel_audio.size < 512:
+                if channel_0.size < 512:
                     continue
                 
-                # Hardware HPF already applied in ReSpeaker DSP
-                vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
-                rms = np.sqrt(np.mean(channel_audio ** 2))
+                # Apply high-pass filter to remove low-frequency noise before VAD
+                if USE_HIGHPASS_FILTER and len(channel_0) >= 64:  # Need enough samples for filter
+                    channel_0_filtered = highpass_filter(channel_0, cutoff=HIGHPASS_CUTOFF)
+                else:
+                    channel_0_filtered = channel_0
+                
+                vad_prob = model_vad(torch.from_numpy(channel_0_filtered), SAMPLE_RATE).item()
+                rms = np.sqrt(np.mean(channel_0_filtered ** 2))
                 
                 print(f"[VAD] {vad_prob:.2f} | RMS {rms:.6f}", end="\r")
                 
@@ -353,6 +323,7 @@ def listen():
                     print(f"\n[VAD] 🔊 Speech started (VAD={vad_prob:.2f}, RMS={rms:.6f})")
                     set_transcribing(True)
                     buffer.append(audio_block)
+                    last_activity_time = time.time()
                     break
             
             # === Record speech ===
@@ -368,15 +339,20 @@ def listen():
                     set_transcribing(False)
                     break
                 
-                channel_audio = audio_block[:, USE_CHANNEL]
+                channel_0 = audio_block[:, 0]
                 
-                if channel_audio.size < 512:
+                if channel_0.size < 512:
                     continue
                 
                 buffer.append(audio_block)
                 
-                # Hardware HPF already applied in ReSpeaker DSP
-                vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
+                # Apply high-pass filter to remove low-frequency noise before VAD
+                if USE_HIGHPASS_FILTER and len(channel_0) >= 64:
+                    channel_0_filtered = highpass_filter(channel_0, cutoff=HIGHPASS_CUTOFF)
+                else:
+                    channel_0_filtered = channel_0
+                
+                vad_prob = model_vad(torch.from_numpy(channel_0_filtered), SAMPLE_RATE).item()
                 
                 if vad_prob < VAD_SILENCE_THRESHOLD:
                     if silence_start is None:
@@ -384,6 +360,7 @@ def listen():
                     elif time.time() - silence_start > SILENCE_TIMEOUT:
                         print(f"\n[VAD] ⏹️  Speech ended")
                         set_transcribing(False)
+                        last_activity_time = time.time()
                         break
                 else:
                     silence_start = None
@@ -396,41 +373,27 @@ def listen():
             
             # === Process audio ===
             full_audio = np.concatenate(buffer)
-            mono = full_audio[:, USE_CHANNEL]  # Use configured channel
+            mono = full_audio[:, 0]  # Channel 0 only
             
-            # Apply software AGC if enabled (adaptive gain based on input level)
-            if USE_SOFTWARE_AGC:
-                original_rms = np.sqrt(np.mean(mono ** 2))
-                
-                if original_rms < 0.001:
-                    # Silence or near-silence, don't amplify noise
-                    gain = 1.0
-                else:
-                    # Calculate gain needed to reach target RMS
-                    gain = SOFTWARE_AGC_TARGET / original_rms
-                    # Limit maximum gain to prevent noise amplification
-                    gain = min(gain, SOFTWARE_AGC_MAX_GAIN)
-                    # If already loud enough, don't boost (prevents clipping near speech)
-                    gain = min(gain, 1.0) if original_rms >= SOFTWARE_AGC_TARGET else gain
-                
-                # Apply gain
-                mono = mono * gain
-                
-                # Soft clipping to prevent hard distortion
-                mono = np.clip(mono, -0.95, 0.95)
-                
-                new_rms = np.sqrt(np.mean(mono ** 2))
-                print(f"[AGC] 🎚️  RMS: {original_rms:.4f} → {new_rms:.4f} (gain={gain:.2f}x)")
+            # Apply high-pass filter to remove low-frequency noise before transcription
+            if USE_HIGHPASS_FILTER:
+                mono_filtered = highpass_filter(mono, cutoff=HIGHPASS_CUTOFF)
+                print(f"[Filter] 🎚️  Applied {HIGHPASS_CUTOFF}Hz high-pass filter")
+            else:
+                mono_filtered = mono
             
-            # Check if audio is too short
-            if len(mono) < MIN_AUDIO_SAMPLES:
-                print("⚠️  Too short\n")
+            # Check if audio RMS is too low (likely fan noise, not speech)
+            rms = np.sqrt(np.mean(mono_filtered ** 2))
+            if rms < MIN_SPEECH_RMS:
+                print(f"⚠️  RMS too low ({rms:.4f} < {MIN_SPEECH_RMS}), likely noise - skipping\n")
                 set_transcribing(False)
                 continue
             
-            # Send RAW hardware audio to Whisper (no RMS filtering)
-            # Let Whisper handle low-level audio - hardware AGC should boost it anyway
-            text = transcribe(mono)
+            if len(mono_filtered) < MIN_AUDIO_SAMPLES:
+                print("⚠️  Too short\n")
+                continue
+            
+            text = transcribe(mono_filtered)
             
             if text:
                 send_to_llm(text)

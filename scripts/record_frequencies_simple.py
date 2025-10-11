@@ -17,7 +17,7 @@ import sys
 # === Configuration ===
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 SAMPLE_RATE = 16000
-DURATION = 8  # seconds
+DURATION = 20  # seconds
 CHANNELS = 6
 CHANNEL_TO_ANALYZE = 0
 

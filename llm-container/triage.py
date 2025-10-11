@@ -526,95 +526,6 @@ def classify_response(cond: str, flags: Dict[str, Any]) -> str:
 
 # === Recap Generation ===
 
-def generate_llm_response(prompt: str, max_tokens: int = 150, temperature: float = 0.3) -> str:
-    """Generate response using the LLM (imported from container_rest)"""
-    # Import here to avoid circular dependency
-    from container_rest import llm, llm_lock
-    import re
-    
-    try:
-        with llm_lock:
-            response = llm.create_chat_completion(
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=max_tokens,
-                temperature=temperature,
-                stream=False
-            )
-            content = response['choices'][0]['message']['content'].strip()
-            
-            # Filter out Qwen3 chain-of-thought reasoning blocks
-            # Remove everything between <think> and </think> tags
-            content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
-            
-            # Also remove control tokens
-            content = re.sub(r'<sentence_start>|<sentence_end>', '', content)
-            
-            content = content.strip()
-            
-            return content
-    except Exception as e:
-        print(f"[Triage] ❌ LLM generation failed: {e}")
-        return ""
-
-def build_recap_llm(cond: str, answers: List[str], flags: Dict[str, Any], severity: str, session_id: str = None) -> str:
-    """Use LLM to generate clean triage summary guided by JSON templates"""
-    
-    state = load_state(session_id)
-    steps = get_steps(cond, state)
-    
-    # Build Q&A conversation
-    qa_pairs = []
-    for step, answer in zip(steps, answers):
-        if isinstance(step, dict) and answer:
-            question = step.get("question", "")
-            qa_pairs.append(f"Q: {question}\nA: {answer}")
-    
-    conversation = "\n".join(qa_pairs)
-    
-    # Get clinical guidance from JSON
-    clinical_summary = TRIAGE_DEFS[cond].get("clinical_summary", "")
-    
-    # Get pathway-specific summary if applicable
-    if state.get("active_pathway") and "pathways" in TRIAGE_DEFS[cond]:
-        pathway = TRIAGE_DEFS[cond]["pathways"][state["active_pathway"]]
-        pathway_summary = pathway.get("clinical_summary", "")
-        if pathway_summary:
-            clinical_summary = pathway_summary
-    
-    # Create summarization prompt
-    prompt = f"""Based on this medical triage conversation, write a concise 2-3 sentence summary:
-
-{conversation}
-
-Clinical Context: {clinical_summary}
-Severity: {severity}
-
-Write a professional summary that:
-1. States what the patient reported (symptoms, timing, characteristics)
-2. Notes any important negative findings (what they denied)
-3. Keeps it brief and clear
-
-Summary:"""
-    
-    # Generate summary using LLM
-    summary = generate_llm_response(
-        prompt=prompt,
-        temperature=0.3,  # Low temperature for consistency
-        max_tokens=150
-    )
-    
-    # Fallback to clinical summary if LLM fails
-    if not summary or len(summary) < 10:
-        print("[Triage] ⚠️ LLM summary failed, using fallback")
-        summary = f"You reported {cond.replace('_', ' ')}. {clinical_summary}"
-    
-    # Clean up the summary
-    summary = summary.strip()
-    if summary.startswith('"') and summary.endswith('"'):
-        summary = summary[1:-1]
-    
-    return summary
-
 def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: str, session_id: str = None) -> str:
     """Build comprehensive SOAP-style recap"""
     state = load_state(session_id)
@@ -682,8 +593,11 @@ def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: 
         if ans_out.endswith("_pathway"):
             display_name = ans_out.replace("_pathway", "").replace("_", " ").title()
             line = templ.format(answer=display_name).strip()
+        elif re.match(r"^\s*You\s+\{answer\}\s+", templ, flags=re.IGNORECASE) and ans_out not in ("reported", "denied"):
+            tail = re.sub(r"^\s*You\s+\{answer\}\s+", "", templ, flags=re.IGNORECASE).strip()
+            line = f"You reported {tail} with {ans_out}"
         else:
-            # Use the template as-is - let JSON templates handle proper formatting
+            # Use the template as-is (JSON files should handle proper formatting)
             line = templ.format(answer=ans_out).strip()
         
         # Categorize
@@ -808,16 +722,16 @@ def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: 
 def detect_condition(prompt: str, session_id: str = None) -> Optional[str]:
     """Detect medical condition from prompt"""
     p = normalize_text(prompt)
-
+    
     # Check for casual greetings
     casual_greeting_patterns = [
         r'\bhello\b', r'\bhi\b', r'\bhey\b', r'\bhowdy\b',
         r'\bgood morning\b', r'\bgood afternoon\b', r'\bgood evening\b'
     ]
-
+    
     knowledge_indicators = ["tell me", "what is", "who is", "explain", "describe", "information about"]
     is_knowledge_query = any(indicator in p for indicator in knowledge_indicators)
-
+    
     if not is_knowledge_query:
         is_casual_greeting = any(re.search(pattern, p) for pattern in casual_greeting_patterns)
         if is_casual_greeting:
@@ -825,7 +739,7 @@ def detect_condition(prompt: str, session_id: str = None) -> Optional[str]:
             has_medical_content = any(keyword in p for keyword in medical_keywords)
             if not has_medical_content:
                 return None
-
+    
     # Apply synonym expansion
     p_expanded = apply_synonym_expansion(p)
     
@@ -901,10 +815,10 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
         if current_key:
             update_flags_from_answer(condition, current_key, prompt, state, session_id)
 
-    # Advance to next step
+        # Advance to next step
         print(f"[Triage] 🔄 Advancing from step {current_step_index} to {current_step_index + 1}")
-    state["step_index"] = current_step_index + 1
-
+        state["step_index"] = current_step_index + 1
+    
     # Get next step
     if state["step_index"] < len(steps):
         next_step = steps[state["step_index"]]
@@ -939,25 +853,23 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
     else:
         # Triage complete
         recap_response = generate_triage_completion(state, session_id)
-        # Return the reset state (already saved in generate_triage_completion)
-        reset_state = load_state(session_id)
-        return recap_response, reset_state
+        return recap_response, state
 
 
 def generate_triage_completion(state: Dict[str, Any], session_id: str) -> str:
-    """Generate final triage completion and reset session"""
+    """Generate final triage completion"""
     condition = state.get("condition")
     answers = state.get("answers", [])
     flags = state.get("flags", {})
-
+    
     if not condition:
         return "I'm sorry, there was an error processing your triage."
-
+    
     # Classify severity
     severity = classify_response(condition, flags)
     
-    # Build recap using LLM (cleaner output than template assembly)
-    recap = build_recap_llm(condition, answers, flags, severity, session_id)
+    # Build recap
+    recap = build_recap(condition, answers, flags, severity, session_id)
     
     # Get outcome
     active_pathway = state.get("active_pathway")
@@ -979,18 +891,6 @@ def generate_triage_completion(state: Dict[str, Any], session_id: str) -> str:
             outcome = "Schedule appointment with primary care physician within 24-48 hours."
     
     outcome = substitute_name(outcome, state.get("user_name"))
-    
-    # Reset session state after completion (preserve user name)
-    user_name = state.get("user_name")
-    reset_state = {
-        "condition": None, "step_index": 0, "answers": [], "flags": {},
-        "last_key": None, "user_name": user_name,
-        "active_pathway": None, "entered_pathway": False,
-        "updated_at": None, "phrasing_history": [], "detailed_symptoms": [],
-        "original_complaint": None, "expanded_prompt": None, "mode": None
-    }
-    save_state(reset_state, session_id)
-    print(f"[Triage] ✅ Triage completed and session reset for session_id: {session_id}")
     
     return f"{recap} {outcome}"
 

@@ -358,13 +358,19 @@ class TokenUsageTracker:
     """
     
     # Cost per operation type (in tokens)
+    # Increased significantly to make payments meaningful with low token value
+    # Target: ~5000 tokens for typical full usage session
     COSTS = {
-        'simple_query': 0.001,      # Basic Q&A
-        'rag_query': 0.005,         # RAG-enhanced query
-        'complex_query': 0.010,     # Complex reasoning
-        'transcription': 0.002,     # Per second of audio
-        'tts_generation': 0.001,    # Per second of speech
+        'simple_query': 10.0,       # Basic Q&A
+        'rag_query': 50.0,          # RAG-enhanced query (medical lookup)
+        'complex_query': 100.0,     # Complex reasoning
+        'transcription': 5.0,       # Per second of audio
+        'tts_generation': 2.0,      # Per second of speech
     }
+    
+    # Cost multiplier for easy adjustment
+    # Increase this to make tokens more expensive, decrease to make cheaper
+    COST_MULTIPLIER = 1.0  # Set to 2.0 for 2x costs, 0.5 for half costs, etc.
     
     def __init__(self):
         # File to store persistent usage data (use workspace-relative path)
@@ -430,7 +436,8 @@ class TokenUsageTracker:
     
     def record_usage(self, operation_type: str, multiplier: float = 1.0):
         """Record token usage for an operation"""
-        cost = self.COSTS.get(operation_type, 0.001) * multiplier
+        base_cost = self.COSTS.get(operation_type, 10.0)
+        cost = base_cost * multiplier * self.COST_MULTIPLIER
         self.total_usage += cost
         
         self.operation_history.append({

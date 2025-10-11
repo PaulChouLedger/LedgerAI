@@ -69,7 +69,7 @@ python3 aura-control/main.py
 
 ### Docker Containers
 
-1. **whisper-container** - Speech-to-text recognition
+1. **whisper-container-faster** - Speech-to-text recognition
 2. **llm-container** - Language model inference
 3. **rag-container** - Retrieval augmented generation
 
@@ -175,7 +175,7 @@ LedgerAI/
 │   ├── telegram_bot.py       # Telegram integration
 │   └── requirements.txt      # Python dependencies
 │
-├── whisper-container/ # Speech recognition
+├── whisper-container-faster/ # Speech recognition
 │   ├── whisper_engine.py
 │   └── Dockerfile
 │

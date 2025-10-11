@@ -806,9 +806,13 @@ class AuraRAG:
             
             # Phonetic transformations
             result = []
-            prev = ''
+            skip_next = False
             
             for i, char in enumerate(word):
+                if skip_next:
+                    skip_next = False
+                    continue
+                
                 # Skip vowels except at start
                 if char in 'AEIOU':
                     if i == 0:
@@ -819,6 +823,7 @@ class AuraRAG:
                 if char == 'C':
                     if i + 1 < len(word) and word[i + 1] == 'H':
                         result.append('X')
+                        skip_next = True
                     elif i + 1 < len(word) and word[i + 1] in 'EIY':
                         result.append('S')
                     else:
@@ -830,28 +835,32 @@ class AuraRAG:
                         result.append('G')
                 elif char == 'P' and i + 1 < len(word) and word[i + 1] == 'H':
                     result.append('F')
+                    skip_next = True
                 elif char == 'Q':
                     result.append('K')
                 elif char == 'S' and i + 1 < len(word) and word[i + 1] == 'H':
                     result.append('X')
+                    skip_next = True
                 elif char == 'T' and i + 1 < len(word) and word[i + 1] == 'H':
                     result.append('0')  # TH sound
-                elif char == 'W' and prev in 'AEIOU':
+                    skip_next = True
+                elif char == 'W' and i > 0 and word[i-1] in 'AEIOU':
                     continue  # Silent W after vowel
                 elif char == 'X':
                     result.append('KS')
-                elif char == 'Y' and prev not in 'AEIOU':
+                elif char == 'Y' and (i == 0 or word[i-1] not in 'AEIOU'):
                     result.append('Y')
                 elif char in 'BDFHJKLMNPRSTVZ':
                     # Skip doubles
                     if not result or result[-1] != char:
                         result.append(char)
-                
-                prev = char
             
             return ''.join(result)[:4]  # Return first 4 chars
         
-        return metaphone(word1) == metaphone(word2)
+        m1 = metaphone(word1)
+        m2 = metaphone(word2)
+        print(f"[RAG] 🔊 Phonetic: '{word1}' → '{m1}', '{word2}' → '{m2}'")
+        return m1 == m2
     
     def _fuzzy_name_search(self, person_name: str, chunk: str, threshold: float = 0.65) -> bool:
         """
