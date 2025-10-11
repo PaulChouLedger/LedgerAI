@@ -187,8 +187,8 @@ class MetaMaskPaymentDialog(QDialog):
         
         layout.addLayout(quick_layout)
         
-        # Info about MetaMask
-        info = QLabel("🔐 Transaction will open in MetaMask\nApprove in MetaMask app to complete payment")
+        # Info about wallet payment
+        info = QLabel("🔐 Complete transaction in your wallet app\n(MetaMask, Base, Coinbase, etc.)")
         info.setAlignment(Qt.AlignCenter)
         info.setWordWrap(True)
         info.setStyleSheet("color: #8e8e93; font-size: 11px; margin: 10px; line-height: 1.4;")
@@ -220,7 +220,7 @@ class MetaMaskPaymentDialog(QDialog):
         cancel_btn.clicked.connect(self.reject)
         button_layout.addWidget(cancel_btn)
         
-        send_btn = QPushButton("💸 Send via MetaMask")
+        send_btn = QPushButton("📱 Show Payment Info")
         send_btn.setStyleSheet("""
             QPushButton {
                 background-color: #34C759;
@@ -239,7 +239,7 @@ class MetaMaskPaymentDialog(QDialog):
                 background-color: #2A9D47;
             }
         """)
-        send_btn.clicked.connect(self.send_with_metamask)
+        send_btn.clicked.connect(self.send_with_wallet)
         button_layout.addWidget(send_btn)
         
         layout.addLayout(button_layout)
@@ -258,8 +258,8 @@ class MetaMaskPaymentDialog(QDialog):
         """Set amount from quick button"""
         self.amount_input.setText(f"{amount:.6f}")
     
-    def send_with_metamask(self):
-        """Initiate MetaMask payment"""
+    def send_with_wallet(self):
+        """Show payment info for wallet app"""
         amount_text = self.amount_input.text().strip()
         if not amount_text:
             QMessageBox.warning(self, "Error", "Please enter an amount")
@@ -274,50 +274,9 @@ class MetaMaskPaymentDialog(QDialog):
             QMessageBox.warning(self, "Error", "Invalid amount format")
             return
         
-        # Show MetaMask deep link instructions
-        self.show_metamask_instructions(amount)
+        # Show payment details screen
+        self.show_payment_details(amount)
     
-    def show_metamask_instructions(self, amount: float):
-        """Show instructions for MetaMask payment"""
-        token_address = self.wallet_manager.TOKEN_ADDRESS
-        
-        # Build MetaMask deep link for token transfer
-        # This will open MetaMask with pre-filled transaction
-        metamask_url = self.build_metamask_deeplink(amount, token_address)
-        
-        msg = QMessageBox(self)
-        msg.setIcon(QMessageBox.Information)
-        msg.setWindowTitle("Open MetaMask")
-        msg.setText("Complete payment in MetaMask")
-        msg.setInformativeText(
-            f"Amount: {amount:.6f} tokens\n"
-            f"To: {self.CLIENT_WALLET}\n\n"
-            f"Options:\n\n"
-            f"1. MetaMask Mobile:\n"
-            f"   - Scan QR code below\n"
-            f"   - Approve transaction\n\n"
-            f"2. MetaMask Browser:\n"
-            f"   - Click 'Open MetaMask'\n"
-            f"   - Approve transaction\n\n"
-            f"After approval, return here and\n"
-            f"click 'Mark as Paid' to record payment."
-        )
-        
-        # Add custom buttons
-        msg.addButton("📱 Show QR Code", QMessageBox.ActionRole)
-        msg.addButton("🌐 Open MetaMask", QMessageBox.ActionRole)
-        msg.addButton("✅ Mark as Paid", QMessageBox.AcceptRole)
-        msg.addButton("❌ Cancel", QMessageBox.RejectRole)
-        
-        result = msg.exec_()
-        
-        if result == 0:  # Show QR
-            self.show_qr_code(metamask_url, amount)
-        elif result == 1:  # Open MetaMask
-            import webbrowser
-            webbrowser.open(metamask_url)
-        elif result == 2:  # Mark as Paid
-            self.record_manual_payment(amount)
     
     def build_metamask_deeplink(self, amount: float, token_address: str) -> str:
         """Build MetaMask deep link for token transfer"""
@@ -355,8 +314,166 @@ class MetaMaskPaymentDialog(QDialog):
         
         return ethereum_uri
     
+    def show_payment_details(self, amount: float):
+        """Show payment details screen for manual wallet entry"""
+        # Create full-screen payment info dialog
+        details_dialog = QDialog(self)
+        details_dialog.setWindowTitle("Payment Information")
+        details_dialog.setFixedSize(1080, 1080)
+        details_dialog.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+        details_dialog.setModal(True)
+        details_dialog.setStyleSheet("QDialog { background-color: rgba(28, 28, 30, 0.95); border-radius: 532px; }")
+        
+        layout = QVBoxLayout()
+        layout.setContentsMargins(100, 80, 100, 80)
+        layout.setSpacing(20)
+        layout.addStretch(1)
+        
+        # Title
+        title = QLabel("📱 Send Payment")
+        title.setFont(QFont("Arial", 20, QFont.Bold))
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet("color: #ffffff; margin: 10px;")
+        layout.addWidget(title)
+        
+        # Amount (HUGE)
+        amount_label = QLabel(f"{amount:.2f}")
+        amount_label.setFont(QFont("Arial", 48, QFont.Bold))
+        amount_label.setAlignment(Qt.AlignCenter)
+        amount_label.setStyleSheet("color: #FFD700; margin: 20px;")
+        layout.addWidget(amount_label)
+        
+        token_symbol = self.wallet_manager.token_info.get('symbol', 'tokens')
+        symbol_label = QLabel(token_symbol)
+        symbol_label.setFont(QFont("Arial", 24, QFont.Bold))
+        symbol_label.setAlignment(Qt.AlignCenter)
+        symbol_label.setStyleSheet("color: #FFD700; margin-bottom: 20px;")
+        layout.addWidget(symbol_label)
+        
+        # Client address with QR code
+        addr_title = QLabel("Send to:")
+        addr_title.setAlignment(Qt.AlignCenter)
+        addr_title.setStyleSheet("color: #8e8e93; font-size: 14px; margin: 10px;")
+        layout.addWidget(addr_title)
+        
+        # QR Code of client address
+        try:
+            qr = qrcode.QRCode(version=1, box_size=6, border=3)
+            qr.add_data(self.CLIENT_WALLET)
+            qr.make(fit=True)
+            
+            img = qr.make_image(fill_color="black", back_color="white")
+            buffer = io.BytesIO()
+            img.save(buffer, format='PNG')
+            buffer.seek(0)
+            
+            pixmap = QPixmap()
+            pixmap.loadFromData(buffer.getvalue())
+            
+            qr_label = QLabel()
+            qr_label.setAlignment(Qt.AlignCenter)
+            qr_label.setPixmap(pixmap.scaled(250, 250, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            qr_label.setStyleSheet("background-color: white; border-radius: 15px; padding: 15px; margin: 10px;")
+            layout.addWidget(qr_label)
+        except:
+            pass
+        
+        # Client address (readable)
+        addr_label = QLabel(f"{self.CLIENT_WALLET[:22]}\n{self.CLIENT_WALLET[22:]}")
+        addr_label.setAlignment(Qt.AlignCenter)
+        addr_label.setStyleSheet("color: #34C759; font-size: 13px; font-family: 'Courier New'; font-weight: bold; margin: 10px;")
+        layout.addWidget(addr_label)
+        
+        # Instructions
+        instructions = QLabel(
+            "📱 In your wallet app\n"
+            "(MetaMask, Base, Coinbase, etc.):\n\n"
+            "1. Select your token\n"
+            "2. Tap 'Send'\n"
+            "3. Scan QR or enter address\n"
+            f"4. Amount: {amount:.6f}\n"
+            "5. Approve transaction\n"
+            "6. Click 'Done' below"
+        )
+        instructions.setAlignment(Qt.AlignCenter)
+        instructions.setWordWrap(True)
+        instructions.setStyleSheet("color: #ffffff; font-size: 13px; line-height: 1.8; margin: 15px;")
+        layout.addWidget(instructions)
+        
+        # Done button
+        button_layout = QHBoxLayout()
+        
+        cancel_btn = QPushButton("❌ Cancel")
+        cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF3B30;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
+            }
+            QPushButton:hover { background-color: #D70015; }
+        """)
+        cancel_btn.clicked.connect(details_dialog.reject)
+        button_layout.addWidget(cancel_btn)
+        
+        done_btn = QPushButton("✅ Mark as Paid")
+        done_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #34C759;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
+            }
+            QPushButton:hover { background-color: #30B350; }
+        """)
+        done_btn.clicked.connect(lambda: self.confirm_and_close(details_dialog, amount))
+        button_layout.addWidget(done_btn)
+        
+        layout.addLayout(button_layout)
+        layout.addStretch(1)
+        
+        details_dialog.setLayout(layout)
+        
+        # Center dialog
+        from PyQt5.QtWidgets import QDesktopWidget
+        screen = QDesktopWidget().screenGeometry()
+        x = (screen.width() - 1080) // 2
+        y = (screen.height() - 1080) // 2
+        details_dialog.move(x, y)
+        
+        details_dialog.exec_()
+    
+    def confirm_and_close(self, dialog, amount):
+        """Confirm payment and record it"""
+        confirm = QMessageBox.question(
+            dialog,
+            "Confirm Payment",
+            f"Have you completed the payment of {amount:.6f} tokens?\n\n"
+            f"⚠️ Only click Yes if transaction is confirmed in your wallet.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if confirm == QMessageBox.Yes:
+            # Record payment
+            self.usage_tracker.record_payment(amount)
+            dialog.accept()
+            
+            QMessageBox.information(
+                dialog,
+                "Payment Recorded",
+                f"✅ Payment of {amount:.6f} tokens recorded!\n\n"
+                f"Thank you for your payment!"
+            )
+            
+            self.accept()
+    
     def show_qr_code(self, url: str, amount: float):
-        """Show QR code for MetaMask mobile"""
+        """Show QR code for wallet mobile (deprecated - using payment details now)"""
         try:
             # Generate QR code
             qr = qrcode.QRCode(version=1, box_size=10, border=4)

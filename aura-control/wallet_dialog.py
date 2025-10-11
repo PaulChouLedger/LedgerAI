@@ -645,9 +645,9 @@ class WalletDialog(QDialog):
         msg.setWindowTitle("Choose Payment Method")
         msg.setText("How would you like to send payment?")
         msg.setInformativeText(
-            "🦊 MetaMask QR (Recommended):\n"
+            "📱 Mobile Wallet (Recommended):\n"
+            "  • Works with any wallet app\n"
             "  • Scan QR with phone\n"
-            "  • Opens MetaMask automatically\n"
             "  • Most secure - no key needed\n\n"
             "🔑 Direct (Testing Only):\n"
             "  • Automated transaction\n"
@@ -655,7 +655,7 @@ class WalletDialog(QDialog):
             "  • Use only for testing"
         )
         
-        metamask_btn = msg.addButton("🦊 MetaMask QR", QMessageBox.AcceptRole)
+        metamask_btn = msg.addButton("📱 Mobile Wallet", QMessageBox.AcceptRole)
         direct_btn = msg.addButton("🔑 Direct", QMessageBox.ActionRole)
         cancel_btn = msg.addButton("❌ Cancel", QMessageBox.RejectRole)
         
