@@ -645,31 +645,57 @@ class WalletDialog(QDialog):
         msg.setWindowTitle("Choose Payment Method")
         msg.setText("How would you like to send payment?")
         msg.setInformativeText(
-            "📱 Mobile Wallet (Recommended):\n"
+            "💻 Native Wallet (Best for Jetson):\n"
+            "  • Built into Aura interface\n"
+            "  • Fits circular display\n"
+            "  • Enter key once\n\n"
+            "📱 Mobile Wallet QR:\n"
+            "  • Scan with phone\n"
             "  • Works with any wallet app\n"
-            "  • Scan QR with phone\n"
-            "  • Most secure - no key needed\n\n"
-            "🔑 Direct (Testing Only):\n"
-            "  • Automated transaction\n"
-            "  • Requires private key\n"
-            "  • Use only for testing"
+            "  • No key needed"
         )
         
-        metamask_btn = msg.addButton("📱 Mobile Wallet", QMessageBox.AcceptRole)
-        direct_btn = msg.addButton("🔑 Direct", QMessageBox.ActionRole)
+        native_btn = msg.addButton("💻 Native Wallet", QMessageBox.AcceptRole)
+        mobile_btn = msg.addButton("📱 Mobile QR", QMessageBox.ActionRole)
         cancel_btn = msg.addButton("❌ Cancel", QMessageBox.RejectRole)
         
         msg.exec_()
         
-        if msg.clickedButton() == metamask_btn:
-            # Use MetaMask QR code (corrected deep link format)
+        if msg.clickedButton() == native_btn:
+            # Use native wallet (integrated into Aura)
+            self.open_native_wallet()
+        elif msg.clickedButton() == mobile_btn:
+            # Use mobile wallet QR code
             self.open_metamask_payment()
-        elif msg.clickedButton() == direct_btn:
-            # Use direct (private key) method
-            self.open_direct_payment()
+    
+    def open_native_wallet(self):
+        """Open native wallet integrated into Aura"""
+        try:
+            from native_wallet import NativeWalletDialog
+            
+            balance_owed = self.usage_tracker.get_balance_owed()
+            token_address = self.wallet_manager.TOKEN_ADDRESS
+            
+            wallet_dialog = NativeWalletDialog(
+                parent=self,
+                amount=balance_owed,
+                to_address="0xd3c4d619C8515Bc764921209821Ec7A77FC31Ba4",
+                token_address=token_address
+            )
+            result = wallet_dialog.exec_()
+            
+            if result == QDialog.Accepted:
+                # Record payment
+                self.usage_tracker.record_payment(balance_owed)
+                print("[WalletDialog] ✅ Native wallet payment completed, refreshing balance")
+                self.refresh_balance_async()
+                
+        except Exception as e:
+            print(f"[WalletDialog] ❌ Error opening native wallet: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to open native wallet:\n{str(e)}")
     
     def open_metamask_payment(self):
-        """Open MetaMask QR code payment dialog"""
+        """Open mobile wallet QR code payment dialog"""
         try:
             from metamask_payment_dialog import MetaMaskPaymentDialog
             
@@ -677,12 +703,12 @@ class WalletDialog(QDialog):
             result = payment_dialog.exec_()
             
             if result == QDialog.Accepted:
-                print("[WalletDialog] ✅ MetaMask payment recorded, refreshing balance")
+                print("[WalletDialog] ✅ Mobile wallet payment recorded, refreshing balance")
                 self.refresh_balance_async()
                 
         except Exception as e:
-            print(f"[WalletDialog] ❌ Error opening MetaMask payment: {e}")
-            QMessageBox.critical(self, "Error", f"Failed to open MetaMask payment:\n{str(e)}")
+            print(f"[WalletDialog] ❌ Error opening mobile wallet payment: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to open payment dialog:\n{str(e)}")
     
     def open_direct_payment(self):
         """Open direct payment dialog (private key method)"""
