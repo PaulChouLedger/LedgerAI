@@ -730,12 +730,12 @@ def detect_condition(prompt: str, session_id: str = None) -> Optional[str]:
     is_knowledge_query = any(indicator in p for indicator in knowledge_indicators)
 
     if not is_knowledge_query:
-    is_casual_greeting = any(re.search(pattern, p) for pattern in casual_greeting_patterns)
-    if is_casual_greeting:
+        is_casual_greeting = any(re.search(pattern, p) for pattern in casual_greeting_patterns)
+        if is_casual_greeting:
             medical_keywords = ["pain", "hurt", "ache", "symptom", "problem", "issue"]
-        has_medical_content = any(keyword in p for keyword in medical_keywords)
-        if not has_medical_content:
-            return None
+            has_medical_content = any(keyword in p for keyword in medical_keywords)
+            if not has_medical_content:
+                return None
 
     # Apply synonym expansion
     p_expanded = apply_synonym_expansion(p)
