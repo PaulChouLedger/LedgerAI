@@ -2,7 +2,7 @@
 # Automatically configures ReSpeaker hardware DSP on boot
 #
 # Available Presets (change in ExecStart line):
-#   - clean      : HPF + Max Stationary NS (fights 601Hz tone) - DEFAULT
+#   - clean      : HPF + Conservative AGC + Max Stationary NS - DEFAULT
 #   - near_field : HPF + moderate AGC (0.08 RMS) - for 1-6 feet
 #   - far_field  : High AGC + noise suppression (0.03 RMS) - for 8-16 feet
 #   - reset      : Factory defaults - all processing OFF
