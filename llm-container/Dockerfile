@@ -19,7 +19,7 @@ COPY synonyms/ /app/synonyms/
 
 # Copy example models (others can be mounted at runtime)
 COPY models/qwen2.5-1.5b-instruct-q4_0.gguf /models/qwen2.5-1.5b-instruct-q4_0.gguf
-COPY models/Qwen3-1.7B-Q4_K_M.gguf /models/Qwen3-1.7B-Q4_K_M.gguf
+COPY models/Qwen_Qwen3-1.7B-Q4_K_M.gguf /models/Qwen_Qwen3-1.7B-Q4_K_M.gguf
 
 # Install Python dependencies (LLM only)
 RUN pip3 install --no-cache-dir --ignore-installed \
