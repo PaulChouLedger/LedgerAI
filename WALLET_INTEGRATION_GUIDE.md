@@ -100,11 +100,13 @@ If you don't set up a provider, the system will automatically fall back to publi
 
 Token usage is stored in:
 ```
-~/LedgerAI/data/token_usage.json
+/Users/rcabello/Documents/GitHub/LedgerAI/data/token_usage.json
 ```
 
 This file contains:
 - Total token consumption
+- Total tokens paid to client
+- Balance owed (usage - paid)
 - Last 100 operations history
 
 ## How It Works
@@ -204,9 +206,12 @@ LLM processing → speak_llm_response() [0.001-0.010 tokens]
     ↓
 TTS generation → tts_playback_thread() [0.001 tokens/sec]
     ↓
-Total Usage Saved to ~/LedgerAI/data/token_usage.json
+Total Usage Saved to data/token_usage.json
     ↓
-Total Usage Displayed in Wallet Dialog
+Wallet Dialog Shows:
+  💳 Total used
+  💸 Total paid
+  📊 Balance owed (usage - paid)
 ```
 
 ### Resetting Usage (Manual Only)
@@ -215,12 +220,29 @@ Usage is designed to accumulate permanently. To reset:
 
 ```bash
 # Delete the usage file
-rm ~/LedgerAI/data/token_usage.json
+rm /Users/rcabello/Documents/GitHub/LedgerAI/data/token_usage.json
 
 # Next time Aura starts, usage will begin at 0
 ```
 
 **Note**: There is no reset button in the UI by design - this ensures accurate tracking of all computational costs.
+
+### How Payments Work
+
+When you send a payment to the client:
+1. Transaction is broadcast to Ethereum blockchain
+2. Once confirmed, payment is recorded: `total_paid += payment_amount`
+3. Balance owed is automatically calculated: `owed = total_usage - total_paid`
+4. All values saved to disk immediately
+
+**Example:**
+```
+Start: 0.000 used, 0.000 paid, 0.000 owed
+Use Aura: 0.050 used, 0.000 paid, 0.050 owed
+Pay 0.020: 0.050 used, 0.020 paid, 0.030 owed
+Use more: 0.075 used, 0.020 paid, 0.055 owed
+Pay 0.055: 0.075 used, 0.075 paid, 0.000 owed ✅
+```
 
 ## Troubleshooting
 

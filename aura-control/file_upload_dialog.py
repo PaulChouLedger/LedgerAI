@@ -281,8 +281,7 @@ class FileUploadDialog(QDialog):
         file_layout.setSpacing(20)
         
         self.file_list = QListWidget()
-        self.file_list.setMaximumHeight(308)  # 10% bigger (280 * 1.1 = 308)
-        self.file_list.setMinimumHeight(253)  # 10% bigger (230 * 1.1 = 253)
+        # Remove fixed height constraints - let it match button layout height
         self.file_list.setMaximumWidth(550)  # 10% bigger (500 * 1.1 = 550)
         self.file_list.setStyleSheet("""
             QListWidget {
@@ -305,7 +304,7 @@ class FileUploadDialog(QDialog):
                 background-color: rgba(142, 142, 147, 0.2);
             }
         """)
-        file_layout.addWidget(self.file_list)
+        file_layout.addWidget(self.file_list, 1)  # Add stretch factor
         
         button_layout = QVBoxLayout()
         button_layout.setSpacing(20)  # More spacing for larger buttons

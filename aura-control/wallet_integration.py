@@ -323,14 +323,15 @@ class TokenUsageTracker:
     }
     
     def __init__(self):
-        # File to store persistent usage data
-        self.usage_file = os.path.expanduser("~/LedgerAI/data/token_usage.json")
+        # File to store persistent usage data (use workspace-relative path)
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        self.usage_file = os.path.join(workspace_root, 'data', 'token_usage.json')
         self.total_usage = 0.0
         self.total_paid = 0.0  # Track how much has been paid to client
         self.operation_history = []
         
-        # Client wallet address
-        self.client_wallet = "0x9F8081892c87DDAeD07D0bBD76CC2bd7fF6eE4c2"
+        # Client wallet address (receives token payments)
+        self.client_wallet = "0xd3c4d619C8515Bc764921209821Ec7A77FC31Ba4"
         
         # Load saved usage data
         self._load_usage()
@@ -338,6 +339,7 @@ class TokenUsageTracker:
     def _load_usage(self):
         """Load usage data from file"""
         try:
+            print(f"[TokenUsage] 📂 Looking for usage file: {self.usage_file}")
             if os.path.exists(self.usage_file):
                 with open(self.usage_file, 'r') as f:
                     data = json.load(f)
@@ -348,9 +350,11 @@ class TokenUsageTracker:
                     print(f"[TokenUsage] 💰 Total paid: {self.total_paid:.6f} tokens")
                     print(f"[TokenUsage] 📊 Balance owed: {self.get_balance_owed():.6f} tokens")
             else:
-                print(f"[TokenUsage] 🆕 Starting fresh usage tracking")
+                print(f"[TokenUsage] 🆕 Starting fresh usage tracking at {self.usage_file}")
         except Exception as e:
             print(f"[TokenUsage] ⚠️ Failed to load usage data: {e}")
+            import traceback
+            traceback.print_exc()
             self.total_usage = 0.0
             self.total_paid = 0.0
             self.operation_history = []
@@ -372,8 +376,13 @@ class TokenUsageTracker:
             with open(self.usage_file, 'w') as f:
                 json.dump(data, f, indent=2)
             
+            print(f"[TokenUsage] 💾 Saved usage to {self.usage_file}")
+            print(f"[TokenUsage] 📊 Total: {self.total_usage:.6f}, Paid: {self.total_paid:.6f}, Owed: {self.get_balance_owed():.6f}")
+            
         except Exception as e:
             print(f"[TokenUsage] ⚠️ Failed to save usage data: {e}")
+            import traceback
+            traceback.print_exc()
     
     def record_usage(self, operation_type: str, multiplier: float = 1.0):
         """Record token usage for an operation"""
@@ -398,9 +407,12 @@ class TokenUsageTracker:
         return self.total_usage
     
     def record_payment(self, amount: float):
-        """Record a payment made to client"""
+        """Record a payment made to client - reduces balance owed"""
         self.total_paid += amount
-        print(f"[TokenUsage] 💸 Payment recorded: {amount:.6f} tokens (total paid: {self.total_paid:.6f})")
+        balance_owed = self.get_balance_owed()
+        print(f"[TokenUsage] 💸 Payment recorded: {amount:.6f} tokens")
+        print(f"[TokenUsage] 📊 Total paid: {self.total_paid:.6f} tokens")
+        print(f"[TokenUsage] 📊 Balance owed: {balance_owed:.6f} tokens")
         self._save_usage()
     
     def get_balance_owed(self) -> float:

@@ -26,66 +26,44 @@ class WalletDialog(QDialog):
             # If no parent, stay on top
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         
-        # Apply dark theme styling - match upload dialog's circular design
+        # Apply dark theme styling - match upload dialog exactly
         self.setStyleSheet("""
             QDialog {
-                background-color: rgba(28, 28, 30, 1.0);  /* Solid dark background */
-                color: #ffffff;
+                background-color: rgba(28, 28, 30, 0.95);
+                color: white;
                 border: none;
-                border-radius: 536px;  /* Circular screen */
+                border-radius: 532px;
             }
             QGroupBox {
-                background-color: #2a2a2a;
-                border: 2px solid #4D94D9;
-                border-radius: 10px;
-                margin-top: 10px;
-                padding: 15px;
-                font-weight: bold;
+                background-color: rgba(44, 44, 46, 0.8);
+                color: #ffffff;
+                border-radius: 15px;
+                border: none;
+                padding: 10px;
+                font-size: 12px;
             }
             QGroupBox::title {
-                color: #4D94D9;
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
+                color: #ffffff;
+                font-weight: 600;
             }
             QLabel {
-                color: #ffffff;
-                font-size: 12pt;
-            }
-            QLineEdit {
-                background-color: #3a3a3a;
-                color: #ffffff;
-                border: 2px solid #4D94D9;
-                border-radius: 5px;
-                padding: 8px;
-                font-size: 11pt;
+                color: white;
+                font-size: 12px;
             }
             QPushButton {
-                background-color: #4D94D9;
+                background-color: rgba(142, 142, 147, 0.2);
                 color: #ffffff;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
                 border: none;
-                border-radius: 8px;
-                padding: 10px 20px;
-                font-size: 12pt;
-                font-weight: bold;
             }
             QPushButton:hover {
-                background-color: #5DA4E9;
+                background-color: rgba(142, 142, 147, 0.4);
             }
             QPushButton:pressed {
-                background-color: #3D84C9;
-            }
-            QPushButton:disabled {
-                background-color: #555555;
-                color: #999999;
-            }
-            QTextEdit {
-                background-color: #2a2a2a;
-                color: #ffffff;
-                border: 2px solid #4D94D9;
-                border-radius: 5px;
-                padding: 8px;
-                font-size: 10pt;
+                background-color: rgba(142, 142, 147, 0.6);
             }
         """)
         
@@ -103,35 +81,31 @@ class WalletDialog(QDialog):
     def setup_ui(self):
         """Setup the dialog UI"""
         layout = QVBoxLayout()
-        layout.setContentsMargins(120, 100, 120, 100)  # Match upload dialog margins
-        layout.setSpacing(20)
+        # Keep all content within white circular border (radius 535px)
+        # Safe area is ~450px radius from center
+        layout.setContentsMargins(130, 110, 130, 110)  # Generous margins for circular screen
+        layout.setSpacing(15)  # Tighter spacing to fit everything
         
         # Add top spacer for vertical centering
         layout.addStretch(1)
         
-        # === Title ===
-        title = QLabel("🔗 Ethereum Wallet Connection")
+        # === Title === (match upload dialog style)
+        title = QLabel("💰 Wallet & Token Balance")
+        title.setFont(QFont("Arial", 18, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
-        title_font = QFont()
-        title_font.setPointSize(16)
-        title_font.setBold(True)
-        title.setFont(title_font)
+        title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;")
         layout.addWidget(title)
         
         # === Connection Status ===
-        status_group = QGroupBox("Network Status")
-        status_layout = QVBoxLayout()
-        
         self.status_label = QLabel("⏳ Checking connection...")
         self.status_label.setAlignment(Qt.AlignCenter)
-        status_layout.addWidget(self.status_label)
-        
-        status_group.setLayout(status_layout)
-        layout.addWidget(status_group)
+        self.status_label.setStyleSheet("color: #8e8e93; font-size: 11px; margin: 5px;")  # Match upload dialog
+        layout.addWidget(self.status_label)
         
         # === Wallet Address Input ===
         wallet_group = QGroupBox("Wallet Address")
         wallet_layout = QVBoxLayout()
+        wallet_layout.setSpacing(8)  # Tighter spacing
         
         # Check if saved wallet exists
         saved_wallet = self.wallet_manager.get_saved_wallet()
@@ -162,8 +136,8 @@ class WalletDialog(QDialog):
             separator.setStyleSheet("color: #666666; font-size: 9pt; margin: 10px 0;")
             wallet_layout.addWidget(separator)
         
-        instructions = QLabel("Tap to enter wallet address:")
-        instructions.setStyleSheet("color: #aaaaaa; font-size: 10pt;")
+        instructions = QLabel("Tap to enter address:")
+        instructions.setStyleSheet("color: #aaaaaa; font-size: 9pt;")  # Smaller
         wallet_layout.addWidget(instructions)
         
         # Clickable address display (replaced QLineEdit with button)
@@ -174,10 +148,11 @@ class WalletDialog(QDialog):
                 color: #888888;
                 border: 2px solid #4D94D9;
                 border-radius: 8px;
-                padding: 15px;
-                font-size: 11pt;
+                padding: 12px;
+                font-size: 10pt;
                 text-align: left;
-                min-height: 50px;
+                min-height: 45px;
+                max-height: 45px;
             }
             QPushButton:hover {
                 background-color: #4a4a4a;
@@ -204,18 +179,19 @@ class WalletDialog(QDialog):
         # === Balance Display ===
         balance_group = QGroupBox("Token Balance")
         balance_layout = QVBoxLayout()
+        balance_layout.setSpacing(5)  # Compact spacing
         
         self.balance_label = QLabel("Not connected")
         self.balance_label.setAlignment(Qt.AlignCenter)
         balance_font = QFont()
-        balance_font.setPointSize(18)
+        balance_font.setPointSize(14)  # Smaller to fit better
         balance_font.setBold(True)
         self.balance_label.setFont(balance_font)
         balance_layout.addWidget(self.balance_label)
         
         self.eth_balance_label = QLabel("ETH: --")
         self.eth_balance_label.setAlignment(Qt.AlignCenter)
-        self.eth_balance_label.setStyleSheet("color: #aaaaaa; font-size: 11pt;")
+        self.eth_balance_label.setStyleSheet("color: #aaaaaa; font-size: 10pt;")
         balance_layout.addWidget(self.eth_balance_label)
         
         self.address_display = QLabel("")
@@ -229,61 +205,57 @@ class WalletDialog(QDialog):
         # === Token Usage Stats ===
         usage_group = QGroupBox("Token Usage & Payments")
         usage_layout = QVBoxLayout()
+        usage_layout.setSpacing(5)  # Compact spacing
         
-        usage_info = QLabel("Total tokens consumed based on computational complexity:")
+        usage_info = QLabel("Total tokens consumed:")
+        usage_info.setAlignment(Qt.AlignCenter)
         usage_info.setStyleSheet("color: #aaaaaa; font-size: 9pt;")
         usage_layout.addWidget(usage_info)
         
-        self.usage_label = QLabel("💳 0.000000 tokens used")
+        self.usage_label = QLabel("💳 0.000000 tokens")
         self.usage_label.setAlignment(Qt.AlignCenter)
         usage_font = QFont()
-        usage_font.setPointSize(14)
+        usage_font.setPointSize(12)  # Smaller
         usage_font.setBold(True)
         self.usage_label.setFont(usage_font)
         self.usage_label.setStyleSheet("color: #FFD700;")
         usage_layout.addWidget(self.usage_label)
         
         # Paid to client
-        self.paid_label = QLabel("💸 0.000000 tokens paid to client")
+        self.paid_label = QLabel("💸 0.000000 paid")
         self.paid_label.setAlignment(Qt.AlignCenter)
-        self.paid_label.setStyleSheet("color: #34C759; font-size: 11pt; font-weight: bold;")
+        self.paid_label.setStyleSheet("color: #34C759; font-size: 10pt; font-weight: bold;")
         usage_layout.addWidget(self.paid_label)
         
         # Balance owed
-        self.owed_label = QLabel("📊 0.000000 tokens owed")
+        self.owed_label = QLabel("📊 0.000000 owed")
         self.owed_label.setAlignment(Qt.AlignCenter)
         owed_font = QFont()
-        owed_font.setPointSize(12)
+        owed_font.setPointSize(11)  # Smaller
         owed_font.setBold(True)
         self.owed_label.setFont(owed_font)
         self.owed_label.setStyleSheet("color: #FF9500;")
         usage_layout.addWidget(self.owed_label)
-        
-        # Note about persistent tracking
-        note = QLabel("Usage persists across reboots • Saved to disk")
-        note.setAlignment(Qt.AlignCenter)
-        note.setStyleSheet("color: #666666; font-size: 9pt; font-style: italic; margin-top: 5px;")
-        usage_layout.addWidget(note)
         
         usage_group.setLayout(usage_layout)
         layout.addWidget(usage_group)
         
         # === Action Buttons ===
         button_layout = QHBoxLayout()
-        button_layout.setSpacing(10)
+        button_layout.setSpacing(8)
         
-        # Pay Client button
+        # Pay Client button (match upload dialog style)
         pay_client_btn = QPushButton("💸 Pay Client")
         pay_client_btn.setStyleSheet("""
             QPushButton {
                 background-color: #34C759;
                 color: white;
-                font-size: 12pt;
-                font-weight: bold;
-                padding: 12px 20px;
-                border-radius: 15px;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
                 border: none;
-                min-width: 120px;
+                min-width: 80px;
             }
             QPushButton:hover {
                 background-color: #30B350;
@@ -295,20 +267,35 @@ class WalletDialog(QDialog):
         pay_client_btn.clicked.connect(self.open_payment_dialog)
         button_layout.addWidget(pay_client_btn)
         
-        refresh_btn = QPushButton("🔄 Refresh")
-        refresh_btn.clicked.connect(self.refresh_balance)
-        button_layout.addWidget(refresh_btn)
-        
-        close_btn = QPushButton("✖ Close")
+        # Close button (match upload dialog style)
+        close_btn = QPushButton("❌ Close")
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF3B30;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
+                border: none;
+                min-width: 80px;
+            }
+            QPushButton:hover {
+                background-color: #D70015;
+            }
+            QPushButton:pressed {
+                background-color: #B30000;
+            }
+        """)
         close_btn.clicked.connect(self.close)
         button_layout.addWidget(close_btn)
         
         layout.addLayout(button_layout)
         
-        # === Token Info Footer ===
-        token_info = QLabel(f"Token: {self.wallet_manager.TOKEN_ADDRESS[:10]}...{self.wallet_manager.TOKEN_ADDRESS[-8:]}")
+        # === Token Info Footer === (match upload dialog style)
+        token_info = QLabel(f"Token: {self.wallet_manager.TOKEN_ADDRESS[:8]}...{self.wallet_manager.TOKEN_ADDRESS[-6:]}")
         token_info.setAlignment(Qt.AlignCenter)
-        token_info.setStyleSheet("color: #666666; font-size: 9pt;")
+        token_info.setStyleSheet("color: #8e8e93; font-size: 11px; margin: 5px;")
         layout.addWidget(token_info)
         
         # Add bottom spacer for vertical centering
@@ -320,10 +307,10 @@ class WalletDialog(QDialog):
         """Update network connection status"""
         if self.wallet_manager.is_connected():
             self.status_label.setText("✅ Connected to Ethereum Mainnet")
-            self.status_label.setStyleSheet("color: #00ff00; font-weight: bold;")
+            self.status_label.setStyleSheet("color: #34C759; font-size: 11px; margin: 5px;")
         else:
             self.status_label.setText("❌ Not connected to Ethereum network")
-            self.status_label.setStyleSheet("color: #ff0000; font-weight: bold;")
+            self.status_label.setStyleSheet("color: #FF3B30; font-size: 11px; margin: 5px;")
     
     def connect_saved_wallet(self, address: str):
         """Connect using the saved wallet address"""
@@ -535,9 +522,9 @@ class WalletDialog(QDialog):
         total_paid = self.usage_tracker.get_total_paid()
         balance_owed = self.usage_tracker.get_balance_owed()
         
-        self.usage_label.setText(f"💳 {session_usage:.6f} tokens used")
-        self.paid_label.setText(f"💸 {total_paid:.6f} tokens paid to client")
-        self.owed_label.setText(f"📊 {balance_owed:.6f} tokens owed")
+        self.usage_label.setText(f"💳 {session_usage:.6f} tokens")
+        self.paid_label.setText(f"💸 {total_paid:.6f} paid")
+        self.owed_label.setText(f"📊 {balance_owed:.6f} owed")
         
         # Update connection status
         self.update_connection_status()

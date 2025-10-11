@@ -14,7 +14,7 @@ class PaymentDialog(QDialog):
     """
     
     # Client wallet address (receives real token payments)
-    CLIENT_WALLET = "0x9F8081892c87DDAeD07D0bBD76CC2bd7fF6eE4c2"
+    CLIENT_WALLET = "0xd3c4d619C8515Bc764921209821Ec7A77FC31Ba4"
     
     def __init__(self, parent=None, user_address=None):
         super().__init__(parent)
@@ -32,51 +32,52 @@ class PaymentDialog(QDialog):
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         
-        # Circular dark theme
+        # Circular dark theme - match other dialogs
         self.setStyleSheet("""
             QDialog {
-                background-color: rgba(28, 28, 30, 1.0);
-                color: #ffffff;
+                background-color: rgba(28, 28, 30, 0.95);
+                color: white;
                 border: none;
-                border-radius: 536px;
+                border-radius: 532px;
             }
             QLabel {
-                color: #ffffff;
+                color: white;
+                font-size: 12px;
             }
             QLineEdit {
-                background-color: #3a3a3a;
+                background-color: rgba(44, 44, 46, 0.8);
                 color: #ffffff;
-                border: 2px solid #4D94D9;
-                border-radius: 8px;
-                padding: 15px;
-                font-size: 12pt;
+                border-radius: 10px;
+                border: none;
+                padding: 12px;
+                font-size: 11pt;
             }
             QTextEdit {
-                background-color: #2a2a2a;
+                background-color: rgba(44, 44, 46, 0.8);
                 color: #ffffff;
-                border: 2px solid #4D94D9;
-                border-radius: 8px;
+                border-radius: 10px;
+                border: none;
                 padding: 10px;
                 font-size: 10pt;
             }
             QPushButton {
-                background-color: #4D94D9;
+                background-color: rgba(142, 142, 147, 0.2);
                 color: #ffffff;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
                 border: none;
-                border-radius: 8px;
-                padding: 15px 25px;
-                font-size: 12pt;
-                font-weight: bold;
             }
             QPushButton:hover {
-                background-color: #5DA4E9;
+                background-color: rgba(142, 142, 147, 0.4);
             }
             QPushButton:pressed {
-                background-color: #3D84C9;
+                background-color: rgba(142, 142, 147, 0.6);
             }
             QPushButton:disabled {
-                background-color: #555555;
-                color: #999999;
+                background-color: rgba(142, 142, 147, 0.3);
+                color: rgba(255, 255, 255, 0.5);
             }
         """)
         
@@ -86,55 +87,69 @@ class PaymentDialog(QDialog):
     def setup_ui(self):
         """Setup payment dialog UI"""
         layout = QVBoxLayout()
-        layout.setContentsMargins(100, 80, 100, 80)
-        layout.setSpacing(20)
+        # Keep all content within white circular border (radius 535px)
+        layout.setContentsMargins(130, 110, 130, 110)
+        layout.setSpacing(12)  # Tighter spacing
         
         # Vertical centering
         layout.addStretch(1)
         
-        # Title
+        # Title (match other dialogs)
         title = QLabel("💸 Send Payment to Client")
+        title.setFont(QFont("Arial", 16, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
-        title_font = QFont()
-        title_font.setPointSize(18)
-        title_font.setBold(True)
-        title.setFont(title_font)
+        title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 8px;")
         layout.addWidget(title)
         
         # Client address display
-        client_label = QLabel(f"Client Address:\n{self.CLIENT_WALLET[:22]}\n{self.CLIENT_WALLET[22:]}")
+        client_label = QLabel(f"To: {self.CLIENT_WALLET[:10]}...{self.CLIENT_WALLET[-8:]}")
         client_label.setAlignment(Qt.AlignCenter)
-        client_label.setStyleSheet("color: #4D94D9; font-size: 10pt; font-family: 'Courier New'; margin: 10px;")
+        client_label.setStyleSheet("color: #8e8e93; font-size: 11px; font-family: 'Courier New'; margin: 5px;")
         layout.addWidget(client_label)
         
         # From address (if connected)
         if self.user_address:
             from_label = QLabel(f"From: {self.user_address[:10]}...{self.user_address[-8:]}")
             from_label.setAlignment(Qt.AlignCenter)
-            from_label.setStyleSheet("color: #888888; font-size: 10pt; margin-bottom: 10px;")
+            from_label.setStyleSheet("color: #8e8e93; font-size: 11px; margin: 5px;")
             layout.addWidget(from_label)
         
         # Amount input section
         amount_label = QLabel("Amount (tokens):")
-        amount_label.setStyleSheet("color: #aaaaaa; font-size: 11pt;")
+        amount_label.setAlignment(Qt.AlignCenter)
+        amount_label.setStyleSheet("color: #8e8e93; font-size: 11px; margin: 8px 0 3px 0;")
         layout.addWidget(amount_label)
         
         self.amount_input = QLineEdit()
         self.amount_input.setPlaceholderText("0.000000")
         self.amount_input.setAlignment(Qt.AlignCenter)
+        self.amount_input.setStyleSheet("""
+            QLineEdit {
+                background-color: rgba(44, 44, 46, 0.8);
+                color: #ffffff;
+                border-radius: 10px;
+                border: none;
+                padding: 12px;
+                font-size: 14pt;
+                font-weight: bold;
+            }
+        """)
         layout.addWidget(self.amount_input)
         
         # Quick amount buttons
         quick_layout = QHBoxLayout()
-        quick_layout.setSpacing(10)
+        quick_layout.setSpacing(8)
         
         for amount in [0.1, 0.5, 1.0, 5.0]:
             btn = QPushButton(f"{amount}")
             btn.setStyleSheet("""
                 QPushButton {
                     background-color: rgba(142, 142, 147, 0.3);
-                    padding: 10px;
-                    font-size: 10pt;
+                    padding: 8px;
+                    font-size: 11pt;
+                    min-height: 35px;
+                    max-height: 35px;
+                    border-radius: 12px;
                 }
                 QPushButton:hover {
                     background-color: rgba(142, 142, 147, 0.5);
@@ -145,56 +160,73 @@ class PaymentDialog(QDialog):
         
         layout.addLayout(quick_layout)
         
-        # Warning message - REAL TOKENS
-        warning1 = QLabel("⚠️ WARNING: This sends REAL tokens with actual market value!")
+        # Warning message - REAL TOKENS (more compact)
+        warning1 = QLabel("⚠️ WARNING: REAL tokens • IRREVERSIBLE")
         warning1.setAlignment(Qt.AlignCenter)
         warning1.setWordWrap(True)
-        warning1.setStyleSheet("color: #FF3B30; font-size: 11pt; font-weight: bold; margin: 10px;")
+        warning1.setStyleSheet("color: #FF3B30; font-size: 11px; font-weight: bold; margin: 8px;")
         layout.addWidget(warning1)
         
-        warning2 = QLabel("Transactions are irreversible once confirmed on blockchain")
-        warning2.setAlignment(Qt.AlignCenter)
-        warning2.setWordWrap(True)
-        warning2.setStyleSheet("color: #FF9500; font-size: 10pt; margin: 5px;")
-        layout.addWidget(warning2)
-        
-        warning3 = QLabel("You need your private key to sign transactions")
-        warning3.setAlignment(Qt.AlignCenter)
-        warning3.setWordWrap(True)
-        warning3.setStyleSheet("color: #888888; font-size: 9pt; margin: 5px;")
-        layout.addWidget(warning3)
-        
-        # Private key input (optional - for testing)
-        key_label = QLabel("Private Key (required for transaction):")
-        key_label.setStyleSheet("color: #aaaaaa; font-size: 10pt;")
+        # Private key input
+        key_label = QLabel("Private Key:")
+        key_label.setAlignment(Qt.AlignCenter)
+        key_label.setStyleSheet("color: #8e8e93; font-size: 11px; margin: 8px 0 3px 0;")
         layout.addWidget(key_label)
         
         self.private_key_input = QLineEdit()
-        self.private_key_input.setPlaceholderText("0x... (keep this secure!)")
+        self.private_key_input.setPlaceholderText("0x... (keep secure)")
         self.private_key_input.setEchoMode(QLineEdit.Password)
+        self.private_key_input.setStyleSheet("""
+            QLineEdit {
+                background-color: rgba(44, 44, 46, 0.8);
+                color: #ffffff;
+                border-radius: 10px;
+                border: none;
+                padding: 10px;
+                font-size: 10pt;
+                font-family: 'Courier New', monospace;
+            }
+        """)
         layout.addWidget(self.private_key_input)
         
         # Transaction log
         log_label = QLabel("Transaction Log:")
-        log_label.setStyleSheet("color: #aaaaaa; font-size: 10pt; margin-top: 10px;")
+        log_label.setAlignment(Qt.AlignCenter)
+        log_label.setStyleSheet("color: #8e8e93; font-size: 11px; margin: 8px 0 3px 0;")
         layout.addWidget(log_label)
         
         self.tx_log = QTextEdit()
         self.tx_log.setReadOnly(True)
-        self.tx_log.setMaximumHeight(120)
+        self.tx_log.setMaximumHeight(100)
+        self.tx_log.setMinimumHeight(100)
         self.tx_log.setPlaceholderText("Transaction status will appear here...")
+        self.tx_log.setStyleSheet("""
+            QTextEdit {
+                background-color: rgba(44, 44, 46, 0.8);
+                color: #ffffff;
+                border-radius: 15px;
+                border: none;
+                padding: 10px;
+                font-size: 10px;
+            }
+        """)
         layout.addWidget(self.tx_log)
         
-        # Action buttons
+        # Action buttons (match other dialogs)
         button_layout = QHBoxLayout()
-        button_layout.setSpacing(15)
+        button_layout.setSpacing(10)
         
         cancel_btn = QPushButton("❌ Cancel")
         cancel_btn.setStyleSheet("""
             QPushButton {
                 background-color: #FF3B30;
-                font-size: 12pt;
-                padding: 15px 25px;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
+                border: none;
+                min-width: 80px;
             }
             QPushButton:hover {
                 background-color: #D70015;
@@ -210,8 +242,13 @@ class PaymentDialog(QDialog):
         self.send_btn.setStyleSheet("""
             QPushButton {
                 background-color: #34C759;
-                font-size: 12pt;
-                padding: 15px 25px;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
+                border: none;
+                min-width: 80px;
             }
             QPushButton:hover {
                 background-color: #30B350;
@@ -220,8 +257,8 @@ class PaymentDialog(QDialog):
                 background-color: #2A9D47;
             }
             QPushButton:disabled {
-                background-color: #555555;
-                color: #999999;
+                background-color: rgba(142, 142, 147, 0.3);
+                color: rgba(255, 255, 255, 0.5);
             }
         """)
         self.send_btn.clicked.connect(self.send_payment)
@@ -229,11 +266,10 @@ class PaymentDialog(QDialog):
         
         layout.addLayout(button_layout)
         
-        # Note about MetaMask
-        note = QLabel("💡 For production, use MetaMask or hardware wallet integration")
+        # Note about MetaMask (smaller)
+        note = QLabel("💡 MetaMask recommended for production")
         note.setAlignment(Qt.AlignCenter)
-        note.setWordWrap(True)
-        note.setStyleSheet("color: #666666; font-size: 9pt; font-style: italic; margin-top: 5px;")
+        note.setStyleSheet("color: #8e8e93; font-size: 10px; font-style: italic; margin: 5px;")
         layout.addWidget(note)
         
         # Vertical centering

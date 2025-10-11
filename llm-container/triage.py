@@ -526,6 +526,83 @@ def classify_response(cond: str, flags: Dict[str, Any]) -> str:
 
 # === Recap Generation ===
 
+def generate_llm_response(prompt: str, max_tokens: int = 150, temperature: float = 0.3) -> str:
+    """Generate response using the LLM (imported from container_rest)"""
+    # Import here to avoid circular dependency
+    from container_rest import llm, llm_lock
+    
+    try:
+        with llm_lock:
+            response = llm.create_chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_tokens,
+                temperature=temperature,
+                stream=False
+            )
+            return response['choices'][0]['message']['content'].strip()
+    except Exception as e:
+        print(f"[Triage] ❌ LLM generation failed: {e}")
+        return ""
+
+def build_recap_llm(cond: str, answers: List[str], flags: Dict[str, Any], severity: str, session_id: str = None) -> str:
+    """Use LLM to generate clean triage summary guided by JSON templates"""
+    
+    state = load_state(session_id)
+    steps = get_steps(cond, state)
+    
+    # Build Q&A conversation
+    qa_pairs = []
+    for step, answer in zip(steps, answers):
+        if isinstance(step, dict) and answer:
+            question = step.get("question", "")
+            qa_pairs.append(f"Q: {question}\nA: {answer}")
+    
+    conversation = "\n".join(qa_pairs)
+    
+    # Get clinical guidance from JSON
+    clinical_summary = TRIAGE_DEFS[cond].get("clinical_summary", "")
+    
+    # Get pathway-specific summary if applicable
+    if state.get("active_pathway") and "pathways" in TRIAGE_DEFS[cond]:
+        pathway = TRIAGE_DEFS[cond]["pathways"][state["active_pathway"]]
+        pathway_summary = pathway.get("clinical_summary", "")
+        if pathway_summary:
+            clinical_summary = pathway_summary
+    
+    # Create summarization prompt
+    prompt = f"""Based on this medical triage conversation, write a concise 2-3 sentence summary:
+
+{conversation}
+
+Clinical Context: {clinical_summary}
+Severity: {severity}
+
+Write a professional summary that:
+1. States what the patient reported (symptoms, timing, characteristics)
+2. Notes any important negative findings (what they denied)
+3. Keeps it brief and clear
+
+Summary:"""
+    
+    # Generate summary using LLM
+    summary = generate_llm_response(
+        prompt=prompt,
+        temperature=0.3,  # Low temperature for consistency
+        max_tokens=150
+    )
+    
+    # Fallback to clinical summary if LLM fails
+    if not summary or len(summary) < 10:
+        print("[Triage] ⚠️ LLM summary failed, using fallback")
+        summary = f"You reported {cond.replace('_', ' ')}. {clinical_summary}"
+    
+    # Clean up the summary
+    summary = summary.strip()
+    if summary.startswith('"') and summary.endswith('"'):
+        summary = summary[1:-1]
+    
+    return summary
+
 def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: str, session_id: str = None) -> str:
     """Build comprehensive SOAP-style recap"""
     state = load_state(session_id)
@@ -867,8 +944,8 @@ def generate_triage_completion(state: Dict[str, Any], session_id: str) -> str:
     # Classify severity
     severity = classify_response(condition, flags)
     
-    # Build recap
-    recap = build_recap(condition, answers, flags, severity, session_id)
+    # Build recap using LLM (cleaner output than template assembly)
+    recap = build_recap_llm(condition, answers, flags, severity, session_id)
     
     # Get outcome
     active_pathway = state.get("active_pathway")
