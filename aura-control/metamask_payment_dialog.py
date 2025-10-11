@@ -332,8 +332,9 @@ class MetaMaskPaymentDialog(QDialog):
         print(f"[MetaMask]    To: {self.CLIENT_WALLET}")
         print(f"[MetaMask]    Amount: {amount} tokens ({amount_wei} wei)")
         
-        # Correct MetaMask mobile deep link format for ERC-20 tokens:
-        # https://metamask.app.link/send/{token_address}@{chain_id}/transfer?address={recipient}&uint256={amount}
+        # Build ERC-20 transfer calldata
+        # Function signature: transfer(address,uint256)
+        function_sig = "0xa9059cbb"
         
         # Encode recipient (32 bytes, left-padded)
         recipient_padded = self.CLIENT_WALLET[2:].lower().zfill(64)
