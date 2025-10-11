@@ -401,6 +401,19 @@ class TokenUsageTracker:
                     print(f"[TokenUsage] 📊 Balance owed: {self.get_balance_owed():.6f} tokens")
             else:
                 print(f"[TokenUsage] 🆕 Starting fresh usage tracking at {self.usage_file}")
+        except json.JSONDecodeError as e:
+            print(f"[TokenUsage] ⚠️ Corrupted JSON file: {e}")
+            print(f"[TokenUsage] 🔧 Creating fresh usage file...")
+            # Backup corrupted file
+            if os.path.exists(self.usage_file):
+                backup_file = self.usage_file + '.backup'
+                os.rename(self.usage_file, backup_file)
+                print(f"[TokenUsage] 💾 Backed up to: {backup_file}")
+            # Start fresh
+            self.total_usage = 0.0
+            self.total_paid = 0.0
+            self.operation_history = []
+            self._save_usage()  # Create clean file
         except Exception as e:
             print(f"[TokenUsage] ⚠️ Failed to load usage data: {e}")
             import traceback
@@ -410,21 +423,26 @@ class TokenUsageTracker:
             self.operation_history = []
     
     def _save_usage(self):
-        """Save usage data to file"""
+        """Save usage data to file with corruption prevention"""
         try:
             # Ensure directory exists
             os.makedirs(os.path.dirname(self.usage_file), exist_ok=True)
             
             # Save to file
             data = {
-                'total_usage': self.total_usage,
-                'total_paid': self.total_paid,
+                'total_usage': float(self.total_usage),  # Ensure JSON-serializable
+                'total_paid': float(self.total_paid),
                 'operation_history': self.operation_history[-100:],  # Keep last 100 operations
                 'client_wallet': self.client_wallet
             }
             
-            with open(self.usage_file, 'w') as f:
-                json.dump(data, f, indent=2)
+            # Write to temporary file first, then rename (atomic operation)
+            temp_file = self.usage_file + '.tmp'
+            with open(temp_file, 'w') as f:
+                json.dump(data, f, indent=2, ensure_ascii=True)
+            
+            # Atomic rename (prevents corruption if interrupted)
+            os.replace(temp_file, self.usage_file)
             
             print(f"[TokenUsage] 💾 Saved usage to {self.usage_file}")
             print(f"[TokenUsage] 📊 Total: {self.total_usage:.6f}, Paid: {self.total_paid:.6f}, Owed: {self.get_balance_owed():.6f}")

@@ -31,8 +31,9 @@ prompt_history = []
 # Benefits: 
 #   - No missed speech during refresh
 #   - Only refreshes when actually frozen
-#   - ~0.5 second detection time (15 frames × 32ms = 0.48s)
-VAD_FREEZE_THRESHOLD = 15  # Consecutive 0.00 frames with RMS > 0.01 (faster detection)
+#   - VAD primed after refresh for immediate responsiveness
+#   - ~0.3 second detection time (10 frames × 32ms = 0.32s)
+VAD_FREEZE_THRESHOLD = 10  # Consecutive 0.00 frames with RMS > 0.01 (very fast detection)
 vad_zero_count = 0
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
@@ -128,6 +129,26 @@ def transcribe(audio):
         print(f"[Whisper] ❌ {e}")
         return ""
 
+def warmup_whisper():
+    """Warm up Whisper model with dummy audio to trigger PyTorch JIT compilation"""
+    print("[Whisper] 🔥 Warming up model (PyTorch JIT compilation)...")
+    try:
+        # Generate 1 second of silence
+        dummy_audio = np.zeros(SAMPLE_RATE, dtype=np.float32)
+        
+        wav_io = io.BytesIO()
+        sf.write(wav_io, dummy_audio, SAMPLE_RATE, format="WAV")
+        wav_io.seek(0)
+        
+        response = requests.post(
+            "http://localhost:5000/transcribe",
+            files={"audio": ("warmup.wav", wav_io, "audio/wav")},
+            timeout=10
+        )
+        print("[Whisper] ✅ Model warmed up - first transcription will be fast!")
+    except Exception as e:
+        print(f"[Whisper] ⚠️ Warmup failed: {e}")
+
 # === Send to LLM ===
 def send_to_llm(text):
     global prompt_history
@@ -181,7 +202,10 @@ def listen():
     config = load_respeaker_config()
     display_hardware_config(config)
     
-    print("="*70)
+    # Warm up Whisper model (eliminates slow first transcription)
+    warmup_whisper()
+    
+    print("\n" + "="*70)
     print("[Audio] BARE-BONES PIPELINE")
     print("[Audio]   Hardware DSP → Channel 0 → VAD → Whisper")
     print("[Audio]   (Configure: sudo python3 scripts/tune_respeaker.py [profile])")
@@ -281,15 +305,20 @@ def listen():
                         time.sleep(0.3)  # Longer pause for full reset
                         stream.start()
                         
-                        # Aggressive buffer flush (10 frames ~0.3s)
-                        for _ in range(10):
+                        # Aggressive buffer flush AND VAD warmup (10 frames ~0.3s)
+                        print("[Listener] 🔥 Priming VAD model...")
+                        for i in range(10):
                             try:
-                                stream.read(FRAME_SIZE)
+                                audio_block_warmup, _ = stream.read(FRAME_SIZE)
+                                # Prime VAD on each frame
+                                ch = audio_block_warmup[:, 0]
+                                if ch.size >= 512:
+                                    _ = model_vad(torch.from_numpy(ch), SAMPLE_RATE).item()
                             except:
                                 break
                         
                         vad_zero_count = 0
-                        print("[Listener] ✅ Stream reset complete")
+                        print("[Listener] ✅ Stream reset + VAD primed")
                         continue
                 else:
                     vad_zero_count = 0  # Reset counter if VAD responds
