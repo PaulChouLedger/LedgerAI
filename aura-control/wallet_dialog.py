@@ -92,9 +92,9 @@ class WalletDialog(QDialog):
         # Add top spacer for vertical centering
         layout.addStretch(1)
         
-        # === Title === (match upload dialog style)
+        # === Title === (larger for visibility)
         title = QLabel("💰 Wallet & Token Balance")
-        title.setFont(QFont("Arial", 18, QFont.Bold))
+        title.setFont(QFont("Arial", 22, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;")
         layout.addWidget(title)
@@ -103,7 +103,7 @@ class WalletDialog(QDialog):
         self.status_label = QLabel("⏳ Checking connection...")
         self.status_label.setAlignment(Qt.AlignCenter)
         status_font = QFont()
-        status_font.setPointSize(11)
+        status_font.setPointSize(13)  # Bigger for visibility
         status_font.setBold(True)
         self.status_label.setFont(status_font)
         layout.addWidget(self.status_label)
@@ -501,6 +501,10 @@ class WalletDialog(QDialog):
         if not self.wallet_manager.connected_address:
             return
         
+        # Show loading state
+        self.balance_label.setText("⏳ Loading balance...")
+        self.balance_label.setStyleSheet("color: #8e8e93;")
+        
         wallet_info = self.wallet_manager.get_wallet_info()
         
         if wallet_info['connected']:
@@ -511,8 +515,11 @@ class WalletDialog(QDialog):
                 self.balance_label.setText(f"💰 {token_balance:.6f} {token_symbol}")
                 self.balance_label.setStyleSheet("color: #00ff00;")
             else:
-                self.balance_label.setText("❌ Error fetching balance")
-                self.balance_label.setStyleSheet("color: #ff0000;")
+                # RPC error - suggest upgrading to better provider
+                self.balance_label.setText("⚠️ RPC Error - Click Refresh")
+                self.balance_label.setStyleSheet("color: #FF9500;")
+                self.address_display.setText("💡 Tip: Set INFURA_URL for reliable access")
+                self.address_display.setStyleSheet("color: #8e8e93; font-size: 9pt;")
             
             # Display ETH balance
             eth_balance = wallet_info.get('eth_balance')

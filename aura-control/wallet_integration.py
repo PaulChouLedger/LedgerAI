@@ -213,7 +213,7 @@ class WalletManager:
             return False
     
     def get_token_balance(self, address: Optional[str] = None) -> Optional[float]:
-        """Get token balance for an address"""
+        """Get token balance for an address with retry logic"""
         try:
             if not self.is_connected():
                 print("[Wallet] ❌ Not connected to Ethereum network")
@@ -232,22 +232,40 @@ class WalletManager:
             # Ensure checksum format
             target_address = Web3.to_checksum_address(target_address)
             
-            # Get balance in smallest unit
-            balance_wei = self.token_contract.functions.balanceOf(target_address).call()
+            # Retry up to 3 times for balance query
+            for attempt in range(3):
+                try:
+                    # Get balance in smallest unit
+                    balance_wei = self.token_contract.functions.balanceOf(target_address).call()
+                    
+                    # Convert to human-readable format
+                    decimals = self.token_info.get('decimals', 18)
+                    balance = balance_wei / (10 ** decimals)
+                    
+                    print(f"[Wallet] 💰 Balance: {balance:.6f} {self.token_info.get('symbol', 'tokens')}")
+                    return balance
+                    
+                except Exception as e:
+                    if attempt < 2:
+                        print(f"[Wallet] ⚠️ Balance query attempt {attempt + 1} failed: {e}, retrying...")
+                        import time
+                        time.sleep(1)  # Wait 1 second before retry
+                    else:
+                        raise  # Re-raise on final attempt
             
-            # Convert to human-readable format
-            decimals = self.token_info.get('decimals', 18)
-            balance = balance_wei / (10 ** decimals)
-            
-            print(f"[Wallet] 💰 Balance: {balance:.6f} {self.token_info.get('symbol', 'tokens')}")
-            return balance
+            return None
             
         except Exception as e:
-            print(f"[Wallet] ❌ Balance query error: {e}")
+            error_msg = str(e)
+            if 'Internal error' in error_msg or '-32603' in error_msg:
+                print(f"[Wallet] ⚠️ RPC provider error (rate limit or connection issue)")
+                print(f"[Wallet] 💡 Consider setting up Infura or Alchemy for reliable access")
+            else:
+                print(f"[Wallet] ❌ Balance query error: {e}")
             return None
     
     def get_eth_balance(self, address: Optional[str] = None) -> Optional[float]:
-        """Get ETH balance for an address"""
+        """Get ETH balance for an address with retry logic"""
         try:
             if not self.is_connected():
                 return None
@@ -257,13 +275,30 @@ class WalletManager:
                 return None
             
             target_address = Web3.to_checksum_address(target_address)
-            balance_wei = self.w3.eth.get_balance(target_address)
-            balance_eth = self.w3.from_wei(balance_wei, 'ether')
             
-            return float(balance_eth)
+            # Retry up to 3 times for ETH balance query
+            for attempt in range(3):
+                try:
+                    balance_wei = self.w3.eth.get_balance(target_address)
+                    balance_eth = self.w3.from_wei(balance_wei, 'ether')
+                    return float(balance_eth)
+                    
+                except Exception as e:
+                    if attempt < 2:
+                        print(f"[Wallet] ⚠️ ETH balance attempt {attempt + 1} failed, retrying...")
+                        import time
+                        time.sleep(1)
+                    else:
+                        raise
+            
+            return None
             
         except Exception as e:
-            print(f"[Wallet] ❌ ETH balance error: {e}")
+            error_msg = str(e)
+            if 'Internal error' in error_msg or '-32603' in error_msg:
+                print(f"[Wallet] ⚠️ RPC provider error - try again or set up Infura/Alchemy")
+            else:
+                print(f"[Wallet] ❌ ETH balance error: {e}")
             return None
     
     def get_wallet_info(self, address: Optional[str] = None) -> Dict[str, Any]:

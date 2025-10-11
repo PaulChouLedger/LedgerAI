@@ -364,7 +364,7 @@ def speak_llm_response(prompt, context=""):
             if not token:
                 continue
             
-            # Filter out Qwen3 chain-of-thought reasoning
+            # Filter out Qwen3 chain-of-thought reasoning and control tokens
             if token == '<think>':
                 in_think_block = True
                 print(f"[LLM] 🤔 <think> block started (filtering CoT reasoning)")
@@ -374,7 +374,17 @@ def speak_llm_response(prompt, context=""):
                 print(f"[LLM] ✅ </think> block ended")
                 continue
             elif in_think_block:
+                # Also exit think block if we see <sentence_end> inside it
+                if token == '<sentence_end>':
+                    in_think_block = False
+                    print(f"[LLM] ✅ </think> block ended (via <sentence_end>)")
+                    continue
                 print(f"[LLM] 🤫 (thinking: {token[:50]}...)" if len(token) > 50 else f"[LLM] 🤫 (thinking: {token})")
+                continue
+            
+            # Filter out empty control tokens
+            if token in ['<sentence_start>', '<sentence_end>']:
+                print(f"[LLM] 🏷️  {token} (control token, skipping)")
                 continue
             
             print(f"[LLM] 🧠 {token}")

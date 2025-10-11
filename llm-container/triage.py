@@ -545,6 +545,10 @@ def generate_llm_response(prompt: str, max_tokens: int = 150, temperature: float
             # Filter out Qwen3 chain-of-thought reasoning blocks
             # Remove everything between <think> and </think> tags
             content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
+            
+            # Also remove control tokens
+            content = re.sub(r'<sentence_start>|<sentence_end>', '', content)
+            
             content = content.strip()
             
             return content

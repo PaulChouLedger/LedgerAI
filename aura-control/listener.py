@@ -31,7 +31,7 @@ MIN_SPEECH_RMS = 0.008  # Filter out low-level noise (more permissive for AGC)
 #     4. sudo systemctl restart respeaker-tuning.service
 #   
 #   Available presets (see scripts/tune_respeaker.py):
-#     - clean      : HPF + Moderate AGC + Max Stationary NS - DEFAULT
+#     - clean      : HPF + Aggressive AGC + Max Stationary NS - DEFAULT
 #     - near_field : HPF + moderate AGC (0.08 RMS) - for 1-6 feet
 #     - far_field  : High AGC + noise suppression (0.03 RMS) - for 8-16 feet
 #     - reset      : Factory defaults - all OFF
@@ -49,7 +49,10 @@ prompt_history = []
 STREAM_REFRESH_INTERVAL = 30.0  # Refresh stream after 30s idle
 MAX_ACTIVE_TIME = 120.0  # Force refresh after 2 minutes even during active use
 # This prevents: 1) Stale audio after idle, 2) Buffer accumulation during heavy use,
-#                3) ALSA/hardware buffer issues, 4) VAD/PyTorch state accumulation
+#                3) ALSA/hardware buffer issues, 4) VAD/PyTorch state accumulation,
+#                5) Stationary NS losing learned noise profile
+# After refresh: VAD warmup (5 frames) + stationary NS re-learning (~0.6s)
+# IMPORTANT: VAD runs during warmup to capture speech if user starts talking
 last_activity_time = 0
 stream_start_time = 0  # Track when stream was last refreshed
 
@@ -380,30 +383,84 @@ def listen():
                 if idle_time > STREAM_REFRESH_INTERVAL:
                     print(f"\n[Listener] 🔄 Refreshing stream after {idle_time:.0f}s idle...")
                     stream.stop()
-                    time.sleep(0.1)
+                    time.sleep(0.5)  # Longer pause for hardware to stabilize
                     stream.start()
-                    # Flush stale buffer
-                    for _ in range(10):  # More aggressive
+                    
+                    # Warmup: Flush buffer AND warm up VAD + let stationary NS re-learn
+                    # IMPORTANT: Check VAD during warmup to avoid missing speech
+                    print("[Listener] 🔧 Warming up after idle (VAD + stationary NS)...")
+                    warmup_buffer = []
+                    speech_detected_during_warmup = False
+                    for i in range(20):  # ~0.6 seconds
                         try:
-                            stream.read(FRAME_SIZE)
+                            audio_block, _ = stream.read(FRAME_SIZE)
+                            channel_0 = audio_block[:, 0]
+                            
+                            # Always check VAD during warmup to avoid missing speech
+                            if channel_0.size >= 512:
+                                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
+                                # If speech detected during warmup, save it!
+                                if vad_prob > VAD_START_THRESHOLD and i >= 5:  # After first 5 frames
+                                    print(f"[Listener] 🎤 Speech detected during warmup! (VAD={vad_prob:.2f})")
+                                    warmup_buffer.append(audio_block)
+                                    speech_detected_during_warmup = True
+                                elif speech_detected_during_warmup:
+                                    warmup_buffer.append(audio_block)
                         except:
                             break
-                    print("[Listener] ✅ Stream refreshed (idle)")
+                    
+                    print("[Listener] ✅ Stream refreshed (idle) - VAD warmed, NS learning")
                     last_activity_time = time.time()
                     stream_start_time = time.time()
+                    
+                    # If speech was detected during warmup, add it to main buffer
+                    if warmup_buffer:
+                        print(f"[Listener] 📦 Adding {len(warmup_buffer)} warmup frames to buffer")
+                        buffer.extend(warmup_buffer)
+                        # Skip the "wait for speech" phase since we already have speech
+                        if speech_detected_during_warmup:
+                            print("[Listener] ⏩ Skipping wait - speech already captured")
+                            break  # Exit wait loop, go to recording phase
                 elif active_time > MAX_ACTIVE_TIME:
                     print(f"\n[Listener] 🔄 Force refreshing stream after {active_time:.0f}s active use...")
                     stream.stop()
-                    time.sleep(0.2)  # Longer pause for full reset
+                    time.sleep(0.5)  # Longer pause for full reset
                     stream.start()
-                    # Aggressive buffer flush
-                    for _ in range(15):
+                    
+                    # Warmup: Flush buffer AND warm up VAD + let stationary NS re-learn
+                    # IMPORTANT: Check VAD during warmup to avoid missing speech
+                    print("[Listener] 🔧 Warming up after active use (VAD + stationary NS)...")
+                    warmup_buffer = []
+                    speech_detected_during_warmup = False
+                    for i in range(20):  # ~0.6 seconds
                         try:
-                            stream.read(FRAME_SIZE)
+                            audio_block, _ = stream.read(FRAME_SIZE)
+                            channel_0 = audio_block[:, 0]
+                            
+                            # Always check VAD during warmup to avoid missing speech
+                            if channel_0.size >= 512:
+                                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
+                                # If speech detected during warmup, save it!
+                                if vad_prob > VAD_START_THRESHOLD and i >= 5:  # After first 5 frames
+                                    print(f"[Listener] 🎤 Speech detected during warmup! (VAD={vad_prob:.2f})")
+                                    warmup_buffer.append(audio_block)
+                                    speech_detected_during_warmup = True
+                                elif speech_detected_during_warmup:
+                                    warmup_buffer.append(audio_block)
                         except:
                             break
-                    print("[Listener] ✅ Stream force-refreshed (prevents stale buffer)")
+                    
+                    print("[Listener] ✅ Stream force-refreshed - VAD warmed, NS learning")
                     stream_start_time = time.time()
+                    
+                    # If speech was detected during warmup, add it to main buffer
+                    if warmup_buffer:
+                        print(f"[Listener] 📦 Adding {len(warmup_buffer)} warmup frames to buffer")
+                        buffer.extend(warmup_buffer)
+                        # Skip the "wait for speech" phase since we already have speech
+                        if speech_detected_during_warmup:
+                            print("[Listener] ⏩ Skipping wait - speech already captured")
+                            break  # Exit wait loop, go to recording phase
                 
                 try:
                     audio_block, _ = stream.read(FRAME_SIZE)
