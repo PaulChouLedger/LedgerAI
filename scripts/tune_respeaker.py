@@ -9,7 +9,7 @@ Usage:
     sudo python3 scripts/tune_respeaker.py [preset]
     
 Presets:
-    - clean: HPF + Stationary NS, no AGC (removes 60Hz + 599Hz noise) - DEFAULT
+    - clean: HPF only (70Hz), no AGC or NS - DEFAULT
     - far_field: Optimized for 8-16 feet (high AGC + noise suppression)
     - near_field: Optimized for 1-6 feet (moderate AGC)
     - reset: Factory defaults (all OFF)
@@ -237,25 +237,20 @@ def configure_clean():
     dev = Tuning(usb_dev)
     
     print("\n" + "="*80)
-    print("  🧹 CONFIGURING CLEAN AUDIO (HPF + Stationary NS)")
+    print("  🧹 CONFIGURING CLEAN AUDIO (HPF ONLY)")
     print("="*80 + "\n")
     
     # Enable 70Hz high-pass filter to remove 60Hz hum and low-frequency noise
-    print("[1/4] High-Pass Filter: ON (70 Hz - removes low-freq EM noise)")
+    print("[1/3] High-Pass Filter: ON (70 Hz - removes low-freq EM noise)")
     dev.write("HPFONOFF", 1)  # 1 = 70Hz cutoff
     
     # Disable AGC - no amplification
-    print("[2/4] Hardware AGC: OFF (no amplification)")
+    print("[2/3] Hardware AGC: OFF (no amplification)")
     dev.write("AGCONOFF", 0)
     
-    # Enable stationary noise suppression to remove constant tones (like 599Hz USB noise)
-    print("[3/4] Stationary Noise Suppression: ON (learns and removes constant tones)")
-    dev.write("STATNOISEONOFF_SR", 1)
-    dev.write("GAMMA_NS_SR", 2.0)  # Moderate aggressiveness (1.0-3.0, higher = more removal)
-    print("         - Aggressiveness: 2.0 (targets 60Hz, 120Hz, 568Hz, 598Hz interference)")
-    
-    # Disable other noise suppression
-    print("[4/4] Other Noise Suppression: OFF")
+    # Disable all noise suppression - rely on HPF only
+    print("[3/3] Noise Suppression: OFF (HPF only for cleanest audio)")
+    dev.write("STATNOISEONOFF_SR", 0)
     dev.write("NONSTATNOISEONOFF_SR", 0)
     dev.write("ECHOONOFF", 0)
     
@@ -263,14 +258,11 @@ def configure_clean():
     print("  ✅ CLEAN CONFIGURATION COMPLETE")
     print("="*80)
     print("\n  Minimal processing enabled:")
-    print("    - 70Hz high-pass filter removes low-freq AC hum (60Hz)")
-    print("    - Stationary noise suppression (gamma=2.0) removes constant tones:")
-    print("      • 120Hz (AC harmonic)")
-    print("      • 568Hz, 598Hz (USB/display interference)")  
-    print("      • Other constant electrical noise")
+    print("    - 70Hz high-pass filter removes low-freq noise (60Hz AC hum)")
     print("    - No AGC (raw volume levels)")
-    print("\n  This removes electrical interference while preserving speech.")
-    print("  Stationary NS learns constant noise in first ~2 seconds, then subtracts it.\n")
+    print("    - No noise suppression (cleanest audio)")
+    print("\n  This gives the cleanest possible audio with minimal DSP processing.")
+    print("  Only removes frequencies below 70Hz, all else untouched.\n")
     
     # Save configuration state for listener
     config_dict = {
@@ -278,8 +270,8 @@ def configure_clean():
         'AGCONOFF': 0,  # Disabled
         'AGCDESIREDLEVEL': 0.0,
         'AGCMAXGAIN': 0.0,
-        'STATNOISEONOFF_SR': 1,  # Enabled - removes constant tones
-        'GAMMA_NS_SR': 2.0,  # Aggressiveness factor
+        'STATNOISEONOFF_SR': 0,  # Disabled
+        'GAMMA_NS_SR': 0.0,
         'NONSTATNOISEONOFF_SR': 0,
         'ECHOONOFF': 0
     }
@@ -367,7 +359,7 @@ def main():
         else:
             print(f"\n  ❌ Unknown preset: {preset}")
             print(f"\n  Available presets:")
-            print(f"    - clean      : HPF + Stationary NS, no AGC (removes constant noise)")
+            print(f"    - clean      : HPF only (70Hz), no AGC or NS")
             print(f"    - far_field  : High AGC + noise suppression (8-16 feet)")
             print(f"    - near_field : Moderate AGC (1-6 feet)")
             print(f"    - reset      : Factory defaults (all OFF)")
