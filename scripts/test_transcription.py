@@ -91,7 +91,7 @@ SPEECH_FLATNESS_MAX = 0.30      # Reject if too "flat" (noisy, not tonal)
 SPEECH_CENTROID_MIN = 400       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 1500      # Hz - reject if too high (hiss)
 SPEECH_BAND_MIN = 0.35          # Reject if insufficient energy in speech band
-SPEECH_DURATION_MIN = 0.7       # Seconds - reject if too short (noise bursts)
+SPEECH_DURATION_MIN = 0.5       # Seconds - reject if too short (noise bursts)
 
 # BARE-BONES: No software processing - testing hardware optimization only
 
