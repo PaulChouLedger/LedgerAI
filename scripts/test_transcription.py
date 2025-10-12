@@ -86,13 +86,14 @@ MIN_AUDIO_SAMPLES = 2000
 # RECOMMENDED: Enable when using beamforming for best results!
 ENABLE_ADVANCED_FILTER = True  # Toggle this to test
 
-# Thresholds based on your data analysis:
-SPEECH_ZCR_MAX = 0.14           # Reject if ZCR > this (noise has higher ZCR)
-SPEECH_FLATNESS_MAX = 0.30      # Reject if too "flat" (noisy, not tonal)
-SPEECH_CENTROID_MIN = 400       # Hz - reject if too low (rumble/fan)
-SPEECH_CENTROID_MAX = 1500      # Hz - reject if too high (hiss)
-SPEECH_BAND_MIN = 0.35          # Reject if insufficient energy in speech band
-SPEECH_DURATION_MIN = 0.5       # Seconds - reject if too short (noise bursts)
+# Thresholds based on your ACTUAL speech patterns:
+# Updated after observing real speech was being rejected
+SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this (speech can be 0.15-0.35)
+SPEECH_FLATNESS_MAX = 0.55      # Reject if too "flat" (speech can be 0.15-0.45)
+SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
+SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss) - raised for fricatives
+SPEECH_BAND_MIN = 0.30          # Reject if insufficient energy in speech band
+SPEECH_DURATION_MIN = 0.4       # Seconds - reject if too short (noise bursts)
 
 # === VAD Thresholds (can be lowered with beamforming) ===
 # With beamforming enabled, audio is cleaner so you can use lower thresholds for better responsiveness
@@ -191,7 +192,14 @@ def calculate_audio_features(audio_chunk, sample_rate=SAMPLE_RATE):
 def is_likely_speech(features, duration=None):
     """
     Apply advanced multi-feature analysis to distinguish speech from noise.
-    Based on empirical data from your testing session.
+    
+    IMPORTANT: Thresholds tuned for REAL speech patterns observed in testing.
+    Initial thresholds were too strict and rejected legitimate speech.
+    
+    Speech characteristics vary widely:
+    - Vowels: Low ZCR (0.05-0.12), Low SpCent (800-1500Hz)
+    - Fricatives (s, sh, f): High ZCR (0.20-0.35), High SpCent (2000-3000Hz)
+    - Mixed speech: ZCR 0.10-0.35, SpCent 1000-2500Hz
     
     Args:
         features: Dict of audio features
