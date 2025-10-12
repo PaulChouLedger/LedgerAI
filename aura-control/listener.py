@@ -299,6 +299,7 @@ def listen():
             buffer = []
             silence_start = None
             vad_zero_count = 0  # Reset freeze counter for each new listening session
+            last_vad_reset = time.time()  # Track last VAD reset to prevent decay
             
             # === Wait for speech ===
             while True:
@@ -316,6 +317,13 @@ def listen():
                     print(f"\n[Listener] ⚠️  Stream error: {e}")
                     time.sleep(0.1)
                     continue
+                
+                # Periodic VAD reset to prevent state decay during long silence
+                # Reset every 5 seconds to keep VAD responsive
+                if time.time() - last_vad_reset > 5.0:
+                    model_vad.reset_states()
+                    last_vad_reset = time.time()
+                    print(f"\n[VAD] 🔄 Periodic state reset (prevents decay)", end="\r")
                 
                 channel_0 = audio_block[:, 0]
                 
@@ -411,9 +419,14 @@ def listen():
             if len(mono) < MIN_AUDIO_SAMPLES:
                 print("⚠️  Too short\n")
                 set_transcribing(False)
+                # Reset VAD state before next utterance
+                model_vad.reset_states()
                 continue
             
             text = transcribe(mono)
+            
+            # Reset VAD state for next utterance (critical for consistent performance)
+            model_vad.reset_states()
             
             if text:
                 send_to_llm(text)
