@@ -84,7 +84,7 @@ MIN_AUDIO_SAMPLES = 2000
 # === Advanced Multi-Feature Speech Detection (OPTIONAL) ===
 # Set ENABLE_ADVANCED_FILTER = True to enable secondary checks beyond VAD
 # RECOMMENDED: Enable when using beamforming for best results!
-ENABLE_ADVANCED_FILTER = False  # Toggle this to test
+ENABLE_ADVANCED_FILTER = True  # Toggle this to test
 
 # Thresholds based on your data analysis:
 SPEECH_ZCR_MAX = 0.14           # Reject if ZCR > this (noise has higher ZCR)
