@@ -16,6 +16,7 @@ _tts_playing = False  # Tracks when TTS is playing (AI speaking)
 _setup_complete = False  # Tracks when initial setup is complete
 _welcome_played = False  # Tracks when welcome prompt has been played
 _tts_frequency = 0.15  # Current TTS frequency for pulsation speed
+_microphone_muted = False  # Tracks when microphone is muted via button
 
 # Debug: Print initial state
 print(f"[AuraGUI] 🎯 Initial state: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
@@ -319,12 +320,60 @@ class AuraGUI(QMainWindow):
             # Toggle the transcription state
             now_blocked = toggle_transcription()
             
+            # Get the voice button (index 3 in button_configs)
+            voice_btn = self.buttons[3] if len(self.buttons) > 3 else None
+            
             if now_blocked:
                 print("[AuraGUI] 🚫 Microphone MUTED - transcription blocked")
-                # TODO: Update button visual to show muted state (red?)
+                # Update global state
+                set_microphone_muted(True)
+                
+                # Update button to RED to show muted state
+                if voice_btn:
+                    voice_btn.setStyleSheet(f"""
+                        QPushButton {{
+                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
+                                fx:0.5, fy:0.5,
+                                stop:0 #FFE6E6, stop:0.6 #DC143C, stop:1 #DC143C);
+                            color: #FFFFFF;
+                            font-size: 36px;
+                            font-weight: bold;
+                            border-radius: 50px;
+                            border: 3px solid #FF0000;
+                            padding: 0px;
+                        }}
+                        QPushButton:hover {{
+                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
+                                fx:0.5, fy:0.5,
+                                stop:0 #FFE6E6, stop:0.6 #FF1744, stop:1 #FF1744);
+                            border: 3px solid #FF4444;
+                        }}
+                    """)
             else:
                 print("[AuraGUI] ✅ Microphone ACTIVE - transcription enabled")
-                # TODO: Update button visual to show active state (blue?)
+                # Update global state
+                set_microphone_muted(False)
+                
+                # Update button to BLUE (normal state)
+                if voice_btn:
+                    voice_btn.setStyleSheet(f"""
+                        QPushButton {{
+                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
+                                fx:0.5, fy:0.5,
+                                stop:0 #E6E6E6, stop:0.6 #4D94D9, stop:1 #4D94D9);
+                            color: #1A1A1A;
+                            font-size: 36px;
+                            font-weight: bold;
+                            border-radius: 50px;
+                            border: 2px solid rgba(0, 0, 0, 0.2);
+                            padding: 0px;
+                        }}
+                        QPushButton:hover {{
+                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
+                                fx:0.5, fy:0.5,
+                                stop:0 #F0F0F0, stop:0.6 #5EA5E8, stop:1 #5EA5E8);
+                        }}
+                    """)
                 
         except ImportError:
             print("[AuraGUI] ⚠️ Could not import listener blocking functions")
@@ -465,7 +514,12 @@ class AuraGUI(QMainWindow):
             self._animate_aura_eye_tts(_tts_frequency)
             self.show_red_border = False
             
-        # State 2: Setup complete AND listening ready - STATIC (normal idle state)
+        # State 2: Microphone muted - DIM/GRAYED to show inactive state
+        elif _microphone_muted:
+            self._set_aura_eye_muted()  # Dim, grayed out
+            self.show_red_border = False
+            
+        # State 3: Setup complete AND listening ready - STATIC (normal idle state)
         elif _setup_complete and _listening_ready:
             self._set_aura_eye_static()  # Static, ready for interaction
             self.show_red_border = False
@@ -651,6 +705,21 @@ class AuraGUI(QMainWindow):
         self.opacity = 1.0
         self.opacity_effect.setOpacity(1.0)
     
+    def _set_aura_eye_muted(self):
+        """Set aura eye to muted state - dim and grayed out to show microphone is off"""
+        # Dim opacity to show inactive/muted state
+        self.opacity = 0.3  # 30% opacity (very dim)
+        self.opacity_effect.setOpacity(0.3)
+        
+        # Optional: Add subtle slow pulsation to show it's not frozen, just muted
+        if not hasattr(self, 'muted_pulse_phase'):
+            self.muted_pulse_phase = 0
+        
+        self.muted_pulse_phase += 0.01  # Very slow pulse
+        pulse = (math.sin(self.muted_pulse_phase) + 1) / 2  # 0 to 1
+        dimmed_opacity = 0.25 + (pulse * 0.1)  # Pulse between 0.25 and 0.35
+        self.opacity_effect.setOpacity(dimmed_opacity)
+    
     def _animate_aura_eye_setup(self):
         """Gentle, meditative aura eye animation during initial setup"""
         # Very slow, peaceful breathing during setup
@@ -833,6 +902,15 @@ def set_tts_frequency(frequency_speed):
     global _tts_frequency
     _tts_frequency = frequency_speed
     print(f"[AuraGUI] 🎵 TTS frequency updated: {frequency_speed:.3f}")
+
+def set_microphone_muted(muted):
+    """Set microphone muted state - dims aura eye when muted"""
+    global _microphone_muted
+    _microphone_muted = muted
+    if muted:
+        print("[AuraGUI] 🔇 Microphone MUTED - aura eye dimmed")
+    else:
+        print("[AuraGUI] 🔊 Microphone ACTIVE - aura eye normal")
 
 def set_setup_complete():
     """Mark initial setup as complete"""

@@ -16,6 +16,38 @@ import requests
 import random
 import re
 
+def filter_thinking_tags(text: str) -> str:
+    """Remove thinking/reasoning tags and verbose internal monologue"""
+    if not text:
+        return text
+    
+    # Remove <think> or </think> tags
+    text = re.sub(r'</?think>', '', text, flags=re.IGNORECASE)
+    
+    # Remove thinking patterns (lines that are clearly internal reasoning)
+    thinking_patterns = [
+        r"I need to respond.*?\.",
+        r"I should (?:keep|make|try|be).*?\.",
+        r"Let me (?:think|consider|try).*?\.",
+        r"Maybe (?:I|something).*?\.",
+        r"Since they .*?\.",
+        r"That sounds (?:good|right|perfect)\.?",
+        r"Alright,? that'?s? .*?\.",
+        r"It'?s? (?:friendly|helpful|good|solid).*?\."
+    ]
+    
+    for pattern in thinking_patterns:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+    
+    # Remove emoji-only responses
+    text = re.sub(r'^\s*[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF\U0001F1E0-\U0001F1FF]+\s*$', '', text)
+    
+    # Clean up multiple spaces/newlines
+    text = re.sub(r'\s+', ' ', text)
+    text = text.strip()
+    
+    return text
+
 def is_casual_trigger(prompt: str) -> bool:
     """
     Check if prompt should START with CASUAL mode (simple greetings only)
@@ -66,11 +98,13 @@ def handle_casual(prompt: str, llm_chat_fn, session_id: str = None):
     # System prompt for casual conversation
     system_prompt = (
         "You are Aura, a friendly and helpful AI assistant. "
-        "You engage in natural, warm conversation. "
-        "You are conversational, empathetic, and approachable. "
-        "Keep responses concise but friendly. "
-        "If asked about medical symptoms, suggest they describe their symptoms so you can help assess them. "
-        "If asked complex knowledge questions, provide helpful answers."
+        "Respond directly and naturally in 1-2 short sentences. "
+        "Do NOT explain your thinking process or reasoning. "
+        "Do NOT use phrases like 'I need to', 'Let me think', 'Maybe I should'. "
+        "Just respond conversationally and warmly. "
+        "Be concise, empathetic, and approachable. "
+        "If asked about medical symptoms, suggest they describe their symptoms. "
+        "Example: User: 'Hi' → You: 'Hello! How can I help you today?'"
     )
     
     messages = [
@@ -81,9 +115,10 @@ def handle_casual(prompt: str, llm_chat_fn, session_id: str = None):
     try:
         response = llm_chat_fn(
             messages=messages,
-            max_tokens=200,
-            temperature=0.7,
-            stream=True
+            max_tokens=50,  # Short, concise responses (1-2 sentences)
+            temperature=0.6,  # Slightly lower for more focused responses
+            stream=True,
+            stop=["\n\n", "Let me", "I need", "I should", "Maybe"]  # Stop on verbose patterns
         )
         
         buffer = []
@@ -102,14 +137,20 @@ def handle_casual(prompt: str, llm_chat_fn, session_id: str = None):
                     # Stream complete sentences
                     while len(sentences) > 2:  # At least one complete sentence
                         sentence = sentences.pop(0) + (sentences.pop(0) if sentences else '')
-                        if sentence.strip():
-                            yield f"<sentence_start>\n{sentence.strip()}\n<sentence_end>\n"
+                        
+                        # Filter out thinking/reasoning before streaming
+                        cleaned = filter_thinking_tags(sentence)
+                        if cleaned.strip():
+                            yield f"<sentence_start>\n{cleaned.strip()}\n<sentence_end>\n"
+                        
                         buffer = [s for s in sentences]
         
-        # Stream any remaining text
+        # Stream any remaining text (filtered)
         remaining = ''.join(buffer).strip()
         if remaining:
-            yield f"<sentence_start>\n{remaining}\n<sentence_end>\n"
+            cleaned = filter_thinking_tags(remaining)
+            if cleaned:
+                yield f"<sentence_start>\n{cleaned}\n<sentence_end>\n"
             
     except Exception as e:
         print(f"[CASUAL] ❌ Error in LLM generation: {e}")
