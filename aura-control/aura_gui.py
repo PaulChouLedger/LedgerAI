@@ -247,6 +247,13 @@ class AuraGUI(QMainWindow):
         """Handle upload button click"""
         print("[AuraGUI] 📤 Upload button clicked")
         
+        # Block transcription while dialog is open
+        try:
+            from listener import block_transcription, unblock_transcription
+            block_transcription("Upload dialog open")
+        except ImportError:
+            print("[AuraGUI] ⚠️ Could not import listener blocking functions")
+        
         # Pass self as parent so dialog appears on top properly
         print("[AuraGUI] 📂 Showing upload dialog...")
         from file_upload_dialog import FileUploadDialog
@@ -256,6 +263,12 @@ class AuraGUI(QMainWindow):
         
         # The dialog should now appear on top of this window
         dialog.exec_()
+        
+        # Unblock transcription when dialog closes
+        try:
+            unblock_transcription()
+        except:
+            pass
         
         print("[AuraGUI] ✅ Upload dialog closed")
     
@@ -268,6 +281,13 @@ class AuraGUI(QMainWindow):
     def _handle_analytics(self):
         """Handle analytics button click - show wallet & token balance"""
         print("[AuraGUI] 📊 Analytics button clicked - opening wallet dialog")
+        
+        # Block transcription while dialog is open
+        try:
+            from listener import block_transcription, unblock_transcription
+            block_transcription("Wallet dialog open")
+        except ImportError:
+            print("[AuraGUI] ⚠️ Could not import listener blocking functions")
         
         try:
             from wallet_dialog import WalletDialog
@@ -282,12 +302,34 @@ class AuraGUI(QMainWindow):
             print(f"[AuraGUI] 💡 Install web3: pip install web3")
         except Exception as e:
             print(f"[AuraGUI] ❌ Error opening wallet dialog: {e}")
+        finally:
+            # Always unblock transcription when done
+            try:
+                unblock_transcription()
+            except:
+                pass
     
     def _handle_voice(self):
-        """Handle voice button click"""
+        """Handle voice button click - toggle transcription blocking"""
         print("[AuraGUI] 🎤 Voice button clicked")
-        # TODO: Call voice control script
-        pass
+        
+        try:
+            from listener import toggle_transcription, is_transcription_blocked
+            
+            # Toggle the transcription state
+            now_blocked = toggle_transcription()
+            
+            if now_blocked:
+                print("[AuraGUI] 🚫 Microphone MUTED - transcription blocked")
+                # TODO: Update button visual to show muted state (red?)
+            else:
+                print("[AuraGUI] ✅ Microphone ACTIVE - transcription enabled")
+                # TODO: Update button visual to show active state (blue?)
+                
+        except ImportError:
+            print("[AuraGUI] ⚠️ Could not import listener blocking functions")
+        except Exception as e:
+            print(f"[AuraGUI] ❌ Error toggling transcription: {e}")
     
     def _handle_mobile(self):
         """Handle mobile button click"""

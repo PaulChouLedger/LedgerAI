@@ -25,6 +25,39 @@ DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
 prompt_history = []
 
+# === Transcription Blocking ===
+_transcription_blocked = False  # Global flag to block transcription
+_block_reason = None  # Reason for blocking (for debugging)
+
+# === Transcription Blocking Functions ===
+def block_transcription(reason="Manual block"):
+    """Block transcription (e.g., when dialog is open or mic button pressed)"""
+    global _transcription_blocked, _block_reason
+    _transcription_blocked = True
+    _block_reason = reason
+    print(f"[Listener] 🚫 Transcription BLOCKED: {reason}")
+
+def unblock_transcription():
+    """Unblock transcription"""
+    global _transcription_blocked, _block_reason
+    _transcription_blocked = False
+    reason = _block_reason
+    _block_reason = None
+    print(f"[Listener] ✅ Transcription UNBLOCKED (was: {reason})")
+
+def is_transcription_blocked():
+    """Check if transcription is currently blocked"""
+    return _transcription_blocked
+
+def toggle_transcription():
+    """Toggle transcription blocking (for microphone button)"""
+    if _transcription_blocked:
+        unblock_transcription()
+        return False  # Now unblocked
+    else:
+        block_transcription("Microphone button")
+        return True  # Now blocked
+
 # Smart freeze detection - refresh when VAD appears stuck
 # Detects: VAD=0.00 continuously with non-zero RMS (frozen state)
 # Action: Immediate refresh when freeze detected (not timer-based)
@@ -274,6 +307,11 @@ def listen():
             
             # === Wait for speech ===
             while True:
+                # Check if transcription is blocked (dialog open or mic button pressed)
+                if is_transcription_blocked():
+                    time.sleep(0.1)
+                    continue
+                
                 if is_playing():
                     break
                 
