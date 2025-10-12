@@ -10,9 +10,10 @@ Usage:
     
 STANDARD PRESETS:
     - clean                   : HPF + AGC (0.08) + NS (3.0) - DEFAULT
-    - beamforming             : Adaptive beamforming + DOA (balanced)
-    - beamforming_light       : Beamforming + light NS (clean environments)
-    - beamforming_aggressive  : Beamforming + max NS (noisy environments)
+    - beamforming             : Adaptive beamforming + DOA (30dB, balanced)
+    - beamforming_light       : Beamforming + light NS (30dB, clean environments)
+    - beamforming_aggressive  : Beamforming + max NS (45dB, noisy/far-field)
+    - beamforming_ultra       : Beamforming + extreme gain (50dB, max range)
     - far_field               : Optimized for 8-16 feet
     - near_field              : Optimized for 1-6 feet
     - reset                   : Factory defaults (all OFF)
@@ -616,7 +617,7 @@ def configure_beamforming_light():
     return True
 
 def configure_beamforming_aggressive():
-    """Beamforming + Aggressive noise suppression (best for noisy environments)"""
+    """Beamforming + Aggressive noise suppression + High gain (best for noisy/far-field)"""
     import usb.core
     
     usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
@@ -627,25 +628,27 @@ def configure_beamforming_aggressive():
     dev = Tuning(usb_dev)
     
     print("\n" + "="*80)
-    print("  🎯 BEAMFORMING + AGGRESSIVE NS (Noisy Environment)")
+    print("  🎯 BEAMFORMING + AGGRESSIVE (Noisy/Far-Field Optimized)")
     print("="*80 + "\n")
     
     print("[1/5] Adaptive Beamforming: ON")
     dev.write("FREEZEONOFF", 0)
     
-    print("[2/5] High-Pass Filter: ON (125 Hz - more aggressive)")
+    print("[2/5] High-Pass Filter: ON (125 Hz - aggressive)")
     dev.write("HPFONOFF", 2)  # 125Hz instead of 70Hz
     
-    print("[3/5] Hardware AGC: ON (0.08 RMS)")
+    print("[3/5] Hardware AGC: ON (0.08 RMS, 45 dB MAX - far-field optimized)")
     dev.write("AGCONOFF", 1)
     dev.write("AGCDESIREDLEVEL", 0.08)
-    dev.write("AGCMAXGAIN", 30.0)
+    dev.write("AGCMAXGAIN", 45.0)  # Increased from 30 dB for far-field
+    dev.write("AGCTIME", 0.2)
+    print("         - Target: 0.08 RMS, Max Gain: 45dB (177x), Attack: 0.2s")
     
-    print("[4/5] Stationary Noise Suppression: AGGRESSIVE (gamma=3.0)")
+    print("[4/5] Stationary Noise Suppression: MAX (gamma=3.0)")
     dev.write("STATNOISEONOFF_SR", 1)
     dev.write("GAMMA_NS_SR", 3.0)  # Max
     
-    print("[5/5] Non-Stationary Noise Suppression: AGGRESSIVE (gamma=2.5)")
+    print("[5/5] Non-Stationary Noise Suppression: HIGH (gamma=2.5)")
     dev.write("NONSTATNOISEONOFF_SR", 1)
     dev.write("GAMMA_NN_SR", 2.5)  # High
     
@@ -657,19 +660,101 @@ def configure_beamforming_aggressive():
     except:
         pass
     
-    print("\n  ✅ Aggressive beamforming for noisy environments")
-    print("  Maximum noise suppression + higher HPF cutoff\n")
+    print("\n  ✅ Aggressive beamforming optimized for noisy/far-field")
+    print("  Benefits:")
+    print("    • 45 dB max gain = 177x amplification (far-field capable)")
+    print("    • Beamforming focuses on speaker, suppresses noise from other directions")
+    print("    • Max noise suppression removes background noise before AGC amplifies it")
+    print("    • 125 Hz HPF removes more low-frequency rumble")
+    print("    • Software filter rejects low-energy bursts (RMS<0.035, Peak<0.15)")
+    print("\n  This is the most aggressive setting - use for maximum range!\n")
     
     save_config_state('beamforming_aggressive', {
         'FREEZEONOFF': 0,
         'HPFONOFF': 2,
         'AGCONOFF': 1,
         'AGCDESIREDLEVEL': 0.08,
-        'AGCMAXGAIN': 30.0,
+        'AGCMAXGAIN': 45.0,
         'STATNOISEONOFF_SR': 1,
         'GAMMA_NS_SR': 3.0,
         'NONSTATNOISEONOFF_SR': 1,
         'GAMMA_NN_SR': 2.5,
+        'ECHOONOFF': 0
+    })
+    return True
+
+def configure_beamforming_ultra():
+    """Beamforming + Ultra-aggressive settings (maximum far-field range)"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🚀 BEAMFORMING ULTRA (Maximum Far-Field Range)")
+    print("="*80 + "\n")
+    
+    print("[1/5] Adaptive Beamforming: ON")
+    dev.write("FREEZEONOFF", 0)
+    
+    print("[2/5] High-Pass Filter: ON (125 Hz)")
+    dev.write("HPFONOFF", 2)
+    
+    print("[3/5] Hardware AGC: ON (0.08 RMS, 50 dB MAX - EXTREME)")
+    dev.write("AGCONOFF", 1)
+    dev.write("AGCDESIREDLEVEL", 0.08)
+    dev.write("AGCMAXGAIN", 50.0)  # 316x amplification!
+    dev.write("AGCTIME", 0.15)  # Faster attack for far-field
+    print("         - Target: 0.08 RMS, Max Gain: 50dB (316x!), Attack: 0.15s")
+    print("         ⚠️  WARNING: May amplify noise if beamforming/NS fail")
+    
+    print("[4/5] Stationary Noise Suppression: MAXIMUM (gamma=3.0)")
+    dev.write("STATNOISEONOFF_SR", 1)
+    dev.write("GAMMA_NS_SR", 3.0)
+    
+    print("[5/5] Non-Stationary Noise Suppression: MAXIMUM (gamma=3.0)")
+    dev.write("NONSTATNOISEONOFF_SR", 1)
+    dev.write("GAMMA_NN_SR", 3.0)  # Increased to max
+    
+    dev.write("ECHOONOFF", 0)
+    
+    try:
+        doa = dev.read("DOAANGLE")
+        print(f"\n  📍 Speaker direction: {doa}°")
+    except:
+        pass
+    
+    print("\n  ✅ Ultra-aggressive beamforming configured")
+    print("  ⚠️  CAUTION: This is EXTREME gain!")
+    print("  Benefits:")
+    print("    • 50 dB = 316x amplification (captures very quiet/distant speech)")
+    print("    • Maximum noise suppression before amplification")
+    print("    • Beamforming isolates speaker direction")
+    print("    • Software filter prevents noise amplification")
+    print("\n  Use Cases:")
+    print("    ✅ 15+ feet speaking distance")
+    print("    ✅ Very quiet speakers")
+    print("    ✅ Testing maximum microphone range")
+    print("\n  Monitor for:")
+    print("    ⚠️  Amplified background noise (if beamforming fails)")
+    print("    ⚠️  Clipping on loud sounds (check Peak values)")
+    print("    ⚠️  AGC pumping (rapid gain changes)")
+    print("\n  If you experience issues, use beamforming_aggressive (45dB) instead.\n")
+    
+    save_config_state('beamforming_ultra', {
+        'FREEZEONOFF': 0,
+        'HPFONOFF': 2,
+        'AGCONOFF': 1,
+        'AGCDESIREDLEVEL': 0.08,
+        'AGCMAXGAIN': 50.0,
+        'STATNOISEONOFF_SR': 1,
+        'GAMMA_NS_SR': 3.0,
+        'NONSTATNOISEONOFF_SR': 1,
+        'GAMMA_NN_SR': 3.0,
         'ECHOONOFF': 0
     })
     return True
@@ -966,6 +1051,8 @@ def main():
             success = configure_beamforming_light()
         elif preset == "beamforming_aggressive" or preset == "beam_aggro":
             success = configure_beamforming_aggressive()
+        elif preset == "beamforming_ultra" or preset == "beam_ultra":
+            success = configure_beamforming_ultra()
         
         # Test profiles (isolated components)
         elif preset == "bf":
@@ -990,14 +1077,15 @@ def main():
         else:
             print(f"\n  ❌ Unknown preset: {preset}")
             print(f"\n  📋 STANDARD PRESETS:")
-            print(f"    - clean              : HPF + Optimal AGC (0.08) + Max NS (3.0) - DEFAULT")
-            print(f"    - beamforming        : Adaptive beamforming + DOA (balanced)")
-            print(f"    - beamforming_light  : Beamforming + light NS (clean environments)")
-            print(f"    - beamforming_aggressive : Beamforming + max NS (noisy environments)")
-            print(f"    - far_field          : High AGC + noise suppression (8-16 feet)")
-            print(f"    - near_field         : Moderate AGC (1-6 feet)")
-            print(f"    - reset              : Factory defaults (all OFF)")
-            print(f"    - show               : Show current settings")
+            print(f"    - clean                   : HPF + Optimal AGC (0.08) + Max NS (3.0) - DEFAULT")
+            print(f"    - beamforming             : Adaptive beamforming (30dB, balanced)")
+            print(f"    - beamforming_light       : Beamforming + light NS (30dB, clean env)")
+            print(f"    - beamforming_aggressive  : Beamforming + max NS (45dB, far-field) ⭐ RECOMMENDED")
+            print(f"    - beamforming_ultra       : Beamforming + extreme gain (50dB, max range)")
+            print(f"    - far_field               : High AGC + noise suppression (8-16 feet)")
+            print(f"    - near_field              : Moderate AGC (1-6 feet)")
+            print(f"    - reset                   : Factory defaults (all OFF)")
+            print(f"    - show                    : Show current settings")
             print(f"\n  🧪 TEST PROFILES (systematic testing):")
             print(f"    - bf         : Beamforming ONLY (pure test)")
             print(f"    - hpbf       : Beamforming + HPF 70Hz")
