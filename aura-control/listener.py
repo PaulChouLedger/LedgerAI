@@ -7,6 +7,7 @@ import soundfile as sf
 import sounddevice as sd
 import requests
 import subprocess
+from scipy.fft import rfft, rfftfreq
 from speaker import speak_llm_response, is_playing
 from aura_gui import set_transcribing
 
@@ -14,11 +15,27 @@ from aura_gui import set_transcribing
 SAMPLE_RATE = 16000
 FRAME_SIZE = int(SAMPLE_RATE * 0.032)
 SILENCE_TIMEOUT = 0.3  # 300ms of silence before stopping
-VAD_START_THRESHOLD = 0.35  # Higher = less sensitive to fan noise
+VAD_START_THRESHOLD = 0.25  # Lowered - beamforming provides good noise rejection
 VAD_SILENCE_THRESHOLD = 0.15  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
 
-# BARE-BONES: No software processing - testing hardware optimization only
+# === Advanced Multi-Feature Speech Detection ===
+# Enabled - Filters out low-energy noise bursts that trigger VAD
+ENABLE_ADVANCED_FILTER = True
+
+# Thresholds tuned from empirical testing
+SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
+SPEECH_FLATNESS_MAX = 0.55      # Reject if too "flat" (noisy, not tonal)
+SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
+SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss)
+SPEECH_BAND_MIN = 0.30          # Reject if insufficient energy in speech band
+SPEECH_DURATION_MIN = 0.4       # Seconds - reject if too short (noise bursts)
+
+# CRITICAL: Energy thresholds (most reliable discriminators)
+SPEECH_RMS_MIN = 0.035          # Reject if RMS < this (noise is 0.018-0.026, speech is 0.097)
+SPEECH_PEAK_MIN = 0.15          # Reject if peak < this (noise is 0.08-0.12, speech is 0.96)
+
+# BARE-BONES: Hardware DSP → Channel 0 → VAD → Advanced Filter → Whisper
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -58,12 +75,6 @@ def toggle_transcription():
         block_transcription("Microphone button")
         return True  # Now blocked
 
-# Smart freeze detection - DISABLED (was causing false positives)
-# VAD returning 0.00 with RMS 0.015-0.02 is NORMAL (fan/ambient noise, not speech)
-# Only enable if you experience actual VAD freezes (use much higher threshold)
-VAD_FREEZE_THRESHOLD = 999999  # Effectively disabled (change to 100+ if needed)
-vad_zero_count = 0
-
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
 # === Find Device ===
@@ -76,6 +87,94 @@ def find_device_index():
             print(f"[Listener] 🎧 Found: {device['name']} (index {i})")
             return 6  # Always use 6 channels
     raise RuntimeError("Microphone not found")
+
+# === Audio Feature Extraction ===
+def calculate_audio_features(audio_chunk, sample_rate=SAMPLE_RATE):
+    """
+    Calculate multiple audio features for speech detection
+    Returns: dict with all features
+    """
+    features = {}
+    
+    # Energy metrics (most important)
+    features['rms'] = np.sqrt(np.mean(audio_chunk ** 2))
+    features['peak'] = np.max(np.abs(audio_chunk))
+    
+    # Zero Crossing Rate
+    zero_crossings = np.sum(np.abs(np.diff(np.sign(audio_chunk)))) / 2
+    features['zcr'] = zero_crossings / len(audio_chunk)
+    
+    # Spectral features (frequency domain)
+    fft_vals = rfft(audio_chunk)
+    fft_freq = rfftfreq(len(audio_chunk), 1/sample_rate)
+    magnitude = np.abs(fft_vals)
+    
+    # Spectral Centroid
+    if np.sum(magnitude) > 0:
+        features['spectral_centroid'] = np.sum(fft_freq * magnitude) / np.sum(magnitude)
+    else:
+        features['spectral_centroid'] = 0
+    
+    # Spectral Flatness
+    geometric_mean = np.exp(np.mean(np.log(magnitude + 1e-10)))
+    arithmetic_mean = np.mean(magnitude)
+    if arithmetic_mean > 0:
+        features['spectral_flatness'] = geometric_mean / arithmetic_mean
+    else:
+        features['spectral_flatness'] = 0
+    
+    # Speech Band Energy (300-3400 Hz)
+    speech_band_mask = (fft_freq >= 300) & (fft_freq <= 3400)
+    speech_band_energy = np.sum(magnitude[speech_band_mask] ** 2)
+    total_energy = np.sum(magnitude ** 2)
+    if total_energy > 0:
+        features['speech_band_ratio'] = speech_band_energy / total_energy
+    else:
+        features['speech_band_ratio'] = 0
+    
+    return features
+
+def is_likely_speech(features, duration=None):
+    """
+    Apply multi-feature analysis to distinguish speech from noise
+    
+    Returns: (is_speech: bool, reason: str)
+    """
+    reasons = []
+    
+    # Check Energy Levels FIRST (most reliable)
+    if features['rms'] < SPEECH_RMS_MIN:
+        reasons.append(f"RMS too low ({features['rms']:.4f} < {SPEECH_RMS_MIN})")
+    
+    if features['peak'] < SPEECH_PEAK_MIN:
+        reasons.append(f"Peak too low ({features['peak']:.4f} < {SPEECH_PEAK_MIN})")
+    
+    # Check Duration
+    if duration is not None and duration < SPEECH_DURATION_MIN:
+        reasons.append(f"Too short ({duration:.2f}s < {SPEECH_DURATION_MIN}s)")
+    
+    # Check Zero Crossing Rate
+    if features['zcr'] > SPEECH_ZCR_MAX:
+        reasons.append(f"ZCR too high ({features['zcr']:.3f} > {SPEECH_ZCR_MAX})")
+    
+    # Check Spectral Flatness
+    if features['spectral_flatness'] > SPEECH_FLATNESS_MAX:
+        reasons.append(f"Too flat/noisy ({features['spectral_flatness']:.3f} > {SPEECH_FLATNESS_MAX})")
+    
+    # Check Spectral Centroid
+    if features['spectral_centroid'] < SPEECH_CENTROID_MIN:
+        reasons.append(f"SpCent too low ({features['spectral_centroid']:.0f}Hz < {SPEECH_CENTROID_MIN}Hz)")
+    elif features['spectral_centroid'] > SPEECH_CENTROID_MAX:
+        reasons.append(f"SpCent too high ({features['spectral_centroid']:.0f}Hz > {SPEECH_CENTROID_MAX}Hz)")
+    
+    # Check Speech Band Energy
+    if features['speech_band_ratio'] < SPEECH_BAND_MIN:
+        reasons.append(f"Low speech band energy ({features['speech_band_ratio']:.2f} < {SPEECH_BAND_MIN})")
+    
+    is_speech = len(reasons) == 0
+    reason = " | ".join(reasons) if reasons else "All checks passed"
+    
+    return is_speech, reason
 
 # === Load VAD ===
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
@@ -298,7 +397,6 @@ def listen():
             
             buffer = []
             silence_start = None
-            vad_zero_count = 0  # Reset freeze counter for each new listening session
             last_vad_reset = time.time()  # Track last VAD reset to prevent decay
             
             # === Wait for speech ===
@@ -332,42 +430,26 @@ def listen():
                 
                 # Hardware HPF already applied in ReSpeaker DSP
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
-                rms = np.sqrt(np.mean(channel_0 ** 2))
                 
-                # Smart freeze detection: VAD stuck at 0.00 with non-zero RMS
-                if vad_prob < 0.01 and rms > 0.01:  # VAD frozen
-                    vad_zero_count += 1
-                    if vad_zero_count >= VAD_FREEZE_THRESHOLD:
-                        print(f"\n[Listener] ⚠️  VAD frozen (0.00 for {vad_zero_count} frames with RMS={rms:.4f})")
-                        print("[Listener] 🔄 Aggressive stream reset...")
-                        
-                        # Close and reopen stream completely
-                        stream.stop()
-                        time.sleep(0.3)  # Longer pause for full reset
-                        stream.start()
-                        
-                        # Aggressive buffer flush AND VAD warmup (10 frames ~0.3s)
-                        print("[Listener] 🔥 Priming VAD model...")
-                        for i in range(10):
-                            try:
-                                audio_block_warmup, _ = stream.read(FRAME_SIZE)
-                                # Prime VAD on each frame
-                                ch = audio_block_warmup[:, 0]
-                                if ch.size >= 512:
-                                    _ = model_vad(torch.from_numpy(ch), SAMPLE_RATE).item()
-                            except:
-                                break
-                        
-                        vad_zero_count = 0
-                        print("[Listener] ✅ Stream reset + VAD primed")
-                        continue
-                else:
-                    vad_zero_count = 0  # Reset counter if VAD responds
+                # Calculate audio features
+                features = calculate_audio_features(channel_0)
                 
-                print(f"[VAD] {vad_prob:.2f} | RMS {rms:.6f}", end="\r")
+                print(f"[VAD] {vad_prob:.2f} | RMS {features['rms']:.4f} | Peak {features['peak']:.3f}", end="\r")
                 
                 if vad_prob > VAD_START_THRESHOLD:
-                    print(f"\n[VAD] 🔊 Speech started (VAD={vad_prob:.2f}, RMS={rms:.6f})")
+                    print(f"\n[VAD] 🔊 Speech detected (VAD={vad_prob:.2f}, RMS={features['rms']:.4f}, Peak={features['peak']:.3f})")
+                    print(f"[Features] ZCR={features['zcr']:.3f} | SpCentroid={features['spectral_centroid']:.0f}Hz | SpFlat={features['spectral_flatness']:.3f}")
+                    
+                    # Apply advanced filter if enabled
+                    if ENABLE_ADVANCED_FILTER:
+                        is_speech_result, reason = is_likely_speech(features)
+                        if not is_speech_result:
+                            print(f"[Filter] ❌ REJECTED: {reason}")
+                            print("[Filter] 🔄 Returning to listening (not speech)\n")
+                            continue  # Back to waiting for speech
+                        else:
+                            print(f"[Filter] ✅ PASSED: {reason}")
+                    
                     set_transcribing(True)
                     buffer.append(audio_block)
                     break
@@ -422,6 +504,21 @@ def listen():
                 # Reset VAD state before next utterance
                 model_vad.reset_states()
                 continue
+            
+            # Final filter check on full audio (before sending to Whisper)
+            if ENABLE_ADVANCED_FILTER:
+                duration = len(mono) / SAMPLE_RATE
+                full_features = calculate_audio_features(mono)
+                is_speech_final, reason_final = is_likely_speech(full_features, duration)
+                
+                if not is_speech_final:
+                    print(f"\n[Filter] ❌ Final check REJECTED: {reason_final}")
+                    print(f"[Filter] RMS={full_features['rms']:.4f}, Peak={full_features['peak']:.3f}, Duration={duration:.2f}s\n")
+                    set_transcribing(False)
+                    model_vad.reset_states()
+                    continue
+                else:
+                    print(f"[Filter] ✅ Final check passed")
             
             text = transcribe(mono)
             

@@ -118,8 +118,6 @@ SPEECH_PEAK_MIN = 0.15          # Reject if peak < this (noise is 0.08-0.12, spe
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 
-# Freeze detection removed - VAD returning 0.00 with ambient noise RMS is normal behavior
-
 # === Stats Tracking ===
 transcription_count = 0
 total_audio_duration = 0.0
