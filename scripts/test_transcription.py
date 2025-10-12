@@ -20,9 +20,7 @@ MIN_AUDIO_SAMPLES = 2000
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
 
-# Smart freeze detection - refresh when VAD appears stuck
-VAD_FREEZE_THRESHOLD = 10  # Consecutive 0.00 frames with RMS > 0.01
-vad_zero_count = 0
+# Freeze detection removed - VAD returning 0.00 with ambient noise RMS is normal behavior
 
 # === Stats Tracking ===
 transcription_count = 0
@@ -175,8 +173,6 @@ def print_session_stats():
 
 # === Main Loop ===
 def listen():
-    global vad_zero_count
-    
     channels = find_device_index()
     
     # Display current hardware configuration
@@ -234,7 +230,6 @@ def listen():
         while True:
             buffer = []
             silence_start = None
-            vad_zero_count = 0  # Reset freeze counter for each new listening session
             
             # === Wait for speech ===
             while True:
@@ -253,36 +248,6 @@ def listen():
                 # Hardware HPF already applied in ReSpeaker DSP
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 rms = np.sqrt(np.mean(channel_0 ** 2))
-                
-                # Smart freeze detection: VAD stuck at 0.00 with non-zero RMS
-                if vad_prob < 0.01 and rms > 0.01:  # VAD frozen
-                    vad_zero_count += 1
-                    if vad_zero_count >= VAD_FREEZE_THRESHOLD:
-                        print(f"\n[Listener] ⚠️  VAD frozen (0.00 for {vad_zero_count} frames with RMS={rms:.4f})")
-                        print("[Listener] 🔄 Aggressive stream reset...")
-                        
-                        # Close and reopen stream completely
-                        stream.stop()
-                        time.sleep(0.3)  # Longer pause for full reset
-                        stream.start()
-                        
-                        # Aggressive buffer flush AND VAD warmup (10 frames ~0.3s)
-                        print("[Listener] 🔥 Priming VAD model...")
-                        for i in range(10):
-                            try:
-                                audio_block_warmup, _ = stream.read(FRAME_SIZE)
-                                # Prime VAD on each frame
-                                ch = audio_block_warmup[:, 0]
-                                if ch.size >= 512:
-                                    _ = model_vad(torch.from_numpy(ch), SAMPLE_RATE).item()
-                            except:
-                                break
-                        
-                        vad_zero_count = 0
-                        print("[Listener] ✅ Stream reset + VAD primed")
-                        continue
-                else:
-                    vad_zero_count = 0  # Reset counter if VAD responds
                 
                 print(f"[VAD] {vad_prob:.2f} | RMS {rms:.6f}", end="\r")
                 

@@ -58,15 +58,10 @@ def toggle_transcription():
         block_transcription("Microphone button")
         return True  # Now blocked
 
-# Smart freeze detection - refresh when VAD appears stuck
-# Detects: VAD=0.00 continuously with non-zero RMS (frozen state)
-# Action: Immediate refresh when freeze detected (not timer-based)
-# Benefits: 
-#   - No missed speech during refresh
-#   - Only refreshes when actually frozen
-#   - VAD primed after refresh for immediate responsiveness
-#   - ~0.3 second detection time (10 frames × 32ms = 0.32s)
-VAD_FREEZE_THRESHOLD = 10  # Consecutive 0.00 frames with RMS > 0.01 (very fast detection)
+# Smart freeze detection - DISABLED (was causing false positives)
+# VAD returning 0.00 with RMS 0.015-0.02 is NORMAL (fan/ambient noise, not speech)
+# Only enable if you experience actual VAD freezes (use much higher threshold)
+VAD_FREEZE_THRESHOLD = 999999  # Effectively disabled (change to 100+ if needed)
 vad_zero_count = 0
 
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
