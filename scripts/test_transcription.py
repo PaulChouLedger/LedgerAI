@@ -49,11 +49,17 @@ AUDIO FEATURES EXPLAINED:
    - Speech: 0.05-0.15
    - HVAC/fans: 0.3+
 
+8. Duration (seconds)
+   - Meaningful speech: 0.8+ seconds
+   - Short words: 0.5-0.8 seconds
+   - Noise bursts: < 0.6 seconds
+   - **Simple but effective filter**
+
 TYPICAL PATTERNS:
 =================
-✅ SPEECH: Low spectral flatness (<0.2) + High speech band ratio (>0.4) + Moderate ZCR (0.02-0.12)
+✅ SPEECH: Duration >0.7s + Low spectral flatness (<0.2) + High speech band ratio (>0.4) + Moderate ZCR (0.02-0.12)
 ⚠️  FAN NOISE: Medium flatness (0.3-0.6) + Low speech band (<0.3) + Variable ZCR
-❌ WHITE NOISE: High flatness (>0.7) + High ZCR (>0.15)
+❌ NOISE BURST: Duration <0.6s + High flatness (>0.7) + High ZCR (>0.15)
 """
 
 import os
@@ -74,6 +80,18 @@ SILENCE_TIMEOUT = 0.3  # 300ms of silence before stopping
 VAD_START_THRESHOLD = 0.35  # Higher = less sensitive to fan noise
 VAD_SILENCE_THRESHOLD = 0.15  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
+
+# === Advanced Multi-Feature Speech Detection (OPTIONAL) ===
+# Set ENABLE_ADVANCED_FILTER = True to enable secondary checks beyond VAD
+ENABLE_ADVANCED_FILTER = False  # Toggle this to test
+
+# Thresholds based on your data analysis:
+SPEECH_ZCR_MAX = 0.14           # Reject if ZCR > this (noise has higher ZCR)
+SPEECH_FLATNESS_MAX = 0.30      # Reject if too "flat" (noisy, not tonal)
+SPEECH_CENTROID_MIN = 400       # Hz - reject if too low (rumble/fan)
+SPEECH_CENTROID_MAX = 1500      # Hz - reject if too high (hiss)
+SPEECH_BAND_MIN = 0.35          # Reject if insufficient energy in speech band
+SPEECH_DURATION_MIN = 0.7       # Seconds - reject if too short (noise bursts)
 
 # BARE-BONES: No software processing - testing hardware optimization only
 
@@ -165,6 +183,46 @@ def calculate_audio_features(audio_chunk, sample_rate=SAMPLE_RATE):
         features['low_freq_ratio'] = 0
     
     return features
+
+def is_likely_speech(features, duration=None):
+    """
+    Apply advanced multi-feature analysis to distinguish speech from noise.
+    Based on empirical data from your testing session.
+    
+    Args:
+        features: Dict of audio features
+        duration: Audio duration in seconds (optional)
+    
+    Returns: (is_speech: bool, reason: str)
+    """
+    reasons = []
+    
+    # Check Duration (if provided) - quick rejection for short noise bursts
+    if duration is not None and duration < SPEECH_DURATION_MIN:
+        reasons.append(f"Too short ({duration:.2f}s < {SPEECH_DURATION_MIN}s)")
+    
+    # Check Zero Crossing Rate (most reliable)
+    if features['zcr'] > SPEECH_ZCR_MAX:
+        reasons.append(f"ZCR too high ({features['zcr']:.3f} > {SPEECH_ZCR_MAX})")
+    
+    # Check Spectral Flatness (second most reliable)
+    if features['spectral_flatness'] > SPEECH_FLATNESS_MAX:
+        reasons.append(f"Too flat/noisy ({features['spectral_flatness']:.3f} > {SPEECH_FLATNESS_MAX})")
+    
+    # Check Spectral Centroid (frequency range)
+    if features['spectral_centroid'] < SPEECH_CENTROID_MIN:
+        reasons.append(f"SpCent too low ({features['spectral_centroid']:.0f}Hz < {SPEECH_CENTROID_MIN}Hz)")
+    elif features['spectral_centroid'] > SPEECH_CENTROID_MAX:
+        reasons.append(f"SpCent too high ({features['spectral_centroid']:.0f}Hz > {SPEECH_CENTROID_MAX}Hz)")
+    
+    # Check Speech Band Energy
+    if features['speech_band_ratio'] < SPEECH_BAND_MIN:
+        reasons.append(f"Low speech band energy ({features['speech_band_ratio']:.2f} < {SPEECH_BAND_MIN})")
+    
+    is_speech = len(reasons) == 0
+    reason = " | ".join(reasons) if reasons else "All checks passed"
+    
+    return is_speech, reason
 
 # === Load VAD ===
 print("[VAD] 🔄 Loading Silero VAD model...")
@@ -267,14 +325,16 @@ def transcribe(audio):
         print(f"[Whisper] ⏱️  Transcription time: {transcribe_time:.3f}s")
         print(f"[Whisper] 📝 Text: '{text}'")
         
-        # Classify as likely speech or noise based on features
-        is_likely_speech = (
-            features['spectral_flatness'] < 0.3 and  # Tonal
-            features['speech_band_ratio'] > 0.3 and  # Energy in speech band
-            features['zcr'] > 0.01 and features['zcr'] < 0.15  # Reasonable ZCR
-        )
-        classification = "✅ SPEECH" if is_likely_speech else "⚠️  POSSIBLE NOISE"
+        # Apply advanced filter analysis with duration (even if not actively filtering)
+        is_speech_result, reason = is_likely_speech(features, duration)
+        classification = "✅ SPEECH" if is_speech_result else "⚠️  POSSIBLE NOISE"
         print(f"[Analysis] Classification: {classification}")
+        if not is_speech_result:
+            print(f"[Analysis] Rejection reason: {reason}")
+        
+        # Show filter status
+        filter_status = "ENABLED" if ENABLE_ADVANCED_FILTER else "DISABLED"
+        print(f"[Analysis] Advanced filter: {filter_status}")
         
         print(f"[Stats] 🔢 Transcriptions: {transcription_count} | Total audio: {total_audio_duration:.1f}s")
         print(f"{'='*70}")
@@ -339,6 +399,15 @@ def listen():
     print("[Audio] BARE-BONES PIPELINE")
     print("[Audio]   Hardware DSP → Channel 0 → VAD → Whisper")
     print("[Audio]   (Configure: sudo python3 scripts/tune_respeaker.py [profile])")
+    
+    if ENABLE_ADVANCED_FILTER:
+        print("\n[Filter] ✅ ADVANCED MULTI-FEATURE FILTER: ENABLED")
+        print(f"[Filter]    Duration > {SPEECH_DURATION_MIN}s | ZCR < {SPEECH_ZCR_MAX} | Flatness < {SPEECH_FLATNESS_MAX}")
+        print(f"[Filter]    SpCent: {SPEECH_CENTROID_MIN}-{SPEECH_CENTROID_MAX}Hz | SpBand > {SPEECH_BAND_MIN}")
+    else:
+        print("\n[Filter] 💤 Advanced filter: DISABLED (VAD only)")
+        print("[Filter]    Set ENABLE_ADVANCED_FILTER = True to enable multi-feature filtering")
+    
     print("="*70 + "\n")
     
     # ARM/Jetson-specific audio configuration
@@ -414,8 +483,19 @@ def listen():
                 print(f"[VAD] {vad_prob:.2f} | RMS {features['rms']:.4f} | ZCR {features['zcr']:.3f} | SpCent {features['spectral_centroid']:4.0f}Hz | SpFlat {features['spectral_flatness']:.2f} | SpBand {features['speech_band_ratio']:.2f}", end="\r")
                 
                 if vad_prob > VAD_START_THRESHOLD:
-                    print(f"\n[VAD] 🔊 Speech started (VAD={vad_prob:.2f}, RMS={features['rms']:.6f})")
+                    print(f"\n[VAD] 🔊 Speech detected (VAD={vad_prob:.2f}, RMS={features['rms']:.6f})")
                     print(f"[Features] ZCR={features['zcr']:.3f} | SpCentroid={features['spectral_centroid']:.0f}Hz | SpFlat={features['spectral_flatness']:.3f} | SpeechBand={features['speech_band_ratio']:.2f}")
+                    
+                    # Apply advanced filter if enabled
+                    if ENABLE_ADVANCED_FILTER:
+                        is_speech_result, reason = is_likely_speech(features)
+                        if not is_speech_result:
+                            print(f"[Filter] ❌ REJECTED: {reason}")
+                            print("[Filter] 🔄 Returning to listening (not speech)\n")
+                            continue  # Back to waiting for speech
+                        else:
+                            print(f"[Filter] ✅ PASSED: {reason}")
+                    
                     buffer.append(audio_block)
                     break
             
