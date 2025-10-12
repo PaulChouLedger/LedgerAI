@@ -83,6 +83,7 @@ MIN_AUDIO_SAMPLES = 2000
 
 # === Advanced Multi-Feature Speech Detection (OPTIONAL) ===
 # Set ENABLE_ADVANCED_FILTER = True to enable secondary checks beyond VAD
+# RECOMMENDED: Enable when using beamforming for best results!
 ENABLE_ADVANCED_FILTER = False  # Toggle this to test
 
 # Thresholds based on your data analysis:
@@ -92,6 +93,9 @@ SPEECH_CENTROID_MIN = 400       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 1500      # Hz - reject if too high (hiss)
 SPEECH_BAND_MIN = 0.35          # Reject if insufficient energy in speech band
 SPEECH_DURATION_MIN = 0.5       # Seconds - reject if too short (noise bursts)
+
+# === VAD Thresholds (can be lowered with beamforming) ===
+# With beamforming enabled, audio is cleaner so you can use lower thresholds for better responsiveness
 
 # BARE-BONES: No software processing - testing hardware optimization only
 

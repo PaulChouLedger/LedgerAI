@@ -9,12 +9,14 @@ Usage:
     sudo python3 scripts/tune_respeaker.py [preset]
     
 STANDARD PRESETS:
-    - clean       : HPF + AGC (0.08) + NS (3.0) - DEFAULT
-    - beamforming : Adaptive beamforming + DOA tracking (iPhone-like)
-    - far_field   : Optimized for 8-16 feet
-    - near_field  : Optimized for 1-6 feet
-    - reset       : Factory defaults (all OFF)
-    - show        : Show current settings
+    - clean                   : HPF + AGC (0.08) + NS (3.0) - DEFAULT
+    - beamforming             : Adaptive beamforming + DOA (balanced)
+    - beamforming_light       : Beamforming + light NS (clean environments)
+    - beamforming_aggressive  : Beamforming + max NS (noisy environments)
+    - far_field               : Optimized for 8-16 feet
+    - near_field              : Optimized for 1-6 feet
+    - reset                   : Factory defaults (all OFF)
+    - show                    : Show current settings
 
 TEST PROFILES (systematic optimization):
     - bf         : Beamforming ONLY (pure test)
@@ -554,6 +556,124 @@ def configure_hpbf():
     })
     return True
 
+def configure_beamforming_light():
+    """Beamforming + Light noise suppression (best for clean environments)"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🎯 BEAMFORMING + LIGHT NS (Clean Environment)")
+    print("="*80 + "\n")
+    
+    print("[1/5] Adaptive Beamforming: ON")
+    dev.write("FREEZEONOFF", 0)
+    
+    print("[2/5] High-Pass Filter: ON (70 Hz)")
+    dev.write("HPFONOFF", 1)
+    
+    print("[3/5] Hardware AGC: ON (0.08 RMS)")
+    dev.write("AGCONOFF", 1)
+    dev.write("AGCDESIREDLEVEL", 0.08)
+    dev.write("AGCMAXGAIN", 30.0)
+    
+    print("[4/5] Stationary Noise Suppression: LIGHT (gamma=1.0)")
+    dev.write("STATNOISEONOFF_SR", 1)
+    dev.write("GAMMA_NS_SR", 1.0)  # Light
+    
+    print("[5/5] Non-Stationary Noise Suppression: LIGHT (gamma=1.0)")
+    dev.write("NONSTATNOISEONOFF_SR", 1)
+    dev.write("GAMMA_NN_SR", 1.0)  # Light
+    
+    dev.write("ECHOONOFF", 0)
+    
+    try:
+        doa = dev.read("DOAANGLE")
+        print(f"\n  📍 Speaker direction: {doa}°")
+    except:
+        pass
+    
+    print("\n  ✅ Light beamforming optimized for clean environments")
+    print("  Use when background noise is minimal\n")
+    
+    save_config_state('beamforming_light', {
+        'FREEZEONOFF': 0,
+        'HPFONOFF': 1,
+        'AGCONOFF': 1,
+        'AGCDESIREDLEVEL': 0.08,
+        'AGCMAXGAIN': 30.0,
+        'STATNOISEONOFF_SR': 1,
+        'GAMMA_NS_SR': 1.0,
+        'NONSTATNOISEONOFF_SR': 1,
+        'GAMMA_NN_SR': 1.0,
+        'ECHOONOFF': 0
+    })
+    return True
+
+def configure_beamforming_aggressive():
+    """Beamforming + Aggressive noise suppression (best for noisy environments)"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🎯 BEAMFORMING + AGGRESSIVE NS (Noisy Environment)")
+    print("="*80 + "\n")
+    
+    print("[1/5] Adaptive Beamforming: ON")
+    dev.write("FREEZEONOFF", 0)
+    
+    print("[2/5] High-Pass Filter: ON (125 Hz - more aggressive)")
+    dev.write("HPFONOFF", 2)  # 125Hz instead of 70Hz
+    
+    print("[3/5] Hardware AGC: ON (0.08 RMS)")
+    dev.write("AGCONOFF", 1)
+    dev.write("AGCDESIREDLEVEL", 0.08)
+    dev.write("AGCMAXGAIN", 30.0)
+    
+    print("[4/5] Stationary Noise Suppression: AGGRESSIVE (gamma=3.0)")
+    dev.write("STATNOISEONOFF_SR", 1)
+    dev.write("GAMMA_NS_SR", 3.0)  # Max
+    
+    print("[5/5] Non-Stationary Noise Suppression: AGGRESSIVE (gamma=2.5)")
+    dev.write("NONSTATNOISEONOFF_SR", 1)
+    dev.write("GAMMA_NN_SR", 2.5)  # High
+    
+    dev.write("ECHOONOFF", 0)
+    
+    try:
+        doa = dev.read("DOAANGLE")
+        print(f"\n  📍 Speaker direction: {doa}°")
+    except:
+        pass
+    
+    print("\n  ✅ Aggressive beamforming for noisy environments")
+    print("  Maximum noise suppression + higher HPF cutoff\n")
+    
+    save_config_state('beamforming_aggressive', {
+        'FREEZEONOFF': 0,
+        'HPFONOFF': 2,
+        'AGCONOFF': 1,
+        'AGCDESIREDLEVEL': 0.08,
+        'AGCMAXGAIN': 30.0,
+        'STATNOISEONOFF_SR': 1,
+        'GAMMA_NS_SR': 3.0,
+        'NONSTATNOISEONOFF_SR': 1,
+        'GAMMA_NN_SR': 2.5,
+        'ECHOONOFF': 0
+    })
+    return True
+
 def configure_agc1():
     """AGC1 - Mild AGC ONLY (0.05 RMS target)"""
     import usb.core
@@ -839,9 +959,13 @@ def main():
         elif preset == "show":
             success = show_current_settings()
         
-        # Beamforming preset
+        # Beamforming presets
         elif preset == "beamforming" or preset == "beam":
             success = configure_beamforming()
+        elif preset == "beamforming_light" or preset == "beam_light":
+            success = configure_beamforming_light()
+        elif preset == "beamforming_aggressive" or preset == "beam_aggro":
+            success = configure_beamforming_aggressive()
         
         # Test profiles (isolated components)
         elif preset == "bf":
@@ -866,12 +990,14 @@ def main():
         else:
             print(f"\n  ❌ Unknown preset: {preset}")
             print(f"\n  📋 STANDARD PRESETS:")
-            print(f"    - clean      : HPF + Optimal AGC (0.08) + Max NS (3.0) - DEFAULT")
-            print(f"    - beamforming: Adaptive beamforming + DOA tracking (iPhone-like)")
-            print(f"    - far_field  : High AGC + noise suppression (8-16 feet)")
-            print(f"    - near_field : Moderate AGC (1-6 feet)")
-            print(f"    - reset      : Factory defaults (all OFF)")
-            print(f"    - show       : Show current settings")
+            print(f"    - clean              : HPF + Optimal AGC (0.08) + Max NS (3.0) - DEFAULT")
+            print(f"    - beamforming        : Adaptive beamforming + DOA (balanced)")
+            print(f"    - beamforming_light  : Beamforming + light NS (clean environments)")
+            print(f"    - beamforming_aggressive : Beamforming + max NS (noisy environments)")
+            print(f"    - far_field          : High AGC + noise suppression (8-16 feet)")
+            print(f"    - near_field         : Moderate AGC (1-6 feet)")
+            print(f"    - reset              : Factory defaults (all OFF)")
+            print(f"    - show               : Show current settings")
             print(f"\n  🧪 TEST PROFILES (systematic testing):")
             print(f"    - bf         : Beamforming ONLY (pure test)")
             print(f"    - hpbf       : Beamforming + HPF 70Hz")
