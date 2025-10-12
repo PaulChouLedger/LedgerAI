@@ -163,7 +163,8 @@ def chat():
         if prompt_norm in RESET_KEYWORDS:
             def generate_reset():
                 yield "<sentence_start>\n🔄 Session reset. Start again with your symptoms.\n<sentence_end>\n"
-            return Response(stream_with_context(generate_reset()), mimetype="text/plain")
+            # Filter think blocks at container level (though unlikely here)
+            return Response(stream_with_context(filter_think_blocks(generate_reset())), mimetype="text/plain")
 
     # Route to appropriate mode
     state = load_state(session_id)
@@ -177,13 +178,15 @@ def chat():
         def generate_casual():
             for token in stream_casual_response(prompt_norm, llm_chat, session_id):
                 yield token
-        return Response(stream_with_context(generate_casual()), mimetype="text/plain")
+        # Filter think blocks at container level
+        return Response(stream_with_context(filter_think_blocks(generate_casual())), mimetype="text/plain")
 
     elif mode == ConversationMode.THINKER:
         def generate_thinker():
             for token in handle_thinker(prompt_norm, llm_chat, session_id):
                 yield token
-        return Response(stream_with_context(generate_thinker()), mimetype="text/plain")
+        # Filter think blocks at container level
+        return Response(stream_with_context(filter_think_blocks(generate_thinker())), mimetype="text/plain")
 
     elif mode == ConversationMode.TRIAGE:
         print(f"[Triage] 🔍 Mode: TRIAGE, condition={updated_state.get('condition')}, is_new={updated_state.get('is_new_triage')}, step_index={updated_state.get('step_index')}")
@@ -219,7 +222,8 @@ def chat():
                 }, updated_state.get("phrasing_history"), llm_chat_once)
                 yield f"<sentence_start>\n{q_nlg}\n<sentence_end>\n"
 
-            return Response(stream_with_context(generate_new_triage()), mimetype="text/plain")
+            # Filter think blocks at container level
+            return Response(stream_with_context(filter_think_blocks(generate_new_triage())), mimetype="text/plain")
 
         # Continue existing triage - process user's answer
         else:
@@ -234,21 +238,63 @@ def chat():
                     import traceback
                     traceback.print_exc()
                     yield f"<sentence_start>\nI'm sorry, there was an error processing your triage.\n<sentence_end>\n"
-            return Response(stream_with_context(generate_triage_continue()), mimetype="text/plain")
+            # Filter think blocks at container level
+            return Response(stream_with_context(filter_think_blocks(generate_triage_continue())), mimetype="text/plain")
 
     elif mode == ConversationMode.CLINICIAN:
         def generate_clinician():
             clinician = create_clinician_session(session_id, prompt)
             opening = clinician.start_session()
             yield f"<sentence_start>\n{opening}\n<sentence_end>\n"
-        return Response(stream_with_context(generate_clinician()), mimetype="text/plain")
+        # Filter think blocks at container level
+        return Response(stream_with_context(filter_think_blocks(generate_clinician())), mimetype="text/plain")
 
     else:
         # Fallback
         def generate_fallback():
             yield "<sentence_start>\nHello! I'm AuraVision, your friendly personal assistant. How can I help you today?\n<sentence_end>\n"
-        return Response(stream_with_context(generate_fallback()), mimetype="text/plain")
+        # Filter think blocks at container level
+        return Response(stream_with_context(filter_think_blocks(generate_fallback())), mimetype="text/plain")
 
+
+# === Stream Filtering ===
+def filter_think_blocks(generator):
+    """
+    Filter <think> blocks from streamed tokens
+    Wraps any generator to remove chain-of-thought reasoning
+    """
+    in_think_block = False
+    
+    for token in generator:
+        token = token.strip()
+        if not token:
+            continue
+        
+        # Detect think block start
+        if token == '<think>' or '<think>' in token:
+            in_think_block = True
+            print(f"[Container] 🤔 <think> block detected (filtering)")
+            continue
+        
+        # Detect think block end
+        if token == '</think>' or '</think>' in token:
+            in_think_block = False
+            print(f"[Container] ✅ </think> block ended")
+            continue
+        
+        # Also close think block on <sentence_end> if inside one
+        if in_think_block and ('<sentence_end>' in token or token == '<sentence_end>'):
+            in_think_block = False
+            print(f"[Container] ✅ <think> block ended (via <sentence_end>)")
+            continue
+        
+        # Skip everything inside think blocks
+        if in_think_block:
+            print(f"[Container] 🤫 (thinking: {token[:50]}...)" if len(token) > 50 else f"[Container] 🤫 (thinking: {token})")
+            continue
+        
+        # Yield tokens outside think blocks
+        yield token + '\n'
 
 # === Helper Functions ===
 
