@@ -1,3 +1,61 @@
+"""
+Pure Transcription Testing Script with Advanced Audio Feature Analysis
+
+This script helps find optimal VAD thresholds by displaying multiple audio features
+commonly used in commercial voice assistants (Alexa, Siri, Google Assistant).
+
+AUDIO FEATURES EXPLAINED:
+========================
+
+1. RMS Energy (0.0-1.0)
+   - Root Mean Square energy level
+   - Speech: 0.02-0.20 (varies with distance/volume)
+   - Silence/Noise: < 0.02
+
+2. Zero Crossing Rate (ZCR) (0.0-0.3)
+   - How often signal crosses zero amplitude
+   - Vowels: 0.02-0.05 (low)
+   - Fricatives (s, sh, f): 0.08-0.15 (high)
+   - White noise/hiss: 0.15+ (very high)
+   - Fan noise: 0.03-0.08
+
+3. Spectral Centroid (Hz)
+   - "Center of mass" of frequency spectrum
+   - Male speech: 1000-1500 Hz
+   - Female speech: 1500-2500 Hz
+   - Fan/HVAC: 200-800 Hz
+   - Hiss: 3000+ Hz
+
+4. Spectral Flatness (0.0-1.0)
+   - Measures how "tonal" (speech) vs "noisy" (random)
+   - Speech: 0.01-0.1 (very tonal)
+   - Music: 0.1-0.3
+   - White noise: 0.8-1.0 (very flat)
+   - **KEY DISCRIMINATOR for speech vs noise**
+
+5. Speech Band Ratio (0.0-1.0)
+   - Energy in 300-3400 Hz (telephone frequency range)
+   - Speech: 0.5-0.8 (most energy here)
+   - Fan noise: 0.2-0.4
+   - **IMPORTANT for detecting speech**
+
+6. High Frequency Ratio (0.0-1.0)
+   - Energy above 4000 Hz
+   - Speech: 0.05-0.15
+   - Hiss/fans: 0.2+
+
+7. Low Frequency Ratio (0.0-1.0)
+   - Energy below 100 Hz (rumble)
+   - Speech: 0.05-0.15
+   - HVAC/fans: 0.3+
+
+TYPICAL PATTERNS:
+=================
+✅ SPEECH: Low spectral flatness (<0.2) + High speech band ratio (>0.4) + Moderate ZCR (0.02-0.12)
+⚠️  FAN NOISE: Medium flatness (0.3-0.6) + Low speech band (<0.3) + Variable ZCR
+❌ WHITE NOISE: High flatness (>0.7) + High ZCR (>0.15)
+"""
+
 import os
 import io
 import time
@@ -6,6 +64,8 @@ import numpy as np
 import soundfile as sf
 import sounddevice as sd
 import requests
+from scipy import signal
+from scipy.fft import rfft, rfftfreq
 
 # === Config ===
 SAMPLE_RATE = 16000
@@ -37,6 +97,74 @@ def find_device_index():
             print(f"[Listener] 🎧 Found: {device['name']} (index {i})")
             return 6  # Always use 6 channels
     raise RuntimeError("Microphone not found")
+
+# === Audio Feature Extraction ===
+def calculate_audio_features(audio_chunk, sample_rate=SAMPLE_RATE):
+    """
+    Calculate multiple audio features used in commercial voice assistants
+    Returns: dict with all features
+    """
+    features = {}
+    
+    # 1. RMS Energy (already used, but included for completeness)
+    features['rms'] = np.sqrt(np.mean(audio_chunk ** 2))
+    
+    # 2. Zero Crossing Rate - speech has characteristic ZCR
+    # High ZCR = fricatives/noise, Low ZCR = vowels, Very high = fan/hiss
+    zero_crossings = np.sum(np.abs(np.diff(np.sign(audio_chunk)))) / 2
+    features['zcr'] = zero_crossings / len(audio_chunk)
+    
+    # 3. Spectral features (frequency domain)
+    # Compute FFT
+    fft_vals = rfft(audio_chunk)
+    fft_freq = rfftfreq(len(audio_chunk), 1/sample_rate)
+    magnitude = np.abs(fft_vals)
+    
+    # Spectral Centroid - "center of mass" of spectrum
+    # Speech typically 1000-2000 Hz, noise varies
+    if np.sum(magnitude) > 0:
+        features['spectral_centroid'] = np.sum(fft_freq * magnitude) / np.sum(magnitude)
+    else:
+        features['spectral_centroid'] = 0
+    
+    # Spectral Flatness - how "tonal" vs "noisy"
+    # Speech is tonal (low ~0.01-0.1), white noise is flat (high ~1.0)
+    geometric_mean = np.exp(np.mean(np.log(magnitude + 1e-10)))
+    arithmetic_mean = np.mean(magnitude)
+    if arithmetic_mean > 0:
+        features['spectral_flatness'] = geometric_mean / arithmetic_mean
+    else:
+        features['spectral_flatness'] = 0
+    
+    # 4. Speech Band Energy (300-3400 Hz - telephone quality range)
+    # Human speech fundamental + harmonics are here
+    speech_band_mask = (fft_freq >= 300) & (fft_freq <= 3400)
+    speech_band_energy = np.sum(magnitude[speech_band_mask] ** 2)
+    total_energy = np.sum(magnitude ** 2)
+    if total_energy > 0:
+        features['speech_band_ratio'] = speech_band_energy / total_energy
+    else:
+        features['speech_band_ratio'] = 0
+    
+    # 5. High Frequency Ratio (4000+ Hz)
+    # Fan noise / hiss often has more high frequency content
+    high_freq_mask = fft_freq >= 4000
+    high_freq_energy = np.sum(magnitude[high_freq_mask] ** 2)
+    if total_energy > 0:
+        features['high_freq_ratio'] = high_freq_energy / total_energy
+    else:
+        features['high_freq_ratio'] = 0
+    
+    # 6. Low Frequency Rumble (0-100 Hz)
+    # HVAC, fans, etc. Can indicate noise
+    low_freq_mask = fft_freq <= 100
+    low_freq_energy = np.sum(magnitude[low_freq_mask] ** 2)
+    if total_energy > 0:
+        features['low_freq_ratio'] = low_freq_energy / total_energy
+    else:
+        features['low_freq_ratio'] = 0
+    
+    return features
 
 # === Load VAD ===
 print("[VAD] 🔄 Loading Silero VAD model...")
@@ -97,14 +225,25 @@ def display_hardware_config(state):
 
 # === Transcribe ===
 def transcribe(audio):
-    """Send raw audio to Whisper"""
+    """Send raw audio to Whisper with detailed audio feature analysis"""
     global transcription_count, total_audio_duration
     
     duration = len(audio) / SAMPLE_RATE
-    rms = np.sqrt(np.mean(audio ** 2))
+    
+    # Calculate comprehensive audio features
+    features = calculate_audio_features(audio)
     peak = np.max(np.abs(audio))
     
-    print(f"\n[Audio] RMS={rms:.6f}, Peak={peak:.4f}, Duration={duration:.2f}s")
+    # Display audio characteristics
+    print(f"\n{'='*70}")
+    print(f"[Audio] Duration={duration:.2f}s | Peak={peak:.4f}")
+    print(f"[Audio] RMS Energy:         {features['rms']:.6f}")
+    print(f"[Audio] Zero Crossing Rate: {features['zcr']:.4f}")
+    print(f"[Audio] Spectral Centroid:  {features['spectral_centroid']:.0f} Hz")
+    print(f"[Audio] Spectral Flatness:  {features['spectral_flatness']:.4f} (speech ~0.01-0.1, noise ~0.5-1.0)")
+    print(f"[Audio] Speech Band Ratio:  {features['speech_band_ratio']:.3f} (300-3400Hz)")
+    print(f"[Audio] High Freq Ratio:    {features['high_freq_ratio']:.3f} (4000+ Hz, noise if high)")
+    print(f"[Audio] Low Freq Ratio:     {features['low_freq_ratio']:.3f} (0-100 Hz, rumble if high)")
     
     wav_io = io.BytesIO()
     sf.write(wav_io, audio, SAMPLE_RATE, format="WAV")
@@ -127,11 +266,23 @@ def transcribe(audio):
         
         print(f"[Whisper] ⏱️  Transcription time: {transcribe_time:.3f}s")
         print(f"[Whisper] 📝 Text: '{text}'")
+        
+        # Classify as likely speech or noise based on features
+        is_likely_speech = (
+            features['spectral_flatness'] < 0.3 and  # Tonal
+            features['speech_band_ratio'] > 0.3 and  # Energy in speech band
+            features['zcr'] > 0.01 and features['zcr'] < 0.15  # Reasonable ZCR
+        )
+        classification = "✅ SPEECH" if is_likely_speech else "⚠️  POSSIBLE NOISE"
+        print(f"[Analysis] Classification: {classification}")
+        
         print(f"[Stats] 🔢 Transcriptions: {transcription_count} | Total audio: {total_audio_duration:.1f}s")
+        print(f"{'='*70}")
         
         return text
     except Exception as e:
         print(f"[Whisper] ❌ {e}")
+        print(f"{'='*70}")
         return ""
 
 def warmup_whisper():
@@ -255,12 +406,16 @@ def listen():
                 
                 # Hardware HPF already applied in ReSpeaker DSP
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
-                rms = np.sqrt(np.mean(channel_0 ** 2))
                 
-                print(f"[VAD] {vad_prob:.2f} | RMS {rms:.6f}", end="\r")
+                # Calculate audio features
+                features = calculate_audio_features(channel_0)
+                
+                # Display key features in real-time
+                print(f"[VAD] {vad_prob:.2f} | RMS {features['rms']:.4f} | ZCR {features['zcr']:.3f} | SpCent {features['spectral_centroid']:4.0f}Hz | SpFlat {features['spectral_flatness']:.2f} | SpBand {features['speech_band_ratio']:.2f}", end="\r")
                 
                 if vad_prob > VAD_START_THRESHOLD:
-                    print(f"\n[VAD] 🔊 Speech started (VAD={vad_prob:.2f}, RMS={rms:.6f})")
+                    print(f"\n[VAD] 🔊 Speech started (VAD={vad_prob:.2f}, RMS={features['rms']:.6f})")
+                    print(f"[Features] ZCR={features['zcr']:.3f} | SpCentroid={features['spectral_centroid']:.0f}Hz | SpFlat={features['spectral_flatness']:.3f} | SpeechBand={features['speech_band_ratio']:.2f}")
                     buffer.append(audio_block)
                     break
             
@@ -309,8 +464,6 @@ def listen():
             # Reset VAD state for next utterance (critical for consistent performance)
             model_vad.reset_states()
             
-            # Print a separator and immediately loop back
-            print("-" * 70)
             print("[Listener] 🎤 Ready for next input...\n")
 
 if __name__ == "__main__":
