@@ -7,10 +7,18 @@ commonly used in commercial voice assistants (Alexa, Siri, Google Assistant).
 AUDIO FEATURES EXPLAINED:
 ========================
 
-1. RMS Energy (0.0-1.0)
+1. RMS Energy (0.0-1.0) ⭐ CRITICAL DISCRIMINATOR
    - Root Mean Square energy level
-   - Speech: 0.02-0.20 (varies with distance/volume)
-   - Silence/Noise: < 0.02
+   - Speech: 0.05-0.20 (varies with distance/volume)
+   - Low-level noise: 0.015-0.030
+   - Silence: < 0.015
+   - **Best discriminator between speech and noise bursts**
+
+1b. Peak Amplitude (0.0-1.0) ⭐ CRITICAL DISCRIMINATOR
+   - Maximum amplitude in signal
+   - Speech: 0.20-1.0 (varies with volume)
+   - Low-level noise: 0.05-0.15
+   - **Works together with RMS to reject weak noise**
 
 2. Zero Crossing Rate (ZCR) (0.0-0.3)
    - How often signal crosses zero amplitude
@@ -57,9 +65,12 @@ AUDIO FEATURES EXPLAINED:
 
 TYPICAL PATTERNS:
 =================
-✅ SPEECH: Duration >0.7s + Low spectral flatness (<0.2) + High speech band ratio (>0.4) + Moderate ZCR (0.02-0.12)
-⚠️  FAN NOISE: Medium flatness (0.3-0.6) + Low speech band (<0.3) + Variable ZCR
-❌ NOISE BURST: Duration <0.6s + High flatness (>0.7) + High ZCR (>0.15)
+✅ SPEECH: RMS >0.035 + Peak >0.15 + Duration >0.4s + Moderate flatness (<0.55)
+⚠️  LOW-LEVEL NOISE: RMS 0.015-0.030 + Peak 0.05-0.15 + Triggers VAD but not real speech
+❌ NOISE BURST: RMS <0.03 + Peak <0.15 + High flatness (>0.55)
+
+KEY INSIGHT: RMS and Peak are the most reliable discriminators.
+Your noise has RMS ~0.02 and Peak ~0.10, while speech has RMS ~0.10 and Peak ~0.80+
 """
 
 import os
@@ -87,13 +98,17 @@ MIN_AUDIO_SAMPLES = 2000
 ENABLE_ADVANCED_FILTER = True  # Toggle this to test
 
 # Thresholds based on your ACTUAL speech patterns:
-# Updated after observing real speech was being rejected
+# Updated after comparing real speech vs noise bursts
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this (speech can be 0.15-0.35)
 SPEECH_FLATNESS_MAX = 0.55      # Reject if too "flat" (speech can be 0.15-0.45)
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss) - raised for fricatives
 SPEECH_BAND_MIN = 0.30          # Reject if insufficient energy in speech band
 SPEECH_DURATION_MIN = 0.4       # Seconds - reject if too short (noise bursts)
+
+# CRITICAL: Energy thresholds (most reliable for your noise pattern)
+SPEECH_RMS_MIN = 0.035          # Reject if RMS < this (noise is 0.018-0.026, speech is 0.097)
+SPEECH_PEAK_MIN = 0.15          # Reject if peak < this (noise is 0.08-0.12, speech is 0.96)
 
 # === VAD Thresholds (can be lowered with beamforming) ===
 # With beamforming enabled, audio is cleaner so you can use lower thresholds for better responsiveness
@@ -131,6 +146,9 @@ def calculate_audio_features(audio_chunk, sample_rate=SAMPLE_RATE):
     
     # 1. RMS Energy (already used, but included for completeness)
     features['rms'] = np.sqrt(np.mean(audio_chunk ** 2))
+    
+    # Peak amplitude (critical for distinguishing speech from low-level noise)
+    features['peak'] = np.max(np.abs(audio_chunk))
     
     # 2. Zero Crossing Rate - speech has characteristic ZCR
     # High ZCR = fricatives/noise, Low ZCR = vowels, Very high = fan/hiss
@@ -209,11 +227,18 @@ def is_likely_speech(features, duration=None):
     """
     reasons = []
     
+    # Check Energy Levels FIRST (most reliable for your noise pattern)
+    if features['rms'] < SPEECH_RMS_MIN:
+        reasons.append(f"RMS too low ({features['rms']:.4f} < {SPEECH_RMS_MIN})")
+    
+    if features['peak'] < SPEECH_PEAK_MIN:
+        reasons.append(f"Peak too low ({features['peak']:.4f} < {SPEECH_PEAK_MIN})")
+    
     # Check Duration (if provided) - quick rejection for short noise bursts
     if duration is not None and duration < SPEECH_DURATION_MIN:
         reasons.append(f"Too short ({duration:.2f}s < {SPEECH_DURATION_MIN}s)")
     
-    # Check Zero Crossing Rate (most reliable)
+    # Check Zero Crossing Rate
     if features['zcr'] > SPEECH_ZCR_MAX:
         reasons.append(f"ZCR too high ({features['zcr']:.3f} > {SPEECH_ZCR_MAX})")
     
@@ -491,12 +516,12 @@ def listen():
                 # Calculate audio features
                 features = calculate_audio_features(channel_0)
                 
-                # Display key features in real-time
-                print(f"[VAD] {vad_prob:.2f} | RMS {features['rms']:.4f} | ZCR {features['zcr']:.3f} | SpCent {features['spectral_centroid']:4.0f}Hz | SpFlat {features['spectral_flatness']:.2f} | SpBand {features['speech_band_ratio']:.2f}", end="\r")
+                # Display key features in real-time (emphasize energy levels)
+                print(f"[VAD] {vad_prob:.2f} | RMS {features['rms']:.4f} | Peak {features['peak']:.3f} | ZCR {features['zcr']:.3f} | SpFlat {features['spectral_flatness']:.2f}", end="\r")
                 
                 if vad_prob > VAD_START_THRESHOLD:
-                    print(f"\n[VAD] 🔊 Speech detected (VAD={vad_prob:.2f}, RMS={features['rms']:.6f})")
-                    print(f"[Features] ZCR={features['zcr']:.3f} | SpCentroid={features['spectral_centroid']:.0f}Hz | SpFlat={features['spectral_flatness']:.3f} | SpeechBand={features['speech_band_ratio']:.2f}")
+                    print(f"\n[VAD] 🔊 Speech detected (VAD={vad_prob:.2f}, RMS={features['rms']:.4f}, Peak={features['peak']:.3f})")
+                    print(f"[Features] ZCR={features['zcr']:.3f} | SpCentroid={features['spectral_centroid']:.0f}Hz | SpFlat={features['spectral_flatness']:.3f}")
                     
                     # Apply advanced filter if enabled
                     if ENABLE_ADVANCED_FILTER:
