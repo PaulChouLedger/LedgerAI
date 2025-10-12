@@ -38,6 +38,11 @@ def route_prompt(prompt: str, state: dict, session_id: str) -> Tuple[str, dict]:
     """
     Determine which conversation mode to use
     
+    Supports dynamic mode switching:
+    - CASUAL ↔ THINKER: Can switch freely based on query type
+    - TRIAGE: Locked until completion (must finish all questions)
+    - CLINICIAN: Locked until completion (future)
+    
     Args:
         prompt: User's input (normalized/lowercase)
         state: Current session state
@@ -46,57 +51,31 @@ def route_prompt(prompt: str, state: dict, session_id: str) -> Tuple[str, dict]:
     Returns:
         Tuple of (mode_name, updated_state)
     """
-    # Check for active session first (continuation)
-    active_mode = get_active_mode(state)
-    
     # Debug: Show state info
     print(f"[Router] 🔍 Current state: condition={state.get('condition')}, step_index={state.get('step_index')}, mode={state.get('mode')}")
     
-    if active_mode:
-        print(f"[Router] 🔄 Continuing active session: {active_mode.upper()}")
-        return active_mode, state
+    # PRIORITY 1: TRIAGE mode is LOCKED - must complete before switching
+    active_condition = state.get('condition')
+    if active_condition:
+        print(f"[Router] 🔒 TRIAGE mode locked (condition={active_condition}) - must complete before switching")
+        state['mode'] = ConversationMode.TRIAGE
+        return ConversationMode.TRIAGE, state
     
-    # No active session - classify new prompt
-    print(f"[Router] 🎯 Routing new prompt: '{prompt[:60]}...'")
+    # PRIORITY 2: CLINICIAN mode is LOCKED - must complete before switching
+    if state.get('mode') == ConversationMode.CLINICIAN:
+        print(f"[Router] 🔒 CLINICIAN mode locked - must complete before switching")
+        return ConversationMode.CLINICIAN, state
     
-    # Priority order for new prompts:
-    
-    # 1. CASUAL - Simple greetings (highest priority for UX)
-    if is_casual_trigger(prompt):
-        print(f"[Router] 💬 → CASUAL mode (greeting)")
-        state['mode'] = ConversationMode.CASUAL
-        return ConversationMode.CASUAL, state
-    
-    # 2. THINKER - Knowledge/information queries
+    # PRIORITY 3: Dynamic mode switching for CASUAL ↔ THINKER
+    # Check if user is asking a knowledge query (regardless of current mode)
     if is_thinker_trigger(prompt):
-        print(f"[Router] 🧠 → THINKER mode (knowledge query)")
+        print(f"[Router] 🧠 → THINKER mode (knowledge query detected)")
         state['mode'] = ConversationMode.THINKER
         return ConversationMode.THINKER, state
     
-    # 3. CLINICIAN - RAG-powered diagnosis (if enabled)
-    if USE_CLINICIAN_MODE and is_clinician_trigger(prompt):
-        print(f"[Router] 🩺 → CLINICIAN mode (RAG-powered diagnosis)")
-        state.update({
-            'mode': ConversationMode.CLINICIAN,
-            'chief_complaint': prompt,
-            'clinician_history': []
-        })
-        return ConversationMode.CLINICIAN, state
-    
-    # 4. TRIAGE - Hardcoded diagnostic system (only for NEW sessions)
-    # Check if we're already in an active triage session
-    active_condition = state.get('condition')
-
-    if active_condition:
-        print(f"[Router] 🏥 → TRIAGE mode (continuing: {active_condition})")
-        state['mode'] = ConversationMode.TRIAGE
-        return ConversationMode.TRIAGE, state
-
-    # No active session - check for NEW conditions
-    # Import here to avoid circular dependency
+    # PRIORITY 4: Check for NEW medical condition (start triage)
     from container_rest import detect_condition
     condition = detect_condition(prompt, session_id)
-
     if condition:
         print(f"[Router] 🏥 → TRIAGE mode (NEW condition: {condition})")
         state.update({
@@ -105,14 +84,18 @@ def route_prompt(prompt: str, state: dict, session_id: str) -> Tuple[str, dict]:
             'step_index': 0,
             'answers': [],
             'flags': {},
-            'is_new_triage': True  # Flag to indicate this is the initial trigger
+            'is_new_triage': True
         })
         return ConversationMode.TRIAGE, state
     
-    # 5. Default to CASUAL for anything else (safer for mistranscriptions)
-    # If user has a real knowledge query, they'll use clear trigger words
-    # If it's a mistranscription, we'll politely ask for clarification
-    print(f"[Router] 💬 → CASUAL mode (default fallback)")
+    # PRIORITY 5: Simple greetings → CASUAL mode
+    if is_casual_trigger(prompt):
+        print(f"[Router] 💬 → CASUAL mode (greeting)")
+        state['mode'] = ConversationMode.CASUAL
+        return ConversationMode.CASUAL, state
+    
+    # PRIORITY 6: Default to CASUAL for general conversation
+    print(f"[Router] 💬 → CASUAL mode (general conversation)")
     state['mode'] = ConversationMode.CASUAL
     return ConversationMode.CASUAL, state
 

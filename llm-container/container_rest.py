@@ -174,7 +174,10 @@ def chat():
 
     # Dispatch to mode handler
     if mode == ConversationMode.CASUAL:
-        return stream_casual_response(prompt_norm, session_id)
+        def generate_casual():
+            for token in stream_casual_response(prompt_norm, llm_chat, session_id):
+                yield token
+        return Response(stream_with_context(generate_casual()), mimetype="text/plain")
 
     elif mode == ConversationMode.THINKER:
         def generate_thinker():

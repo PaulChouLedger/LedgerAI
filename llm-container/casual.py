@@ -1,33 +1,33 @@
 #!/usr/bin/env python3
 """
-Aura CASUAL Mode - Simple Greetings and Small Talk
+Aura CASUAL Mode - Unrestricted Friendly Conversation
 
 Handles:
-- Greetings: "Hello", "Hi", "How are you?"
-- Small talk: "How's the weather?", "What's up?"
-- Brief acknowledgments
+- Greetings and small talk
+- General conversation
+- Follow-up questions
+- Casual inquiries
 
-Does NOT handle:
-- Knowledge queries (→ THINKER mode)
-- Medical symptoms (→ TRIAGE/CLINICIAN mode)
+This mode uses full LLM for natural, unrestricted conversation.
+Will auto-switch to THINKER mode if user asks knowledge/information questions.
 """
 
 import requests
 import random
+import re
 
 def is_casual_trigger(prompt: str) -> bool:
     """
-    Check if prompt should trigger CASUAL mode
+    Check if prompt should START with CASUAL mode (simple greetings only)
     
     Args:
         prompt: Normalized prompt (lowercase)
         
     Returns:
-        True if casual greeting/small talk
+        True if simple greeting to initiate conversation
     """
-    import re
-    
-    # Simple greeting patterns (word boundaries to avoid false matches)
+    # Only match VERY simple greetings to start casual mode
+    # Once in casual mode, it's unrestricted until user asks knowledge query
     greeting_patterns = [
         r'^\s*\bhello\b\s*$',
         r'^\s*\bhi\b\s*$',
@@ -49,51 +49,86 @@ def is_casual_trigger(prompt: str) -> bool:
     return any(re.search(pattern, prompt_lower) for pattern in greeting_patterns)
 
 
-def handle_casual(prompt: str, session_id: str = None) -> str:
+def handle_casual(prompt: str, llm_chat_fn, session_id: str = None):
     """
-    Generate casual response for greetings and small talk
+    Generate casual response using full LLM (unrestricted conversation)
     
     Args:
-        prompt: User's greeting/small talk
+        prompt: User's message
+        llm_chat_fn: LLM chat function for generating responses
         session_id: Optional session identifier
         
-    Returns:
-        Friendly greeting response
+    Yields:
+        Streamed response tokens
     """
-    print(f"[CASUAL] 💬 Handling greeting: '{prompt}'")
+    print(f"[CASUAL] 💬 Handling conversation: '{prompt[:50]}...'")
     
-    responses = [
-        "Hello! How can I help you today?",
-        "Hi there! What can I do for you?",
-        "Good to see you! How are you feeling?",
-        "Hello! I'm here to help with any questions or concerns you might have.",
-        "Hi! Feel free to ask me anything.",
-        "Hey! What's on your mind?",
+    # System prompt for casual conversation
+    system_prompt = (
+        "You are Aura, a friendly and helpful AI assistant. "
+        "You engage in natural, warm conversation. "
+        "You are conversational, empathetic, and approachable. "
+        "Keep responses concise but friendly. "
+        "If asked about medical symptoms, suggest they describe their symptoms so you can help assess them. "
+        "If asked complex knowledge questions, provide helpful answers."
+    )
+    
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": prompt}
     ]
     
-    return random.choice(responses)
+    try:
+        response = llm_chat_fn(
+            messages=messages,
+            max_tokens=200,
+            temperature=0.7,
+            stream=True
+        )
+        
+        buffer = []
+        for chunk in response:
+            if 'choices' in chunk:
+                delta = chunk['choices'][0].get('delta', {})
+                content = delta.get('content', '')
+                
+                if content:
+                    buffer.append(content)
+                    
+                    # Detect sentence boundaries for streaming
+                    full_text = ''.join(buffer)
+                    sentences = re.split(r'([.!?]\s+)', full_text)
+                    
+                    # Stream complete sentences
+                    while len(sentences) > 2:  # At least one complete sentence
+                        sentence = sentences.pop(0) + (sentences.pop(0) if sentences else '')
+                        if sentence.strip():
+                            yield f"<sentence_start>\n{sentence.strip()}\n<sentence_end>\n"
+                        buffer = [s for s in sentences]
+        
+        # Stream any remaining text
+        remaining = ''.join(buffer).strip()
+        if remaining:
+            yield f"<sentence_start>\n{remaining}\n<sentence_end>\n"
+            
+    except Exception as e:
+        print(f"[CASUAL] ❌ Error in LLM generation: {e}")
+        # Fallback response
+        yield f"<sentence_start>\nI'm here to help! What would you like to know?\n<sentence_end>\n"
 
 
-def stream_casual_response(prompt: str, session_id: str = None):
+def stream_casual_response(prompt: str, llm_chat_fn, session_id: str = None):
     """
-    Generate streaming casual response (for consistency with other modes)
+    Stream casual response (wrapper for handle_casual)
     
     Args:
-        prompt: User's greeting
+        prompt: User's message
+        llm_chat_fn: LLM chat function
         session_id: Optional session identifier
         
     Yields:
         Streamed response chunks
     """
-    response = handle_casual(prompt, session_id)
-    
-    # Split into sentences for streaming
-    sentences = response.split('. ')
-    
-    for sentence in sentences:
-        if sentence.strip():
-            # Add period back if it was removed
-            if not sentence.endswith('.') and not sentence.endswith('?') and not sentence.endswith('!'):
-                sentence += '.'
-            yield f"<sentence_start>\n{sentence.strip()}\n<sentence_end>\n"
+    for chunk in handle_casual(prompt, llm_chat_fn, session_id):
+        yield chunk
 
