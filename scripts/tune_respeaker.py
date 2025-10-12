@@ -9,13 +9,16 @@ Usage:
     sudo python3 scripts/tune_respeaker.py [preset]
     
 STANDARD PRESETS:
-    - clean      : HPF + AGC (0.08) + NS (3.0) - DEFAULT
-    - far_field  : Optimized for 8-16 feet
-    - near_field : Optimized for 1-6 feet
-    - reset      : Factory defaults (all OFF)
-    - show       : Show current settings
+    - clean       : HPF + AGC (0.08) + NS (3.0) - DEFAULT
+    - beamforming : Adaptive beamforming + DOA tracking (iPhone-like)
+    - far_field   : Optimized for 8-16 feet
+    - near_field  : Optimized for 1-6 feet
+    - reset       : Factory defaults (all OFF)
+    - show        : Show current settings
 
 TEST PROFILES (systematic optimization):
+    - bf         : Beamforming ONLY (pure test)
+    - hpbf       : Beamforming + HPF 70Hz
     - hp         : High-pass filter ONLY (70Hz)
     - hp1        : HPF + NS gamma=1.0 (mild)
     - hp2        : HPF + NS gamma=2.0 (moderate)
@@ -458,6 +461,99 @@ def configure_hp3():
     })
     return True
 
+def configure_bf():
+    """BF - Beamforming ONLY (no other processing)"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🧪 TEST PROFILE: BF - Beamforming ONLY")
+    print("="*80 + "\n")
+    
+    # Enable ONLY adaptive beamforming
+    print("[1/1] Adaptive Beamforming: ON (tracks speaker)")
+    dev.write("FREEZEONOFF", 0)  # 0 = Adaptive tracking enabled
+    
+    # Disable everything else
+    dev.write("HPFONOFF", 0)
+    dev.write("AGCONOFF", 0)
+    dev.write("STATNOISEONOFF_SR", 0)
+    dev.write("NONSTATNOISEONOFF_SR", 0)
+    dev.write("ECHOONOFF", 0)
+    
+    # Read DOA
+    try:
+        doa = dev.read("DOAANGLE")
+        print(f"\n  📍 Speaker direction: {doa}°")
+    except:
+        pass
+    
+    print("\n  ✅ BF Profile Complete")
+    print("  Pure beamforming - no other processing\n")
+    
+    save_config_state('bf', {
+        'FREEZEONOFF': 0,
+        'HPFONOFF': 0,
+        'AGCONOFF': 0,
+        'STATNOISEONOFF_SR': 0,
+        'GAMMA_NS_SR': 0.0
+    })
+    return True
+
+def configure_hpbf():
+    """HPBF - Beamforming + High-Pass Filter 70Hz"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🧪 TEST PROFILE: HPBF - Beamforming + High-Pass Filter")
+    print("="*80 + "\n")
+    
+    # Enable adaptive beamforming
+    print("[1/2] Adaptive Beamforming: ON (tracks speaker)")
+    dev.write("FREEZEONOFF", 0)
+    
+    # Enable HPF
+    print("[2/2] High-Pass Filter: ON (70 Hz)")
+    dev.write("HPFONOFF", 1)
+    
+    # Disable other processing
+    dev.write("AGCONOFF", 0)
+    dev.write("STATNOISEONOFF_SR", 0)
+    dev.write("NONSTATNOISEONOFF_SR", 0)
+    dev.write("ECHOONOFF", 0)
+    
+    # Read DOA
+    try:
+        doa = dev.read("DOAANGLE")
+        print(f"\n  📍 Speaker direction: {doa}°")
+    except:
+        pass
+    
+    print("\n  ✅ HPBF Profile Complete")
+    print("  Beamforming + HPF (removes low-freq noise)\n")
+    
+    save_config_state('hpbf', {
+        'FREEZEONOFF': 0,
+        'HPFONOFF': 1,
+        'AGCONOFF': 0,
+        'STATNOISEONOFF_SR': 0,
+        'GAMMA_NS_SR': 0.0
+    })
+    return True
+
 def configure_agc1():
     """AGC1 - Mild AGC ONLY (0.05 RMS target)"""
     import usb.core
@@ -540,6 +636,87 @@ def configure_agc2():
     })
     return True
 
+def configure_beamforming():
+    """Enable optimal beamforming for far-field speech"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🎯 CONFIGURING OPTIMAL BEAMFORMING")
+    print("="*80 + "\n")
+    
+    # Enable adaptive beamforming (tracks speaker direction)
+    print("[1/6] Adaptive Beamforming: ON (tracks speaker direction)")
+    dev.write("FREEZEONOFF", 0)  # 0 = Adaptive tracking enabled
+    
+    # Enable high-pass filter (removes low-frequency noise)
+    print("[2/6] High-Pass Filter: ON (70 Hz)")
+    dev.write("HPFONOFF", 1)
+    
+    # Enable AGC for consistent levels
+    print("[3/6] Hardware AGC: ON (0.08 RMS target)")
+    dev.write("AGCONOFF", 1)
+    dev.write("AGCDESIREDLEVEL", 0.08)
+    dev.write("AGCMAXGAIN", 30.0)
+    
+    # Enable noise suppression to help beamformer
+    print("[4/6] Stationary Noise Suppression: ON (gamma=2.0)")
+    dev.write("STATNOISEONOFF_SR", 1)
+    dev.write("GAMMA_NS_SR", 2.0)
+    
+    print("[5/6] Non-Stationary Noise Suppression: ON")
+    dev.write("NONSTATNOISEONOFF_SR", 1)
+    dev.write("GAMMA_NN_SR", 1.5)
+    
+    # Disable echo cancellation (not needed for voice assistant)
+    print("[6/6] Echo Cancellation: OFF")
+    dev.write("ECHOONOFF", 0)
+    
+    # Read current DOA
+    try:
+        doa = dev.read("DOAANGLE")
+        print(f"\n  📍 Current speaker direction: {doa}° (0° = front, 180° = back)")
+    except:
+        print("\n  ℹ️  Speak to see direction of arrival")
+    
+    print("\n" + "="*80)
+    print("  ✅ BEAMFORMING CONFIGURATION COMPLETE")
+    print("="*80)
+    print("\n  Features enabled:")
+    print("    - Adaptive beamforming (automatically tracks speaker)")
+    print("    - Direction of Arrival (DOA) detection")
+    print("    - Noise suppression (helps beamformer focus)")
+    print("    - Hardware AGC (maintains consistent levels)")
+    print("\n  Channel 0 now provides beamformed audio optimized for your voice direction!")
+    print("  The beamformer will:")
+    print("    • Focus on speech from detected direction")
+    print("    • Suppress sounds from other directions")
+    print("    • Track speaker movement automatically")
+    print("    • Combine 4 mics for better far-field performance\n")
+    
+    # Save configuration
+    config_dict = {
+        'FREEZEONOFF': 0,
+        'HPFONOFF': 1,
+        'AGCONOFF': 1,
+        'AGCDESIREDLEVEL': 0.08,
+        'AGCMAXGAIN': 30.0,
+        'STATNOISEONOFF_SR': 1,
+        'GAMMA_NS_SR': 2.0,
+        'NONSTATNOISEONOFF_SR': 1,
+        'GAMMA_NN_SR': 1.5,
+        'ECHOONOFF': 0
+    }
+    save_config_state('beamforming', config_dict)
+    
+    return True
+
 def configure_agc3():
     """AGC3 - Aggressive AGC ONLY (0.12 RMS target)"""
     import usb.core
@@ -606,6 +783,8 @@ def show_current_settings():
         "Stationary Noise Factor": ("GAMMA_NS_SR", None),
         "Non-Stat Noise Factor": ("GAMMA_NN_SR", None),
         "Echo Cancellation": ("ECHOONOFF", ["OFF", "ON"]),
+        "Beamforming": ("FREEZEONOFF", ["Adaptive (Tracking)", "Frozen (Fixed)"]),
+        "Direction of Arrival": ("DOAANGLE", None),
         "Voice Activity": ("VOICEACTIVITY", ["NO", "YES"]),
         "Speech Detected": ("SPEECHDETECTED", ["NO", "YES"])
     }
@@ -660,7 +839,15 @@ def main():
         elif preset == "show":
             success = show_current_settings()
         
+        # Beamforming preset
+        elif preset == "beamforming" or preset == "beam":
+            success = configure_beamforming()
+        
         # Test profiles (isolated components)
+        elif preset == "bf":
+            success = configure_bf()
+        elif preset == "hpbf":
+            success = configure_hpbf()
         elif preset == "hp":
             success = configure_hp()
         elif preset == "hp1":
@@ -680,11 +867,14 @@ def main():
             print(f"\n  ❌ Unknown preset: {preset}")
             print(f"\n  📋 STANDARD PRESETS:")
             print(f"    - clean      : HPF + Optimal AGC (0.08) + Max NS (3.0) - DEFAULT")
+            print(f"    - beamforming: Adaptive beamforming + DOA tracking (iPhone-like)")
             print(f"    - far_field  : High AGC + noise suppression (8-16 feet)")
             print(f"    - near_field : Moderate AGC (1-6 feet)")
             print(f"    - reset      : Factory defaults (all OFF)")
             print(f"    - show       : Show current settings")
             print(f"\n  🧪 TEST PROFILES (systematic testing):")
+            print(f"    - bf         : Beamforming ONLY (pure test)")
+            print(f"    - hpbf       : Beamforming + HPF 70Hz")
             print(f"    - hp         : High-pass filter ONLY (70Hz)")
             print(f"    - hp1        : HPF + NS gamma=1.0 (mild)")
             print(f"    - hp2        : HPF + NS gamma=2.0 (moderate)")
