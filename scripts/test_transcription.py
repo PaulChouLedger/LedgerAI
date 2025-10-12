@@ -77,7 +77,7 @@ from scipy.fft import rfft, rfftfreq
 SAMPLE_RATE = 16000
 FRAME_SIZE = int(SAMPLE_RATE * 0.032)
 SILENCE_TIMEOUT = 0.3  # 300ms of silence before stopping
-VAD_START_THRESHOLD = 0.35  # Higher = less sensitive to fan noise
+VAD_START_THRESHOLD = 0.25  # Higher = less sensitive to fan noise
 VAD_SILENCE_THRESHOLD = 0.15  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
 
