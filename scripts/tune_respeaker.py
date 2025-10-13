@@ -29,6 +29,12 @@ TEST PROFILES (systematic optimization):
     - agc1       : AGC ONLY (0.05 RMS, 20dB max)
     - agc2       : AGC ONLY (0.08 RMS, 30dB max)
     - agc3       : AGC ONLY (0.12 RMS, 40dB max)
+
+FAN NOISE PROFILES (Beamforming + HPF 70Hz + NS, NO AGC):
+    - bf_ns0     : Beamforming + HPF 70Hz, NS OFF (baseline)
+    - bf_ns1     : Beamforming + HPF 70Hz, NS gamma=1.0 (mild)
+    - bf_ns2     : Beamforming + HPF 70Hz, NS gamma=2.0 (moderate)
+    - bf_ns3     : Beamforming + HPF 70Hz, NS gamma=3.0 (maximum)
 """
 
 import sys
@@ -963,6 +969,184 @@ def configure_agc3():
     })
     return True
 
+def configure_bf_ns0():
+    """BF_NS0 - Beamforming + HPF 70Hz, NS OFF (baseline)"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🎯 FAN NOISE PROFILE: BF_NS0 - Baseline (Beamforming + HPF, NO NS)")
+    print("="*80 + "\n")
+    
+    print("[1/4] Beamforming: ENABLED (adaptive, tracks voice)")
+    dev.write("FREEZEONOFF", 0)  # Adaptive beamforming
+    
+    print("[2/4] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
+    dev.write("HPFONOFF", 1)
+    
+    print("[3/4] Noise Suppression: OFF (baseline for comparison)")
+    dev.write("STATNOISEONOFF_SR", 0)
+    dev.write("NONSTATNOISEONOFF_SR", 0)
+    
+    print("[4/4] AGC: OFF (manual gain control)")
+    dev.write("AGCONOFF", 0)
+    dev.write("ECHOONOFF", 0)
+    
+    print("\n  ✅ BF_NS0 Profile Complete")
+    print("  Baseline: Beamforming + HPF only, no noise suppression\n")
+    
+    save_config_state('bf_ns0', {
+        'FREEZEONOFF': 0,
+        'HPFONOFF': 1,
+        'AGCONOFF': 0,
+        'STATNOISEONOFF_SR': 0,
+        'NONSTATNOISEONOFF_SR': 0,
+        'GAMMA_NS_SR': 0.0,
+        'ECHOONOFF': 0
+    })
+    return True
+
+def configure_bf_ns1():
+    """BF_NS1 - Beamforming + HPF 70Hz + NS gamma=1.0 (mild)"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🎯 FAN NOISE PROFILE: BF_NS1 - Mild Suppression (gamma=1.0)")
+    print("="*80 + "\n")
+    
+    print("[1/4] Beamforming: ENABLED (adaptive, tracks voice)")
+    dev.write("FREEZEONOFF", 0)
+    
+    print("[2/4] High-Pass Filter: 70 Hz")
+    dev.write("HPFONOFF", 1)
+    
+    print("[3/4] Stationary Noise Suppression: MILD (gamma=1.0)")
+    dev.write("STATNOISEONOFF_SR", 1)
+    dev.write("GAMMA_NS_SR", 1.0)
+    print("         - Gentle fan noise removal, preserves speech quality")
+    
+    print("[4/4] AGC: OFF")
+    dev.write("AGCONOFF", 0)
+    dev.write("NONSTATNOISEONOFF_SR", 0)
+    dev.write("ECHOONOFF", 0)
+    
+    print("\n  ✅ BF_NS1 Profile Complete")
+    print("  Mild noise suppression for light fan noise\n")
+    
+    save_config_state('bf_ns1', {
+        'FREEZEONOFF': 0,
+        'HPFONOFF': 1,
+        'AGCONOFF': 0,
+        'STATNOISEONOFF_SR': 1,
+        'GAMMA_NS_SR': 1.0,
+        'NONSTATNOISEONOFF_SR': 0,
+        'ECHOONOFF': 0
+    })
+    return True
+
+def configure_bf_ns2():
+    """BF_NS2 - Beamforming + HPF 70Hz + NS gamma=2.0 (moderate)"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🎯 FAN NOISE PROFILE: BF_NS2 - Moderate Suppression (gamma=2.0)")
+    print("="*80 + "\n")
+    
+    print("[1/4] Beamforming: ENABLED (adaptive, tracks voice)")
+    dev.write("FREEZEONOFF", 0)
+    
+    print("[2/4] High-Pass Filter: 70 Hz")
+    dev.write("HPFONOFF", 1)
+    
+    print("[3/4] Stationary Noise Suppression: MODERATE (gamma=2.0)")
+    dev.write("STATNOISEONOFF_SR", 1)
+    dev.write("GAMMA_NS_SR", 2.0)
+    print("         - Balanced fan noise removal, good for most cases")
+    
+    print("[4/4] AGC: OFF")
+    dev.write("AGCONOFF", 0)
+    dev.write("NONSTATNOISEONOFF_SR", 0)
+    dev.write("ECHOONOFF", 0)
+    
+    print("\n  ✅ BF_NS2 Profile Complete")
+    print("  Moderate noise suppression for typical fan noise\n")
+    
+    save_config_state('bf_ns2', {
+        'FREEZEONOFF': 0,
+        'HPFONOFF': 1,
+        'AGCONOFF': 0,
+        'STATNOISEONOFF_SR': 1,
+        'GAMMA_NS_SR': 2.0,
+        'NONSTATNOISEONOFF_SR': 0,
+        'ECHOONOFF': 0
+    })
+    return True
+
+def configure_bf_ns3():
+    """BF_NS3 - Beamforming + HPF 70Hz + NS gamma=3.0 (maximum)"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  🎯 FAN NOISE PROFILE: BF_NS3 - Maximum Suppression (gamma=3.0)")
+    print("="*80 + "\n")
+    
+    print("[1/4] Beamforming: ENABLED (adaptive, tracks voice)")
+    dev.write("FREEZEONOFF", 0)
+    
+    print("[2/4] High-Pass Filter: 70 Hz")
+    dev.write("HPFONOFF", 1)
+    
+    print("[3/4] Stationary Noise Suppression: MAXIMUM (gamma=3.0)")
+    dev.write("STATNOISEONOFF_SR", 1)
+    dev.write("GAMMA_NS_SR", 3.0)
+    print("         - Aggressive fan noise removal, may slightly affect speech")
+    
+    print("[4/4] AGC: OFF")
+    dev.write("AGCONOFF", 0)
+    dev.write("NONSTATNOISEONOFF_SR", 0)
+    dev.write("ECHOONOFF", 0)
+    
+    print("\n  ✅ BF_NS3 Profile Complete")
+    print("  Maximum noise suppression for loud fan noise\n")
+    
+    save_config_state('bf_ns3', {
+        'FREEZEONOFF': 0,
+        'HPFONOFF': 1,
+        'AGCONOFF': 0,
+        'STATNOISEONOFF_SR': 1,
+        'GAMMA_NS_SR': 3.0,
+        'NONSTATNOISEONOFF_SR': 0,
+        'ECHOONOFF': 0
+    })
+    return True
+
 def show_current_settings():
     """Show current ReSpeaker settings"""
     import usb.core
@@ -1074,6 +1258,16 @@ def main():
         elif preset == "agc3":
             success = configure_agc3()
         
+        # Fan noise profiles (Beamforming + HPF + NS, no AGC)
+        elif preset == "bf_ns0":
+            success = configure_bf_ns0()
+        elif preset == "bf_ns1":
+            success = configure_bf_ns1()
+        elif preset == "bf_ns2":
+            success = configure_bf_ns2()
+        elif preset == "bf_ns3":
+            success = configure_bf_ns3()
+        
         else:
             print(f"\n  ❌ Unknown preset: {preset}")
             print(f"\n  📋 STANDARD PRESETS:")
@@ -1095,7 +1289,12 @@ def main():
             print(f"    - hp3        : HPF + NS gamma=3.0 (aggressive)")
             print(f"    - agc1       : AGC ONLY (0.05 RMS, 20dB max)")
             print(f"    - agc2       : AGC ONLY (0.08 RMS, 30dB max)")
-            print(f"    - agc3       : AGC ONLY (0.12 RMS, 40dB max)\n")
+            print(f"    - agc3       : AGC ONLY (0.12 RMS, 40dB max)")
+            print(f"\n  🌬️  FAN NOISE PROFILES (Beamforming + HPF 70Hz + NS, NO AGC):")
+            print(f"    - bf_ns0     : Beamforming + HPF, NS OFF (baseline)")
+            print(f"    - bf_ns1     : Beamforming + HPF, NS gamma=1.0 (mild)")
+            print(f"    - bf_ns2     : Beamforming + HPF, NS gamma=2.0 (moderate) ⭐")
+            print(f"    - bf_ns3     : Beamforming + HPF, NS gamma=3.0 (maximum)\n")
             return 1
         
         return 0 if success else 1
