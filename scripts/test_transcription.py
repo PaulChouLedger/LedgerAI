@@ -100,7 +100,7 @@ ENABLE_ADVANCED_FILTER = True  # Toggle this to test
 # Thresholds based on your ACTUAL speech patterns:
 # Updated after comparing real speech vs noise bursts
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this (speech can be 0.15-0.35)
-SPEECH_FLATNESS_MAX = 0.55      # Reject if too "flat" (speech can be 0.15-0.45)
+SPEECH_FLATNESS_MAX = 0.35      # Reject if too "flat" (noisy, not tonal) - lowered from 0.55 to catch more noise
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss) - raised for fricatives
 SPEECH_BAND_MIN = 0.30          # Reject if insufficient energy in speech band
@@ -108,6 +108,7 @@ SPEECH_DURATION_MIN = 0.4       # Seconds - reject if too short (noise bursts)
 
 # CRITICAL: Energy thresholds (most reliable for your noise pattern)
 SPEECH_RMS_MIN = 0.035          # Reject if RMS < this (noise is 0.018-0.026, speech is 0.097)
+SPEECH_RMS_MAX = 0.40           # Reject if RMS > this (abnormally loud = likely noise/artifact)
 SPEECH_PEAK_MIN = 0.15          # Reject if peak < this (noise is 0.08-0.12, speech is 0.96)
 
 # === VAD Thresholds (can be lowered with beamforming) ===
@@ -228,6 +229,9 @@ def is_likely_speech(features, duration=None):
     # Check Energy Levels FIRST (most reliable for your noise pattern)
     if features['rms'] < SPEECH_RMS_MIN:
         reasons.append(f"RMS too low ({features['rms']:.4f} < {SPEECH_RMS_MIN})")
+    
+    if features['rms'] > SPEECH_RMS_MAX:
+        reasons.append(f"RMS too high ({features['rms']:.4f} > {SPEECH_RMS_MAX}) - likely noise/artifact")
     
     if features['peak'] < SPEECH_PEAK_MIN:
         reasons.append(f"Peak too low ({features['peak']:.4f} < {SPEECH_PEAK_MIN})")
@@ -438,6 +442,7 @@ def listen():
     if ENABLE_ADVANCED_FILTER:
         print("\n[Filter] ✅ ADVANCED MULTI-FEATURE FILTER: ENABLED")
         print(f"[Filter]    Duration > {SPEECH_DURATION_MIN}s | ZCR < {SPEECH_ZCR_MAX} | Flatness < {SPEECH_FLATNESS_MAX}")
+        print(f"[Filter]    RMS: {SPEECH_RMS_MIN} - {SPEECH_RMS_MAX} | Peak > {SPEECH_PEAK_MIN}")
         print(f"[Filter]    SpCent: {SPEECH_CENTROID_MIN}-{SPEECH_CENTROID_MAX}Hz | SpBand > {SPEECH_BAND_MIN}")
     else:
         print("\n[Filter] 💤 Advanced filter: DISABLED (VAD only)")

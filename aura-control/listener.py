@@ -25,7 +25,7 @@ ENABLE_ADVANCED_FILTER = True
 
 # Thresholds tuned from empirical testing
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
-SPEECH_FLATNESS_MAX = 0.55      # Reject if too "flat" (noisy, not tonal)
+SPEECH_FLATNESS_MAX = 0.35      # Reject if too "flat" (noisy, not tonal) - lowered from 0.55 to catch more noise
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss)
 SPEECH_BAND_MIN = 0.30          # Reject if insufficient energy in speech band
@@ -33,6 +33,7 @@ SPEECH_DURATION_MIN = 0.4       # Seconds - reject if too short (noise bursts)
 
 # CRITICAL: Energy thresholds (most reliable discriminators)
 SPEECH_RMS_MIN = 0.035          # Reject if RMS < this (noise is 0.018-0.026, speech is 0.097)
+SPEECH_RMS_MAX = 0.40           # Reject if RMS > this (abnormally loud = likely noise/artifact)
 SPEECH_PEAK_MIN = 0.15          # Reject if peak < this (noise is 0.08-0.12, speech is 0.96)
 
 # BARE-BONES: Hardware DSP → Channel 0 → VAD → Advanced Filter → Whisper
@@ -145,6 +146,9 @@ def is_likely_speech(features, duration=None):
     # Check Energy Levels FIRST (most reliable)
     if features['rms'] < SPEECH_RMS_MIN:
         reasons.append(f"RMS too low ({features['rms']:.4f} < {SPEECH_RMS_MIN})")
+    
+    if features['rms'] > SPEECH_RMS_MAX:
+        reasons.append(f"RMS too high ({features['rms']:.4f} > {SPEECH_RMS_MAX}) - likely noise/artifact")
     
     if features['peak'] < SPEECH_PEAK_MIN:
         reasons.append(f"Peak too low ({features['peak']:.4f} < {SPEECH_PEAK_MIN})")
