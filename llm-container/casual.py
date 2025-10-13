@@ -64,13 +64,14 @@ def handle_casual(prompt: str, llm_chat_fn, session_id: str = None):
     print(f"[CASUAL] 💬 Handling conversation: '{prompt[:50]}...'")
     
     # System prompt for casual conversation
-    # Uses <think> tags for internal reasoning (filtered by container_rest.py)
     system_prompt = (
         "You are Aura, a friendly and helpful AI assistant. "
         "You engage in natural, warm conversation. "
         "Respond in 1-2 short sentences. "
         "Be conversational, empathetic, and approachable. "
-        "If asked about medical symptoms, suggest they describe their symptoms so you can help assess them."
+        "If asked about medical symptoms, suggest they describe their symptoms so you can help assess them. "
+        "CRITICAL: Output ONLY your response to the user. Do NOT output your internal reasoning, thoughts, or chain-of-thought process. "
+        "Do NOT explain your reasoning or thought process - just give the final response directly."
     )
     
     messages = [

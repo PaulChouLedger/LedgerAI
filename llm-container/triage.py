@@ -690,7 +690,42 @@ def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: 
     # Build main sentence
     parts = []
     if other_positives:
-        main_sentence = f"You reported {main_complaint} with associated {pretty_join(other_positives, 'and')}"
+        # Clean other_positives to remove sentence prefixes and restructure
+        cleaned_other_positives = []
+        for pos in other_positives:
+            pos_clean = pos
+            # Remove common sentence starters
+            prefixes_to_remove = [
+                "You described the pain as ",
+                "You described ",
+                "You reported that ",
+                "You reported ",
+                "You mentioned that ",
+                "You mentioned ",
+                "You said that ",
+                "You said ",
+                "that the pain ",
+                "that pain ",
+                "that ",
+                "the pain is ",
+                "pain "
+            ]
+            for prefix in prefixes_to_remove:
+                if pos_clean.lower().startswith(prefix.lower()):
+                    pos_clean = pos_clean[len(prefix):]
+                    break
+            
+            # Capitalize first letter if needed
+            if pos_clean and pos_clean[0].islower() and not pos_clean.lower().startswith(('arm', 'leg', 'chest')):
+                pos_clean = pos_clean[0].lower() + pos_clean[1:]
+            
+            cleaned_other_positives.append(pos_clean)
+        
+        # Use better sentence structure
+        main_sentence = f"You reported {main_complaint}"
+        if cleaned_other_positives:
+            # Add cleaned symptoms as a continuation, not "with associated"
+            main_sentence += f", including {pretty_join(cleaned_other_positives, 'and')}"
     else:
         main_sentence = f"You reported {main_complaint}"
     
