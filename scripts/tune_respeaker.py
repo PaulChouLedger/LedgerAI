@@ -1063,12 +1063,13 @@ def configure_balanced_beam():
     
     print("[5/6] Hardware AGC: ENABLED")
     dev.write("AGCONOFF", 1)
-    dev.write("AGCDESIREDLEVEL", 0.08)
-    dev.write("AGCMAXGAIN", 30.0)
+    dev.write("AGCDESIREDLEVEL", 0.08)  # Optimal for Whisper (far-field friendly)
+    dev.write("AGCMAXGAIN", 30.0)       # Good for far-field
     dev.write("AGCTIME", 0.2)
     print("         - Target: 0.08 RMS (Whisper sweet spot)")
-    print("         - Max Gain: 30dB (stable)")
+    print("         - Max Gain: 30dB (good for far-field)")
     print("         - Attack Time: 0.2s")
+    print("         - Software limiter prevents near-field clipping")
     
     print("[6/6] Echo Cancellation: OFF")
     dev.write("ECHOONOFF", 0)

@@ -25,11 +25,12 @@ ENABLE_ADVANCED_FILTER = True
 
 # Thresholds tuned from empirical testing
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
-SPEECH_FLATNESS_MAX = 0.35      # Reject if too "flat" (noisy, not tonal) - lowered from 0.55 to catch more noise
+SPEECH_FLATNESS_MAX = 0.30      # Reject if too "flat" (noisy, not tonal) - tightened from 0.35
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss)
 SPEECH_BAND_MIN = 0.30          # Reject if insufficient energy in speech band
 SPEECH_DURATION_MIN = 0.4       # Seconds - reject if too short (noise bursts)
+SPEECH_HIGH_FREQ_MAX = 0.06     # Reject if high freq ratio > this (hiss/noise)
 
 # CRITICAL: Energy thresholds (most reliable discriminators)
 SPEECH_RMS_MIN = 0.035          # Reject if RMS < this (noise is 0.018-0.026, speech is 0.097)
@@ -37,6 +38,11 @@ SPEECH_RMS_MAX = 0.40           # Reject if RMS > this (abnormally loud = likely
 SPEECH_PEAK_MIN = 0.15          # Reject if peak < this (noise is 0.08-0.12, speech is 0.96)
 
 # BARE-BONES: Hardware DSP → Channel 0 → VAD → Advanced Filter → Whisper
+
+# === Soft Clipping Prevention ===
+ENABLE_SOFT_LIMITER = True      # Prevent clipping from near-field speech
+LIMITER_THRESHOLD = 0.95        # Start limiting above this peak level
+LIMITER_KNEE = 0.05             # Soft knee width for smooth limiting
 
 DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
 DEVICE_INDEX = None
@@ -133,7 +139,67 @@ def calculate_audio_features(audio_chunk, sample_rate=SAMPLE_RATE):
     else:
         features['speech_band_ratio'] = 0
     
+    # High Frequency Ratio (4000+ Hz - indicates noise/hiss)
+    high_freq_mask = fft_freq >= 4000
+    high_freq_energy = np.sum(magnitude[high_freq_mask] ** 2)
+    if total_energy > 0:
+        features['high_freq_ratio'] = high_freq_energy / total_energy
+    else:
+        features['high_freq_ratio'] = 0
+    
     return features
+
+def soft_limit(audio_data):
+    """
+    Apply soft limiting to prevent clipping from near-field speech
+    
+    Uses a smooth tanh-based limiter that:
+    - Passes audio below threshold unchanged
+    - Gradually compresses audio above threshold
+    - Prevents hard clipping (peak = 1.0)
+    
+    This allows AGC to boost far-field speech without clipping near-field.
+    """
+    if not ENABLE_SOFT_LIMITER:
+        return audio_data
+    
+    peak = np.max(np.abs(audio_data))
+    
+    # No limiting needed if below threshold
+    if peak <= LIMITER_THRESHOLD:
+        return audio_data
+    
+    # Apply soft knee compression using tanh
+    # This creates a smooth transition from linear to compressed
+    def soft_knee_compress(x, threshold, knee):
+        """Soft knee compression with smooth transition"""
+        # Linear region (below threshold - knee)
+        linear_threshold = threshold - knee
+        
+        # For samples below linear threshold, pass through unchanged
+        if np.abs(x) <= linear_threshold:
+            return x
+        
+        # For samples in knee region, apply smooth compression
+        sign = np.sign(x)
+        abs_x = np.abs(x)
+        
+        if abs_x <= threshold:
+            # Smooth transition zone
+            ratio = (abs_x - linear_threshold) / knee
+            compressed = linear_threshold + knee * np.tanh(ratio)
+            return sign * compressed
+        else:
+            # Above threshold - strong compression
+            excess = abs_x - threshold
+            compressed = threshold + LIMITER_KNEE * np.tanh(excess / LIMITER_KNEE)
+            return sign * compressed
+    
+    # Vectorize the compression function
+    vectorized_compress = np.vectorize(soft_knee_compress)
+    limited = vectorized_compress(audio_data, LIMITER_THRESHOLD, LIMITER_KNEE)
+    
+    return limited.astype(np.float32)
 
 def is_likely_speech(features, duration=None):
     """
@@ -174,6 +240,10 @@ def is_likely_speech(features, duration=None):
     # Check Speech Band Energy
     if features['speech_band_ratio'] < SPEECH_BAND_MIN:
         reasons.append(f"Low speech band energy ({features['speech_band_ratio']:.2f} < {SPEECH_BAND_MIN})")
+    
+    # Check High Frequency Ratio (noise/hiss indicator)
+    if features['high_freq_ratio'] > SPEECH_HIGH_FREQ_MAX:
+        reasons.append(f"High freq noise ({features['high_freq_ratio']:.3f} > {SPEECH_HIGH_FREQ_MAX})")
     
     is_speech = len(reasons) == 0
     reason = " | ".join(reasons) if reasons else "All checks passed"
@@ -238,8 +308,16 @@ def display_hardware_config(state):
 # === Transcribe ===
 def transcribe(audio):
     """Send raw audio to Whisper"""
+    # Apply soft limiting to prevent clipping from near-field speech
+    original_peak = np.max(np.abs(audio))
+    audio = soft_limit(audio)
+    limited_peak = np.max(np.abs(audio))
+    
+    if original_peak > LIMITER_THRESHOLD:
+        print(f"[Limiter] 🎚️  Peak reduced: {original_peak:.4f} → {limited_peak:.4f}")
+    
     rms = np.sqrt(np.mean(audio ** 2))
-    peak = np.max(np.abs(audio))
+    peak = limited_peak
     print(f"[Audio] RMS={rms:.6f}, Peak={peak:.4f}, Duration={len(audio)/SAMPLE_RATE:.2f}s")
     
     wav_io = io.BytesIO()
