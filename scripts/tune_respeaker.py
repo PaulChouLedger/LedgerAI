@@ -10,6 +10,8 @@ Usage:
     
 STANDARD PRESETS:
     - clean                   : HPF + AGC (0.08) + NS (3.0) - DEFAULT
+    - balanced                : HPF 70Hz + NS (2.0) + AGC (0.08, 30dB)
+    - balanced_beam (bb)      : Balanced + Beamforming ⭐ BEST FOR FAN NOISE
     - beamforming             : Adaptive beamforming + DOA (30dB, balanced)
     - beamforming_light       : Beamforming + light NS (30dB, clean environments)
     - beamforming_aggressive  : Beamforming + max NS (45dB, noisy/far-field)
@@ -35,6 +37,10 @@ FAN NOISE PROFILES (Beamforming + HPF 70Hz + NS, NO AGC):
     - bf_ns1     : Beamforming + HPF 70Hz, NS gamma=1.0 (mild)
     - bf_ns2     : Beamforming + HPF 70Hz, NS gamma=2.0 (moderate)
     - bf_ns3     : Beamforming + HPF 70Hz, NS gamma=3.0 (maximum)
+
+BALANCED PROFILES (HPF + NS + AGC):
+    - balanced       : HPF 70Hz + NS gamma=2.0 + AGC (0.08, 30dB) - No beamforming
+    - balanced_beam  : HPF 70Hz + NS gamma=2.0 + AGC (0.08, 30dB) + Beamforming ⭐
 """
 
 import sys
@@ -969,6 +975,126 @@ def configure_agc3():
     })
     return True
 
+def configure_balanced():
+    """Balanced - HPF 70Hz + NS gamma=2.0 + AGC (0.08, 30dB)"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  ⚖️  BALANCED PROFILE - HPF + NS + AGC")
+    print("="*80 + "\n")
+    
+    print("[1/5] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
+    dev.write("HPFONOFF", 1)
+    
+    print("[2/5] Stationary Noise Suppression: MODERATE (gamma=2.0)")
+    dev.write("STATNOISEONOFF_SR", 1)
+    dev.write("GAMMA_NS_SR", 2.0)
+    print("         - Balanced fan noise removal")
+    
+    print("[3/5] Non-Stationary Noise Suppression: OFF")
+    dev.write("NONSTATNOISEONOFF_SR", 0)
+    
+    print("[4/5] Hardware AGC: ENABLED")
+    dev.write("AGCONOFF", 1)
+    dev.write("AGCDESIREDLEVEL", 0.08)
+    dev.write("AGCMAXGAIN", 30.0)
+    dev.write("AGCTIME", 0.2)
+    print("         - Target: 0.08 RMS (Whisper sweet spot)")
+    print("         - Max Gain: 30dB")
+    print("         - Attack Time: 0.2s")
+    
+    print("[5/5] Other: Beamforming OFF, Echo Cancellation OFF")
+    dev.write("FREEZEONOFF", 1)  # Freeze beamforming (disable)
+    dev.write("ECHOONOFF", 0)
+    
+    print("\n  ✅ Balanced Profile Complete")
+    print("  Good all-around profile: removes fan noise + auto-gain\n")
+    
+    save_config_state('balanced', {
+        'HPFONOFF': 1,
+        'STATNOISEONOFF_SR': 1,
+        'GAMMA_NS_SR': 2.0,
+        'NONSTATNOISEONOFF_SR': 0,
+        'AGCONOFF': 1,
+        'AGCDESIREDLEVEL': 0.08,
+        'AGCMAXGAIN': 30.0,
+        'AGCTIME': 0.2,
+        'FREEZEONOFF': 1,
+        'ECHOONOFF': 0
+    })
+    return True
+
+def configure_balanced_beam():
+    """Balanced + Beamforming - HPF 70Hz + NS gamma=2.0 + AGC (0.08, 30dB) + Beamforming"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    dev = Tuning(usb_dev)
+    
+    print("\n" + "="*80)
+    print("  ⚖️  BALANCED + BEAMFORMING - Complete Fan Noise Solution")
+    print("="*80 + "\n")
+    
+    print("[1/6] Beamforming: ENABLED (adaptive, tracks voice direction)")
+    dev.write("FREEZEONOFF", 0)  # Adaptive beamforming
+    print("         - Spatially rejects off-axis fan noise")
+    
+    print("[2/6] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
+    dev.write("HPFONOFF", 1)
+    
+    print("[3/6] Stationary Noise Suppression: MODERATE (gamma=2.0)")
+    dev.write("STATNOISEONOFF_SR", 1)
+    dev.write("GAMMA_NS_SR", 2.0)
+    print("         - Removes residual fan hum after beamforming")
+    
+    print("[4/6] Non-Stationary Noise Suppression: OFF")
+    dev.write("NONSTATNOISEONOFF_SR", 0)
+    
+    print("[5/6] Hardware AGC: ENABLED")
+    dev.write("AGCONOFF", 1)
+    dev.write("AGCDESIREDLEVEL", 0.08)
+    dev.write("AGCMAXGAIN", 30.0)
+    dev.write("AGCTIME", 0.2)
+    print("         - Target: 0.08 RMS (Whisper sweet spot)")
+    print("         - Max Gain: 30dB (stable)")
+    print("         - Attack Time: 0.2s")
+    
+    print("[6/6] Echo Cancellation: OFF")
+    dev.write("ECHOONOFF", 0)
+    
+    print("\n  ✅ Balanced + Beamforming Profile Complete")
+    print("\n  🎯 COMPLETE FAN NOISE SOLUTION:")
+    print("     1️⃣  Beamforming rejects spatial fan noise")
+    print("     2️⃣  HPF removes low-frequency rumble")
+    print("     3️⃣  NS removes residual stationary hum")
+    print("     4️⃣  AGC maintains optimal speech levels")
+    print("\n  This is the recommended profile for Jetson NX with fan noise!\n")
+    
+    save_config_state('balanced_beam', {
+        'FREEZEONOFF': 0,
+        'HPFONOFF': 1,
+        'STATNOISEONOFF_SR': 1,
+        'GAMMA_NS_SR': 2.0,
+        'NONSTATNOISEONOFF_SR': 0,
+        'AGCONOFF': 1,
+        'AGCDESIREDLEVEL': 0.08,
+        'AGCMAXGAIN': 30.0,
+        'AGCTIME': 0.2,
+        'ECHOONOFF': 0
+    })
+    return True
+
 def configure_bf_ns0():
     """BF_NS0 - Beamforming + HPF 70Hz, NS OFF (baseline)"""
     import usb.core
@@ -1223,6 +1349,10 @@ def main():
             success = configure_near_field()
         elif preset == "clean":
             success = configure_clean()
+        elif preset == "balanced":
+            success = configure_balanced()
+        elif preset == "balanced_beam" or preset == "bb":
+            success = configure_balanced_beam()
         elif preset == "reset":
             success = reset_defaults()
         elif preset == "show":
@@ -1272,9 +1402,11 @@ def main():
             print(f"\n  ❌ Unknown preset: {preset}")
             print(f"\n  📋 STANDARD PRESETS:")
             print(f"    - clean                   : HPF + Optimal AGC (0.08) + Max NS (3.0) - DEFAULT")
+            print(f"    - balanced                : HPF 70Hz + NS (2.0) + AGC (0.08, 30dB)")
+            print(f"    - balanced_beam (bb)      : Balanced + Beamforming ⭐ RECOMMENDED FOR FAN NOISE")
             print(f"    - beamforming             : Adaptive beamforming (30dB, balanced)")
             print(f"    - beamforming_light       : Beamforming + light NS (30dB, clean env)")
-            print(f"    - beamforming_aggressive  : Beamforming + max NS (45dB, far-field) ⭐ RECOMMENDED")
+            print(f"    - beamforming_aggressive  : Beamforming + max NS (45dB, far-field)")
             print(f"    - beamforming_ultra       : Beamforming + extreme gain (50dB, max range)")
             print(f"    - far_field               : High AGC + noise suppression (8-16 feet)")
             print(f"    - near_field              : Moderate AGC (1-6 feet)")
