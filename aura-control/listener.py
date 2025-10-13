@@ -14,7 +14,7 @@ from aura_gui import set_transcribing
 # === Config ===
 SAMPLE_RATE = 16000
 FRAME_SIZE = int(SAMPLE_RATE * 0.032)
-SILENCE_TIMEOUT = 0.3  # 300ms of silence before stopping
+SILENCE_TIMEOUT = 0.5  # 300ms of silence before stopping
 VAD_START_THRESHOLD = 0.25  # Lowered - beamforming provides good noise rejection
 VAD_SILENCE_THRESHOLD = 0.15  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
@@ -40,7 +40,7 @@ SPEECH_PEAK_MIN = 0.15          # Reject if peak < this (noise is 0.08-0.12, spe
 # BARE-BONES: Hardware DSP → Channel 0 → VAD → Advanced Filter → Whisper
 
 # === Soft Clipping Prevention ===
-ENABLE_SOFT_LIMITER = True      # Prevent clipping from near-field speech
+ENABLE_SOFT_LIMITER = False      # Prevent clipping from near-field speech
 LIMITER_THRESHOLD = 0.95        # Start limiting above this peak level
 LIMITER_KNEE = 0.05             # Soft knee width for smooth limiting
 
