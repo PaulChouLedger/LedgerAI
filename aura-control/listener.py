@@ -587,21 +587,7 @@ def listen():
                 model_vad.reset_states()
                 continue
             
-            # Final filter check on full audio (before sending to Whisper)
-            if ENABLE_ADVANCED_FILTER:
-                duration = len(mono) / SAMPLE_RATE
-                full_features = calculate_audio_features(mono)
-                is_speech_final, reason_final = is_likely_speech(full_features, duration)
-                
-                if not is_speech_final:
-                    print(f"\n[Filter] ❌ Final check REJECTED: {reason_final}")
-                    print(f"[Filter] RMS={full_features['rms']:.4f}, Peak={full_features['peak']:.3f}, Duration={duration:.2f}s\n")
-                    set_transcribing(False)
-                    model_vad.reset_states()
-                    continue
-                else:
-                    print(f"[Filter] ✅ Final check passed")
-            
+            # Send to Whisper (initial filter already passed)
             text = transcribe(mono)
             
             # Reset VAD state for next utterance (critical for consistent performance)
