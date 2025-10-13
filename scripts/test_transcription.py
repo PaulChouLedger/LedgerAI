@@ -113,7 +113,7 @@ SPEECH_PEAK_MIN = 0.15          # Reject if peak < this (noise is 0.08-0.12, spe
 SPEECH_HIGH_FREQ_MAX = 0.06     # Reject if high freq ratio > this (hiss/noise)
 
 # === Soft Clipping Prevention ===
-ENABLE_SOFT_LIMITER = True      # Prevent clipping from near-field speech
+ENABLE_SOFT_LIMITER = False      # Prevent clipping from near-field speech
 LIMITER_THRESHOLD = 0.95        # Start limiting above this peak level
 LIMITER_KNEE = 0.05             # Soft knee width for smooth limiting
 
