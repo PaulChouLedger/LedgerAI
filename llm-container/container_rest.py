@@ -37,30 +37,30 @@ load_dotenv()
 # === Thread Safety ===
 llm_lock = threading.Lock()
 
-# === Model Config ===
+# === Model Config (Optimized for Orin NX) ===
 MODEL_PATH = os.getenv("MODEL_PATH", "/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf")
-N_CTX = int(os.getenv("N_CTX", "1024"))
+N_CTX = int(os.getenv("N_CTX", "1024"))  # Reduced for speed
 
-# Model configuration optimized for SPEED
 model_config = {
     "model_path": MODEL_PATH,
     "n_ctx": N_CTX,
-    "n_gpu_layers": -1,
-    "n_threads": 6,
+    "n_gpu_layers": -1,      # All layers on GPU (Orin NX has sufficient VRAM)
+    "n_threads": 6,          # Increased from 4 (Orin NX has 6 performance cores)
     "chat_format": os.getenv("CHAT_FORMAT", "llama-3"),
     "use_mlock": True,
     "use_mmap": True,
     "verbose": False,
-    # Speed optimizations - applied globally to all modes
-    "temperature": float(os.getenv("LLM_TEMPERATURE", "0.6")),  # Lower = faster sampling (was 0.7)
-    "top_p": float(os.getenv("LLM_TOP_P", "0.85")),            # Restrict token space (was 0.9)
-    "top_k": int(os.getenv("LLM_TOP_K", "30")),                # Fewer candidates = faster (was 40)
-    "repeat_penalty": float(os.getenv("LLM_REPEAT_PENALTY", "1.15")),  # Higher = less repetition
+    # Speed optimizations - applied globally
+    "temperature": float(os.getenv("LLM_TEMPERATURE", "0.6")),
+    "top_p": float(os.getenv("LLM_TOP_P", "0.85")),
+    "top_k": int(os.getenv("LLM_TOP_K", "30")),
+    "repeat_penalty": float(os.getenv("LLM_REPEAT_PENALTY", "1.15")),
 }
 
-# Llama 3.2 models don't use thinking tags - no special configuration needed
-
+print(f"[LLM] 🚀 Loading model: {MODEL_PATH}")
+print(f"[LLM] ⚙️  Config: n_ctx={N_CTX}, n_gpu_layers=-1, n_threads=6")
 llm = Llama(**model_config)
+print(f"[LLM] ✅ Model loaded successfully")
 
 # Note: TRIAGE_DEFS is loaded automatically by triage.py when imported
 
@@ -349,8 +349,8 @@ def llm_chat(messages, max_tokens=100, temperature=None, **kwargs):
     
     Args:
         messages: Chat messages
-        max_tokens: Max tokens to generate (default: 100 for speed)
-        temperature: Sampling temperature (default: use optimized config)
+        max_tokens: Max tokens to generate (default: 100)
+        temperature: Sampling temperature (default: use model config)
         **kwargs: Additional LLM parameters
     """
     # Apply centralized speed optimizations
