@@ -868,30 +868,65 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str, llm
     if last_key:
         print(f"[Triage] 🔍 Validating answer '{prompt}' for question key '{last_key}'")
 
-        # Validate answer against the question we asked (last_key)
-        if not is_valid_answer(condition, last_key, prompt, state):
-            print(f"[Triage] ❌ Invalid answer '{prompt}' for question '{last_key}'")
+        # Find the step that matches last_key
+        step_to_validate = None
+        for s in step_list:
+            if s.get("key") == last_key:
+                step_to_validate = s
+                break
+        
+        # Use LLM-based validation for natural conversation
+        if llm_chat_fn and step_to_validate:
+            print(f"[Triage] 🧠 Using LLM-based answer validation")
+            from dynamic_triage import validate_and_extract_answer
             
-            # Find the step that matches last_key to re-ask the correct question
-            step_to_reask = None
-            for s in step_list:
-                if s.get("key") == last_key:
-                    step_to_reask = s
-                    break
+            validation_context = {
+                "condition": condition,
+                "pathway": state.get("active_pathway"),
+                "prior_answers": state.get("answers", [])
+            }
             
-            if step_to_reask:
-                expected_answers = list(step_to_reask.get('answers', {}).keys())
-                print(f"[Triage] 🔄 Re-asking question for key '{last_key}' (expected one of: {expected_answers})")
-                return f"I didn't quite catch that. {substitute_name(step_to_reask.get('question', ''), state.get('user_name'))}", state
-            else:
-                # Fallback - this shouldn't happen
-                print(f"[Triage] ⚠️ Could not find step with key '{last_key}'")
-                return "I didn't quite catch that. Could you repeat your answer?", state
+            validation_result = validate_and_extract_answer(
+                prompt, 
+                step_to_validate, 
+                validation_context, 
+                llm_chat_fn
+            )
+            
+            if not validation_result.get("is_valid"):
+                print(f"[Triage] ❌ LLM says invalid answer: {prompt}")
+                # Generate a natural follow-up question
+                return "I didn't quite understand that. Could you clarify?", state
+            
+            # Extract the normalized answer
+            extracted_value = validation_result.get("extracted_value", prompt)
+            severity_flag = validation_result.get("severity_flag")
+            
+            print(f"[Triage] ✅ Valid answer: '{extracted_value}', severity: {severity_flag}")
+            
+            # Store the extracted value
+            state["answers"].append(extracted_value)
+            
+            # Update flags based on severity
+            if severity_flag:
+                state["flags"][last_key] = severity_flag
+            
+        else:
+            # Fallback to old validation if LLM not available
+            if not is_valid_answer(condition, last_key, prompt, state):
+                print(f"[Triage] ❌ Invalid answer '{prompt}' for question '{last_key}'")
+                
+                if step_to_validate:
+                    expected_answers = list(step_to_validate.get('answers', {}).keys())
+                    print(f"[Triage] 🔄 Re-asking question for key '{last_key}' (expected one of: {expected_answers})")
+                    return f"I didn't quite catch that. {substitute_name(step_to_validate.get('question', ''), state.get('user_name'))}", state
+                else:
+                    return "I didn't quite catch that. Could you repeat your answer?", state
 
-        # Answer is valid - add it and update flags
-        print(f"[Triage] ✅ Valid answer for key '{last_key}', adding to state")
-        state["answers"].append(prompt)
-        update_flags_from_answer(condition, last_key, prompt, state, session_id)
+            # Answer is valid - add it and update flags
+            print(f"[Triage] ✅ Valid answer for key '{last_key}', adding to state")
+            state["answers"].append(prompt)
+            update_flags_from_answer(condition, last_key, prompt, state, session_id)
 
         # We've processed this answer, continue to ask next question below
         print(f"[Triage] 🔄 Answer processed, will ask step {next_step_index}")
@@ -902,21 +937,51 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str, llm
         question = clarify_data.get("question", "")
         state["last_key"] = clarify_data.get("key")
         print(f"[Triage] ❓ Asking pending clarify question: {question}")
+        current_step = clarify_data
     # Otherwise, ask next main step question
     elif next_step_index < len(steps):
         next_step = steps[next_step_index]
-        question = next_step.get("question", "")
+        current_step = next_step
 
         # Update last_key and step_index for the question we're about to ask
         state["last_key"] = next_step.get("key")
         state["step_index"] = next_step_index + 1  # Next time, we'll ask the following question
         print(f"[Triage] 📝 Asking step {next_step_index}, key='{state['last_key']}', next_step_index will be {state['step_index']}")
+        
+        # Use LLM to generate dynamic question instead of hardcoded
+        if llm_chat_fn:
+            print(f"[Triage] 🧠 Using LLM to generate dynamic question")
+            from dynamic_triage import generate_dynamic_question
+            
+            question_context = {
+                "condition": condition,
+                "pathway": state.get("active_pathway"),
+                "prior_answers": [state.get("last_key")] if state.get("answers") else []
+            }
+            
+            conversation_history = state.get("phrasing_history", [])[-3:] if state.get("phrasing_history") else []
+            
+            question = generate_dynamic_question(
+                current_step,
+                question_context,
+                conversation_history,
+                llm_chat_fn
+            )
+        else:
+            # Fallback to JSON question
+            question = next_step.get("question", "")
     else:
         question = None
+        current_step = None
 
-    # Apply NLG rewriting if we have a question to ask
+    # Finalize question
     if question:
-        # Apply NLG rewriting (using simple fallback like old version)
+        # If using LLM dynamic questions, we already have a natural question
+        if llm_chat_fn:
+            final_question = substitute_name(question, state.get("user_name"))
+            return final_question, state
+        
+        # Apply NLG rewriting for fallback mode
         from nlg import rewrite
         def llm_chat_once_fallback(messages, **kwargs):
             """Simple fallback for NLG rewriting - just return the question"""
