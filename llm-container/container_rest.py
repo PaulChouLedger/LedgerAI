@@ -39,14 +39,14 @@ llm_lock = threading.Lock()
 
 # === Model Config ===
 MODEL_PATH = os.getenv("MODEL_PATH", "/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf")
-N_CTX = int(os.getenv("N_CTX", "2048"))
+N_CTX = int(os.getenv("N_CTX", "1024"))
 
 # Model configuration optimized for SPEED
 model_config = {
     "model_path": MODEL_PATH,
     "n_ctx": N_CTX,
-    "n_gpu_layers": 32,
-    "n_threads": 4,
+    "n_gpu_layers": -1,
+    "n_threads": 6,
     "chat_format": os.getenv("CHAT_FORMAT", "llama-3"),
     "use_mlock": True,
     "use_mmap": True,
