@@ -17,8 +17,7 @@ schedule>=1.2.0
 # Email notifications (optional)
 secure-smtplib>=0.1.0
 
-# XML parsing for PubMed
-xml.etree.ElementTree  # Built-in
+# XML parsing for PubMed (built-in Python module, no installation needed)
 
 # Medical-specific models (optional, will fallback gracefully)
 # transformers>=4.21.0  # For medical BERT models
