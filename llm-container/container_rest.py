@@ -31,18 +31,28 @@ load_dotenv()
 llm_lock = threading.Lock()
 
 # === Model Config ===
-MODEL_PATH = os.getenv("MODEL_PATH", "/models/qwen2.5-1.5b-instruct-q4_0.gguf")
+MODEL_PATH = os.getenv("MODEL_PATH", "/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf")
 N_CTX = int(os.getenv("N_CTX", "2048"))
-llm = Llama(
-    model_path=MODEL_PATH,
-    n_ctx=N_CTX,
-    n_gpu_layers=32,
-    n_threads=4,
-    chat_format=os.getenv("CHAT_FORMAT", "qwen"),
-    use_mlock=True,
-    use_mmap=True,
-    verbose=False,
-)
+
+# Model configuration to minimize thinking behavior
+model_config = {
+    "model_path": MODEL_PATH,
+    "n_ctx": N_CTX,
+    "n_gpu_layers": 32,
+    "n_threads": 4,
+    "chat_format": os.getenv("CHAT_FORMAT", "llama"),
+    "use_mlock": True,
+    "use_mmap": True,
+    "verbose": False,
+    "temperature": float(os.getenv("LLM_TEMPERATURE", "0.7")),  # Lower for more focused responses
+    "top_p": float(os.getenv("LLM_TOP_P", "0.9")),             # Reduce creativity
+    "top_k": int(os.getenv("LLM_TOP_K", "40")),                # Limit vocabulary choices
+    "repeat_penalty": float(os.getenv("LLM_REPEAT_PENALTY", "1.1")),  # Discourage repetition
+}
+
+# Llama 3.2 models don't use thinking tags - no special configuration needed
+
+llm = Llama(**model_config)
 
 # Note: TRIAGE_DEFS is loaded automatically by triage.py when imported
 
@@ -291,82 +301,15 @@ def chat_tts():
         return Response(stream_with_context(filter_think_blocks(generate_fallback())), mimetype="text/plain")
 
 
-# === Stream Filtering ===
+# === Stream Filtering (Simplified - Llama models don't use think tags) ===
 def filter_think_blocks(generator):
     """
-    Filter <think> blocks from streamed tokens
-    Wraps any generator to remove chain-of-thought reasoning
-    
-    NOTE: Qwen models often wrap responses in <think> tags.
-    We need to extract the actual response from within the think block.
+    Simple pass-through filter for models that don't use think tags
+    Llama models generate clean responses without internal reasoning
     """
-    in_think_block = False
-    think_buffer = []  # Buffer content inside think blocks
-    
     for token in generator:
-        token = token.strip()
-        if not token:
-            continue
-        
-        # Detect think block start
-        if '<think>' in token:
-            in_think_block = True
-            think_buffer = []
-            print(f"[Container] 🤔 <think> block detected")
-            # Extract any content after <think> tag
-            parts = token.split('<think>', 1)
-            if len(parts) > 1 and parts[1].strip():
-                think_buffer.append(parts[1])
-            continue
-        
-        # Detect think block end
-        if '</think>' in token:
-            # Extract any content before </think> tag
-            parts = token.split('</think>', 1)
-            if parts[0].strip():
-                think_buffer.append(parts[0])
-            
-            # Check if think buffer contains actual response
-            think_content = '\n'.join(think_buffer)
-            # Consider content valid if it has either sentence markers or actual response text
-            has_response_markers = '<sentence_start>' in think_content or '<sentence_end>' in think_content
-            has_actual_content = any(word in think_content.lower() for word in ['hello', 'hi', 'good', 'how', 'can', 'help', 'what', 'thank', 'sorry', 'yes', 'no'])
-
-            if has_response_markers or has_actual_content:
-                print(f"[Container] ✅ Extracting response from <think> block")
-                # Yield the content that was inside the think block
-                yield think_content + '\n'
-            else:
-                print(f"[Container] ✅ <think> block filtered (no response content)")
-            
-            in_think_block = False
-            think_buffer = []
-            
-            # Yield any content after </think> tag
-            if len(parts) > 1 and parts[1].strip():
-                yield parts[1] + '\n'
-            continue
-        
-        # Buffer or yield based on think block state
-        if in_think_block:
-            think_buffer.append(token)
-            print(f"[Container] 🤫 (buffering: {token[:50]}...)" if len(token) > 50 else f"[Container] 🤫 (buffering: {token})")
-        else:
-            # Yield tokens outside think blocks
-            yield token + '\n'
-    
-    # CRITICAL: If stream ends while still in think block, yield buffered content
-    if in_think_block and think_buffer:
-        think_content = '\n'.join(think_buffer)
-        # Consider content valid if it has either sentence markers or actual response text
-        has_response_markers = '<sentence_start>' in think_content or '<sentence_end>' in think_content
-        has_actual_content = any(word in think_content.lower() for word in ['hello', 'hi', 'good', 'how', 'can', 'help', 'what', 'thank', 'sorry', 'yes', 'no'])
-
-        if has_response_markers or has_actual_content:
-            print(f"[Container] ⚠️ Stream ended in <think> block - extracting buffered response")
-            yield think_content + '\n'
-        else:
-            print(f"[Container] ⚠️ Stream ended in <think> block with no response content")
+        if token and token.strip():
+            yield token
 
 # === Helper Functions ===
 

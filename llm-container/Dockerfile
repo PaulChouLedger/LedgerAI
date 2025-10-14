@@ -19,7 +19,7 @@ COPY synonyms/ /app/synonyms/
 
 # Copy example models (others can be mounted at runtime)
 COPY models/qwen2.5-1.5b-instruct-q4_0.gguf /models/qwen2.5-1.5b-instruct-q4_0.gguf
-COPY models/Qwen_Qwen3-1.7B-Q4_K_M.gguf /models/Qwen_Qwen3-1.7B-Q4_K_M.gguf
+COPY models/Llama-3.2-3B-Instruct-Q4_K_M.gguf /models/Llama-3.2-3B-Instruct-Q4_K_M.gguf
 
 # Install Python dependencies (LLM only)
 RUN pip3 install --no-cache-dir --ignore-installed \
@@ -30,9 +30,9 @@ RUN pip3 install --no-cache-dir --ignore-installed \
 
 
 # === Environment defaults (can be overridden by .env or -e) ===
-ENV MODEL_PATH=/models/qwen2.5-1.5b-instruct-q4_0.gguf
-ENV CHAT_FORMAT=qwen
-ENV N_CTX=1024
+ENV MODEL_PATH=/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf
+ENV CHAT_FORMAT=llama
+ENV N_CTX=2048
 
 # Expose port for API
 EXPOSE 11434

@@ -70,8 +70,7 @@ def handle_casual(prompt: str, llm_chat_fn, session_id: str = None):
         "Respond in 1-2 short sentences. "
         "Be conversational, empathetic, and approachable. "
         "If asked about medical symptoms, suggest they describe their symptoms so you can help assess them. "
-        "\n\n"
-        "IMPORTANT: Keep responses clean and direct. Do not include any thinking indicators or reasoning."
+        "Keep responses clean, direct, and conversational."
     )
     
     messages = [

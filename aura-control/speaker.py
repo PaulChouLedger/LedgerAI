@@ -98,7 +98,7 @@ def ssml_wrap(text):
     )
 
 def preprocess_for_tts(text):
-    # Remove remaining control tags (think blocks should already be filtered by container_rest)
+    # Remove control tags for clean TTS output
     text = re.sub(r"<sentence_start>|<sentence_end>", "", text)
     return text.strip()
 
@@ -361,23 +361,6 @@ def speak_llm_response(prompt, context=""):
             if not token:
                 continue
 
-            # Filter out JSON response format (for /chat-tg compatibility issues)
-            if token.startswith('{"response":') and token.endswith('}'):
-                print(f"[LLM] 📦 JSON response detected, extracting content")
-                try:
-                    import json
-                    json_data = json.loads(token)
-                    response_text = json_data.get("response", "")
-                    if response_text:
-                        # Clean the extracted response text (think tags should already be filtered by container_rest)
-                        response_text = response_text.replace('<think>', '').replace('</think>', '')
-                        response_text = response_text.replace('\\n', '\n').strip()
-                        print(f"[LLM] 📝 Extracted and cleaned: '{response_text}'")
-                        buffer.append(response_text)
-                        continue
-                except json.JSONDecodeError:
-                    print(f"[LLM] ❌ Invalid JSON, processing as text")
-
             # Filter out empty control tokens
             if token in ['<sentence_start>', '<sentence_end>']:
                 print(f"[LLM] 🏷️  {token} (control token, skipping)")
@@ -452,7 +435,7 @@ def speak_llm_response(prompt, context=""):
             
             if should_split:
                 chunk_text = " ".join(buffer).strip()
-                # Remove sentence tags before TTS (think blocks should already be filtered by container_rest)
+                # Remove sentence tags before TTS
                 clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
                 print(f"[TTS Debug] SPLITTING! Chunk: '{chunk_text}' -> Clean: '{clean_text}'")
                 if clean_text:
