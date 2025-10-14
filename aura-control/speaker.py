@@ -360,20 +360,26 @@ def speak_llm_response(prompt, context=""):
             token = line.strip()
             if not token:
                 continue
+            
+            # Debug: Show raw token received
+            print(f"[LLM] 📥 Raw token: '{token[:100]}...' (type: {type(token)})")
 
             # Filter out JSON response format (this shouldn't happen with /chat-tts but handle it anyway)
-            if token.startswith('{"response":'):
+            if '{"response":' in token:
                 print(f"[LLM] ⚠️ WARNING: Received JSON response on streaming endpoint!")
+                print(f"[LLM] 📦 Full JSON: {token}")
                 try:
                     import json
                     json_data = json.loads(token)
                     response_text = json_data.get("response", "")
                     if response_text:
-                        print(f"[LLM] 📝 Extracted from JSON: '{response_text[:50]}...'")
-                        buffer.append(response_text)
+                        print(f"[LLM] 📝 Extracted from JSON: '{response_text}'")
+                        # Split response into words and add to buffer
+                        for word in response_text.split():
+                            buffer.append(word)
+                    print(f"[LLM] ✅ Skipping JSON wrapper, extracted content added to buffer")
                 except json.JSONDecodeError as e:
                     print(f"[LLM] ❌ Invalid JSON: {e}")
-                    # Don't add malformed JSON to buffer
                 continue  # Always skip the JSON wrapper
 
             # Filter out empty control tokens
@@ -381,7 +387,7 @@ def speak_llm_response(prompt, context=""):
                 print(f"[LLM] 🏷️  {token} (control token, skipping)")
                 continue
 
-            print(f"[LLM] 🧠 {token}")
+            print(f"[LLM] 🧠 Adding token to buffer: '{token}'")
             buffer.append(token)
             
             # Debug: Show buffer state
