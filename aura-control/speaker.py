@@ -130,7 +130,6 @@ def enqueue_tts_chunk(text):
     # Normal enqueue
     if text and not re.match(r"^[\s.,!?]+$", text):
         SENTENCE_QUEUE.put(text.strip())
-    else:
 
 def merge_initials_with_names(text):
     """Post-process text to merge initials with names that might have been split"""
