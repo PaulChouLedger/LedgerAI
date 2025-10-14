@@ -702,6 +702,8 @@ def detect_condition(prompt: str, session_id: str = None) -> Optional[str]:
     """Detect medical condition from prompt"""
     p = normalize_text(prompt)
     
+    print(f"[Triage] 🔍 Detecting condition from: '{prompt}' (normalized: '{p}')")
+    
     # Check for casual greetings
     casual_greeting_patterns = [
         r'\bhello\b', r'\bhi\b', r'\bhey\b', r'\bhowdy\b',
@@ -728,6 +730,7 @@ def detect_condition(prompt: str, session_id: str = None) -> Optional[str]:
     
     # Apply synonym expansion
     p_expanded = apply_synonym_expansion(p)
+    print(f"[Triage] 🔍 After synonym expansion: '{p_expanded}'")
     
     # Initialize detailed symptoms
     if "detailed_symptoms" not in state:
@@ -738,13 +741,18 @@ def detect_condition(prompt: str, session_id: str = None) -> Optional[str]:
     
     save_state(state, session_id)
     
+    # Find ALL potential matches and return the BEST one (not just first)
+    best_match = None
+    best_score = 0.0
+    
     for cond, data in TRIAGE_DEFS.items():
         triggers = data.get("triggers", [])
         for trig in triggers:
             trig_norm = normalize_text(trig)
             
-            # Exact match
+            # Exact match - highest priority
             if trig_norm in p_expanded:
+                print(f"[Triage] ✅ Exact match: '{cond}' for trigger '{trig_norm}'")
                 if "detailed_symptom" in TRIAGE_DEFS[cond]:
                     detailed_symptom = TRIAGE_DEFS[cond]["detailed_symptom"]
                     if detailed_symptom not in state["detailed_symptoms"]:
@@ -768,15 +776,24 @@ def detect_condition(prompt: str, session_id: str = None) -> Optional[str]:
                     if typo_score > typo_match_score:
                         typo_match_score = typo_score
             
-            # Accept if token overlap OR typo match is good
-            if overlap >= MIN_MATCH or typo_match_score >= 0.8:
-                print(f"[Triage] ✅ Matched condition '{cond}' (overlap={overlap:.2f}, typo={typo_match_score:.2f})")
-                if "detailed_symptom" in TRIAGE_DEFS[cond]:
-                    detailed_symptom = TRIAGE_DEFS[cond]["detailed_symptom"]
-                    if detailed_symptom not in state["detailed_symptoms"]:
-                        state["detailed_symptoms"].append(detailed_symptom)
-                        save_state(state, session_id)
-                return cond
+            # Calculate combined score (prioritize token overlap over typos)
+            combined_score = (overlap * 1.5) + typo_match_score
+            
+            # Track best match
+            if combined_score >= MIN_MATCH and combined_score > best_score:
+                best_match = cond
+                best_score = combined_score
+                print(f"[Triage] 🔍 Candidate: '{cond}' (score={combined_score:.2f}, overlap={overlap:.2f}, typo={typo_match_score:.2f})")
+    
+    # Return best match if found
+    if best_match:
+        print(f"[Triage] ✅ Best match: '{best_match}' (score={best_score:.2f})")
+        if "detailed_symptom" in TRIAGE_DEFS[best_match]:
+            detailed_symptom = TRIAGE_DEFS[best_match]["detailed_symptom"]
+            if detailed_symptom not in state["detailed_symptoms"]:
+                state["detailed_symptoms"].append(detailed_symptom)
+                save_state(state, session_id)
+        return best_match
     
     return None
 
