@@ -14,6 +14,12 @@ from glob import glob
 from nlg import rewrite as nlg_rewrite
 import requests
 
+# Import triage utilities for centralized validation
+from triage import (
+    apply_synonym_expansion, normalize_yes_no_response, get_generic_onset_answers,
+    match_flexible_time, tokenize, get_steps, load_state, save_state, MIN_MATCH
+)
+
 # Import modular conversation modes
 from router import route_prompt, ConversationMode, format_mode_info
 from casual import handle_casual, stream_casual_response
@@ -310,6 +316,127 @@ def filter_think_blocks(generator):
     for token in generator:
         if token and token.strip():
             yield token
+
+# === Centralized Answer Validation ===
+
+def match_answer_option(ans_norm: str, valid_map: Dict[str, str], use_synonyms: bool = True, key: str = None) -> Tuple[Optional[str], float]:
+    """Match answer to options with fuzzy matching and typo correction"""
+    ans_expanded = apply_synonym_expansion(ans_norm) if use_synonyms else ans_norm
+
+    # Normalize yes/no first
+    normalized_response = normalize_yes_no_response(ans_expanded)
+    if normalized_response in ["yes", "no"]:
+        if "yes" in valid_map and "no" in valid_map:
+            return normalized_response, 1.0
+
+    # Generic onset answers
+    if key == "onset" and (not valid_map or len(valid_map) == 0):
+        valid_map = get_generic_onset_answers()
+
+    # Flexible time matching
+    time_match = match_flexible_time(ans_expanded, valid_map)
+    if time_match:
+        return time_match
+
+    # Improved fuzzy matching with typo correction
+    ans_tokens = set(tokenize(ans_expanded))
+    best, score = None, 0.0
+
+    for opt in valid_map:
+        opt_tokens = set(tokenize(opt))
+
+        # Exact match gets highest score
+        if ans_expanded == opt:
+            return opt, 1.0
+
+        # Token overlap matching
+        overlap = len(ans_tokens & opt_tokens)
+
+        if overlap > 0:
+            base_score = overlap / float(len(opt_tokens)) if opt_tokens else 0
+            length_bonus = len(opt_tokens) * 0.1
+
+            if overlap == len(ans_tokens) and overlap == len(opt_tokens):
+                exact_bonus = 0.5
+            elif overlap == len(opt_tokens):
+                exact_bonus = 0.3
+            else:
+                exact_bonus = 0
+
+            final_score = base_score + length_bonus + exact_bonus
+        else:
+            # Check for common typos and close matches
+            typo_score = check_typo_similarity(ans_expanded, opt)
+            final_score = typo_score
+
+        if final_score > score:
+            best, score = opt, final_score
+
+    return best, score
+
+
+def check_typo_similarity(ans: str, opt: str) -> float:
+    """Check for typo similarity using character-level matching"""
+    # Simple character-level similarity for common typos
+    if len(ans) == len(opt):
+        # Same length - check for single character differences
+        diff_count = sum(1 for a, o in zip(ans, opt) if a != o)
+        if diff_count <= 1:  # Allow 1 character difference
+            return 0.8
+
+    # Check for common typos (e.g., "roght" -> "right")
+    common_typos = {
+        "roght": "right",
+        "recieve": "receive",
+        "seperate": "separate",
+        "occured": "occurred",
+        "definately": "definitely",
+    }
+
+    if ans in common_typos and common_typos[ans] == opt:
+        return 0.9
+
+    return 0.0
+
+
+def is_valid_answer(condition: str, key: str, answer: str, state: Dict[str, Any]) -> bool:
+    """Validate if answer is acceptable for given question"""
+    ans_norm = normalize_text(answer)
+    print(f"[Triage] 🔍 Validating answer: key='{key}', ans='{answer}' (norm='{ans_norm}')")
+
+    if key and key.startswith("clarify_") and state.get("pending_clarify") and state["pending_clarify"].get("key") == key:
+        opt, score = match_answer_option(ans_norm, state["pending_clarify"].get("answers", {}), use_synonyms=False, key=key)
+        print(f"[Triage] 🔍 Clarify validation: opt='{opt}', score={score}, threshold={MIN_MATCH}")
+        return opt and score >= MIN_MATCH
+
+    steps = get_steps(condition, state)
+    print(f"[Triage] 🔍 Found {len(steps)} steps for condition '{condition}'")
+
+    for s in steps:
+        if isinstance(s, dict) and s.get("key") == key:
+            answers = s.get("answers", {})
+            print(f"[Triage] 🔍 Checking step with key '{key}', answers: {answers}")
+
+            # For onset questions with empty answers, use generic onset validation
+            if not answers and key == "onset":
+                print(f"[Triage] 🔍 Onset question - using generic time validation")
+                generic_onset_answers = get_generic_onset_answers()
+                opt, score = match_answer_option(ans_norm, generic_onset_answers, key=key)
+                print(f"[Triage] 🔍 Time matching: opt='{opt}', score={score}, threshold={MIN_MATCH}")
+                return opt and score >= MIN_MATCH
+
+            # For other empty answers, accept any answer (rare case)
+            if not answers:
+                print(f"[Triage] ⚠️ Empty answers for '{key}' - accepting any answer")
+                return True
+
+            opt, score = match_answer_option(ans_norm, answers, key=key)
+            print(f"[Triage] 🔍 Answer matching: opt='{opt}', score={score}, threshold={MIN_MATCH}")
+            return opt and score >= MIN_MATCH
+
+    print(f"[Triage] ❌ No step found with key '{key}'")
+    return False
+
 
 # === Helper Functions ===
 

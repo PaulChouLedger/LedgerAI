@@ -271,51 +271,8 @@ def match_flexible_time(ans_expanded: str, valid_map: Dict[str, str]) -> Optiona
     return None
 
 
-def match_answer_option(ans_norm: str, valid_map: Dict[str, str], use_synonyms: bool = True, key: str = None) -> Tuple[Optional[str], float]:
-    """Match answer to options with fuzzy matching"""
-    ans_expanded = apply_synonym_expansion(ans_norm) if use_synonyms else ans_norm
-    
-    # Normalize yes/no first
-    normalized_response = normalize_yes_no_response(ans_expanded)
-    if normalized_response in ["yes", "no"]:
-        if "yes" in valid_map and "no" in valid_map:
-            return normalized_response, 1.0
-    
-    # Generic onset answers
-    if key == "onset" and (not valid_map or len(valid_map) == 0):
-        valid_map = get_generic_onset_answers()
-    
-    # Flexible time matching
-    time_match = match_flexible_time(ans_expanded, valid_map)
-    if time_match:
-        return time_match
-    
-    ans_tokens = set(tokenize(ans_expanded))
-    best, score = None, 0.0
-    
-    for opt in valid_map:
-        opt_tokens = set(tokenize(opt))
-        overlap = len(ans_tokens & opt_tokens)
-        
-        if overlap > 0:
-            base_score = overlap / float(len(opt_tokens)) if opt_tokens else 0
-            length_bonus = len(opt_tokens) * 0.1
-            
-            if overlap == len(ans_tokens) and overlap == len(opt_tokens):
-                exact_bonus = 0.5
-            elif overlap == len(opt_tokens):
-                exact_bonus = 0.3
-            else:
-                exact_bonus = 0
-                
-            final_score = base_score + length_bonus + exact_bonus
-        else:
-            final_score = 0
-            
-        if final_score > score:
-            best, score = opt, final_score
-            
-    return best, score
+# Import centralized validation from container_rest
+from container_rest import match_answer_option, check_typo_similarity, is_valid_answer
 
 
 def match_all_options(ans_norm: str, valid_map: Dict[str, str]) -> List[str]:
