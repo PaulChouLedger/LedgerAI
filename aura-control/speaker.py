@@ -149,6 +149,7 @@ def merge_initials_with_names(text):
         if re.search(pattern, text):
             # This text ends with initials, might need to be merged with next chunk
             # We'll handle this in the buffer logic above
+            pass
     
     return text
 
@@ -378,9 +379,6 @@ def speak_llm_response(prompt, context=""):
             prev_token_was_initial = len(buffer) > 0 and len(buffer[-1]) == 2 and buffer[-1].endswith('.') and buffer[-1][0].isupper()
             is_following_initial = prev_token_was_initial and token.endswith('.') and len(token) > 2
             
-            # Debug logging
-            if prev_token_was_initial:
-            
             # Don't split if current token is an initial/abbreviation OR if it looks like a name continuation
             # OR if it's following an initial (like "Rowling." after "J.K.")
             should_split = (ends and not is_initial and not is_abbreviation and not is_name_continuation and not is_following_initial) or total_words >= TTS_TOKEN_LIMIT
@@ -410,7 +408,7 @@ def speak_llm_response(prompt, context=""):
                             break
                 
                 if not found_initials:
-            
+                    pass
             
             if should_split:
                 chunk_text = " ".join(buffer).strip()
