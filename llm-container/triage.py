@@ -721,19 +721,30 @@ def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: 
             
             cleaned_other_positives.append(pos_clean)
         
-        # Use better sentence structure
+        # Build proper sentence structure
         main_sentence = f"You reported {main_complaint}"
-        if cleaned_other_positives:
-            # Add cleaned symptoms as a continuation, not "with associated"
-            main_sentence += f", including {pretty_join(cleaned_other_positives, 'and')}"
-    else:
-        main_sentence = f"You reported {main_complaint}"
-    
-    if timing_info:
-        timing_str = pretty_join(timing_info, 'and')
-        if not timing_str.lower().startswith("starting"):
-            main_sentence += f" starting {timing_str}"
-        else:
+
+        # Add symptom descriptions
+        symptom_descriptions = []
+        for symptom in cleaned_other_positives:
+            if symptom.lower().startswith(('heavy', 'severe', 'mild', 'moderate', 'sharp', 'dull', 'burning', 'crushing')):
+                symptom_descriptions.append(f"described as {symptom}")
+            elif symptom.lower().startswith(('worsens', 'improves', 'radiates', 'accompanied')):
+                symptom_descriptions.append(symptom)
+            else:
+                symptom_descriptions.append(symptom)
+
+        if symptom_descriptions:
+            if len(symptom_descriptions) == 1:
+                main_sentence += f" {symptom_descriptions[0]}"
+            else:
+                main_sentence += f" {pretty_join(symptom_descriptions, 'and')}"
+
+        # Add timing information
+        if timing_info:
+            timing_str = pretty_join(timing_info, 'and')
+            # Clean up timing strings
+            timing_str = timing_str.replace("Onset was ", "").replace("starting Onset was ", "starting ")
             main_sentence += f" {timing_str}"
     
     parts.append(main_sentence + ".")
@@ -883,8 +894,14 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str, llm
         # We've processed this answer, continue to ask next question below
         print(f"[Triage] 🔄 Answer processed, will ask step {next_step_index}")
     
-    # Ask next question
-    if next_step_index < len(steps):
+    # Check for pending clarify questions first
+    if state.get("pending_clarify"):
+        clarify_data = state["pending_clarify"]
+        question = clarify_data.get("question", "")
+        state["last_key"] = clarify_data.get("key")
+        print(f"[Triage] ❓ Asking pending clarify question: {question}")
+    # Otherwise, ask next main step question
+    elif next_step_index < len(steps):
         next_step = steps[next_step_index]
         question = next_step.get("question", "")
 
@@ -892,12 +909,27 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str, llm
         state["last_key"] = next_step.get("key")
         state["step_index"] = next_step_index + 1  # Next time, we'll ask the following question
         print(f"[Triage] 📝 Asking step {next_step_index}, key='{state['last_key']}', next_step_index will be {state['step_index']}")
+    else:
+        question = None
 
+    # Apply NLG rewriting if we have a question to ask
+    if question:
         # Apply NLG rewriting (using simple fallback like old version)
         from nlg import rewrite
         def llm_chat_once_fallback(messages, **kwargs):
             """Simple fallback for NLG rewriting - just return the question"""
             return {"content": question}
+
+        # Determine the question key for NLG context
+        question_key = state.get("last_key")
+        allowed_answers = []
+
+        # Get allowed answers for the question
+        if state.get("pending_clarify"):
+            allowed_answers = list(state["pending_clarify"].get("answers", {}).keys())
+        elif next_step_index < len(steps):
+            next_step = steps[next_step_index]
+            allowed_answers = list(next_step.get("answers", {}).keys())
 
         rewritten_question = rewrite(
             question,
@@ -905,8 +937,8 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str, llm
             {
                 "name": state.get("user_name"),
                 "condition": state["condition"],
-                "key": next_step.get("key"),
-                "allowed_answers": list(next_step.get("answers", {}).keys())
+                "key": question_key,
+                "allowed_answers": allowed_answers
             },
             state.get("phrasing_history", []),
             llm_chat_once_fallback
@@ -914,13 +946,18 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str, llm
 
         final_question = substitute_name(rewritten_question, state.get("user_name"))
         return final_question, state
-
     else:
-        # Triage complete - generate recap and reset session
-        recap_response = generate_triage_completion(state, session_id, llm_chat_fn)
-        # Reload state after reset
-        reset_state = load_state(session_id)
-        return recap_response, reset_state
+        # No question to ask - check if triage is complete
+        if not state.get("pending_clarify") and next_step_index >= len(steps):
+            # Triage complete - generate recap and reset session
+            recap_response = generate_triage_completion(state, session_id, llm_chat_fn)
+            # Reload state after reset
+            reset_state = load_state(session_id)
+            return recap_response, reset_state
+        else:
+            # No question to ask but triage not complete - this shouldn't happen
+            print(f"[Triage] ⚠️ No question to ask but triage not complete")
+            return "I'm having trouble with the next question. Could you describe your symptoms again?", state
 
 
 def generate_triage_completion(state: Dict[str, Any], session_id: str, llm_chat_fn=None) -> str:
