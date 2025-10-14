@@ -733,7 +733,8 @@ class MedicalDataIngester:
         np.save(medical_embeddings_dir / "medical_chunks.npy", np.array(all_chunks))
         json.dump(chunk_metadata, open(medical_embeddings_dir / "medical_metadata.json", 'w'))
 
-        print("✅ Medical embeddings rebuilt successfully!"        print(f"📊 Index: {medical_index.ntotal} vectors, dimension: {dimension}")
+        print("✅ Medical embeddings rebuilt successfully!")
+        print(f"📊 Index: {medical_index.ntotal} vectors, dimension: {dimension}")
         print(f"📦 Chunks: {len(all_chunks)} medical text chunks")
 
         # Update state
