@@ -144,7 +144,7 @@ def chat_tg():
                 return jsonify({"response": response})
             else:
                 # Continue existing triage
-                question, final_state = process_triage_step(prompt, updated_state, session_id)
+                question, final_state = process_triage_step(prompt, updated_state, session_id, llm_chat)
                 save_state(final_state, session_id)
                 return jsonify({"response": question})
         
@@ -264,7 +264,7 @@ def chat_tts():
             print(f"[Triage] 🔄 Continuing triage - processing answer: '{prompt}'")
             def generate_triage_continue():
                 try:
-                    question, final_state = process_triage_step(prompt, updated_state, session_id)
+                    question, final_state = process_triage_step(prompt, updated_state, session_id, llm_chat)
                     save_state(final_state, session_id)
                     yield f"<sentence_start>\n{question}\n<sentence_end>\n"
                 except Exception as e:

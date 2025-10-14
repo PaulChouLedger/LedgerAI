@@ -833,7 +833,7 @@ def detect_condition(prompt: str, session_id: str = None) -> Optional[str]:
 
 # === Triage Step Processing ===
 
-def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> Tuple[str, Dict[str, Any]]:
+def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str, llm_chat_fn=None) -> Tuple[str, Dict[str, Any]]:
     """Process triage step and return next question"""
     condition = state.get("condition")
     if not condition:
@@ -917,13 +917,13 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str) -> 
 
     else:
         # Triage complete - generate recap and reset session
-        recap_response = generate_triage_completion(state, session_id)
+        recap_response = generate_triage_completion(state, session_id, llm_chat_fn)
         # Reload state after reset
         reset_state = load_state(session_id)
         return recap_response, reset_state
 
 
-def generate_triage_completion(state: Dict[str, Any], session_id: str) -> str:
+def generate_triage_completion(state: Dict[str, Any], session_id: str, llm_chat_fn=None) -> str:
     """Generate final triage completion and reset session"""
     condition = state.get("condition")
     answers = state.get("answers", [])
@@ -937,27 +937,31 @@ def generate_triage_completion(state: Dict[str, Any], session_id: str) -> str:
     
     # Build recap
     recap = build_recap(condition, answers, flags, severity, session_id)
-    
-    # Get outcome
-    active_pathway = state.get("active_pathway")
-    outcomes = TRIAGE_DEFS[condition].get("outcomes", {})
-    
-    if active_pathway and "pathways" in TRIAGE_DEFS[condition]:
-        pathway_outcomes = TRIAGE_DEFS[condition]["pathways"][active_pathway].get("outcomes", {})
-        if pathway_outcomes:
-            outcomes = pathway_outcomes
-    
-    if severity in outcomes:
-        outcome = outcomes[severity]
+
+    # Generate sophisticated LLM-based outcome instead of hardcoded responses
+    if llm_chat_fn:
+        outcome = _generate_llm_outcome(condition, severity, answers, flags, state, llm_chat_fn)
     else:
-        if severity == "emergency":
-            outcome = "Seek emergency medical care immediately (call 911 or go to nearest ER)."
-        elif severity == "urgent":
-            outcome = "Seek medical care within 2-4 hours (urgent care or ER if symptoms worsen)."
+        # Fallback to existing logic if LLM not available
+        active_pathway = state.get("active_pathway")
+        outcomes = TRIAGE_DEFS[condition].get("outcomes", {})
+
+        if active_pathway and "pathways" in TRIAGE_DEFS[condition]:
+            pathway_outcomes = TRIAGE_DEFS[condition]["pathways"][active_pathway].get("outcomes", {})
+            if pathway_outcomes:
+                outcomes = pathway_outcomes
+
+        if severity in outcomes:
+            outcome = outcomes[severity]
         else:
-            outcome = "Schedule appointment with primary care physician within 24-48 hours."
-    
-    outcome = substitute_name(outcome, state.get("user_name"))
+            if severity == "emergency":
+                outcome = "Seek emergency medical care immediately (call 911 or go to nearest ER)."
+            elif severity == "urgent":
+                outcome = "Seek medical care within 2-4 hours (urgent care or ER if symptoms worsen)."
+            else:
+                outcome = "Schedule appointment with primary care physician within 24-48 hours."
+
+        outcome = substitute_name(outcome, state.get("user_name"))
     
     # IMPORTANT: Reset session state after completion to prevent infinite loop
     # Preserve user name across resets
@@ -973,4 +977,104 @@ def generate_triage_completion(state: Dict[str, Any], session_id: str) -> str:
     print(f"[Triage] ✅ Triage completed - session reset for {session_id}")
     
     return f"{recap} {outcome}"
+
+
+def _generate_llm_outcome(condition: str, severity: str, answers: List[str], flags: Dict, state: Dict, llm_chat_fn) -> str:
+    """
+    Generate sophisticated triage outcome using LLM
+
+    Args:
+        condition: Medical condition detected
+        severity: Classified severity level
+        answers: User's answers to triage questions
+        flags: Additional context flags
+        state: Full session state
+        llm_chat_fn: LLM chat function
+
+    Returns:
+        Sophisticated outcome recommendation
+    """
+    # Build context for LLM
+    user_name = state.get("user_name", "patient")
+    original_complaint = state.get("original_complaint", "")
+    chief_complaint = state.get("detailed_symptoms", [""])[0] if state.get("detailed_symptoms") else original_complaint
+
+    # Build summary of answers for context
+    answers_summary = []
+    for i, answer in enumerate(answers):
+        answers_summary.append(f"Q{i+1}: {answer}")
+
+    answers_context = "\n".join(answers_summary) if answers_summary else "No specific answers provided."
+
+    # Build clinical context
+    clinical_summary = TRIAGE_DEFS[condition].get("clinical_summary", "")
+
+    system_prompt = """You are a medical triage AI providing care recommendations.
+You must provide clear, actionable medical advice based on the patient's symptoms and triage results.
+
+Guidelines:
+- Be specific and clinical, but conversational and empathetic
+- Provide clear next steps for the patient
+- Include timeframes for seeking care
+- Mention what symptoms to watch for that indicate worsening
+- If emergency, emphasize immediate action
+- If non-emergency, provide appropriate care level and timing
+- Use the patient's name if provided
+- Keep recommendations evidence-based and practical"""
+
+    user_prompt = f"""Patient: {user_name}
+Chief Complaint: {chief_complaint}
+Condition: {condition.replace('_', ' ').title()}
+Severity: {severity.title()}
+Clinical Assessment: {clinical_summary}
+
+Patient's Answers:
+{answers_context}
+
+Based on this triage assessment, provide a specific, actionable recommendation for next steps in care.
+
+Include:
+1. Urgency level and appropriate care setting
+2. Specific timeframes for seeking care
+3. Symptoms to monitor for worsening
+4. When to seek emergency care vs scheduled appointment
+5. Any immediate self-care advice if appropriate"""
+
+    try:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        response = llm_chat_fn(
+            messages=messages,
+            max_tokens=300,
+            temperature=0.7,
+            stream=False
+        )
+
+        content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
+        outcome = content.strip() if content else _get_fallback_outcome(severity)
+
+        # Ensure it's addressed to the patient if name is provided
+        if user_name and not user_name.lower() in ["patient", "user"]:
+            # LLM might not use the name, so add it if needed
+            if not user_name.lower() in outcome.lower():
+                outcome = f"{user_name}, {outcome}"
+
+        return outcome
+
+    except Exception as e:
+        print(f"[Triage] ❌ Error generating LLM outcome: {e}")
+        return _get_fallback_outcome(severity)
+
+
+def _get_fallback_outcome(severity: str) -> str:
+    """Fallback outcome when LLM fails"""
+    if severity == "emergency":
+        return "Seek emergency medical care immediately (call 911 or go to nearest ER)."
+    elif severity == "urgent":
+        return "Seek medical care within 2-4 hours (urgent care or ER if symptoms worsen)."
+    else:
+        return "Schedule appointment with primary care physician within 24-48 hours."
 

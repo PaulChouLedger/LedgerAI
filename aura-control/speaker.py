@@ -381,7 +381,21 @@ def speak_llm_response(prompt, context=""):
                     continue
                 print(f"[LLM] 🤫 (thinking: {token[:50]}...)" if len(token) > 50 else f"[LLM] 🤫 (thinking: {token})")
                 continue
-            
+
+            # Filter out JSON response format (for /chat-tg compatibility issues)
+            if token.startswith('{"response":') and token.endswith('}'):
+                print(f"[LLM] 📦 JSON response detected, extracting content")
+                try:
+                    import json
+                    json_data = json.loads(token)
+                    response_text = json_data.get("response", "")
+                    if response_text:
+                        print(f"[LLM] 📝 Extracted: '{response_text}'")
+                        buffer.append(response_text)
+                        continue
+                except json.JSONDecodeError:
+                    print(f"[LLM] ❌ Invalid JSON, processing as text")
+
             # Filter out empty control tokens
             if token in ['<sentence_start>', '<sentence_end>']:
                 print(f"[LLM] 🏷️  {token} (control token, skipping)")
