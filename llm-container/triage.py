@@ -1169,7 +1169,27 @@ Based on this triage assessment, provide a brief, direct clinical assessment and
         )
 
         content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
-        outcome = content.strip() if content else _get_fallback_outcome(severity, json_outcome)
+        
+        # Validate LLM output - check for garbage/repetitive content
+        if content:
+            content = content.strip()
+            
+            # Check for repetitive characters (sign of LLM failure)
+            if len(content) > 50:
+                # Check if more than 50% of characters are the same
+                from collections import Counter
+                char_counts = Counter(content.lower())
+                most_common = char_counts.most_common(1)[0][1] if char_counts else 0
+                if most_common / len(content) > 0.5:
+                    print(f"[Triage] ⚠️ LLM generated repetitive content, using fallback")
+                    content = None
+            
+            # Check for excessively long output (should be 2-3 sentences)
+            if content and len(content) > 500:
+                print(f"[Triage] ⚠️ LLM output too long ({len(content)} chars), truncating")
+                content = content[:500] + "..."
+        
+        outcome = content if content else _get_fallback_outcome(severity, json_outcome)
 
         # Clean up any third-person references
         outcome = outcome.replace("the patient", "you")

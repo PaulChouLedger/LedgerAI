@@ -273,18 +273,45 @@ def _fallback_validation(user_response: str, step_key: str, expected_answers: Di
                 "confidence": 0.8
             }
     
-    # Timing questions - accept temporal words
-    if "onset" in step_key or "when" in step_key or "start" in step_key:
-        temporal_words = ["today", "yesterday", "day", "week", "hour", "ago", "morning", "evening", "night"]
-        if any(word in response_lower for word in temporal_words):
+    # Timing questions - accept temporal words (CHECK FIRST before yes/no)
+    # Important: Check timing BEFORE yes/no to avoid "yesteaday" → "yes" confusion
+    if "onset" in step_key.lower() or "when" in step_key.lower() or "start" in step_key.lower():
+        # Check for temporal patterns more carefully
+        temporal_patterns = [
+            "today", "yesterday", "day", "week", "hour", "ago", 
+            "morning", "evening", "night", "month", "year",
+            "recent", "while", "just", "started"
+        ]
+        
+        # Also check for typos like "yesteaday", "yesturday", etc.
+        if any(pattern in response_lower for pattern in temporal_patterns):
+            print(f"[DynamicTriage] ✅ Fallback: Temporal answer detected")
+            # Try to normalize common typos
+            normalized = user_response
+            if "yest" in response_lower and "day" in response_lower:
+                normalized = "yesterday"
+            elif "2day" in response_lower or "toda" in response_lower:
+                normalized = "today"
+            
+            return {
+                "is_valid": True,
+                "extracted_value": normalized,
+                "severity_flag": None,
+                "confidence": 0.8
+            }
+        
+        # Also check for fuzzy time expressions
+        if len(response_lower) >= 4 and any(c.isdigit() for c in response_lower):
+            # Contains numbers, likely a time expression
+            print(f"[DynamicTriage] ✅ Fallback: Numeric time expression detected")
             return {
                 "is_valid": True,
                 "extracted_value": user_response,
                 "severity_flag": None,
-                "confidence": 0.8
+                "confidence": 0.7
             }
     
-    # Yes/No questions - accept variations
+    # Yes/No questions - accept variations (ONLY if not a timing question)
     if expected_answers and set(expected_answers.keys()) & {"yes", "no"}:
         yes_words = ["yes", "yeah", "yep", "yup", "uh huh", "sure", "definitely"]
         no_words = ["no", "nope", "nah", "not really", "negative"]
