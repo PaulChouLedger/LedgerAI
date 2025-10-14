@@ -639,10 +639,10 @@ def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: 
             
             cleaned_other_positives.append(pos_clean)
         
-        # Build proper sentence structure
+        # Build proper sentence structure with commas
         main_sentence = f"You reported {main_complaint}"
 
-        # Add symptom descriptions
+        # Add symptom descriptions with proper grammar
         symptom_descriptions = []
         for symptom in cleaned_other_positives:
             if symptom.lower().startswith(('heavy', 'severe', 'mild', 'moderate', 'sharp', 'dull', 'burning', 'crushing')):
@@ -653,10 +653,8 @@ def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: 
                 symptom_descriptions.append(symptom)
 
         if symptom_descriptions:
-            if len(symptom_descriptions) == 1:
-                main_sentence += f" {symptom_descriptions[0]}"
-            else:
-                main_sentence += f" {pretty_join(symptom_descriptions, 'and')}"
+            # Use commas for proper list formatting
+            main_sentence += ", " + pretty_join(symptom_descriptions, 'and')
 
         # Add timing information
         if timing_info:
@@ -686,14 +684,10 @@ def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: 
     summary = re.sub(r"\s+([.,;:])", r"\1", summary)
     summary = re.sub(r"([.!?]){2,}", r"\1", summary)
     summary = re.sub(r",\s+\.", ".", summary)
+    summary = re.sub(r"\.\.", ".", summary)  # Fix double periods
     
-    clinical_summary = TRIAGE_DEFS[cond].get("clinical_summary", "")
-    recap_tpl = TRIAGE_DEFS[cond].get("recap", "{summary} Overall this is classified as {severity}.")
-    
-    return substitute_name(
-        recap_tpl.format(summary=summary, severity=severity, clinical_summary=clinical_summary, name=state.get("user_name") or ""),
-        state.get("user_name")
-    )
+    # Return just the summary without "Overall this is classified as" - LLM outcome will handle severity
+    return summary
 
 
 # === Condition Detection ===
@@ -1021,7 +1015,8 @@ def generate_triage_completion(state: Dict[str, Any], session_id: str, llm_chat_
     save_state(reset_state, session_id)
     print(f"[Triage] ✅ Triage completed - session reset for {session_id}")
     
-    return f"{recap} {outcome}"
+    # Combine recap and outcome naturally (recap already has periods, outcome is complete sentence)
+    return f"{recap}\n\n{outcome}"
 
 
 def _generate_llm_outcome(condition: str, severity: str, answers: List[str], flags: Dict, state: Dict, llm_chat_fn) -> str:
@@ -1065,42 +1060,35 @@ def _generate_llm_outcome(condition: str, severity: str, answers: List[str], fla
     
     json_outcome = outcomes.get(severity, "")
 
-    system_prompt = """You are a medical triage AI providing clinical assessments and care recommendations.
+    system_prompt = """You are a medical triage AI speaking directly to a patient.
 
 CRITICAL INSTRUCTIONS:
-- You MUST provide probable diagnoses based on the symptoms and triage data
-- Use clinical language: "This is concerning for [diagnosis]" or "These symptoms suggest [diagnosis]"
+- Speak directly to the user in SECOND PERSON ("you", "your") - NOT third person ("the patient")
+- Provide probable diagnoses: "This is concerning for [diagnosis]" or "Your symptoms suggest [diagnosis]"
 - Be specific about the medical condition (e.g., "acute cholangitis", "appendicitis", "myocardial infarction")
-- State the severity clearly (emergency, urgent, or non-urgent)
-- Provide specific, actionable next steps
-- Include timeframes for seeking care
-- For emergencies, emphasize calling 911 or going to ER immediately
-- Be conversational but clinically accurate
-- Do NOT say "I can't provide a diagnosis" - you are providing a triage assessment
+- Be conversational but clinically accurate and empathetic
+- For emergencies, be direct and urgent but not alarming
+- Do NOT say "I can't provide a diagnosis" - you ARE providing a triage assessment
+- Keep it concise - 2-3 sentences maximum
+- Integrate the diagnosis and action naturally
 
-Example emergency response: "Your symptoms of fever, jaundice, and vomiting are concerning for acute cholangitis. This is a medical emergency. Please call 911 or go to the nearest emergency room immediately."
-Example urgent response: "Your symptoms suggest acute appendicitis and require urgent evaluation. Please go to an urgent care or emergency room within 2-4 hours."
+Example emergency: "Your symptoms are concerning for acute cholangitis, which is a medical emergency. Please call 911 or go to the nearest emergency room immediately."
+
+Example urgent: "Your symptoms suggest acute appendicitis and need urgent evaluation. Please go to an urgent care or emergency room within the next 2-4 hours."
+
+Example non-urgent: "Your symptoms are consistent with gastritis. You should schedule an appointment with your doctor within the next day or two to get this checked out."
 """
 
-    user_prompt = f"""Patient: {user_name}
-Chief Complaint: {chief_complaint}
-Condition: {condition.replace('_', ' ').title()}
-Severity: {severity.title()}
-Clinical Assessment: {clinical_summary}
+    user_prompt = f"""Patient is experiencing: {chief_complaint}
+Severity Level: {severity.title()}
 
-Patient's Answers:
+Key Symptoms:
 {answers_context}
 
-Clinical Guidance (from triage protocol):
+Clinical Guidance from Protocol:
 {json_outcome}
 
-Based on this triage assessment, provide a specific clinical assessment with probable diagnosis and care recommendation.
-
-Your response must:
-1. State what the symptoms are concerning for (probable diagnosis)
-2. Clearly state the severity level (emergency/urgent/non-urgent)
-3. Provide specific next steps (call 911, ER, urgent care, or scheduled appointment)
-4. Include timeframes if appropriate"""
+Based on this triage assessment, provide a brief, direct clinical assessment and care recommendation speaking directly to the patient."""
 
     try:
         messages = [
@@ -1116,27 +1104,30 @@ Your response must:
         )
 
         content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
-        outcome = content.strip() if content else _get_fallback_outcome(severity)
+        outcome = content.strip() if content else _get_fallback_outcome(severity, json_outcome)
 
-        # Ensure it's addressed to the patient if name is provided
-        if user_name and not user_name.lower() in ["patient", "user"]:
-            # LLM might not use the name, so add it if needed
-            if not user_name.lower() in outcome.lower():
-                outcome = f"{user_name}, {outcome}"
+        # Clean up any third-person references
+        outcome = outcome.replace("the patient", "you")
+        outcome = outcome.replace("The patient", "You")
+        outcome = outcome.replace("This patient", "You")
 
         return outcome
 
     except Exception as e:
         print(f"[Triage] ❌ Error generating LLM outcome: {e}")
-        return _get_fallback_outcome(severity)
+        return _get_fallback_outcome(severity, json_outcome)
 
 
-def _get_fallback_outcome(severity: str) -> str:
+def _get_fallback_outcome(severity: str, json_outcome: str = "") -> str:
     """Fallback outcome when LLM fails"""
+    if json_outcome:
+        # Use JSON outcome if available, just clean it up
+        return json_outcome.replace("the patient", "you").replace("The patient", "You")
+    
     if severity == "emergency":
-        return "Seek emergency medical care immediately (call 911 or go to nearest ER)."
+        return "This is a medical emergency. Please call 911 or go to the nearest emergency room immediately."
     elif severity == "urgent":
-        return "Seek medical care within 2-4 hours (urgent care or ER if symptoms worsen)."
+        return "You should seek medical care within the next 2-4 hours at an urgent care or emergency room."
     else:
-        return "Schedule appointment with primary care physician within 24-48 hours."
+        return "You should schedule an appointment with your doctor within the next 24-48 hours."
 
