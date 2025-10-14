@@ -96,10 +96,23 @@ Generate a natural, conversational question to ask the patient. Output ONLY the 
         content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
         question = content.strip()
         
+        # Validate output - check for garbage/repetitive content
+        if question and len(question) > 10:
+            from collections import Counter
+            char_counts = Counter(question.lower())
+            most_common = char_counts.most_common(1)[0][1] if char_counts else 0
+            if most_common / len(question) > 0.5:
+                print(f"[DynamicTriage] ⚠️ LLM generated repetitive question, using base question")
+                return base_question
+        
         # Clean up any extra punctuation or formatting
         question = question.strip('"\'')
-        if not question.endswith('?'):
+        if question and not question.endswith('?'):
             question += '?'
+        
+        if not question or len(question) < 5:
+            print(f"[DynamicTriage] ⚠️ Invalid question generated, using base question")
+            return base_question
         
         print(f"[DynamicTriage] 💬 Generated question: {question}")
         return question
