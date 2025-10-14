@@ -361,19 +361,20 @@ def speak_llm_response(prompt, context=""):
             if not token:
                 continue
 
-            # Filter out JSON response format (for /chat-tg compatibility)
-            if token.startswith('{"response":') and token.endswith('}'):
-                print(f"[LLM] 📦 JSON response detected, extracting content")
+            # Filter out JSON response format (this shouldn't happen with /chat-tts but handle it anyway)
+            if token.startswith('{"response":'):
+                print(f"[LLM] ⚠️ WARNING: Received JSON response on streaming endpoint!")
                 try:
                     import json
                     json_data = json.loads(token)
                     response_text = json_data.get("response", "")
                     if response_text:
-                        print(f"[LLM] 📝 Extracted: '{response_text[:50]}...'")
+                        print(f"[LLM] 📝 Extracted from JSON: '{response_text[:50]}...'")
                         buffer.append(response_text)
-                        continue
-                except json.JSONDecodeError:
-                    print(f"[LLM] ❌ Invalid JSON, processing as text")
+                except json.JSONDecodeError as e:
+                    print(f"[LLM] ❌ Invalid JSON: {e}")
+                    # Don't add malformed JSON to buffer
+                continue  # Always skip the JSON wrapper
 
             # Filter out empty control tokens
             if token in ['<sentence_start>', '<sentence_end>']:
