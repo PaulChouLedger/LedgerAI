@@ -74,7 +74,7 @@ def route_prompt(prompt: str, state: dict, session_id: str) -> Tuple[str, dict]:
         return ConversationMode.THINKER, state
     
     # PRIORITY 4: Check for NEW medical condition (start triage)
-    from container_rest import detect_condition
+    from triage import detect_condition
     condition = detect_condition(prompt, session_id)
     if condition:
         print(f"[Router] 🏥 → TRIAGE mode (NEW condition: {condition})")

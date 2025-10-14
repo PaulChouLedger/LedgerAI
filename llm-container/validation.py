@@ -124,17 +124,11 @@ def match_flexible_time(ans_expanded: str, valid_map: Dict[str, str]) -> Optiona
 
 def check_typo_similarity(ans: str, opt: str) -> float:
     """Check for typo similarity using character-level matching"""
-    # Simple character-level similarity for common typos
-    if len(ans) == len(opt):
-        # Same length - check for single character differences
-        diff_count = sum(1 for a, o in zip(ans, opt) if a != o)
-        if diff_count <= 1:  # Allow 1 character difference
-            return 0.8
-
-    # Check for common typos (e.g., "roght" -> "right")
+    # Check for common medical typos first
     common_typos = {
         "roght": "right",
-        "left": "left",  # in case "roght" gets normalized to "left"
+        "abdomina": "abdominal",
+        "abdominal": "abdominal",
         "recieve": "receive",
         "seperate": "separate",
         "occured": "occurred",
@@ -143,6 +137,35 @@ def check_typo_similarity(ans: str, opt: str) -> float:
 
     if ans in common_typos and common_typos[ans] == opt:
         return 0.9
+
+    # Character-level similarity for other typos
+    if len(ans) == len(opt):
+        # Same length - check for single character differences
+        diff_count = sum(1 for a, o in zip(ans, opt) if a != o)
+        if diff_count == 0:
+            return 1.0  # Exact match
+        elif diff_count == 1:
+            return 0.8  # Single character difference
+    
+    # Check if one is substring of the other (missing/extra characters)
+    # e.g., "abdomina" vs "abdominal" (missing last character)
+    if len(ans) > 0 and len(opt) > 0:
+        # Check if ans is prefix of opt (missing characters at end)
+        if opt.startswith(ans) and len(opt) - len(ans) <= 2:
+            return 0.85
+        # Check if opt is prefix of ans (extra characters at end)
+        if ans.startswith(opt) and len(ans) - len(opt) <= 2:
+            return 0.85
+        
+        # Calculate edit distance-like similarity
+        # If words are very similar (e.g., "abdomina" vs "abdominal")
+        if abs(len(ans) - len(opt)) <= 2:
+            # Count matching characters at same positions
+            min_len = min(len(ans), len(opt))
+            matching = sum(1 for i in range(min_len) if ans[i] == opt[i])
+            similarity = matching / float(max(len(ans), len(opt)))
+            if similarity >= 0.85:  # 85% character match
+                return 0.8
 
     return 0.0
 

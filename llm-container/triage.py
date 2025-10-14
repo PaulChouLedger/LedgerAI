@@ -719,11 +719,17 @@ def detect_condition(prompt: str, session_id: str = None) -> Optional[str]:
             if not has_medical_content:
                 return None
     
+    # CRITICAL: Check if there's already an active triage session
+    # Don't detect new conditions if already in triage
+    state = load_state(session_id)
+    if state.get("condition"):
+        print(f"[Triage] 🔒 Active triage for '{state['condition']}' - not detecting new conditions")
+        return None
+    
     # Apply synonym expansion
     p_expanded = apply_synonym_expansion(p)
     
     # Initialize detailed symptoms
-    state = load_state(session_id)
     if "detailed_symptoms" not in state:
         state["detailed_symptoms"] = []
     
@@ -737,6 +743,7 @@ def detect_condition(prompt: str, session_id: str = None) -> Optional[str]:
         for trig in triggers:
             trig_norm = normalize_text(trig)
             
+            # Exact match
             if trig_norm in p_expanded:
                 if "detailed_symptom" in TRIAGE_DEFS[cond]:
                     detailed_symptom = TRIAGE_DEFS[cond]["detailed_symptom"]
@@ -745,11 +752,25 @@ def detect_condition(prompt: str, session_id: str = None) -> Optional[str]:
                         save_state(state, session_id)
                 return cond
             
-            # Fuzzy match
+            # Token-based fuzzy match
             ans_tokens = set(tokenize(p_expanded))
             trig_tokens = set(tokenize(trig_norm))
             overlap = len(ans_tokens & trig_tokens) / float(len(trig_tokens)) if trig_tokens else 0
-            if overlap >= MIN_MATCH:
+            
+            # Also check character-level similarity for typos (e.g., "abdomina" → "abdominal")
+            p_words = p_expanded.split()
+            trig_words = trig_norm.split()
+            typo_match_score = 0.0
+            
+            for p_word in p_words:
+                for trig_word in trig_words:
+                    typo_score = check_typo_similarity(p_word, trig_word)
+                    if typo_score > typo_match_score:
+                        typo_match_score = typo_score
+            
+            # Accept if token overlap OR typo match is good
+            if overlap >= MIN_MATCH or typo_match_score >= 0.8:
+                print(f"[Triage] ✅ Matched condition '{cond}' (overlap={overlap:.2f}, typo={typo_match_score:.2f})")
                 if "detailed_symptom" in TRIAGE_DEFS[cond]:
                     detailed_symptom = TRIAGE_DEFS[cond]["detailed_symptom"]
                     if detailed_symptom not in state["detailed_symptoms"]:
