@@ -1004,6 +1004,13 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str, llm
         # If using LLM dynamic questions, we already have a natural question
         if llm_chat_fn:
             final_question = substitute_name(question, state.get("user_name"))
+            
+            # CRITICAL: Update phrasing_history with the question we just asked
+            if "phrasing_history" not in state:
+                state["phrasing_history"] = []
+            state["phrasing_history"].append(final_question)
+            state["phrasing_history"] = state["phrasing_history"][-10:]
+            
             return final_question, state
         
         # Apply NLG rewriting for fallback mode
@@ -1037,6 +1044,16 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str, llm
         )
 
         final_question = substitute_name(rewritten_question, state.get("user_name"))
+        
+        # CRITICAL: Update phrasing_history with the question we just asked
+        # This provides context to the LLM intent classifier so it knows the user's next message
+        # is an ANSWER to this question, not a new chief complaint
+        if "phrasing_history" not in state:
+            state["phrasing_history"] = []
+        state["phrasing_history"].append(final_question)
+        # Keep only last 10 exchanges to avoid bloat
+        state["phrasing_history"] = state["phrasing_history"][-10:]
+        
         return final_question, state
     else:
         # No question to ask - check if triage is complete

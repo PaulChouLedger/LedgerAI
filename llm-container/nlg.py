@@ -190,6 +190,18 @@ Rewrite the text above to be natural and professional while preserving all clini
         text_out = (content or text).strip()
         print(f"[NLG] 🔄 Raw NLG output: '{text_out}'")
         
+        # CRITICAL: Validate LLM output for repetitive garbage
+        if text_out and len(text_out) > 10:
+            from collections import Counter
+            char_counts = Counter(text_out.lower())
+            most_common_char, most_common_count = char_counts.most_common(1)[0] if char_counts else ('', 0)
+            repetition_ratio = most_common_count / len(text_out) if len(text_out) > 0 else 0
+            
+            if repetition_ratio > 0.5:
+                print(f"[NLG] ⚠️ DETECTED REPETITIVE GARBAGE: char='{most_common_char}', ratio={repetition_ratio:.2f}")
+                print(f"[NLG] ⚠️ Falling back to original text: '{text}'")
+                text_out = text  # Use original text instead of garbage
+        
         # Post-process to remove name if it shouldn't be used
         if not should_use_name and name and name.lower() in text_out.lower():
             # Remove name from the beginning of the text (with comma)

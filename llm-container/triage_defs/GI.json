@@ -677,5 +677,283 @@
     },
     "clinical_summary": "Your symptoms are suggestive of a gastrointestinal condition that requires medical evaluation to rule out serious causes and determine appropriate treatment.",
     "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "severe_gi_bleeding": {
+    "triggers": ["severe bleeding", "massive GI bleed", "life-threatening GI bleeding", "exsanguinating GI bleed"],
+    "intro": "{name}, severe GI bleeding is a life-threatening emergency. I need to assess this immediately.",
+    "priority_keys": ["amount", "hemodynamics", "source"],
+    "detailed_symptom": "severe GI bleeding",
+    "steps": [
+      {
+        "key": "amount",
+        "question": "Is this a massive amount of blood (filling toilet, soaking through clothes)?",
+        "recap_template": "Bleeding is {answer}",
+        "answers": {
+          "massive": "emergency",
+          "filling toilet": "emergency",
+          "soaking clothes": "emergency",
+          "large amount": "emergency",
+          "moderate": "urgent"
+        }
+      },
+      {
+        "key": "hemodynamics",
+        "question": "Are you dizzy, lightheaded, or feeling like you might pass out?",
+        "recap_template": "You {answer} hemodynamic instability",
+        "answers": {
+          "yes": "emergency",
+          "dizzy": "emergency",
+          "lightheaded": "emergency",
+          "passing out": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "source",
+        "question": "Is the bleeding from vomiting (upper) or rectum (lower)?",
+        "recap_template": "Bleeding source is {answer}",
+        "answers": {
+          "vomiting": "emergency",
+          "rectum": "emergency",
+          "unknown": "emergency"
+        }
+      },
+      {
+        "key": "blood_color",
+        "question": "Is the blood bright red, dark, or like coffee grounds?",
+        "recap_template": "Blood is {answer}",
+        "answers": {
+          "bright red": "urgent",
+          "dark": "emergency",
+          "coffee grounds": "emergency"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Massive GI bleeding is life-threatening. Call 911 IMMEDIATELY. Do not eat or drink anything."
+    },
+    "clinical_summary": "Massive GI bleeding can lead to shock and death within hours without emergency intervention.",
+    "recap": "{name}, {summary}. {clinical_summary} CALL 911 NOW."
+  },
+
+  "acute_liver_failure": {
+    "triggers": ["acute liver failure", "fulminant hepatic failure", "sudden liver failure"],
+    "intro": "{name}, sudden liver failure is extremely serious. Let me assess your symptoms urgently.",
+    "priority_keys": ["encephalopathy", "jaundice", "bleeding"],
+    "detailed_symptom": "acute liver failure",
+    "steps": [
+      {
+        "key": "encephalopathy",
+        "question": "Are you confused, disoriented, or having trouble staying awake?",
+        "recap_template": "You {answer} hepatic encephalopathy",
+        "answers": {
+          "confused": "emergency",
+          "disoriented": "emergency",
+          "trouble staying awake": "emergency",
+          "sleepy": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "jaundice",
+        "question": "Are your eyes or skin turning yellow?",
+        "recap_template": "You {answer} jaundice",
+        "answers": {
+          "yes": "emergency",
+          "rapidly developing": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "bleeding",
+        "question": "Do you have easy bruising, bleeding gums, or vomiting blood?",
+        "recap_template": "You {answer} coagulopathy",
+        "answers": {
+          "vomiting blood": "emergency",
+          "easy bruising": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "recent_medication",
+        "question": "Have you started any new medications recently, especially acetaminophen?",
+        "recap_template": "You {answer} recent new medication",
+        "answers": {
+          "acetaminophen": "emergency",
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Acute liver failure is life-threatening and requires immediate hospital care. Call 911 immediately."
+    },
+    "clinical_summary": "Acute liver failure causes rapid deterioration and requires emergency liver transplant evaluation.",
+    "recap": "{name}, {summary}. {clinical_summary} CALL 911 NOW."
+  },
+
+  "peritonitis": {
+    "triggers": ["peritonitis", "abdominal infection", "peritoneal inflammation"],
+    "intro": "{name}, suspected abdominal infection is very serious. Let me assess your symptoms.",
+    "priority_keys": ["pain", "fever", "peritoneal_signs"],
+    "detailed_symptom": "possible peritonitis",
+    "steps": [
+      {
+        "key": "pain",
+        "question": "Is your abdominal pain severe and constant?",
+        "recap_template": "Pain is {answer}",
+        "answers": {
+          "severe and constant": "emergency",
+          "severe": "emergency",
+          "moderate": "urgent"
+        }
+      },
+      {
+        "key": "fever",
+        "question": "Do you have high fever?",
+        "recap_template": "You {answer} fever",
+        "answers": {
+          "high fever": "emergency",
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "peritoneal_signs",
+        "question": "Does it hurt more when you move or when someone presses on your abdomen?",
+        "recap_template": "You {answer} rebound tenderness",
+        "answers": {
+          "yes": "emergency",
+          "hurts more when pressed": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "rigid",
+        "question": "Is your abdomen rigid or board-like?",
+        "recap_template": "Abdomen is {answer}",
+        "answers": {
+          "rigid": "emergency",
+          "board-like": "emergency",
+          "soft": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Peritonitis is a life-threatening infection requiring immediate surgery. Call 911 immediately."
+    },
+    "clinical_summary": "Peritonitis indicates bowel perforation or severe infection requiring emergency surgical intervention.",
+    "recap": "{name}, {summary}. {clinical_summary} CALL 911 NOW."
+  },
+
+  "toxic_megacolon": {
+    "triggers": ["toxic megacolon", "severe IBD complication", "dilated colon"],
+    "intro": "{name}, toxic megacolon is a life-threatening complication. I need to assess this urgently.",
+    "priority_keys": ["distension", "toxicity", "ibd_history"],
+    "detailed_symptom": "toxic megacolon",
+    "steps": [
+      {
+        "key": "distension",
+        "question": "Is your abdomen severely distended or bloated?",
+        "recap_template": "Abdomen is {answer}",
+        "answers": {
+          "severely distended": "emergency",
+          "very bloated": "emergency",
+          "moderately": "urgent"
+        }
+      },
+      {
+        "key": "toxicity",
+        "question": "Are you confused, very drowsy, or having trouble breathing?",
+        "recap_template": "You {answer} toxic symptoms",
+        "answers": {
+          "confused": "emergency",
+          "very drowsy": "emergency",
+          "trouble breathing": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "ibd_history",
+        "question": "Do you have inflammatory bowel disease (Crohn's or ulcerative colitis)?",
+        "recap_template": "You {answer} IBD history",
+        "answers": {
+          "yes": "emergency",
+          "Crohn's": "emergency",
+          "ulcerative colitis": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "diarrhea",
+        "question": "Are you having frequent bloody diarrhea?",
+        "recap_template": "You {answer} frequent bloody diarrhea",
+        "answers": {
+          "yes": "emergency",
+          "frequent": "emergency",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Toxic megacolon is a surgical emergency. Call 911 immediately."
+    },
+    "clinical_summary": "Toxic megacolon can lead to bowel perforation and requires emergency colectomy.",
+    "recap": "{name}, {summary}. {clinical_summary} CALL 911 NOW."
+  },
+
+  "acute_cholangitis": {
+    "triggers": ["acute cholangitis", "biliary infection", "bile duct infection"],
+    "intro": "{name}, acute cholangitis is a serious infection. Let me assess your symptoms.",
+    "priority_keys": ["ruq_pain", "jaundice", "fever"],
+    "detailed_symptom": "acute cholangitis",
+    "steps": [
+      {
+        "key": "ruq_pain",
+        "question": "Do you have severe right upper quadrant abdominal pain?",
+        "recap_template": "You {answer} RUQ pain",
+        "answers": {
+          "severe RUQ pain": "urgent",
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "jaundice",
+        "question": "Are your eyes or skin yellow?",
+        "recap_template": "You {answer} jaundice",
+        "answers": {
+          "yes": "emergency",
+          "yellow": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "fever",
+        "question": "Do you have high fever with chills?",
+        "recap_template": "You {answer} fever with chills",
+        "answers": {
+          "high fever": "emergency",
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "nausea",
+        "question": "Do you have nausea and vomiting?",
+        "recap_template": "You {answer} nausea/vomiting",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Acute cholangitis is a life-threatening infection requiring immediate antibiotics and drainage. Call 911 immediately.",
+      "urgent": "Suspected cholangitis requires urgent hospital evaluation. Go to ER today."
+    },
+    "clinical_summary": "Acute cholangitis requires emergency biliary drainage and antibiotics to prevent sepsis.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   }
 }

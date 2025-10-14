@@ -100,7 +100,7 @@ def handle_casual(prompt: str, llm_chat_fn, session_id: str = None):
                     sentences = re.split(r'([.!?]\s+)', full_text)
                     
                     # Stream complete sentences
-                    # Note: <think> tags are filtered by container_rest.py
+                    # Note: Garbage detection handled by container_rest.py filter_think_blocks
                     while len(sentences) > 2:  # At least one complete sentence
                         sentence = sentences.pop(0) + (sentences.pop(0) if sentences else '')
                         if sentence.strip():

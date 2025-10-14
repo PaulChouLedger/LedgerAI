@@ -49,12 +49,19 @@ def detect_medical_intent(
     system_prompt = """You are a medical conversation analyzer for a triage system.
 Analyze the user's message in context and determine their intent.
 
-CRITICAL RULES:
-- Be context-aware: "bad" after "How's your day?" is NOT medical
-- "chest pain", "abdominal pain", "headache" ARE medical
-- Single words like "bad", "good", "fine", "okay" are usually casual unless context says otherwise
-- Location answers like "left side", "upper abdomen" during active triage are clarifications, NOT new conditions
-- Typos are common: "abdomina pain" = "abdominal pain"
+CRITICAL RULES FOR CONTEXT AWARENESS:
+- If the LAST ASSISTANT MESSAGE was a triage question (e.g., "Where is the pain?", "When did it start?"), 
+  then the user's response is an ANSWER to that question, NOT a new medical condition
+- "I haven't had pain" in response to "Do you have pain?" is a clarification = is_medical: false
+- "It is swollen" in response to "Tell me more" during active triage is a clarification = is_medical: false
+- "left side", "upper abdomen", "yesterday" during active triage are clarifications = is_medical: false
+- ONLY classify as a NEW medical condition if the user introduces COMPLETELY NEW symptoms unprompted
+- Single words like "bad", "good", "fine", "okay", "swollen", "painful" are usually clarifications
+
+EXAMPLES:
+Assistant: "Where in your abdomen is the pain?"
+User: "right side"
+→ {"is_medical": false, "intent": "clarification"}
 
 Respond ONLY with valid JSON in this exact format:
 {

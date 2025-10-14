@@ -22,8 +22,9 @@ from thinker import is_thinker_trigger
 from clinician import is_clinician_trigger
 
 # Feature flags
-USE_CLINICIAN_MODE = False  # Set to True when ready to test
+USE_CLINICIAN_MODE = True  # Enable enhanced clinician mode for medical symptoms
 CLINICIAN_FALLBACK_TO_TRIAGE = True  # If clinician fails, use triage
+ENABLE_MEDICAL_SYMPTOM_ROUTING = True  # Route medical symptoms to clinician instead of triage
 
 
 class ConversationMode:
@@ -73,7 +74,17 @@ def route_prompt(prompt: str, state: dict, session_id: str, llm_chat_fn=None) ->
         state['mode'] = ConversationMode.THINKER
         return ConversationMode.THINKER, state
     
-    # PRIORITY 4: Check for NEW medical condition (start triage)
+    # PRIORITY 4: Check for medical symptoms (route to clinician instead of triage)
+    if ENABLE_MEDICAL_SYMPTOM_ROUTING and is_clinician_trigger(prompt):
+        print(f"[Router] 🩺 → CLINICIAN mode (medical symptom detected)")
+        state.update({
+            'mode': ConversationMode.CLINICIAN,
+            'chief_complaint': prompt,
+            'is_new_clinician': True
+        })
+        return ConversationMode.CLINICIAN, state
+
+    # PRIORITY 5: Check for NEW medical condition (start triage) - only if not using clinician mode
     from triage import detect_condition
     condition = detect_condition(prompt, session_id, llm_chat_fn)
     if condition:
@@ -88,13 +99,13 @@ def route_prompt(prompt: str, state: dict, session_id: str, llm_chat_fn=None) ->
         })
         return ConversationMode.TRIAGE, state
     
-    # PRIORITY 5: Simple greetings → CASUAL mode
+    # PRIORITY 6: Simple greetings → CASUAL mode
     if is_casual_trigger(prompt):
         print(f"[Router] 💬 → CASUAL mode (greeting)")
         state['mode'] = ConversationMode.CASUAL
         return ConversationMode.CASUAL, state
-    
-    # PRIORITY 6: Default to CASUAL for general conversation
+
+    # PRIORITY 7: Default to CASUAL for general conversation
     print(f"[Router] 💬 → CASUAL mode (general conversation)")
     state['mode'] = ConversationMode.CASUAL
     return ConversationMode.CASUAL, state

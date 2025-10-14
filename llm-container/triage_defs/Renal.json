@@ -256,5 +256,1334 @@
     },
     "clinical_summary": "Your symptoms are suggestive of a renal condition that requires medical evaluation to rule out serious causes and determine appropriate treatment.",
     "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "acute_kidney_injury": {
+    "triggers": ["AKI", "acute kidney injury", "sudden kidney failure", "rapid creatinine rise"],
+    "intro": "{name}, sudden kidney problems are very serious. Let me assess your symptoms urgently.",
+    "priority_keys": ["creatinine", "urine_output", "symptoms"],
+    "detailed_symptom": "acute kidney injury",
+    "steps": [
+      {
+        "key": "creatinine",
+        "question": "If you've had labs, is your creatinine over 3.0 mg/dL or doubled from baseline?",
+        "recap_template": "Creatinine is {answer}",
+        "answers": {
+          "over 3.0": "emergency",
+          "doubled from baseline": "emergency",
+          "elevated": "urgent",
+          "unknown": "urgent"
+        }
+      },
+      {
+        "key": "urine_output",
+        "question": "Are you making very little urine (less than 400 mL per day)?",
+        "recap_template": "Urine output is {answer}",
+        "answers": {
+          "less than 400 mL/day": "emergency",
+          "very little": "emergency",
+          "decreased": "urgent",
+          "normal": "urgent"
+        }
+      },
+      {
+        "key": "symptoms",
+        "question": "Do you have nausea, vomiting, confusion, or swelling?",
+        "recap_template": "You {answer} AKI symptoms",
+        "answers": {
+          "nausea/vomiting": "urgent",
+          "confusion": "emergency",
+          "swelling": "urgent",
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "medications",
+        "question": "Have you recently started new medications like NSAIDs, antibiotics, or contrast dye?",
+        "recap_template": "You {answer} recent nephrotoxic medications",
+        "answers": {
+          "NSAIDs": "urgent",
+          "antibiotics": "urgent",
+          "contrast dye": "urgent",
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Acute kidney injury with severe symptoms requires immediate dialysis evaluation. Call 911 or go to ER now.",
+      "urgent": "Acute kidney injury needs urgent nephrology evaluation within 24 hours. Go to ER or call nephrologist today."
+    },
+    "clinical_summary": "Acute kidney injury can rapidly progress to life-threatening complications requiring dialysis.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "chronic_kidney_disease": {
+    "triggers": ["CKD", "chronic kidney disease", "kidney failure", "GFR less than 60"],
+    "intro": "{name}, I understand you have chronic kidney disease. Let me assess your current symptoms.",
+    "priority_keys": ["gfr", "symptoms", "medications"],
+    "detailed_symptom": "chronic kidney disease",
+    "steps": [
+      {
+        "key": "gfr",
+        "question": "What is your GFR (kidney function) level?",
+        "recap_template": "GFR is {answer}",
+        "answers": {
+          "under 15": "urgent",
+          "15-30": "urgent",
+          "30-60": "non_urgent",
+          "unknown": "non_urgent"
+        }
+      },
+      {
+        "key": "symptoms",
+        "question": "Do you have fatigue, itching, nausea, or swelling?",
+        "recap_template": "You {answer} CKD symptoms",
+        "answers": {
+          "severe fatigue": "urgent",
+          "itching": "urgent",
+          "nausea": "urgent",
+          "swelling": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "medications",
+        "question": "Are you taking medications for blood pressure, diabetes, or phosphate?",
+        "recap_template": "You {answer} CKD medications",
+        "answers": {
+          "yes": "non_urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "dialysis",
+        "question": "Are you on dialysis?",
+        "recap_template": "You {answer} dialysis",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Advanced CKD with severe symptoms requires immediate nephrology evaluation.",
+      "urgent": "CKD needs regular nephrology follow-up. Schedule appointment within 1-2 weeks if GFR under 30.",
+      "non_urgent": "Mild CKD should be monitored. Follow up with nephrology as scheduled."
+    },
+    "clinical_summary": "Chronic kidney disease requires careful management to prevent progression to dialysis.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "nephrotic_syndrome": {
+    "triggers": ["nephrotic syndrome", "protein in urine", "low albumin", "edema"],
+    "intro": "{name}, I understand you have protein in your urine and swelling. Let me assess for nephrotic syndrome.",
+    "priority_keys": ["proteinuria", "edema", "hypoalbuminemia"],
+    "detailed_symptom": "nephrotic syndrome",
+    "steps": [
+      {
+        "key": "proteinuria",
+        "question": "Do you have heavy protein in your urine (nephrotic range)?",
+        "recap_template": "Proteinuria is {answer}",
+        "answers": {
+          "nephrotic range": "urgent",
+          "heavy": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "edema",
+        "question": "Do you have significant swelling, especially around your eyes or legs?",
+        "recap_template": "Edema is {answer}",
+        "answers": {
+          "severe": "urgent",
+          "around eyes": "urgent",
+          "legs": "urgent",
+          "mild": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "hypoalbuminemia",
+        "question": "Is your albumin level low (under 3.0 g/dL)?",
+        "recap_template": "Albumin is {answer}",
+        "answers": {
+          "under 3.0": "urgent",
+          "low": "urgent",
+          "normal": "non_urgent",
+          "unknown": "urgent"
+        }
+      },
+      {
+        "key": "hyperlipidemia",
+        "question": "Do you have high cholesterol levels?",
+        "recap_template": "You {answer} hyperlipidemia",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Nephrotic syndrome with severe symptoms requires immediate evaluation.",
+      "urgent": "Suspected nephrotic syndrome needs urgent nephrology evaluation within 1-2 weeks for kidney biopsy.",
+      "non_urgent": "Mild proteinuria should be evaluated. Follow up with nephrology."
+    },
+    "clinical_summary": "Nephrotic syndrome can lead to blood clots, infections, and kidney failure without treatment.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "glomerulonephritis": {
+    "triggers": ["glomerulonephritis", "GN", "kidney inflammation", "protein and blood in urine"],
+    "intro": "{name}, I understand you have blood and protein in your urine. Let me assess for kidney inflammation.",
+    "priority_keys": ["hematuria", "proteinuria", "hypertension"],
+    "detailed_symptom": "glomerulonephritis",
+    "steps": [
+      {
+        "key": "hematuria",
+        "question": "Do you have blood in your urine?",
+        "recap_template": "You {answer} hematuria",
+        "answers": {
+          "yes": "urgent",
+          "blood in urine": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "proteinuria",
+        "question": "Do you have protein in your urine?",
+        "recap_template": "You {answer} proteinuria",
+        "answers": {
+          "yes": "urgent",
+          "heavy": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "hypertension",
+        "question": "Do you have high blood pressure?",
+        "recap_template": "You {answer} hypertension",
+        "answers": {
+          "yes": "urgent",
+          "high": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "edema",
+        "question": "Do you have swelling in your legs or around your eyes?",
+        "recap_template": "You {answer} edema",
+        "answers": {
+          "yes": "urgent",
+          "legs": "urgent",
+          "around eyes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "recent_infection",
+        "question": "Have you had a recent infection, especially strep throat?",
+        "recap_template": "You {answer} recent infection",
+        "answers": {
+          "strep throat": "urgent",
+          "recent infection": "urgent",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Rapidly progressive glomerulonephritis requires immediate nephrology evaluation and possible biopsy.",
+      "urgent": "Suspected glomerulonephritis needs urgent nephrology evaluation within 1-2 weeks.",
+      "non_urgent": "Mild urinary abnormalities should be evaluated. Follow up with nephrology."
+    },
+    "clinical_summary": "Glomerulonephritis can rapidly progress to kidney failure and requires prompt immunosuppressive treatment.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "pyelonephritis": {
+    "triggers": ["pyelonephritis", "kidney infection", "upper UTI", "flank pain with fever"],
+    "intro": "{name}, I understand you have flank pain with fever. This may be a kidney infection.",
+    "priority_keys": ["flank_pain", "fever", "urinary"],
+    "detailed_symptom": "pyelonephritis",
+    "steps": [
+      {
+        "key": "flank_pain",
+        "question": "Do you have pain in your back or side (flank)?",
+        "recap_template": "You {answer} flank pain",
+        "answers": {
+          "yes": "urgent",
+          "severe": "urgent",
+          "mild": "non_urgent"
+        }
+      },
+      {
+        "key": "fever",
+        "question": "Do you have high fever (over 101°F)?",
+        "recap_template": "You {answer} fever",
+        "answers": {
+          "high fever": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "urinary",
+        "question": "Do you have burning when urinating, frequent urination, or blood in urine?",
+        "recap_template": "You {answer} urinary symptoms",
+        "answers": {
+          "burning": "urgent",
+          "frequent": "urgent",
+          "blood in urine": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "nausea",
+        "question": "Do you have nausea or vomiting?",
+        "recap_template": "You {answer} nausea/vomiting",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "pregnancy",
+        "question": "Are you pregnant?",
+        "recap_template": "You {answer} pregnant",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Pyelonephritis in pregnancy or with severe symptoms requires immediate evaluation. Go to ER now.",
+      "urgent": "Kidney infection needs urgent antibiotic treatment. Go to ER or urgent care today.",
+      "non_urgent": "Mild symptoms may be cystitis. Follow up with your doctor."
+    },
+    "clinical_summary": "Pyelonephritis can lead to sepsis and kidney damage without prompt antibiotic treatment.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "kidney_stones": {
+    "triggers": ["kidney stones", "renal calculi", "ureteral stones", "nephrolithiasis"],
+    "intro": "{name}, I understand you may have kidney stones. Let me assess your symptoms.",
+    "priority_keys": ["pain_location", "pain_severity", "urinary"],
+    "detailed_symptom": "kidney stones",
+    "steps": [
+      {
+        "key": "pain_location",
+        "question": "Is the pain in your flank, back, or groin?",
+        "recap_template": "Pain is in {answer}",
+        "answers": {
+          "flank": "urgent",
+          "back": "urgent",
+          "groin": "urgent",
+          "abdominal": "non_urgent"
+        }
+      },
+      {
+        "key": "pain_severity",
+        "question": "Is the pain severe and comes in waves?",
+        "recap_template": "Pain is {answer}",
+        "answers": {
+          "severe": "urgent",
+          "comes in waves": "urgent",
+          "colicky": "urgent",
+          "mild": "non_urgent"
+        }
+      },
+      {
+        "key": "urinary",
+        "question": "Do you have burning urination, frequent urination, or blood in urine?",
+        "recap_template": "You {answer} urinary symptoms",
+        "answers": {
+          "burning": "urgent",
+          "frequent": "urgent",
+          "blood in urine": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "nausea",
+        "question": "Do you have nausea or vomiting?",
+        "recap_template": "You {answer} nausea/vomiting",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "fever",
+        "question": "Do you have fever?",
+        "recap_template": "You {answer} fever",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Kidney stone with fever or severe symptoms may be infected. Go to ER immediately.",
+      "urgent": "Kidney stone with severe pain needs urgent evaluation within 24 hours. Go to ER or urologist today.",
+      "non_urgent": "Small kidney stone may pass on its own. Drink plenty of fluids and follow up if pain persists."
+    },
+    "clinical_summary": "Kidney stones can cause infection and require prompt treatment if symptoms are severe.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "hydronephrosis": {
+    "triggers": ["hydronephrosis", "kidney swelling", "obstructed kidney"],
+    "intro": "{name}, I understand you may have a swollen kidney. Let me assess your symptoms.",
+    "priority_keys": ["flank_pain", "urinary", "infection"],
+    "detailed_symptom": "hydronephrosis",
+    "steps": [
+      {
+        "key": "flank_pain",
+        "question": "Do you have flank pain or back pain?",
+        "recap_template": "You {answer} flank pain",
+        "answers": {
+          "yes": "urgent",
+          "severe": "emergency",
+          "mild": "non_urgent"
+        }
+      },
+      {
+        "key": "urinary",
+        "question": "Do you have difficulty urinating or blood in urine?",
+        "recap_template": "You {answer} urinary symptoms",
+        "answers": {
+          "difficulty urinating": "urgent",
+          "blood in urine": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "infection",
+        "question": "Do you have fever or urinary tract infection symptoms?",
+        "recap_template": "You {answer} infection symptoms",
+        "answers": {
+          "fever": "urgent",
+          "UTI symptoms": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "pregnancy",
+        "question": "Are you pregnant?",
+        "recap_template": "You {answer} pregnant",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "stones",
+        "question": "Do you have a history of kidney stones?",
+        "recap_template": "You {answer} kidney stone history",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Hydronephrosis with infection or severe symptoms requires immediate urological evaluation. Go to ER now.",
+      "urgent": "Suspected hydronephrosis needs urgent ultrasound and urology evaluation within 24 hours.",
+      "non_urgent": "Mild hydronephrosis may be monitored. Follow up with urology."
+    },
+    "clinical_summary": "Hydronephrosis can lead to permanent kidney damage if the obstruction is not relieved.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "renal_artery_stenosis": {
+    "triggers": ["renal artery stenosis", "RAS", "kidney artery narrowing"],
+    "intro": "{name}, I understand you may have narrowing of the kidney arteries. Let me assess your symptoms.",
+    "priority_keys": ["hypertension", "kidney_function", "bruits"],
+    "detailed_symptom": "renal artery stenosis",
+    "steps": [
+      {
+        "key": "hypertension",
+        "question": "Do you have difficult-to-control high blood pressure?",
+        "recap_template": "Hypertension is {answer}",
+        "answers": {
+          "difficult to control": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "kidney_function",
+        "question": "Do you have worsening kidney function?",
+        "recap_template": "Kidney function is {answer}",
+        "answers": {
+          "worsening": "urgent",
+          "stable": "non_urgent",
+          "unknown": "non_urgent"
+        }
+      },
+      {
+        "key": "bruits",
+        "question": "Has a doctor heard abnormal sounds over your kidneys?",
+        "recap_template": "You {answer} renal bruits",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "smoking",
+        "question": "Do you have a history of smoking?",
+        "recap_template": "You {answer} smoking history",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "diabetes",
+        "question": "Do you have diabetes?",
+        "recap_template": "You {answer} diabetes",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Renal artery stenosis with acute symptoms requires immediate vascular evaluation.",
+      "urgent": "Suspected renal artery stenosis needs vascular imaging and nephrology evaluation within 1-2 weeks.",
+      "non_urgent": "Mild hypertension may not be renal artery stenosis. Follow up with nephrology."
+    },
+    "clinical_summary": "Renal artery stenosis can cause hypertension and progressive kidney failure requiring angioplasty or stenting.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "polycystic_kidney_disease": {
+    "triggers": ["polycystic kidney disease", "PKD", "multiple kidney cysts"],
+    "intro": "{name}, I understand you have polycystic kidney disease. Let me assess your current symptoms.",
+    "priority_keys": ["pain", "infection", "kidney_function"],
+    "detailed_symptom": "polycystic kidney disease",
+    "steps": [
+      {
+        "key": "pain",
+        "question": "Do you have flank pain or abdominal pain?",
+        "recap_template": "You {answer} pain",
+        "answers": {
+          "severe": "urgent",
+          "flank pain": "urgent",
+          "abdominal pain": "urgent",
+          "mild": "non_urgent"
+        }
+      },
+      {
+        "key": "infection",
+        "question": "Do you have fever, urinary symptoms, or signs of infection?",
+        "recap_template": "You {answer} infection symptoms",
+        "answers": {
+          "fever": "urgent",
+          "urinary symptoms": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "kidney_function",
+        "question": "Is your kidney function stable or declining?",
+        "recap_template": "Kidney function is {answer}",
+        "answers": {
+          "declining": "urgent",
+          "stable": "non_urgent",
+          "unknown": "non_urgent"
+        }
+      },
+      {
+        "key": "hypertension",
+        "question": "Do you have high blood pressure?",
+        "recap_template": "You {answer} hypertension",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "family_history",
+        "question": "Do you have a family history of PKD?",
+        "recap_template": "You {answer} family history",
+        "answers": {
+          "yes": "non_urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "PKD with infection or severe pain requires immediate evaluation. Go to ER now.",
+      "urgent": "PKD with complications needs nephrology evaluation within 1-2 weeks.",
+      "non_urgent": "Stable PKD should be monitored regularly. Follow up with nephrology as scheduled."
+    },
+    "clinical_summary": "Polycystic kidney disease requires careful monitoring to prevent complications like infection and hypertension.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "rhabdomyolysis": {
+    "triggers": ["rhabdomyolysis", "muscle breakdown", "dark urine after exercise"],
+    "intro": "{name}, I understand you may have muscle breakdown. Let me assess this urgently.",
+    "priority_keys": ["muscle_pain", "urine_color", "recent_activity"],
+    "detailed_symptom": "rhabdomyolysis",
+    "steps": [
+      {
+        "key": "muscle_pain",
+        "question": "Do you have severe muscle pain or weakness?",
+        "recap_template": "You {answer} muscle pain",
+        "answers": {
+          "severe": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "urine_color",
+        "question": "Is your urine dark brown or cola-colored?",
+        "recap_template": "Urine is {answer}",
+        "answers": {
+          "dark brown": "emergency",
+          "cola-colored": "emergency",
+          "dark": "urgent",
+          "normal": "non_urgent"
+        }
+      },
+      {
+        "key": "recent_activity",
+        "question": "Have you had intense exercise, trauma, or been in extreme heat?",
+        "recap_template": "You {answer} recent intense activity",
+        "answers": {
+          "intense exercise": "urgent",
+          "trauma": "urgent",
+          "extreme heat": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "medications",
+        "question": "Are you taking statins or other medications that can affect muscles?",
+        "recap_template": "You {answer} statin use",
+        "answers": {
+          "statins": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Rhabdomyolysis can cause kidney failure. This is an emergency. Go to ER immediately.",
+      "urgent": "Suspected rhabdomyolysis needs urgent evaluation within 24 hours. Go to ER today.",
+      "non_urgent": "Mild symptoms may not be rhabdomyolysis. Follow up if they worsen."
+    },
+    "clinical_summary": "Rhabdomyolysis releases muscle contents that can damage kidneys and requires immediate treatment.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "hemolytic_uremic_syndrome": {
+    "triggers": ["HUS", "hemolytic uremic syndrome", "bloody diarrhea kidney failure"],
+    "intro": "{name}, HUS is a serious condition involving blood cells and kidneys. Let me assess urgently.",
+    "priority_keys": ["bloody_diarrhea", "kidney_failure", "neurological"],
+    "detailed_symptom": "hemolytic uremic syndrome",
+    "steps": [
+      {
+        "key": "bloody_diarrhea",
+        "question": "Do you have bloody diarrhea?",
+        "recap_template": "You {answer} bloody diarrhea",
+        "answers": {
+          "yes": "emergency",
+          "bloody": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "kidney_failure",
+        "question": "Do you have decreased urine output or swelling?",
+        "recap_template": "You {answer} kidney symptoms",
+        "answers": {
+          "decreased urine": "emergency",
+          "swelling": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "neurological",
+        "question": "Do you have confusion, seizures, or weakness?",
+        "recap_template": "You {answer} neurological symptoms",
+        "answers": {
+          "confusion": "emergency",
+          "seizures": "emergency",
+          "weakness": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "recent_infection",
+        "question": "Have you had a recent E. coli infection or bloody diarrhea?",
+        "recap_template": "You {answer} recent E. coli",
+        "answers": {
+          "yes": "emergency",
+          "E. coli": "emergency",
+          "bloody diarrhea": "emergency",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Hemolytic uremic syndrome is a life-threatening emergency. Call 911 immediately.",
+      "urgent": "Suspected HUS requires urgent hematology and nephrology evaluation. Go to ER today."
+    },
+    "clinical_summary": "HUS destroys red blood cells and damages kidneys, requiring immediate plasma exchange and dialysis.",
+    "recap": "{name}, {summary}. {clinical_summary} CALL 911 NOW."
+  },
+
+  "goodpasture_syndrome": {
+    "triggers": ["Goodpasture syndrome", "anti-GBM disease", "lung and kidney disease"],
+    "intro": "{name}, Goodpasture syndrome affects lungs and kidneys. Let me assess your symptoms.",
+    "priority_keys": ["hemoptysis", "kidney", "recent_infection"],
+    "detailed_symptom": "Goodpasture syndrome",
+    "steps": [
+      {
+        "key": "hemoptysis",
+        "question": "Are you coughing up blood?",
+        "recap_template": "You {answer} hemoptysis",
+        "answers": {
+          "yes": "emergency",
+          "coughing blood": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "kidney",
+        "question": "Do you have blood or protein in your urine?",
+        "recap_template": "You {answer} kidney involvement",
+        "answers": {
+          "blood in urine": "urgent",
+          "protein in urine": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "recent_infection",
+        "question": "Have you had a recent viral infection?",
+        "recap_template": "You {answer} recent viral infection",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "shortness_of_breath",
+        "question": "Do you have shortness of breath?",
+        "recap_template": "You {answer} shortness of breath",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Goodpasture syndrome with lung involvement is life-threatening. Call 911 immediately.",
+      "urgent": "Suspected Goodpasture syndrome needs urgent nephrology and pulmonology evaluation within 1-2 weeks.",
+      "non_urgent": "Mild symptoms may not be Goodpasture syndrome. Follow up with nephrology."
+    },
+    "clinical_summary": "Goodpasture syndrome requires immediate immunosuppressive treatment to prevent lung and kidney failure.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "iga_nephropathy": {
+    "triggers": ["IgA nephropathy", "Berger's disease", "protein and blood in urine"],
+    "intro": "{name}, I understand you have blood and protein in your urine. Let me assess for IgA nephropathy.",
+    "priority_keys": ["hematuria", "proteinuria", "hypertension"],
+    "detailed_symptom": "IgA nephropathy",
+    "steps": [
+      {
+        "key": "hematuria",
+        "question": "Do you have blood in your urine, especially after infections?",
+        "recap_template": "You {answer} hematuria",
+        "answers": {
+          "yes": "urgent",
+          "after infections": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "proteinuria",
+        "question": "Do you have protein in your urine?",
+        "recap_template": "You {answer} proteinuria",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "hypertension",
+        "question": "Do you have high blood pressure?",
+        "recap_template": "You {answer} hypertension",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "edema",
+        "question": "Do you have swelling in your legs?",
+        "recap_template": "You {answer} edema",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "recent_infection",
+        "question": "Have you had recent throat or sinus infections?",
+        "recap_template": "You {answer} recent infections",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "IgA nephropathy with rapidly declining kidney function requires immediate evaluation.",
+      "urgent": "Suspected IgA nephropathy needs nephrology evaluation within 1-2 weeks for kidney biopsy.",
+      "non_urgent": "Mild urinary abnormalities should be monitored. Follow up with nephrology."
+    },
+    "clinical_summary": "IgA nephropathy is the most common cause of glomerulonephritis and requires monitoring for progression.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "lupus_nephritis": {
+    "triggers": ["lupus nephritis", "SLE kidney", "systemic lupus kidney involvement"],
+    "intro": "{name}, I understand you have lupus with kidney involvement. Let me assess your symptoms.",
+    "priority_keys": ["proteinuria", "edema", "systemic_lupus"],
+    "detailed_symptom": "lupus nephritis",
+    "steps": [
+      {
+        "key": "proteinuria",
+        "question": "Do you have heavy protein in your urine?",
+        "recap_template": "You {answer} proteinuria",
+        "answers": {
+          "heavy": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "edema",
+        "question": "Do you have swelling in your legs or face?",
+        "recap_template": "You {answer} edema",
+        "answers": {
+          "yes": "urgent",
+          "legs": "urgent",
+          "face": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "systemic_lupus",
+        "question": "Do you have other lupus symptoms like rash, joint pain, or fatigue?",
+        "recap_template": "You {answer} systemic lupus symptoms",
+        "answers": {
+          "rash": "urgent",
+          "joint pain": "urgent",
+          "fatigue": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "kidney_function",
+        "question": "Is your kidney function declining?",
+        "recap_template": "Kidney function is {answer}",
+        "answers": {
+          "declining": "urgent",
+          "stable": "non_urgent",
+          "unknown": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Lupus nephritis with rapidly declining kidney function requires immediate nephrology evaluation.",
+      "urgent": "Lupus nephritis needs urgent rheumatology and nephrology evaluation within 1-2 weeks.",
+      "non_urgent": "Stable lupus nephritis should be monitored. Follow up with rheumatology as scheduled."
+    },
+    "clinical_summary": "Lupus nephritis can cause kidney failure and requires aggressive immunosuppressive treatment.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "diabetic_nephropathy": {
+    "triggers": ["diabetic nephropathy", "diabetic kidney disease", "diabetes kidney complications"],
+    "intro": "{name}, I understand you have diabetes with kidney complications. Let me assess your symptoms.",
+    "priority_keys": ["proteinuria", "kidney_function", "edema"],
+    "detailed_symptom": "diabetic nephropathy",
+    "steps": [
+      {
+        "key": "proteinuria",
+        "question": "Do you have protein in your urine?",
+        "recap_template": "You {answer} proteinuria",
+        "answers": {
+          "yes": "urgent",
+          "heavy": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "kidney_function",
+        "question": "Is your GFR declining or creatinine rising?",
+        "recap_template": "Kidney function is {answer}",
+        "answers": {
+          "declining GFR": "urgent",
+          "rising creatinine": "urgent",
+          "stable": "non_urgent"
+        }
+      },
+      {
+        "key": "edema",
+        "question": "Do you have swelling in your legs or ankles?",
+        "recap_template": "You {answer} edema",
+        "answers": {
+          "yes": "urgent",
+          "legs": "urgent",
+          "ankles": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "blood_pressure",
+        "question": "Do you have high blood pressure?",
+        "recap_template": "You {answer} hypertension",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "diabetes_control",
+        "question": "Is your diabetes well-controlled?",
+        "recap_template": "Diabetes control is {answer}",
+        "answers": {
+          "poor": "urgent",
+          "good": "non_urgent",
+          "unknown": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Diabetic nephropathy with rapid decline requires immediate nephrology evaluation.",
+      "urgent": "Diabetic nephropathy needs nephrology evaluation within 1-2 months for treatment optimization.",
+      "non_urgent": "Early diabetic nephropathy should be monitored. Follow up with endocrinology and nephrology."
+    },
+    "clinical_summary": "Diabetic nephropathy is the leading cause of kidney failure and requires tight blood sugar and blood pressure control.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "post_streptococcal_gn": {
+    "triggers": ["post-strep GN", "strep kidney", "glomerulonephritis after strep"],
+    "intro": "{name}, I understand you had strep throat with kidney problems. Let me assess.",
+    "priority_keys": ["recent_strep", "edema", "urine"],
+    "detailed_symptom": "post-streptococcal glomerulonephritis",
+    "steps": [
+      {
+        "key": "recent_strep",
+        "question": "Did you have strep throat 1-3 weeks ago?",
+        "recap_template": "You {answer} recent strep throat",
+        "answers": {
+          "yes": "urgent",
+          "1-3 weeks ago": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "edema",
+        "question": "Do you have swelling in your face or legs?",
+        "recap_template": "You {answer} edema",
+        "answers": {
+          "yes": "urgent",
+          "face": "urgent",
+          "legs": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "urine",
+        "question": "Do you have blood or protein in your urine?",
+        "recap_template": "You {answer} urine abnormalities",
+        "answers": {
+          "blood": "urgent",
+          "protein": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "hypertension",
+        "question": "Do you have high blood pressure?",
+        "recap_template": "You {answer} hypertension",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Post-strep GN with severe symptoms requires immediate nephrology evaluation.",
+      "urgent": "Suspected post-strep GN needs urgent nephrology evaluation within 1-2 weeks.",
+      "non_urgent": "Mild symptoms may not be post-strep GN. Follow up with your doctor."
+    },
+    "clinical_summary": "Post-streptococcal glomerulonephritis typically resolves but can cause temporary kidney dysfunction.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "minimal_change_disease": {
+    "triggers": ["minimal change disease", "MCD", "nephrotic syndrome in children"],
+    "intro": "{name}, I understand you may have minimal change disease. Let me assess your symptoms.",
+    "priority_keys": ["edema", "proteinuria", "age"],
+    "detailed_symptom": "minimal change disease",
+    "steps": [
+      {
+        "key": "edema",
+        "question": "Do you have swelling, especially around your eyes or in your legs?",
+        "recap_template": "You {answer} edema",
+        "answers": {
+          "yes": "urgent",
+          "around eyes": "urgent",
+          "legs": "urgent",
+          "severe": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "proteinuria",
+        "question": "Do you have heavy protein in your urine?",
+        "recap_template": "You {answer} proteinuria",
+        "answers": {
+          "heavy": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "age",
+        "question": "Are you a child or young adult?",
+        "recap_template": "You are {answer}",
+        "answers": {
+          "child": "urgent",
+          "young adult": "urgent",
+          "adult": "urgent",
+          "elderly": "non_urgent"
+        }
+      },
+      {
+        "key": "recent_infection",
+        "question": "Have you had a recent infection or vaccination?",
+        "recap_template": "You {answer} recent trigger",
+        "answers": {
+          "yes": "urgent",
+          "recent infection": "urgent",
+          "vaccination": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Minimal change disease with severe symptoms requires immediate nephrology evaluation.",
+      "urgent": "Suspected minimal change disease needs urgent nephrology evaluation within 1-2 weeks for kidney biopsy.",
+      "non_urgent": "Mild symptoms may not be minimal change disease. Follow up with nephrology."
+    },
+    "clinical_summary": "Minimal change disease is the most common cause of nephrotic syndrome in children and responds well to steroids.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "membranous_nephropathy": {
+    "triggers": ["membranous nephropathy", "MN", "membranous glomerulonephritis"],
+    "intro": "{name}, I understand you have membranous nephropathy. Let me assess your current symptoms.",
+    "priority_keys": ["proteinuria", "edema", "thrombosis"],
+    "detailed_symptom": "membranous nephropathy",
+    "steps": [
+      {
+        "key": "proteinuria",
+        "question": "Do you have heavy protein in your urine?",
+        "recap_template": "You {answer} proteinuria",
+        "answers": {
+          "heavy": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "edema",
+        "question": "Do you have swelling in your legs or around your eyes?",
+        "recap_template": "You {answer} edema",
+        "answers": {
+          "yes": "urgent",
+          "legs": "urgent",
+          "around eyes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "thrombosis",
+        "question": "Have you had blood clots?",
+        "recap_template": "You {answer} thrombosis",
+        "answers": {
+          "yes": "urgent",
+          "blood clots": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "kidney_function",
+        "question": "Is your kidney function declining?",
+        "recap_template": "Kidney function is {answer}",
+        "answers": {
+          "declining": "urgent",
+          "stable": "non_urgent",
+          "unknown": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Membranous nephropathy with thrombosis or rapid decline requires immediate evaluation.",
+      "urgent": "Membranous nephropathy needs nephrology evaluation within 1-2 weeks for treatment planning.",
+      "non_urgent": "Stable membranous nephropathy should be monitored. Follow up with nephrology as scheduled."
+    },
+    "clinical_summary": "Membranous nephropathy can cause nephrotic syndrome and increases risk of blood clots and kidney failure.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "fsgs": {
+    "triggers": ["FSGS", "focal segmental glomerulosclerosis", "scarred kidney filters"],
+    "intro": "{name}, I understand you have focal segmental glomerulosclerosis. Let me assess your symptoms.",
+    "priority_keys": ["proteinuria", "kidney_function", "edema"],
+    "detailed_symptom": "FSGS",
+    "steps": [
+      {
+        "key": "proteinuria",
+        "question": "Do you have heavy protein in your urine?",
+        "recap_template": "You {answer} proteinuria",
+        "answers": {
+          "heavy": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "kidney_function",
+        "question": "Is your GFR declining?",
+        "recap_template": "GFR is {answer}",
+        "answers": {
+          "declining": "urgent",
+          "stable": "non_urgent",
+          "unknown": "non_urgent"
+        }
+      },
+      {
+        "key": "edema",
+        "question": "Do you have swelling in your legs or around your eyes?",
+        "recap_template": "You {answer} edema",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "hypertension",
+        "question": "Do you have high blood pressure?",
+        "recap_template": "You {answer} hypertension",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "FSGS with rapid progression requires immediate nephrology evaluation.",
+      "urgent": "FSGS needs nephrology evaluation within 1-2 weeks for treatment planning.",
+      "non_urgent": "Stable FSGS should be monitored. Follow up with nephrology as scheduled."
+    },
+    "clinical_summary": "FSGS is a leading cause of kidney failure in adults and requires careful management.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "amyloidosis_kidney": {
+    "triggers": ["amyloidosis kidney", "renal amyloidosis", "kidney amyloid"],
+    "intro": "{name}, I understand you may have amyloid in your kidneys. Let me assess your symptoms.",
+    "priority_keys": ["proteinuria", "edema", "heart_involvement"],
+    "detailed_symptom": "renal amyloidosis",
+    "steps": [
+      {
+        "key": "proteinuria",
+        "question": "Do you have heavy protein in your urine?",
+        "recap_template": "You {answer} proteinuria",
+        "answers": {
+          "heavy": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "edema",
+        "question": "Do you have swelling in your legs or around your eyes?",
+        "recap_template": "You {answer} edema",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "heart_involvement",
+        "question": "Do you have heart problems or neuropathy?",
+        "recap_template": "You {answer} systemic involvement",
+        "answers": {
+          "heart problems": "urgent",
+          "neuropathy": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "fatigue",
+        "question": "Do you have severe fatigue or weight loss?",
+        "recap_template": "You {answer} fatigue/weight loss",
+        "answers": {
+          "severe fatigue": "urgent",
+          "weight loss": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Amyloidosis with severe symptoms requires immediate hematology evaluation.",
+      "urgent": "Suspected renal amyloidosis needs urgent nephrology and hematology evaluation within 1-2 weeks.",
+      "non_urgent": "Mild symptoms may not be amyloidosis. Follow up with your doctor."
+    },
+    "clinical_summary": "Renal amyloidosis requires biopsy confirmation and can affect multiple organs.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "vasculitis_kidney": {
+    "triggers": ["vasculitis kidney", "ANCA vasculitis", "kidney vasculitis"],
+    "intro": "{name}, I understand you may have vasculitis affecting your kidneys. Let me assess.",
+    "priority_keys": ["systemic_symptoms", "kidney", "skin"],
+    "detailed_symptom": "vasculitis kidney involvement",
+    "steps": [
+      {
+        "key": "systemic_symptoms",
+        "question": "Do you have fever, fatigue, or weight loss?",
+        "recap_template": "You {answer} systemic symptoms",
+        "answers": {
+          "fever": "urgent",
+          "fatigue": "urgent",
+          "weight loss": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "kidney",
+        "question": "Do you have blood or protein in your urine?",
+        "recap_template": "You {answer} kidney involvement",
+        "answers": {
+          "blood": "urgent",
+          "protein": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "skin",
+        "question": "Do you have skin rashes or sores?",
+        "recap_template": "You {answer} skin involvement",
+        "answers": {
+          "yes": "urgent",
+          "skin rashes": "urgent",
+          "sores": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "joints",
+        "question": "Do you have joint pain or swelling?",
+        "recap_template": "You {answer} joint involvement",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Vasculitis with kidney involvement is life-threatening. Call 911 immediately.",
+      "urgent": "Suspected vasculitis needs urgent rheumatology and nephrology evaluation within 1-2 weeks.",
+      "non_urgent": "Mild symptoms may not be vasculitis. Follow up with your doctor."
+    },
+    "clinical_summary": "Vasculitis can cause rapid kidney failure and requires immediate immunosuppressive treatment.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "hepatorenal_syndrome": {
+    "triggers": ["hepatorenal syndrome", "HRS", "liver failure kidney failure"],
+    "intro": "{name}, hepatorenal syndrome is a serious complication of liver disease. Let me assess urgently.",
+    "priority_keys": ["liver_disease", "kidney_function", "diuretics"],
+    "detailed_symptom": "hepatorenal syndrome",
+    "steps": [
+      {
+        "key": "liver_disease",
+        "question": "Do you have cirrhosis or advanced liver disease?",
+        "recap_template": "You {answer} liver disease",
+        "answers": {
+          "cirrhosis": "emergency",
+          "advanced liver disease": "emergency",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "kidney_function",
+        "question": "Has your kidney function declined rapidly?",
+        "recap_template": "Kidney function is {answer}",
+        "answers": {
+          "rapid decline": "emergency",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "diuretics",
+        "question": "Are you taking diuretics (water pills)?",
+        "recap_template": "You {answer} diuretic use",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "ascites",
+        "question": "Do you have abdominal fluid (ascites)?",
+        "recap_template": "You {answer} ascites",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Hepatorenal syndrome is life-threatening. Call 911 immediately.",
+      "urgent": "Suspected hepatorenal syndrome requires urgent hepatology evaluation. Go to ER today."
+    },
+    "clinical_summary": "Hepatorenal syndrome indicates advanced liver failure and requires liver transplant evaluation.",
+    "recap": "{name}, {summary}. {clinical_summary} CALL 911 NOW."
   }
 }

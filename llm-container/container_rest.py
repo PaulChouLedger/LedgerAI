@@ -27,6 +27,13 @@ from casual import handle_casual, stream_casual_response
 from thinker import handle_thinker
 from triage import detect_condition, process_triage_step, generate_triage_completion, load_state, save_state, get_intro, apply_synonym_expansion, substitute_name, TRIAGE_DEFS, get_steps, is_valid_answer
 from clinician import ClinicianSession, is_clinician_trigger, create_clinician_session
+# Import enhanced clinician for medical symptoms
+try:
+    from enhanced_clinician import EnhancedClinicianSession
+    ENHANCED_CLINICIAN_AVAILABLE = True
+except ImportError:
+    ENHANCED_CLINICIAN_AVAILABLE = False
+    print("[Container] ⚠️ Enhanced clinician not available, falling back to basic clinician")
 
 # RAG functionality moved to separate RAG container (port 11435)
 RAG_SERVICE_URL = "http://localhost:11435"
@@ -167,9 +174,29 @@ def chat_tg():
                 return jsonify({"response": question})
         
         elif mode == ConversationMode.CLINICIAN:
-            clinician = create_clinician_session(session_id, prompt, llm_chat)
-            opening = clinician.start_session()
-            return jsonify({"response": opening})
+            try:
+                if ENHANCED_CLINICIAN_AVAILABLE and state.get('is_new_clinician'):
+                    # Use enhanced clinician for new medical symptom sessions
+                    print(f"[Container] 🩺 Using enhanced clinician for medical symptoms (non-streaming)")
+                    enhanced_clinician = EnhancedClinicianSession(session_id, prompt, llm_chat)
+                    opening = enhanced_clinician.start_enhanced_assessment()
+                    return jsonify({"response": opening})
+                else:
+                    # Fall back to basic clinician
+                    print(f"[Container] 🩺 Using basic clinician (enhanced not available or not new session)")
+                    clinician = create_clinician_session(session_id, prompt, llm_chat)
+                    opening = clinician.start_session()
+                    return jsonify({"response": opening})
+            except Exception as e:
+                print(f"[Container] ❌ Error in clinician mode (non-streaming): {e}")
+                # Fallback to triage if clinician fails
+                if CLINICIAN_FALLBACK_TO_TRIAGE:
+                    print(f"[Container] 🔄 Falling back to triage mode due to clinician error")
+                    question, triage_state = process_triage_step(prompt, state, session_id, llm_chat)
+                    save_state(triage_state, session_id)
+                    return jsonify({"response": question})
+                else:
+                    return jsonify({"response": "I'm sorry, I encountered an error. Please try again."})
         
         else:
             return jsonify({"response": "I'm sorry, I didn't understand that."})
@@ -264,6 +291,11 @@ def chat_tts():
                         "condition": condition
                     }, updated_state.get("phrasing_history"), llm_chat_once)
                     yield f"<sentence_start>\n{intro_nlg}\n<sentence_end>\n"
+                    
+                    # Update phrasing_history with intro
+                    if "phrasing_history" not in updated_state:
+                        updated_state["phrasing_history"] = []
+                    updated_state["phrasing_history"].append(intro_nlg)
 
                 raw_q = substitute_name(steps[0].get('question', ''), updated_state.get('user_name'))
                 q_nlg = nlg_rewrite(raw_q, "question", {
@@ -273,6 +305,11 @@ def chat_tts():
                     "allowed_answers": list(steps[0].get('answers', {}).keys())
                 }, updated_state.get("phrasing_history"), llm_chat_once)
                 yield f"<sentence_start>\n{q_nlg}\n<sentence_end>\n"
+                
+                # CRITICAL: Update phrasing_history with the first question
+                updated_state["phrasing_history"].append(q_nlg)
+                updated_state["phrasing_history"] = updated_state["phrasing_history"][-10:]
+                save_state(updated_state, session_id)
 
             # Filter think blocks at container level
             return Response(stream_with_context(filter_think_blocks(generate_new_triage())), mimetype="text/plain")
@@ -289,15 +326,39 @@ def chat_tts():
                     print(f"[Aura-LLM] ❌ Error in triage: {e}")
                     import traceback
                     traceback.print_exc()
+                    print(f"[Aura-LLM] 🔍 Error details: {type(e).__name__}: {str(e)}")
                     yield f"<sentence_start>\nI'm sorry, there was an error processing your triage.\n<sentence_end>\n"
             # Filter think blocks at container level
             return Response(stream_with_context(filter_think_blocks(generate_triage_continue())), mimetype="text/plain")
 
     elif mode == ConversationMode.CLINICIAN:
         def generate_clinician():
-            clinician = create_clinician_session(session_id, prompt, llm_chat)
-            opening = clinician.start_session()
-            yield f"<sentence_start>\n{opening}\n<sentence_end>\n"
+            try:
+                if ENHANCED_CLINICIAN_AVAILABLE and state.get('is_new_clinician'):
+                    # Use enhanced clinician for new medical symptom sessions
+                    print(f"[Container] 🩺 Using enhanced clinician for medical symptoms")
+                    enhanced_clinician = EnhancedClinicianSession(session_id, prompt, llm_chat)
+                    opening = enhanced_clinician.start_enhanced_assessment()
+                    yield f"<sentence_start>\n{opening}\n<sentence_end>\n"
+                else:
+                    # Fall back to basic clinician
+                    print(f"[Container] 🩺 Using basic clinician (enhanced not available or not new session)")
+                    clinician = create_clinician_session(session_id, prompt, llm_chat)
+                    opening = clinician.start_session()
+                    yield f"<sentence_start>\n{opening}\n<sentence_end>\n"
+            except Exception as e:
+                print(f"[Container] ❌ Error in clinician mode: {e}")
+                # Fallback to triage if clinician fails
+                if CLINICIAN_FALLBACK_TO_TRIAGE:
+                    print(f"[Container] 🔄 Falling back to triage mode due to clinician error")
+                    def generate_triage_fallback():
+                        question, triage_state = process_triage_step(prompt, state, session_id, llm_chat)
+                        save_state(triage_state, session_id)
+                        yield f"<sentence_start>\n{question}\n<sentence_end>\n"
+                    return Response(stream_with_context(filter_think_blocks(generate_triage_fallback())), mimetype="text/plain")
+                else:
+                    yield f"<sentence_start>\nI'm sorry, I encountered an error. Please try again.\n<sentence_end>\n"
+
         # Filter think blocks at container level
         return Response(stream_with_context(filter_think_blocks(generate_clinician())), mimetype="text/plain")
 
@@ -311,15 +372,49 @@ def chat_tts():
 
 
 
-# === Stream Filtering (Simplified - Llama models don't use think tags) ===
+# === Stream Filtering with Garbage Detection ===
 def filter_think_blocks(generator):
     """
-    Simple pass-through filter for models that don't use think tags
-    Llama models generate clean responses without internal reasoning
+    Filter and validate streaming output from all modes
+    
+    - Filters <think> tags (if model uses them)
+    - Detects repetitive garbage output (e.g., "333333...")
+    - Provides fallback response if garbage detected
     """
+    from collections import Counter
+    
+    accumulated_output = []
+    garbage_detected = False
+    
     for token in generator:
         if token and token.strip():
+            accumulated_output.append(token)
+            
+            # Early garbage detection - check every 100 chars
+            full_output = ''.join(accumulated_output)
+            
+            # Extract just the text content (without sentence tags)
+            import re
+            text_only = re.sub(r'<sentence_start>|<sentence_end>|\n', '', full_output)
+            
+            if len(text_only) > 50 and len(text_only) % 100 < 20:  # Check periodically
+                char_counts = Counter(text_only.lower())
+                if char_counts:
+                    most_common_char, most_common_count = char_counts.most_common(1)[0]
+                    repetition_ratio = most_common_count / len(text_only)
+                    
+                    if repetition_ratio > 0.6:  # 60%+ same character = garbage
+                        print(f"[Container] ⚠️ GARBAGE DETECTED: char='{most_common_char}', ratio={repetition_ratio:.2f}, output='{text_only[:100]}'")
+                        garbage_detected = True
+                        break  # Stop consuming stream
+            
             yield token
+    
+    # If garbage was detected, provide fallback response
+    if garbage_detected:
+        print(f"[Container] 🔄 Using fallback response due to garbage detection")
+        # Clear any previous output and send fallback
+        yield "<sentence_start>\nI'm sorry, I had trouble processing that. Could you tell me more about what's going on?\n<sentence_end>\n"
 
 
 

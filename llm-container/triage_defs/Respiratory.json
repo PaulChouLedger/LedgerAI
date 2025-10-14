@@ -365,5 +365,933 @@
     },
     "clinical_summary": "Your symptoms are suggestive of a respiratory condition that requires medical evaluation to rule out serious causes and determine appropriate treatment.",
     "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "asthma_exacerbation": {
+    "triggers": ["asthma attack", "asthma flare", "can't breathe asthma", "wheezing worse"],
+    "intro": "{name}, I understand you're having an asthma exacerbation. Let me assess the severity.",
+    "priority_keys": ["severity", "inhaler_response", "speech"],
+    "detailed_symptom": "asthma exacerbation",
+    "steps": [
+      {
+        "key": "severity",
+        "question": "Are you having severe difficulty breathing?",
+        "recap_template": "You {answer} severe breathing difficulty",
+        "answers": {
+          "yes": "emergency",
+          "moderate": "urgent",
+          "mild": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "speech",
+        "question": "Can you speak in full sentences, or only a few words at a time?",
+        "recap_template": "You can {answer}",
+        "answers": {
+          "few words only": "emergency",
+          "short phrases": "emergency",
+          "full sentences": "urgent"
+        }
+      },
+      {
+        "key": "inhaler_response",
+        "question": "Have you used your rescue inhaler? Did it help?",
+        "recap_template": "Rescue inhaler {answer}",
+        "answers": {
+          "no relief": "emergency",
+          "minimal relief": "emergency",
+          "good relief": "urgent",
+          "not used yet": "urgent"
+        }
+      },
+      {
+        "key": "peak_flow",
+        "question": "If you've checked, is your peak flow less than 50% of your normal?",
+        "recap_template": "Peak flow is {answer}",
+        "answers": {
+          "less than 50%": "emergency",
+          "50-75%": "urgent",
+          "over 75%": "urgent",
+          "unknown": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Severe asthma exacerbation is life-threatening. Call 911 immediately.",
+      "urgent": "Asthma exacerbation requires urgent medical attention. Go to ER or urgent care within 1-2 hours.",
+      "non_urgent": "Mild asthma symptoms should be managed. Call your doctor if symptoms worsen."
+    },
+    "clinical_summary": "Asthma exacerbation can rapidly progress to respiratory failure and requires prompt treatment.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "copd_exacerbation": {
+    "triggers": ["COPD flare", "COPD exacerbation", "emphysema worse", "chronic bronchitis worse"],
+    "intro": "{name}, I understand your COPD is acting up. Let me assess your current symptoms.",
+    "priority_keys": ["dyspnea", "sputum_change", "confusion"],
+    "detailed_symptom": "COPD exacerbation",
+    "steps": [
+      {
+        "key": "dyspnea",
+        "question": "Is your shortness of breath worse than your usual baseline?",
+        "recap_template": "Shortness of breath is {answer}",
+        "answers": {
+          "much worse": "emergency",
+          "worse": "urgent",
+          "same as usual": "non_urgent"
+        }
+      },
+      {
+        "key": "sputum_change",
+        "question": "Has your sputum changed color (yellow, green, or bloody)?",
+        "recap_template": "Sputum {answer}",
+        "answers": {
+          "bloody": "emergency",
+          "yellow or green": "urgent",
+          "no change": "urgent"
+        }
+      },
+      {
+        "key": "confusion",
+        "question": "Are you feeling confused or very drowsy?",
+        "recap_template": "You {answer} confusion or drowsiness",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "chest_pain",
+        "question": "Do you have chest pain?",
+        "recap_template": "You {answer} chest pain",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Severe COPD exacerbation with concerning symptoms. Call 911 immediately.",
+      "urgent": "COPD exacerbation needs urgent medical attention. Go to ER or call your pulmonologist today.",
+      "non_urgent": "Stable COPD symptoms. Continue your medications and follow up with your doctor if symptoms worsen."
+    },
+    "clinical_summary": "COPD exacerbation can lead to respiratory failure and requires prompt treatment.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "pneumothorax": {
+    "triggers": ["collapsed lung", "pneumothorax", "sudden chest pain and shortness of breath"],
+    "intro": "{name}, your symptoms are very concerning. Let me ask some urgent questions.",
+    "priority_keys": ["onset", "dyspnea", "trauma"],
+    "detailed_symptom": "possible collapsed lung",
+    "steps": [
+      {
+        "key": "onset",
+        "question": "Did the chest pain and shortness of breath start suddenly?",
+        "recap_template": "Symptoms started {answer}",
+        "answers": {
+          "suddenly": "emergency",
+          "sudden": "emergency",
+          "gradual": "urgent"
+        }
+      },
+      {
+        "key": "dyspnea",
+        "question": "Is the shortness of breath severe?",
+        "recap_template": "Shortness of breath is {answer}",
+        "answers": {
+          "severe": "emergency",
+          "moderate": "emergency",
+          "mild": "urgent"
+        }
+      },
+      {
+        "key": "trauma",
+        "question": "Did you have recent chest trauma or injury?",
+        "recap_template": "You {answer} recent chest trauma",
+        "answers": {
+          "yes": "emergency",
+          "no": "emergency"
+        }
+      },
+      {
+        "key": "unilateral",
+        "question": "Is the pain and decreased breathing on one side only?",
+        "recap_template": "Symptoms are {answer}",
+        "answers": {
+          "one side": "emergency",
+          "both sides": "emergency"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Pneumothorax (collapsed lung) is a medical emergency. Call 911 immediately. Do not drive yourself.",
+      "urgent": "Suspected pneumothorax requires immediate emergency evaluation. Go to ER now."
+    },
+    "clinical_summary": "Pneumothorax can rapidly progress to tension pneumothorax and respiratory failure.",
+    "recap": "{name}, {summary}. {clinical_summary} This is an EMERGENCY."
+  },
+
+  "pleural_effusion": {
+    "triggers": ["fluid in lungs", "pleural effusion", "water on lungs"],
+    "intro": "{name}, I understand you may have fluid around your lungs. Let me assess your symptoms.",
+    "priority_keys": ["dyspnea", "chest_pain"],
+    "detailed_symptom": "pleural effusion",
+    "steps": [
+      {
+        "key": "dyspnea",
+        "question": "Are you short of breath, especially when lying flat?",
+        "recap_template": "You {answer} shortness of breath",
+        "answers": {
+          "severe": "emergency",
+          "when lying flat": "urgent",
+          "mild": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "chest_pain",
+        "question": "Do you have chest pain with breathing?",
+        "recap_template": "You {answer} pleuritic chest pain",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "fever",
+        "question": "Do you have fever?",
+        "recap_template": "You {answer} fever",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "progression",
+        "question": "Are your symptoms rapidly worsening?",
+        "recap_template": "Symptoms are {answer}",
+        "answers": {
+          "rapidly worsening": "emergency",
+          "slowly worsening": "urgent",
+          "stable": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Large or rapidly accumulating pleural effusion requires immediate evaluation. Call 911 or go to ER now.",
+      "urgent": "Pleural effusion needs urgent medical evaluation within 24 hours. See a doctor today.",
+      "non_urgent": "Small pleural effusion should be monitored. Follow up with your doctor soon."
+    },
+    "clinical_summary": "Pleural effusion can compromise breathing and requires medical evaluation.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "acute_bronchitis": {
+    "triggers": ["bronchitis", "chest cold", "acute bronchitis"],
+    "intro": "{name}, I understand you have bronchitis symptoms. Let me assess severity.",
+    "priority_keys": ["cough_duration", "dyspnea", "fever"],
+    "detailed_symptom": "bronchitis",
+    "steps": [
+      {
+        "key": "cough_duration",
+        "question": "How long have you had the cough?",
+        "recap_template": "Cough duration is {answer}",
+        "answers": {
+          "over 3 weeks": "urgent",
+          "1-3 weeks": "urgent",
+          "less than 1 week": "non_urgent"
+        }
+      },
+      {
+        "key": "dyspnea",
+        "question": "Do you have shortness of breath?",
+        "recap_template": "You {answer} shortness of breath",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "fever",
+        "question": "Do you have high fever (over 101°F)?",
+        "recap_template": "You {answer} high fever",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "sputum_color",
+        "question": "Are you coughing up green or bloody sputum?",
+        "recap_template": "Sputum is {answer}",
+        "answers": {
+          "bloody": "emergency",
+          "green": "urgent",
+          "clear or white": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Bronchitis with severe symptoms requires immediate evaluation. Go to ER now.",
+      "urgent": "Your bronchitis symptoms are concerning. See a doctor within 24 hours.",
+      "non_urgent": "Mild bronchitis usually resolves on its own. Rest, fluids, and follow up if symptoms worsen."
+    },
+    "clinical_summary": "Acute bronchitis is typically viral but can progress to pneumonia in some cases.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "pneumothorax_spontaneous": {
+    "triggers": ["sudden chest pain tall thin", "spontaneous pneumothorax"],
+    "intro": "{name}, sudden chest pain in a tall, thin person can suggest spontaneous pneumothorax. Let me assess.",
+    "priority_keys": ["body_type", "sudden_onset", "dyspnea"],
+    "detailed_symptom": "sudden chest pain",
+    "steps": [
+      {
+        "key": "body_type",
+        "question": "Are you tall and thin?",
+        "recap_template": "You {answer} tall and thin",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "sudden_onset",
+        "question": "Did the pain start very suddenly while at rest?",
+        "recap_template": "Pain started {answer}",
+        "answers": {
+          "yes": "emergency",
+          "suddenly": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "dyspnea",
+        "question": "Do you have shortness of breath?",
+        "recap_template": "You {answer} shortness of breath",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "unilateral",
+        "question": "Is the pain on one side of the chest only?",
+        "recap_template": "Pain is {answer}",
+        "answers": {
+          "one side": "emergency",
+          "both sides": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Suspected spontaneous pneumothorax is an emergency. Go to ER immediately.",
+      "urgent": "Your symptoms need urgent evaluation. Go to ER or urgent care today."
+    },
+    "clinical_summary": "Spontaneous pneumothorax occurs in young, tall, thin individuals and requires immediate treatment.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "covid_pneumonia": {
+    "triggers": ["COVID pneumonia", "COVID shortness of breath", "coronavirus breathing problems"],
+    "intro": "{name}, I understand you have COVID-19 with breathing problems. Let me assess severity.",
+    "priority_keys": ["oxygen", "dyspnea", "days_since_onset"],
+    "detailed_symptom": "COVID-19 pneumonia",
+    "steps": [
+      {
+        "key": "oxygen",
+        "question": "If you have a pulse oximeter, is your oxygen level below 94%?",
+        "recap_template": "Oxygen level is {answer}",
+        "answers": {
+          "below 90%": "emergency",
+          "90-94%": "urgent",
+          "above 94%": "urgent",
+          "unknown": "urgent"
+        }
+      },
+      {
+        "key": "dyspnea",
+        "question": "Are you short of breath at rest?",
+        "recap_template": "You {answer} shortness of breath at rest",
+        "answers": {
+          "yes": "emergency",
+          "only with activity": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "days_since_onset",
+        "question": "How many days has it been since your COVID symptoms started?",
+        "recap_template": "Symptoms for {answer}",
+        "answers": {
+          "over 7 days": "urgent",
+          "5-7 days": "urgent",
+          "less than 5 days": "urgent"
+        }
+      },
+      {
+        "key": "confusion",
+        "question": "Are you feeling confused or very drowsy?",
+        "recap_template": "You {answer} confusion",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "COVID pneumonia with severe symptoms requires immediate hospital care. Call 911.",
+      "urgent": "COVID pneumonia symptoms are worsening. Go to ER for evaluation today.",
+      "non_urgent": "Mild COVID symptoms can be monitored at home. Call your doctor if symptoms worsen, especially breathing."
+    },
+    "clinical_summary": "COVID-19 pneumonia can rapidly progress and requires close monitoring.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "aspiration_pneumonia": {
+    "triggers": ["aspiration pneumonia", "choked on food", "food went down wrong way"],
+    "intro": "{name}, I understand you may have aspirated. Let me assess for pneumonia.",
+    "priority_keys": ["aspiration_event", "dyspnea", "fever"],
+    "detailed_symptom": "possible aspiration pneumonia",
+    "steps": [
+      {
+        "key": "aspiration_event",
+        "question": "Did you choke or have food/liquid go down the wrong way recently?",
+        "recap_template": "You {answer} aspiration event",
+        "answers": {
+          "yes": "urgent",
+          "choking": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "dyspnea",
+        "question": "Do you have shortness of breath?",
+        "recap_template": "You {answer} shortness of breath",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "fever",
+        "question": "Do you have fever?",
+        "recap_template": "You {answer} fever",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "productive_cough",
+        "question": "Are you coughing up foul-smelling sputum?",
+        "recap_template": "You {answer} foul-smelling sputum",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Aspiration with severe symptoms requires immediate evaluation. Go to ER now.",
+      "urgent": "Aspiration pneumonia risk requires urgent medical evaluation within 24 hours.",
+      "non_urgent": "Low risk after aspiration but monitor for fever or breathing problems. Call doctor if symptoms develop."
+    },
+    "clinical_summary": "Aspiration can lead to pneumonia, especially in elderly or those with swallowing problems.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "pulmonary_fibrosis": {
+    "triggers": ["pulmonary fibrosis", "lung scarring", "interstitial lung disease"],
+    "intro": "{name}, I understand you have pulmonary fibrosis. Let me assess your current symptoms.",
+    "priority_keys": ["dyspnea_progression", "oxygen"],
+    "detailed_symptom": "pulmonary fibrosis",
+    "steps": [
+      {
+        "key": "dyspnea_progression",
+        "question": "Is your shortness of breath getting worse?",
+        "recap_template": "Shortness of breath is {answer}",
+        "answers": {
+          "rapidly worsening": "emergency",
+          "slowly worsening": "urgent",
+          "stable": "non_urgent"
+        }
+      },
+      {
+        "key": "oxygen",
+        "question": "Do you need oxygen at home? Has your oxygen need increased?",
+        "recap_template": "Oxygen requirement is {answer}",
+        "answers": {
+          "increased need": "urgent",
+          "on oxygen": "urgent",
+          "no oxygen": "non_urgent"
+        }
+      },
+      {
+        "key": "at_rest",
+        "question": "Are you short of breath at rest?",
+        "recap_template": "You {answer} dyspnea at rest",
+        "answers": {
+          "yes": "emergency",
+          "only with activity": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Acute exacerbation of pulmonary fibrosis is life-threatening. Call 911 immediately.",
+      "urgent": "Worsening pulmonary fibrosis needs urgent pulmonology evaluation within 1-2 days.",
+      "non_urgent": "Stable pulmonary fibrosis. Continue medications and follow up with pulmonology as scheduled."
+    },
+    "clinical_summary": "Pulmonary fibrosis is progressive and exacerbations can be life-threatening.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "acute_respiratory_distress": {
+    "triggers": ["ARDS", "respiratory failure", "can't breathe at all", "severe breathing problems"],
+    "intro": "{name}, your symptoms are very concerning. This is an emergency.",
+    "priority_keys": ["severity", "oxygen"],
+    "detailed_symptom": "severe respiratory distress",
+    "steps": [
+      {
+        "key": "severity",
+        "question": "Are you unable to speak or gasping for air?",
+        "recap_template": "You {answer} severe distress",
+        "answers": {
+          "unable to speak": "emergency",
+          "gasping": "emergency",
+          "can speak": "emergency"
+        }
+      },
+      {
+        "key": "oxygen",
+        "question": "If checked, is your oxygen level below 90%?",
+        "recap_template": "Oxygen level is {answer}",
+        "answers": {
+          "below 90%": "emergency",
+          "90-94%": "emergency",
+          "unknown": "emergency"
+        }
+      },
+      {
+        "key": "cyanosis",
+        "question": "Are your lips or fingers turning blue?",
+        "recap_template": "You {answer} cyanosis",
+        "answers": {
+          "yes": "emergency",
+          "no": "emergency"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Severe respiratory distress is life-threatening. Call 911 IMMEDIATELY. This is a medical emergency."
+    },
+    "clinical_summary": "Acute respiratory distress syndrome requires immediate intensive care and mechanical ventilation.",
+    "recap": "{name}, {summary}. {clinical_summary} CALL 911 NOW."
+  },
+
+  "pulmonary_hypertension": {
+    "triggers": ["pulmonary hypertension", "high blood pressure in lungs", "PH"],
+    "intro": "{name}, I understand you have pulmonary hypertension. Let me assess your current symptoms.",
+    "priority_keys": ["dyspnea", "syncope", "edema"],
+    "detailed_symptom": "pulmonary hypertension",
+    "steps": [
+      {
+        "key": "dyspnea",
+        "question": "Is your shortness of breath worse than usual?",
+        "recap_template": "Shortness of breath is {answer}",
+        "answers": {
+          "much worse": "urgent",
+          "worse": "urgent",
+          "same": "non_urgent"
+        }
+      },
+      {
+        "key": "syncope",
+        "question": "Have you fainted or felt like you might faint?",
+        "recap_template": "You {answer} syncope",
+        "answers": {
+          "fainted": "emergency",
+          "felt like fainting": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "edema",
+        "question": "Do you have new or worsening leg swelling?",
+        "recap_template": "You {answer} leg swelling",
+        "answers": {
+          "new": "urgent",
+          "worsening": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "chest_pain",
+        "question": "Do you have chest pain?",
+        "recap_template": "You {answer} chest pain",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Pulmonary hypertension with syncope requires immediate evaluation. Call 911.",
+      "urgent": "Worsening pulmonary hypertension needs urgent evaluation. Call your pulmonologist or go to ER today.",
+      "non_urgent": "Stable pulmonary hypertension. Continue medications and follow up as scheduled."
+    },
+    "clinical_summary": "Pulmonary hypertension can lead to right heart failure and requires specialized care.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "bronchiolitis": {
+    "triggers": ["bronchiolitis", "RSV", "respiratory syncytial virus"],
+    "intro": "{name}, I understand you have bronchiolitis symptoms. Let me assess severity.",
+    "priority_keys": ["age", "feeding", "breathing"],
+    "detailed_symptom": "bronchiolitis",
+    "steps": [
+      {
+        "key": "age",
+        "question": "Is the patient an infant under 2 years old?",
+        "recap_template": "Patient is {answer}",
+        "answers": {
+          "under 3 months": "emergency",
+          "3-12 months": "urgent",
+          "1-2 years": "urgent",
+          "over 2 years": "urgent"
+        }
+      },
+      {
+        "key": "feeding",
+        "question": "Is the infant having trouble feeding or drinking?",
+        "recap_template": "Infant {answer} feeding difficulty",
+        "answers": {
+          "refusing feeds": "emergency",
+          "decreased feeding": "urgent",
+          "feeding normally": "urgent"
+        }
+      },
+      {
+        "key": "breathing",
+        "question": "Is there fast breathing, grunting, or flaring nostrils?",
+        "recap_template": "You {answer} respiratory distress",
+        "answers": {
+          "yes": "emergency",
+          "grunting": "emergency",
+          "flaring": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "apnea",
+        "question": "Has the infant had any pauses in breathing or turned blue?",
+        "recap_template": "Infant {answer} apnea or cyanosis",
+        "answers": {
+          "yes": "emergency",
+          "turned blue": "emergency",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Severe bronchiolitis in an infant is an emergency. Call 911 immediately.",
+      "urgent": "Bronchiolitis requires urgent medical evaluation. Go to pediatric ER today.",
+      "non_urgent": "Mild bronchiolitis can be monitored at home. Call pediatrician if symptoms worsen."
+    },
+    "clinical_summary": "Bronchiolitis can cause severe respiratory distress in infants and requires close monitoring.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "chronic_cough": {
+    "triggers": ["chronic cough", "cough for months", "persistent cough"],
+    "intro": "{name}, I understand you have a chronic cough. Let me assess for serious causes.",
+    "priority_keys": ["duration", "hemoptysis", "weight_loss"],
+    "detailed_symptom": "chronic cough",
+    "steps": [
+      {
+        "key": "duration",
+        "question": "How long have you had the cough?",
+        "recap_template": "Cough duration is {answer}",
+        "answers": {
+          "over 3 months": "urgent",
+          "2-3 months": "urgent",
+          "less than 2 months": "urgent"
+        }
+      },
+      {
+        "key": "hemoptysis",
+        "question": "Have you coughed up any blood?",
+        "recap_template": "You {answer} hemoptysis",
+        "answers": {
+          "yes": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "weight_loss",
+        "question": "Have you had unintentional weight loss?",
+        "recap_template": "You {answer} weight loss",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "smoking",
+        "question": "Do you have a history of smoking?",
+        "recap_template": "You {answer} smoking history",
+        "answers": {
+          "yes": "urgent",
+          "former smoker": "urgent",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Chronic cough with hemoptysis requires immediate evaluation. Go to ER now.",
+      "urgent": "Chronic cough with concerning features needs urgent evaluation within 1-2 weeks. See your doctor or pulmonologist.",
+      "non_urgent": "Chronic cough should be evaluated. Schedule appointment with your doctor."
+    },
+    "clinical_summary": "Chronic cough can be caused by GERD, asthma, or serious conditions like lung cancer and requires evaluation.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "allergic_reaction_respiratory": {
+    "triggers": ["allergic reaction breathing", "anaphylaxis", "throat swelling", "can't breathe allergy"],
+    "intro": "{name}, allergic reactions affecting breathing are very serious. Let me assess immediately.",
+    "priority_keys": ["throat_swelling", "breathing", "exposure"],
+    "detailed_symptom": "allergic reaction with respiratory symptoms",
+    "steps": [
+      {
+        "key": "throat_swelling",
+        "question": "Do you have throat tightness or swelling?",
+        "recap_template": "You {answer} throat swelling",
+        "answers": {
+          "yes": "emergency",
+          "throat feels tight": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "breathing",
+        "question": "Are you having difficulty breathing or wheezing?",
+        "recap_template": "You {answer} breathing difficulty",
+        "answers": {
+          "yes": "emergency",
+          "wheezing": "emergency",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "exposure",
+        "question": "Were you recently exposed to a known allergen (food, medication, bee sting)?",
+        "recap_template": "You {answer} allergen exposure",
+        "answers": {
+          "yes": "emergency",
+          "food": "emergency",
+          "medication": "emergency",
+          "bee sting": "emergency",
+          "unknown": "emergency"
+        }
+      },
+      {
+        "key": "epipen",
+        "question": "Do you have an EpiPen? Have you used it?",
+        "recap_template": "You {answer} used EpiPen",
+        "answers": {
+          "used it": "emergency",
+          "have one but not used": "emergency",
+          "don't have one": "emergency"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Anaphylaxis is life-threatening. Use EpiPen if available and call 911 IMMEDIATELY. Do not wait."
+    },
+    "clinical_summary": "Anaphylaxis can rapidly progress to complete airway obstruction and requires immediate epinephrine and emergency care.",
+    "recap": "{name}, {summary}. {clinical_summary} CALL 911 NOW. USE EPIPEN IF AVAILABLE."
+  },
+
+  "tuberculosis": {
+    "triggers": ["TB", "tuberculosis", "cough for months", "night sweats cough"],
+    "intro": "{name}, I understand you have symptoms that could suggest tuberculosis. Let me assess.",
+    "priority_keys": ["chronic_cough", "hemoptysis", "weight_loss", "night_sweats"],
+    "detailed_symptom": "possible tuberculosis",
+    "steps": [
+      {
+        "key": "chronic_cough",
+        "question": "Have you had a cough for more than 3 weeks?",
+        "recap_template": "You {answer} chronic cough",
+        "answers": {
+          "yes": "urgent",
+          "over 3 months": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "hemoptysis",
+        "question": "Have you coughed up blood?",
+        "recap_template": "You {answer} hemoptysis",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "weight_loss",
+        "question": "Have you had unintentional weight loss?",
+        "recap_template": "You {answer} weight loss",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "night_sweats",
+        "question": "Do you have drenching night sweats?",
+        "recap_template": "You {answer} night sweats",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "exposure",
+        "question": "Have you been exposed to someone with tuberculosis?",
+        "recap_template": "You {answer} TB exposure",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Suspected tuberculosis with severe symptoms requires immediate evaluation and isolation. Go to ER now.",
+      "urgent": "Possible tuberculosis requires urgent evaluation within 1-3 days. Call your doctor for TB testing and chest X-ray.",
+      "non_urgent": "Low risk for TB but chronic symptoms should be evaluated."
+    },
+    "clinical_summary": "Tuberculosis is contagious and requires prompt diagnosis, isolation, and treatment.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "lung_cancer_symptoms": {
+    "triggers": ["lung cancer symptoms", "chronic cough smoker", "coughing blood smoker"],
+    "intro": "{name}, I understand you have symptoms that need evaluation. Let me assess.",
+    "priority_keys": ["hemoptysis", "weight_loss", "smoking_history"],
+    "detailed_symptom": "concerning for lung cancer",
+    "steps": [
+      {
+        "key": "hemoptysis",
+        "question": "Have you coughed up blood?",
+        "recap_template": "You {answer} hemoptysis",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "weight_loss",
+        "question": "Have you had significant unintentional weight loss (over 10 pounds)?",
+        "recap_template": "You {answer} significant weight loss",
+        "answers": {
+          "yes": "urgent",
+          "over 10 pounds": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "smoking_history",
+        "question": "Do you have a significant smoking history (current or former smoker)?",
+        "recap_template": "You {answer} smoking history",
+        "answers": {
+          "yes": "urgent",
+          "current smoker": "urgent",
+          "former smoker": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "chest_pain",
+        "question": "Do you have persistent chest pain?",
+        "recap_template": "You {answer} chest pain",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "hoarseness",
+        "question": "Do you have persistent hoarseness or voice changes?",
+        "recap_template": "You {answer} hoarseness",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Symptoms highly suspicious for lung cancer with complications. Go to ER for urgent workup.",
+      "urgent": "Symptoms concerning for lung cancer require urgent evaluation. See your doctor within 1-2 weeks for chest imaging and workup.",
+      "non_urgent": "Low risk symptoms but should be evaluated if persistent."
+    },
+    "clinical_summary": "Early detection of lung cancer significantly improves outcomes and requires prompt imaging and evaluation.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
+  },
+
+  "sleep_apnea": {
+    "triggers": ["sleep apnea", "snoring", "stop breathing while sleeping"],
+    "intro": "{name}, I understand you may have sleep apnea. Let me assess your symptoms.",
+    "priority_keys": ["witnessed_apnea", "daytime_sleepiness", "hypertension"],
+    "detailed_symptom": "sleep apnea",
+    "steps": [
+      {
+        "key": "witnessed_apnea",
+        "question": "Has someone witnessed you stop breathing during sleep?",
+        "recap_template": "You {answer} witnessed apnea",
+        "answers": {
+          "yes": "urgent",
+          "frequently": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "daytime_sleepiness",
+        "question": "Do you fall asleep during the day or while driving?",
+        "recap_template": "You {answer} dangerous daytime sleepiness",
+        "answers": {
+          "while driving": "urgent",
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      },
+      {
+        "key": "hypertension",
+        "question": "Do you have high blood pressure?",
+        "recap_template": "You {answer} hypertension",
+        "answers": {
+          "yes": "urgent",
+          "no": "urgent"
+        }
+      },
+      {
+        "key": "bmi",
+        "question": "Are you significantly overweight?",
+        "recap_template": "You {answer} obesity",
+        "answers": {
+          "yes": "urgent",
+          "no": "non_urgent"
+        }
+      }
+    ],
+    "outcomes": {
+      "emergency": "Sleep apnea with dangerous complications requires immediate evaluation.",
+      "urgent": "Sleep apnea needs evaluation with sleep study. Schedule with your doctor within 2-4 weeks.",
+      "non_urgent": "Mild sleep symptoms. Discuss with your doctor at next visit."
+    },
+    "clinical_summary": "Untreated sleep apnea increases risk of hypertension, stroke, and heart disease.",
+    "recap": "{name}, {summary}. {clinical_summary} Overall this is classified as {severity}."
   }
 }
