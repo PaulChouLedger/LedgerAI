@@ -326,9 +326,13 @@ def filter_think_blocks(generator):
             if parts[0].strip():
                 think_buffer.append(parts[0])
             
-            # Check if think buffer contains actual response (has <sentence_start>)
+            # Check if think buffer contains actual response
             think_content = '\n'.join(think_buffer)
-            if '<sentence_start>' in think_content:
+            # Consider content valid if it has either sentence markers or actual response text
+            has_response_markers = '<sentence_start>' in think_content or '<sentence_end>' in think_content
+            has_actual_content = any(word in think_content.lower() for word in ['hello', 'hi', 'good', 'how', 'can', 'help', 'what', 'thank', 'sorry', 'yes', 'no'])
+
+            if has_response_markers or has_actual_content:
                 print(f"[Container] ✅ Extracting response from <think> block")
                 # Yield the content that was inside the think block
                 yield think_content + '\n'
@@ -354,7 +358,11 @@ def filter_think_blocks(generator):
     # CRITICAL: If stream ends while still in think block, yield buffered content
     if in_think_block and think_buffer:
         think_content = '\n'.join(think_buffer)
-        if '<sentence_start>' in think_content:
+        # Consider content valid if it has either sentence markers or actual response text
+        has_response_markers = '<sentence_start>' in think_content or '<sentence_end>' in think_content
+        has_actual_content = any(word in think_content.lower() for word in ['hello', 'hi', 'good', 'how', 'can', 'help', 'what', 'thank', 'sorry', 'yes', 'no'])
+
+        if has_response_markers or has_actual_content:
             print(f"[Container] ⚠️ Stream ended in <think> block - extracting buffered response")
             yield think_content + '\n'
         else:

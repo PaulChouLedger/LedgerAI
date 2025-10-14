@@ -64,7 +64,6 @@ def handle_casual(prompt: str, llm_chat_fn, session_id: str = None):
     print(f"[CASUAL] 💬 Handling conversation: '{prompt[:50]}...'")
     
     # System prompt for casual conversation
-    # NOTE: Qwen models are trained to use <think> tags, but we want direct responses here
     system_prompt = (
         "You are Aura, a friendly and helpful AI assistant. "
         "You engage in natural, warm conversation. "
@@ -72,12 +71,7 @@ def handle_casual(prompt: str, llm_chat_fn, session_id: str = None):
         "Be conversational, empathetic, and approachable. "
         "If asked about medical symptoms, suggest they describe their symptoms so you can help assess them. "
         "\n\n"
-        "CRITICAL FORMATTING RULES:\n"
-        "- Output ONLY your direct response to the user\n"
-        "- Do NOT use <think> tags or show your reasoning\n"
-        "- Do NOT use chain-of-thought or explain your thought process\n"
-        "- Just give the final answer directly and naturally\n"
-        "- Respond immediately without any preamble or meta-commentary"
+        "IMPORTANT: Keep responses clean and direct. Do not include any thinking indicators or reasoning."
     )
     
     messages = [

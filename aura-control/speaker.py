@@ -98,9 +98,7 @@ def ssml_wrap(text):
     )
 
 def preprocess_for_tts(text):
-    # Remove thinking blocks (everything between <think> and </think>)
-    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
-    # Remove remaining control tags
+    # Remove remaining control tags (think blocks should already be filtered by container_rest)
     text = re.sub(r"<sentence_start>|<sentence_end>", "", text)
     return text.strip()
 
@@ -358,28 +356,9 @@ def speak_llm_response(prompt, context=""):
             stream=True, timeout=60
         )
         buffer = []
-        in_think_block = False  # Track if we're inside <think> tags
         for line in response.iter_lines(decode_unicode=True):
             token = line.strip()
             if not token:
-                continue
-            
-            # Filter out Qwen3 chain-of-thought reasoning and control tokens
-            if token == '<think>':
-                in_think_block = True
-                print(f"[LLM] 🤔 <think> block started (filtering CoT reasoning)")
-                continue
-            elif token == '</think>':
-                in_think_block = False
-                print(f"[LLM] ✅ </think> block ended")
-                continue
-            elif in_think_block:
-                # Also exit think block if we see <sentence_end> inside it
-                if token == '<sentence_end>':
-                    in_think_block = False
-                    print(f"[LLM] ✅ </think> block ended (via <sentence_end>)")
-                    continue
-                print(f"[LLM] 🤫 (thinking: {token[:50]}...)" if len(token) > 50 else f"[LLM] 🤫 (thinking: {token})")
                 continue
 
             # Filter out JSON response format (for /chat-tg compatibility issues)
@@ -390,7 +369,10 @@ def speak_llm_response(prompt, context=""):
                     json_data = json.loads(token)
                     response_text = json_data.get("response", "")
                     if response_text:
-                        print(f"[LLM] 📝 Extracted: '{response_text}'")
+                        # Clean the extracted response text (think tags should already be filtered by container_rest)
+                        response_text = response_text.replace('<think>', '').replace('</think>', '')
+                        response_text = response_text.replace('\\n', '\n').strip()
+                        print(f"[LLM] 📝 Extracted and cleaned: '{response_text}'")
                         buffer.append(response_text)
                         continue
                 except json.JSONDecodeError:
@@ -400,7 +382,7 @@ def speak_llm_response(prompt, context=""):
             if token in ['<sentence_start>', '<sentence_end>']:
                 print(f"[LLM] 🏷️  {token} (control token, skipping)")
                 continue
-            
+
             print(f"[LLM] 🧠 {token}")
             buffer.append(token)
             
@@ -470,10 +452,8 @@ def speak_llm_response(prompt, context=""):
             
             if should_split:
                 chunk_text = " ".join(buffer).strip()
-                # Remove sentence tags before TTS
-                # Remove thinking blocks and control tags
-                clean_text = re.sub(r'<think>.*?</think>', '', chunk_text, flags=re.DOTALL)
-                clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', clean_text).strip()
+                # Remove sentence tags before TTS (think blocks should already be filtered by container_rest)
+                clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
                 print(f"[TTS Debug] SPLITTING! Chunk: '{chunk_text}' -> Clean: '{clean_text}'")
                 if clean_text:
                     enqueue_tts_chunk(clean_text)
