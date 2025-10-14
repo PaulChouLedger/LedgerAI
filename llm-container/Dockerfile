@@ -31,7 +31,7 @@ RUN pip3 install --no-cache-dir --ignore-installed \
 
 # === Environment defaults (can be overridden by .env or -e) ===
 ENV MODEL_PATH=/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf
-ENV CHAT_FORMAT=llama
+ENV CHAT_FORMAT=llama-3
 ENV N_CTX=2048
 
 # Expose port for API

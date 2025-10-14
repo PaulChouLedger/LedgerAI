@@ -40,7 +40,7 @@ model_config = {
     "n_ctx": N_CTX,
     "n_gpu_layers": 32,
     "n_threads": 4,
-    "chat_format": os.getenv("CHAT_FORMAT", "llama"),
+    "chat_format": os.getenv("CHAT_FORMAT", "llama-3"),
     "use_mlock": True,
     "use_mmap": True,
     "verbose": False,
