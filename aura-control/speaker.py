@@ -105,8 +105,6 @@ def preprocess_for_tts(text):
 def enqueue_tts_chunk(text):
     global pending_initials
     
-    print(f"[TTS Debug] Enqueueing: '{text}'")
-    
     # Check if this should be merged with pending initials
     if pending_initials:
         # Check if current text is a name that should be merged
@@ -118,26 +116,21 @@ def enqueue_tts_chunk(text):
             
             # Merge the pending initials with this name
             merged_text = pending_initials + " " + text
-            print(f"[TTS Debug] MERGED: '{pending_initials}' + '{text}' = '{merged_text}'")
             pending_initials = None
             if merged_text and not re.match(r"^[\s.,!?]+$", merged_text):
                 SENTENCE_QUEUE.put(merged_text.strip())
-                print(f"[TTS Debug] Added merged to queue: '{merged_text.strip()}'")
             return
     
     # Check if this text ends with initials
     initials_pattern = r'\b[A-Z]\.(?:[A-Z]\.)*\s*$'
     if re.search(initials_pattern, text):
-        print(f"[TTS Debug] PENDING: Text ends with initials: '{text}'")
         pending_initials = text
         return  # Don't enqueue this yet, wait for the name
     
     # Normal enqueue
     if text and not re.match(r"^[\s.,!?]+$", text):
         SENTENCE_QUEUE.put(text.strip())
-        print(f"[TTS Debug] Added to queue: '{text.strip()}'")
     else:
-        print(f"[TTS Debug] Skipped (empty or filler): '{text}'")
 
 def merge_initials_with_names(text):
     """Post-process text to merge initials with names that might have been split"""
@@ -155,7 +148,6 @@ def merge_initials_with_names(text):
         # Look for this initials pattern at the end of a sentence
         pattern = re.escape(initials) + r'\s*$'
         if re.search(pattern, text):
-            print(f"[TTS Debug] Found initials at end: '{initials}'")
             # This text ends with initials, might need to be merged with next chunk
             # We'll handle this in the buffer logic above
     
@@ -178,14 +170,12 @@ def check_for_initials_merge(text):
             
             # Merge the pending initials with this name
             merged_text = pending_initials + " " + text
-            print(f"[TTS Debug] MERGED: '{pending_initials}' + '{text}' = '{merged_text}'")
             pending_initials = None
             return merged_text
     
     # Check if this text ends with initials
     initials_pattern = r'\b[A-Z]\.(?:[A-Z]\.)*\s*$'
     if re.search(initials_pattern, text):
-        print(f"[TTS Debug] PENDING: Text ends with initials: '{text}'")
         pending_initials = text
         return None  # Don't enqueue this yet, wait for the name
     
@@ -360,38 +350,13 @@ def speak_llm_response(prompt, context=""):
             token = line.strip()
             if not token:
                 continue
-            
-            # Debug: Show raw token received
-            print(f"[LLM] 📥 Raw token: '{token[:100]}...' (type: {type(token)})")
-
-            # Filter out JSON response format (this shouldn't happen with /chat-tts but handle it anyway)
-            if '{"response":' in token:
-                print(f"[LLM] ⚠️ WARNING: Received JSON response on streaming endpoint!")
-                print(f"[LLM] 📦 Full JSON: {token}")
-                try:
-                    import json
-                    json_data = json.loads(token)
-                    response_text = json_data.get("response", "")
-                    if response_text:
-                        print(f"[LLM] 📝 Extracted from JSON: '{response_text}'")
-                        # Split response into words and add to buffer
-                        for word in response_text.split():
-                            buffer.append(word)
-                    print(f"[LLM] ✅ Skipping JSON wrapper, extracted content added to buffer")
-                except json.JSONDecodeError as e:
-                    print(f"[LLM] ❌ Invalid JSON: {e}")
-                continue  # Always skip the JSON wrapper
 
             # Filter out empty control tokens
             if token in ['<sentence_start>', '<sentence_end>']:
-                print(f"[LLM] 🏷️  {token} (control token, skipping)")
                 continue
 
-            print(f"[LLM] 🧠 Adding token to buffer: '{token}'")
+            print(f"[LLM] 🧠 {token}")
             buffer.append(token)
-            
-            # Debug: Show buffer state
-            print(f"[TTS Debug] Token: '{token}', Buffer: {buffer}")
             
             # Count total words in buffer for accurate limit checking
             total_words = sum(len(t.split()) for t in buffer)
@@ -416,7 +381,6 @@ def speak_llm_response(prompt, context=""):
             
             # Debug logging
             if prev_token_was_initial:
-                print(f"[TTS Debug] Previous token was initial: '{buffer[-1]}', current: '{token}', is_following_initial: {is_following_initial}")
             
             # Don't split if current token is an initial/abbreviation OR if it looks like a name continuation
             # OR if it's following an initial (like "Rowling." after "J.K.")
@@ -432,8 +396,6 @@ def speak_llm_response(prompt, context=""):
                 not token.lower() in ['the.', 'and.', 'or.', 'but.', 'for.', 'nor.', 'yet.', 'so.']):  # Not common words
                 
                 # Check if any previous sentence in buffer ends with initials pattern (A.B. or A.B.C.)
-                print(f"[TTS Debug] Checking pattern for: '{token}'")
-                print(f"[TTS Debug] Full buffer: {buffer}")
                 
                 # Look for initials pattern in any previous sentence
                 initials_pattern = r'\b[A-Z]\.(?:[A-Z]\.)*\s*$'
@@ -442,23 +404,19 @@ def speak_llm_response(prompt, context=""):
                 for i in range(len(buffer) - 1, -1, -1):
                     if i < len(buffer) - 1:  # Don't check the current token
                         sentence = buffer[i]
-                        print(f"[TTS Debug] Checking sentence {i}: '{sentence}'")
                         if re.search(initials_pattern, sentence):
-                            print(f"[TTS Debug] MERGING: Found initials in sentence {i}: '{sentence}' + '{token}'")
                             # Don't split, let it continue to build the full name
                             should_split = False
                             found_initials = True
                             break
                 
                 if not found_initials:
-                    print(f"[TTS Debug] No initials pattern found in any previous sentence")
             
             
             if should_split:
                 chunk_text = " ".join(buffer).strip()
                 # Remove sentence tags before TTS
                 clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
-                print(f"[TTS Debug] SPLITTING! Chunk: '{chunk_text}' -> Clean: '{clean_text}'")
                 if clean_text:
                     enqueue_tts_chunk(clean_text)
                 buffer.clear()
@@ -477,7 +435,6 @@ def speak_llm_response(prompt, context=""):
                     pending_initials = None
                     if merged_text and not re.match(r"^[\s.,!?]+$", merged_text):
                         SENTENCE_QUEUE.put(merged_text.strip())
-                        print(f"[TTS Debug] Added merged to queue: '{merged_text.strip()}'")
                     buffer.clear()
         if buffer:
             chunk_text = " ".join(buffer).strip()

@@ -113,36 +113,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sessions[chat_id]["history"].append(user_message)
 
     try:
-        # Forward to Aura's streaming endpoint (same as TTS)
+        # Forward to Aura's /chat-tg endpoint (returns JSON, not streaming)
         resp = requests.post(
             AURA_CHAT_URL,
             json={
                 "prompt": user_message,
-                "chat_id": str(chat_id),  # so backend can separate sessions if needed
-                "history": sessions[chat_id]["history"]
+                "chat_id": str(chat_id)  # Backend uses this for session management
             },
-            timeout=30,
-            stream=True
+            timeout=30
         )
 
         if resp.status_code != 200:
             await update.message.reply_text("⚠️ Error talking to Aura.")
             return
 
-        # Collect all streaming responses (same logic as TTS)
-        response_parts = []
-        for line in resp.iter_lines(decode_unicode=True):
-            token = line.strip()
-            if not token:
-                continue
-            response_parts.append(token)
-        
-        response_text = ' '.join(response_parts) if response_parts else "I'm sorry, I didn't understand that."
-        
-        # Remove sentence tags for Telegram display
-        import re
-        response_text = re.sub(r'<sentence_start>|<sentence_end>', '', response_text)
-        response_text = re.sub(r'\s+', ' ', response_text).strip()  # Normalize spaces
+        # Parse JSON response from /chat-tg
+        try:
+            import json
+            response_data = resp.json()
+            response_text = response_data.get("response", "I'm sorry, I didn't understand that.")
+        except json.JSONDecodeError:
+            print(f"[Telegram] ❌ Failed to parse JSON: {resp.text}")
+            response_text = "I'm sorry, there was an error processing your request."
         
         # Debug: Log the response to help diagnose issues
         print(f"[Telegram] 📤 Response to {chat_id}: {response_text[:100]}...")
