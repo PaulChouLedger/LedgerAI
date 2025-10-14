@@ -907,7 +907,11 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str, llm
             # Store the extracted value
             state["answers"].append(extracted_value)
             
-            # Update flags based on severity
+            # CRITICAL: Call update_flags_from_answer to handle followup questions and pathways
+            # This is where "left side" triggers the upper/lower clarification
+            update_flags_from_answer(condition, last_key, extracted_value, state, session_id)
+            
+            # Override severity flag if LLM provided one
             if severity_flag:
                 state["flags"][last_key] = severity_flag
             
@@ -1039,10 +1043,13 @@ def generate_triage_completion(state: Dict[str, Any], session_id: str, llm_chat_
     # Classify severity
     severity = classify_response(condition, flags)
     
+    print(f"[Triage] 📊 Building recap (severity={severity})...")
+    
     # Build recap
     recap = build_recap(condition, answers, flags, severity, session_id)
 
     # Generate sophisticated LLM-based outcome instead of hardcoded responses
+    print(f"[Triage] 🧠 Generating clinical outcome...")
     if llm_chat_fn:
         outcome = _generate_llm_outcome(condition, severity, answers, flags, state, llm_chat_fn)
     else:
@@ -1124,6 +1131,13 @@ def _generate_llm_outcome(condition: str, severity: str, answers: List[str], fla
             outcomes = pathway_outcomes
     
     json_outcome = outcomes.get(severity, "")
+    
+    # If JSON outcome exists and is clear, just use it directly for speed
+    if json_outcome and len(json_outcome) < 200 and severity in ["emergency", "urgent"]:
+        print(f"[Triage] ⚡ Using fast JSON outcome for {severity}")
+        # Clean up JSON outcome and return immediately
+        cleaned = json_outcome.replace("the patient", "you").replace("The patient", "You")
+        return cleaned
 
     system_prompt = """You are a medical triage AI speaking directly to a patient.
 
@@ -1134,26 +1148,22 @@ CRITICAL INSTRUCTIONS:
 - Be conversational but clinically accurate and empathetic
 - For emergencies, be direct and urgent but not alarming
 - Do NOT say "I can't provide a diagnosis" - you ARE providing a triage assessment
-- Keep it concise - 2-3 sentences maximum
+- Keep it VERY concise - 1-2 sentences maximum
 - Integrate the diagnosis and action naturally
 
-Example emergency: "Your symptoms are concerning for acute cholangitis, which is a medical emergency. Please call 911 or go to the nearest emergency room immediately."
+Example emergency: "Your symptoms are concerning for acute cholangitis, which is a medical emergency. Please call 911 immediately."
 
-Example urgent: "Your symptoms suggest acute appendicitis and need urgent evaluation. Please go to an urgent care or emergency room within the next 2-4 hours."
+Example urgent: "Your symptoms suggest acute appendicitis. Please go to an urgent care or emergency room within the next 2-4 hours."
 
-Example non-urgent: "Your symptoms are consistent with gastritis. You should schedule an appointment with your doctor within the next day or two to get this checked out."
+Example non-urgent: "Your symptoms are consistent with gastritis. Schedule an appointment with your doctor within 1-2 days."
 """
 
-    user_prompt = f"""Patient is experiencing: {chief_complaint}
-Severity Level: {severity.title()}
+    user_prompt = f"""Severity: {severity.title()}
+Symptoms: {chief_complaint}
 
-Key Symptoms:
-{answers_context}
+Clinical Guidance: {json_outcome}
 
-Clinical Guidance from Protocol:
-{json_outcome}
-
-Based on this triage assessment, provide a brief, direct clinical assessment and care recommendation speaking directly to the patient."""
+Provide a brief 1-2 sentence clinical assessment and care recommendation."""
 
     try:
         messages = [
@@ -1161,9 +1171,10 @@ Based on this triage assessment, provide a brief, direct clinical assessment and
             {"role": "user", "content": user_prompt}
         ]
 
+        # Reduce max_tokens for faster generation (2-3 sentences only)
         response = llm_chat_fn(
             messages=messages,
-            max_tokens=300,
+            max_tokens=150,  # Reduced from 300 for faster response
             temperature=0.7,
             stream=False
         )
