@@ -262,8 +262,12 @@ def filter_think_blocks(generator):
     """
     Filter <think> blocks from streamed tokens
     Wraps any generator to remove chain-of-thought reasoning
+    
+    NOTE: Qwen models often wrap responses in <think> tags.
+    We need to extract the actual response from within the think block.
     """
     in_think_block = False
+    think_buffer = []  # Buffer content inside think blocks
     
     for token in generator:
         token = token.strip()
@@ -271,30 +275,47 @@ def filter_think_blocks(generator):
             continue
         
         # Detect think block start
-        if token == '<think>' or '<think>' in token:
+        if '<think>' in token:
             in_think_block = True
-            print(f"[Container] 🤔 <think> block detected (filtering)")
+            think_buffer = []
+            print(f"[Container] 🤔 <think> block detected")
+            # Extract any content after <think> tag
+            parts = token.split('<think>', 1)
+            if len(parts) > 1 and parts[1].strip():
+                think_buffer.append(parts[1])
             continue
         
         # Detect think block end
-        if token == '</think>' or '</think>' in token:
+        if '</think>' in token:
+            # Extract any content before </think> tag
+            parts = token.split('</think>', 1)
+            if parts[0].strip():
+                think_buffer.append(parts[0])
+            
+            # Check if think buffer contains actual response (has <sentence_start>)
+            think_content = '\n'.join(think_buffer)
+            if '<sentence_start>' in think_content:
+                print(f"[Container] ✅ Extracting response from <think> block")
+                # Yield the content that was inside the think block
+                yield think_content + '\n'
+            else:
+                print(f"[Container] ✅ <think> block filtered (no response content)")
+            
             in_think_block = False
-            print(f"[Container] ✅ </think> block ended")
+            think_buffer = []
+            
+            # Yield any content after </think> tag
+            if len(parts) > 1 and parts[1].strip():
+                yield parts[1] + '\n'
             continue
         
-        # Also close think block on <sentence_end> if inside one
-        if in_think_block and ('<sentence_end>' in token or token == '<sentence_end>'):
-            in_think_block = False
-            print(f"[Container] ✅ <think> block ended (via <sentence_end>)")
-            continue
-        
-        # Skip everything inside think blocks
+        # Buffer or yield based on think block state
         if in_think_block:
-            print(f"[Container] 🤫 (thinking: {token[:50]}...)" if len(token) > 50 else f"[Container] 🤫 (thinking: {token})")
-            continue
-        
-        # Yield tokens outside think blocks
-        yield token + '\n'
+            think_buffer.append(token)
+            print(f"[Container] 🤫 (buffering: {token[:50]}...)" if len(token) > 50 else f"[Container] 🤫 (buffering: {token})")
+        else:
+            # Yield tokens outside think blocks
+            yield token + '\n'
 
 # === Helper Functions ===
 
