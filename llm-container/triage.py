@@ -869,11 +869,22 @@ def process_triage_step(prompt: str, state: Dict[str, Any], session_id: str, llm
         print(f"[Triage] 🔍 Validating answer '{prompt}' for question key '{last_key}'")
 
         # Find the step that matches last_key
+        # CRITICAL: Search in 'steps' (which includes pathway steps), NOT 'step_list' (original main steps)
         step_to_validate = None
-        for s in step_list:
+        for s in steps:
             if s.get("key") == last_key:
                 step_to_validate = s
+                print(f"[Triage] ✅ Found step definition for key '{last_key}'")
                 break
+        
+        if not step_to_validate:
+            print(f"[Triage] ⚠️ Could not find step definition for key '{last_key}' in current step list")
+            # Try searching in step_list as fallback
+            for s in step_list:
+                if s.get("key") == last_key:
+                    step_to_validate = s
+                    print(f"[Triage] ✅ Found step definition in fallback step_list")
+                    break
         
         # Use LLM-based validation for natural conversation
         if llm_chat_fn and step_to_validate:
