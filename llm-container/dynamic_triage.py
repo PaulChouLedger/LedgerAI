@@ -144,14 +144,18 @@ Your job is to:
 2. Extract the relevant medical information
 3. Classify the response based on the expected answer types
 
-CRITICAL RULES:
-- Accept natural language variations: "yesterday" = valid onset
-- Accept typos: "yesterat" = "yesterday"
-- For yes/no questions: accept "yeah", "nope", "no way", etc.
-- For timing: accept "yesterday", "today", "few days ago", "last week", etc.
-- For location: accept "left", "right", "upper", "lower", "middle", etc.
-- Be GENEROUS with validation - if you can understand it, it's valid
-- Do NOT require perfect formatting
+CRITICAL RULES - BE VERY PERMISSIVE:
+- DEFAULT TO ACCEPTING RESPONSES - if you have ANY doubt, mark as valid
+- Accept single words: "right", "left", "upper", "lower" are ALL valid location answers
+- Accept partial answers: "right" = "right side"
+- Accept natural variations: "yesterday", "today", "few days ago", "last week"
+- Accept typos: "yesterat" = "yesterday", "roght" = "right"
+- For yes/no: accept "yeah", "yep", "nope", "nah", "uh huh", etc.
+- For location: "left", "right", "upper", "lower", "middle", "center" are ALL valid
+- For timing: ANY time expression is valid
+- Only mark as invalid if the response is completely nonsensical or off-topic
+
+IMPORTANT: Single-word location answers like "right", "left", "upper", "lower" are ALWAYS VALID.
 
 Respond in JSON format ONLY:
 {
@@ -162,6 +166,9 @@ Respond in JSON format ONLY:
 }
 
 Examples:
+User: "right" for "Where is the pain?"
+→ {"is_valid": true, "extracted_value": "right side", "severity_flag": null, "confidence": 0.95}
+
 User: "yesterday" for "When did it start?"
 → {"is_valid": true, "extracted_value": "yesterday", "severity_flag": null, "confidence": 0.95}
 
@@ -171,11 +178,14 @@ User: "yesterat" for "When did it start?"
 User: "yeah" for "Do you have fever?"
 → {"is_valid": true, "extracted_value": "yes", "severity_flag": "urgent", "confidence": 0.95}
 
-User: "left side" for "Where is the pain?"
-→ {"is_valid": true, "extracted_value": "left side", "severity_flag": null, "confidence": 0.95}
+User: "upper" for "Where is the pain?"
+→ {"is_valid": true, "extracted_value": "upper abdomen", "severity_flag": null, "confidence": 0.95}
 
 User: "not sure" for any question
 → {"is_valid": false, "extracted_value": null, "severity_flag": null, "confidence": 0.3}
+
+User: "what?" or "huh?" for any question
+→ {"is_valid": false, "extracted_value": null, "severity_flag": null, "confidence": 0.1}
 """
 
     # Build expected answer info
@@ -220,25 +230,101 @@ Validate this response and extract the information. Return JSON only."""
         json_match = re.search(r'\{.*\}', content, re.DOTALL)
         if json_match:
             result = json.loads(json_match.group())
-            print(f"[DynamicTriage] ✅ Validated: {result}")
+            print(f"[DynamicTriage] ✅ LLM Validation Result: {result}")
+            
+            # If LLM says invalid but it looks reasonable, use fallback to double-check
+            if not result.get("is_valid"):
+                print(f"[DynamicTriage] ⚠️ LLM marked as invalid, double-checking with fallback...")
+                fallback_result = _fallback_validation(user_response, step_key, expected_answers)
+                if fallback_result.get("is_valid"):
+                    print(f"[DynamicTriage] ✅ Fallback says valid: {fallback_result}")
+                    return fallback_result
+            
             return result
         else:
             print(f"[DynamicTriage] ⚠️ No JSON in response: {content}")
-            return {
-                "is_valid": False,
-                "extracted_value": None,
-                "severity_flag": None,
-                "confidence": 0.0
-            }
+            # Use fallback validation
+            return _fallback_validation(user_response, step_key, expected_answers)
     
     except Exception as e:
         print(f"[DynamicTriage] ❌ Error validating answer: {e}")
-        return {
-            "is_valid": False,
-            "extracted_value": None,
-            "severity_flag": None,
-            "confidence": 0.0
-        }
+        # Fallback to simple heuristic validation
+        return _fallback_validation(user_response, step_key, expected_answers)
+
+
+def _fallback_validation(user_response: str, step_key: str, expected_answers: Dict) -> Dict[str, Any]:
+    """
+    Simple heuristic validation when LLM fails
+    Be very permissive - accept most reasonable responses
+    """
+    response_lower = user_response.lower().strip()
+    
+    print(f"[DynamicTriage] 🔍 Fallback validation: response='{response_lower}', step_key='{step_key}'")
+    
+    # Location questions - accept directional words
+    if "location" in step_key.lower() or "where" in step_key.lower() or "side" in step_key.lower():
+        location_words = ["left", "right", "upper", "lower", "middle", "center", "top", "bottom", "diffuse", "quadrant"]
+        if any(word in response_lower for word in location_words):
+            print(f"[DynamicTriage] ✅ Fallback: Location answer detected")
+            return {
+                "is_valid": True,
+                "extracted_value": user_response,
+                "severity_flag": None,
+                "confidence": 0.8
+            }
+    
+    # Timing questions - accept temporal words
+    if "onset" in step_key or "when" in step_key or "start" in step_key:
+        temporal_words = ["today", "yesterday", "day", "week", "hour", "ago", "morning", "evening", "night"]
+        if any(word in response_lower for word in temporal_words):
+            return {
+                "is_valid": True,
+                "extracted_value": user_response,
+                "severity_flag": None,
+                "confidence": 0.8
+            }
+    
+    # Yes/No questions - accept variations
+    if expected_answers and set(expected_answers.keys()) & {"yes", "no"}:
+        yes_words = ["yes", "yeah", "yep", "yup", "uh huh", "sure", "definitely"]
+        no_words = ["no", "nope", "nah", "not really", "negative"]
+        
+        if any(word in response_lower for word in yes_words):
+            severity = expected_answers.get("yes")
+            return {
+                "is_valid": True,
+                "extracted_value": "yes",
+                "severity_flag": severity,
+                "confidence": 0.9
+            }
+        elif any(word in response_lower for word in no_words):
+            severity = expected_answers.get("no")
+            return {
+                "is_valid": True,
+                "extracted_value": "no",
+                "severity_flag": severity,
+                "confidence": 0.9
+            }
+    
+    # If response is not just "not sure" or "don't know", accept it
+    uncertain_phrases = ["not sure", "don't know", "dunno", "idk", "unclear", "unsure"]
+    if not any(phrase in response_lower for phrase in uncertain_phrases):
+        # Default to accepting if it has some content
+        if len(response_lower.split()) >= 1 and len(response_lower) >= 2:
+            return {
+                "is_valid": True,
+                "extracted_value": user_response,
+                "severity_flag": None,
+                "confidence": 0.7
+            }
+    
+    # Last resort - mark as invalid
+    return {
+        "is_valid": False,
+        "extracted_value": None,
+        "severity_flag": None,
+        "confidence": 0.0
+    }
 
 
 def map_severity_to_flag(severity_label: str, step_key: str) -> str:
