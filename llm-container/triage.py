@@ -20,7 +20,6 @@ from glob import glob
 
 # Global triage definitions dictionary
 TRIAGE_DEFS = {}
-MIN_MATCH = 0.6
 
 def load_triage_definitions(triage_dir="/app/triage_defs"):
     """Load all triage definitions from JSON files"""
@@ -116,9 +115,7 @@ def normalize_text(text: str) -> str:
     return text.lower().translate(str.maketrans('', '', string.punctuation)).strip()
 
 
-def tokenize(text: str) -> List[str]:
-    """Tokenize normalized text"""
-    return normalize_text(text).split()
+# tokenize moved to validation.py
 
 
 def substitute_name(text: str, user_name: str) -> str:
@@ -194,85 +191,49 @@ def apply_synonym_expansion(text: str) -> str:
 
 # === Answer Matching ===
 
-def normalize_yes_no_response(text: str) -> str:
-    """Normalize natural yes/no responses"""
-    text_lower = text.lower().strip()
-    
-    # Negative responses first
-    if any(phrase in text_lower for phrase in [
-        "no", "nope", "nah", "not", "don't", "do not", "haven't", "have not",
-        "i don't", "i do not", "i haven't", "i have not",
-        "i don't have", "i do not have", "i don't feel", "i do not feel",
-        "i don't experience", "i do not experience", "i am not", "i'm not"
-    ]):
-        return "no"
-    
-    if text_lower in ["i dont", "i don't", "i do not", "i havent", "i haven't", "i have not"]:
-        return "no"
-    
-    # Positive responses
-    if any(phrase in text_lower for phrase in [
-        "yes", "yea", "yeah", "yep", "yup", "sure", "ok", "okay",
-        "i do", "i have", "i am", "i feel", "i experience",
-        "i do have", "i do feel", "i do experience",
-        "i have been", "i am having", "i am experiencing"
-    ]):
-        return "yes"
-    
-    return text
+# Import centralized validation from validation module
+from validation import match_answer_option, check_typo_similarity, MIN_MATCH, get_generic_onset_answers, match_flexible_time, tokenize, normalize_yes_no_response
 
 
-def get_generic_onset_answers() -> Dict[str, str]:
-    """Get standard onset answers"""
-    return {
-        "within the last hour": "emergency",
-        "within the last few hours": "emergency",
-        "today": "urgent",
-        "yesterday": "urgent",
-        "a few days ago": "urgent",
-        "a week ago": "non_urgent",
-        "unknown": "urgent"
-    }
+def is_valid_answer(condition: str, key: str, answer: str, state: Dict[str, Any]) -> bool:
+    """Validate if answer is acceptable for given question"""
+    ans_norm = normalize_text(answer)
+    print(f"[Triage] 🔍 Validating answer: key='{key}', ans='{answer}' (norm='{ans_norm}')")
 
+    if key and key.startswith("clarify_") and state.get("pending_clarify") and state["pending_clarify"].get("key") == key:
+        opt, score = match_answer_option(ans_norm, state["pending_clarify"].get("answers", {}), use_synonyms=False, key=key)
+        print(f"[Triage] 🔍 Clarify validation: opt='{opt}', score={score}, threshold={MIN_MATCH}")
+        return opt and score >= MIN_MATCH
 
-def match_flexible_time(ans_expanded: str, valid_map: Dict[str, str]) -> Optional[Tuple[str, float]]:
-    """Match flexible time patterns like '3 hours ago'"""
-    time_pattern = r'(\d+)\s*(minute|hour|day|week|month)s?\s*ago'
-    match = re.search(time_pattern, ans_expanded, re.IGNORECASE)
-    
-    if not match:
-        return None
-    
-    number = int(match.group(1))
-    unit = match.group(2).lower()
-    
-    if unit in ['minute', 'hour']:
-        if unit == 'minute' or (unit == 'hour' and number <= 6):
-            return "within the last hour", 1.0
-        elif unit == 'hour' and number <= 12:
-            return "within the last few hours", 1.0
-        else:
-            return "today", 1.0
-    elif unit == 'day':
-        if number == 1:
-            return "yesterday", 1.0
-        elif number <= 7:
-            return "a few days ago", 1.0
-        else:
-            return "a week ago", 1.0
-    elif unit == 'week':
-        if number == 1:
-            return "a week ago", 1.0
-        else:
-            return "last week", 1.0
-    elif unit == 'month':
-        return "last week", 1.0
-    
-    return None
+    steps = get_steps(condition, state)
+    print(f"[Triage] 🔍 Found {len(steps)} steps for condition '{condition}'")
 
+    for s in steps:
+        if isinstance(s, dict) and s.get("key") == key:
+            answers = s.get("answers", {})
+            print(f"[Triage] 🔍 Checking step with key '{key}', answers: {answers}")
 
-# Import centralized validation from container_rest
-from container_rest import match_answer_option, check_typo_similarity, is_valid_answer
+            # For onset questions with empty answers, use generic onset validation
+            if not answers and key == "onset":
+                print(f"[Triage] 🔍 Onset question - using generic time validation")
+                generic_onset_answers = get_generic_onset_answers()
+                opt, score = match_answer_option(ans_norm, generic_onset_answers, key=key, 
+                                                synonym_expansion_fn=apply_synonym_expansion)
+                print(f"[Triage] 🔍 Time matching: opt='{opt}', score={score}, threshold={MIN_MATCH}")
+                return opt and score >= MIN_MATCH
+
+            # For other empty answers, accept any answer (rare case)
+            if not answers:
+                print(f"[Triage] ⚠️ Empty answers for '{key}' - accepting any answer")
+                return True
+
+            opt, score = match_answer_option(ans_norm, answers, key=key, 
+                                            synonym_expansion_fn=apply_synonym_expansion)
+            print(f"[Triage] 🔍 Answer matching: opt='{opt}', score={score}, threshold={MIN_MATCH}")
+            return opt and score >= MIN_MATCH
+
+    print(f"[Triage] ❌ No step found with key '{key}'")
+    return False
 
 
 def match_all_options(ans_norm: str, valid_map: Dict[str, str]) -> List[str]:

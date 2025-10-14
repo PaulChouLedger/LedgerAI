@@ -5,6 +5,7 @@ FROM llama_cpp:r36.4.tegra-aarch64-cu126-22.04
 WORKDIR /app
 
 # Copy application logic (modular architecture)
+COPY validation.py .
 COPY container_rest.py .
 COPY nlg.py .
 COPY router.py .
