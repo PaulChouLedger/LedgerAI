@@ -173,12 +173,43 @@ class MedicalDataIngester:
                 fetch_data = fetch_response.text
 
                 # Parse XML for abstracts
-                root = ET.fromstring(fetch_data)
+                try:
+                    root = ET.fromstring(fetch_data)
+                except ET.ParseError as e:
+                    print(f"❌ XML parsing error for PMID batch: {e}")
+                    continue
 
                 for pmid in batch_pmids:
                     try:
-                        article = root.find(f".//PubmedArticle[MedlineCitation/PMID='{pmid}']")
+                        # Try different XPath patterns for finding articles
+                        article = None
+
+                        # Try the original pattern first (with proper escaping)
+                        try:
+                            article = root.find(f".//PubmedArticle[MedlineCitation/PMID='{pmid}']")
+                        except Exception as xpath_error:
+                            print(f"❌ XPath error for PMID {pmid}: {xpath_error}")
+
+                        # If not found, try alternative patterns
                         if article is None:
+                            try:
+                                article = root.find(f".//PubmedArticle[PMID='{pmid}']")
+                            except Exception:
+                                pass
+
+                        if article is None:
+                            # Try finding by text content
+                            try:
+                                for pubmed_article in root.findall('.//PubmedArticle'):
+                                    pmid_elem = pubmed_article.find('.//PMID')
+                                    if pmid_elem is not None and pmid_elem.text == pmid:
+                                        article = pubmed_article
+                                        break
+                            except Exception:
+                                pass
+
+                        if article is None:
+                            print(f"❌ Could not find article for PMID {pmid}")
                             continue
 
                         # Extract basic info
@@ -682,6 +713,13 @@ class MedicalDataIngester:
 
         print(f"📝 Extracted {len(all_texts)} medical texts")
 
+        # Check if we have any substantial content
+        total_text_length = sum(len(text) for text in all_texts)
+        if total_text_length < 1000:  # Less than 1000 characters total
+            print("❌ Insufficient text content for meaningful embeddings")
+            print(f"💡 Total text length: {total_text_length} characters")
+            return False
+
         # Create medical-specific chunks
         all_chunks = []
         chunk_metadata = []
@@ -703,15 +741,29 @@ class MedicalDataIngester:
 
         # Generate embeddings using medical-optimized model if available
         try:
+            # Set cache directory to avoid permission issues
+            import os
+            cache_dir = os.path.join(os.getcwd(), 'models_cache')
+            os.makedirs(cache_dir, exist_ok=True)
+            os.environ['TRANSFORMERS_CACHE'] = cache_dir
+            os.environ['HF_HOME'] = cache_dir
+            os.environ['HF_HUB_CACHE'] = cache_dir
+
             # Try to use a medical-specific model first
             model_name = "pritamdeka/BioBERT-mnli-snli-scinli-stsb"
             print(f"🧠 Loading medical model: {model_name}")
 
-            encoder = SentenceTransformer(model_name, device='cuda' if 'cuda' in str(torch.device('cuda:0')) else 'cpu')
-        except:
+            encoder = SentenceTransformer(model_name, device='cuda' if 'cuda' in str(torch.device('cuda:0')) else 'cpu', cache_folder=cache_dir)
+        except Exception as e:
+            print(f"⚠️ Medical model failed: {e}")
             # Fall back to general model
-            print("🧠 Using general model: all-MiniLM-L6-v2")
-            encoder = SentenceTransformer('all-MiniLM-L6-v2', device='cuda' if 'cuda' in str(torch.device('cuda:0')) else 'cpu')
+            try:
+                print("🧠 Using general model: all-MiniLM-L6-v2")
+                encoder = SentenceTransformer('all-MiniLM-L6-v2', device='cuda' if 'cuda' in str(torch.device('cuda:0')) else 'cpu', cache_folder=cache_dir)
+            except Exception as e2:
+                print(f"❌ Both models failed. Medical embeddings cannot be generated: {e2}")
+                print("💡 Try running: pip install sentence-transformers")
+                return False
 
         print("🔢 Generating medical embeddings...")
         embeddings = encoder.encode(all_chunks, convert_to_numpy=True, show_progress_bar=True)
@@ -822,6 +874,10 @@ class MedicalDataIngester:
 
         self.save_medical_documents(pubmed_articles, "pubmed")
 
+        # Check if PubMed scraping worked, if not, continue with other sources
+        if not pubmed_articles:
+            print("⚠️ PubMed scraping returned no articles, continuing with other sources...")
+
         # Step 2: Scrape clinical guidelines
         print("\n📋 Step 2: Scraping clinical guidelines...")
         guidelines = self.scrape_clinical_guidelines()
@@ -832,20 +888,29 @@ class MedicalDataIngester:
         journal_articles = self.scrape_medical_journals()
         self.save_medical_documents(journal_articles, "journals")
 
-        # Step 4: Rebuild embeddings
+        # Step 4: Rebuild embeddings (only if we have substantial content)
         print("\n🔄 Step 4: Rebuilding medical embeddings...")
-        success = self.rebuild_medical_embeddings()
+        total_docs = len(pubmed_articles) + len(guidelines) + len(journal_articles)
 
-        if success:
-            # Update state
-            self.state["last_update"] = datetime.now().isoformat()
-            self.state["total_articles"] = len(pubmed_articles)
-            self.state["total_guidelines"] = len(guidelines)
-            self.save_state()
+        if total_docs > 0:
+            success = self.rebuild_medical_embeddings()
 
-            print("✅ Full medical data ingestion completed!")
+            if success:
+                # Update state
+                self.state["last_update"] = datetime.now().isoformat()
+                self.state["total_articles"] = len(pubmed_articles)
+                self.state["total_guidelines"] = len(guidelines)
+                self.state["total_journal_articles"] = len(journal_articles)
+                self.save_state()
+
+                print("✅ Full medical data ingestion completed!")
+                print(f"📊 Summary: {len(pubmed_articles)} PubMed articles, {len(guidelines)} guidelines, {len(journal_articles)} journal articles")
+            else:
+                print("❌ Medical embeddings rebuild failed!")
+                return False
         else:
-            print("❌ Medical data ingestion failed!")
+            print("❌ No medical documents collected - cannot rebuild embeddings")
+            return False
 
         return success
 
