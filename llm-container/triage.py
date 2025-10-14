@@ -1001,19 +1001,34 @@ def _generate_llm_outcome(condition: str, severity: str, answers: List[str], fla
 
     # Build clinical context
     clinical_summary = TRIAGE_DEFS[condition].get("clinical_summary", "")
+    
+    # Get the JSON-defined outcome for this severity level (as guidance)
+    active_pathway = state.get("active_pathway")
+    outcomes = TRIAGE_DEFS[condition].get("outcomes", {})
+    
+    if active_pathway and "pathways" in TRIAGE_DEFS[condition]:
+        pathway_outcomes = TRIAGE_DEFS[condition]["pathways"][active_pathway].get("outcomes", {})
+        if pathway_outcomes:
+            outcomes = pathway_outcomes
+    
+    json_outcome = outcomes.get(severity, "")
 
-    system_prompt = """You are a medical triage AI providing care recommendations.
-You must provide clear, actionable medical advice based on the patient's symptoms and triage results.
+    system_prompt = """You are a medical triage AI providing clinical assessments and care recommendations.
 
-Guidelines:
-- Be specific and clinical, but conversational and empathetic
-- Provide clear next steps for the patient
+CRITICAL INSTRUCTIONS:
+- You MUST provide probable diagnoses based on the symptoms and triage data
+- Use clinical language: "This is concerning for [diagnosis]" or "These symptoms suggest [diagnosis]"
+- Be specific about the medical condition (e.g., "acute cholangitis", "appendicitis", "myocardial infarction")
+- State the severity clearly (emergency, urgent, or non-urgent)
+- Provide specific, actionable next steps
 - Include timeframes for seeking care
-- Mention what symptoms to watch for that indicate worsening
-- If emergency, emphasize immediate action
-- If non-emergency, provide appropriate care level and timing
-- Use the patient's name if provided
-- Keep recommendations evidence-based and practical"""
+- For emergencies, emphasize calling 911 or going to ER immediately
+- Be conversational but clinically accurate
+- Do NOT say "I can't provide a diagnosis" - you are providing a triage assessment
+
+Example emergency response: "Your symptoms of fever, jaundice, and vomiting are concerning for acute cholangitis. This is a medical emergency. Please call 911 or go to the nearest emergency room immediately."
+Example urgent response: "Your symptoms suggest acute appendicitis and require urgent evaluation. Please go to an urgent care or emergency room within 2-4 hours."
+"""
 
     user_prompt = f"""Patient: {user_name}
 Chief Complaint: {chief_complaint}
@@ -1024,14 +1039,16 @@ Clinical Assessment: {clinical_summary}
 Patient's Answers:
 {answers_context}
 
-Based on this triage assessment, provide a specific, actionable recommendation for next steps in care.
+Clinical Guidance (from triage protocol):
+{json_outcome}
 
-Include:
-1. Urgency level and appropriate care setting
-2. Specific timeframes for seeking care
-3. Symptoms to monitor for worsening
-4. When to seek emergency care vs scheduled appointment
-5. Any immediate self-care advice if appropriate"""
+Based on this triage assessment, provide a specific clinical assessment with probable diagnosis and care recommendation.
+
+Your response must:
+1. State what the symptoms are concerning for (probable diagnosis)
+2. Clearly state the severity level (emergency/urgent/non-urgent)
+3. Provide specific next steps (call 911, ER, urgent care, or scheduled appointment)
+4. Include timeframes if appropriate"""
 
     try:
         messages = [
