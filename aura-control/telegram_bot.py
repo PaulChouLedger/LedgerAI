@@ -8,7 +8,7 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Messa
 # === Load token ===
 load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-AURA_CHAT_URL = os.getenv("AURA_CHAT_URL", "http://127.0.0.1:11434/chat")
+AURA_CHAT_URL = os.getenv("AURA_CHAT_URL", "http://127.0.0.1:11434/chat-tg")
 
 if not TELEGRAM_BOT_TOKEN:
     raise RuntimeError("⚠️ TELEGRAM_BOT_TOKEN not found in environment")

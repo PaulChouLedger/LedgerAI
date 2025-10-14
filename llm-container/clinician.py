@@ -14,7 +14,7 @@ This is the next evolution of medical AI conversation.
 
 import requests
 import re
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Callable
 from difflib import SequenceMatcher
 
 class ClinicianSession:
@@ -23,9 +23,10 @@ class ClinicianSession:
     Uses RAG to access medical guidelines and generate intelligent questions
     """
     
-    def __init__(self, session_id: str, chief_complaint: str):
+    def __init__(self, session_id: str, chief_complaint: str, llm_chat_fn: Callable):
         self.session_id = session_id
         self.chief_complaint = chief_complaint
+        self.llm_chat_fn = llm_chat_fn  # Direct LLM access, no HTTP
         self.conversation_history = []
         self.findings = {}
         self.differential_diagnoses = []
@@ -120,42 +121,33 @@ class ClinicianSession:
         context = "\n\n".join([g.get('text', g.get('chunk', '')) for g in guidelines[:3]])
         
         # Use LLM to generate intelligent opening
-        prompt = f"""You are a skilled clinician taking a medical history.
+        system_prompt = """You are a skilled clinician taking a medical history.
+Be conversational, empathetic, and clinically sound. Ask only ONE focused question.
+Provide:
+1. A brief acknowledgment of their concern (1 sentence)
+2. The MOST important first question to ask (guided by clinical guidelines)"""
 
-Patient's chief complaint: "{self.chief_complaint}"
+        user_prompt = f"""Patient's chief complaint: "{self.chief_complaint}"
 
 Relevant medical guidelines:
-{context}
-
-Based on these guidelines, provide:
-1. A brief acknowledgment of their concern (1 sentence)
-2. The MOST important first question to ask (guided by clinical guidelines)
-
-Be conversational, empathetic, and clinically sound. Ask only ONE focused question."""
+{context}"""
 
         try:
-            response = requests.post(
-                "http://localhost:11434/chat",
-                json={
-                    "prompt": prompt,
-                    "session_id": f"clinician_{self.session_id}",
-                    "reset": True
-                },
-                timeout=10,
-                stream=True
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ]
+            
+            # Call LLM directly (non-streaming for simplicity)
+            response = self.llm_chat_fn(
+                messages=messages,
+                max_tokens=200,
+                temperature=0.7,
+                stream=False
             )
             
-            # Collect streamed response
-            result = ""
-            for line in response.iter_lines():
-                if line:
-                    text = line.decode('utf-8')
-                    # Extract content between sentence tags
-                    match = re.search(r'<sentence_start>\s*(.*?)\s*<sentence_end>', text, re.DOTALL)
-                    if match:
-                        result += match.group(1) + " "
-            
-            return result.strip()
+            content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
+            return content.strip() if content else self._fallback_opening()
             
         except Exception as e:
             print(f"[Clinician] ❌ Error generating opening: {e}")
@@ -177,47 +169,40 @@ Be conversational, empathetic, and clinically sound. Ask only ONE focused questi
         # Build guideline context
         guideline_context = "\n\n".join([g.get('text', g.get('chunk', '')) for g in guidelines[:3]])
         
-        prompt = f"""You are a skilled clinician conducting a diagnostic interview.
-
-Chief complaint: "{self.chief_complaint}"
-
-Conversation so far:
-{conversation_text}
-
-Relevant medical guidelines:
-{guideline_context}
+        system_prompt = """You are a skilled clinician conducting a diagnostic interview.
+Be conversational, empathetic, and clinically sound.
 
 Based on the patient's responses and clinical guidelines:
 1. What is the NEXT most important question to ask?
 2. Are you ready to provide a differential diagnosis?
 
 If more information is needed, ask ONE focused, clinically relevant question.
-If you have enough information, provide a brief differential diagnosis and recommendation.
+If you have enough information, provide a brief differential diagnosis and recommendation."""
 
-Be conversational, empathetic, and clinically sound."""
+        user_prompt = f"""Chief complaint: "{self.chief_complaint}"
+
+Conversation so far:
+{conversation_text}
+
+Relevant medical guidelines:
+{guideline_context}"""
 
         try:
-            response = requests.post(
-                "http://localhost:11434/chat",
-                json={
-                    "prompt": prompt,
-                    "session_id": f"clinician_{self.session_id}",
-                    "reset": False
-                },
-                timeout=10,
-                stream=True
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ]
+            
+            # Call LLM directly (non-streaming for simplicity)
+            response = self.llm_chat_fn(
+                messages=messages,
+                max_tokens=250,
+                temperature=0.7,
+                stream=False
             )
             
-            # Collect streamed response
-            result = ""
-            for line in response.iter_lines():
-                if line:
-                    text = line.decode('utf-8')
-                    match = re.search(r'<sentence_start>\s*(.*?)\s*<sentence_end>', text, re.DOTALL)
-                    if match:
-                        result += match.group(1) + " "
-            
-            return result.strip()
+            content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
+            return content.strip() if content else "I apologize, but I'm having trouble processing right now. Could you describe your symptoms again?"
             
         except Exception as e:
             print(f"[Clinician] ❌ Error generating question: {e}")
@@ -339,16 +324,17 @@ def is_clinician_trigger(prompt: str) -> bool:
     return has_symptom and not is_question
 
 
-def create_clinician_session(session_id: str, chief_complaint: str) -> ClinicianSession:
+def create_clinician_session(session_id: str, chief_complaint: str, llm_chat_fn: Callable) -> ClinicianSession:
     """
     Create a new clinician diagnostic session
     
     Args:
         session_id: Unique session identifier
         chief_complaint: Patient's initial complaint
+        llm_chat_fn: Direct LLM chat function
         
     Returns:
         New ClinicianSession instance
     """
-    return ClinicianSession(session_id, chief_complaint)
+    return ClinicianSession(session_id, chief_complaint, llm_chat_fn)
 

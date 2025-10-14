@@ -58,80 +58,114 @@ def normalize_text(text: str) -> str:
 
 
 # === Non-streaming chat endpoint for Telegram ===
-@app.route("/chat-simple", methods=["POST"])
-def chat_simple():
-    """Non-streaming chat endpoint for Telegram bot"""
+@app.route("/chat-tg", methods=["POST"])
+def chat_tg():
+    """
+    Non-streaming chat endpoint for Telegram bot
+    Uses SAME routing and logic as /chat, just returns single response instead of streaming
+    """
     data = request.get_json()
-    prompt = data.get("prompt", "").strip()
-    session_id = data.get("chat_id", "telegram_session")
-    reset = data.get("reset", False)
-    
-    if reset:
-        # Clear session state
-        state = {"condition": None, "step_index": 0, "answers": [], "flags": {},
-                "last_key": None, "user_name": None, "active_pathway": None, 
-                "entered_pathway": False, "detailed_symptoms": [], 
-                "original_complaint": None, "expanded_prompt": None}
-        save_state(state, session_id)
-        return jsonify({"response": "Session reset. Start again with your symptoms."})
+    prompt = (data.get("prompt") or "").strip()
+    session_id = (data.get("chat_id") or data.get("session_id") or "telegram_session").strip()
+    do_reset = bool(data.get("reset"))
     
     if not prompt:
         return jsonify({"response": "Please describe your symptoms."})
     
-    # Process the prompt and return a single response
+    # Handle reset commands (same as /chat)
+    prompt_norm = normalize_text(prompt)
+    RESET_KEYWORDS = {"reset", "restart", "new session"}
+    if any(k in prompt_norm for k in RESET_KEYWORDS):
+        do_reset = True
+    
+    print(f"[Telegram] 💬 Session: {session_id}, Prompt: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}', Reset: {do_reset}")
+    
+    # Handle session reset
+    if do_reset:
+        state = reset_session_state(session_id)
+        if prompt_norm in RESET_KEYWORDS:
+            return jsonify({"response": "Session reset. Start again with your symptoms."})
+    
     try:
+        # Route to appropriate mode (SAME as /chat)
         state = load_state(session_id)
+        mode, updated_state = route_prompt(prompt_norm, state, session_id)
+        save_state(updated_state, session_id)
         
-        # Check if there's an active triage session first
-        if state.get("condition"):
-            # Continue existing triage - don't detect new conditions
-            question, updated_state = process_triage_step(prompt, state, session_id)
-            return jsonify({"response": question})
-        else:
-            # No active triage - check for new conditions
-            condition = detect_condition(prompt, session_id)
-
-            if condition:
-                # New triage session - initialize state and ask first question
-                state.update({"condition": condition, "step_index": 0, "answers": [], "flags": {},
-                             "last_key": None, "user_name": None, "active_pathway": None,
-                             "entered_pathway": False, "detailed_symptoms": [prompt],
-                             "original_complaint": prompt, "expanded_prompt": prompt})
-                save_state(state, session_id)
-
+        print(f"[Telegram] 🎯 Routed to mode: {mode.upper()}")
+        
+        # Helper to collect streamed response into single string
+        def collect_stream(generator):
+            """Collect streamed response and clean it"""
+            response_parts = []
+            for chunk in filter_think_blocks(generator):
+                chunk = chunk.strip()
+                if chunk:
+                    # Remove sentence markers
+                    chunk = chunk.replace('<sentence_start>', '').replace('<sentence_end>', '')
+                    chunk = chunk.strip()
+                    if chunk:
+                        response_parts.append(chunk)
+            return ' '.join(response_parts).strip()
+        
+        # Dispatch to mode handler (SAME modes as /chat)
+        if mode == ConversationMode.CASUAL:
+            response = collect_stream(stream_casual_response(prompt_norm, llm_chat, session_id))
+            if not response:
+                response = "Hello! How can I help you today?"
+            return jsonify({"response": response})
+        
+        elif mode == ConversationMode.THINKER:
+            response = collect_stream(handle_thinker(prompt_norm, llm_chat, session_id))
+            if not response:
+                response = "I don't have information about that."
+            return jsonify({"response": response})
+        
+        elif mode == ConversationMode.TRIAGE:
+            # Check if this is a NEW triage session
+            if updated_state.get('is_new_triage'):
+                # Clear the new session flag
+                updated_state['is_new_triage'] = False
+                updated_state['step_index'] = 1
+                updated_state['last_key'] = get_steps(updated_state['condition'], updated_state)[0].get('key')
+                save_state(updated_state, session_id)
+                
+                condition = updated_state.get('condition')
+                steps = get_steps(condition, updated_state)
+                
                 # Get intro and first question
-                steps = get_steps(condition, state)
-                intro = substitute_name(TRIAGE_DEFS[condition].get("intro", ""), state.get("user_name"))
-                first_question = substitute_name(steps[0].get('question', ''), state.get('user_name'))
-
+                intro = substitute_name(TRIAGE_DEFS[condition].get("intro", ""), updated_state.get("user_name"))
+                first_question = substitute_name(steps[0].get('question', ''), updated_state.get('user_name'))
+                
                 response = ""
                 if intro:
                     response += intro + " "
                 response += first_question
-
                 return jsonify({"response": response})
             else:
-                # Casual conversation - no triage active
-                casual_responses = [
-                    "Hello! How can I help you today?",
-                    "Hi there! What can I do for you?",
-                    "Good to see you! How are you feeling?",
-                    "Hello! I'm here to help with any medical concerns you might have.",
-                    "Hi! Feel free to describe any symptoms you're experiencing."
-                ]
-                import random
-                return jsonify({"response": random.choice(casual_responses)})
+                # Continue existing triage
+                question, final_state = process_triage_step(prompt, updated_state, session_id)
+                save_state(final_state, session_id)
+                return jsonify({"response": question})
+        
+        elif mode == ConversationMode.CLINICIAN:
+            clinician = create_clinician_session(session_id, prompt, llm_chat)
+            opening = clinician.start_session()
+            return jsonify({"response": opening})
+        
+        else:
+            return jsonify({"response": "I'm sorry, I didn't understand that."})
             
     except Exception as e:
-        print(f"[Aura-LLM] ❌ Error in chat-simple: {e}")
+        print(f"[Telegram] ❌ Error in chat-simple: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({"response": "I'm sorry, there was an error processing your request."})
 
 
-# === Chat endpoint (modular architecture) ===
-@app.route("/chat", methods=["POST"])
-def chat():
+# === Streaming chat endpoint for TTS/Voice ===
+@app.route("/chat-tts", methods=["POST"])
+def chat_tts():
     """
     Main chat endpoint using modular architecture
 
@@ -243,7 +277,7 @@ def chat():
 
     elif mode == ConversationMode.CLINICIAN:
         def generate_clinician():
-            clinician = create_clinician_session(session_id, prompt)
+            clinician = create_clinician_session(session_id, prompt, llm_chat)
             opening = clinician.start_session()
             yield f"<sentence_start>\n{opening}\n<sentence_end>\n"
         # Filter think blocks at container level
@@ -316,6 +350,15 @@ def filter_think_blocks(generator):
         else:
             # Yield tokens outside think blocks
             yield token + '\n'
+    
+    # CRITICAL: If stream ends while still in think block, yield buffered content
+    if in_think_block and think_buffer:
+        think_content = '\n'.join(think_buffer)
+        if '<sentence_start>' in think_content:
+            print(f"[Container] ⚠️ Stream ended in <think> block - extracting buffered response")
+            yield think_content + '\n'
+        else:
+            print(f"[Container] ⚠️ Stream ended in <think> block with no response content")
 
 # === Helper Functions ===
 
@@ -363,3 +406,4 @@ if __name__ == "__main__":
     print("  - CLINICIAN: RAG-powered intelligent diagnosis (framework)")
 
     app.run(host='0.0.0.0', port=11434, debug=False)
+

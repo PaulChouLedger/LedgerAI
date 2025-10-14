@@ -242,7 +242,7 @@ def warm_up_llm():
         # Try multiple times with increasing timeout
         for attempt in range(3):
             try:
-                response = requests.post("http://localhost:11434/chat", 
+                response = requests.post("http://localhost:11434/chat-tts", 
                                        json={"prompt": "Hello"}, 
                                        timeout=10 + (attempt * 5))
                 if response.status_code == 200:

@@ -353,7 +353,7 @@ def speak_llm_response(prompt, context=""):
     
     try:
         response = requests.post(
-            "http://localhost:11434/chat",
+            "http://localhost:11434/chat-tts",
             json={"prompt": prompt, "context": context, "chat_id": "voice_session"},
             stream=True, timeout=60
         )
