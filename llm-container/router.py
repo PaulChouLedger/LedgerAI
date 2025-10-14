@@ -34,7 +34,7 @@ class ConversationMode:
     CLINICIAN = "clinician"
 
 
-def route_prompt(prompt: str, state: dict, session_id: str) -> Tuple[str, dict]:
+def route_prompt(prompt: str, state: dict, session_id: str, llm_chat_fn=None) -> Tuple[str, dict]:
     """
     Determine which conversation mode to use
     
@@ -75,7 +75,7 @@ def route_prompt(prompt: str, state: dict, session_id: str) -> Tuple[str, dict]:
     
     # PRIORITY 4: Check for NEW medical condition (start triage)
     from triage import detect_condition
-    condition = detect_condition(prompt, session_id)
+    condition = detect_condition(prompt, session_id, llm_chat_fn)
     if condition:
         print(f"[Router] 🏥 → TRIAGE mode (NEW condition: {condition})")
         state.update({

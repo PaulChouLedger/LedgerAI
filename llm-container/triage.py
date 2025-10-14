@@ -698,11 +698,27 @@ def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: 
 
 # === Condition Detection ===
 
-def detect_condition(prompt: str, session_id: str = None) -> Optional[str]:
+def detect_condition(prompt: str, session_id: str = None, llm_chat_fn=None) -> Optional[str]:
     """Detect medical condition from prompt"""
     p = normalize_text(prompt)
     
     print(f"[Triage] 🔍 Detecting condition from: '{prompt}' (normalized: '{p}')")
+    
+    # Filter out casual conversation responses
+    # Single-word responses like "bad", "good", "okay", "fine" are NOT medical conditions
+    casual_responses = ["bad", "good", "okay", "fine", "well", "great", "terrible", "awful", "not great", "so so"]
+    if p in casual_responses:
+        print(f"[Triage] 💬 Casual response detected: '{p}' - not a medical condition")
+        return None
+    
+    # Require minimum length for medical conditions (at least 2 words or contains medical keywords)
+    words = p.split()
+    medical_keywords = ["pain", "hurt", "ache", "symptom", "problem", "issue", "bleeding", "fever", "dizzy", "nausea", "vomiting"]
+    has_medical_keyword = any(keyword in p for keyword in medical_keywords)
+    
+    if len(words) == 1 and not has_medical_keyword:
+        print(f"[Triage] 💬 Single word without medical keyword: '{p}' - not detecting condition")
+        return None
     
     # Check for casual greetings
     casual_greeting_patterns = [
@@ -716,9 +732,7 @@ def detect_condition(prompt: str, session_id: str = None) -> Optional[str]:
     if not is_knowledge_query:
         is_casual_greeting = any(re.search(pattern, p) for pattern in casual_greeting_patterns)
         if is_casual_greeting:
-            medical_keywords = ["pain", "hurt", "ache", "symptom", "problem", "issue"]
-            has_medical_content = any(keyword in p for keyword in medical_keywords)
-            if not has_medical_content:
+            if not has_medical_keyword:
                 return None
     
     # CRITICAL: Check if there's already an active triage session
@@ -727,6 +741,44 @@ def detect_condition(prompt: str, session_id: str = None) -> Optional[str]:
     if state.get("condition"):
         print(f"[Triage] 🔒 Active triage for '{state['condition']}' - not detecting new conditions")
         return None
+    
+    # Use LLM-based intent classification for smarter detection
+    if llm_chat_fn:
+        print(f"[Triage] 🧠 Using LLM intent classifier")
+        from intent_classifier import detect_medical_intent, map_condition_to_triage
+        
+        # Build conversation history from state
+        conversation_history = []
+        if state.get("phrasing_history"):
+            for phrase in state.get("phrasing_history", [])[-3:]:
+                conversation_history.append({"role": "assistant", "content": phrase})
+        
+        # Detect intent using LLM
+        intent = detect_medical_intent(prompt, conversation_history, llm_chat_fn)
+        
+        if not intent.get("is_medical"):
+            print(f"[Triage] 💬 Not medical: intent={intent.get('intent')}, confidence={intent.get('confidence')}")
+            return None
+        
+        # Map LLM condition category to triage definition
+        condition_category = intent.get("condition_category")
+        if condition_category:
+            mapped_condition = map_condition_to_triage(condition_category)
+            if mapped_condition:
+                print(f"[Triage] ✅ LLM detected: '{condition_category}' → mapped to '{mapped_condition}'")
+                # Initialize detailed symptoms from extracted symptoms
+                if "detailed_symptoms" not in state:
+                    state["detailed_symptoms"] = []
+                extracted = intent.get("extracted_symptoms", [])
+                for symptom in extracted:
+                    if symptom not in state["detailed_symptoms"]:
+                        state["detailed_symptoms"].append(symptom)
+                state["original_complaint"] = prompt
+                save_state(state, session_id)
+                return mapped_condition
+    
+    # Fallback to pattern matching if LLM not available or didn't detect condition
+    print(f"[Triage] 🔍 Using fallback pattern matching")
     
     # Apply synonym expansion
     p_expanded = apply_synonym_expansion(p)

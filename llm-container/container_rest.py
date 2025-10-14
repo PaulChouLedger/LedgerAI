@@ -106,7 +106,7 @@ def chat_tg():
     try:
         # Route to appropriate mode (SAME as /chat)
         state = load_state(session_id)
-        mode, updated_state = route_prompt(prompt_norm, state, session_id)
+        mode, updated_state = route_prompt(prompt_norm, state, session_id, llm_chat)
         save_state(updated_state, session_id)
         
         print(f"[Telegram] 🎯 Routed to mode: {mode.upper()}")
@@ -219,7 +219,7 @@ def chat_tts():
 
     # Route to appropriate mode
     state = load_state(session_id)
-    mode, updated_state = route_prompt(prompt_norm, state, session_id)
+    mode, updated_state = route_prompt(prompt_norm, state, session_id, llm_chat)
     save_state(updated_state, session_id)
 
     print(f"[Aura-LLM] 🎯 Routed to mode: {mode.upper()}")
