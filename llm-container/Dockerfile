@@ -8,6 +8,7 @@ WORKDIR /app
 COPY validation.py .
 COPY intent_classifier.py .
 COPY dynamic_triage.py .
+COPY outcome_cache.py .
 COPY container_rest.py .
 COPY nlg.py .
 COPY router.py .

@@ -639,22 +639,44 @@ def build_recap(cond: str, answers: List[str], flags: Dict[str, Any], severity: 
             
             cleaned_other_positives.append(pos_clean)
         
-        # Build proper sentence structure with commas
+        # Build better sentence structure - separate into 3 categories
         main_sentence = f"You reported {main_complaint}"
 
-        # Add symptom descriptions with proper grammar
-        symptom_descriptions = []
+        # Categorize symptoms for better readability
+        descriptors = []      # Qualities: heavy, sharp, burning, crushing
+        aggravators = []      # What makes it worse: exertion, movement, pressing
+        associated = []       # Other symptoms: shortness of breath, sweating, radiation
+        
         for symptom in cleaned_other_positives:
-            if symptom.lower().startswith(('heavy', 'severe', 'mild', 'moderate', 'sharp', 'dull', 'burning', 'crushing')):
-                symptom_descriptions.append(f"described as {symptom}")
-            elif symptom.lower().startswith(('worsens', 'improves', 'radiates', 'accompanied')):
-                symptom_descriptions.append(symptom)
+            symptom_lower = symptom.lower()
+            
+            # Descriptors - qualities of the pain
+            if symptom_lower.startswith(('heavy', 'severe', 'mild', 'moderate', 'sharp', 'dull', 'burning', 'crushing', 'stabbing', 'aching')):
+                descriptors.append(symptom)
+            # Aggravating factors - what makes it worse
+            elif symptom_lower.startswith(('worsens', 'worse', 'increases', 'aggravated')):
+                # Clean up phrasing for aggravators
+                cleaned_agg = symptom.replace("worsens with ", "").replace("worse with ", "").replace("worse when ", "")
+                aggravators.append(cleaned_agg)
+            # Radiation patterns
+            elif 'radiation' in symptom_lower or 'radiates' in symptom_lower:
+                associated.append(symptom)
+            # Everything else is associated symptoms
             else:
-                symptom_descriptions.append(symptom)
+                associated.append(symptom)
 
-        if symptom_descriptions:
-            # Use commas for proper list formatting
-            main_sentence += ", " + pretty_join(symptom_descriptions, 'and')
+        # Build sentence with proper clinical structure
+        # Add descriptors right after main complaint
+        if descriptors:
+            main_sentence += f" described as {pretty_join(descriptors, 'and')}"
+        
+        # Add aggravating factors
+        if aggravators:
+            main_sentence += f", worsened by {pretty_join(aggravators, 'and')}"
+        
+        # Add associated symptoms
+        if associated:
+            main_sentence += f", associated with {pretty_join(associated, 'and')}"
 
         # Add timing information
         if timing_info:
@@ -1131,38 +1153,36 @@ def _generate_llm_outcome(condition: str, severity: str, answers: List[str], fla
     
     json_outcome = outcomes.get(severity, "")
     
-    # If JSON outcome exists and is clear, just use it directly for speed
+    # OPTIMIZATION 1: Check cache first
+    from outcome_cache import get_cached_outcome, cache_outcome
+    cached = get_cached_outcome(condition, severity, json_outcome)
+    if cached:
+        return cached  # Instant response from cache
+    
+    # OPTIMIZATION 2: If JSON outcome exists and is clear, just use it directly for speed
     if json_outcome and len(json_outcome) < 200 and severity in ["emergency", "urgent"]:
         print(f"[Triage] ⚡ Using fast JSON outcome for {severity}")
         # Clean up JSON outcome and return immediately
         cleaned = json_outcome.replace("the patient", "you").replace("The patient", "You")
+        # Cache for next time
+        cache_outcome(condition, severity, json_outcome, cleaned)
         return cleaned
 
     system_prompt = """You are a medical triage AI speaking directly to a patient.
 
-CRITICAL INSTRUCTIONS:
-- Speak directly to the user in SECOND PERSON ("you", "your") - NOT third person ("the patient")
-- Provide probable diagnoses: "This is concerning for [diagnosis]" or "Your symptoms suggest [diagnosis]"
-- Be specific about the medical condition (e.g., "acute cholangitis", "appendicitis", "myocardial infarction")
-- Be conversational but clinically accurate and empathetic
-- For emergencies, be direct and urgent but not alarming
-- Do NOT say "I can't provide a diagnosis" - you ARE providing a triage assessment
-- Keep it VERY concise - 1-2 sentences maximum
-- Integrate the diagnosis and action naturally
+Rules:
+- Use second person ("you", "your")
+- State diagnosis: "This is concerning for [condition]"
+- 1-2 sentences only
+- Include urgency level
 
-Example emergency: "Your symptoms are concerning for acute cholangitis, which is a medical emergency. Please call 911 immediately."
-
-Example urgent: "Your symptoms suggest acute appendicitis. Please go to an urgent care or emergency room within the next 2-4 hours."
-
-Example non-urgent: "Your symptoms are consistent with gastritis. Schedule an appointment with your doctor within 1-2 days."
+Example: "Your symptoms suggest acute appendicitis. Go to urgent care within 2-4 hours."
 """
 
-    user_prompt = f"""Severity: {severity.title()}
-Symptoms: {chief_complaint}
+    # Minimal user prompt - let JSON outcome guide the response
+    user_prompt = f"""{severity.upper()}: {json_outcome}
 
-Clinical Guidance: {json_outcome}
-
-Provide a brief 1-2 sentence clinical assessment and care recommendation."""
+Rewrite this for the patient in 1-2 sentences."""
 
     try:
         messages = [
@@ -1170,11 +1190,10 @@ Provide a brief 1-2 sentence clinical assessment and care recommendation."""
             {"role": "user", "content": user_prompt}
         ]
 
-        # Reduce max_tokens for faster generation (2-3 sentences only)
+        # Speed optimizations now handled at container level
         response = llm_chat_fn(
             messages=messages,
-            max_tokens=150,  # Reduced from 300 for faster response
-            temperature=0.7,
+            max_tokens=100,  # Keep concise for triage outcomes
             stream=False
         )
 
@@ -1205,6 +1224,9 @@ Provide a brief 1-2 sentence clinical assessment and care recommendation."""
         outcome = outcome.replace("the patient", "you")
         outcome = outcome.replace("The patient", "You")
         outcome = outcome.replace("This patient", "You")
+
+        # Cache the generated outcome for future use
+        cache_outcome(condition, severity, json_outcome, outcome)
 
         return outcome
 

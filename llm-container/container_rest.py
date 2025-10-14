@@ -41,7 +41,7 @@ llm_lock = threading.Lock()
 MODEL_PATH = os.getenv("MODEL_PATH", "/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf")
 N_CTX = int(os.getenv("N_CTX", "2048"))
 
-# Model configuration to minimize thinking behavior
+# Model configuration optimized for SPEED
 model_config = {
     "model_path": MODEL_PATH,
     "n_ctx": N_CTX,
@@ -51,10 +51,11 @@ model_config = {
     "use_mlock": True,
     "use_mmap": True,
     "verbose": False,
-    "temperature": float(os.getenv("LLM_TEMPERATURE", "0.7")),  # Lower for more focused responses
-    "top_p": float(os.getenv("LLM_TOP_P", "0.9")),             # Reduce creativity
-    "top_k": int(os.getenv("LLM_TOP_K", "40")),                # Limit vocabulary choices
-    "repeat_penalty": float(os.getenv("LLM_REPEAT_PENALTY", "1.1")),  # Discourage repetition
+    # Speed optimizations - applied globally to all modes
+    "temperature": float(os.getenv("LLM_TEMPERATURE", "0.6")),  # Lower = faster sampling (was 0.7)
+    "top_p": float(os.getenv("LLM_TOP_P", "0.85")),            # Restrict token space (was 0.9)
+    "top_k": int(os.getenv("LLM_TOP_K", "30")),                # Fewer candidates = faster (was 40)
+    "repeat_penalty": float(os.getenv("LLM_REPEAT_PENALTY", "1.15")),  # Higher = less repetition
 }
 
 # Llama 3.2 models don't use thinking tags - no special configuration needed
@@ -342,11 +343,33 @@ def reset_session_state(session_id: str) -> dict:
     return reset_state
 
 
-def llm_chat(messages, **kwargs):
-    """Wrapper for LLM chat completion with thread safety"""
+def llm_chat(messages, max_tokens=100, temperature=None, **kwargs):
+    """
+    Wrapper for LLM chat completion with thread safety and speed optimizations
+    
+    Args:
+        messages: Chat messages
+        max_tokens: Max tokens to generate (default: 100 for speed)
+        temperature: Sampling temperature (default: use optimized config)
+        **kwargs: Additional LLM parameters
+    """
+    # Apply centralized speed optimizations
+    if temperature is None:
+        temperature = model_config.get("temperature", 0.6)
+    
+    generation_params = {
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "top_p": kwargs.pop("top_p", model_config.get("top_p", 0.85)),
+        "top_k": kwargs.pop("top_k", model_config.get("top_k", 30)),
+        "repeat_penalty": kwargs.pop("repeat_penalty", model_config.get("repeat_penalty", 1.15)),
+        **kwargs
+    }
+    
     with llm_lock:
         try:
-            return llm.create_chat_completion(messages=messages, **kwargs)
+            return llm.create_chat_completion(**generation_params)
         except Exception as e:
             print(f"[LLM] ❌ Error in llm_chat: {e}")
             return {"choices": [{"message": {"content": ""}}]}
