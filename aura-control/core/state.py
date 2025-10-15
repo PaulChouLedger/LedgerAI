@@ -1,5 +1,13 @@
 # core/state.py — Global state management
 
+import os
+import sys
+
+# Set up proper imports for organized structure
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
+
 # === Shutdown state ===
 shutdown_requested = False
 
@@ -21,22 +29,15 @@ _playing = False
 def set_playing(value: bool):
     global _playing
     _playing = value
-    
+
     # Update GUI state for TTS
     try:
-# Set up proper imports for organized structure
-import os
-import sys
-
-# Add the parent directories to Python path for imports
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.insert(0, parent_dir)
-
         from gui.aura_gui import set_tts_playing
         set_tts_playing(value)
     except ImportError:
         pass  # GUI not available
+    except Exception as e:
+        print(f"[State] ⚠️ GUI update failed: {e}")
 
 def is_playing():
     return _playing
