@@ -281,48 +281,51 @@ def upload_files():
     if uploaded_count > 0:
         flash(f'Successfully uploaded {uploaded_count} file(s)', 'success')
         
-        # Trigger ingest pipeline: container extracts → host builds → container reloads
+        # Trigger ingest pipeline: container extracts → rebuild embeddings → ready
         try:
             import requests
             import subprocess
             
             print(f"[Aura-Upload] 🔄 Processing {uploaded_count} new file(s)...")
             
-            # Step 1: Container extracts text from PDFs
+            # Step 1: Container extracts text from PDFs/TXT/DOCX
+            print(f"[Aura-Upload] 🔄 Step 1: Extracting text...")
             response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
             if response.status_code == 200:
                 result = response.json()
                 processed = result.get('processed', 0)
                 print(f"[Aura-Upload] ✅ Text extracted: {processed} files")
-                
-                # Step 2: Host generates embeddings (working FAISS)
-                if processed > 0:
-                    print(f"[Aura-Upload] 🔧 Generating embeddings on host...")
-                    workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-                    rebuild_script = os.path.join(workspace_root, 'rag-container', 'rebuild_embeddings.py')
-                    rebuild_result = subprocess.run(
-                        ["python3", rebuild_script],
-                        capture_output=True,
-                        text=True,
-                        timeout=120,
-                        cwd=workspace_root
-                    )
-                    
-                    if rebuild_result.returncode == 0:
-                        print(f"[Aura-Upload] ✅ Embeddings generated successfully")
-                        
-                        # Step 3: Container reloads the new index
-                        reload_response = requests.post("http://localhost:11435/rag/reload", timeout=10)
-                        if reload_response.status_code == 200:
-                            reload_result = reload_response.json()
-                            print(f"[Aura-Upload] ✅ RAG reloaded: {reload_result.get('total_chunks', 0)} chunks")
-                        else:
-                            print(f"[Aura-Upload] ⚠️ RAG reload failed: {reload_response.status_code}")
-                    else:
-                        print(f"[Aura-Upload] ❌ Embedding generation failed")
-                        print(f"[Aura-Upload] 💥 Error: {rebuild_result.stderr[:500]}")  # Show error details
             else:
-                print(f"[Aura-Upload] ⚠️ Text extraction failed: {response.status_code}")
+                print(f"[Aura-Upload] ❌ Text extraction failed")
+                flash('File uploaded but processing failed', 'warning')
+                return redirect(url_for('upload_page'))
+            
+            # Step 2: Rebuild embeddings and FAISS index
+            print(f"[Aura-Upload] 🔄 Step 2: Building embeddings...")
+            rebuild_result = subprocess.run(
+                ["docker", "exec", "rag-container", "python3", "/app/rebuild_embeddings.py"],
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+            
+            if rebuild_result.returncode == 0:
+                print(f"[Aura-Upload] ✅ Embeddings rebuilt - files ready in RAG!")
+                
+                # Step 3: Reload RAG to use new index
+                print(f"[Aura-Upload] 🔄 Step 3: Reloading RAG index...")
+                reload_response = requests.post("http://localhost:11435/rag/reload", timeout=10)
+                if reload_response.status_code == 200:
+                    reload_result = reload_response.json()
+                    total_chunks = reload_result.get('total_chunks', 0)
+                    print(f"[Aura-Upload] ✅ RAG reloaded: {total_chunks} total chunks")
+                    flash(f'Successfully uploaded and indexed {uploaded_count} file(s) - {total_chunks} chunks available', 'success')
+                else:
+                    print(f"[Aura-Upload] ⚠️ RAG reload failed: {reload_response.status_code}")
+                    flash(f'Files uploaded but RAG reload failed', 'warning')
+            else:
+                print(f"[Aura-Upload] ❌ Embedding rebuild failed")
+                flash('Files uploaded but indexing failed', 'warning')
         except Exception as e:
             print(f"[Aura-Upload] ⚠️ Processing error: {e}")
     

@@ -29,37 +29,42 @@ python3 medical/guideline_scraper.py
 
 This will:
 - Scrape ~12 common conditions (chest pain, pancreatitis, diabetes, asthma, etc.)
-- Save structured JSON files to `data/input/medical_guidelines/`
-- Convert to RAG-ready text format in `data/input/medical_guidelines/rag_ready/`
+- Save JSON backups to `data/input/medical_guidelines/` (for reference)
+- Save .txt files DIRECTLY to `data/input/` (for RAG ingestion)
 
 Expected output:
 ```
-[CDC] ✅ Scraped Chest Pain: 15,243 chars, 8 sections
-[MedlinePlus] ✅ Scraped Pancreatitis: 12,567 chars, 6 sections
+[MedlinePlus] ✅ Scraped Chest Pain: 15,243 chars
+[MedlinePlus] ✅ Scraped Pancreatitis: 12,567 chars
 ...
-✅ BATCH SCRAPING COMPLETE
+[Export] ✅ Exported 12 guidelines directly to data/input/
+✅ SCRAPING COMPLETE!
   Success: 12
-  Failed:  0
 ```
 
-### Step 3: Ingest Guidelines into RAG
+### Step 3: Build Embeddings and Index
 
 ```bash
-# Copy guidelines to RAG input directory and trigger ingestion
+# Trigger RAG to process guidelines and build embeddings
 python3 medical/ingest_guidelines.py
 ```
 
 This will:
-- Copy RAG-ready .txt files to `data/input/`
-- Trigger RAG container to rebuild embeddings
-- Add ~500-1000 new chunks to RAG index
+- Extract text from all .txt files in `data/input/`
+- Create chunks (1000 chars each, 200 char overlap)
+- Generate embeddings using sentence transformers
+- Build FAISS index
+- Reload RAG with new index
 
 Expected output:
 ```
-[Ingest] ✅ Copied 12 guideline files
-[Ingest] ✅ RAG ingest complete:
-  Processed: 12 files
-  Total chunks: 1084 (was 84)
+[Ingest] 📂 Found 12 guideline files
+[Ingest] 🔄 Step 1: Extracting text...
+[Ingest] ✅ Text extraction complete: Processed 12 files
+[Ingest] 🔄 Step 2: Building embeddings...
+📦 Created 450 text chunks
+✅ FAISS index created with 450 vectors
+[Ingest] ✅ RAG reloaded: 450 total chunks
 ```
 
 ### Step 4: Rebuild LLM Container

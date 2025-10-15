@@ -34,7 +34,6 @@ class GuidelineIngestionPipeline:
             rag_input_dir = repo_root / "data" / "input"
         
         self.guidelines_dir = Path(guidelines_dir).resolve()
-        self.rag_ready_dir = self.guidelines_dir / "rag_ready"
         self.rag_input_dir = Path(rag_input_dir).resolve()
         self.rag_service_url = rag_service_url
         
@@ -42,37 +41,27 @@ class GuidelineIngestionPipeline:
         print(f"[Ingest]    Guidelines: {self.guidelines_dir}")
         print(f"[Ingest]    RAG input:  {self.rag_input_dir}")
     
-    def copy_to_rag_input(self) -> int:
+    def check_guidelines_ready(self) -> int:
         """
-        Copy RAG-ready guideline files to RAG input directory
+        Check if guideline files exist in data/input/
         
         Returns:
-            Number of files copied
+            Number of guideline .txt files found
         """
-        if not self.rag_ready_dir.exists():
-            print(f"[Ingest] ⚠️ No RAG-ready directory found: {self.rag_ready_dir}")
+        txt_files = list(self.rag_input_dir.glob("NIH_MedlinePlus_*.txt"))
+        
+        if not txt_files:
+            print(f"[Ingest] ⚠️ No guideline .txt files found in {self.rag_input_dir}")
             print(f"[Ingest] 💡 Run guideline_scraper.py first to generate guidelines")
             return 0
         
-        txt_files = list(self.rag_ready_dir.glob("*.txt"))
+        print(f"\n[Ingest] 📂 Found {len(txt_files)} guideline files in {self.rag_input_dir}")
+        for txt_file in txt_files[:5]:  # Show first 5
+            print(f"[Ingest]    ✅ {txt_file.name}")
+        if len(txt_files) > 5:
+            print(f"[Ingest]    ... and {len(txt_files) - 5} more")
         
-        if not txt_files:
-            print(f"[Ingest] ⚠️ No .txt files found in {self.rag_ready_dir}")
-            return 0
-        
-        print(f"\n[Ingest] 📥 Copying {len(txt_files)} guidelines to RAG input...")
-        
-        copied = 0
-        for txt_file in txt_files:
-            dest = self.rag_input_dir / txt_file.name
-            try:
-                shutil.copy2(txt_file, dest)
-                print(f"[Ingest] ✅ Copied: {txt_file.name}")
-                copied += 1
-            except Exception as e:
-                print(f"[Ingest] ❌ Error copying {txt_file.name}: {e}")
-        
-        return copied
+        return len(txt_files)
     
     def trigger_rag_ingest(self) -> bool:
         """
@@ -82,7 +71,7 @@ class GuidelineIngestionPipeline:
             True if successful
         """
         try:
-            print(f"\n[Ingest] 🔄 Triggering RAG auto-ingest...")
+            print(f"\n[Ingest] 🔄 Step 1: Extracting text from files...")
             
             response = requests.post(
                 f"{self.rag_service_url}/rag/ingest",
@@ -91,17 +80,42 @@ class GuidelineIngestionPipeline:
             
             if response.status_code == 200:
                 result = response.json()
-                print(f"[Ingest] ✅ RAG ingest complete:")
+                print(f"[Ingest] ✅ Text extraction complete:")
                 print(f"[Ingest]    Processed: {result.get('processed', 0)} files")
                 print(f"[Ingest]    Skipped:   {result.get('skipped', 0)} files")
-                print(f"[Ingest]    Total chunks: {result.get('total_chunks', 0)}")
-                return True
             else:
                 print(f"[Ingest] ❌ RAG ingest failed: HTTP {response.status_code}")
                 return False
+            
+            # Step 2: Rebuild embeddings
+            print(f"\n[Ingest] 🔄 Step 2: Building embeddings and FAISS index...")
+            print(f"[Ingest] 💡 Running: docker exec rag-container python3 /app/rebuild_embeddings.py")
+            
+            import subprocess
+            rebuild_result = subprocess.run(
+                ["docker", "exec", "rag-container", "python3", "/app/rebuild_embeddings.py"],
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+            
+            if rebuild_result.returncode == 0:
+                print(f"[Ingest] ✅ Embeddings rebuilt successfully!")
+                # Parse output to show chunk count
+                output_lines = rebuild_result.stdout.split('\n')
+                for line in output_lines:
+                    if 'Created' in line and 'chunks' in line:
+                        print(f"[Ingest]    {line.strip()}")
+                    elif 'vectors' in line or 'Chunks:' in line:
+                        print(f"[Ingest]    {line.strip()}")
+                return True
+            else:
+                print(f"[Ingest] ❌ Rebuild failed:")
+                print(rebuild_result.stderr)
+                return False
                 
         except Exception as e:
-            print(f"[Ingest] ❌ Error triggering RAG ingest: {e}")
+            print(f"[Ingest] ❌ Error during ingestion: {e}")
             print(f"[Ingest] 💡 Make sure RAG container is running: docker-compose ps")
             return False
     
@@ -111,14 +125,15 @@ class GuidelineIngestionPipeline:
         print("  📚 MEDICAL GUIDELINE INGESTION PIPELINE")
         print("="*80 + "\n")
         
-        # Step 1: Copy guidelines to RAG input
-        copied = self.copy_to_rag_input()
+        # Step 1: Check if guidelines exist
+        file_count = self.check_guidelines_ready()
         
-        if copied == 0:
-            print("\n❌ No files to ingest\n")
+        if file_count == 0:
+            print("\n❌ No guideline files found\n")
+            print("💡 Run: python3 medical/guideline_scraper.py\n")
             return False
         
-        print(f"\n[Pipeline] ✅ Copied {copied} guideline files")
+        print(f"\n[Pipeline] ✅ Found {file_count} guideline files ready for RAG")
         
         # Step 2: Trigger RAG ingestion
         success = self.trigger_rag_ingest()

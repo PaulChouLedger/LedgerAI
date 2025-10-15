@@ -427,7 +427,7 @@ class MedicalGuidelineScraper:
         """
         Export all scraped guidelines to RAG-friendly text files
         
-        These can be directly ingested by the RAG system
+        Saves directly to data/input/ for immediate RAG ingestion
         """
         print("\n[Export] 📤 Converting guidelines to RAG format...")
         
@@ -437,8 +437,11 @@ class MedicalGuidelineScraper:
             print("[Export] ⚠️ No JSON guidelines found to export")
             return 0
         
-        rag_output_dir = self.output_dir / "rag_ready"
-        rag_output_dir.mkdir(exist_ok=True)
+        # Export directly to data/input/ (RAG reads from here)
+        script_dir = Path(__file__).resolve().parent
+        repo_root = script_dir.parent
+        rag_input_dir = repo_root / "data" / "input"
+        rag_input_dir.mkdir(parents=True, exist_ok=True)
         
         exported_count = 0
         
@@ -450,9 +453,9 @@ class MedicalGuidelineScraper:
                 # Convert to RAG text format
                 rag_text = self.convert_guideline_to_rag_text(guideline)
                 
-                # Save as .txt file
+                # Save directly to data/input/
                 txt_filename = json_file.stem + ".txt"
-                txt_filepath = rag_output_dir / txt_filename
+                txt_filepath = rag_input_dir / txt_filename
                 
                 with open(txt_filepath, 'w', encoding='utf-8') as f:
                     f.write(rag_text)
@@ -463,8 +466,8 @@ class MedicalGuidelineScraper:
             except Exception as e:
                 print(f"[Export] ❌ Error exporting {json_file.name}: {e}")
         
-        print(f"\n[Export] ✅ Exported {exported_count} guidelines to {rag_output_dir}")
-        print(f"[Export] 💡 Copy these .txt files to data/input/ for RAG ingestion")
+        print(f"\n[Export] ✅ Exported {exported_count} guidelines directly to {rag_input_dir}")
+        print(f"[Export] 💡 Ready for RAG ingestion (no copying needed)")
         
         return exported_count
 
@@ -491,11 +494,11 @@ def main():
         print("\n" + "="*80)
         print("  ✅ SCRAPING COMPLETE!")
         print("="*80)
-        print(f"\n  Next steps:")
-        print(f"  1. Review guidelines in: data/input/medical_guidelines/")
-        print(f"  2. Copy RAG-ready files: cp data/input/medical_guidelines/rag_ready/*.txt data/input/")
-        print(f"  3. Restart RAG container to ingest: docker-compose restart rag-container")
-        print(f"  4. Guidelines will be available for dynamic medical questioning")
+        print(f"\n  📦 Medical guidelines ready in: data/input/")
+        print(f"  📁 JSON backups saved in: data/input/medical_guidelines/")
+        print(f"\n  Next step:")
+        print(f"  → Run: python3 medical/ingest_guidelines.py")
+        print(f"  → This will build embeddings and make guidelines available in RAG")
         print("\n" + "="*80 + "\n")
     else:
         print("\n❌ No guidelines scraped - check network connection\n")
