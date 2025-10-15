@@ -262,25 +262,32 @@ def rebuild_embeddings(data_root="/app/data"):
     print("🔧 Normalizing embeddings manually (L2 norm)...", flush=True)
     norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
     norms = np.maximum(norms, 1e-10)  # Avoid division by zero
-    embeddings = embeddings / norms
+    embeddings_normalized = embeddings / norms
     
-    # Make absolutely sure it's a proper array after division
-    embeddings = np.ascontiguousarray(embeddings, dtype=np.float32)
+    # CRITICAL: Force into proper numpy array format that FAISS SWIG wrapper accepts
+    # The key is using .astype() which creates a fresh copy with exact dtype
+    print("🔧 Creating FAISS-compatible array...", flush=True)
+    embeddings_faiss = np.array(embeddings_normalized).astype('float32')
     
-    print(f"✅ Embeddings normalized and ready:", flush=True)
-    print(f"   Type: {type(embeddings)}", flush=True)
-    print(f"   Dtype: {embeddings.dtype}", flush=True)
-    print(f"   Shape: {embeddings.shape}", flush=True)
-    print(f"   C-contiguous: {embeddings.flags['C_CONTIGUOUS']}", flush=True)
+    # Verify it's truly a numpy array (not a view, tensor, or other type)
+    assert isinstance(embeddings_faiss, np.ndarray), f"Not np.ndarray: {type(embeddings_faiss)}"
+    assert embeddings_faiss.dtype == np.dtype('float32'), f"Wrong dtype: {embeddings_faiss.dtype}"
+    
+    print(f"✅ FAISS-compatible array created:", flush=True)
+    print(f"   Type: {type(embeddings_faiss)}", flush=True)
+    print(f"   Dtype: {embeddings_faiss.dtype}", flush=True)
+    print(f"   Shape: {embeddings_faiss.shape}", flush=True)
+    print(f"   C-contiguous: {embeddings_faiss.flags['C_CONTIGUOUS']}", flush=True)
+    print(f"   OWNDATA: {embeddings_faiss.flags['OWNDATA']}", flush=True)
     
     # Create FAISS index
-    print("🔍 Creating FAISS index...")
-    dimension = embeddings.shape[1]
+    print("🔍 Creating FAISS index...", flush=True)
+    dimension = embeddings_faiss.shape[1]
     index = faiss.IndexFlatIP(dimension)  # Inner product for cosine similarity
     
     # Add to FAISS index
-    print(f"🔍 Adding {embeddings.shape[0]} vectors to FAISS index...")
-    index.add(embeddings)
+    print(f"🔍 Adding {embeddings_faiss.shape[0]} vectors to FAISS index...", flush=True)
+    index.add(embeddings_faiss)
     
     print(f"✅ FAISS index created with {index.ntotal} vectors")
     
@@ -293,7 +300,7 @@ def rebuild_embeddings(data_root="/app/data"):
     faiss.write_index(index, str(index_path))
     
     print(f"💾 Saving raw vectors to {vectors_path}")
-    np.save(vectors_path, embeddings)
+    np.save(vectors_path, embeddings_faiss)
     
     print(f"💾 Saving chunks to {chunks_path}")
     np.save(chunks_path, np.array(chunks))
@@ -307,9 +314,14 @@ def rebuild_embeddings(data_root="/app/data"):
     test_queries = ["Who is David Lara?", "Who is Bob Carella?", "What is AuraVision?"]
     
     for query in test_queries:
-        query_embedding = encoder.encode([query], convert_to_numpy=True).astype(np.float32)
-        # Use FAISS built-in normalization (most reliable)
-        faiss.normalize_L2(query_embedding)
+        query_raw = encoder.encode([query], convert_to_numpy=True)
+        query_embedding = np.array(query_raw).astype('float32')
+        
+        # Manual normalization (consistent with index creation)
+        norms = np.linalg.norm(query_embedding, axis=1, keepdims=True)
+        query_embedding = query_embedding / norms
+        query_embedding = np.ascontiguousarray(query_embedding, dtype=np.float32)
+        
         distances, indices = index.search(query_embedding, 10)  # Get top 10 to see ranking
         
         print(f"\n  Query: '{query}'")
