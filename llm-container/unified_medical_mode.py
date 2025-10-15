@@ -363,12 +363,12 @@ class UnifiedMedicalSession:
         # Simplified prompt to reduce token usage and improve reliability
         guideline_snippet = guideline_text[:400] if len(guideline_text) > 400 else guideline_text  # Further truncate if needed
         
-        # Build context from previous Q&A
+        # Build context from previous Q&A (in conversational format, not Q/A labels)
         qa_history = ""
         if state.questions_asked and state.responses_received:
-            recent_qa = list(zip(state.questions_asked[-3:], state.responses_received[-3:]))  # Last 3 Q&A pairs
-            for i, (q, a) in enumerate(recent_qa, 1):
-                qa_history += f"Q{i}: {q}\nA{i}: {a}\n"
+            recent_qa = list(zip(state.questions_asked[-2:], state.responses_received[-2:]))  # Last 2 Q&A pairs
+            for q, a in recent_qa:
+                qa_history += f"Asked: {q}\nThey said: {a}\n"
         
         # Determine what hasn't been asked yet
         asked_topics = set()
@@ -399,13 +399,19 @@ class UnifiedMedicalSession:
         
         print(f"[Dynamic] 📋 Asked topics: {asked_topics}, Next: {next_topics}")
         
-        prompt = f"""Patient: "{state.chief_complaint}"
+        # Build a simple, clear prompt
+        if qa_history:
+            prompt = f"""Patient has: {state.chief_complaint}
 
 {qa_history}
-DO NOT repeat questions already asked above.
-Ask about: {next_topics}
+Ask ONE follow-up question about: {next_topics}
 
-Guidelines: {guideline_snippet}
+DON'T mention specific conditions or diagnoses. Just ask about their symptoms.
+Question:"""
+        else:
+            prompt = f"""Patient has: {state.chief_complaint}
+
+Ask ONE question about: {next_topics}
 
 Question:"""
         
@@ -419,12 +425,56 @@ Question:"""
             stream=False
         )
         
-        # Clean up question - remove meta-commentary
+        # Clean up question - remove meta-commentary and Q/A formatting
         if question:
+            # Remove Q#: prefix and anything after it
+            question = re.sub(r'^Q\d+:\s*', '', question)  # Remove "Q4: "
+            question = re.sub(r'\n\nA\d+:.*$', '', question, flags=re.DOTALL)  # Remove "A4: ..." if present
+            
             # Remove common meta phrases
             question = re.sub(r'^(Here\'s a|I can ask|Let me ask|I\'d like to ask|A good question would be)[^:]*:\s*', '', question, flags=re.IGNORECASE)
             question = re.sub(r'^"(.+)"$', r'\1', question)  # Remove surrounding quotes
+            
+            # Remove references to "guidelines" and make conversational
+            question = re.sub(r',?\s*according to (medical |the )?guidelines?', '', question, flags=re.IGNORECASE)
+            question = re.sub(r',?\s*based on (medical |the )?guidelines?', '', question, flags=re.IGNORECASE)
+            
+            # Fix awkward medical phrasings FIRST (before removing condition names)
+            question = re.sub(r'\bwhat is the most common symptom of your [a-z]+\b', 'Are you experiencing any other symptoms', question, flags=re.IGNORECASE)
+            question = re.sub(r'\bthe most common symptom of\b', 'any other symptoms besides', question, flags=re.IGNORECASE)
+            question = re.sub(r'\bwhat is the most common symptom\b', 'Are you experiencing any other symptoms', question, flags=re.IGNORECASE)
+            
+            # Remove specific condition names that leak from guidelines
+            condition_names = [
+                'pancreatitis', 'appendicitis', 'cholecystitis', 'diverticulitis',
+                'gastroenteritis', 'peptic ulcer', 'gallstone', 'kidney stone',
+                'heart attack', 'stroke', 'seizure', 'pneumonia', 'asthma',
+                'COPD', 'diabetes', 'hypertension'
+            ]
+            
+            for condition in condition_names:
+                # Remove the condition name entirely along with possessive/article
+                question = re.sub(rf'\byour {condition}\b', '', question, flags=re.IGNORECASE)
+                question = re.sub(rf'\bthe {condition}\b', '', question, flags=re.IGNORECASE)
+                question = re.sub(rf'\b{condition}\b', '', question, flags=re.IGNORECASE)
+            
+            # Clean up extra spaces and awkward phrasings from removals
+            question = re.sub(r'\s{2,}', ' ', question)  # Multiple spaces → single space
+            question = re.sub(r'\s+\?', '?', question)  # Space before question mark
+            question = re.sub(r'\bfrom\s*\?', '?', question)  # "from ?" → "?"
+            question = re.sub(r'\bof\s+\?', '?', question)  # "of ?" → "?"
+            question = re.sub(r'\bbesides\s*\?', '?', question)  # "besides ?" → "?"
+            
+            # If multi-line, take only the first line (should be the question)
+            if '\n' in question:
+                question = question.split('\n')[0].strip()
+            
             question = question.strip()
+            
+            # Final sanity check - if question is too short or doesn't make sense, use fallback
+            if len(question) < 10 or not question.endswith('?'):
+                print(f"[Dynamic] ⚠️ Malformed question after cleaning: '{question}', using fallback")
+                question = "Are you experiencing any other symptoms?"
         
         # Validate output - check for garbage/repetitive content
         if question and len(question) > 10:

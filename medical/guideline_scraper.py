@@ -252,15 +252,48 @@ class MedicalGuidelineScraper:
         
         soup = BeautifulSoup(html, 'html.parser')
         
-        # MedlinePlus uses <article> or <div id="topic-summary">
-        content_div = soup.find('article') or soup.find('div', id='topic-summary') or soup.find('main')
+        # MedlinePlus structure: Try multiple selectors in order of preference
+        content_sections = []
         
-        if not content_div:
-            print(f"[MedlinePlus] ⚠️ Could not find main content in {url}")
+        # Method 1: Find all content sections (MedlinePlus uses specific divs for content)
+        section_containers = soup.find_all('div', class_='section')
+        if section_containers:
+            for section in section_containers:
+                section_text = section.get_text(separator='\n', strip=True)
+                if len(section_text) > 50:  # Only add substantive sections
+                    content_sections.append(section_text)
+        
+        # Method 2: Look for main content area
+        if not content_sections:
+            main_content = soup.find('div', id='mplus-content') or soup.find('div', class_='main-content')
+            if main_content:
+                # Extract all paragraphs and lists
+                for elem in main_content.find_all(['p', 'ul', 'ol', 'div']):
+                    text = elem.get_text(separator=' ', strip=True)
+                    if len(text) > 20:
+                        content_sections.append(text)
+        
+        # Method 3: Fallback to all paragraphs in body
+        if not content_sections:
+            paragraphs = soup.find_all('p')
+            for p in paragraphs:
+                text = p.get_text(strip=True)
+                if len(text) > 30:  # Filter out navigation/footer text
+                    content_sections.append(text)
+        
+        if not content_sections:
+            print(f"[MedlinePlus] ⚠️ Could not extract content from {url}")
             return None
         
-        content_text = content_div.get_text(separator='\n', strip=True)
+        # Combine all sections
+        content_text = '\n\n'.join(content_sections)
         content_text = self._clean_text(content_text)
+        
+        # Log what we extracted
+        print(f"[MedlinePlus] 📄 Extracted {len(content_sections)} sections, {len(content_text)} chars total")
+        if len(content_text) < 200:
+            print(f"[MedlinePlus] ⚠️ WARNING: Very short content ({len(content_text)} chars)")
+            print(f"[MedlinePlus] 📝 Content preview: {content_text[:500]}")
         
         guideline = {
             "guideline_id": self._generate_guideline_id("MedlinePlus", condition_name),
@@ -278,11 +311,12 @@ class MedicalGuidelineScraper:
             "metadata": {
                 "source_type": "government_health_agency",
                 "authority_level": "high",
-                "patient_friendly": True
+                "patient_friendly": True,
+                "sections_extracted": len(content_sections)
             }
         }
         
-        print(f"[MedlinePlus] ✅ Scraped {condition_name}: {len(content_text)} chars")
+        print(f"[MedlinePlus] ✅ Scraped {condition_name}: {len(content_text)} chars, {len(guideline['symptoms'])} symptoms, {len(guideline['red_flags'])} red flags")
         
         return guideline
     
