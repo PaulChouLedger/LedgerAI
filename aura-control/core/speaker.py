@@ -222,7 +222,7 @@ def analyze_audio_frequency(audio_chunk):
 def update_gui_frequency(frequency_speed):
     """Update GUI with current audio frequency for pulsation"""
     try:
-        from ..gui.aura_gui import set_tts_frequency
+        from gui.aura_gui import set_tts_frequency
         set_tts_frequency(frequency_speed)
     except ImportError:
         pass  # GUI not available
@@ -234,7 +234,7 @@ def tts_playback_thread(text, tts_start_time):
         
         # Track TTS generation token usage (based on text length)
         try:
-            from ..wallet.wallet_integration import get_usage_tracker
+            from wallet.wallet_integration import get_usage_tracker
             tracker = get_usage_tracker()
             # Approximate speech duration: ~150 words per minute = 2.5 words per second
             words = len(text.split())
@@ -317,7 +317,7 @@ def speak_llm_response(prompt, context=""):
     
     # Track token usage for this query
     try:
-        from ..wallet.wallet_integration import get_usage_tracker
+        from wallet.wallet_integration import get_usage_tracker
         tracker = get_usage_tracker()
         
         # Determine query complexity

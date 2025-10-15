@@ -10,12 +10,21 @@ import requests
 import concurrent.futures
 from dotenv import dotenv_values   # 👈 load host .env
 
+# Set up proper imports for organized structure
+import os
+import sys
+
+# Add the parent directories to Python path for imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
+
 # Import from organized directories
-from ..gui.aura_gui import launch_gui, run_gui_loop, is_gui_ready
-from .listener import listen
-from . import speaker  # ✅ Starts TTS playback loop and queue
+from gui.aura_gui import launch_gui, run_gui_loop, is_gui_ready
+from listener import listen
+import speaker  # ✅ Starts TTS playback loop and queue
 try:
-    from ..server.web_upload_server import start_upload_server
+    from server.web_upload_server import start_upload_server
     UPLOAD_SERVER_AVAILABLE = True
 except ImportError as e:
     print(f"[Aura] ⚠️ Upload server not available: {e}")

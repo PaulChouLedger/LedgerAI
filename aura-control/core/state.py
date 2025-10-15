@@ -24,7 +24,16 @@ def set_playing(value: bool):
     
     # Update GUI state for TTS
     try:
-        from ..gui.aura_gui import set_tts_playing
+# Set up proper imports for organized structure
+import os
+import sys
+
+# Add the parent directories to Python path for imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
+
+        from gui.aura_gui import set_tts_playing
         set_tts_playing(value)
     except ImportError:
         pass  # GUI not available

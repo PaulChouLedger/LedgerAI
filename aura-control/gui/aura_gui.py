@@ -291,7 +291,16 @@ class AuraGUI(QMainWindow):
             print("[AuraGUI] ⚠️ Could not import listener blocking functions")
         
         try:
-            from .wallet_dialog import WalletDialog
+# Set up proper imports for organized structure
+import os
+import sys
+
+# Add the parent directories to Python path for imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
+
+            from wallet_dialog import WalletDialog
             
             # Create and show wallet dialog (modal, like upload dialog)
             dialog = WalletDialog(parent=self)

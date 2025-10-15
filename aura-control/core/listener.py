@@ -8,8 +8,17 @@ import sounddevice as sd
 import requests
 import subprocess
 from scipy.fft import rfft, rfftfreq
-from .speaker import speak_llm_response, is_playing
-from ..gui.aura_gui import set_transcribing
+# Set up proper imports for organized structure
+import os
+import sys
+
+# Add the parent directories to Python path for imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
+
+from speaker import speak_llm_response, is_playing
+from gui.aura_gui import set_transcribing
 
 # === Config ===
 SAMPLE_RATE = 16000
@@ -391,7 +400,7 @@ def play_welcome_prompt(stream):
         print("[Aura] 🎤 Mic resumed after welcome prompt")
         
         try:
-            from ..gui.aura_gui import set_setup_complete, set_welcome_played, set_listening_ready
+            from gui.aura_gui import set_setup_complete, set_welcome_played, set_listening_ready
             set_setup_complete()
             set_welcome_played()
             set_listening_ready()

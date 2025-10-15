@@ -4,7 +4,16 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                             QPushButton, QLineEdit, QTextEdit, QGroupBox, QMessageBox)
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt5.QtGui import QFont, QColor
-from ..wallet.wallet_integration import get_wallet_manager, get_usage_tracker
+# Set up proper imports for organized structure
+import os
+import sys
+
+# Add the parent directories to Python path for imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
+
+from wallet.wallet_integration import get_wallet_manager, get_usage_tracker
 
 
 class BalanceFetchWorker(QThread):
@@ -671,7 +680,7 @@ class WalletDialog(QDialog):
     def open_native_wallet(self):
         """Open native wallet integrated into Aura"""
         try:
-            from ..wallet.native_wallet import NativeWalletDialog
+            from wallet.native_wallet import NativeWalletDialog
             
             balance_owed = self.usage_tracker.get_balance_owed()
             token_address = self.wallet_manager.TOKEN_ADDRESS
