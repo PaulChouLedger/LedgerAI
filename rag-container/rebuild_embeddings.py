@@ -238,27 +238,27 @@ def rebuild_embeddings(data_root="/app/data"):
         else:
             print(f"  ❌ '{name}' NOT FOUND in any chunks!")
     
-    # Generate embeddings in smaller batches to avoid memory issues
-    print("🔢 Generating embeddings in batches...")
-    batch_size = 32  # Process 32 chunks at a time
-    all_embeddings = []
+    # Generate embeddings (all at once like before - this ALWAYS worked)
+    print("🔢 Generating embeddings...")
+    start_time = time.time()
     
-    for i in range(0, len(chunks), batch_size):
-        batch_chunks = chunks[i:i+batch_size]
-        print(f"   Batch {i//batch_size + 1}/{(len(chunks) + batch_size - 1)//batch_size}: {len(batch_chunks)} chunks")
-        batch_embeddings = encoder.encode(batch_chunks, convert_to_numpy=True, show_progress_bar=False)
-        all_embeddings.append(batch_embeddings)
+    # Use sentence_transformers default (this creates proper numpy arrays)
+    embeddings = encoder.encode(chunks, convert_to_numpy=True, show_progress_bar=True)
     
-    # Concatenate all batches
-    embeddings = np.vstack(all_embeddings).astype(np.float32)
-    print(f"✅ Generated {embeddings.shape[0]} embeddings")
+    print(f"⏱️ Embedding generation took {time.time() - start_time:.2f} seconds")
     print(f"🔢 Embedding shape: {embeddings.shape}")
+    print(f"🔢 Original dtype: {embeddings.dtype}")
     
-    # Normalize for cosine similarity (Inner Product on normalized vectors)
+    # Convert to float32 if needed (sentence_transformers sometimes returns float64)
+    if embeddings.dtype != np.float32:
+        print(f"🔧 Converting {embeddings.dtype} → float32")
+        embeddings = embeddings.astype(np.float32, copy=False)
+    
+    # Normalize for cosine similarity using FAISS built-in
     print("🔧 Normalizing embeddings for cosine similarity...")
-    faiss.normalize_L2(embeddings)  # In-place normalization (FAISS built-in, most reliable)
+    faiss.normalize_L2(embeddings)  # In-place normalization
     
-    print(f"✅ Embeddings normalized:")
+    print(f"✅ Embeddings ready:")
     print(f"   Type: {type(embeddings)}")
     print(f"   Dtype: {embeddings.dtype}")
     print(f"   Shape: {embeddings.shape}")
