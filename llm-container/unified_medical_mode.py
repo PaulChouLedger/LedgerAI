@@ -33,9 +33,58 @@ except ImportError as e:
     MEDICAL_RAG_AVAILABLE = False
     print(f"[Unified Medical] ⚠️ Medical RAG not available: {e}")
 
+# Import dynamic medical assistant for guideline-based assessment
+try:
+    # Copy dynamic_medical_assistant.py to llm-container directory
+    # For now, we'll implement dynamic assessment within this file
+    DYNAMIC_ASSESSMENT_AVAILABLE = True
+except Exception as e:
+    DYNAMIC_ASSESSMENT_AVAILABLE = False
+    print(f"[Unified Medical] ⚠️ Dynamic assessment not available: {e}")
+
+# Load shared medical terms from centralized file (used by both Whisper and LLM)
+MEDICAL_TERMS = {}
+MEDICAL_TERMS_FILE = "/app/medical_terms.json"
+
+def _load_medical_terms():
+    """Load medical terms from shared JSON file"""
+    global MEDICAL_TERMS
+    try:
+        with open(MEDICAL_TERMS_FILE, 'r') as f:
+            MEDICAL_TERMS = json.load(f)
+        # Flatten all terms into a single list for fast keyword matching
+        all_terms = []
+        for category, terms in MEDICAL_TERMS.items():
+            all_terms.extend(terms)
+        MEDICAL_TERMS['_all_terms_flat'] = list(set(all_terms))  # Deduplicate
+        print(f"[Unified Medical] ✅ Loaded {len(MEDICAL_TERMS['_all_terms_flat'])} medical terms from shared file")
+    except Exception as e:
+        print(f"[Unified Medical] ⚠️ Could not load medical terms: {e}")
+        print("[Unified Medical] ⚠️ Falling back to suffix-based detection only")
+        MEDICAL_TERMS['_all_terms_flat'] = []
+
+# Load medical terms on module import
+_load_medical_terms()
+
+class DynamicAssessmentState:
+    """State tracking for dynamic RAG-powered medical assessment"""
+    def __init__(self, chief_complaint: str):
+        self.chief_complaint = chief_complaint
+        self.symptoms_collected = []
+        self.red_flags_detected = []
+        self.questions_asked = []
+        self.responses_received = []
+        self.urgency_score = 0.0  # 0-10 scale
+        self.category = "unknown"
+        self.completed = False
+
 class UnifiedMedicalSession:
     """
     Unified medical assistant that handles both symptom assessment and medical knowledge
+    
+    Now supports TWO assessment modes:
+    1. RIGID TRIAGE: JSON-based decision tree (baseline/fallback)
+    2. DYNAMIC ASSESSMENT: RAG-powered guideline-based questioning ⭐ NEW
     """
 
     def __init__(self, session_id: str, llm_chat_fn: Callable):
@@ -46,7 +95,11 @@ class UnifiedMedicalSession:
         self.conversation_history = []
         self.current_context = "general"  # "assessment", "knowledge", "general"
         self.active_assessment = None  # EnhancedClinicianSession if doing assessment
+        self.dynamic_assessment = None  # DynamicAssessmentState for guideline-based assessment
         self.medical_rag = None
+        
+        # Assessment mode selection
+        self.use_dynamic_assessment = True  # Set to True to use RAG-powered assessment
 
         # Medical knowledge state
         self.last_medical_query = None
@@ -132,38 +185,20 @@ class UnifiedMedicalSession:
         ]
 
         if any(indicator in query_lower for indicator in knowledge_indicators):
-            # Check if it's about medical topics
-            medical_keywords = [
-                # Medical conditions and diseases
-                "hypertension", "diabetes", "cancer", "pneumonia", "asthma", "copd",
-                "heart disease", "cardiovascular", "myocardial", "infarction", "stroke",
-                "alzheimer", "parkinson", "arthritis", "osteoporosis", "anemia",
-                "depression", "anxiety", "schizophrenia", "bipolar", "adhd",
-                "hypothyroid", "hyperthyroid", "kidney", "liver", "pancreas", "pancreatitis",
-                "hepatitis", "cirrhosis", "nephritis", "gastritis", "colitis", "bronchitis",
-                "meningitis", "encephalitis", "appendicitis", "diverticulitis", "cholecystitis",
-                # Medical symptoms and signs
-                "symptom", "treatment", "diagnosis", "medication", "therapy",
-                "clinical", "medical", "health", "disease", "condition", "disorder",
-                "syndrome", "infection", "inflammation", "chronic", "acute",
-                "pain", "fever", "cough", "nausea", "dizziness", "headache",
-                "chest", "abdominal", "heart", "lung", "brain", "blood", "pressure",
-                "fatigue", "weakness", "numbness", "tingling", "swelling", "rash",
-                "bleeding", "bruising", "seizure", "paralysis", "tremor", "shaking",
-                # Medical procedures and tests
-                "surgery", "biopsy", "endoscopy", "colonoscopy", "mammogram",
-                "x-ray", "ct scan", "mri", "ultrasound", "blood test", "urine test",
-                # Medical specialties
-                "cardiology", "neurology", "oncology", "dermatology", "psychiatry",
-                "pediatrics", "gynecology", "ophthalmology", "orthopedics",
-                # General medical terms
-                "patient", "doctor", "physician", "nurse", "hospital", "clinic",
-                "prescription", "dosage", "side effect", "contraindication",
-                "allergy", "immune", "vaccine", "vaccination", "antibody"
-            ]
-
-            if any(keyword in query_lower for keyword in medical_keywords):
-                return "medical_knowledge"
+            # Check if it's about medical topics using shared medical terms
+            # Use the centralized medical_terms.json file (shared with Whisper container)
+            if MEDICAL_TERMS.get('_all_terms_flat'):
+                if any(keyword in query_lower for keyword in MEDICAL_TERMS['_all_terms_flat']):
+                    return "medical_knowledge"
+            # Fallback to suffix-based detection if terms not loaded
+            else:
+                # Medical term suffixes (catches pancreatitis, hepatitis, etc.)
+                medical_suffixes = [
+                    r'\w+itis\b', r'\w+osis\b', r'\w+emia\b', r'\w+pathy\b',
+                    r'\w+ology\b', r'\w+oma\b', r'\w+algia\b'
+                ]
+                if any(re.search(pattern, query_lower) for pattern in medical_suffixes):
+                    return "medical_knowledge"
 
         # Check for general medical topics
         if any(term in query_lower for term in ["medicine", "medical", "health", "clinical", "patient", "doctor"]):
@@ -172,9 +207,19 @@ class UnifiedMedicalSession:
         return "general_medical"
 
     def _handle_symptom_assessment(self, symptom_query: str) -> str:
-        """Handle symptom assessment using enhanced clinician"""
+        """
+        Handle symptom assessment using DYNAMIC guideline-based questioning
+        
+        New approach: Uses RAG-retrieved medical guidelines to ask intelligent,
+        contextual questions rather than following rigid decision trees
+        """
         print(f"[Unified Medical] 🩺 Handling symptom assessment: {symptom_query}")
-
+        
+        # Use dynamic RAG-powered assessment (new approach)
+        if self.use_dynamic_assessment:
+            return self._handle_dynamic_assessment(symptom_query)
+        
+        # Fallback to rigid triage if dynamic assessment disabled
         if ENHANCED_CLINICIAN_AVAILABLE:
             try:
                 # Create or continue enhanced clinician session
@@ -198,6 +243,230 @@ class UnifiedMedicalSession:
                 return self._fallback_to_knowledge_response(symptom_query)
 
         return self._fallback_to_knowledge_response(symptom_query)
+    
+    def _handle_dynamic_assessment(self, symptom_query: str) -> str:
+        """
+        Handle symptom assessment using dynamic guideline-based questioning
+        
+        This is the NEW approach that uses RAG to retrieve medical guidelines
+        and asks intelligent, contextual questions
+        """
+        # Initialize dynamic assessment if needed
+        if self.dynamic_assessment is None:
+            print("[Dynamic] 🏥 Starting dynamic guideline-based assessment")
+            self.dynamic_assessment = DynamicAssessmentState(chief_complaint=symptom_query)
+            self.current_context = "assessment"
+            
+            # Categorize the complaint
+            self.dynamic_assessment.category = self._categorize_complaint(symptom_query)
+            
+            # Retrieve relevant guidelines
+            guidelines = self._get_medical_guidelines(symptom_query, self.dynamic_assessment.category)
+            
+            # Generate first question
+            return self._generate_dynamic_question(guidelines)
+        
+        # Continue existing assessment
+        else:
+            # Store previous response
+            self.dynamic_assessment.responses_received.append(symptom_query)
+            
+            # Analyze response for urgency and red flags
+            self._analyze_patient_response(symptom_query)
+            
+            # Check if assessment should be completed
+            if self._should_complete_assessment():
+                return self._generate_dynamic_diagnosis()
+            
+            # Get updated guidelines based on new information
+            enhanced_query = f"{self.dynamic_assessment.chief_complaint} {symptom_query}"
+            guidelines = self._get_medical_guidelines(enhanced_query, self.dynamic_assessment.category)
+            
+            # Generate next question
+            return self._generate_dynamic_question(guidelines)
+    
+    def _categorize_complaint(self, complaint: str) -> str:
+        """Categorize complaint by medical specialty"""
+        complaint_lower = complaint.lower()
+        
+        categories = {
+            'cardiovascular': ['chest pain', 'heart', 'palpitation', 'shortness of breath', 'chest'],
+            'respiratory': ['cough', 'breathing', 'dyspnea', 'wheezing', 'lung'],
+            'gastrointestinal': ['stomach', 'abdominal', 'nausea', 'vomit', 'diarrhea', 'pancreatitis', 'belly'],
+            'neurological': ['headache', 'dizzy', 'seizure', 'numbness', 'weakness', 'head'],
+            'musculoskeletal': ['back pain', 'joint', 'muscle', 'bone'],
+        }
+        
+        for category, keywords in categories.items():
+            if any(keyword in complaint_lower for keyword in keywords):
+                return category
+        
+        return 'general'
+    
+    def _get_medical_guidelines(self, query: str, category: str = None) -> List[Dict]:
+        """Retrieve medical guidelines from RAG"""
+        try:
+            # Use existing medical RAG search
+            if self.medical_rag:
+                results = self.medical_rag.search_medical_info(query, k=5)
+                return results if results else []
+            else:
+                # Fallback to general RAG
+                response = requests.post(
+                    "http://localhost:11435/rag/search",
+                    json={"query": f"medical guideline {category} {query}", "top_k": 5},
+                    timeout=10
+                )
+                if response.status_code == 200:
+                    return response.json().get('results', [])
+        except Exception as e:
+            print(f"[Dynamic] ❌ Error retrieving guidelines: {e}")
+        
+        return []
+    
+    def _generate_dynamic_question(self, guidelines: List[Dict]) -> str:
+        """
+        Generate next diagnostic question using RAG-retrieved guidelines
+        
+        This is the core of dynamic assessment - uses real medical guidelines
+        to ask intelligent, contextual questions
+        """
+        state = self.dynamic_assessment
+        
+        # Build context for LLM
+        guideline_text = "\n\n".join([g.get('text', '') for g in guidelines[:3]])
+        
+        prompt = f"""You are conducting a medical assessment. Generate the next diagnostic question.
+
+CHIEF COMPLAINT: {state.chief_complaint}
+CATEGORY: {state.category}
+
+SYMPTOMS SO FAR: {', '.join([str(s) for s in state.symptoms_collected]) if state.symptoms_collected else 'None'}
+RED FLAGS: {', '.join(state.red_flags_detected) if state.red_flags_detected else 'None'}
+
+MEDICAL GUIDELINES:
+{guideline_text}
+
+QUESTIONS ALREADY ASKED: {len(state.questions_asked)}
+
+Generate ONE clear, specific question to gather critical diagnostic information. Focus on:
+1. Red flag symptoms if not yet assessed
+2. Severity and character of symptoms
+3. Duration and onset
+4. Associated symptoms
+
+Keep it conversational and patient-friendly. Just ask the question, nothing else.
+
+QUESTION:"""
+        
+        # Get LLM response
+        response = self.llm_chat_fn([{"role": "user", "content": prompt}])
+        question = response.strip()
+        
+        # Track question
+        state.questions_asked.append(question)
+        
+        return question
+    
+    def _analyze_patient_response(self, response: str):
+        """Analyze patient response for symptoms and urgency indicators"""
+        state = self.dynamic_assessment
+        response_lower = response.lower()
+        
+        # Check for emergency keywords (red flags)
+        emergency_keywords = [
+            'crushing', 'severe', 'worst', 'unbearable', 'radiating',
+            'sweating', 'dizzy', 'faint', 'confused', 'can\'t breathe',
+            'blood', 'bleeding', 'unconscious', 'chest pressure'
+        ]
+        
+        for keyword in emergency_keywords:
+            if keyword in response_lower:
+                if keyword not in state.red_flags_detected:
+                    state.red_flags_detected.append(keyword)
+                    state.urgency_score += 1.5
+        
+        # Check for positive severe responses
+        if any(word in response_lower for word in ['yes', 'yeah', 'yep']) and len(state.questions_asked) > 0:
+            last_question_lower = state.questions_asked[-1].lower()
+            if any(word in last_question_lower for word in ['severe', 'emergency', 'urgent', 'crushing', 'radiating']):
+                state.urgency_score += 1.0
+        
+        # Store as symptom
+        state.symptoms_collected.append({
+            'symptom': response,
+            'context': state.questions_asked[-1] if state.questions_asked else 'initial'
+        })
+    
+    def _should_complete_assessment(self) -> bool:
+        """Determine if enough information gathered to complete assessment"""
+        state = self.dynamic_assessment
+        
+        # Complete if:
+        # 1. Emergency detected (urgency >= 8)
+        if state.urgency_score >= 8.0:
+            return True
+        
+        # 2. Sufficient questions asked (5-8 questions typical)
+        if len(state.questions_asked) >= 8:
+            return True
+        
+        # 3. Multiple red flags detected
+        if len(state.red_flags_detected) >= 3:
+            return True
+        
+        return False
+    
+    def _generate_dynamic_diagnosis(self) -> str:
+        """
+        Generate diagnosis and disposition using collected information + guidelines
+        """
+        state = self.dynamic_assessment
+        
+        # Retrieve comprehensive guidelines for diagnosis
+        search_query = f"{state.chief_complaint} diagnosis differential {' '.join([s.get('symptom', '') for s in state.symptoms_collected])}"
+        guidelines = self._get_medical_guidelines(search_query, state.category)
+        guideline_text = "\n\n".join([g.get('text', '') for g in guidelines[:5]])
+        
+        diagnosis_prompt = f"""You are a physician completing a medical assessment.
+
+CHIEF COMPLAINT: {state.chief_complaint}
+CATEGORY: {state.category}
+
+ASSESSMENT HISTORY:
+{self._format_qa_history(state)}
+
+SYMPTOMS COLLECTED: {', '.join([str(s.get('symptom', s)) for s in state.symptoms_collected])}
+RED FLAGS: {', '.join(state.red_flags_detected) if state.red_flags_detected else 'None'}
+
+RELEVANT MEDICAL GUIDELINES:
+{guideline_text}
+
+Provide a concise clinical assessment with:
+1. Most likely diagnosis
+2. Urgency level (1-10)
+3. Recommended next steps (disposition)
+
+Be direct and actionable. Format as natural physician guidance.
+
+ASSESSMENT:"""
+        
+        diagnosis_response = self.llm_chat_fn([{"role": "user", "content": diagnosis_prompt}])
+        
+        # Mark assessment as complete
+        state.completed = True
+        self.current_context = "general"
+        self.dynamic_assessment = None
+        
+        return diagnosis_response
+    
+    def _format_qa_history(self, state: DynamicAssessmentState) -> str:
+        """Format question/answer history for LLM"""
+        history = []
+        for i, (q, a) in enumerate(zip(state.questions_asked, state.responses_received), 1):
+            history.append(f"Q{i}: {q}")
+            history.append(f"A{i}: {a}")
+        return "\n".join(history) if history else "(no questions yet)"
 
     def _handle_medical_knowledge(self, knowledge_query: str) -> str:
         """Handle medical knowledge questions using RAG"""
@@ -378,7 +647,19 @@ def _is_medical_topic_fast(text: str) -> bool:
     Returns:
         True if text contains medical content
     """
-    # Medical term suffix patterns (catches thousands of medical terms automatically!)
+    # Use shared medical terms from centralized medical_terms.json
+    # This file is shared between Whisper (for transcription hints) and LLM (for routing)
+    if MEDICAL_TERMS.get('_all_terms_flat'):
+        # Fast keyword check using pre-loaded terms (O(n) where n = query words)
+        words = set(text.split())
+        medical_terms_set = set(MEDICAL_TERMS['_all_terms_flat'])
+        
+        # Check if any word in query matches known medical terms
+        if words & medical_terms_set:  # Set intersection - very fast!
+            return True
+    
+    # Fallback: Medical term suffix patterns (catches terms not in our list)
+    # This catches pancreatitis, hepatitis, etc. even if not in medical_terms.json
     medical_suffixes = [
         r'\w+itis\b',      # pancreatitis, hepatitis, arthritis, bronchitis, etc.
         r'\w+osis\b',      # cirrhosis, osteoporosis, thrombosis, psychosis, etc.
@@ -394,49 +675,9 @@ def _is_medical_topic_fast(text: str) -> bool:
         r'\w+algia\b',     # neuralgia, myalgia, arthralgia, cephalgia, etc.
     ]
     
-    # Check medical suffixes first (catches most medical terms automatically)
     for pattern in medical_suffixes:
         if re.search(pattern, text):
             return True
-    
-    # Anatomical terms (organs and body systems)
-    anatomical_terms = {
-        "heart", "lung", "brain", "liver", "kidney", "pancreas", "stomach",
-        "intestine", "colon", "bladder", "prostate", "uterus", "ovary",
-        "thyroid", "adrenal", "pituitary", "spleen", "gallbladder",
-        "esophagus", "trachea", "bronch", "alveol", "artery", "vein",
-        "muscle", "bone", "joint", "tendon", "ligament", "cartilage",
-        "nerve", "spinal", "cerebral", "cardiac", "pulmonary", "hepatic",
-        "renal", "gastric", "intestinal", "vascular", "lymph", "blood"
-    }
-    
-    # Fast set membership check (O(1) average case)
-    words = set(text.split())
-    if words & anatomical_terms:  # Set intersection - very fast!
-        return True
-    
-    # Common medical conditions (high-frequency terms)
-    common_conditions = {
-        "diabetes", "hypertension", "cancer", "stroke", "asthma",
-        "pneumonia", "infection", "sepsis", "shock", "trauma",
-        "fracture", "bleeding", "hemorrhage", "embolism", "thrombosis",
-        "malignant", "benign", "tumor", "cyst", "abscess"
-    }
-    
-    if words & common_conditions:
-        return True
-    
-    # Medical symptoms and procedures (core vocabulary)
-    medical_core = {
-        "symptom", "pain", "fever", "cough", "nausea", "vomiting",
-        "diarrhea", "constipation", "fatigue", "weakness", "dizziness",
-        "headache", "migraine", "seizure", "paralysis", "numbness",
-        "treatment", "therapy", "medication", "drug", "antibiotic",
-        "surgery", "diagnosis", "test", "vaccine", "disease", "disorder"
-    }
-    
-    if words & medical_core:
-        return True
     
     return False
 
