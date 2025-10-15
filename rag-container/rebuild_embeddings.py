@@ -258,22 +258,25 @@ def rebuild_embeddings(data_root="/app/data"):
     print(f"   Shape: {embeddings.shape}", flush=True)
     print(f"   Is numpy.ndarray: {isinstance(embeddings, np.ndarray)}", flush=True)
     
-    # Manual normalization (avoid FAISS's normalize_L2 which has SWIG issues)
-    print("🔧 Normalizing embeddings manually (L2 norm)...", flush=True)
-    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
-    norms = np.maximum(norms, 1e-10)  # Avoid division by zero
-    embeddings_normalized = embeddings / norms
+    # Pre-allocate array with exact size (fresh memory, no views/slices)
+    print("🔧 Pre-allocating fresh array for FAISS...", flush=True)
+    num_vectors = embeddings.shape[0]
+    dimension = embeddings.shape[1]
     
-    # CRITICAL: Force into proper numpy array format that FAISS SWIG wrapper accepts
-    # The key is using .astype() which creates a fresh copy with exact dtype
-    print("🔧 Creating FAISS-compatible array...", flush=True)
-    embeddings_faiss = np.array(embeddings_normalized).astype('float32')
+    # Allocate fresh contiguous array
+    embeddings_faiss = np.empty((num_vectors, dimension), dtype=np.float32, order='C')
     
-    # Verify it's truly a numpy array (not a view, tensor, or other type)
-    assert isinstance(embeddings_faiss, np.ndarray), f"Not np.ndarray: {type(embeddings_faiss)}"
-    assert embeddings_faiss.dtype == np.dtype('float32'), f"Wrong dtype: {embeddings_faiss.dtype}"
+    # Normalize and copy in one step
+    print("🔧 Normalizing and copying embeddings...", flush=True)
+    for i in range(num_vectors):
+        vector = embeddings[i].astype(np.float32)
+        norm = np.linalg.norm(vector)
+        if norm > 1e-10:
+            embeddings_faiss[i] = vector / norm
+        else:
+            embeddings_faiss[i] = vector
     
-    print(f"✅ FAISS-compatible array created:", flush=True)
+    print(f"✅ Fresh array created with row-by-row copy:", flush=True)
     print(f"   Type: {type(embeddings_faiss)}", flush=True)
     print(f"   Dtype: {embeddings_faiss.dtype}", flush=True)
     print(f"   Shape: {embeddings_faiss.shape}", flush=True)
