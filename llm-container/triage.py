@@ -1208,13 +1208,12 @@ Rewrite this for the patient in 1-2 sentences."""
         ]
 
         # Speed optimizations now handled at container level
-        response = llm_chat_fn(
+        # llm_chat_fn now returns string content directly, not dict
+        content = llm_chat_fn(
             messages=messages,
             max_tokens=100,  # Keep concise for triage outcomes
             stream=False
         )
-
-        content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
         
         # Validate LLM output - check for garbage/repetitive content
         if content:

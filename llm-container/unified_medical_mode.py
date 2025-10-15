@@ -315,21 +315,27 @@ class UnifiedMedicalSession:
     def _get_medical_guidelines(self, query: str, category: str = None) -> List[Dict]:
         """Retrieve medical guidelines from RAG"""
         try:
-            # Use existing medical RAG search
-            if self.medical_rag:
-                results = self.medical_rag.search_medical_info(query, k=5)
-                return results if results else []
+            # Use general RAG for medical guidelines
+            enhanced_query = f"medical guideline {category} {query}" if category else f"medical guideline {query}"
+            
+            response = requests.post(
+                "http://localhost:11435/rag/search",
+                json={"query": enhanced_query, "top_k": 5},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                results = response.json().get('results', [])
+                print(f"[Dynamic] 📚 Retrieved {len(results)} guideline chunks from RAG")
+                return results
             else:
-                # Fallback to general RAG
-                response = requests.post(
-                    "http://localhost:11435/rag/search",
-                    json={"query": f"medical guideline {category} {query}", "top_k": 5},
-                    timeout=10
-                )
-                if response.status_code == 200:
-                    return response.json().get('results', [])
+                print(f"[Dynamic] ⚠️ RAG search failed: HTTP {response.status_code}")
+                return []
+                
         except Exception as e:
             print(f"[Dynamic] ❌ Error retrieving guidelines: {e}")
+            import traceback
+            traceback.print_exc()
         
         return []
     
@@ -368,9 +374,8 @@ Keep it conversational and patient-friendly. Just ask the question, nothing else
 
 QUESTION:"""
         
-        # Get LLM response
-        response = self.llm_chat_fn([{"role": "user", "content": prompt}])
-        question = response.strip()
+        # Get LLM response (llm_chat now returns string, not dict)
+        question = self.llm_chat_fn([{"role": "user", "content": prompt}])
         
         # Track question
         state.questions_asked.append(question)
@@ -460,6 +465,7 @@ Be direct and actionable. Format as natural physician guidance.
 
 ASSESSMENT:"""
         
+        # Get diagnosis from LLM (llm_chat now returns string, not dict)
         diagnosis_response = self.llm_chat_fn([{"role": "user", "content": diagnosis_prompt}])
         
         # Mark assessment as complete

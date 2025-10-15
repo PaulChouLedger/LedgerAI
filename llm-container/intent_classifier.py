@@ -87,14 +87,13 @@ Analyze this message and provide your assessment in JSON format."""
             {"role": "user", "content": user_prompt}
         ]
         
-        response = llm_chat_fn(
+        # llm_chat_fn now returns string content directly, not dict
+        content = llm_chat_fn(
             messages=messages,
             max_tokens=150,
             temperature=0.3,  # Lower temperature for more consistent classification
             stream=False
         )
-        
-        content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
         
         # Parse JSON response
         try:

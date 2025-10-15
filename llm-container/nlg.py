@@ -181,12 +181,8 @@ Rewrite the text above to be natural and professional while preserving all clini
     }
 
     try:
-        result = chat_fn(messages, gen_kwargs)
-        content = (
-            result.get("choices", [{}])[0]
-                  .get("message", {})
-                  .get("content", "")
-        )
+        # chat_fn now returns string content directly, not dict
+        content = chat_fn(messages, gen_kwargs)
         text_out = (content or text).strip()
         print(f"[NLG] 🔄 Raw NLG output: '{text_out}'")
         

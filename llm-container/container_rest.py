@@ -222,8 +222,7 @@ def chat_tg():
         elif mode == ConversationMode.UNIFIED_MEDICAL:
             try:
                 response = handle_unified_medical_response(prompt, session_id, llm_chat)
-                # Extract content from LLM response (centralized handling)
-                response = extract_llm_response_content(response)
+                # llm_chat() now returns strings, so response is already extracted
                 return jsonify({"response": response})
             except Exception as e:
                 print(f"[Container] ❌ Error in unified medical mode (non-streaming): {e}")
@@ -529,14 +528,15 @@ def llm_chat(messages, max_tokens=100, temperature=None, stream=False, **kwargs)
             # If streaming, return the generator directly
             if stream:
                 return response
-            # Otherwise return the full response
-            return response
+            # For non-streaming, extract and return just the text content
+            # This makes llm_chat() easier to use (returns strings, not dicts)
+            return extract_llm_response_content(response)
         except Exception as e:
             print(f"[LLM] ❌ Error in llm_chat: {e}")
             if stream:
                 # Return empty generator for streaming
                 return iter([])
-            return {"choices": [{"message": {"content": ""}}]}
+            return ""  # Return empty string on error
 
 
 def llm_chat_once(messages, **kwargs):

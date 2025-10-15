@@ -86,14 +86,14 @@ Generate a natural, conversational question to ask the patient. Output ONLY the 
             {"role": "user", "content": user_prompt}
         ]
         
-        response = llm_chat_fn(
+        # llm_chat_fn now returns string content directly, not dict
+        content = llm_chat_fn(
             messages=messages,
             max_tokens=50,
             temperature=0.7,
             stream=False
         )
         
-        content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
         question = content.strip()
         
         # Validate output - check for garbage/repetitive content
@@ -230,14 +230,13 @@ Validate this response and extract the information. Return JSON only."""
             {"role": "user", "content": user_prompt}
         ]
         
-        response = llm_chat_fn(
+        # llm_chat_fn now returns string content directly, not dict
+        content = llm_chat_fn(
             messages=messages,
             max_tokens=100,
             temperature=0.3,
             stream=False
         )
-        
-        content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
         
         # Extract JSON
         json_match = re.search(r'\{.*\}', content, re.DOTALL)
