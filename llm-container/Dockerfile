@@ -20,8 +20,7 @@ COPY medical_rag.py .
 COPY triage_defs/ /app/triage_defs/
 COPY synonyms/ /app/synonyms/
 
-# Copy shared medical terms (single source of truth)
-COPY ../shared/medical_terms.json /app/medical_terms.json
+# Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
 
 
 # Copy example models (others can be mounted at runtime)

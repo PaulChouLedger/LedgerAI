@@ -13,14 +13,19 @@ Used by:
 
 **To update medical terms:**
 1. Edit `shared/medical_terms.json` (this file only!)
-2. Rebuild affected containers:
+2. Restart affected containers (NO rebuild needed!):
    ```bash
-   docker-compose build aura-whisper aura-llm
-   docker-compose up -d
+   docker-compose restart whisper llm
    ```
 
-**DO NOT** create duplicate copies in whisper-container/ or llm-container/
-Both Dockerfiles copy from this shared location during build.
+**DO NOT** create duplicate copies anywhere else.
+The `shared/` directory is mounted into containers at runtime via docker-compose.yml:
+```yaml
+volumes:
+  - ../shared:/shared
+```
+
+Changes are **immediately available** when containers restart!
 
 ---
 
@@ -37,11 +42,13 @@ shared/
 Before: Medical terms were duplicated in multiple locations (whisper-container/, llm-container/)
 - ❌ Updates required in multiple files
 - ❌ Files could get out of sync
+- ❌ Required container rebuild to update
 - ❌ Maintenance nightmare
 
-Now: Single file in shared/
+Now: Single file in shared/ (mounted into containers)
 - ✅ Update once, affects all containers
 - ✅ Always synchronized
+- ✅ Changes take effect on restart (no rebuild!)
 - ✅ Easy to maintain
 
 ---

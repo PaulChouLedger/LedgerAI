@@ -45,17 +45,19 @@ except Exception as e:
 
 # Load shared medical terms from centralized file (used by both Whisper and LLM)
 MEDICAL_TERMS = {}
-MEDICAL_TERMS_FILE = "/app/medical_terms.json"  # Copied from shared/ during Docker build
+MEDICAL_TERMS_FILE = "/shared/medical_terms.json"  # Mounted from repo_root/shared/
 
 def _load_medical_terms():
-    """Load medical terms from shared JSON file (single source of truth)"""
+    """Load medical terms from shared mounted volume (single source of truth)"""
     global MEDICAL_TERMS
     
     if not os.path.exists(MEDICAL_TERMS_FILE):
         raise FileNotFoundError(
             f"Medical terms file not found: {MEDICAL_TERMS_FILE}\n"
-            f"This file must be copied from shared/medical_terms.json during Docker build.\n"
-            f"Check Dockerfile: COPY ../shared/medical_terms.json /app/medical_terms.json"
+            f"Ensure shared/ directory is mounted in docker-compose.yml:\n"
+            f"  volumes:\n"
+            f"    - ../shared:/shared\n"
+            f"And that shared/medical_terms.json exists in repo"
         )
     
     with open(MEDICAL_TERMS_FILE, 'r') as f:

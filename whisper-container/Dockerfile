@@ -6,8 +6,7 @@ WORKDIR /app
 # Copy REST API
 COPY container_rest.py /app/container_rest.py
 
-# Copy shared medical terms (single source of truth at repo_root/shared/)
-COPY ../shared/medical_terms.json /app/medical_terms.json
+# Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
 
 # Install REST API dependencies
 RUN pip3 install --ignore-installed flask soundfile scipy

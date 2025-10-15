@@ -14,8 +14,8 @@ from pathlib import Path
 
 # === Medical Vocabulary Management ===
 def load_medical_terms():
-    """Load medical terms from JSON file and build initial prompt"""
-    medical_terms_file = Path("/app/medical_terms.json")
+    """Load medical terms from shared mounted volume (single source of truth)"""
+    medical_terms_file = Path("/shared/medical_terms.json")
     
     if not medical_terms_file.exists():
         print("[Whisper] ⚠️ Medical terms file not found, using basic prompt")
@@ -49,7 +49,7 @@ def load_medical_terms():
 
 def save_medical_term(term, category="learned"):
     """Add a new medical term to the vocabulary (for future learning capability)"""
-    medical_terms_file = Path("/app/medical_terms.json")
+    medical_terms_file = Path("/shared/medical_terms.json")
     
     try:
         with open(medical_terms_file, 'r') as f:
@@ -345,7 +345,7 @@ def add_medical_term():
 @app.route("/medical_terms", methods=["GET"])
 def get_medical_terms():
     """Get all medical terms organized by category"""
-    medical_terms_file = Path("/app/medical_terms.json")
+    medical_terms_file = Path("/shared/medical_terms.json")
     
     if not medical_terms_file.exists():
         return jsonify({"error": "Medical terms file not found"}), 404
