@@ -366,21 +366,48 @@ class UnifiedMedicalSession:
         # Build context from previous Q&A
         qa_history = ""
         if state.questions_asked and state.responses_received:
-            recent_qa = list(zip(state.questions_asked[-2:], state.responses_received[-2:]))  # Last 2 Q&A pairs
-            for q, a in recent_qa:
-                qa_history += f"Q: {q}\nA: {a}\n"
+            recent_qa = list(zip(state.questions_asked[-3:], state.responses_received[-3:]))  # Last 3 Q&A pairs
+            for i, (q, a) in enumerate(recent_qa, 1):
+                qa_history += f"Q{i}: {q}\nA{i}: {a}\n"
         
-        prompt = f"""Patient complaint: "{state.chief_complaint}"
+        # Determine what hasn't been asked yet
+        asked_topics = set()
+        if state.questions_asked:
+            for q in state.questions_asked:
+                q_lower = q.lower()
+                if 'location' in q_lower or 'where' in q_lower:
+                    asked_topics.add('location')
+                if 'duration' in q_lower or 'long' in q_lower or 'when' in q_lower or 'start' in q_lower:
+                    asked_topics.add('duration')
+                if 'severity' in q_lower or 'bad' in q_lower or 'scale' in q_lower:
+                    asked_topics.add('severity')
+                if 'other' in q_lower or 'associated' in q_lower or 'symptom' in q_lower:
+                    asked_topics.add('associated')
+        
+        # Build prompt with explicit "don't repeat" instruction
+        topics_to_ask = []
+        if 'location' not in asked_topics:
+            topics_to_ask.append('Location of pain')
+        if 'severity' not in asked_topics:
+            topics_to_ask.append('Severity (1-10 scale)')
+        if 'duration' not in asked_topics:
+            topics_to_ask.append('When it started')
+        if 'associated' not in asked_topics:
+            topics_to_ask.append('Other symptoms')
+        
+        next_topics = ', '.join(topics_to_ask[:2]) if topics_to_ask else 'Character of pain, aggravating factors'
+        
+        print(f"[Dynamic] 📋 Asked topics: {asked_topics}, Next: {next_topics}")
+        
+        prompt = f"""Patient: "{state.chief_complaint}"
 
 {qa_history}
-Ask ONE follow-up question about:
-- Pain location/severity
-- Onset/duration
-- Associated symptoms
+DO NOT repeat questions already asked above.
+Ask about: {next_topics}
 
 Guidelines: {guideline_snippet}
 
-Output ONLY the question, nothing else."""
+Question:"""
         
         print(f"[Dynamic] 📝 Prompt length: {len(prompt)} chars, approx {len(prompt)//4} tokens")
         
@@ -407,6 +434,29 @@ Output ONLY the question, nothing else."""
             if most_common / len(question) > 0.3:  # >30% same character = garbage
                 print(f"[Dynamic] ⚠️ Garbage output detected, using fallback question")
                 question = "Can you describe where the pain is located and how severe it is on a scale of 1-10?"
+        
+        # Check if question was already asked (repeated)
+        if state.questions_asked:
+            for prev_q in state.questions_asked:
+                # Simple similarity check - if >70% of words match, it's a repeat
+                q_words = set(question.lower().split())
+                prev_words = set(prev_q.lower().split())
+                if len(q_words & prev_words) / max(len(q_words), 1) > 0.7:
+                    print(f"[Dynamic] ⚠️ Repeated question detected, using fallback")
+                    # Use fallback based on what hasn't been asked
+                    fallback_questions = [
+                        "Where exactly is the pain located in your abdomen?",
+                        "On a scale of 1 to 10, how severe is the pain?",
+                        "Are you experiencing any nausea, vomiting, or fever?",
+                        "Does the pain get worse with movement or eating?",
+                        "Have you had any changes in bowel movements or appetite?"
+                    ]
+                    # Pick first fallback that wasn't asked
+                    for fallback in fallback_questions:
+                        if all(len(set(fallback.lower().split()) & set(pq.lower().split())) / len(set(fallback.lower().split())) < 0.7 for pq in state.questions_asked):
+                            question = fallback
+                            break
+                    break
         
         print(f"[Dynamic] ❓ Generated question: {question}")
         
