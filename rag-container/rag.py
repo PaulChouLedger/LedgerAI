@@ -475,7 +475,7 @@ class AuraRAG:
         # Return top 5 most significant terms (longer = more specific)
         return unique_terms[:5]
     
-    def search(self, query: str, k: int = 3) -> List[Dict[str, Any]]:
+    def search(self, query: str, k: int = 3, disable_keyword_filter: bool = False) -> List[Dict[str, Any]]:
         """
         Search documents using RAG with intelligent hybrid filtering
         
@@ -493,6 +493,7 @@ class AuraRAG:
         Args:
             query: Search query
             k: Number of results to return
+            disable_keyword_filter: If True, skip keyword filtering and do pure semantic search
             
         Returns:
             List of relevant document chunks with metadata
@@ -500,22 +501,27 @@ class AuraRAG:
         if not query or not isinstance(query, str):
             return []
         
-        # Extract key terms from query (names, medical terms, significant words)
-        key_terms = self._extract_key_terms(query)
-        
-        if key_terms:
-            print(f"[RAG] 🔍 Key terms detected: {key_terms}")
-            # Pre-filter chunks by keyword match BEFORE semantic search
-            filtered_indices = self._filter_chunks_by_terms(key_terms)
+        # Check if keyword filtering should be disabled (for medical guidelines)
+        if disable_keyword_filter:
+            print(f"[RAG] 🔍 Keyword filter DISABLED - using pure semantic search for top {k} results")
+            # Skip keyword filtering, go straight to semantic search
+        else:
+            # Extract key terms from query (names, medical terms, significant words)
+            key_terms = self._extract_key_terms(query)
             
-            if filtered_indices:
-                print(f"[RAG] 🔍 Keyword filter: {len(filtered_indices)}/{len(self.chunks)} chunks contain key terms")
-                # Do semantic search on filtered subset (much faster!)
-                return self._search_filtered_chunks(query, filtered_indices, k)
-            else:
-                print(f"[RAG] ⚠️ No chunks contain key terms, using full semantic search")
+            if key_terms:
+                print(f"[RAG] 🔍 Key terms detected: {key_terms}")
+                # Pre-filter chunks by keyword match BEFORE semantic search
+                filtered_indices = self._filter_chunks_by_terms(key_terms)
+                
+                if filtered_indices:
+                    print(f"[RAG] 🔍 Keyword filter: {len(filtered_indices)}/{len(self.chunks)} chunks contain key terms")
+                    # Do semantic search on filtered subset (much faster!)
+                    return self._search_filtered_chunks(query, filtered_indices, k)
+                else:
+                    print(f"[RAG] ⚠️ No chunks contain key terms, using full semantic search")
         
-        # Regular semantic search for non-name queries
+        # Regular semantic search (used when keyword filter disabled or no terms found)
         try:
             # Encode query - ensure it's on CPU for numpy conversion
             import torch

@@ -343,13 +343,14 @@ def rag_search():
         data = request.get_json()
         query = data.get('query', '').strip()
         k = data.get('k', TOP_K)
+        disable_keyword_filter = data.get('disable_keyword_filter', False)
         
         if not query:
             return jsonify({'error': 'Query is required'}), 400
         
         # Use actual RAG functionality
         rag = get_rag()
-        results = rag.search(query, k)
+        results = rag.search(query, k, disable_keyword_filter=disable_keyword_filter)
         
         # Format results for LLM container compatibility
         formatted_results = []

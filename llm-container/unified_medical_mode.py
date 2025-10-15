@@ -437,35 +437,79 @@ class UnifiedMedicalSession:
         return 'general'
     
     def _get_medical_guidelines(self, query: str, category: str = None) -> List[Dict]:
-        """Retrieve medical guidelines from RAG"""
+        """
+        Retrieve TOP DIFFERENTIAL DIAGNOSES from RAG
+        
+        Returns multiple guidelines (top 3-5 differentials) so LLM can ask
+        discriminating questions to narrow them down.
+        
+        Example:
+        - "Abdominal pain" → Returns Appendicitis, Pancreatitis, Cholecystitis
+        - LLM asks: "Where is the pain? RUQ, RLQ, epigastric?"
+        - Answer "RLQ" → LLM focuses on Appendicitis guideline
+        
+        This is how real clinicians think - differential diagnosis.
+        """
         try:
-            # Use general RAG for medical guidelines
-            # Request MORE chunks to ensure we get full guideline content
-            enhanced_query = f"diagnostic guideline {category} {query}" if category else f"diagnostic guideline {query}"
+            # Search for relevant guidelines using semantic similarity
+            search_query = f"abdominal pain differential diagnosis {category} {query}" if category else f"differential diagnosis {query}"
             
             response = requests.post(
                 "http://localhost:11435/rag/search",
                 json={
-                    "query": enhanced_query, 
-                    "top_k": 10,  # Request more chunks to get complete guideline
-                    "min_score": 0.1  # Lower threshold to capture related chunks
+                    "query": search_query, 
+                    "top_k": 50,  # Get many chunks to cover multiple guidelines
+                    "disable_keyword_filter": True,  # Get all semantically similar
+                    "min_score": 0.0
                 },
                 timeout=10
             )
             
-            if response.status_code == 200:
-                results = response.json().get('results', [])
-                print(f"[Dynamic] 📚 Retrieved {len(results)} guideline chunks from RAG")
-                
-                # Log what we got
-                if results:
-                    first_chunk_preview = results[0].get('text', '')[:200].replace('\n', ' ')
-                    print(f"[Dynamic] 📄 First chunk preview: {first_chunk_preview}...")
-                
-                return results
-            else:
+            if response.status_code != 200:
                 print(f"[Dynamic] ⚠️ RAG search failed: HTTP {response.status_code}")
                 return []
+            
+            all_results = response.json().get('results', [])
+            print(f"[Dynamic] 📚 Retrieved {len(all_results)} total chunks")
+            
+            # Group chunks by guideline
+            # Each guideline has "DIAGNOSTIC GUIDELINE: [Name]" in its chunks
+            import re
+            guidelines_dict = {}
+            
+            for result in all_results:
+                text = result.get('text', '')
+                
+                # Find guideline name
+                if 'DIAGNOSTIC GUIDELINE:' in text:
+                    match = re.search(r'DIAGNOSTIC GUIDELINE:\s*([^\n]+)', text)
+                    if match:
+                        guideline_name = match.group(1).strip().upper()
+                        
+                        if guideline_name not in guidelines_dict:
+                            guidelines_dict[guideline_name] = []
+                        
+                        guidelines_dict[guideline_name].append(result)
+            
+            # Get chunks from top 3 guidelines (differential diagnoses)
+            top_differentials = list(guidelines_dict.keys())[:3]
+            
+            if top_differentials:
+                print(f"[Dynamic] 🎯 Top {len(top_differentials)} differential diagnoses:")
+                for i, diff in enumerate(top_differentials, 1):
+                    chunk_count = len(guidelines_dict[diff])
+                    print(f"[Dynamic]    {i}. {diff} ({chunk_count} chunks)")
+                
+                # Combine chunks from all top differentials
+                combined_chunks = []
+                for diff in top_differentials:
+                    combined_chunks.extend(guidelines_dict[diff])
+                
+                print(f"[Dynamic] 📚 Total chunks from differentials: {len(combined_chunks)}")
+                return combined_chunks
+            else:
+                print(f"[Dynamic] ⚠️ No guidelines found, returning all chunks")
+                return all_results[:20]
                 
         except Exception as e:
             print(f"[Dynamic] ❌ Error retrieving guidelines: {e}")
