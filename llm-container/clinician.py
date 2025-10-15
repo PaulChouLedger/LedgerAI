@@ -297,11 +297,6 @@ def is_clinician_trigger(prompt: str) -> bool:
     """
     prompt_lower = prompt.lower()
     
-    # Knowledge queries go to THINKER mode, not CLINICIAN
-    knowledge_indicators = ["what is", "who is", "tell me about", "explain", "describe"]
-    if any(indicator in prompt_lower for indicator in knowledge_indicators):
-        return False
-    
     # First-person symptom statements → CLINICIAN
     first_person_patterns = [
         r'\bi have\b', r'\bi\'m having\b', r'\bim having\b',
@@ -319,8 +314,18 @@ def is_clinician_trigger(prompt: str) -> bool:
     has_symptom = any(keyword in prompt_lower for keyword in symptom_keywords)
     
     # Check if it's a question about the symptom (goes to THINKER instead)
-    is_question = any(q in prompt_lower for q in ["what is", "why do", "how does", "when should"])
-    
+    question_indicators = [
+        "what is", "what are", "what does", "what do",
+        "how is", "how are", "how does", "how do",
+        "why is", "why are", "why does", "why do",
+        "when is", "when are", "when does", "when do",
+        "where is", "where are", "where does", "where do",
+        "who is", "who are", "who does", "who do",
+        "tell me about", "explain", "describe", "define",
+        "can you", "could you", "would you", "will you"
+    ]
+    is_question = any(q in prompt_lower for q in question_indicators)
+
     return has_symptom and not is_question
 
 
