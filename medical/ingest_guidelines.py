@@ -87,16 +87,21 @@ class GuidelineIngestionPipeline:
                 print(f"[Ingest] ❌ RAG ingest failed: HTTP {response.status_code}")
                 return False
             
-            # Step 2: Rebuild embeddings
-            print(f"\n[Ingest] 🔄 Step 2: Building embeddings and FAISS index...")
-            print(f"[Ingest] 💡 Running: docker exec aura-rag python3 /app/rebuild_embeddings.py")
+            # Step 2: Rebuild embeddings ON HOST (container's FAISS has SWIG issues)
+            print(f"\n[Ingest] 🔄 Step 2: Building embeddings and FAISS index on HOST...")
+            print(f"[Ingest] 💡 Running: python3 setup/scripts/rebuild_embeddings_host.py")
             
             import subprocess
+            script_dir = Path(__file__).resolve().parent
+            repo_root = script_dir.parent
+            host_script = repo_root / "setup" / "scripts" / "rebuild_embeddings_host.py"
+            
             rebuild_result = subprocess.run(
-                ["docker", "exec", "aura-rag", "python3", "/app/rebuild_embeddings.py"],
+                ["python3", str(host_script)],
                 capture_output=True,
                 text=True,
-                timeout=120
+                timeout=120,
+                cwd=str(repo_root)
             )
             
             if rebuild_result.returncode == 0:

@@ -439,10 +439,10 @@ def start_services():
             
             # If new files were processed, run rebuild_embeddings on HOST
             if processed > 0:
-                print(f"[Aura] 🔧 Running rebuild_embeddings.py on host...")
+                print(f"[Aura] 🔧 Running rebuild_embeddings_host.py on host...")
                 import subprocess
                 workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-                rebuild_script = os.path.join(workspace_root, 'rag-container', 'rebuild_embeddings.py')
+                rebuild_script = os.path.join(workspace_root, 'setup', 'scripts', 'rebuild_embeddings_host.py')
                 rebuild_result = subprocess.run(
                     ["python3", rebuild_script],
                     capture_output=True,

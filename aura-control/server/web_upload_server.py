@@ -300,13 +300,17 @@ def upload_files():
                 flash('File uploaded but processing failed', 'warning')
                 return redirect(url_for('upload_page'))
             
-            # Step 2: Rebuild embeddings and FAISS index
-            print(f"[Aura-Upload] 🔄 Step 2: Building embeddings...")
+            # Step 2: Rebuild embeddings on HOST (container's FAISS has SWIG issues)
+            print(f"[Aura-Upload] 🔄 Step 2: Building embeddings on HOST...")
+            workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+            host_script = os.path.join(workspace_root, 'setup', 'scripts', 'rebuild_embeddings_host.py')
+            
             rebuild_result = subprocess.run(
-                ["docker", "exec", "aura-rag", "python3", "/app/rebuild_embeddings.py"],
+                ["python3", host_script],
                 capture_output=True,
                 text=True,
-                timeout=120
+                timeout=120,
+                cwd=workspace_root
             )
             
             if rebuild_result.returncode == 0:
