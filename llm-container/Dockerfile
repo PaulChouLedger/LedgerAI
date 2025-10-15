@@ -23,7 +23,8 @@ COPY synonyms/ /app/synonyms/
 
 # Copy medical guidelines (JSON files with chief complaint triggers and scoring)
 # These are used by the adaptive diagnostic engine for multi-guideline evaluation
-COPY ../medical/guidelines/ /app/medical/guidelines/
+# Note: guidelines should be in llm-container/medical/guidelines/ (inside build context)
+COPY medical/guidelines/ /app/medical/guidelines/
 
 # Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
 
