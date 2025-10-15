@@ -19,12 +19,23 @@ class GuidelineIngestionPipeline:
     """
     
     def __init__(self, 
-                 guidelines_dir: str = "data/input/medical_guidelines",
-                 rag_input_dir: str = "data/input",
+                 guidelines_dir: str = None,
+                 rag_input_dir: str = None,
                  rag_service_url: str = "http://localhost:11435"):
-        self.guidelines_dir = Path(guidelines_dir)
+        # Default to repo root paths (using absolute paths)
+        if guidelines_dir is None:
+            script_dir = Path(__file__).resolve().parent  # /path/to/LedgerAI/medical
+            repo_root = script_dir.parent  # /path/to/LedgerAI
+            guidelines_dir = repo_root / "data" / "input" / "medical_guidelines"
+        
+        if rag_input_dir is None:
+            script_dir = Path(__file__).resolve().parent
+            repo_root = script_dir.parent
+            rag_input_dir = repo_root / "data" / "input"
+        
+        self.guidelines_dir = Path(guidelines_dir).resolve()
         self.rag_ready_dir = self.guidelines_dir / "rag_ready"
-        self.rag_input_dir = Path(rag_input_dir)
+        self.rag_input_dir = Path(rag_input_dir).resolve()
         self.rag_service_url = rag_service_url
         
         print(f"[Ingest] ✅ Pipeline initialized")

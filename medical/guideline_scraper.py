@@ -27,9 +27,18 @@ class MedicalGuidelineScraper:
     Scrapes and structures medical guidelines from authoritative sources
     """
     
-    def __init__(self, output_dir: str = "data/input/medical_guidelines"):
-        self.output_dir = Path(output_dir)
+    def __init__(self, output_dir: str = None):
+        # Default to repo root's data/input/medical_guidelines
+        if output_dir is None:
+            # Get absolute path to repo root
+            script_dir = Path(__file__).resolve().parent  # /path/to/LedgerAI/medical
+            repo_root = script_dir.parent  # /path/to/LedgerAI
+            output_dir = repo_root / "data" / "input" / "medical_guidelines"
+        
+        self.output_dir = Path(output_dir).resolve()  # Ensure absolute path
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+        print(f"[Scraper] 📂 Output directory: {self.output_dir}")
         
         # Rate limiting (be respectful to servers)
         self.request_delay = 2.0  # seconds between requests
