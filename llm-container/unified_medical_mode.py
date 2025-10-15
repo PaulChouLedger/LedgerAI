@@ -34,14 +34,14 @@ except ImportError as e:
     MEDICAL_RAG_AVAILABLE = False
     print(f"[Unified Medical] ⚠️ Medical RAG not available: {e}")
 
-# Import dynamic medical assistant for guideline-based assessment
+# Import adaptive diagnostic engine for guideline-based assessment
 try:
-    # Copy dynamic_medical_assistant.py to llm-container directory
-    # For now, we'll implement dynamic assessment within this file
-    DYNAMIC_ASSESSMENT_AVAILABLE = True
-except Exception as e:
-    DYNAMIC_ASSESSMENT_AVAILABLE = False
-    print(f"[Unified Medical] ⚠️ Dynamic assessment not available: {e}")
+    from adaptive_diagnostic_engine import AdaptiveDiagnosticEngine
+    ADAPTIVE_ENGINE_AVAILABLE = True
+    print("[Unified Medical] ✅ Adaptive diagnostic engine imported successfully")
+except ImportError as e:
+    ADAPTIVE_ENGINE_AVAILABLE = False
+    print(f"[Unified Medical] ⚠️ Adaptive engine not available: {e}")
 
 # Load shared medical terms from centralized file (used by both Whisper and LLM)
 MEDICAL_TERMS = {}
@@ -103,12 +103,21 @@ class UnifiedMedicalSession:
         # Session state
         self.conversation_history = []
         self.current_context = "general"  # "assessment", "knowledge", "general"
-        self.active_assessment = None  # EnhancedClinicianSession if doing assessment
-        self.dynamic_assessment = None  # DynamicAssessmentState for guideline-based assessment
+        self.active_assessment = None  # Legacy - kept for compatibility
+        self.dynamic_assessment = None  # Legacy - kept for compatibility
         self.medical_rag = None
         
+        # NEW: Adaptive diagnostic engine
+        self.adaptive_engine = None
+        if ADAPTIVE_ENGINE_AVAILABLE:
+            try:
+                self.adaptive_engine = AdaptiveDiagnosticEngine()
+                print("[Unified Medical] ✅ Adaptive engine initialized")
+            except Exception as e:
+                print(f"[Unified Medical] ⚠️ Failed to initialize adaptive engine: {e}")
+        
         # Assessment mode selection
-        self.use_dynamic_assessment = True  # Set to True to use RAG-powered assessment
+        self.use_adaptive_engine = True  # Use new adaptive engine (not rigid triage)
 
         # Medical knowledge state
         self.last_medical_query = None
@@ -272,40 +281,50 @@ class UnifiedMedicalSession:
 
     def _handle_symptom_assessment(self, symptom_query: str) -> str:
         """
-        Handle symptom assessment using DYNAMIC guideline-based questioning
+        Handle symptom assessment using ADAPTIVE guideline-based questioning
         
-        New approach: Uses RAG-retrieved medical guidelines to ask intelligent,
-        contextual questions rather than following rigid decision trees
+        New approach: Uses adaptive diagnostic engine with multi-guideline scoring,
+        intelligent question selection, and natural language understanding
         """
         print(f"[Unified Medical] 🩺 Handling symptom assessment: {symptom_query}")
         
-        # Use dynamic RAG-powered assessment (new approach)
-        if self.use_dynamic_assessment:
+        # Use adaptive engine (new approach)
+        if self.use_adaptive_engine and self.adaptive_engine:
+            try:
+                # Check if assessment is active
+                if self.adaptive_engine.status == "idle":
+                    # Start new assessment
+                    print("[Adaptive] 🚀 Starting new adaptive assessment")
+                    response = self.adaptive_engine.start_assessment(symptom_query)
+                else:
+                    # Continue existing assessment
+                    print("[Adaptive] 🔄 Continuing adaptive assessment")
+                    response = self.adaptive_engine.process_answer(symptom_query)
+                
+                # Handle response
+                if response.get('success'):
+                    if response.get('status') == 'diagnosed':
+                        # Diagnosis reached!
+                        print(f"[Adaptive] ✅ Diagnosis: {response.get('diagnosis')}")
+                        return response.get('message', 'Assessment complete.')
+                    else:
+                        # Return next question
+                        return response.get('question', 'Can you tell me more?')
+                else:
+                    # Error or no match
+                    return response.get('message', 'I need more information to help you.')
+            
+            except Exception as e:
+                print(f"[Adaptive] ❌ Adaptive engine failed: {e}")
+                import traceback
+                traceback.print_exc()
+                return "I'm having trouble processing your symptoms. Please provide more details."
+        
+        # Fallback to old dynamic assessment if adaptive engine not available
+        if hasattr(self, 'use_dynamic_assessment') and self.use_dynamic_assessment:
             return self._handle_dynamic_assessment(symptom_query)
         
-        # Fallback to rigid triage if dynamic assessment disabled
-        if ENHANCED_CLINICIAN_AVAILABLE:
-            try:
-                # Create or continue enhanced clinician session
-                if self.active_assessment is None:
-                    self.active_assessment = EnhancedClinicianSession(
-                        self.session_id, symptom_query, self.llm_chat_fn
-                    )
-                    self.current_context = "assessment"
-
-                response = self.active_assessment.process_symptom_response(symptom_query)
-
-                # Check if assessment is complete
-                if self.active_assessment.assessment_complete:
-                    self.current_context = "general"
-                    self.active_assessment = None
-
-                return response
-
-            except Exception as e:
-                print(f"[Unified Medical] ❌ Enhanced clinician failed: {e}")
-                return self._fallback_to_knowledge_response(symptom_query)
-
+        # Final fallback
         return self._fallback_to_knowledge_response(symptom_query)
     
     def _handle_dynamic_assessment(self, symptom_query: str) -> str:

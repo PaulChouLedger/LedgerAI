@@ -17,15 +17,20 @@ COPY thinker.py .
 COPY triage.py .
 COPY unified_medical_mode.py .
 COPY medical_rag.py .
+COPY adaptive_diagnostic_engine.py .
 COPY triage_defs/ /app/triage_defs/
 COPY synonyms/ /app/synonyms/
+
+# Copy medical guidelines (JSON files with chief complaint triggers and scoring)
+# These are used by the adaptive diagnostic engine for multi-guideline evaluation
+COPY ../medical/guidelines/ /app/medical/guidelines/
 
 # Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
 
 
 # Copy example models (others can be mounted at runtime)
-COPY models/qwen2.5-1.5b-instruct-q4_0.gguf /models/qwen2.5-1.5b-instruct-q4_0.gguf
-COPY models/Llama-3.2-3B-Instruct-Q4_K_M.gguf /models/Llama-3.2-3B-Instruct-Q4_K_M.gguf
+#COPY models/qwen2.5-1.5b-instruct-q4_0.gguf /models/qwen2.5-1.5b-instruct-q4_0.gguf
+#COPY models/Llama-3.2-3B-Instruct-Q4_K_M.gguf /models/Llama-3.2-3B-Instruct-Q4_K_M.gguf
 COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K_M.gguf
 
 # Install Python dependencies (LLM only)
