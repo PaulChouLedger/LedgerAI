@@ -340,15 +340,16 @@ class UnifiedMedicalSession:
             
             # Validate the answer is reasonable
             if not self._is_valid_answer(symptom_query):
-                print(f"[Dynamic] ⚠️ Invalid/incomplete answer: '{symptom_query}' - re-asking same question")
+                print(f"[Dynamic] ⚠️ Invalid/incomplete answer: '{symptom_query}' - RE-ASKING (not advancing)")
                 # Re-ask the same question with clarification
                 last_question = self.dynamic_assessment.questions_asked[-1] if self.dynamic_assessment.questions_asked else None
                 if last_question:
                     # Clean the question of any Q# prefix before re-asking
                     clean_question = re.sub(r'^\s*Q\d+\s*:\s*', '', last_question)
+                    print(f"[Dynamic] 🔁 Re-asking: '{clean_question}'")
                     return f"I didn't quite catch that. {clean_question}"
                 else:
-                    return "Could you please provide more detail about your symptoms?"
+                    raise ValueError("No previous question to re-ask")
             
             # Store previous response
             self.dynamic_assessment.responses_received.append(symptom_query)
@@ -439,17 +440,28 @@ class UnifiedMedicalSession:
         """Retrieve medical guidelines from RAG"""
         try:
             # Use general RAG for medical guidelines
-            enhanced_query = f"medical guideline {category} {query}" if category else f"medical guideline {query}"
+            # Request MORE chunks to ensure we get full guideline content
+            enhanced_query = f"diagnostic guideline {category} {query}" if category else f"diagnostic guideline {query}"
             
             response = requests.post(
                 "http://localhost:11435/rag/search",
-                json={"query": enhanced_query, "top_k": 5},
+                json={
+                    "query": enhanced_query, 
+                    "top_k": 10,  # Request more chunks to get complete guideline
+                    "min_score": 0.1  # Lower threshold to capture related chunks
+                },
                 timeout=10
             )
             
             if response.status_code == 200:
                 results = response.json().get('results', [])
                 print(f"[Dynamic] 📚 Retrieved {len(results)} guideline chunks from RAG")
+                
+                # Log what we got
+                if results:
+                    first_chunk_preview = results[0].get('text', '')[:200].replace('\n', ' ')
+                    print(f"[Dynamic] 📄 First chunk preview: {first_chunk_preview}...")
+                
                 return results
             else:
                 print(f"[Dynamic] ⚠️ RAG search failed: HTTP {response.status_code}")
@@ -471,47 +483,72 @@ class UnifiedMedicalSession:
         """
         state = self.dynamic_assessment
         
-        # Extract ONLY the diagnostic questions section from guidelines
-        # This is where the clinical reasoning lives
+        # Extract clinical guidance from guidelines
+        # Look for key clinical information across all retrieved chunks
         diagnostic_section = ""
         
-        for guideline in guidelines[:1]:  # Use top guideline
-            text = guideline.get('text', '')
-            
-            # Find the DIAGNOSTIC QUESTIONING STRATEGY section
-            if 'DIAGNOSTIC QUESTIONING STRATEGY' in text:
-                start_idx = text.find('DIAGNOSTIC QUESTIONING STRATEGY')
-                
-                # Find end of section (next --- or RED FLAGS section)
-                end_markers = [
-                    text.find('---', start_idx + 100),  # Next separator
-                    text.find('RED FLAGS', start_idx),
-                    text.find('EMERGENCY WARNING', start_idx),
-                    len(text)  # End of document
-                ]
-                end_idx = min([m for m in end_markers if m > start_idx])
-                
-                diagnostic_section = text[start_idx:end_idx]
-                
-                # Extract first 2-3 questions from this section (most important)
-                question_blocks = []
-                for i in range(1, 4):  # QUESTION 1, 2, 3
-                    q_start = diagnostic_section.find(f'QUESTION {i}:')
-                    if q_start == -1:
-                        break
-                    
-                    # Find next question or end
-                    q_end = diagnostic_section.find(f'QUESTION {i+1}:', q_start)
-                    if q_end == -1:
-                        q_end = min(len(diagnostic_section), q_start + 400)
-                    
-                    question_blocks.append(diagnostic_section[q_start:q_end].strip())
-                
-                if question_blocks:
-                    diagnostic_section = '\n'.join(question_blocks)
-                    break
+        # Combine all guideline chunks into one text for better extraction
+        combined_text = ""
+        for guideline in guidelines[:10]:  # Use up to 10 chunks to get full guideline
+            combined_text += guideline.get('text', '') + "\n\n"
         
-        print(f"[Dynamic] 📝 Extracted diagnostic section: {len(diagnostic_section)} chars")
+        print(f"[Dynamic] 📝 Combined guideline text: {len(combined_text)} chars from {len(guidelines)} chunks")
+        
+        # Debug: Show what we actually got from RAG
+        if len(combined_text) > 0:
+            preview = combined_text[:300].replace('\n', ' ')
+            print(f"[Dynamic] 📄 Guideline preview: {preview}...")
+        else:
+            print(f"[Dynamic] ❌ WARNING: No guideline text retrieved!")
+        
+        # CRITICAL CHECK: Ensure we got meaningful content
+        if len(combined_text) < 500:
+            print(f"[Dynamic] ❌ FATAL: Insufficient guideline content ({len(combined_text)} chars)")
+            print(f"[Dynamic] ❌ RAG returned only {len(guidelines)} chunks")
+            raise ValueError(f"Insufficient guideline content: {len(combined_text)} chars from {len(guidelines)} chunks")
+        
+        if 'QUESTION 1:' not in combined_text and 'DIAGNOSTIC' not in combined_text:
+            print(f"[Dynamic] ❌ FATAL: No diagnostic questions found in guideline text")
+            print(f"[Dynamic] ❌ Content preview: {combined_text[:500]}")
+            raise ValueError("No diagnostic questions found in retrieved guidelines")
+        
+        # Try to extract diagnostic questioning section
+        if 'DIAGNOSTIC QUESTIONING STRATEGY' in combined_text or 'QUESTION 1:' in combined_text:
+            # Find the diagnostic questions
+            question_blocks = []
+            
+            # Look for QUESTION 1, 2, 3 patterns
+            for i in range(1, 5):  # QUESTION 1-4
+                q_marker = f'QUESTION {i}:'
+                if q_marker in combined_text:
+                    q_start = combined_text.find(q_marker)
+                    
+                    # Find end (next question or 300 chars)
+                    q_end_markers = [
+                        combined_text.find(f'QUESTION {i+1}:', q_start),
+                        combined_text.find('---', q_start + 50),
+                        combined_text.find('RED FLAG', q_start),
+                        q_start + 350
+                    ]
+                    q_end = min([m for m in q_end_markers if m > q_start and m != -1], default=q_start + 350)
+                    
+                    block = combined_text[q_start:q_end].strip()
+                    if len(block) > 30:  # Valid block
+                        question_blocks.append(block)
+            
+            if question_blocks:
+                diagnostic_section = '\n\n'.join(question_blocks[:3])  # Use first 3 questions
+                print(f"[Dynamic] ✅ Extracted {len(question_blocks)} diagnostic question blocks")
+        
+        # NO FALLBACK: Fail if no diagnostic section found
+        if not diagnostic_section:
+            print(f"[Dynamic] ❌ FATAL: No diagnostic questions extracted from guidelines")
+            print(f"[Dynamic] ❌ Combined text length: {len(combined_text)}")
+            print(f"[Dynamic] ❌ Contains 'QUESTION 1:': {'QUESTION 1:' in combined_text}")
+            print(f"[Dynamic] ❌ Contains 'DIAGNOSTIC QUESTIONING': {'DIAGNOSTIC QUESTIONING' in combined_text}")
+            raise ValueError("Failed to extract diagnostic questions from guidelines")
+        
+        print(f"[Dynamic] 📝 Final diagnostic section: {len(diagnostic_section)} chars")
         
         # Build context from previous Q&A
         qa_history = ""
@@ -547,11 +584,9 @@ class UnifiedMedicalSession:
         
         print(f"[Dynamic] 📋 Asked topics: {asked_topics}")
         
-        # Build intelligent prompt using diagnostic section from guideline
-        if diagnostic_section:
-            # LLM sees actual clinical reasoning from guideline
-            if qa_history:
-                prompt = f"""Patient: {state.chief_complaint}
+        # Build prompt using diagnostic section from guideline (no fallback)
+        if qa_history:
+            prompt = f"""Patient: {state.chief_complaint}
 
 Previous:
 {qa_history}
@@ -560,30 +595,13 @@ Clinical guidance:
 
 Based on the guidance above, ask the NEXT logical question. Don't repeat what's already asked.
 Question:"""
-            else:
-                prompt = f"""Patient: {state.chief_complaint}
+        else:
+            prompt = f"""Patient: {state.chief_complaint}
 
 Clinical guidance:
 {diagnostic_section}
 
 Based on the guidance, ask the FIRST diagnostic question.
-Question:"""
-        else:
-            # Fallback if no diagnostic section found (shouldn't happen with good guidelines)
-            next_topics = ', '.join(topics_to_ask[:2]) if topics_to_ask else 'Character of pain, aggravating factors'
-            
-            if qa_history:
-                prompt = f"""Patient: {state.chief_complaint}
-
-{qa_history}
-Ask about: {next_topics}
-
-Question:"""
-            else:
-                prompt = f"""Patient: {state.chief_complaint}
-
-Ask about: {next_topics}
-
 Question:"""
         
         print(f"[Dynamic] 📝 Prompt length: {len(prompt)} chars, approx {len(prompt)//4} tokens")
@@ -649,19 +667,19 @@ Question:"""
             
             question = question.strip()
             
-            # Final sanity check - if question is too short or doesn't make sense, use fallback
+            # Final sanity check - if question is too short or doesn't make sense, FAIL
             if len(question) < 10 or not question.endswith('?'):
-                print(f"[Dynamic] ⚠️ Malformed question after cleaning: '{question}', using fallback")
-                question = "Are you experiencing any other symptoms?"
+                print(f"[Dynamic] ❌ FATAL: Malformed question after cleaning: '{question}'")
+                raise ValueError(f"LLM generated malformed question: '{question}'")
         
-        # Validate output - check for garbage/repetitive content
+        # Validate output - check for garbage/repetitive content  
         if question and len(question) > 10:
             from collections import Counter
             char_counts = Counter(question.lower())
             most_common = char_counts.most_common(1)[0][1] if char_counts else 0
             if most_common / len(question) > 0.3:  # >30% same character = garbage
-                print(f"[Dynamic] ⚠️ Garbage output detected, using fallback question")
-                question = "Can you describe where the pain is located and how severe it is on a scale of 1-10?"
+                print(f"[Dynamic] ❌ FATAL: Garbage output detected (char '{char_counts.most_common(1)[0][0]}' appears {most_common}/{len(question)} times)")
+                raise ValueError(f"LLM generated garbage: {question[:100]}")
         
         # Check if question was already asked (repeated)
         if state.questions_asked:
@@ -670,21 +688,10 @@ Question:"""
                 q_words = set(question.lower().split())
                 prev_words = set(prev_q.lower().split())
                 if len(q_words & prev_words) / max(len(q_words), 1) > 0.7:
-                    print(f"[Dynamic] ⚠️ Repeated question detected, using fallback")
-                    # Use fallback based on what hasn't been asked
-                    fallback_questions = [
-                        "Where exactly is the pain located in your abdomen?",
-                        "On a scale of 1 to 10, how severe is the pain?",
-                        "Are you experiencing any nausea, vomiting, or fever?",
-                        "Does the pain get worse with movement or eating?",
-                        "Have you had any changes in bowel movements or appetite?"
-                    ]
-                    # Pick first fallback that wasn't asked
-                    for fallback in fallback_questions:
-                        if all(len(set(fallback.lower().split()) & set(pq.lower().split())) / len(set(fallback.lower().split())) < 0.7 for pq in state.questions_asked):
-                            question = fallback
-                            break
-                    break
+                    print(f"[Dynamic] ❌ FATAL: LLM repeated question")
+                    print(f"[Dynamic] ❌ Previous: '{prev_q}'")
+                    print(f"[Dynamic] ❌ New:      '{question}'")
+                    raise ValueError(f"LLM repeated question: {question}")
         
         # Final log with cleaned question
         print(f"[Dynamic] ❓ Final question (after all cleaning): {question}")
@@ -806,8 +813,8 @@ Assessment:"""
             char_counts = Counter(diagnosis_response.lower())
             most_common = char_counts.most_common(1)[0][1] if char_counts else 0
             if most_common / len(diagnosis_response) > 0.3:  # >30% same character = garbage
-                print(f"[Dynamic] ⚠️ Garbage diagnosis detected, using fallback")
-                diagnosis_response = "Based on your symptoms, I recommend seeing a healthcare provider for proper evaluation. If symptoms worsen or you experience severe pain, seek immediate medical attention."
+                print(f"[Dynamic] ❌ FATAL: Garbage diagnosis detected (char '{char_counts.most_common(1)[0][0]}' appears {most_common}/{len(diagnosis_response)} times)")
+                raise ValueError(f"LLM generated garbage diagnosis: {diagnosis_response[:100]}")
         
         # Mark assessment as complete
         state.completed = True
