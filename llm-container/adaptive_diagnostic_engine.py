@@ -181,12 +181,29 @@ class AdaptiveDiagnosticEngine:
         
         print(f"\n[Adaptive] 💬 Processing answer: '{user_answer}'")
         
+        # Validate answer is meaningful (not garbage transcription)
+        if not self._is_valid_medical_response(user_answer):
+            print(f"[Adaptive] ⚠️ Invalid/unclear answer - asking for clarification")
+            last_q = self.questions_asked[-1] if self.questions_asked else None
+            
+            if last_q:
+                return {
+                    'success': True,
+                    'question': f"I didn't quite catch that. {last_q['question']}",
+                    'status': 'questioning'
+                }
+            else:
+                return {
+                    'success': False,
+                    'message': "I didn't understand. Can you repeat that?"
+                }
+        
         # Extract ALL clinical features from the answer
         extracted = self._extract_features_from_text(user_answer)
         
         print(f"[Adaptive] 📝 Extracted features: {list(extracted.keys())}")
         
-        # Update answered features
+        # Update answered features (merge, don't replace)
         self.answered_features.update(extracted)
         
         # Re-score ALL active guidelines
@@ -313,21 +330,80 @@ class AdaptiveDiagnosticEngine:
         
         return False
     
+    def _is_valid_medical_response(self, text: str) -> bool:
+        """
+        Validate that response is meaningful (not garbage transcription or too short)
+        
+        Returns False for:
+        - Very short fragments ("on the", "time.", "go.")
+        - Gibberish ("good else to go")
+        - Empty responses
+        """
+        text = text.strip()
+        
+        # Too short
+        if len(text) < 3:
+            return False
+        
+        # Only punctuation or filler words
+        filler_patterns = [
+            r'^(on the|the|a|an|to|for|with)[\s\.,]*$',
+            r'^[\.,;:!?]+$',
+            r'^(uh|um|er|ah)[\s\.,]*$'
+        ]
+        
+        for pattern in filler_patterns:
+            if re.match(pattern, text.lower()):
+                return False
+        
+        # Has at least one real word (3+ chars)
+        words = text.split()
+        real_words = [w for w in words if len(w.strip('.,!?')) >= 3]
+        
+        if len(real_words) == 0:
+            return False
+        
+        return True
+    
     def _extract_features_from_text(self, text: str) -> Dict[str, Any]:
         """
-        Extract clinical features by matching against ALL active guidelines' expected responses
-        
-        This is data-driven - no hardcoded patterns!
-        Each guideline defines what phrases indicate a positive match.
+        Extract clinical features using HYBRID approach:
+        1. Universal features (onset time, severity) - simple patterns
+        2. Guideline-specific features - from JSON expected_positive_responses
         
         Args:
             text: User's natural language text
         
         Returns:
-            Dict mapping guideline_name to list of matched question_focus items
+            Dict with 'universal_features' and 'positive_findings'/'negative_findings'
         """
         features = {}
         text_lower = text.lower()
+        
+        # ==== UNIVERSAL FEATURES (not guideline-specific) ====
+        
+        # Onset timing (universal)
+        if any(t in text_lower for t in ['hour', 'today', 'this morning', 'this afternoon']):
+            features['onset_timing'] = 'acute_hours'
+        elif any(t in text_lower for t in ['yesterday', 'last night', 'one day', 'two day', 'three day', 'couple day']):
+            features['onset_timing'] = 'acute_days'
+        elif any(t in text_lower for t in ['week', 'several day', 'four day', 'five day', 'six day']):
+            features['onset_timing'] = 'subacute'
+        elif any(t in text_lower for t in ['month', 'year', 'long time', 'always', 'chronic']):
+            features['onset_timing'] = 'chronic'
+        
+        # Severity (universal)
+        severity_match = re.search(r'(\d+)\s*(?:out of|/)\s*10', text_lower)
+        if severity_match:
+            features['severity_score'] = int(severity_match.group(1))
+        elif any(word in text_lower for word in ['severe', 'terrible', 'unbearable', 'worst']):
+            features['severity_score'] = 9
+        elif any(word in text_lower for word in ['moderate', 'medium', 'okay']):
+            features['severity_score'] = 5
+        elif any(word in text_lower for word in ['mild', 'slight', 'minor']):
+            features['severity_score'] = 3
+        
+        # ==== GUIDELINE-SPECIFIC FEATURES (from JSON) ====
         
         # For each active guideline, check all diagnostic questions
         for guideline_obj in self.active_guidelines:
@@ -369,8 +445,12 @@ class AdaptiveDiagnosticEngine:
                         break  # Only count one match per question
         
         # Debug: Show what was extracted
-        if features:
-            print(f"[Adaptive] 🔍 Feature extraction from guidelines:")
+        if len(features) > 0:
+            print(f"[Adaptive] 🔍 Feature extraction:")
+            if 'onset_timing' in features:
+                print(f"[Adaptive]    ⏰ Onset: {features['onset_timing']}")
+            if 'severity_score' in features:
+                print(f"[Adaptive]    📊 Severity: {features['severity_score']}/10")
             if 'positive_findings' in features:
                 for finding in features['positive_findings']:
                     print(f"[Adaptive]    ✅ {finding['guideline']}: {finding['question']} ({finding['value']})")
@@ -378,7 +458,7 @@ class AdaptiveDiagnosticEngine:
                 for finding in features['negative_findings']:
                     print(f"[Adaptive]    ❌ {finding['guideline']}: {finding['question']} (rule out)")
         else:
-            print(f"[Adaptive] ⚠️ No guideline features matched: '{text}'")
+            print(f"[Adaptive] ⚠️ No features matched: '{text}'")
         
         return features
     
@@ -406,7 +486,30 @@ class AdaptiveDiagnosticEngine:
             
             print(f"[Adaptive]   Scoring {guideline_name} (initial: {initial_score:.3f})")
             
-            # Count positive findings for this guideline
+            # Score universal features (apply to all guidelines)
+            if 'onset_timing' in self.answered_features:
+                onset = self.answered_features['onset_timing']
+                urgency = guideline.get('urgency', '').lower()
+                
+                # Acute onset matches urgent/emergent conditions
+                if onset in ['acute_hours', 'acute_days'] and urgency in ['urgent', 'emergent', 'emergency']:
+                    score += 0.10
+                    print(f"[Adaptive]     ✅ Onset timing matches urgency: +0.10")
+                # Chronic onset doesn't match urgent conditions
+                elif onset == 'chronic' and urgency in ['urgent', 'emergent', 'emergency']:
+                    score -= 0.20
+                    print(f"[Adaptive]     ❌ Chronic onset rules out urgent condition: -0.20")
+            
+            if 'severity_score' in self.answered_features:
+                severity = self.answered_features['severity_score']
+                urgency = guideline.get('urgency', '').lower()
+                
+                # High severity matches urgent conditions
+                if severity >= 7 and urgency in ['urgent', 'emergent', 'emergency']:
+                    score += 0.05
+                    print(f"[Adaptive]     ✅ High severity ({severity}/10): +0.05")
+            
+            # Count positive findings for this guideline (from JSON)
             positive_count = 0
             if 'positive_findings' in self.answered_features:
                 for finding in self.answered_features['positive_findings']:
@@ -428,8 +531,7 @@ class AdaptiveDiagnosticEngine:
             # Update score
             guideline_obj['score'] = max(0.0, min(score, 1.0))  # Clamp between 0-1
             
-            if positive_count > 0 or negative_count > 0:
-                print(f"[Adaptive]     Final: {guideline_obj['score']:.3f} ({positive_count} positives, {negative_count} negatives)")
+            print(f"[Adaptive]     Final: {guideline_obj['score']:.3f}")
     
     def _ask_next_question(self) -> Dict[str, Any]:
         """
