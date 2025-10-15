@@ -315,188 +315,178 @@ class AdaptiveDiagnosticEngine:
     
     def _extract_features_from_text(self, text: str) -> Dict[str, Any]:
         """
-        Extract clinical features from natural language using LLM
+        Extract clinical features by matching against ALL active guidelines' expected responses
         
-        This is key to being non-rigid - we extract MULTIPLE pieces
-        of information from a single answer.
+        This is data-driven - no hardcoded patterns!
+        Each guideline defines what phrases indicate a positive match.
         
         Args:
             text: User's natural language text
         
         Returns:
-            Dict of extracted features
+            Dict mapping guideline_name to list of matched question_focus items
         """
-        # TODO: Use LLM to extract features intelligently
-        # For now, use pattern matching
-        
         features = {}
         text_lower = text.lower()
         
-        # Onset patterns
-        onset_patterns = {
-            'acute': ['today', 'this morning', 'few hours', 'suddenly', 'yesterday'],
-            'subacute': ['few days', 'couple days', 'last week'],
-            'chronic': ['weeks', 'months', 'long time', 'always']
-        }
+        # For each active guideline, check all diagnostic questions
+        for guideline_obj in self.active_guidelines:
+            guideline = guideline_obj['guideline_data']
+            guideline_name = guideline_obj['name']
+            
+            diagnostic_questions = guideline.get('diagnostic_questions', [])
+            
+            for question in diagnostic_questions:
+                question_focus = question.get('question_focus', '')
+                expected_positive = question.get('expected_positive_responses', [])
+                negative_responses = question.get('negative_responses', [])
+                diagnostic_value = question.get('diagnostic_value', 'moderate')
+                
+                # Check for negative responses first (rule out)
+                for negative in negative_responses:
+                    if negative.lower() in text_lower:
+                        # Track negative findings
+                        if 'negative_findings' not in features:
+                            features['negative_findings'] = []
+                        features['negative_findings'].append({
+                            'guideline': guideline_name,
+                            'question': question_focus,
+                            'response': negative
+                        })
+                
+                # Check for positive responses
+                for positive in expected_positive:
+                    if positive.lower() in text_lower:
+                        # Track positive findings
+                        if 'positive_findings' not in features:
+                            features['positive_findings'] = []
+                        features['positive_findings'].append({
+                            'guideline': guideline_name,
+                            'question': question_focus,
+                            'response': positive,
+                            'value': diagnostic_value
+                        })
+                        break  # Only count one match per question
         
-        for category, patterns in onset_patterns.items():
-            for pattern in patterns:
-                if pattern in text_lower:
-                    features['onset'] = category
-                    break
-        
-        # Location patterns
-        location_patterns = {
-            'RLQ': ['right lower', 'lower right', 'right side of stomach', 'right abdomen'],
-            'RUQ': ['right upper', 'upper right'],
-            'epigastric': ['upper stomach', 'upper abdomen', 'stomach area'],
-            'LLQ': ['left lower', 'lower left'],
-            'LUQ': ['left upper', 'upper left']
-        }
-        
-        for location, patterns in location_patterns.items():
-            for pattern in patterns:
-                if pattern in text_lower:
-                    features['location'] = location
-                    break
-        
-        # Migration pattern
-        if any(word in text_lower for word in ['moved', 'migrated', 'started', 'shifted']):
-            if 'belly button' in text_lower or 'umbilicus' in text_lower or 'navel' in text_lower:
-                if 'right' in text_lower:
-                    features['migration_pattern'] = 'periumbilical_to_RLQ'
-        
-        # Quality
-        quality_patterns = {
-            'sharp': ['sharp', 'stabbing', 'knife-like'],
-            'dull': ['dull', 'aching'],
-            'burning': ['burning', 'hot'],
-            'cramping': ['cramping', 'crampy', 'cramp'],
-            'pressure': ['pressure', 'heavy', 'elephant', 'crushing']
-        }
-        
-        for quality, patterns in quality_patterns.items():
-            for pattern in patterns:
-                if pattern in text_lower:
-                    features['quality'] = quality
-                    break
-        
-        # Associated symptoms
-        if any(word in text_lower for word in ['fever', 'hot', 'temperature']):
-            features['fever'] = True
-        
-        if any(word in text_lower for word in ['nausea', 'nauseous', 'sick', 'queasy']):
-            features['nausea'] = True
-        
-        if any(word in text_lower for word in ['vomit', 'vomiting', 'threw up', 'throw up']):
-            features['vomiting'] = True
-        
-        # Pain type (for chief complaint matching)
-        if 'abdominal' in text_lower or 'stomach' in text_lower or 'belly' in text_lower:
-            features['pain_type'] = 'abdominal'
-        
-        if 'chest' in text_lower:
-            features['pain_type'] = 'chest'
-        
-        if 'head' in text_lower:
-            features['pain_type'] = 'head'
+        # Debug: Show what was extracted
+        if features:
+            print(f"[Adaptive] 🔍 Feature extraction from guidelines:")
+            if 'positive_findings' in features:
+                for finding in features['positive_findings']:
+                    print(f"[Adaptive]    ✅ {finding['guideline']}: {finding['question']} ({finding['value']})")
+            if 'negative_findings' in features:
+                for finding in features['negative_findings']:
+                    print(f"[Adaptive]    ❌ {finding['guideline']}: {finding['question']} (rule out)")
+        else:
+            print(f"[Adaptive] ⚠️ No guideline features matched: '{text}'")
         
         return features
     
     def _score_all_guidelines(self):
         """
-        Score ALL active guidelines against ALL answered features
+        Score ALL active guidelines based on guideline-driven feature matches
         
-        This is the key to simultaneous evaluation - every guideline
-        is scored against every piece of information we have.
+        Uses the diagnostic_questions from each guideline's JSON to score matches.
+        No hardcoded logic - 100% data-driven!
         """
+        print(f"[Adaptive] 🔢 Scoring {len(self.active_guidelines)} guidelines")
+        
+        # Weight mapping for diagnostic_value
+        diagnostic_weights = {
+            'critical': 0.30,
+            'high': 0.20,
+            'moderate': 0.10,
+            'low': 0.05
+        }
+        
         for guideline_obj in self.active_guidelines:
-            guideline = guideline_obj['guideline_data']
-            score = guideline_obj['score']  # Start with initial match score
+            guideline_name = guideline_obj['name']
+            initial_score = guideline_obj['score']
+            score = initial_score
             
-            # Score based on answered features
-            # TODO: Use more sophisticated scoring from JSON criteria
+            print(f"[Adaptive]   Scoring {guideline_name} (initial: {initial_score:.3f})")
             
-            # Location scoring (high weight)
-            if 'location' in self.answered_features:
-                user_location = self.answered_features['location']
-                
-                # Check if guideline specifies typical location
-                key_features = guideline.get('key_features', {})
-                classic_pres = key_features.get('classic_presentation', '').lower()
-                
-                if 'RLQ' in user_location or 'right lower' in user_location:
-                    if 'rlq' in classic_pres or 'right lower quadrant' in classic_pres:
-                        score += 0.35  # High weight for location match
+            # Count positive findings for this guideline
+            positive_count = 0
+            if 'positive_findings' in self.answered_features:
+                for finding in self.answered_features['positive_findings']:
+                    if finding['guideline'] == guideline_name:
+                        weight = diagnostic_weights.get(finding['value'], 0.10)
+                        score += weight
+                        positive_count += 1
+                        print(f"[Adaptive]     ✅ {finding['question']}: +{weight:.2f} ({finding['value']})")
             
-            # Migration pattern (very specific)
-            if 'migration_pattern' in self.answered_features:
-                if self.answered_features['migration_pattern'] == 'periumbilical_to_RLQ':
-                    if 'periumbilical' in str(guideline).lower() and 'migrat' in str(guideline).lower():
-                        score += 0.30  # Very specific for appendicitis
-            
-            # Onset
-            if 'onset' in self.answered_features:
-                user_onset = self.answered_features['onset']
-                urgency = guideline.get('urgency', '').lower()
-                
-                if user_onset == 'acute' and urgency in ['urgent', 'emergent', 'emergency']:
-                    score += 0.10
-            
-            # Quality
-            if 'quality' in self.answered_features:
-                # TODO: Check against expected responses in diagnostic_questions
-                score += 0.05
-            
-            # Associated symptoms
-            if self.answered_features.get('fever'):
-                score += 0.05
-            
-            if self.answered_features.get('nausea') or self.answered_features.get('vomiting'):
-                score += 0.05
+            # Penalize negative findings
+            negative_count = 0
+            if 'negative_findings' in self.answered_features:
+                for finding in self.answered_features['negative_findings']:
+                    if finding['guideline'] == guideline_name:
+                        score -= 0.15  # Penalty for negative finding
+                        negative_count += 1
+                        print(f"[Adaptive]     ❌ {finding['question']}: -0.15 (rule out)")
             
             # Update score
-            guideline_obj['score'] = min(score, 1.0)  # Cap at 1.0
+            guideline_obj['score'] = max(0.0, min(score, 1.0))  # Clamp between 0-1
+            
+            if positive_count > 0 or negative_count > 0:
+                print(f"[Adaptive]     Final: {guideline_obj['score']:.3f} ({positive_count} positives, {negative_count} negatives)")
     
     def _ask_next_question(self) -> Dict[str, Any]:
         """
-        Select and ask the most discriminating next question
+        Select and ask the most discriminating next question from guideline
         
-        This uses information theory - which question will
-        best narrow the differential diagnosis?
+        Picks the highest-value question from the top guideline that hasn't been asked yet.
+        100% data-driven from guideline JSON!
         """
-        # Determine what we still need to know
-        critical_features = ['onset', 'location', 'quality', 'migration_pattern']
-        
-        # Find first missing critical feature
-        for feature in critical_features:
-            if feature not in self.answered_features:
-                question = self._generate_question_for_feature(feature)
-                
-                self.questions_asked.append({
-                    'feature': feature,
-                    'question': question
-                })
-                
-                return {
-                    'success': True,
-                    'question': question,
-                    'status': 'questioning',
-                    'differentials': [
-                        {'name': g['name'], 'score': g['score']} 
-                        for g in self.active_guidelines[:3]
-                    ]
-                }
-        
-        # If we've asked all critical questions, ask about associated symptoms
-        if 'fever' not in self.answered_features:
+        if not self.active_guidelines:
             return {
-                'success': True,
-                'question': "Have you had any fever?",
-                'status': 'questioning'
+                'success': False,
+                'message': "I need more information to make a diagnosis."
             }
         
-        # Fallback - try to finalize with current info
+        # Get questions from top guideline
+        top_guideline = self.active_guidelines[0]
+        guideline = top_guideline['guideline_data']
+        diagnostic_questions = guideline.get('diagnostic_questions', [])
+        
+        # Track which question_focus areas we've already asked about
+        asked_focuses = set()
+        if 'positive_findings' in self.answered_features:
+            for finding in self.answered_features['positive_findings']:
+                asked_focuses.add(finding['question'])
+        if 'negative_findings' in self.answered_features:
+            for finding in self.answered_features['negative_findings']:
+                asked_focuses.add(finding['question'])
+        
+        # Find highest-value unanswered question
+        priority_order = ['critical', 'high', 'moderate', 'low']
+        
+        for priority in priority_order:
+            for question_data in diagnostic_questions:
+                question_focus = question_data.get('question_focus', '')
+                diagnostic_value = question_data.get('diagnostic_value', 'moderate')
+                
+                if diagnostic_value == priority and question_focus not in asked_focuses:
+                    # Generate natural question from focus
+                    question_text = self._generate_question_from_focus(question_focus, question_data)
+                    
+                    self.questions_asked.append({
+                        'focus': question_focus,
+                        'question': question_text,
+                        'value': diagnostic_value
+                    })
+                    
+                    return {
+                        'success': True,
+                        'question': question_text,
+                        'status': 'questioning',
+                        'differentials': [
+                            {'name': g['name'], 'score': g['score']} 
+                            for g in self.active_guidelines[:3]
+                        ]
+                    }
+        
+        # All questions asked - try to finalize
         if len(self.active_guidelines) > 0:
             return self._finalize_diagnosis(self.active_guidelines[0])
         
@@ -505,19 +495,40 @@ class AdaptiveDiagnosticEngine:
             'message': "I need more information to make a diagnosis."
         }
     
-    def _generate_question_for_feature(self, feature: str) -> str:
-        """Generate natural question for a specific feature"""
+    def _generate_question_from_focus(self, focus: str, question_data: Dict) -> str:
+        """
+        Generate natural question from focus area
         
-        question_templates = {
-            'onset': "When did this pain start?",
-            'location': "Where exactly do you feel the pain?",
-            'quality': "How would you describe the pain?",
-            'migration_pattern': "Did the pain start in one place and move to another?",
-            'severity': "On a scale of 1-10, how severe is the pain?",
-            'radiation': "Does the pain spread or radiate anywhere?"
-        }
+        Uses simple templates based on focus keywords.
+        Could be enhanced with LLM in future.
+        """
+        focus_lower = focus.lower()
         
-        return question_templates.get(feature, "Can you tell me more about your symptoms?")
+        # Use context as the question if available
+        context = question_data.get('context', '')
+        
+        # Simple template mapping
+        if 'onset' in focus_lower:
+            return "When did this pain start?"
+        elif 'location' in focus_lower or 'where' in focus_lower:
+            return "Where exactly do you feel the pain?"
+        elif 'migration' in focus_lower or 'move' in focus_lower:
+            return "Did the pain start in one place and move to another?"
+        elif 'quality' in focus_lower or 'character' in focus_lower:
+            return "How would you describe the pain?"
+        elif 'severity' in focus_lower:
+            return "On a scale of 1-10, how severe is the pain?"
+        elif 'appetite' in focus_lower or 'nausea' in focus_lower:
+            return "Have you had any nausea or loss of appetite?"
+        elif 'fever' in focus_lower:
+            return "Have you had any fever?"
+        elif 'bowel' in focus_lower:
+            return "Have you had any changes in your bowel movements?"
+        elif 'movement' in focus_lower:
+            return "Does movement make the pain worse?"
+        else:
+            # Fallback: use the focus as-is
+            return f"Can you tell me about {focus}?"
     
     def _finalize_diagnosis(self, diagnosis_obj: Dict) -> Dict[str, Any]:
         """
