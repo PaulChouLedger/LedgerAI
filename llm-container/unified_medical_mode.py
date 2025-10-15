@@ -224,16 +224,16 @@ class UnifiedMedicalSession:
         """
         query_lower = query.lower()
 
-        # Check for symptom assessment patterns (first-person medical complaints)
-        symptom_patterns = [
-            r'\bi have\b', r'\bi\'m having\b', r'\bim having\b',
-            r'\bi feel\b', r'\bi\'m feeling\b', r'\bim feeling\b',
-            r'\bmy .+ (hurt|ache|pain)', r'\bi experience\b',
-            r'\bi\'m experiencing\b', r'\bim experiencing\b',
-            r'\bi suffer from\b', r'\bi\'m suffering from\b'
+        # Check for symptom assessment (any mention of medical symptoms)
+        # Simple keyword-based - no grammar restrictions
+        symptom_keywords = [
+            'pain', 'ache', 'hurt', 'sore', 'nausea', 'vomit', 'fever',
+            'cough', 'bleeding', 'dizzy', 'headache', 'chest', 'abdomen',
+            'stomach', 'belly', 'breathing', 'swelling', 'rash', 'fatigue',
+            'weakness', 'numbness', 'tingling', 'burning'
         ]
-
-        if any(re.search(pattern, query_lower) for pattern in symptom_patterns):
+        
+        if any(symptom in query_lower for symptom in symptom_keywords):
             return "symptom_assessment"
 
         # Check for medical knowledge questions
@@ -451,15 +451,18 @@ class UnifiedMedicalSession:
         This is how real clinicians think - differential diagnosis.
         """
         try:
-            # Search for relevant guidelines using semantic similarity
-            search_query = f"abdominal pain differential diagnosis {category} {query}" if category else f"differential diagnosis {query}"
+            # Search SPECIFICALLY for medical guideline documents
+            # Use the exact header format to ensure we get medical guidelines, not business docs
+            search_query = f"DIAGNOSTIC GUIDELINE gastrointestinal {query}" if category else f"DIAGNOSTIC GUIDELINE {query}"
+            
+            print(f"[Dynamic] 🔍 Searching RAG with query: '{search_query}'")
             
             response = requests.post(
                 "http://localhost:11435/rag/search",
                 json={
                     "query": search_query, 
                     "top_k": 50,  # Get many chunks to cover multiple guidelines
-                    "disable_keyword_filter": True,  # Get all semantically similar
+                    "disable_keyword_filter": False,  # Re-enable keyword filter to match "DIAGNOSTIC GUIDELINE"
                     "min_score": 0.0
                 },
                 timeout=10
@@ -1012,40 +1015,94 @@ def is_unified_medical_trigger(prompt: str) -> bool:
         True if should use unified medical mode
     """
     prompt_lower = prompt.lower()
-
-    # Medical symptom patterns (first-person statements)
-    symptom_patterns = [
-        r'\bi have\b', r'\bi\'m having\b', r'\bim having\b',
-        r'\bi feel\b', r'\bi\'m feeling\b', r'\bim feeling\b',
-        r'\bmy .+ (hurt|ache|pain)', r'\bi experience\b',
-        r'\bi\'m experiencing\b', r'\bim experiencing\b'
-    ]
-
-    if any(re.search(pattern, prompt_lower) for pattern in symptom_patterns):
-        return True
-
-    # Medical knowledge questions
-    knowledge_indicators = [
-        "what is", "what are", "what does", "what do",
-        "how is", "how are", "how does", "how do",
-        "why is", "why are", "why does", "why do",
-        "when is", "when are", "when does", "when do",
-        "where is", "where are", "where does", "where do",
-        "who is", "who are", "who does", "who do",
-        "tell me about", "explain", "describe", "define"
-    ]
-
-    if any(indicator in prompt_lower for indicator in knowledge_indicators):
-        # Use intelligent fast keyword search to detect medical topics
-        # Latency: ~0.0001 seconds (100 microseconds) - negligible!
-        if _is_medical_topic_fast(prompt_lower):
+    
+    # Simple, flexible approach: Check for medical keywords
+    # Load from medical_terms.json (shared across all containers)
+    medical_keywords = _get_medical_keywords()
+    
+    # Check for medical keywords (fuzzy/partial match)
+    for keyword in medical_keywords:
+        if keyword.lower() in prompt_lower:
+            print(f"[Unified Medical] 🎯 Medical keyword: '{keyword}'")
             return True
-
-    # General medical topics
-    if any(term in prompt_lower for term in ["medicine", "medical", "health", "clinical", "patient", "doctor"]):
+    
+    # Also check built-in common symptom terms (always medical)
+    common_symptoms = [
+        'pain', 'ache', 'hurt', 'sore', 'nausea', 'nauseous', 'vomit', 'vomiting',
+        'fever', 'cough', 'coughing', 'bleeding', 'bleed', 'dizzy', 'dizziness',
+        'headache', 'migraine', 'chest', 'abdomen', 'abdominal', 'stomach', 'belly',
+        'shortness of breath', 'breathing', 'breath', 'swelling', 'swollen', 'rash',
+        'fatigue', 'tired', 'weakness', 'numbness', 'tingling', 'burning'
+    ]
+    
+    for symptom in common_symptoms:
+        if symptom in prompt_lower:
+            print(f"[Unified Medical] 🎯 Common symptom: '{symptom}'")
+            return True
+    
+    # General medical context
+    if any(term in prompt_lower for term in ["medical", "diagnosis", "treatment", "symptom"]):
         return True
-
+    
     return False
+
+
+def _get_medical_keywords() -> list:
+    """
+    Get comprehensive medical keywords from:
+    1. medical_terms.json (organized by organ system)
+    2. All synonym files (LLM container)
+    
+    Returns flattened list of all medical terms
+    """
+    all_keywords = []
+    
+    try:
+        import json
+        from pathlib import Path
+        
+        # 1. Load from shared medical_terms.json (organized by organ system)
+        medical_terms_path = Path('/shared/medical_terms.json')
+        if medical_terms_path.exists():
+            with open(medical_terms_path, 'r') as f:
+                data = json.load(f)
+            
+            # File is organized: {specialty: [terms], specialty: [terms], ...}
+            for specialty, terms in data.items():
+                # Skip metadata and non-list fields
+                if specialty in ['metadata', 'proper_names'] or not isinstance(terms, list):
+                    continue
+                
+                all_keywords.extend(terms)
+        
+        # 2. Load from all synonym files
+        synonym_dir = Path('/app/synonyms')
+        if synonym_dir.exists():
+            for synonym_file in synonym_dir.glob('*_synonyms.json'):
+                try:
+                    with open(synonym_file, 'r') as f:
+                        synonyms = json.load(f)
+                    
+                    # Each file is a dict where keys and values are medical terms
+                    for term, variants in synonyms.items():
+                        all_keywords.append(term)
+                        if isinstance(variants, list):
+                            all_keywords.extend(variants)
+                
+                except Exception as e:
+                    print(f"[Unified Medical] ⚠️ Error loading {synonym_file.name}: {e}")
+        
+        # Remove duplicates
+        unique_keywords = list(set([k.lower() for k in all_keywords]))
+        
+        if unique_keywords:
+            print(f"[Unified Medical] 📚 Loaded {len(unique_keywords)} medical terms from all sources")
+        
+        return unique_keywords
+        
+    except Exception as e:
+        print(f"[Unified Medical] ⚠️ Error loading medical keywords: {e}")
+        return []
 
 
 def _is_medical_topic_fast(text: str) -> bool:
