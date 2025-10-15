@@ -168,6 +168,11 @@ class AdaptiveDiagnosticEngine:
         Returns:
             Response dict with next question or diagnosis
         """
+        # Check if this looks like a NEW chief complaint (restart assessment)
+        if self._is_new_chief_complaint(user_answer):
+            print(f"[Adaptive] 🔄 Detected new chief complaint - restarting assessment")
+            return self.start_assessment(user_answer)
+        
         if self.status != "questioning":
             return {
                 'success': False,
@@ -207,17 +212,24 @@ class AdaptiveDiagnosticEngine:
             if len(self.active_guidelines) == 1 and top['score'] > 0.7:
                 return self._finalize_diagnosis(top)
         
-        # Filter out low-scoring guidelines
-        self.active_guidelines = [
-            g for g in self.active_guidelines 
-            if g['score'] > 0.3  # Keep only reasonable candidates
-        ]
+        # Filter out low-scoring guidelines (but keep at least 1!)
+        threshold = 0.2  # Lower threshold for more flexibility
+        filtered = [g for g in self.active_guidelines if g['score'] > threshold]
+        
+        # Always keep at least the top guideline
+        if len(filtered) == 0 and len(self.active_guidelines) > 0:
+            print(f"[Adaptive] ⚠️ No guidelines above {threshold}, keeping top guideline")
+            self.active_guidelines = [self.active_guidelines[0]]
+        else:
+            self.active_guidelines = filtered
         
         if len(self.active_guidelines) == 0:
-            print(f"[Adaptive] ⚠️ No guidelines remain above threshold")
+            print(f"[Adaptive] ⚠️ No guidelines remain")
+            # Reset and ask for new chief complaint
+            self.reset_assessment()
             return {
                 'success': False,
-                'message': "I need more information. Can you describe your symptoms in more detail?"
+                'message': "I couldn't match your symptoms to a specific condition. Can you describe what's bothering you?"
             }
         
         # Ask next discriminating question
@@ -232,8 +244,12 @@ class AdaptiveDiagnosticEngine:
         """
         matched = []
         
+        print(f"[Adaptive] 🔍 Matching '{normalized_text}' against {len(self.guidelines)} guidelines")
+        
         for name, guideline in self.guidelines.items():
             triggers = guideline.get('chief_complaint_triggers', [])
+            
+            print(f"[Adaptive]   Checking {name}: triggers={triggers}")
             
             # Check each trigger
             for trigger in triggers:
@@ -241,6 +257,7 @@ class AdaptiveDiagnosticEngine:
                 
                 # Direct match
                 if trigger_normalized in normalized_text:
+                    print(f"[Adaptive]     ✅ Direct match: '{trigger_normalized}' in text")
                     matched.append((name, 0.5))  # Base score for match
                     break
                 
@@ -249,6 +266,7 @@ class AdaptiveDiagnosticEngine:
                     if word in self.synonyms:
                         for synonym in self.synonyms[word]:
                             if synonym in normalized_text:
+                                print(f"[Adaptive]     ✅ Synonym match: '{synonym}' → '{word}'")
                                 matched.append((name, 0.4))  # Slightly lower for synonym
                                 break
         
@@ -258,11 +276,42 @@ class AdaptiveDiagnosticEngine:
             if name not in unique_matched or score > unique_matched[name]:
                 unique_matched[name] = score
         
+        print(f"[Adaptive] 🎯 Matched {len(unique_matched)} guidelines")
+        
         return list(unique_matched.items())
     
     def _normalize_text(self, text: str) -> str:
         """Normalize text for matching"""
         return text.lower().strip()
+    
+    def _is_new_chief_complaint(self, text: str) -> bool:
+        """
+        Detect if user is stating a new chief complaint vs answering a question
+        
+        Returns True if text looks like "I have X pain" or similar
+        """
+        text_lower = text.lower().strip()
+        
+        # Patterns for chief complaints
+        complaint_patterns = [
+            'i have',
+            'i am having',
+            'i feel',
+            'my',
+            'there is',
+            'i got'
+        ]
+        
+        # Common symptoms
+        symptom_words = ['pain', 'ache', 'hurt', 'discomfort', 'burning', 'pressure']
+        
+        # Check if starts with complaint pattern and contains symptom
+        for pattern in complaint_patterns:
+            if text_lower.startswith(pattern):
+                if any(symptom in text_lower for symptom in symptom_words):
+                    return True
+        
+        return False
     
     def _extract_features_from_text(self, text: str) -> Dict[str, Any]:
         """
@@ -341,6 +390,16 @@ class AdaptiveDiagnosticEngine:
         
         if any(word in text_lower for word in ['vomit', 'vomiting', 'threw up', 'throw up']):
             features['vomiting'] = True
+        
+        # Pain type (for chief complaint matching)
+        if 'abdominal' in text_lower or 'stomach' in text_lower or 'belly' in text_lower:
+            features['pain_type'] = 'abdominal'
+        
+        if 'chest' in text_lower:
+            features['pain_type'] = 'chest'
+        
+        if 'head' in text_lower:
+            features['pain_type'] = 'head'
         
         return features
     
