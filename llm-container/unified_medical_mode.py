@@ -148,6 +148,11 @@ class UnifiedMedicalSession:
             'timestamp': datetime.now().isoformat()
         })
 
+        # Check if we have an active dynamic assessment in progress
+        if self.dynamic_assessment and not self.dynamic_assessment.completed:
+            print(f"[Unified Medical] 🔄 Continuing active dynamic assessment (Q{len(self.dynamic_assessment.questions_asked)})")
+            return self._handle_dynamic_assessment(user_input)
+        
         # Analyze the query type
         query_type = self._analyze_medical_query(user_input)
 
@@ -358,16 +363,24 @@ class UnifiedMedicalSession:
         # Simplified prompt to reduce token usage and improve reliability
         guideline_snippet = guideline_text[:400] if len(guideline_text) > 400 else guideline_text  # Further truncate if needed
         
-        prompt = f"""You are a medical assistant. The patient says: "{state.chief_complaint}"
+        # Build context from previous Q&A
+        qa_history = ""
+        if state.questions_asked and state.responses_received:
+            recent_qa = list(zip(state.questions_asked[-2:], state.responses_received[-2:]))  # Last 2 Q&A pairs
+            for q, a in recent_qa:
+                qa_history += f"Q: {q}\nA: {a}\n"
+        
+        prompt = f"""Patient complaint: "{state.chief_complaint}"
 
-Ask ONE clear diagnostic question about:
-- Location and severity of pain/symptoms
-- When it started
-- Other symptoms
+{qa_history}
+Ask ONE follow-up question about:
+- Pain location/severity
+- Onset/duration
+- Associated symptoms
 
 Guidelines: {guideline_snippet}
 
-Question:"""
+Output ONLY the question, nothing else."""
         
         print(f"[Dynamic] 📝 Prompt length: {len(prompt)} chars, approx {len(prompt)//4} tokens")
         
@@ -379,6 +392,13 @@ Question:"""
             stream=False
         )
         
+        # Clean up question - remove meta-commentary
+        if question:
+            # Remove common meta phrases
+            question = re.sub(r'^(Here\'s a|I can ask|Let me ask|I\'d like to ask|A good question would be)[^:]*:\s*', '', question, flags=re.IGNORECASE)
+            question = re.sub(r'^"(.+)"$', r'\1', question)  # Remove surrounding quotes
+            question = question.strip()
+        
         # Validate output - check for garbage/repetitive content
         if question and len(question) > 10:
             from collections import Counter
@@ -387,6 +407,8 @@ Question:"""
             if most_common / len(question) > 0.3:  # >30% same character = garbage
                 print(f"[Dynamic] ⚠️ Garbage output detected, using fallback question")
                 question = "Can you describe where the pain is located and how severe it is on a scale of 1-10?"
+        
+        print(f"[Dynamic] ❓ Generated question: {question}")
         
         # Track question
         state.questions_asked.append(question)
