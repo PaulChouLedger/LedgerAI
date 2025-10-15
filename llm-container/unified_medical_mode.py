@@ -19,6 +19,7 @@ import sys
 import json
 import re
 import time
+import requests
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple, Callable
 from difflib import SequenceMatcher
@@ -44,24 +45,30 @@ except Exception as e:
 
 # Load shared medical terms from centralized file (used by both Whisper and LLM)
 MEDICAL_TERMS = {}
-MEDICAL_TERMS_FILE = "/app/medical_terms.json"
+MEDICAL_TERMS_FILE = "/app/medical_terms.json"  # Copied from shared/ during Docker build
 
 def _load_medical_terms():
-    """Load medical terms from shared JSON file"""
+    """Load medical terms from shared JSON file (single source of truth)"""
     global MEDICAL_TERMS
-    try:
-        with open(MEDICAL_TERMS_FILE, 'r') as f:
-            MEDICAL_TERMS = json.load(f)
-        # Flatten all terms into a single list for fast keyword matching
-        all_terms = []
-        for category, terms in MEDICAL_TERMS.items():
-            all_terms.extend(terms)
-        MEDICAL_TERMS['_all_terms_flat'] = list(set(all_terms))  # Deduplicate
-        print(f"[Unified Medical] ✅ Loaded {len(MEDICAL_TERMS['_all_terms_flat'])} medical terms from shared file")
-    except Exception as e:
-        print(f"[Unified Medical] ⚠️ Could not load medical terms: {e}")
-        print("[Unified Medical] ⚠️ Falling back to suffix-based detection only")
-        MEDICAL_TERMS['_all_terms_flat'] = []
+    
+    if not os.path.exists(MEDICAL_TERMS_FILE):
+        raise FileNotFoundError(
+            f"Medical terms file not found: {MEDICAL_TERMS_FILE}\n"
+            f"This file must be copied from shared/medical_terms.json during Docker build.\n"
+            f"Check Dockerfile: COPY ../shared/medical_terms.json /app/medical_terms.json"
+        )
+    
+    with open(MEDICAL_TERMS_FILE, 'r') as f:
+        MEDICAL_TERMS = json.load(f)
+    
+    # Flatten all terms into a single list for fast keyword matching
+    all_terms = []
+    for category, terms in MEDICAL_TERMS.items():
+        all_terms.extend(terms)
+    MEDICAL_TERMS['_all_terms_flat'] = list(set(all_terms))  # Deduplicate
+    
+    print(f"[Unified Medical] ✅ Loaded {len(MEDICAL_TERMS['_all_terms_flat'])} medical terms from {MEDICAL_TERMS_FILE}")
+    print(f"[Unified Medical] ✅ Categories: {', '.join([k for k in MEDICAL_TERMS.keys() if k != '_all_terms_flat'])}")
 
 # Load medical terms on module import
 _load_medical_terms()

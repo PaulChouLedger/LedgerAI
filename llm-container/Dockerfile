@@ -20,8 +20,8 @@ COPY medical_rag.py .
 COPY triage_defs/ /app/triage_defs/
 COPY synonyms/ /app/synonyms/
 
-# Copy shared medical terms (used by both Whisper and LLM containers)
-COPY ../whisper-container/medical_terms.json /app/medical_terms.json
+# Copy shared medical terms (single source of truth)
+COPY ../shared/medical_terms.json /app/medical_terms.json
 
 
 # Copy example models (others can be mounted at runtime)

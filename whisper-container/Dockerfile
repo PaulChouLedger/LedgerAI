@@ -3,9 +3,11 @@ FROM faster-whisper:r36.4.tegra-aarch64-cu126-22.04
 
 WORKDIR /app
 
-# Copy REST API and medical vocabulary
+# Copy REST API
 COPY container_rest.py /app/container_rest.py
-COPY medical_terms.json /app/medical_terms.json
+
+# Copy shared medical terms (single source of truth at repo_root/shared/)
+COPY ../shared/medical_terms.json /app/medical_terms.json
 
 # Install REST API dependencies
 RUN pip3 install --ignore-installed flask soundfile scipy

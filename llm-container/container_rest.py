@@ -373,24 +373,17 @@ def chat_tts():
     elif mode == ConversationMode.UNIFIED_MEDICAL:
         def generate_unified_medical():
             try:
-                print("[Container] 🔄 Using NEW streaming architecture for UNIFIED_MEDICAL")
-                # Get messages for medical query
-                from unified_medical_mode import get_unified_medical_messages
-                messages = get_unified_medical_messages(prompt, session_id)
-                print(f"[Container] ✅ Got messages for streaming: {messages[0]['role']}")
+                print("[Container] 🔄 Using dynamic medical assessment for UNIFIED_MEDICAL")
+                # Use the unified medical session to process the query
+                response = handle_unified_medical_response(prompt, session_id, llm_chat)
                 
-                # Stream response chunks (reduces initial latency!)
-                full_response = ""
+                # response is already a string from the session
+                print(f"[Container] ✅ Got response from unified medical session")
+                
+                # Wrap in sentence markers for TTS
                 yield "<sentence_start>\n"
-                
-                print("[Container] 🌊 Starting streaming...")
-                for chunk in stream_llm_response(messages, max_tokens=150):
-                    full_response += chunk
-                    # Don't yield individual chunks - wait for sentences
-                    # This prevents choppy TTS
-                
-                print(f"[Container] ✅ Streaming complete, response length: {len(full_response)}")
-                yield f"{full_response}\n<sentence_end>\n"
+                yield f"{response}\n"
+                yield "<sentence_end>\n"
             except Exception as e:
                 print(f"[Container] ❌ Error in unified medical mode: {e}")
                 import traceback
