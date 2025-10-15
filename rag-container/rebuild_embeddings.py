@@ -255,13 +255,16 @@ def rebuild_embeddings(data_root="/app/data"):
     
     # Manual L2 normalization (faiss_lite container compatibility)
     norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
-    embeddings = embeddings / norms
-    # Create completely fresh array (faiss_lite is very picky!)
-    embeddings = np.array(embeddings, dtype=np.float32, order='C', copy=True)
-    print(f"✅ Normalized embeddings manually (faiss_lite compatible)")
-    print(f"🔍 Array check: type={type(embeddings)}, dtype={embeddings.dtype}, C-contig={embeddings.flags['C_CONTIGUOUS']}")
+    embeddings_normalized = embeddings / norms
     
-    index.add(embeddings)
+    # Create completely fresh contiguous array (FAISS requires C-contiguous float32)
+    embeddings_final = np.ascontiguousarray(embeddings_normalized, dtype=np.float32)
+    
+    print(f"✅ Normalized embeddings manually (faiss_lite compatible)")
+    print(f"🔍 Array check: type={type(embeddings_final)}, dtype={embeddings_final.dtype}, C-contig={embeddings_final.flags['C_CONTIGUOUS']}")
+    print(f"🔍 Shape: {embeddings_final.shape}")
+    
+    index.add(embeddings_final)
     
     print(f"✅ FAISS index created with {index.ntotal} vectors")
     
@@ -274,7 +277,7 @@ def rebuild_embeddings(data_root="/app/data"):
     faiss.write_index(index, str(index_path))
     
     print(f"💾 Saving raw vectors to {vectors_path}")
-    np.save(vectors_path, embeddings.astype(np.float32))
+    np.save(vectors_path, embeddings_final)
     
     print(f"💾 Saving chunks to {chunks_path}")
     np.save(chunks_path, np.array(chunks))
