@@ -29,10 +29,11 @@ from triage import detect_condition, process_triage_step, generate_triage_comple
 from clinician import ClinicianSession, is_clinician_trigger, create_clinician_session
 # Import unified medical mode for comprehensive medical assistance
 try:
-    from unified_medical_mode import UnifiedMedicalSession, is_unified_medical_trigger, get_unified_medical_session
+    from unified_medical_mode import UnifiedMedicalSession, is_unified_medical_trigger, get_unified_medical_session, handle_unified_medical_response
     UNIFIED_MEDICAL_AVAILABLE = True
 except ImportError:
     UNIFIED_MEDICAL_AVAILABLE = False
+    handle_unified_medical_response = None
     print("[Container] ⚠️ Unified medical mode not available")
 
 # RAG functionality moved to separate RAG container (port 11435)
@@ -349,8 +350,14 @@ def chat_tts():
     elif mode == ConversationMode.UNIFIED_MEDICAL:
         def generate_unified_medical():
             try:
-                response = handle_unified_medical_response(prompt, session_id, llm_chat)
-                yield f"<sentence_start>\n{response}\n<sentence_end>\n"
+                if UNIFIED_MEDICAL_AVAILABLE and handle_unified_medical_response:
+                    response = handle_unified_medical_response(prompt, session_id, llm_chat)
+                    yield f"<sentence_start>\n{response}\n<sentence_end>\n"
+                else:
+                    # Fallback to clinician mode if unified medical not available
+                    clinician = create_clinician_session(session_id, prompt, llm_chat)
+                    opening = clinician.start_session()
+                    yield f"<sentence_start>\n{opening}\n<sentence_end>\n"
             except Exception as e:
                 print(f"[Container] ❌ Error in unified medical mode: {e}")
                 # Fallback to clinician mode

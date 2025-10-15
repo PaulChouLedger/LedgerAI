@@ -19,7 +19,6 @@ from typing import Tuple, Optional
 # Mode trigger imports
 from casual import is_casual_trigger
 from thinker import is_thinker_trigger
-from clinician import is_clinician_trigger
 from unified_medical_mode import is_unified_medical_trigger
 
 # Feature flags
@@ -64,10 +63,10 @@ def route_prompt(prompt: str, state: dict, session_id: str, llm_chat_fn=None) ->
         state['mode'] = ConversationMode.TRIAGE
         return ConversationMode.TRIAGE, state
     
-    # PRIORITY 2: CLINICIAN mode is LOCKED - must complete before switching
-    if state.get('mode') == ConversationMode.CLINICIAN:
-        print(f"[Router] 🔒 CLINICIAN mode locked - must complete before switching")
-        return ConversationMode.CLINICIAN, state
+    # PRIORITY 2: UNIFIED_MEDICAL mode is LOCKED - must complete before switching
+    if state.get('mode') == ConversationMode.UNIFIED_MEDICAL:
+        print(f"[Router] 🔒 UNIFIED_MEDICAL mode locked - must complete before switching")
+        return ConversationMode.UNIFIED_MEDICAL, state
     
     # PRIORITY 3: Check for unified medical mode (handles both symptoms and medical knowledge)
     if is_unified_medical_trigger(prompt):
@@ -82,17 +81,7 @@ def route_prompt(prompt: str, state: dict, session_id: str, llm_chat_fn=None) ->
         state['mode'] = ConversationMode.THINKER
         return ConversationMode.THINKER, state
     
-    # PRIORITY 5: Check for medical symptoms (route to clinician instead of triage)
-    if ENABLE_MEDICAL_SYMPTOM_ROUTING and is_clinician_trigger(prompt):
-        print(f"[Router] 🩺 → CLINICIAN mode (medical symptom detected)")
-        state.update({
-            'mode': ConversationMode.CLINICIAN,
-            'chief_complaint': prompt,
-            'is_new_clinician': True
-        })
-        return ConversationMode.CLINICIAN, state
-
-    # PRIORITY 6: Check for NEW medical condition (start triage) - only if not using clinician mode
+    # PRIORITY 5: Check for NEW medical condition (start triage) - only if unified medical didn't catch it
     from triage import detect_condition
     condition = detect_condition(prompt, session_id, llm_chat_fn)
     if condition:
