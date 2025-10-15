@@ -76,6 +76,30 @@ def normalize_text(text: str) -> str:
     return text
 
 
+def extract_llm_response_content(response) -> str:
+    """
+    Centralized extraction of text content from LLM response
+    Handles both dict (JSON) and string formats from llama.cpp
+    
+    Args:
+        response: LLM response (dict or string)
+        
+    Returns:
+        Extracted text content
+    """
+    # If response is a dict (JSON response from LLM)
+    if isinstance(response, dict):
+        # Standard OpenAI-style response format
+        if 'choices' in response and len(response['choices']) > 0:
+            return response['choices'][0]['message']['content']
+        # Alternative content format
+        elif 'content' in response:
+            return response['content']
+    
+    # If response is already a string, return it directly
+    return str(response)
+
+
 # === Non-streaming chat endpoint for Telegram ===
 @app.route("/chat-tg", methods=["POST"])
 def chat_tg():
@@ -170,21 +194,8 @@ def chat_tg():
         elif mode == ConversationMode.UNIFIED_MEDICAL:
             try:
                 response = handle_unified_medical_response(prompt, session_id, llm_chat)
-                return jsonify({"response": response})
-            except Exception as e:
-                print(f"[Container] ❌ Error in unified medical mode (non-streaming): {e}")
-                # Fallback to clinician mode
-                try:
-                    clinician = create_clinician_session(session_id, prompt, llm_chat)
-                    opening = clinician.start_session()
-                    return jsonify({"response": opening})
-                except Exception as e2:
-                    print(f"[Container] ❌ Fallback clinician also failed: {e2}")
-                    return jsonify({"response": "I'm sorry, I encountered an error processing your medical query. Please consult a healthcare professional."})
-
-        elif mode == ConversationMode.UNIFIED_MEDICAL:
-            try:
-                response = handle_unified_medical_response(prompt, session_id, llm_chat)
+                # Extract content from LLM response (centralized handling)
+                response = extract_llm_response_content(response)
                 return jsonify({"response": response})
             except Exception as e:
                 print(f"[Container] ❌ Error in unified medical mode (non-streaming): {e}")
@@ -335,6 +346,8 @@ def chat_tts():
         def generate_unified_medical():
             try:
                 response = handle_unified_medical_response(prompt, session_id, llm_chat)
+                # Extract content from LLM response (centralized handling)
+                response = extract_llm_response_content(response)
                 yield f"<sentence_start>\n{response}\n<sentence_end>\n"
             except Exception as e:
                 print(f"[Container] ❌ Error in unified medical mode: {e}")

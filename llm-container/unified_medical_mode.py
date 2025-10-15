@@ -48,7 +48,7 @@ class UnifiedMedicalSession:
     def __init__(self, session_id: str, llm_chat_fn: Callable):
         self.session_id = session_id
         self.llm_chat_fn = llm_chat_fn
-
+        
         # Session state
         self.conversation_history = []
         self.current_context = "general"  # "assessment", "knowledge", "general"
