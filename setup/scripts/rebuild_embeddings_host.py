@@ -93,14 +93,17 @@ def rebuild_embeddings(data_root="data"):
         encoder = SentenceTransformer(model_name, device='cuda')
         print(f"✅ Loaded model: {model_name}")
     
-    # Read all parsed text
+    # Read all parsed text with source tracking
     all_texts = []
+    text_sources = []  # Track which file each text came from
+    
     for file_path in parsed_files:
         print(f"📖 Reading {file_path.name}...")
         with open(file_path, 'r', encoding='utf-8') as f:
             text = f.read().strip()
             if text:
                 all_texts.append(text)
+                text_sources.append(file_path.name)
     
     if not all_texts:
         print("❌ No text content found in parsed files")
@@ -111,12 +114,62 @@ def rebuild_embeddings(data_root="data"):
     # Split into chunks based on configuration
     import re
     chunks = []
+    chunk_metadata = []  # NEW: Track metadata for each chunk
+    
+    # Helper function to add chunk with metadata
+    def add_chunk(chunk_text, source_file, guideline_name=None, section_type="unknown"):
+        """Add chunk and its metadata"""
+        chunks.append(chunk_text)
+        
+        metadata = {
+            "chunk_id": len(chunks) - 1,
+            "source_file": source_file,
+            "char_length": len(chunk_text)
+        }
+        
+        # Add guideline-specific metadata
+        if guideline_name:
+            metadata["guideline_name"] = guideline_name
+            metadata["is_medical_guideline"] = True
+            
+            # Detect section type from chunk content
+            chunk_lower = chunk_text.lower()
+            if "diagnostic questioning strategy" in chunk_lower or "question 1:" in chunk_lower:
+                metadata["section_type"] = "diagnostic_questions"
+            elif "red flag" in chunk_lower or "emergency warning" in chunk_lower:
+                metadata["section_type"] = "red_flags"
+            elif "differential diagnos" in chunk_lower:
+                metadata["section_type"] = "differentials"
+            elif "classic presentation" in chunk_lower:
+                metadata["section_type"] = "presentation"
+            else:
+                metadata["section_type"] = section_type
+        else:
+            metadata["is_medical_guideline"] = False
+            metadata["section_type"] = "general_content"
+        
+        chunk_metadata.append(metadata)
     
     print(f"\n📐 Chunking strategy: {'Smart content-aware' if USE_SMART_CHUNKING else 'Simple fixed-size'}")
     print(f"   Chunk size: {CHUNK_SIZE} chars, Overlap: {OVERLAP} chars")
     print(f"   Bio detection: {'Enabled' if DETECT_PERSON_BIOS else 'Disabled'}")
     
-    for text in all_texts:
+    for text_idx, text in enumerate(all_texts):
+        source_file = text_sources[text_idx]
+        
+        # Extract guideline metadata if this is a GUIDELINE file
+        guideline_name = None
+        if source_file.startswith('GUIDELINE_'):
+            # Extract from first line: "DIAGNOSTIC GUIDELINE: Acute Appendicitis"
+            first_line = text.split('\n')[0] if '\n' in text else text[:200]
+            import re
+            match = re.search(r'DIAGNOSTIC GUIDELINE:\s*([^\n]+)', first_line)
+            if match:
+                guideline_name = match.group(1).strip()
+                print(f"\n📋 Processing medical guideline: {guideline_name} (from {source_file})")
+        
+        print(f"\n📄 Processing {source_file}...")
+        file_chunks_start = len(chunks)  # Track where this file's chunks start
         # Try smart chunking if enabled
         bio_starts = []
         
@@ -156,9 +209,9 @@ def rebuild_embeddings(data_root="data"):
                         for j in range(0, len(before_bio), CHUNK_SIZE - OVERLAP):
                             chunk = before_bio[j:j + CHUNK_SIZE].strip()
                             if len(chunk) > 100:
-                                chunks.append(chunk)
+                                add_chunk(chunk, source_file, guideline_name, "pre_bio")
                     elif len(before_bio) > 100:
-                        chunks.append(before_bio)
+                        add_chunk(before_bio, source_file, guideline_name, "pre_bio")
                 
                 # Get bio content (from this bio start to next bio start or end)
                 if i < len(bio_starts) - 1:
@@ -173,10 +226,10 @@ def rebuild_embeddings(data_root="data"):
                     for j in range(0, len(bio_content), CHUNK_SIZE - OVERLAP):
                         chunk = bio_content[j:j + CHUNK_SIZE].strip()
                         if len(chunk) > 100:
-                            chunks.append(chunk)
+                            add_chunk(chunk, source_file, guideline_name, "person_bio")
                             print(f"  ✅ Created chunk for {name} (part {j // (CHUNK_SIZE - OVERLAP) + 1})")
                 else:
-                    chunks.append(bio_content)
+                    add_chunk(bio_content, source_file, guideline_name, "person_bio")
                     print(f"  ✅ Created chunk for {name}")
                 
                 last_pos = next_pos
@@ -185,7 +238,7 @@ def rebuild_embeddings(data_root="data"):
             if last_pos < len(text):
                 remaining = text[last_pos:].strip()
                 if len(remaining) > 100:
-                    chunks.append(remaining)
+                    add_chunk(remaining, source_file, guideline_name, "remaining")
         else:
             # No bio markers found or smart chunking disabled, fall back to paragraph splitting
             print(f"\n📄 Using paragraph-aware chunking (no bio markers found or disabled)")
@@ -199,7 +252,7 @@ def rebuild_embeddings(data_root="data"):
                 
                 if len(current_chunk) + len(para) > CHUNK_SIZE and current_chunk:
                     if len(current_chunk) > 100:
-                        chunks.append(current_chunk.strip())
+                        add_chunk(current_chunk.strip(), source_file, guideline_name, "paragraph")
                     
                     if len(current_chunk) > OVERLAP:
                         current_chunk = current_chunk[-OVERLAP:] + "\n\n" + para
@@ -212,7 +265,7 @@ def rebuild_embeddings(data_root="data"):
                         current_chunk = para
             
             if current_chunk and len(current_chunk) > 100:
-                chunks.append(current_chunk.strip())
+                add_chunk(current_chunk.strip(), source_file, guideline_name, "paragraph")
     
     print(f"📦 Created {len(chunks)} text chunks")
     
@@ -288,9 +341,28 @@ def rebuild_embeddings(data_root="data"):
     print(f"💾 Saving chunks to {chunks_path}")
     np.save(chunks_path, np.array(chunks))
     
+    # Save chunk metadata
+    metadata_path = embeddings_dir / "chunk_metadata.json"
+    print(f"💾 Saving chunk metadata to {metadata_path}")
+    
+    import json
+    with open(metadata_path, 'w', encoding='utf-8') as f:
+        json.dump(chunk_metadata, f, indent=2, ensure_ascii=False)
+    
+    # Count medical guideline chunks
+    guideline_chunks = [m for m in chunk_metadata if m.get('is_medical_guideline')]
+    guidelines_found = set([m['guideline_name'] for m in guideline_chunks if 'guideline_name' in m])
+    
     print("✅ Embeddings rebuilt successfully!")
     print(f"📊 Index: {index.ntotal} vectors, dimension: {dimension}")
     print(f"📦 Chunks: {len(chunks)} text chunks")
+    print(f"📋 Medical guidelines: {len(guidelines_found)} guidelines, {len(guideline_chunks)} chunks")
+    
+    if guidelines_found:
+        print(f"   Guidelines indexed:")
+        for gname in sorted(guidelines_found):
+            gcount = len([m for m in guideline_chunks if m.get('guideline_name') == gname])
+            print(f"   - {gname}: {gcount} chunks")
     
     # Test the index with sample queries
     print("\n🧪 Testing index with sample queries...")

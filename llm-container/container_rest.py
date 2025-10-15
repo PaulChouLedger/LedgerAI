@@ -228,13 +228,18 @@ def chat_tg():
                 print(f"[Container] ❌ Error in unified medical mode (non-streaming): {e}")
                 import traceback
                 traceback.print_exc()
-                # Fallback to triage mode
-                try:
-                    question, triage_state = process_triage_step(prompt, state, session_id, llm_chat)
-                    save_state(triage_state, session_id)
-                    return jsonify({"response": question})
-                except Exception as e2:
-                    return jsonify({"response": "I'm sorry, I encountered an error processing your medical query. Please consult a healthcare professional."})
+                
+                # CRITICAL: Clear medical mode state to prevent lock
+                print(f"[Container] 🔓 Clearing medical mode state due to error")
+                state_to_clear = load_state(session_id)
+                if 'dynamic_assessment' in state_to_clear:
+                    del state_to_clear['dynamic_assessment']
+                if 'mode' in state_to_clear:
+                    del state_to_clear['mode']
+                save_state(state_to_clear, session_id)
+                print(f"[Container] ✅ Medical mode cleared - user can try again or ask other questions")
+                
+                return jsonify({"response": "I'm sorry, I encountered an error processing your medical query. Please try again or consult a healthcare professional."})
         
         else:
             return jsonify({"response": "I'm sorry, I didn't understand that."})
@@ -387,20 +392,19 @@ def chat_tts():
                 print(f"[Container] ❌ Error in unified medical mode: {e}")
                 import traceback
                 traceback.print_exc()
-                # Fallback to triage mode as last resort
-                try:
-                    from triage import detect_condition, process_triage_step
-                    condition = detect_condition(prompt, session_id, llm_chat)
-                    if condition:
-                        state['condition'] = condition
-                        state['step_index'] = 0
-                        question, _ = process_triage_step(prompt, state, session_id, llm_chat)
-                        yield f"<sentence_start>\n{question}\n<sentence_end>\n"
-                    else:
-                        yield f"<sentence_start>\nI'm sorry, I encountered an error processing your medical query. Please consult a healthcare professional.\n<sentence_end>\n"
-                except Exception as e2:
-                    print(f"[Container] ❌ Fallback to triage also failed: {e2}")
-                    yield f"<sentence_start>\nI'm sorry, I encountered an error processing your medical query. Please consult a healthcare professional.\n<sentence_end>\n"
+                
+                # CRITICAL: Clear medical mode state to prevent lock
+                print(f"[Container] 🔓 Clearing medical mode state due to error")
+                state_to_clear = load_state(session_id)
+                if 'dynamic_assessment' in state_to_clear:
+                    del state_to_clear['dynamic_assessment']
+                if 'mode' in state_to_clear:
+                    del state_to_clear['mode']
+                save_state(state_to_clear, session_id)
+                print(f"[Container] ✅ Medical mode cleared - user can try again or ask other questions")
+                
+                # Return error message
+                yield f"<sentence_start>\nI'm sorry, I encountered an error processing your medical query. Please try again or consult a healthcare professional.\n<sentence_end>\n"
 
         # Filter think blocks at container level
         return Response(stream_with_context(filter_think_blocks(generate_unified_medical())), mimetype="text/plain")

@@ -462,7 +462,7 @@ class UnifiedMedicalSession:
                 json={
                     "query": search_query, 
                     "top_k": 50,  # Get many chunks to cover multiple guidelines
-                    "disable_keyword_filter": False,  # Re-enable keyword filter to match "DIAGNOSTIC GUIDELINE"
+                    "disable_keyword_filter": True,  # MUST disable to get all guideline chunks
                     "min_score": 0.0
                 },
                 timeout=10
@@ -473,45 +473,61 @@ class UnifiedMedicalSession:
                 return []
             
             all_results = response.json().get('results', [])
-            print(f"[Dynamic] 📚 Retrieved {len(all_results)} total chunks")
+            print(f"[Dynamic] 📚 Stage 1: Retrieved {len(all_results)} chunks for initial guideline identification")
             
-            # Group chunks by guideline
-            # Each guideline has "DIAGNOSTIC GUIDELINE: [Name]" in its chunks
+            # STAGE 2: Extract guideline names from results and fetch complete guidelines
             import re
-            guidelines_dict = {}
+            guideline_names = set()
             
             for result in all_results:
                 text = result.get('text', '')
                 
-                # Find guideline name
+                # Find guideline name in chunk
                 if 'DIAGNOSTIC GUIDELINE:' in text:
                     match = re.search(r'DIAGNOSTIC GUIDELINE:\s*([^\n]+)', text)
                     if match:
-                        guideline_name = match.group(1).strip().upper()
-                        
-                        if guideline_name not in guidelines_dict:
-                            guidelines_dict[guideline_name] = []
-                        
-                        guidelines_dict[guideline_name].append(result)
+                        guideline_name = match.group(1).strip()
+                        guideline_names.add(guideline_name)
             
-            # Get chunks from top 3 guidelines (differential diagnoses)
-            top_differentials = list(guidelines_dict.keys())[:3]
+            if not guideline_names:
+                print(f"[Dynamic] ⚠️ No guidelines found in search results")
+                return all_results[:10]
             
-            if top_differentials:
-                print(f"[Dynamic] 🎯 Top {len(top_differentials)} differential diagnoses:")
-                for i, diff in enumerate(top_differentials, 1):
-                    chunk_count = len(guidelines_dict[diff])
-                    print(f"[Dynamic]    {i}. {diff} ({chunk_count} chunks)")
-                
-                # Combine chunks from all top differentials
-                combined_chunks = []
-                for diff in top_differentials:
-                    combined_chunks.extend(guidelines_dict[diff])
-                
-                print(f"[Dynamic] 📚 Total chunks from differentials: {len(combined_chunks)}")
-                return combined_chunks
+            # Get top 3 differential diagnoses
+            top_differentials = list(guideline_names)[:3]
+            
+            print(f"[Dynamic] 🎯 Top {len(top_differentials)} differential diagnoses identified:")
+            for i, gname in enumerate(top_differentials, 1):
+                print(f"[Dynamic]    {i}. {gname}")
+            
+            # STAGE 3: Retrieve ALL chunks from these guidelines using metadata
+            all_guideline_chunks = []
+            
+            for guideline_name in top_differentials:
+                try:
+                    # Use new metadata-based endpoint to get ALL chunks
+                    response2 = requests.get(
+                        f"http://localhost:11435/rag/guideline/{guideline_name}",
+                        timeout=10
+                    )
+                    
+                    if response2.status_code == 200:
+                        guideline_data = response2.json()
+                        chunks_from_guideline = guideline_data.get('results', [])
+                        
+                        print(f"[Dynamic] 📋 Retrieved {len(chunks_from_guideline)} chunks from {guideline_name}")
+                        all_guideline_chunks.extend(chunks_from_guideline)
+                    else:
+                        print(f"[Dynamic] ⚠️ Failed to get chunks for {guideline_name}: HTTP {response2.status_code}")
+                        
+                except Exception as e:
+                    print(f"[Dynamic] ⚠️ Error fetching chunks for {guideline_name}: {e}")
+            
+            if all_guideline_chunks:
+                print(f"[Dynamic] 📚 Total chunks from all differentials: {len(all_guideline_chunks)}")
+                return all_guideline_chunks
             else:
-                print(f"[Dynamic] ⚠️ No guidelines found, returning all chunks")
+                print(f"[Dynamic] ⚠️ Metadata retrieval failed - falling back to search results")
                 return all_results[:20]
                 
         except Exception as e:

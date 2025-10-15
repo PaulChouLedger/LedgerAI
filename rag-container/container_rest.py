@@ -336,6 +336,43 @@ def extract_names_from_text(text: str) -> list:
     # Return unique names
     return list(set(filtered_names))
 
+@app.route('/rag/guideline/<guideline_name>', methods=['GET'])
+def get_guideline_chunks(guideline_name):
+    """Get ALL chunks from a specific medical guideline"""
+    try:
+        rag = get_rag()
+        
+        # Get all chunks from this guideline
+        results = rag.get_all_chunks_from_guideline(guideline_name)
+        
+        if not results:
+            return jsonify({
+                'error': f'No chunks found for guideline: {guideline_name}',
+                'results': []
+            }), 404
+        
+        # Format for consistency with /rag/search
+        formatted_results = []
+        for result in results:
+            formatted_results.append({
+                'text': result.get('text', ''),
+                'score': result.get('score', 1.0),
+                'metadata': result.get('metadata', {})
+            })
+        
+        return jsonify({
+            'results': formatted_results,
+            'guideline_name': guideline_name,
+            'chunk_count': len(formatted_results)
+        })
+        
+    except Exception as e:
+        print(f"[API] ❌ Error getting guideline chunks: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/rag/search', methods=['POST'])
 def rag_search():
     """Search using RAG system"""

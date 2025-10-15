@@ -28,6 +28,7 @@ class AuraRAG:
                  index_path: str = "data/embeddings/index.faiss",
                  vectors_path: str = "data/embeddings/vectors.npy",
                  chunks_path: str = "data/embeddings/doc_chunks.npy",
+                 metadata_path: str = "data/embeddings/chunk_metadata.json",
                  model_name: str = "all-MiniLM-L6-v2",
                  relevance_threshold: float = 0.3):
         """
@@ -36,17 +37,20 @@ class AuraRAG:
         Args:
             index_path: Path to FAISS index file
             chunks_path: Path to document chunks numpy file
+            metadata_path: Path to chunk metadata JSON file
             model_name: Sentence transformer model name
         """
         self.index_path = index_path
         self.vectors_path = vectors_path
         self.chunks_path = chunks_path
+        self.metadata_path = metadata_path
         self.model_name = model_name
         self.relevance_threshold = relevance_threshold
         
         # Initialize components
         self.index = None
         self.chunks = None
+        self.chunk_metadata = None  # NEW: Chunk metadata
         self.encoder = None
         self.cuda_vectors = None
         self.cuda_vector_norms = None
@@ -125,6 +129,30 @@ class AuraRAG:
         except Exception as e:
             print(f"[RAG] ❌ Failed to load document chunks: {e}")
             raise
+        
+        # Load chunk metadata (optional - for medical guidelines)
+        try:
+            if os.path.exists(self.metadata_path):
+                print(f"[RAG] 🔧 Loading chunk metadata from: {self.metadata_path}")
+                import json
+                with open(self.metadata_path, 'r') as f:
+                    self.chunk_metadata = json.load(f)
+                
+                # Count medical guidelines
+                guideline_chunks = [m for m in self.chunk_metadata if m.get('is_medical_guideline')]
+                guidelines = set([m['guideline_name'] for m in guideline_chunks if 'guideline_name' in m])
+                
+                print(f"[RAG] ✅ Loaded metadata for {len(self.chunk_metadata)} chunks")
+                if guidelines:
+                    print(f"[RAG] 📋 Medical guidelines available: {len(guidelines)}")
+                    for gname in sorted(list(guidelines)[:5]):  # Show first 5
+                        print(f"[RAG]    - {gname}")
+            else:
+                print(f"[RAG] ⚠️ No metadata file found (old format) - metadata features disabled")
+                self.chunk_metadata = None
+        except Exception as e:
+            print(f"[RAG] ⚠️ Failed to load chunk metadata: {e}")
+            self.chunk_metadata = None
         
         # Load sentence transformer - CUDA required
         import torch
@@ -474,6 +502,52 @@ class AuraRAG:
         
         # Return top 5 most significant terms (longer = more specific)
         return unique_terms[:5]
+    
+    def get_all_chunks_from_guideline(self, guideline_name: str) -> List[Dict[str, Any]]:
+        """
+        Retrieve ALL chunks from a specific medical guideline
+        
+        Uses chunk metadata to efficiently get complete guidelines.
+        This is critical for medical assessment - we need ALL diagnostic questions,
+        not just keyword-matched chunks.
+        
+        Args:
+            guideline_name: Name of guideline (e.g., "Acute Appendicitis")
+            
+        Returns:
+            List of all chunks from that guideline with full text
+        """
+        if not self.chunk_metadata:
+            print(f"[RAG] ⚠️ No metadata available - cannot filter by guideline")
+            return []
+        
+        guideline_name_upper = guideline_name.upper()
+        
+        # Find all chunks belonging to this guideline
+        matching_indices = []
+        for i, meta in enumerate(self.chunk_metadata):
+            if meta.get('guideline_name', '').upper() == guideline_name_upper:
+                matching_indices.append(i)
+        
+        if not matching_indices:
+            print(f"[RAG] ⚠️ No chunks found for guideline: {guideline_name}")
+            return []
+        
+        print(f"[RAG] 📋 Found {len(matching_indices)} chunks for guideline: {guideline_name}")
+        
+        # Build results with chunk text and metadata
+        results = []
+        for idx in matching_indices:
+            results.append({
+                'chunk': str(self.chunks[idx]),
+                'text': str(self.chunks[idx]),
+                'score': 1.0,  # Perfect score - exact match
+                'distance': 0.0,
+                'rank': len(results),
+                'metadata': self.chunk_metadata[idx]
+            })
+        
+        return results
     
     def search(self, query: str, k: int = 3, disable_keyword_filter: bool = False) -> List[Dict[str, Any]]:
         """
