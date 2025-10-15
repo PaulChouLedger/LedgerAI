@@ -48,11 +48,13 @@ class GuidelineIngestionPipeline:
         Returns:
             Number of guideline .txt files found
         """
-        txt_files = list(self.rag_input_dir.glob("NIH_MedlinePlus_*.txt"))
+        # Check for both old web-scraped and new API-fetched guidelines
+        txt_files = list(self.rag_input_dir.glob("NIH_MedlinePlus_*.txt")) + \
+                    list(self.rag_input_dir.glob("API_*.txt"))
         
         if not txt_files:
             print(f"[Ingest] ⚠️ No guideline .txt files found in {self.rag_input_dir}")
-            print(f"[Ingest] 💡 Run guideline_scraper.py first to generate guidelines")
+            print(f"[Ingest] 💡 Run api_guideline_scraper.py first to generate guidelines")
             return 0
         
         print(f"\n[Ingest] 📂 Found {len(txt_files)} guideline files in {self.rag_input_dir}")
