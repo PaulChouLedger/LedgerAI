@@ -238,53 +238,40 @@ def rebuild_embeddings(data_root="/app/data"):
         else:
             print(f"  ❌ '{name}' NOT FOUND in any chunks!")
     
-    # Generate embeddings
-    print("🔢 Generating embeddings...")
-    start_time = time.time()
+    # Generate embeddings in smaller batches to avoid memory issues
+    print("🔢 Generating embeddings in batches...")
+    batch_size = 32  # Process 32 chunks at a time
+    all_embeddings = []
     
-    embeddings = encoder.encode(chunks, convert_to_numpy=True, show_progress_bar=True)
-    embeddings = embeddings.astype(np.float32)
+    for i in range(0, len(chunks), batch_size):
+        batch_chunks = chunks[i:i+batch_size]
+        print(f"   Batch {i//batch_size + 1}/{(len(chunks) + batch_size - 1)//batch_size}: {len(batch_chunks)} chunks")
+        batch_embeddings = encoder.encode(batch_chunks, convert_to_numpy=True, show_progress_bar=False)
+        all_embeddings.append(batch_embeddings)
     
-    print(f"⏱️ Embedding generation took {time.time() - start_time:.2f} seconds")
+    # Concatenate all batches
+    embeddings = np.vstack(all_embeddings).astype(np.float32)
+    print(f"✅ Generated {embeddings.shape[0]} embeddings")
     print(f"🔢 Embedding shape: {embeddings.shape}")
+    
+    # Normalize for cosine similarity (Inner Product on normalized vectors)
+    print("🔧 Normalizing embeddings for cosine similarity...")
+    faiss.normalize_L2(embeddings)  # In-place normalization (FAISS built-in, most reliable)
+    
+    print(f"✅ Embeddings normalized:")
+    print(f"   Type: {type(embeddings)}")
+    print(f"   Dtype: {embeddings.dtype}")
+    print(f"   Shape: {embeddings.shape}")
+    print(f"   C-contiguous: {embeddings.flags['C_CONTIGUOUS']}")
     
     # Create FAISS index
     print("🔍 Creating FAISS index...")
     dimension = embeddings.shape[1]
     index = faiss.IndexFlatIP(dimension)  # Inner product for cosine similarity
     
-    # Manual L2 normalization for cosine similarity (Inner Product with normalized vectors)
-    print("🔧 Normalizing embeddings for cosine similarity...")
-    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
-    norms = np.maximum(norms, 1e-10)  # Prevent division by zero
-    embeddings_normalized = embeddings / norms
-    
-    # CRITICAL: Create a brand new numpy array from scratch
-    # This avoids any weird memory layout issues from sentence_transformers
-    # Force complete copy with explicit memory allocation
-    print("🔧 Creating fresh numpy array for FAISS compatibility...")
-    num_vectors = embeddings_normalized.shape[0]
-    dimension = embeddings_normalized.shape[1]
-    
-    # Allocate fresh array and copy data
-    embeddings_final = np.empty((num_vectors, dimension), dtype=np.float32, order='C')
-    np.copyto(embeddings_final, embeddings_normalized.astype(np.float32))
-    
-    # Ensure it's truly contiguous (should already be, but double-check)
-    if not embeddings_final.flags['C_CONTIGUOUS']:
-        embeddings_final = np.ascontiguousarray(embeddings_final)
-    
-    print(f"✅ Fresh array created and validated:")
-    print(f"   Type: {type(embeddings_final)}")
-    print(f"   Dtype: {embeddings_final.dtype}")
-    print(f"   Shape: {embeddings_final.shape}")
-    print(f"   C-contiguous: {embeddings_final.flags['C_CONTIGUOUS']}")
-    print(f"   Owndata: {embeddings_final.flags['OWNDATA']}")
-    print(f"   Aligned: {embeddings_final.flags['ALIGNED']}")
-    
     # Add to FAISS index
-    print(f"🔍 Adding {num_vectors} vectors to FAISS index...")
-    index.add(embeddings_final)
+    print(f"🔍 Adding {embeddings.shape[0]} vectors to FAISS index...")
+    index.add(embeddings)
     
     print(f"✅ FAISS index created with {index.ntotal} vectors")
     
@@ -297,7 +284,7 @@ def rebuild_embeddings(data_root="/app/data"):
     faiss.write_index(index, str(index_path))
     
     print(f"💾 Saving raw vectors to {vectors_path}")
-    np.save(vectors_path, embeddings_final)
+    np.save(vectors_path, embeddings)
     
     print(f"💾 Saving chunks to {chunks_path}")
     np.save(chunks_path, np.array(chunks))
@@ -312,10 +299,8 @@ def rebuild_embeddings(data_root="/app/data"):
     
     for query in test_queries:
         query_embedding = encoder.encode([query], convert_to_numpy=True).astype(np.float32)
-        # Manual L2 normalization (faiss_lite container compatibility)
-        norms = np.linalg.norm(query_embedding, axis=1, keepdims=True)
-        query_embedding = query_embedding / norms
-        query_embedding = np.ascontiguousarray(query_embedding, dtype=np.float32)
+        # Use FAISS built-in normalization (most reliable)
+        faiss.normalize_L2(query_embedding)
         distances, indices = index.search(query_embedding, 10)  # Get top 10 to see ranking
         
         print(f"\n  Query: '{query}'")
