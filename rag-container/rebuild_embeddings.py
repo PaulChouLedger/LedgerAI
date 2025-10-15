@@ -253,17 +253,37 @@ def rebuild_embeddings(data_root="/app/data"):
     dimension = embeddings.shape[1]
     index = faiss.IndexFlatIP(dimension)  # Inner product for cosine similarity
     
-    # Manual L2 normalization (faiss_lite container compatibility)
+    # Manual L2 normalization for cosine similarity (Inner Product with normalized vectors)
+    print("🔧 Normalizing embeddings for cosine similarity...")
     norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+    norms = np.maximum(norms, 1e-10)  # Prevent division by zero
     embeddings_normalized = embeddings / norms
     
-    # Create completely fresh contiguous array (FAISS requires C-contiguous float32)
-    embeddings_final = np.ascontiguousarray(embeddings_normalized, dtype=np.float32)
+    # CRITICAL: Create a brand new numpy array from scratch
+    # This avoids any weird memory layout issues from sentence_transformers
+    # Force complete copy with explicit memory allocation
+    print("🔧 Creating fresh numpy array for FAISS compatibility...")
+    num_vectors = embeddings_normalized.shape[0]
+    dimension = embeddings_normalized.shape[1]
     
-    print(f"✅ Normalized embeddings manually (faiss_lite compatible)")
-    print(f"🔍 Array check: type={type(embeddings_final)}, dtype={embeddings_final.dtype}, C-contig={embeddings_final.flags['C_CONTIGUOUS']}")
-    print(f"🔍 Shape: {embeddings_final.shape}")
+    # Allocate fresh array and copy data
+    embeddings_final = np.empty((num_vectors, dimension), dtype=np.float32, order='C')
+    np.copyto(embeddings_final, embeddings_normalized.astype(np.float32))
     
+    # Ensure it's truly contiguous (should already be, but double-check)
+    if not embeddings_final.flags['C_CONTIGUOUS']:
+        embeddings_final = np.ascontiguousarray(embeddings_final)
+    
+    print(f"✅ Fresh array created and validated:")
+    print(f"   Type: {type(embeddings_final)}")
+    print(f"   Dtype: {embeddings_final.dtype}")
+    print(f"   Shape: {embeddings_final.shape}")
+    print(f"   C-contiguous: {embeddings_final.flags['C_CONTIGUOUS']}")
+    print(f"   Owndata: {embeddings_final.flags['OWNDATA']}")
+    print(f"   Aligned: {embeddings_final.flags['ALIGNED']}")
+    
+    # Add to FAISS index
+    print(f"🔍 Adding {num_vectors} vectors to FAISS index...")
     index.add(embeddings_final)
     
     print(f"✅ FAISS index created with {index.ntotal} vectors")
