@@ -118,6 +118,56 @@ class UnifiedMedicalSession:
         self._initialize_medical_rag()
 
         print(f"[Unified Medical] 🩺 Starting unified medical session: {session_id}")
+    
+    def _save_assessment_state(self):
+        """Persist dynamic assessment state to session file"""
+        if not self.dynamic_assessment:
+            return
+        
+        # Import triage's state management
+        from triage import load_state, save_state
+        
+        state = load_state(self.session_id)
+        
+        # Save dynamic assessment data
+        state['dynamic_assessment'] = {
+            'chief_complaint': self.dynamic_assessment.chief_complaint,
+            'category': self.dynamic_assessment.category,
+            'questions_asked': self.dynamic_assessment.questions_asked,
+            'responses_received': self.dynamic_assessment.responses_received,
+            'symptoms_collected': self.dynamic_assessment.symptoms_collected,
+            'red_flags_detected': self.dynamic_assessment.red_flags_detected,
+            'urgency_score': self.dynamic_assessment.urgency_score,
+            'completed': self.dynamic_assessment.completed
+        }
+        
+        save_state(state, self.session_id)
+        print(f"[Unified Medical] 💾 Saved assessment state (Q{len(self.dynamic_assessment.questions_asked)})")
+    
+    def _load_assessment_state(self):
+        """Restore dynamic assessment state from session file"""
+        from triage import load_state
+        
+        state = load_state(self.session_id)
+        assessment_data = state.get('dynamic_assessment')
+        
+        if assessment_data and not assessment_data.get('completed'):
+            print(f"[Unified Medical] 📂 Restoring assessment state (Q{len(assessment_data.get('questions_asked', []))})")
+            
+            # Recreate DynamicAssessmentState object
+            self.dynamic_assessment = DynamicAssessmentState(
+                chief_complaint=assessment_data['chief_complaint']
+            )
+            self.dynamic_assessment.category = assessment_data.get('category', 'unknown')
+            self.dynamic_assessment.questions_asked = assessment_data.get('questions_asked', [])
+            self.dynamic_assessment.responses_received = assessment_data.get('responses_received', [])
+            self.dynamic_assessment.symptoms_collected = assessment_data.get('symptoms_collected', [])
+            self.dynamic_assessment.red_flags_detected = assessment_data.get('red_flags_detected', [])
+            self.dynamic_assessment.urgency_score = assessment_data.get('urgency_score', 0.0)
+            self.dynamic_assessment.completed = assessment_data.get('completed', False)
+            
+            self.current_context = "assessment"
+            print(f"[Unified Medical] ✅ Restored: {len(self.dynamic_assessment.questions_asked)} questions asked, {len(self.dynamic_assessment.responses_received)} responses received")
 
     def _initialize_medical_rag(self):
         """Initialize medical RAG for knowledge queries"""
@@ -282,6 +332,12 @@ class UnifiedMedicalSession:
         
         # Continue existing assessment
         else:
+            # Check if user is trying to exit/change topic
+            exit_attempts = ['nevermind', 'never mind', 'forget it', 'cancel', 'stop', 'exit', 'quit']
+            if any(phrase in symptom_query.lower() for phrase in exit_attempts):
+                return "I understand you want to stop, but for your safety, I need to complete the assessment. Let me ask just a few more questions to ensure you get the right care. " + \
+                       (self.dynamic_assessment.questions_asked[-1] if self.dynamic_assessment.questions_asked else "Where is the pain located?")
+            
             # Validate the answer is reasonable
             if not self._is_valid_answer(symptom_query):
                 print(f"[Dynamic] ⚠️ Invalid/incomplete answer: '{symptom_query}' - re-asking same question")
@@ -672,18 +728,29 @@ Question:"""
         """Determine if enough information gathered to complete assessment"""
         state = self.dynamic_assessment
         
+        # Minimum questions required before diagnosis
+        MIN_QUESTIONS_FOR_DIAGNOSIS = 4
+        
         # Complete if:
-        # 1. Emergency detected (urgency >= 8)
-        if state.urgency_score >= 8.0:
+        # 1. Emergency detected (urgency >= 8) AND at least minimum questions asked
+        if state.urgency_score >= 8.0 and len(state.questions_asked) >= MIN_QUESTIONS_FOR_DIAGNOSIS:
+            print(f"[Dynamic] ⚠️ Emergency detected (urgency={state.urgency_score}) - completing assessment")
             return True
         
-        # 2. Sufficient questions asked (5-8 questions typical)
-        if len(state.questions_asked) >= 8:
+        # 2. Multiple red flags detected AND sufficient questions
+        if len(state.red_flags_detected) >= 2 and len(state.questions_asked) >= MIN_QUESTIONS_FOR_DIAGNOSIS:
+            print(f"[Dynamic] ⚠️ Red flags detected ({len(state.red_flags_detected)}) - completing assessment")
             return True
         
-        # 3. Multiple red flags detected
-        if len(state.red_flags_detected) >= 3:
+        # 3. Sufficient questions asked (6-8 questions for thorough assessment)
+        if len(state.questions_asked) >= 6:
+            print(f"[Dynamic] ✅ Sufficient information gathered ({len(state.questions_asked)} questions) - ready for diagnosis")
             return True
+        
+        # 4. Don't complete too early
+        if len(state.questions_asked) < MIN_QUESTIONS_FOR_DIAGNOSIS:
+            print(f"[Dynamic] 🔄 Need more info ({len(state.questions_asked)}/{MIN_QUESTIONS_FOR_DIAGNOSIS} questions) - continuing assessment")
+            return False
         
         return False
     
@@ -702,28 +769,28 @@ Question:"""
         truncated_guidelines = [g.get('text', '')[:MAX_GUIDELINE_LENGTH] + '...' if len(g.get('text', '')) > MAX_GUIDELINE_LENGTH else g.get('text', '') for g in guidelines[:3]]
         guideline_text = "\n\n".join(truncated_guidelines)
         
-        diagnosis_prompt = f"""You are a physician completing a medical assessment.
+        diagnosis_prompt = f"""Complete medical assessment:
 
-CHIEF COMPLAINT: {state.chief_complaint}
-CATEGORY: {state.category}
+Chief complaint: {state.chief_complaint}
+Category: {state.category}
 
-ASSESSMENT HISTORY:
+Assessment Q&A:
 {self._format_qa_history(state)}
 
-SYMPTOMS COLLECTED: {', '.join([str(s.get('symptom', s)) for s in state.symptoms_collected])}
-RED FLAGS: {', '.join(state.red_flags_detected) if state.red_flags_detected else 'None'}
+Symptoms: {', '.join([str(s.get('symptom', s)) for s in state.symptoms_collected])}
+Red flags: {', '.join(state.red_flags_detected) if state.red_flags_detected else 'None'}
 
-RELEVANT MEDICAL GUIDELINES:
+Guidelines:
 {guideline_text}
 
-Provide a concise clinical assessment with:
-1. Most likely diagnosis
-2. Urgency level (1-10)
-3. Recommended next steps (disposition)
+Provide:
+1. Most likely diagnosis (or top 2-3 differentials)
+2. Urgency (1-10 scale)
+3. Specific next steps: See doctor today? Go to ER? Call 911? Home care OK?
 
-Be direct and actionable. Format as natural physician guidance.
+Be direct. Provide clear medical advice.
 
-ASSESSMENT:"""
+Assessment:"""
         
         # Get diagnosis from LLM (llm_chat now returns string, not dict)
         diagnosis_response = self.llm_chat_fn(
@@ -747,7 +814,20 @@ ASSESSMENT:"""
         self.current_context = "general"
         self.dynamic_assessment = None
         
-        return diagnosis_response
+        # Clear from session state to allow mode switching
+        from triage import load_state, save_state
+        session_state = load_state(self.session_id)
+        if 'dynamic_assessment' in session_state:
+            del session_state['dynamic_assessment']
+        if 'mode' in session_state:
+            del session_state['mode']
+        save_state(session_state, self.session_id)
+        print(f"[Dynamic] ✅ Assessment complete - session state cleared")
+        
+        # Add completion message to let user know they can ask other questions now
+        completion_note = "\n\nThis completes your medical assessment. Feel free to ask me anything else."
+        
+        return diagnosis_response + completion_note
     
     def _format_qa_history(self, state: DynamicAssessmentState) -> str:
         """Format question/answer history for LLM"""
@@ -984,7 +1064,17 @@ def handle_unified_medical_response(prompt: str, session_id: str, llm_chat_fn: C
         Medical response (could be messages list for streaming or direct response)
     """
     session = get_unified_medical_session(session_id, llm_chat_fn)
-    return session.process_medical_query(prompt)
+    
+    # Load persisted assessment state if it exists
+    session._load_assessment_state()
+    
+    # Process the query
+    response = session.process_medical_query(prompt)
+    
+    # Save assessment state for next request
+    session._save_assessment_state()
+    
+    return response
 
 
 def get_unified_medical_messages(prompt: str, session_id: str) -> list:

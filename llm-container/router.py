@@ -62,9 +62,27 @@ def route_prompt(prompt: str, state: dict, session_id: str, llm_chat_fn=None) ->
         state['mode'] = ConversationMode.TRIAGE
         return ConversationMode.TRIAGE, state
     
-    # PRIORITY 2: UNIFIED_MEDICAL mode is LOCKED - must complete before switching
+    # PRIORITY 2: UNIFIED_MEDICAL mode is LOCKED - must complete until diagnosis given
+    # Check for active assessment (even if mode flag is wrong)
+    has_active_assessment = state.get('dynamic_assessment') and not state.get('dynamic_assessment', {}).get('completed')
+    
+    if has_active_assessment:
+        num_questions = len(state.get('dynamic_assessment', {}).get('questions_asked', []))
+        num_responses = len(state.get('dynamic_assessment', {}).get('responses_received', []))
+        chief_complaint = state.get('dynamic_assessment', {}).get('chief_complaint', 'unknown')
+        
+        print(f"[Router] 🔒 UNIFIED_MEDICAL LOCKED - Active assessment must complete")
+        print(f"[Router]    Chief complaint: '{chief_complaint}'")
+        print(f"[Router]    Questions asked: {num_questions}, Responses received: {num_responses}")
+        print(f"[Router]    ⚠️  Cannot exit until diagnosis is reached")
+        
+        state['mode'] = ConversationMode.UNIFIED_MEDICAL
+        return ConversationMode.UNIFIED_MEDICAL, state
+    
+    # Also check mode flag (backup check)
     if state.get('mode') == ConversationMode.UNIFIED_MEDICAL:
         print(f"[Router] 🔒 UNIFIED_MEDICAL mode locked - must complete before switching")
+        state['mode'] = ConversationMode.UNIFIED_MEDICAL
         return ConversationMode.UNIFIED_MEDICAL, state
     
     # PRIORITY 3: Check for unified medical mode (handles both symptoms and medical knowledge)
