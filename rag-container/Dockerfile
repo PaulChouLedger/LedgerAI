@@ -24,8 +24,6 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceT
 COPY container_rest.py /app/
 COPY rag.py /app/
 COPY ingest.py /app/
-COPY rebuild_embeddings.py /app/
-
 
 # Expose port
 EXPOSE 11435
