@@ -105,6 +105,7 @@ class AdaptiveDiagnosticEngine:
         """Reset state for new assessment"""
         self.active_guidelines = []  # List of (guideline_name, score, metadata)
         self.answered_features = {}  # Dict of extracted clinical features
+        self.raw_answers = []        # Raw user responses for recap
         self.questions_asked = []    # History of questions asked
         self.status = "idle"         # idle, questioning, diagnosed
         self.diagnosis = None        # Final diagnosis when reached
@@ -198,16 +199,42 @@ class AdaptiveDiagnosticEngine:
                     'message': "I didn't understand. Can you repeat that?"
                 }
         
-        # Extract ALL clinical features from the answer
+        # Extract ALL clinical features from the answer FIRST
         extracted = self._extract_features_from_text(user_answer)
         
         print(f"[Adaptive] 📝 Extracted features: {list(extracted.keys())}")
         
-        # Update answered features (merge, don't replace)
-        self.answered_features.update(extracted)
+        # Store raw answer + normalized matches for recap
+        last_q = self.questions_asked[-1] if self.questions_asked else None
+        answer_record = {
+            'question': last_q['question'] if last_q else 'chief_complaint',
+            'question_focus': last_q.get('focus', 'unknown') if last_q else 'chief_complaint',
+            'raw_answer': user_answer,
+            'normalized_matches': [],
+            'timestamp': len(self.raw_answers)
+        }
         
-        # Re-score ALL active guidelines
-        self._score_all_guidelines()
+        # Add normalized matches if any
+        if 'positive_findings' in extracted:
+            for finding in extracted['positive_findings']:
+                answer_record['normalized_matches'].append({
+                    'matched_to': finding['normalized_response'],
+                    'fuzzy': finding.get('fuzzy_match', False),
+                    'similarity': finding.get('similarity', 1.0)
+                })
+        
+        self.raw_answers.append(answer_record)
+        
+        # Update answered features (merge, don't replace)
+        if extracted:  # Only update if we extracted something
+            self.answered_features.update(extracted)
+            
+            # Re-score ALL active guidelines
+            self._score_all_guidelines()
+        else:
+            # No features extracted, but answer was valid
+            # This might be a vague answer - continue asking
+            print(f"[Adaptive] 💡 No specific features extracted, but answer was valid - continuing")
         
         # Sort by score
         self.active_guidelines.sort(key=lambda x: x['score'], reverse=True)
@@ -382,15 +409,21 @@ class AdaptiveDiagnosticEngine:
         
         # ==== UNIVERSAL FEATURES (not guideline-specific) ====
         
-        # Onset timing (universal)
-        if any(t in text_lower for t in ['hour', 'today', 'this morning', 'this afternoon']):
+        # Onset timing - simple time marker detection
+        if 'hour' in text_lower:
             features['onset_timing'] = 'acute_hours'
-        elif any(t in text_lower for t in ['yesterday', 'last night', 'one day', 'two day', 'three day', 'couple day']):
+        elif 'day' in text_lower:
             features['onset_timing'] = 'acute_days'
-        elif any(t in text_lower for t in ['week', 'several day', 'four day', 'five day', 'six day']):
+        elif 'week' in text_lower:
             features['onset_timing'] = 'subacute'
-        elif any(t in text_lower for t in ['month', 'year', 'long time', 'always', 'chronic']):
+        elif any(marker in text_lower for marker in ['month', 'year', 'chronic', 'always', 'long time']):
             features['onset_timing'] = 'chronic'
+        
+        # Special cases for "today"/"yesterday" without "day" in them
+        elif 'today' in text_lower or 'tonight' in text_lower or 'this morning' in text_lower:
+            features['onset_timing'] = 'acute_hours'
+        elif 'yesterday' in text_lower or 'last night' in text_lower:
+            features['onset_timing'] = 'acute_days'
         
         # Severity (universal)
         severity_match = re.search(r'(\d+)\s*(?:out of|/)\s*10', text_lower)
@@ -430,9 +463,12 @@ class AdaptiveDiagnosticEngine:
                             'response': negative
                         })
                 
-                # Check for positive responses
+                # Check for positive responses (with fuzzy matching for misspellings)
                 for positive in expected_positive:
-                    if positive.lower() in text_lower:
+                    positive_lower = positive.lower()
+                    
+                    # Direct substring match
+                    if positive_lower in text_lower:
                         # Track positive findings
                         if 'positive_findings' not in features:
                             features['positive_findings'] = []
@@ -440,9 +476,36 @@ class AdaptiveDiagnosticEngine:
                             'guideline': guideline_name,
                             'question': question_focus,
                             'response': positive,
+                            'normalized_response': positive,  # What it matched to
                             'value': diagnostic_value
                         })
-                        break  # Only count one match per question
+                        break
+                    
+                    # Fuzzy match for misspellings/mispronunciations
+                    # Use SequenceMatcher for character-level similarity
+                    from difflib import SequenceMatcher
+                    similarity = SequenceMatcher(None, positive_lower, text_lower).ratio()
+                    
+                    # Also check if key words from expected response are in text
+                    positive_words = set(positive_lower.split())
+                    text_words = set(text_lower.split())
+                    word_overlap = len(positive_words & text_words) / len(positive_words) if positive_words else 0
+                    
+                    # Match if high similarity OR high word overlap
+                    if similarity > 0.7 or word_overlap > 0.6:
+                        if 'positive_findings' not in features:
+                            features['positive_findings'] = []
+                        features['positive_findings'].append({
+                            'guideline': guideline_name,
+                            'question': question_focus,
+                            'response': positive,
+                            'normalized_response': positive,  # Normalized to expected
+                            'value': diagnostic_value,
+                            'fuzzy_match': True,
+                            'similarity': similarity
+                        })
+                        print(f"[Adaptive]    🔍 Fuzzy match: '{text_lower[:50]}' → '{positive}' (similarity: {similarity:.2f})")
+                        break
         
         # Debug: Show what was extracted
         if len(features) > 0:
@@ -707,7 +770,7 @@ class AdaptiveDiagnosticEngine:
         return {}
     
     def _format_diagnosis_message(self, diagnosis: str, urgency: str, education: Dict) -> str:
-        """Format diagnosis message for user"""
+        """Format diagnosis message for user with clinical recap"""
         
         urgency_messages = {
             'emergency': '🚨 This is a medical emergency. Call 911 immediately.',
@@ -718,7 +781,45 @@ class AdaptiveDiagnosticEngine:
         
         urgency_msg = urgency_messages.get(urgency, urgency_messages['routine'])
         
-        message = f"Based on your symptoms, this is likely {diagnosis}.\n\n{urgency_msg}"
+        # Build clinical recap from raw answers
+        recap_parts = []
+        for answer_obj in self.raw_answers:
+            raw = answer_obj['raw_answer']
+            question_focus = answer_obj.get('question_focus', '')
+            normalized = answer_obj.get('normalized_matches', [])
+            
+            # Use focus area to determine how to phrase it
+            if 'onset' in question_focus or 'when' in question_focus:
+                recap_parts.append(f"pain started {raw}")
+            elif 'location' in question_focus or 'where' in question_focus:
+                recap_parts.append(f"located {raw}")
+            elif 'migration' in question_focus or 'move' in question_focus:
+                recap_parts.append(f"{raw}")
+            elif 'quality' in question_focus or 'character' in question_focus:
+                recap_parts.append(f"pain described as {raw}")
+            elif 'severity' in question_focus:
+                recap_parts.append(f"severity {raw}")
+            else:
+                # Generic - just include the answer
+                recap_parts.append(raw)
+        
+        # Create natural-sounding recap
+        if recap_parts:
+            # Remove duplicates and join
+            unique_parts = []
+            seen = set()
+            for part in recap_parts:
+                part_lower = part.lower()
+                if part_lower not in seen:
+                    unique_parts.append(part)
+                    seen.add(part_lower)
+            
+            recap = ", ".join(unique_parts)
+        else:
+            recap = "your symptoms"
+        
+        # Build message with recap
+        message = f"Based on your symptoms - {recap} - this is likely {diagnosis}.\n\n{urgency_msg}"
         
         if education.get('red_flags'):
             message += f"\n\n{education['red_flags']}"
