@@ -245,16 +245,33 @@ class AdaptiveDiagnosticEngine:
             print(f"[Adaptive]    {i}. {g['name']}: {g['score']:.3f}")
         
         # Check if diagnosis reached
+        # IMPORTANT: Require minimum questions to avoid premature diagnosis
+        MIN_QUESTIONS_FOR_DIAGNOSIS = 4  # Must ask at least 4 questions
+        questions_answered = len(self.raw_answers)
+        
         if len(self.active_guidelines) > 0:
             top = self.active_guidelines[0]
             
-            # High confidence diagnosis
-            if top['score'] > 0.85:
+            print(f"[Adaptive] 🔍 Diagnosis check: score={top['score']:.3f}, questions={questions_answered}/{MIN_QUESTIONS_FOR_DIAGNOSIS}")
+            
+            # High confidence diagnosis (AND minimum questions met)
+            if top['score'] > 0.90 and questions_answered >= MIN_QUESTIONS_FOR_DIAGNOSIS:
+                print(f"[Adaptive] ✅ High confidence threshold met - finalizing diagnosis")
                 return self._finalize_diagnosis(top)
             
-            # Single guideline remaining
-            if len(self.active_guidelines) == 1 and top['score'] > 0.7:
+            # All critical questions answered with good score
+            if questions_answered >= MIN_QUESTIONS_FOR_DIAGNOSIS and top['score'] > 0.80:
+                print(f"[Adaptive] ✅ Minimum questions met with good score - finalizing diagnosis")
                 return self._finalize_diagnosis(top)
+            
+            # Safety valve: if answered 6+ questions, finalize even with lower score
+            if questions_answered >= 6:
+                print(f"[Adaptive] ✅ Asked {questions_answered} questions - finalizing with available data")
+                return self._finalize_diagnosis(top)
+            
+            # Otherwise, continue asking
+            if questions_answered < MIN_QUESTIONS_FOR_DIAGNOSIS:
+                print(f"[Adaptive] 🔄 Need more questions ({questions_answered}/{MIN_QUESTIONS_FOR_DIAGNOSIS}) - continuing")
         
         # Filter out low-scoring guidelines (but keep at least 1!)
         threshold = 0.2  # Lower threshold for more flexibility
