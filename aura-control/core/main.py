@@ -185,11 +185,14 @@ def run_container(name, port, image, timeout=15):
         chat_format = HOST_ENV.get("CHAT_FORMAT", "llama-3")
         n_ctx       = HOST_ENV.get("N_CTX", "1024")
 
+        # Get workspace root (LedgerAI directory)
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        
         cmd += [
             "-e", f"MODEL_PATH={model_path}",
             "-e", f"CHAT_FORMAT={chat_format}",
             "-e", f"N_CTX={n_ctx}",
-            "-v", f"{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))}:/app/data"  # Mount embeddings data
+            "-v", f"{workspace_root}/data:/app/data"  # Mount embeddings data
         ]
     elif name == WHISPER_NAME:
         # faster-whisper model is baked into the image, no cache mounting needed
@@ -198,7 +201,8 @@ def run_container(name, port, image, timeout=15):
         ]
     elif name == "aura-rag":
         # RAG container - mount data directory only (rebuild_embeddings.py is baked into image)
-        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        # Get workspace root (LedgerAI directory)
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
         cmd += [
             "-v", f"{workspace_root}/data:/app/data",  # Mount embeddings data
         ]
@@ -437,7 +441,7 @@ def start_services():
             if processed > 0:
                 print(f"[Aura] 🔧 Running rebuild_embeddings.py on host...")
                 import subprocess
-                workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+                workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
                 rebuild_script = os.path.join(workspace_root, 'rag-container', 'rebuild_embeddings.py')
                 rebuild_result = subprocess.run(
                     ["python3", rebuild_script],
