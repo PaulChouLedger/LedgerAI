@@ -282,6 +282,18 @@ class UnifiedMedicalSession:
         
         # Continue existing assessment
         else:
+            # Validate the answer is reasonable
+            if not self._is_valid_answer(symptom_query):
+                print(f"[Dynamic] ⚠️ Invalid/incomplete answer: '{symptom_query}' - re-asking same question")
+                # Re-ask the same question with clarification
+                last_question = self.dynamic_assessment.questions_asked[-1] if self.dynamic_assessment.questions_asked else None
+                if last_question:
+                    # Clean the question of any Q# prefix before re-asking
+                    clean_question = re.sub(r'^\s*Q\d+\s*:\s*', '', last_question)
+                    return f"I didn't quite catch that. {clean_question}"
+                else:
+                    return "Could you please provide more detail about your symptoms?"
+            
             # Store previous response
             self.dynamic_assessment.responses_received.append(symptom_query)
             
@@ -298,6 +310,56 @@ class UnifiedMedicalSession:
             
             # Generate next question
             return self._generate_dynamic_question(guidelines)
+    
+    def _is_valid_answer(self, answer: str) -> bool:
+        """
+        Validate if answer is substantive enough to be a real medical response
+        
+        Rejects:
+        - Very short answers with no content ("on the", "time.", ".")
+        - Filler words only
+        - Empty or whitespace-only
+        
+        Accepts:
+        - Numeric responses ("7", "eight")
+        - Yes/no
+        - Location descriptions ("upper right", "center")
+        - Time descriptions ("yesterday", "2 days ago")
+        - Symptom descriptions ("nauseous", "vomiting")
+        """
+        if not answer or len(answer.strip()) < 2:
+            return False
+        
+        answer_lower = answer.lower().strip()
+        
+        # Remove punctuation for checking
+        answer_clean = re.sub(r'[^\w\s]', '', answer_lower)
+        
+        # Very short and not a valid short answer
+        if len(answer_clean) < 3:
+            # Allow single valid words
+            valid_short_answers = ['yes', 'no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
+            if answer_clean not in valid_short_answers and not answer_clean.isdigit():
+                return False
+        
+        # Check for common filler/incomplete phrases
+        invalid_patterns = [
+            r'^(on the|in the|at the|to the|from the)$',
+            r'^(time|day|night|ago|hour|minute)$',  # Time words without context
+            r'^(and|but|or|so|then|well|um|uh)$',  # Conjunctions/fillers alone
+            r'^(it|this|that|there|here)$',  # Pronouns without context
+        ]
+        
+        for pattern in invalid_patterns:
+            if re.match(pattern, answer_clean):
+                return False
+        
+        # Accept if it has at least 2 words OR is a number OR is yes/no
+        word_count = len(answer_clean.split())
+        if word_count >= 2 or answer_clean.isdigit() or answer_clean in ['yes', 'no', 'yup', 'nope', 'yeah', 'nah']:
+            return True
+        
+        return False
     
     def _categorize_complaint(self, complaint: str) -> str:
         """Categorize complaint by medical specialty"""
@@ -353,20 +415,52 @@ class UnifiedMedicalSession:
         """
         state = self.dynamic_assessment
         
-        # Build context for LLM (truncate each guideline to prevent token overflow)
-        MAX_GUIDELINE_LENGTH = 250  # characters per guideline (reduced for safety)
-        truncated_guidelines = [g.get('text', '')[:MAX_GUIDELINE_LENGTH] + '...' if len(g.get('text', '')) > MAX_GUIDELINE_LENGTH else g.get('text', '') for g in guidelines[:2]]  # Use only 2 chunks
-        guideline_text = "\n\n".join(truncated_guidelines)
+        # Extract ONLY the diagnostic questions section from guidelines
+        # This is where the clinical reasoning lives
+        diagnostic_section = ""
         
-        print(f"[Dynamic] 📝 Guideline text length: {len(guideline_text)} chars")
+        for guideline in guidelines[:1]:  # Use top guideline
+            text = guideline.get('text', '')
+            
+            # Find the DIAGNOSTIC QUESTIONING STRATEGY section
+            if 'DIAGNOSTIC QUESTIONING STRATEGY' in text:
+                start_idx = text.find('DIAGNOSTIC QUESTIONING STRATEGY')
+                
+                # Find end of section (next --- or RED FLAGS section)
+                end_markers = [
+                    text.find('---', start_idx + 100),  # Next separator
+                    text.find('RED FLAGS', start_idx),
+                    text.find('EMERGENCY WARNING', start_idx),
+                    len(text)  # End of document
+                ]
+                end_idx = min([m for m in end_markers if m > start_idx])
+                
+                diagnostic_section = text[start_idx:end_idx]
+                
+                # Extract first 2-3 questions from this section (most important)
+                question_blocks = []
+                for i in range(1, 4):  # QUESTION 1, 2, 3
+                    q_start = diagnostic_section.find(f'QUESTION {i}:')
+                    if q_start == -1:
+                        break
+                    
+                    # Find next question or end
+                    q_end = diagnostic_section.find(f'QUESTION {i+1}:', q_start)
+                    if q_end == -1:
+                        q_end = min(len(diagnostic_section), q_start + 400)
+                    
+                    question_blocks.append(diagnostic_section[q_start:q_end].strip())
+                
+                if question_blocks:
+                    diagnostic_section = '\n'.join(question_blocks)
+                    break
         
-        # Simplified prompt to reduce token usage and improve reliability
-        guideline_snippet = guideline_text[:400] if len(guideline_text) > 400 else guideline_text  # Further truncate if needed
+        print(f"[Dynamic] 📝 Extracted diagnostic section: {len(diagnostic_section)} chars")
         
-        # Build context from previous Q&A (in conversational format, not Q/A labels)
+        # Build context from previous Q&A
         qa_history = ""
         if state.questions_asked and state.responses_received:
-            recent_qa = list(zip(state.questions_asked[-2:], state.responses_received[-2:]))  # Last 2 Q&A pairs
+            recent_qa = list(zip(state.questions_asked[-2:], state.responses_received[-2:]))
             for q, a in recent_qa:
                 qa_history += f"Asked: {q}\nThey said: {a}\n"
         
@@ -395,23 +489,44 @@ class UnifiedMedicalSession:
         if 'associated' not in asked_topics:
             topics_to_ask.append('Other symptoms')
         
-        next_topics = ', '.join(topics_to_ask[:2]) if topics_to_ask else 'Character of pain, aggravating factors'
+        print(f"[Dynamic] 📋 Asked topics: {asked_topics}")
         
-        print(f"[Dynamic] 📋 Asked topics: {asked_topics}, Next: {next_topics}")
-        
-        # Build a simple, clear prompt
-        if qa_history:
-            prompt = f"""Patient has: {state.chief_complaint}
+        # Build intelligent prompt using diagnostic section from guideline
+        if diagnostic_section:
+            # LLM sees actual clinical reasoning from guideline
+            if qa_history:
+                prompt = f"""Patient: {state.chief_complaint}
 
+Previous:
 {qa_history}
-Ask ONE follow-up question about: {next_topics}
+Clinical guidance:
+{diagnostic_section}
 
-DON'T mention specific conditions or diagnoses. Just ask about their symptoms.
+Based on the guidance above, ask the NEXT logical question. Don't repeat what's already asked.
+Question:"""
+            else:
+                prompt = f"""Patient: {state.chief_complaint}
+
+Clinical guidance:
+{diagnostic_section}
+
+Based on the guidance, ask the FIRST diagnostic question.
 Question:"""
         else:
-            prompt = f"""Patient has: {state.chief_complaint}
+            # Fallback if no diagnostic section found (shouldn't happen with good guidelines)
+            next_topics = ', '.join(topics_to_ask[:2]) if topics_to_ask else 'Character of pain, aggravating factors'
+            
+            if qa_history:
+                prompt = f"""Patient: {state.chief_complaint}
 
-Ask ONE question about: {next_topics}
+{qa_history}
+Ask about: {next_topics}
+
+Question:"""
+            else:
+                prompt = f"""Patient: {state.chief_complaint}
+
+Ask about: {next_topics}
 
 Question:"""
         
@@ -425,11 +540,18 @@ Question:"""
             stream=False
         )
         
+        print(f"[Dynamic] 🤖 Raw LLM output: '{question}'")
+        
         # Clean up question - remove meta-commentary and Q/A formatting
         if question:
-            # Remove Q#: prefix and anything after it
-            question = re.sub(r'^Q\d+:\s*', '', question)  # Remove "Q4: "
-            question = re.sub(r'\n\nA\d+:.*$', '', question, flags=re.DOTALL)  # Remove "A4: ..." if present
+            original_question = question  # For debugging
+            
+            # Remove Q#: prefix (be more aggressive with whitespace)
+            question = re.sub(r'^\s*Q\d+\s*:\s*', '', question)  # Remove "Q4: " or " Q4 : "
+            question = re.sub(r'\n+A\d+:.*$', '', question, flags=re.DOTALL)  # Remove "A4: ..." if present
+            
+            if original_question != question:
+                print(f"[Dynamic] 🧹 Cleaned Q/A prefix: '{original_question[:50]}...' → '{question[:50]}...'")
             
             # Remove common meta phrases
             question = re.sub(r'^(Here\'s a|I can ask|Let me ask|I\'d like to ask|A good question would be)[^:]*:\s*', '', question, flags=re.IGNORECASE)
@@ -508,7 +630,8 @@ Question:"""
                             break
                     break
         
-        print(f"[Dynamic] ❓ Generated question: {question}")
+        # Final log with cleaned question
+        print(f"[Dynamic] ❓ Final question (after all cleaning): {question}")
         
         # Track question
         state.questions_asked.append(question)
