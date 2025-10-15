@@ -633,13 +633,12 @@ class AdaptiveDiagnosticEngine:
         diagnostic_questions = guideline.get('diagnostic_questions', [])
         
         # Track which question_focus areas we've already asked about
+        # Use questions_asked history, NOT positive_findings (user might give vague answer)
         asked_focuses = set()
-        if 'positive_findings' in self.answered_features:
-            for finding in self.answered_features['positive_findings']:
-                asked_focuses.add(finding['question'])
-        if 'negative_findings' in self.answered_features:
-            for finding in self.answered_features['negative_findings']:
-                asked_focuses.add(finding['question'])
+        for q in self.questions_asked:
+            asked_focuses.add(q.get('focus', ''))
+        
+        print(f"[Adaptive] 📋 Already asked about: {asked_focuses}")
         
         # Find highest-value unanswered question
         priority_order = ['critical', 'high', 'moderate', 'low']
@@ -649,9 +648,13 @@ class AdaptiveDiagnosticEngine:
                 question_focus = question_data.get('question_focus', '')
                 diagnostic_value = question_data.get('diagnostic_value', 'moderate')
                 
+                print(f"[Adaptive]   Checking question: '{question_focus}' (value: {diagnostic_value})")
+                
                 if diagnostic_value == priority and question_focus not in asked_focuses:
                     # Generate natural question from focus
                     question_text = self._generate_question_from_focus(question_focus, question_data)
+                    
+                    print(f"[Adaptive] ✅ Selected question: '{question_focus}' → '{question_text}'")
                     
                     self.questions_asked.append({
                         'focus': question_focus,
@@ -668,6 +671,8 @@ class AdaptiveDiagnosticEngine:
                             for g in self.active_guidelines[:3]
                         ]
                     }
+                elif question_focus in asked_focuses:
+                    print(f"[Adaptive]     ⏭️ Already asked about '{question_focus}' - skipping")
         
         # All questions asked - try to finalize
         if len(self.active_guidelines) > 0:
@@ -799,41 +804,42 @@ class AdaptiveDiagnosticEngine:
         urgency_msg = urgency_messages.get(urgency, urgency_messages['routine'])
         
         # Build clinical recap from raw answers
-        recap_parts = []
+        # Deduplicate: keep only the LAST answer for each question_focus
+        focus_to_answer = {}
         for answer_obj in self.raw_answers:
+            focus = answer_obj.get('question_focus', 'unknown')
+            focus_to_answer[focus] = answer_obj  # Overwrites previous answer for same focus
+        
+        # Build recap from deduplicated answers
+        recap_parts = []
+        for focus, answer_obj in focus_to_answer.items():
             raw = answer_obj['raw_answer']
-            question_focus = answer_obj.get('question_focus', '')
-            normalized = answer_obj.get('normalized_matches', [])
+            
+            # Skip non-informative answers
+            if raw.lower() in ['yes', 'no', 'yes, sir', 'no, sir']:
+                continue
             
             # Use focus area to determine how to phrase it
-            if 'onset' in question_focus or 'when' in question_focus:
+            if 'onset' in focus or 'when' in focus or 'timeline' in focus:
                 recap_parts.append(f"pain started {raw}")
-            elif 'location' in question_focus or 'where' in question_focus:
+            elif 'location' in focus or 'where' in focus:
                 recap_parts.append(f"located {raw}")
-            elif 'migration' in question_focus or 'move' in question_focus:
+            elif 'migration' in focus or 'move' in focus:
                 recap_parts.append(f"{raw}")
-            elif 'quality' in question_focus or 'character' in question_focus:
+            elif 'quality' in focus or 'character' in focus:
                 recap_parts.append(f"pain described as {raw}")
-            elif 'severity' in question_focus:
+            elif 'severity' in focus:
                 recap_parts.append(f"severity {raw}")
+            elif 'appetite' in focus or 'nausea' in focus:
+                recap_parts.append(f"with nausea/loss of appetite")
+            elif 'fever' in focus:
+                recap_parts.append(f"with fever")
             else:
-                # Generic - just include the answer
-                recap_parts.append(raw)
+                # Generic - just include the answer if substantive
+                if len(raw.split()) > 2:  # More than 2 words
+                    recap_parts.append(raw)
         
-        # Create natural-sounding recap
-        if recap_parts:
-            # Remove duplicates and join
-            unique_parts = []
-            seen = set()
-            for part in recap_parts:
-                part_lower = part.lower()
-                if part_lower not in seen:
-                    unique_parts.append(part)
-                    seen.add(part_lower)
-            
-            recap = ", ".join(unique_parts)
-        else:
-            recap = "your symptoms"
+        recap = ", ".join(recap_parts) if recap_parts else "your symptoms"
         
         # Build message with recap
         message = f"Based on your symptoms - {recap} - this is likely {diagnosis}.\n\n{urgency_msg}"
