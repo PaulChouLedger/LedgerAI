@@ -141,11 +141,30 @@ class UnifiedMedicalSession:
         if any(indicator in query_lower for indicator in knowledge_indicators):
             # Check if it's about medical topics
             medical_keywords = [
+                # Medical conditions and diseases
+                "hypertension", "diabetes", "cancer", "pneumonia", "asthma", "copd",
+                "heart disease", "cardiovascular", "myocardial", "infarction", "stroke",
+                "alzheimer", "parkinson", "arthritis", "osteoporosis", "anemia",
+                "depression", "anxiety", "schizophrenia", "bipolar", "adhd",
+                "hypothyroid", "hyperthyroid", "kidney", "liver", "pancreas",
+                # Medical symptoms and signs
                 "symptom", "treatment", "diagnosis", "medication", "therapy",
                 "clinical", "medical", "health", "disease", "condition", "disorder",
                 "syndrome", "infection", "inflammation", "chronic", "acute",
                 "pain", "fever", "cough", "nausea", "dizziness", "headache",
-                "chest", "abdominal", "heart", "lung", "brain", "blood", "pressure"
+                "chest", "abdominal", "heart", "lung", "brain", "blood", "pressure",
+                "fatigue", "weakness", "numbness", "tingling", "swelling", "rash",
+                "bleeding", "bruising", "seizure", "paralysis", "tremor", "shaking",
+                # Medical procedures and tests
+                "surgery", "biopsy", "endoscopy", "colonoscopy", "mammogram",
+                "x-ray", "ct scan", "mri", "ultrasound", "blood test", "urine test",
+                # Medical specialties
+                "cardiology", "neurology", "oncology", "dermatology", "psychiatry",
+                "pediatrics", "gynecology", "ophthalmology", "orthopedics",
+                # General medical terms
+                "patient", "doctor", "physician", "nurse", "hospital", "clinic",
+                "prescription", "dosage", "side effect", "contraindication",
+                "allergy", "immune", "vaccine", "vaccination", "antibody"
             ]
 
             if any(keyword in query_lower for keyword in medical_keywords):
@@ -335,11 +354,30 @@ def is_unified_medical_trigger(prompt: str) -> bool:
     if any(indicator in prompt_lower for indicator in knowledge_indicators):
         # Check if it's about medical topics
         medical_keywords = [
+            # Medical conditions and diseases
+            "hypertension", "diabetes", "cancer", "pneumonia", "asthma", "copd",
+            "heart disease", "cardiovascular", "myocardial", "infarction", "stroke",
+            "alzheimer", "parkinson", "arthritis", "osteoporosis", "anemia",
+            "depression", "anxiety", "schizophrenia", "bipolar", "adhd",
+            "hypothyroid", "hyperthyroid", "kidney", "liver", "pancreas",
+            # Medical symptoms and signs
             "symptom", "treatment", "diagnosis", "medication", "therapy",
             "clinical", "medical", "health", "disease", "condition", "disorder",
             "syndrome", "infection", "inflammation", "chronic", "acute",
             "pain", "fever", "cough", "nausea", "dizziness", "headache",
-            "chest", "abdominal", "heart", "lung", "brain", "blood", "pressure"
+            "chest", "abdominal", "heart", "lung", "brain", "blood", "pressure",
+            "fatigue", "weakness", "numbness", "tingling", "swelling", "rash",
+            "bleeding", "bruising", "seizure", "paralysis", "tremor", "shaking",
+            # Medical procedures and tests
+            "surgery", "biopsy", "endoscopy", "colonoscopy", "mammogram",
+            "x-ray", "ct scan", "mri", "ultrasound", "blood test", "urine test",
+            # Medical specialties
+            "cardiology", "neurology", "oncology", "dermatology", "psychiatry",
+            "pediatrics", "gynecology", "ophthalmology", "orthopedics",
+            # General medical terms
+            "patient", "doctor", "physician", "nurse", "hospital", "clinic",
+            "prescription", "dosage", "side effect", "contraindication",
+            "allergy", "immune", "vaccine", "vaccination", "antibody"
         ]
 
         if any(keyword in prompt_lower for keyword in medical_keywords):
