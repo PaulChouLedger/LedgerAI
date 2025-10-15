@@ -192,12 +192,17 @@ def run_container(name, port, image, timeout=15):
             "-e", f"MODEL_PATH={model_path}",
             "-e", f"CHAT_FORMAT={chat_format}",
             "-e", f"N_CTX={n_ctx}",
-            "-v", f"{workspace_root}/data:/app/data"  # Mount embeddings data
+            "-v", f"{workspace_root}/data:/app/data",  # Mount embeddings data
+            "-v", f"{workspace_root}/shared:/shared"   # Mount shared resources (medical_terms.json)
         ]
     elif name == WHISPER_NAME:
         # faster-whisper model is baked into the image, no cache mounting needed
+        # Get workspace root for shared mount
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        
         cmd += [
-            "--gpus", "all"  # Add GPU support for faster-whisper
+            "--gpus", "all",  # Add GPU support for faster-whisper
+            "-v", f"{workspace_root}/shared:/shared"  # Mount shared resources (medical_terms.json)
         ]
     elif name == "aura-rag":
         # RAG container - mount data directory only (rebuild_embeddings.py is baked into image)
