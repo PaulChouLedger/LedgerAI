@@ -480,6 +480,7 @@ class AdaptiveDiagnosticEngine:
         }
         
         for guideline_obj in self.active_guidelines:
+            guideline = guideline_obj['guideline_data']  # FIX: Extract guideline data
             guideline_name = guideline_obj['name']
             initial_score = guideline_obj['score']
             score = initial_score
