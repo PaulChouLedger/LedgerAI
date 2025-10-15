@@ -16,6 +16,7 @@ COPY casual.py .
 COPY thinker.py .
 COPY triage.py .
 COPY unified_medical_mode.py .
+COPY medical_rag.py .
 COPY triage_defs/ /app/triage_defs/
 COPY synonyms/ /app/synonyms/
 

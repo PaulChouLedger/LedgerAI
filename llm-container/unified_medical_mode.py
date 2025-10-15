@@ -24,21 +24,14 @@ from typing import Dict, List, Any, Optional, Tuple, Callable
 from difflib import SequenceMatcher
 from pathlib import Path
 
-# Import enhanced clinician for symptom assessment
-try:
-    from enhanced_clinician import EnhancedClinicianSession
-    ENHANCED_CLINICIAN_AVAILABLE = True
-except ImportError:
-    ENHANCED_CLINICIAN_AVAILABLE = False
-    print("[Unified Medical] ⚠️ Enhanced clinician not available")
-
 # Import medical RAG for knowledge queries
 try:
-    from clinician_rag import ClinicianRAG, search_clinician_info
+    from medical_rag import MedicalRAG, get_medical_rag, get_medical_messages
     MEDICAL_RAG_AVAILABLE = True
-except ImportError:
+    print("[Unified Medical] ✅ Medical RAG imported successfully")
+except ImportError as e:
     MEDICAL_RAG_AVAILABLE = False
-    print("[Unified Medical] ⚠️ Medical RAG not available")
+    print(f"[Unified Medical] ⚠️ Medical RAG not available: {e}")
 
 class UnifiedMedicalSession:
     """
@@ -68,10 +61,11 @@ class UnifiedMedicalSession:
         """Initialize medical RAG for knowledge queries"""
         if MEDICAL_RAG_AVAILABLE:
             try:
-                self.medical_rag = ClinicianRAG()
+                self.medical_rag = get_medical_rag()
                 print("[Unified Medical] ✅ Medical RAG initialized")
             except Exception as e:
                 print(f"[Unified Medical] ⚠️ Medical RAG initialization failed: {e}")
+                self.medical_rag = None
         else:
             print("[Unified Medical] ⚠️ Medical RAG not available")
 
@@ -465,16 +459,25 @@ def handle_unified_medical_response(prompt: str, session_id: str, llm_chat_fn: C
 
 def get_unified_medical_messages(prompt: str, session_id: str) -> list:
     """
-    Get LLM messages for unified medical mode (for streaming)
+    Get LLM messages for unified medical mode with RAG augmentation
     
     Args:
         prompt: User prompt
         session_id: Session identifier
         
     Returns:
-        List of messages for LLM
+        List of messages for LLM (with RAG context if available)
     """
-    # Build medical assistant prompt
+    # Try to use Medical RAG for enhanced responses
+    if MEDICAL_RAG_AVAILABLE:
+        try:
+            print("[Unified Medical] 📚 Using Medical RAG for query")
+            return get_medical_messages(prompt)
+        except Exception as e:
+            print(f"[Unified Medical] ⚠️ Medical RAG failed, using fallback: {e}")
+    
+    # Fallback: Build basic medical assistant prompt
+    print("[Unified Medical] ⚠️ Using fallback prompt (no RAG)")
     system_prompt = f"""You are a helpful medical assistant. The user asked: "{prompt}"
 
 Provide a helpful response. If this appears to be a medical concern, gently suggest consulting a healthcare professional.
