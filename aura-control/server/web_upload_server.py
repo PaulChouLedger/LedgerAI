@@ -303,7 +303,7 @@ def upload_files():
             # Step 2: Rebuild embeddings and FAISS index
             print(f"[Aura-Upload] 🔄 Step 2: Building embeddings...")
             rebuild_result = subprocess.run(
-                ["docker", "exec", "rag-container", "python3", "/app/rebuild_embeddings.py"],
+                ["docker", "exec", "aura-rag", "python3", "/app/rebuild_embeddings.py"],
                 capture_output=True,
                 text=True,
                 timeout=120

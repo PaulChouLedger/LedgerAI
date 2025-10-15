@@ -89,11 +89,11 @@ class GuidelineIngestionPipeline:
             
             # Step 2: Rebuild embeddings
             print(f"\n[Ingest] 🔄 Step 2: Building embeddings and FAISS index...")
-            print(f"[Ingest] 💡 Running: docker exec rag-container python3 /app/rebuild_embeddings.py")
+            print(f"[Ingest] 💡 Running: docker exec aura-rag python3 /app/rebuild_embeddings.py")
             
             import subprocess
             rebuild_result = subprocess.run(
-                ["docker", "exec", "rag-container", "python3", "/app/rebuild_embeddings.py"],
+                ["docker", "exec", "aura-rag", "python3", "/app/rebuild_embeddings.py"],
                 capture_output=True,
                 text=True,
                 timeout=120
