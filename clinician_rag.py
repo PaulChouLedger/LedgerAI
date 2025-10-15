@@ -21,12 +21,15 @@ from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 from difflib import SequenceMatcher
 
-# Import existing RAG components
-sys.path.append('rag-container')
+# Import existing RAG components (with defensive import)
 try:
+    sys.path.append('rag-container')
     from rag import AuraRAG
+    RAG_AVAILABLE = True
 except ImportError:
-    print("Warning: Could not import main RAG components")
+    RAG_AVAILABLE = False
+    AuraRAG = None
+    print("Warning: Could not import main RAG components - running in limited mode")
 
 # Import medical data ingester
 try:
@@ -71,6 +74,11 @@ class ClinicianRAG:
         """Load medical-specific RAG components"""
         print("🔧 Loading medical RAG components...")
 
+        # Check if medical data exists
+        if not self.medical_embeddings_dir.exists():
+            print("⚠️ Medical embeddings directory not found - running in limited mode")
+            return
+
         # Load medical FAISS index
         medical_index_path = self.medical_embeddings_dir / "medical_index.faiss"
         if medical_index_path.exists():
@@ -105,7 +113,7 @@ class ClinicianRAG:
                 print(f"❌ Failed to load medical metadata: {e}")
 
         # Load medical encoder (use same as general RAG for consistency)
-        if self.general_rag and hasattr(self.general_rag, 'encoder'):
+        if self.general_rag and hasattr(self.general_rag, 'encoder') and self.general_rag.encoder is not None:
             self.medical_encoder = self.general_rag.encoder
             print("✅ Using general RAG encoder for medical queries")
         else:

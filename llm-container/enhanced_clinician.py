@@ -22,13 +22,24 @@ from typing import Dict, List, Any, Optional, Tuple, Callable
 from difflib import SequenceMatcher
 from pathlib import Path
 
-# Import medical RAG system
+# Import medical RAG system (defensive imports)
 sys.path.append(str(Path(__file__).parent.parent))
 try:
     from clinician_rag import ClinicianRAG, search_clinician_info
-    from medical_data_ingestion import MedicalDataIngester
+    MEDICAL_RAG_AVAILABLE = True
 except ImportError:
+    MEDICAL_RAG_AVAILABLE = False
+    ClinicianRAG = None
+    search_clinician_info = None
     print("Warning: Could not import medical RAG modules")
+
+try:
+    from medical_data_ingestion import MedicalDataIngester
+    MEDICAL_DATA_AVAILABLE = True
+except ImportError:
+    MEDICAL_DATA_AVAILABLE = False
+    MedicalDataIngester = None
+    print("Warning: Could not import medical data ingester")
 
 class EnhancedClinicianSession:
     """
@@ -59,6 +70,8 @@ class EnhancedClinicianSession:
         self.clinician_rag = None
         self._initialize_medical_rag()
 
+        print(f"[Enhanced Clinician] 🩺 Enhanced clinician initialized (RAG: {MEDICAL_RAG_AVAILABLE})")
+
         # Question generation state
         self.questions_asked = []
         self.pending_questions = []
@@ -68,11 +81,17 @@ class EnhancedClinicianSession:
 
     def _initialize_medical_rag(self):
         """Initialize medical RAG system"""
+        if not MEDICAL_RAG_AVAILABLE:
+            print("[Enhanced Clinician] ⚠️ Medical RAG not available")
+            return
+
         try:
-            self.clinician_rag = ClinicianRAG()
-            print("[Enhanced Clinician] ✅ Medical RAG initialized")
+            if ClinicianRAG is not None:
+                self.clinician_rag = ClinicianRAG()
+                print("[Enhanced Clinician] ✅ Medical RAG initialized")
         except Exception as e:
             print(f"[Enhanced Clinician] ⚠️ Could not initialize medical RAG: {e}")
+            self.clinician_rag = None
 
     def start_enhanced_assessment(self) -> str:
         """
@@ -141,17 +160,23 @@ FIRST_QUESTION: [Specific, medically-relevant question]
     def _get_medical_context_for_symptom(self, symptom: str) -> str:
         """Get relevant medical context for a symptom using RAG"""
         if not self.clinician_rag:
-            return "No medical context available"
+            return "No medical context available (RAG not initialized)"
 
         try:
             # Search for symptom-specific information
-            results = self.clinician_rag.search_medical_info(symptom, k=3)
+            if hasattr(self.clinician_rag, 'search_medical_info'):
+                results = self.clinician_rag.search_medical_info(symptom, k=3)
 
-            if results:
-                context = self.clinician_rag.get_medical_context(symptom, results)
-                return context[:1000]  # Limit context length
+                if results:
+                    if hasattr(self.clinician_rag, 'get_medical_context'):
+                        context = self.clinician_rag.get_medical_context(symptom, results)
+                        return context[:1000]  # Limit context length
+                    else:
+                        return f"Found {len(results)} relevant medical results"
+                else:
+                    return "Limited medical context found for this symptom"
             else:
-                return "Limited medical context found for this symptom"
+                return "Medical RAG search not available"
 
         except Exception as e:
             print(f"[Enhanced Clinician] ❌ Error getting medical context: {e}")
@@ -349,10 +374,10 @@ FIRST_QUESTION: [Specific, medically-relevant question]
 
         # Get relevant medical information
         medical_context = ""
-        if self.clinician_rag:
+        if self.clinician_rag and hasattr(self.clinician_rag, 'search_medical_info'):
             try:
                 results = self.clinician_rag.search_medical_info(context, k=3)
-                if results:
+                if results and hasattr(self.clinician_rag, 'get_medical_context'):
                     medical_context = self.clinician_rag.get_medical_context(context, results)[:800]
             except Exception as e:
                 print(f"[Enhanced Clinician] ❌ Error getting medical context: {e}")
@@ -492,14 +517,14 @@ URGENCY: [Routine/Urgent/Emergent]
 
     def _generate_differential_diagnosis(self) -> str:
         """Generate differential diagnosis using medical RAG"""
-        if not self.clinician_rag:
-            return "Differential diagnosis not available"
+        if not self.clinician_rag or not hasattr(self.clinician_rag, 'search_medical_info'):
+            return "Differential diagnosis not available (RAG not initialized)"
 
         try:
             context = self._build_assessment_context()
             results = self.clinician_rag.search_medical_info(context, k=5)
 
-            if results:
+            if results and hasattr(self.clinician_rag, 'get_medical_context'):
                 return self.clinician_rag.get_medical_context(context, results)[:600]
             else:
                 return "Limited differential diagnosis information available"
