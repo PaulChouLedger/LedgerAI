@@ -348,34 +348,45 @@ class UnifiedMedicalSession:
         """
         state = self.dynamic_assessment
         
-        # Build context for LLM
-        guideline_text = "\n\n".join([g.get('text', '') for g in guidelines[:3]])
+        # Build context for LLM (truncate each guideline to prevent token overflow)
+        MAX_GUIDELINE_LENGTH = 250  # characters per guideline (reduced for safety)
+        truncated_guidelines = [g.get('text', '')[:MAX_GUIDELINE_LENGTH] + '...' if len(g.get('text', '')) > MAX_GUIDELINE_LENGTH else g.get('text', '') for g in guidelines[:2]]  # Use only 2 chunks
+        guideline_text = "\n\n".join(truncated_guidelines)
         
-        prompt = f"""You are conducting a medical assessment. Generate the next diagnostic question.
+        print(f"[Dynamic] 📝 Guideline text length: {len(guideline_text)} chars")
+        
+        # Simplified prompt to reduce token usage and improve reliability
+        guideline_snippet = guideline_text[:400] if len(guideline_text) > 400 else guideline_text  # Further truncate if needed
+        
+        prompt = f"""You are a medical assistant. The patient says: "{state.chief_complaint}"
 
-CHIEF COMPLAINT: {state.chief_complaint}
-CATEGORY: {state.category}
+Ask ONE clear diagnostic question about:
+- Location and severity of pain/symptoms
+- When it started
+- Other symptoms
 
-SYMPTOMS SO FAR: {', '.join([str(s) for s in state.symptoms_collected]) if state.symptoms_collected else 'None'}
-RED FLAGS: {', '.join(state.red_flags_detected) if state.red_flags_detected else 'None'}
+Guidelines: {guideline_snippet}
 
-MEDICAL GUIDELINES:
-{guideline_text}
-
-QUESTIONS ALREADY ASKED: {len(state.questions_asked)}
-
-Generate ONE clear, specific question to gather critical diagnostic information. Focus on:
-1. Red flag symptoms if not yet assessed
-2. Severity and character of symptoms
-3. Duration and onset
-4. Associated symptoms
-
-Keep it conversational and patient-friendly. Just ask the question, nothing else.
-
-QUESTION:"""
+Question:"""
+        
+        print(f"[Dynamic] 📝 Prompt length: {len(prompt)} chars, approx {len(prompt)//4} tokens")
         
         # Get LLM response (llm_chat now returns string, not dict)
-        question = self.llm_chat_fn([{"role": "user", "content": prompt}])
+        question = self.llm_chat_fn(
+            [{"role": "user", "content": prompt}],
+            max_tokens=80,      # Enough for a medical question
+            temperature=0.4,    # Lower temperature for more consistent output
+            stream=False
+        )
+        
+        # Validate output - check for garbage/repetitive content
+        if question and len(question) > 10:
+            from collections import Counter
+            char_counts = Counter(question.lower())
+            most_common = char_counts.most_common(1)[0][1] if char_counts else 0
+            if most_common / len(question) > 0.3:  # >30% same character = garbage
+                print(f"[Dynamic] ⚠️ Garbage output detected, using fallback question")
+                question = "Can you describe where the pain is located and how severe it is on a scale of 1-10?"
         
         # Track question
         state.questions_asked.append(question)
@@ -440,7 +451,11 @@ QUESTION:"""
         # Retrieve comprehensive guidelines for diagnosis
         search_query = f"{state.chief_complaint} diagnosis differential {' '.join([s.get('symptom', '') for s in state.symptoms_collected])}"
         guidelines = self._get_medical_guidelines(search_query, state.category)
-        guideline_text = "\n\n".join([g.get('text', '') for g in guidelines[:5]])
+        
+        # Truncate each guideline to prevent token overflow
+        MAX_GUIDELINE_LENGTH = 300  # characters per guideline
+        truncated_guidelines = [g.get('text', '')[:MAX_GUIDELINE_LENGTH] + '...' if len(g.get('text', '')) > MAX_GUIDELINE_LENGTH else g.get('text', '') for g in guidelines[:3]]
+        guideline_text = "\n\n".join(truncated_guidelines)
         
         diagnosis_prompt = f"""You are a physician completing a medical assessment.
 
@@ -466,7 +481,21 @@ Be direct and actionable. Format as natural physician guidance.
 ASSESSMENT:"""
         
         # Get diagnosis from LLM (llm_chat now returns string, not dict)
-        diagnosis_response = self.llm_chat_fn([{"role": "user", "content": diagnosis_prompt}])
+        diagnosis_response = self.llm_chat_fn(
+            [{"role": "user", "content": diagnosis_prompt}],
+            max_tokens=150,     # Enough for diagnosis + disposition
+            temperature=0.3,    # Low temperature for clinical accuracy
+            stream=False
+        )
+        
+        # Validate output - check for garbage/repetitive content
+        if diagnosis_response and len(diagnosis_response) > 10:
+            from collections import Counter
+            char_counts = Counter(diagnosis_response.lower())
+            most_common = char_counts.most_common(1)[0][1] if char_counts else 0
+            if most_common / len(diagnosis_response) > 0.3:  # >30% same character = garbage
+                print(f"[Dynamic] ⚠️ Garbage diagnosis detected, using fallback")
+                diagnosis_response = "Based on your symptoms, I recommend seeing a healthcare provider for proper evaluation. If symptoms worsen or you experience severe pain, seek immediate medical attention."
         
         # Mark assessment as complete
         state.completed = True

@@ -40,7 +40,7 @@ llm_lock = threading.Lock()
 
 # === Model Config (Optimized for Orin NX) ===
 MODEL_PATH = os.getenv("MODEL_PATH", "/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf")
-N_CTX = int(os.getenv("N_CTX", "1024"))  # Reduced for speed
+N_CTX = int(os.getenv("N_CTX", "2048"))  # Increased for medical mode with RAG guidelines
 
 model_config = {
     "model_path": MODEL_PATH,
