@@ -160,13 +160,15 @@ def rebuild_embeddings(data_root="data"):
         # Extract guideline metadata if this is a GUIDELINE file
         guideline_name = None
         if source_file.startswith('GUIDELINE_'):
-            # Extract from first line: "DIAGNOSTIC GUIDELINE: Acute Appendicitis"
-            first_line = text.split('\n')[0] if '\n' in text else text[:200]
+            # Extract from first few lines (header might be after separator line)
+            first_lines = '\n'.join(text.split('\n')[:5])  # Check first 5 lines
             import re
-            match = re.search(r'DIAGNOSTIC GUIDELINE:\s*([^\n]+)', first_line)
+            match = re.search(r'DIAGNOSTIC GUIDELINE:\s*([^\n]+)', first_lines, re.IGNORECASE)
             if match:
                 guideline_name = match.group(1).strip()
                 print(f"\n📋 Processing medical guideline: {guideline_name} (from {source_file})")
+            else:
+                print(f"\n⚠️ File {source_file} looks like a guideline but no header found - checking content...")
         
         print(f"\n📄 Processing {source_file}...")
         file_chunks_start = len(chunks)  # Track where this file's chunks start
