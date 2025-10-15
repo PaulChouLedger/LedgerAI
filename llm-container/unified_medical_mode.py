@@ -207,12 +207,17 @@ class UnifiedMedicalSession:
             'timestamp': datetime.now().isoformat()
         })
 
-        # Check if we have an active dynamic assessment in progress
+        # PRIORITY 1: Check if adaptive engine has active assessment
+        if self.adaptive_engine and self.adaptive_engine.status == "questioning":
+            print(f"[Unified Medical] 🔄 Continuing active adaptive assessment")
+            return self._handle_symptom_assessment(user_input)
+        
+        # PRIORITY 2: Check if we have an active dynamic assessment in progress (legacy)
         if self.dynamic_assessment and not self.dynamic_assessment.completed:
             print(f"[Unified Medical] 🔄 Continuing active dynamic assessment (Q{len(self.dynamic_assessment.questions_asked)})")
             return self._handle_dynamic_assessment(user_input)
         
-        # Analyze the query type
+        # PRIORITY 3: Analyze the query type for NEW queries only
         query_type = self._analyze_medical_query(user_input)
 
         print(f"[Unified Medical] 🔍 Query type: {query_type}")
