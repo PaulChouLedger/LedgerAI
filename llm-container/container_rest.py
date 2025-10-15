@@ -27,13 +27,13 @@ from casual import handle_casual, stream_casual_response
 from thinker import handle_thinker
 from triage import detect_condition, process_triage_step, generate_triage_completion, load_state, save_state, get_intro, apply_synonym_expansion, substitute_name, TRIAGE_DEFS, get_steps, is_valid_answer
 from clinician import ClinicianSession, is_clinician_trigger, create_clinician_session
-# Import enhanced clinician for medical symptoms
+# Import unified medical mode for comprehensive medical assistance
 try:
-    from enhanced_clinician import EnhancedClinicianSession
-    ENHANCED_CLINICIAN_AVAILABLE = True
+    from unified_medical_mode import UnifiedMedicalSession, is_unified_medical_trigger, get_unified_medical_session
+    UNIFIED_MEDICAL_AVAILABLE = True
 except ImportError:
-    ENHANCED_CLINICIAN_AVAILABLE = False
-    print("[Container] ⚠️ Enhanced clinician not available, falling back to basic clinician")
+    UNIFIED_MEDICAL_AVAILABLE = False
+    print("[Container] ⚠️ Unified medical mode not available")
 
 # RAG functionality moved to separate RAG container (port 11435)
 RAG_SERVICE_URL = "http://localhost:11435"
@@ -173,6 +173,21 @@ def chat_tg():
                 save_state(final_state, session_id)
                 return jsonify({"response": question})
         
+        elif mode == ConversationMode.UNIFIED_MEDICAL:
+            try:
+                response = handle_unified_medical_response(prompt, session_id, llm_chat)
+                return jsonify({"response": response})
+            except Exception as e:
+                print(f"[Container] ❌ Error in unified medical mode (non-streaming): {e}")
+                # Fallback to clinician mode
+                try:
+                    clinician = create_clinician_session(session_id, prompt, llm_chat)
+                    opening = clinician.start_session()
+                    return jsonify({"response": opening})
+                except Exception as e2:
+                    print(f"[Container] ❌ Fallback clinician also failed: {e2}")
+                    return jsonify({"response": "I'm sorry, I encountered an error processing your medical query. Please consult a healthcare professional."})
+
         elif mode == ConversationMode.CLINICIAN:
             try:
                 if ENHANCED_CLINICIAN_AVAILABLE and state.get('is_new_clinician'):
@@ -330,6 +345,25 @@ def chat_tts():
                     yield f"<sentence_start>\nI'm sorry, there was an error processing your triage.\n<sentence_end>\n"
             # Filter think blocks at container level
             return Response(stream_with_context(filter_think_blocks(generate_triage_continue())), mimetype="text/plain")
+
+    elif mode == ConversationMode.UNIFIED_MEDICAL:
+        def generate_unified_medical():
+            try:
+                response = handle_unified_medical_response(prompt, session_id, llm_chat)
+                yield f"<sentence_start>\n{response}\n<sentence_end>\n"
+            except Exception as e:
+                print(f"[Container] ❌ Error in unified medical mode: {e}")
+                # Fallback to clinician mode
+                try:
+                    clinician = create_clinician_session(session_id, prompt, llm_chat)
+                    opening = clinician.start_session()
+                    yield f"<sentence_start>\n{opening}\n<sentence_end>\n"
+                except Exception as e2:
+                    print(f"[Container] ❌ Fallback clinician also failed: {e2}")
+                    yield f"<sentence_start>\nI'm sorry, I encountered an error processing your medical query. Please consult a healthcare professional.\n<sentence_end>\n"
+
+        # Filter think blocks at container level
+        return Response(stream_with_context(filter_think_blocks(generate_unified_medical())), mimetype="text/plain")
 
     elif mode == ConversationMode.CLINICIAN:
         def generate_clinician():

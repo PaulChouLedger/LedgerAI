@@ -20,6 +20,7 @@ from typing import Tuple, Optional
 from casual import is_casual_trigger
 from thinker import is_thinker_trigger
 from clinician import is_clinician_trigger
+from unified_medical_mode import is_unified_medical_trigger
 
 # Feature flags
 USE_CLINICIAN_MODE = True  # Enable enhanced clinician mode for medical symptoms
@@ -33,6 +34,7 @@ class ConversationMode:
     THINKER = "thinker"
     TRIAGE = "triage"
     CLINICIAN = "clinician"
+    UNIFIED_MEDICAL = "unified_medical"
 
 
 def route_prompt(prompt: str, state: dict, session_id: str, llm_chat_fn=None) -> Tuple[str, dict]:
@@ -67,14 +69,20 @@ def route_prompt(prompt: str, state: dict, session_id: str, llm_chat_fn=None) ->
         print(f"[Router] 🔒 CLINICIAN mode locked - must complete before switching")
         return ConversationMode.CLINICIAN, state
     
-    # PRIORITY 3: Dynamic mode switching for CASUAL ↔ THINKER
+    # PRIORITY 3: Check for unified medical mode (handles both symptoms and medical knowledge)
+    if is_unified_medical_trigger(prompt):
+        print(f"[Router] 🩺 → UNIFIED_MEDICAL mode (medical query detected)")
+        state['mode'] = ConversationMode.UNIFIED_MEDICAL
+        return ConversationMode.UNIFIED_MEDICAL, state
+
+    # PRIORITY 4: Dynamic mode switching for CASUAL ↔ THINKER
     # Check if user is asking a knowledge query (regardless of current mode)
     if is_thinker_trigger(prompt):
         print(f"[Router] 🧠 → THINKER mode (knowledge query detected)")
         state['mode'] = ConversationMode.THINKER
         return ConversationMode.THINKER, state
     
-    # PRIORITY 4: Check for medical symptoms (route to clinician instead of triage)
+    # PRIORITY 5: Check for medical symptoms (route to clinician instead of triage)
     if ENABLE_MEDICAL_SYMPTOM_ROUTING and is_clinician_trigger(prompt):
         print(f"[Router] 🩺 → CLINICIAN mode (medical symptom detected)")
         state.update({
@@ -84,7 +92,7 @@ def route_prompt(prompt: str, state: dict, session_id: str, llm_chat_fn=None) ->
         })
         return ConversationMode.CLINICIAN, state
 
-    # PRIORITY 5: Check for NEW medical condition (start triage) - only if not using clinician mode
+    # PRIORITY 6: Check for NEW medical condition (start triage) - only if not using clinician mode
     from triage import detect_condition
     condition = detect_condition(prompt, session_id, llm_chat_fn)
     if condition:
@@ -98,14 +106,14 @@ def route_prompt(prompt: str, state: dict, session_id: str, llm_chat_fn=None) ->
             'is_new_triage': True
         })
         return ConversationMode.TRIAGE, state
-    
-    # PRIORITY 6: Simple greetings → CASUAL mode
+
+    # PRIORITY 7: Simple greetings → CASUAL mode
     if is_casual_trigger(prompt):
         print(f"[Router] 💬 → CASUAL mode (greeting)")
         state['mode'] = ConversationMode.CASUAL
         return ConversationMode.CASUAL, state
 
-    # PRIORITY 7: Default to CASUAL for general conversation
+    # PRIORITY 8: Default to CASUAL for general conversation
     print(f"[Router] 💬 → CASUAL mode (general conversation)")
     state['mode'] = ConversationMode.CASUAL
     return ConversationMode.CASUAL, state
@@ -121,6 +129,10 @@ def get_active_mode(state: dict) -> Optional[str]:
     Returns:
         Active mode name or None
     """
+    # Check for active UNIFIED_MEDICAL session
+    if state.get('mode') == ConversationMode.UNIFIED_MEDICAL:
+        return ConversationMode.UNIFIED_MEDICAL
+
     # Check for active CLINICIAN session
     if state.get('mode') == ConversationMode.CLINICIAN:
         return ConversationMode.CLINICIAN
@@ -170,6 +182,12 @@ def format_mode_info(mode: str) -> dict:
             'name': 'Clinician',
             'icon': '🩺',
             'description': 'Intelligent diagnosis with RAG-powered medical guidelines',
+            'uses_rag': True
+        },
+        ConversationMode.UNIFIED_MEDICAL: {
+            'name': 'Medical Assistant',
+            'icon': '🩺',
+            'description': 'Comprehensive physician-like medical assistance (symptoms + knowledge)',
             'uses_rag': True
         }
     }
