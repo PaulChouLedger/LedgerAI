@@ -242,17 +242,21 @@ def rebuild_embeddings(data_root="/app/data"):
     print("🔢 Generating embeddings...")
     start_time = time.time()
     
-    # Use sentence_transformers default (this creates proper numpy arrays)
-    embeddings = encoder.encode(chunks, convert_to_numpy=True, show_progress_bar=True)
+    # Use sentence_transformers with explicit numpy conversion
+    embeddings_raw = encoder.encode(chunks, convert_to_numpy=True, show_progress_bar=True)
     
     print(f"⏱️ Embedding generation took {time.time() - start_time:.2f} seconds")
-    print(f"🔢 Embedding shape: {embeddings.shape}")
-    print(f"🔢 Original dtype: {embeddings.dtype}")
+    print(f"🔢 Raw output type: {type(embeddings_raw)}")
+    print(f"🔢 Raw output dtype: {embeddings_raw.dtype if hasattr(embeddings_raw, 'dtype') else 'N/A'}")
     
-    # Convert to float32 if needed (sentence_transformers sometimes returns float64)
-    if embeddings.dtype != np.float32:
-        print(f"🔧 Converting {embeddings.dtype} → float32")
-        embeddings = embeddings.astype(np.float32, copy=False)
+    # Force conversion to pure numpy array (in case it's a torch tensor or view)
+    embeddings = np.array(embeddings_raw, dtype=np.float32, copy=True, order='C')
+    
+    print(f"✅ Converted to pure numpy array:")
+    print(f"   Type: {type(embeddings)}")
+    print(f"   Dtype: {embeddings.dtype}")
+    print(f"   Shape: {embeddings.shape}")
+    print(f"   Is numpy.ndarray: {isinstance(embeddings, np.ndarray)}")
     
     # Normalize for cosine similarity using FAISS built-in
     print("🔧 Normalizing embeddings for cosine similarity...")
