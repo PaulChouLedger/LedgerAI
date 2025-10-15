@@ -25,7 +25,6 @@ from difflib import SequenceMatcher
 from pathlib import Path
 
 # Import enhanced clinician for symptom assessment
-sys.path.append(str(Path(__file__).parent.parent))
 try:
     from enhanced_clinician import EnhancedClinicianSession
     ENHANCED_CLINICIAN_AVAILABLE = True

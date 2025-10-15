@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 
 # Add the llm-container to path
-sys.path.append(str(Path(__file__).parent / "llm-container"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "llm-container"))
 
 def test_medical_symptom_routing():
     """Test that medical symptoms route to clinician mode"""

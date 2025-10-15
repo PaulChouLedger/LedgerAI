@@ -12,9 +12,9 @@ from typing import Callable
 from pathlib import Path
 
 # Import enhanced clinician system
-sys.path.append(str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent / "llm-container"))
 try:
-    from llm-container.enhanced_clinician import EnhancedClinicianSession
+    from enhanced_clinician import EnhancedClinicianSession
 except ImportError:
     print("Error: Could not import enhanced clinician system")
     sys.exit(1)
