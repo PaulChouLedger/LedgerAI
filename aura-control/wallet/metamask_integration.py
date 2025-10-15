@@ -6,7 +6,7 @@ from typing import Optional, Callable
 from web3 import Web3
 
 try:
-    from walletconnect import WCClient
+    from walletconnect import WCClient  # This is an external library, not local
     WALLETCONNECT_AVAILABLE = True
 except ImportError:
     WALLETCONNECT_AVAILABLE = False

@@ -282,7 +282,7 @@ class TransactionWorker(QThread):
     def run(self):
         """Execute transaction"""
         try:
-            from wallet_integration import get_wallet_manager
+            from .wallet_integration import get_wallet_manager
             
             wallet_manager = get_wallet_manager()
             

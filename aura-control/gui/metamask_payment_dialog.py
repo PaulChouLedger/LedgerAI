@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                              QPushButton, QLineEdit, QTextEdit, QMessageBox)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QFont, QPixmap
-from wallet_integration import get_wallet_manager, get_usage_tracker
+from ..wallet.wallet_integration import get_wallet_manager, get_usage_tracker
 import qrcode
 import io
 from PIL import Image

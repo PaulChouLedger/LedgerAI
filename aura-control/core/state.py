@@ -24,7 +24,7 @@ def set_playing(value: bool):
     
     # Update GUI state for TTS
     try:
-        from aura_gui import set_tts_playing
+        from ..gui.aura_gui import set_tts_playing
         set_tts_playing(value)
     except ImportError:
         pass  # GUI not available

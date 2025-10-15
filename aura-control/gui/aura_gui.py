@@ -291,7 +291,7 @@ class AuraGUI(QMainWindow):
             print("[AuraGUI] ⚠️ Could not import listener blocking functions")
         
         try:
-            from wallet_dialog import WalletDialog
+            from .wallet_dialog import WalletDialog
             
             # Create and show wallet dialog (modal, like upload dialog)
             dialog = WalletDialog(parent=self)

@@ -8,8 +8,8 @@ import sounddevice as sd
 import requests
 import subprocess
 from scipy.fft import rfft, rfftfreq
-from speaker import speak_llm_response, is_playing
-from aura_gui import set_transcribing
+from .speaker import speak_llm_response, is_playing
+from ..gui.aura_gui import set_transcribing
 
 # === Config ===
 SAMPLE_RATE = 16000
@@ -391,7 +391,7 @@ def play_welcome_prompt(stream):
         print("[Aura] 🎤 Mic resumed after welcome prompt")
         
         try:
-            from aura_gui import set_setup_complete, set_welcome_played, set_listening_ready
+            from ..gui.aura_gui import set_setup_complete, set_welcome_played, set_listening_ready
             set_setup_complete()
             set_welcome_played()
             set_listening_ready()
