@@ -447,7 +447,7 @@ def _is_medical_topic_fast(text: str) -> bool:
     return False
 
 
-def handle_unified_medical_response(prompt: str, session_id: str, llm_chat_fn: Callable) -> str:
+def handle_unified_medical_response(prompt: str, session_id: str, llm_chat_fn: Callable):
     """
     Handle medical queries through unified medical mode
 
@@ -457,10 +457,31 @@ def handle_unified_medical_response(prompt: str, session_id: str, llm_chat_fn: C
         llm_chat_fn: LLM chat function
 
     Returns:
-        Medical response
+        Medical response (could be messages list for streaming or direct response)
     """
     session = get_unified_medical_session(session_id, llm_chat_fn)
     return session.process_medical_query(prompt)
+
+
+def get_unified_medical_messages(prompt: str, session_id: str) -> list:
+    """
+    Get LLM messages for unified medical mode (for streaming)
+    
+    Args:
+        prompt: User prompt
+        session_id: Session identifier
+        
+    Returns:
+        List of messages for LLM
+    """
+    # Build medical assistant prompt
+    system_prompt = f"""You are a helpful medical assistant. The user asked: "{prompt}"
+
+Provide a helpful response. If this appears to be a medical concern, gently suggest consulting a healthcare professional.
+
+Remember: You are not a substitute for professional medical advice."""
+    
+    return [{"role": "system", "content": system_prompt}]
 
 if __name__ == "__main__":
     # Test the unified medical mode

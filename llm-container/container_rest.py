@@ -100,6 +100,34 @@ def extract_llm_response_content(response) -> str:
     return str(response)
 
 
+def stream_llm_response(messages, max_tokens=100):
+    """
+    Global streaming wrapper for LLM responses
+    Yields text chunks as they're generated, reducing initial latency
+    
+    Args:
+        messages: Chat messages for LLM
+        max_tokens: Maximum tokens to generate
+        
+    Yields:
+        Text chunks from LLM as they're generated
+    """
+    try:
+        stream = llm_chat(messages, max_tokens=max_tokens, stream=True)
+        
+        for chunk in stream:
+            # Extract content from streaming chunk
+            if isinstance(chunk, dict):
+                if 'choices' in chunk and len(chunk['choices']) > 0:
+                    delta = chunk['choices'][0].get('delta', {})
+                    content = delta.get('content', '')
+                    if content:
+                        yield content
+    except Exception as e:
+        print(f"[Container] ❌ Streaming error: {e}")
+        yield ""
+
+
 # === Non-streaming chat endpoint for Telegram ===
 @app.route("/chat-tg", methods=["POST"])
 def chat_tg():
@@ -345,10 +373,24 @@ def chat_tts():
     elif mode == ConversationMode.UNIFIED_MEDICAL:
         def generate_unified_medical():
             try:
-                response = handle_unified_medical_response(prompt, session_id, llm_chat)
-                # Extract content from LLM response (centralized handling)
-                response = extract_llm_response_content(response)
-                yield f"<sentence_start>\n{response}\n<sentence_end>\n"
+                print("[Container] 🔄 Using NEW streaming architecture for UNIFIED_MEDICAL")
+                # Get messages for medical query
+                from unified_medical_mode import get_unified_medical_messages
+                messages = get_unified_medical_messages(prompt, session_id)
+                print(f"[Container] ✅ Got messages for streaming: {messages[0]['role']}")
+                
+                # Stream response chunks (reduces initial latency!)
+                full_response = ""
+                yield "<sentence_start>\n"
+                
+                print("[Container] 🌊 Starting streaming...")
+                for chunk in stream_llm_response(messages, max_tokens=150):
+                    full_response += chunk
+                    # Don't yield individual chunks - wait for sentences
+                    # This prevents choppy TTS
+                
+                print(f"[Container] ✅ Streaming complete, response length: {len(full_response)}")
+                yield f"{full_response}\n<sentence_end>\n"
             except Exception as e:
                 print(f"[Container] ❌ Error in unified medical mode: {e}")
                 import traceback
@@ -374,8 +416,9 @@ def chat_tts():
     elif mode == ConversationMode.THINKER:
         def generate_thinker():
             try:
-                response = handle_thinker(prompt, llm_chat)
-                yield f"<sentence_start>\n{response}\n<sentence_end>\n"
+                # handle_thinker already yields streaming chunks with sentence markers
+                for chunk in handle_thinker(prompt, llm_chat, session_id):
+                    yield chunk
             except Exception as e:
                 print(f"[Container] ❌ Error in thinker mode: {e}")
                 import traceback
@@ -461,7 +504,7 @@ def reset_session_state(session_id: str) -> dict:
     return reset_state
 
 
-def llm_chat(messages, max_tokens=100, temperature=None, **kwargs):
+def llm_chat(messages, max_tokens=100, temperature=None, stream=False, **kwargs):
     """
     Wrapper for LLM chat completion with thread safety and speed optimizations
     
@@ -469,6 +512,7 @@ def llm_chat(messages, max_tokens=100, temperature=None, **kwargs):
         messages: Chat messages
         max_tokens: Max tokens to generate (default: 100)
         temperature: Sampling temperature (default: use model config)
+        stream: Enable streaming (default: False)
         **kwargs: Additional LLM parameters
     """
     # Apply centralized speed optimizations
@@ -482,14 +526,23 @@ def llm_chat(messages, max_tokens=100, temperature=None, **kwargs):
         "top_p": kwargs.pop("top_p", model_config.get("top_p", 0.85)),
         "top_k": kwargs.pop("top_k", model_config.get("top_k", 30)),
         "repeat_penalty": kwargs.pop("repeat_penalty", model_config.get("repeat_penalty", 1.15)),
+        "stream": stream,
         **kwargs
     }
     
     with llm_lock:
         try:
-            return llm.create_chat_completion(**generation_params)
+            response = llm.create_chat_completion(**generation_params)
+            # If streaming, return the generator directly
+            if stream:
+                return response
+            # Otherwise return the full response
+            return response
         except Exception as e:
             print(f"[LLM] ❌ Error in llm_chat: {e}")
+            if stream:
+                # Return empty generator for streaming
+                return iter([])
             return {"choices": [{"message": {"content": ""}}]}
 
 
