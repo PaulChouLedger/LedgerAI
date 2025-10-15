@@ -181,8 +181,8 @@ def run_container(name, port, image, timeout=15):
 
     if name == "aura-llm":
         # Read from host .env, fallback to defaults
-        model_path  = HOST_ENV.get("MODEL_PATH", "/models/qwen2.5-1.5b-instruct-q4_0.gguf")
-        chat_format = HOST_ENV.get("CHAT_FORMAT", "qwen")
+        model_path  = HOST_ENV.get("MODEL_PATH", "/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf")
+        chat_format = HOST_ENV.get("CHAT_FORMAT", "llama-3")
         n_ctx       = HOST_ENV.get("N_CTX", "1024")
 
         cmd += [

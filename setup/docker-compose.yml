@@ -1,23 +1,23 @@
 services:
   whisper:
-    build: ./whisper-container
+    build: ../whisper-container
     network_mode: host
     volumes:
-      - ./shared:/shared
+      - ../shared:/shared
 
   llm:
-    build: ./llm-container
+    build: ../llm-container
     network_mode: host
     volumes:
-      - ./shared:/shared
+      - ../shared:/shared
     working_dir: /app
 
   rag:
-    build: ./rag-container
+    build: ../rag-container
     network_mode: host
     volumes:
-      - ./shared:/shared
-      - ./data:/app/data  # Mount embeddings data
-      - ./rag-container/cache:/app/cache  # Mount RAG model cache
+      - ../shared:/shared
+      - ../data:/app/data  # Mount embeddings data
+      - ../rag-container/cache:/app/cache  # Mount RAG model cache
     working_dir: /app
 
