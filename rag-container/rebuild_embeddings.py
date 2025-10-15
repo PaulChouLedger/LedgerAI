@@ -252,21 +252,26 @@ def rebuild_embeddings(data_root="/app/data"):
     # Force conversion to pure numpy array (in case it's a torch tensor or view)
     embeddings = np.array(embeddings_raw, dtype=np.float32, copy=True, order='C')
     
-    print(f"✅ Converted to pure numpy array:")
-    print(f"   Type: {type(embeddings)}")
-    print(f"   Dtype: {embeddings.dtype}")
-    print(f"   Shape: {embeddings.shape}")
-    print(f"   Is numpy.ndarray: {isinstance(embeddings, np.ndarray)}")
+    print(f"✅ Converted to pure numpy array:", flush=True)
+    print(f"   Type: {type(embeddings)}", flush=True)
+    print(f"   Dtype: {embeddings.dtype}", flush=True)
+    print(f"   Shape: {embeddings.shape}", flush=True)
+    print(f"   Is numpy.ndarray: {isinstance(embeddings, np.ndarray)}", flush=True)
     
-    # Normalize for cosine similarity using FAISS built-in
-    print("🔧 Normalizing embeddings for cosine similarity...")
-    faiss.normalize_L2(embeddings)  # In-place normalization
+    # Manual normalization (avoid FAISS's normalize_L2 which has SWIG issues)
+    print("🔧 Normalizing embeddings manually (L2 norm)...", flush=True)
+    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+    norms = np.maximum(norms, 1e-10)  # Avoid division by zero
+    embeddings = embeddings / norms
     
-    print(f"✅ Embeddings ready:")
-    print(f"   Type: {type(embeddings)}")
-    print(f"   Dtype: {embeddings.dtype}")
-    print(f"   Shape: {embeddings.shape}")
-    print(f"   C-contiguous: {embeddings.flags['C_CONTIGUOUS']}")
+    # Make absolutely sure it's a proper array after division
+    embeddings = np.ascontiguousarray(embeddings, dtype=np.float32)
+    
+    print(f"✅ Embeddings normalized and ready:", flush=True)
+    print(f"   Type: {type(embeddings)}", flush=True)
+    print(f"   Dtype: {embeddings.dtype}", flush=True)
+    print(f"   Shape: {embeddings.shape}", flush=True)
+    print(f"   C-contiguous: {embeddings.flags['C_CONTIGUOUS']}", flush=True)
     
     # Create FAISS index
     print("🔍 Creating FAISS index...")
