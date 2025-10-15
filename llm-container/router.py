@@ -3,10 +3,10 @@
 Aura Conversation Router - Intelligent Mode Selection
 
 Routes incoming prompts to the appropriate conversation mode:
-1. CASUAL - Simple greetings
-2. THINKER - Knowledge/information queries  
-3. TRIAGE - Hardcoded medical diagnostic system (current baseline)
-4. CLINICIAN - RAG-powered intelligent diagnosis (future)
+1. CASUAL - Simple greetings and general conversation
+2. THINKER - Non-medical knowledge queries with RAG
+3. UNIFIED_MEDICAL - All medical interactions (symptoms + knowledge)
+4. TRIAGE - Fallback medical diagnostic system
 
 Priority:
 1. Check active session state (continue current mode)
@@ -32,7 +32,6 @@ class ConversationMode:
     CASUAL = "casual"
     THINKER = "thinker"
     TRIAGE = "triage"
-    CLINICIAN = "clinician"
     UNIFIED_MEDICAL = "unified_medical"
 
 
@@ -121,10 +120,6 @@ def get_active_mode(state: dict) -> Optional[str]:
     # Check for active UNIFIED_MEDICAL session
     if state.get('mode') == ConversationMode.UNIFIED_MEDICAL:
         return ConversationMode.UNIFIED_MEDICAL
-
-    # Check for active CLINICIAN session
-    if state.get('mode') == ConversationMode.CLINICIAN:
-        return ConversationMode.CLINICIAN
     
     # Check for active TRIAGE session
     if state.get('condition'):
@@ -164,14 +159,8 @@ def format_mode_info(mode: str) -> dict:
         ConversationMode.TRIAGE: {
             'name': 'Triage',
             'icon': '🏥',
-            'description': 'Structured medical triage (hardcoded)',
+            'description': 'Structured medical triage (fallback)',
             'uses_rag': False
-        },
-        ConversationMode.CLINICIAN: {
-            'name': 'Clinician',
-            'icon': '🩺',
-            'description': 'Intelligent diagnosis with RAG-powered medical guidelines',
-            'uses_rag': True
         },
         ConversationMode.UNIFIED_MEDICAL: {
             'name': 'Medical Assistant',

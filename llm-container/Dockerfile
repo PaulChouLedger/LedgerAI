@@ -15,7 +15,7 @@ COPY router.py .
 COPY casual.py .
 COPY thinker.py .
 COPY triage.py .
-COPY clinician.py .
+COPY unified_medical_mode.py .
 COPY triage_defs/ /app/triage_defs/
 COPY synonyms/ /app/synonyms/
 
@@ -35,7 +35,7 @@ RUN pip3 install --no-cache-dir --ignore-installed \
 # === Environment defaults (can be overridden by .env or -e) ===
 ENV MODEL_PATH=/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf
 ENV CHAT_FORMAT=llama-3
-ENV N_CTX=2048
+ENV N_CTX=1024
 
 # Expose port for API
 EXPOSE 11434
