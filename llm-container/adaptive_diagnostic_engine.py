@@ -424,12 +424,14 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine]   A: '{answer}'")
         
         # Use LLM to validate (fully dynamic - direct analysis)
-        system_msg = f"""Validate if this answer addresses the question:
+        system_msg = f"""Does this answer address the question?
 
 Question: "{last_question}"
 Answer: "{answer}"
 
-Only reject if answer is pure filler (um, uh, oh) or completely unrelated. Otherwise accept any substantive response. Output ONLY 'yes' or 'no'."""
+Accept the answer unless it's ONLY filler words (um, uh, oh, hmm) or completely unrelated. Any attempt to answer the question is valid - including yes, no, single words, or short phrases.
+
+Output 'yes' to accept or 'no' to reject."""
 
         user_msg = "Valid?"
         
