@@ -622,10 +622,7 @@ Output ONLY the core question (no quotes, no preamble):"""
         # Use LLM to evaluate if answer addresses the question
         validation_prompt = f"""MEDICAL INTERVIEW EVALUATION:
 
-You are evaluating responses in a MEDICAL diagnostic interview. In this medical context:
-- "Sex" always means BIOLOGICAL SEX (male/female) for diagnostic purposes
-- Simple factual answers like "35", "male", "female" are valid and complete
-- Do NOT overthink gender identity or social aspects
+You are evaluating if a patient's answer provides the SPECIFIC MEDICAL INFORMATION requested.
 
 THE QUESTION ASKED:
 {question}
@@ -633,13 +630,21 @@ THE QUESTION ASKED:
 THE PATIENT'S ANSWER:
 {answer}
 
-IMPORTANT: The answer text is SEPARATE from the question text. Do NOT confuse clarifications in the question with the patient's answer.
+CRITICAL VALIDATION RULES:
+The answer must match the SPECIFIC DATA TYPE requested by the question.
 
-Does the patient's answer provide the information requested?
+Question Types and Valid Answer Types:
+- Age question → Answer must be a NUMBER (e.g., "35", "twenty-five")
+- Biological sex question → Answer must be MALE/FEMALE (e.g., "male", "female", "man", "woman")
+- Location question → Answer must specify BODY LOCATION (e.g., "right side", "upper abdomen")
+- Timing question → Answer must have TIME REFERENCE (e.g., "yesterday", "2 days ago")
+- Yes/No question → Answer must be YES/NO or descriptive detail
+
+REJECT if answer doesn't match the expected data type (e.g., "email" for sex question, "the pain" for timing)
 
 Think step-by-step:
-Step 1: What information does the question request? (Ignore empathy/preamble)
-Step 2: Looking ONLY at the patient's answer text, does it provide that information?
+Step 1: What SPECIFIC DATA TYPE does the question request?
+Step 2: Does the patient's answer match that DATA TYPE?
 Step 3: Decision: YES or NO
 
 Examples:
@@ -652,21 +657,27 @@ Decision: YES
 
 Q: "Can you tell me your sex?"
 A: "female"
-Step 1: Medical question requests biological sex (male or female)
-Step 2: Answer provides "female" which is a biological sex
+Step 1: Question requests biological sex (male/female)
+Step 2: Answer is "female" (valid biological sex)
 Decision: YES
+
+Q: "Can you tell me your sex?"
+A: "email"
+Step 1: Question requests biological sex (male/female)
+Step 2: Answer is "email" (not a biological sex)
+Decision: NO
 
 Q: "What is your biological sex?"
 A: "male"
-Step 1: Medical question requests biological sex
-Step 2: Answer provides "male" which is a biological sex
+Step 1: Question requests biological sex
+Step 2: Answer is "male" (valid biological sex)
 Decision: YES
 
 Q: "Are you male or female?"
-A: "female"
-Step 1: Medical question asks to choose male or female
-Step 2: Answer chooses "female"
-Decision: YES
+A: "yes"
+Step 1: Question asks to specify male or female
+Step 2: Answer is "yes" (doesn't specify which)
+Decision: NO
 
 Q: "Is it upper right or lower right?" 
 A: "on the upper"
