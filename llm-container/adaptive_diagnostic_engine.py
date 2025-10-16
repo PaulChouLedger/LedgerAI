@@ -317,14 +317,38 @@ Classic Presentation: {classic}
         print(f"[Engine] 📋 Questions asked: {len(asked)}")
         
         # LLM PROMPT: Generate next question
-        # ULTRA-STRICT: System message + minimal user prompt
-        system_msg = "You are a diagnostic AI. Output ONLY medical questions. No greetings, no explanations, no meta-commentary."
+        # Read classical presentations and extract KEY DISCRIMINATING FEATURE
+        system_msg = "You are a diagnostic AI. Ask ONE simple question about ONE symptom only. Never combine questions with 'and'. Output ONLY the question."
+        
+        # Extract KEY features from each guideline (CAPS words indicate important differentiators)
+        key_features = []
+        for g in self.active_guidelines:
+            classic = g['data'].get('key_features', {}).get('classic_presentation', '')
+            # Look for CAPITALIZED keywords (these are the discriminators)
+            caps_words = re.findall(r'\b[A-Z]{3,}[A-Z\s]*', classic)
+            if caps_words:
+                key_features.append(f"{g['name']}: {', '.join(caps_words[:3])}")
+        
+        features_text = '\n'.join(key_features) if key_features else "Location, Timing, Quality"
+        
+        print(f"[Engine] 📋 Extracted key features:")
+        print(f"{features_text}")
+        
+        # Build list of already asked questions to avoid repeats
+        asked_list = "\n".join([f"- {q}" for q in asked]) if asked else "None"
         
         user_msg = f"""Patient: {patient_info}
 
-Conditions: {', '.join([g['name'] for g in self.active_guidelines])}
+Key features to ask about:
+{features_text}
 
-Ask ONE question about pain location, timing, quality, or associated symptoms.
+Already asked:
+{asked_list}
+
+Generate ONE simple question about ONE symptom only.
+DO NOT combine multiple questions with "and" or "or".
+
+Examples: "Where is the pain?" "When did it start?" "Is it constant or does it come and go?"
 
 Question:"""
 
@@ -334,7 +358,7 @@ Question:"""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=30,  # Shorter - just need the question
+                max_tokens=25,  # Just the question
                 temperature=0.3
             )
             
@@ -357,6 +381,30 @@ Question:"""
             question = question.strip('"\'')
             if not question.endswith('?'):
                 question += '?'
+            
+            # VALIDATION: Reject multi-part questions (containing "and")
+            if ' and ' in question.lower() or ' or ' in question.lower():
+                # Extract just the first part before "and/or"
+                if ' and ' in question.lower():
+                    question = question.split(' and ')[0] + '?'
+                    print(f"[Engine] ⚠️ Multi-part question detected - using first part only")
+                elif ' or ' in question.lower() and question.count('?') > 1:
+                    question = question.split('?')[0] + '?'
+                    print(f"[Engine] ⚠️ Multi-part question detected - using first part only")
+            
+            # VALIDATION: Check if we already asked this (or very similar)
+            for prev_q in asked:
+                # Simple similarity check - if >70% of words overlap, it's a repeat
+                q_words = set(question.lower().split())
+                prev_words = set(prev_q.lower().split())
+                overlap = len(q_words & prev_words) / len(q_words) if q_words else 0
+                
+                if overlap > 0.7:
+                    print(f"[Engine] ⚠️ Question too similar to already asked: '{prev_q}'")
+                    print(f"[Engine] ⚠️ Regenerating with different focus...")
+                    # For now, just modify to ask about different aspect
+                    question = "What other symptoms have you experienced?"
+                    break
             
             print(f"[Engine] ✅ Generated Question: '{question}'")
             print(f"{'='*80}\n")
@@ -421,11 +469,17 @@ Question:"""
             classic = g['data'].get('key_features', {}).get('classic_presentation', 'N/A')
             
             # Scoring prompt - ULTRA-STRICT: System + user roles, number only
-            system_msg = "You are a diagnostic scoring AI. Output ONLY integers 0-100. No explanations."
+            system_msg = "You are a diagnostic scoring AI. Output ONLY integers 0-100. No explanations. Lower scores for 'no' answers to key features."
             
-            user_msg = f"""{g['name']}: {classic}
+            user_msg = f"""{g['name']}:
+{classic}
 
-Patient: {patient_info}, answered: {answer}
+Patient: {patient_info}
+Question: {last_q}
+Answer: {answer}
+
+If answer is "no" to a key feature, give LOW score.
+If answer matches classic presentation, give HIGH score.
 
 Score 0-100:"""
 
@@ -480,7 +534,7 @@ Score 0-100:"""
         num_questions = len([item for item in self.conversation_history if item['type'] == 'question' and item.get('focus') == 'clinical'])
         
         # Diagnosis criteria: High confidence OR asked enough questions
-        if top['score'] >= 0.80 and num_questions >= 3:
+        if top['score'] >= 0.85 and num_questions >= 5:
             print(f"[Engine] ✅ DIAGNOSIS REACHED: {top['name']} ({top['score']:.0%} confidence)")
             return self._finalize_diagnosis(top)
         elif num_questions >= 8:
@@ -534,9 +588,12 @@ Score 0-100:"""
         """
         print(f"[Engine] 🧠 Generating LLM opening question...")
         
-        system_msg = "You are a medical assistant. Output ONE sentence showing empathy and asking for age. No greetings."
+        system_msg = "You are a medical assistant. Your task: show brief empathy, then ask 'How old are you?'"
         
-        user_msg = f"""Patient: "{chief_complaint}"
+        user_msg = f"""Patient says: "{chief_complaint}"
+
+Output format: "[Empathy]. How old are you?"
+Example: "I'm sorry to hear that. How old are you?"
 
 Your response:"""
         
@@ -551,6 +608,12 @@ Your response:"""
             )
             
             question = response.strip().strip('"\'')
+            
+            # Ensure it ends with the age question
+            if 'how old' not in question.lower():
+                # Force it if LLM didn't follow instructions
+                question = f"I understand. How old are you?"
+            
             if not question.endswith('?'):
                 question += '?'
             
