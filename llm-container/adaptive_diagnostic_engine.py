@@ -270,8 +270,81 @@ class AdaptiveDiagnosticEngine:
             }
         
         else:
-            # Clinical question - use LLM to score and ask next
+            # Clinical question - VALIDATE answer first
+            if not self._is_acceptable_clinical_answer(user_answer):
+                print(f"[Engine] ⚠️ Answer too vague or unclear - asking for clarification")
+                
+                last_question = self.conversation_history[-1]['question'] if self.conversation_history else "the question"
+                clarify = f"I didn't quite understand. {last_question}"
+                
+                self.conversation_history.append({
+                    'type': 'question',
+                    'question': clarify,
+                    'focus': 'clinical'
+                })
+                
+                return {
+                    'success': True,
+                    'question': clarify,
+                    'status': 'questioning'
+                }
+            
+            # Answer is acceptable - proceed with scoring
             return self._process_clinical_answer(user_answer)
+    
+    def _is_acceptable_clinical_answer(self, answer: str) -> bool:
+        """
+        LLM-based validation: Does the answer actually address the question asked?
+        
+        Uses LLM to determine if answer is meaningful/responsive.
+        """
+        # Get the last question asked
+        last_question = None
+        for item in reversed(self.conversation_history):
+            if item['type'] == 'question':
+                last_question = item['question']
+                break
+        
+        if not last_question:
+            return True  # No question to validate against
+        
+        print(f"[Engine] 🔍 Validating answer...")
+        print(f"[Engine]   Q: '{last_question}'")
+        print(f"[Engine]   A: '{answer}'")
+        
+        # Use LLM to validate
+        system_msg = "You are a medical validator. Determine if the patient's answer addresses the question. Output ONLY 'yes' or 'no'."
+        
+        user_msg = f"""Question: {last_question}
+Answer: {answer}
+
+Does this answer provide meaningful information for the question?
+- "yes" or "no" = valid
+- Vague words like "now", "oh", "up" = invalid
+- Location/time/symptom words = valid
+
+Output (yes/no):"""
+        
+        try:
+            response = self.llm_chat_fn(
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=3,
+                temperature=0.0
+            )
+            
+            result = response.strip().lower()
+            is_valid = 'yes' in result or 'valid' in result
+            
+            print(f"[Engine]   LLM validation: '{result}' → {'ACCEPT' if is_valid else 'REJECT'}")
+            
+            return is_valid
+        
+        except Exception as e:
+            print(f"[Engine] ⚠️ Validation failed: {e} - accepting by default")
+            return True  # On error, be permissive
     
     def _match_to_guidelines(self, complaint: str) -> List[Dict]:
         """
