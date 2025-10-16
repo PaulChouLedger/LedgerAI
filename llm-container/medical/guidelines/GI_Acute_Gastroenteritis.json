@@ -1,163 +1,26 @@
 {
   "condition": "Acute Gastroenteritis",
-  "category": "gastrointestinal",
-  "icd10_codes": ["K52.9", "A09"],
+  "icd10": "K52.9",
+  "snomed": "25374005",
   "chief_complaint_triggers": [
     "abdominal pain",
     "diarrhea",
     "vomiting",
     "stomach pain",
     "cramping",
-    "stomach bug"
+    "stomach bug",
+    "food poisoning"
   ],
-  "prevalence": "very_common",
   "urgency": "routine",
   
   "key_features": {
-    "classic_presentation": "Acute gastroenteritis presents with crampy abdominal pain, diarrhea (often watery), nausea, and vomiting. Pain is diffuse, not localized. Onset within hours of exposure. Often have known sick contacts or food exposure.",
-    "typical_demographics": "All ages. More severe in very young, elderly, and immunocompromised. Viral > bacterial in developed countries.",
-    "pathophysiology_brief": "Infection or inflammation of GI tract (viral, bacterial, or toxin-mediated) leads to increased motility and fluid secretion."
+    "classic_presentation": "Acute gastroenteritis presents with DIARRHEA as the PREDOMINANT symptom (often more prominent than pain), with 3+ loose or watery stools per day. Abdominal pain is CRAMPY, DIFFUSE, and INTERMITTENT (comes and goes in waves) - NOT constant or localized to one spot. Pain is typically 3-6/10 severity, relieved temporarily after bowel movements. Onset is sudden, usually within hours to 1-2 days. Key associated symptoms: NAUSEA AND VOMITING often occur BEFORE or SIMULTANEOUSLY with diarrhea (unlike appendicitis where pain comes first), low-grade fever or no fever (high fever suggests invasive bacteria), and diffuse abdominal cramping with bowel movements. Location: Pain is periumbilical or diffuse throughout abdomen, NOT localized to one quadrant. Key history: Recent sick contacts, contaminated food/water, travel, daycare exposure. APPETITE is often PRESERVED or only mildly reduced (unlike appendicitis where anorexia is severe). Key positives: Hyperactive bowel sounds, diffuse tenderness without guarding, watery or bloody diarrhea. Key negatives: Pain that MIGRATES to RLQ suggests appendicitis not gastroenteritis. SEVERE localized tenderness with guarding rules out simple gastroenteritis. Pain without diarrhea is uncommon."
   },
   
-  "diagnostic_questions": [
-    {
-      "question_focus": "diarrhea",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "diarrhea",
-        "loose stools",
-        "watery stools",
-        "multiple bowel movements",
-        "running to bathroom"
-      ],
-      "context": "Diarrhea is the hallmark of gastroenteritis. Ask about frequency, consistency, and presence of blood."
-    },
-    {
-      "question_focus": "pain characteristics",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "cramping",
-        "crampy",
-        "comes and goes",
-        "colicky",
-        "spasms"
-      ],
-      "negative_responses": [
-        "constant",
-        "steady",
-        "sharp",
-        "doesn't change"
-      ],
-      "context": "Crampy, intermittent pain is typical. Constant severe pain suggests alternative diagnosis."
-    },
-    {
-      "question_focus": "pain location",
-      "diagnostic_value": "moderate",
-      "expected_positive_responses": [
-        "all over",
-        "diffuse",
-        "whole abdomen",
-        "moves around",
-        "periumbilical"
-      ],
-      "negative_responses": [
-        "right lower quadrant only",
-        "one specific spot",
-        "always same location"
-      ],
-      "context": "Pain is typically diffuse or periumbilical, not localized to one quadrant."
-    },
-    {
-      "question_focus": "vomiting",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "vomiting",
-        "throwing up",
-        "can't keep food down",
-        "multiple episodes"
-      ],
-      "context": "Vomiting common, often precedes diarrhea. Ask about ability to tolerate fluids."
-    },
-    {
-      "question_focus": "fever",
-      "diagnostic_value": "moderate",
-      "expected_positive_responses": [
-        "low-grade fever",
-        "mild fever",
-        "feeling warm",
-        "100-101 degrees"
-      ],
-      "negative_responses": [
-        "high fever",
-        "103+ degrees"
-      ],
-      "context": "Low-grade fever typical. High fever suggests bacterial infection or alternative diagnosis."
-    },
-    {
-      "question_focus": "sick contacts or food exposure",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "family members sick",
-        "others at home ill",
-        "ate out recently",
-        "food poisoning",
-        "sick contacts"
-      ],
-      "context": "Known exposure or sick contacts support gastroenteritis diagnosis."
-    },
-    {
-      "question_focus": "timeline",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "started today",
-        "last night",
-        "this morning",
-        "few hours ago"
-      ],
-      "context": "Typical onset 6-48 hours after exposure. Viral: 12-48h, bacterial: 6-24h."
-    }
-  ],
-  
-  "differential_diagnosis": [
-    {
-      "condition": "Appendicitis",
-      "key_difference": "RLQ pain, anorexia > vomiting/diarrhea, migration pattern",
-      "similarity": "Nausea, vomiting, crampy pain"
-    },
-    {
-      "condition": "Inflammatory Bowel Disease",
-      "key_difference": "Chronic/recurrent, blood in stool, weight loss",
-      "similarity": "Diarrhea, cramping"
-    },
-    {
-      "condition": "Bowel Obstruction",
-      "key_difference": "No bowel movements, severe distension, vomiting without diarrhea",
-      "similarity": "Crampy pain, vomiting"
-    }
-  ],
-  
   "red_flags": [
-    {
-      "finding": "Severe dehydration (decreased urine, dizziness, confusion)",
-      "urgency": "emergency",
-      "action": "May require IV fluids - go to ER"
-    },
-    {
-      "finding": "Blood in stool (not just streaks)",
-      "urgency": "urgent",
-      "action": "Possible bacterial infection or IBD - medical evaluation needed"
-    },
-    {
-      "finding": "Severe localized pain (not crampy/diffuse)",
-      "urgency": "emergency",
-      "action": "May be appendicitis, diverticulitis, or other serious condition - not simple gastroenteritis"
-    }
-  ],
-  
-  "typical_management": "Supportive care: oral rehydration, anti-nausea medication if needed. Antibiotics rarely needed (only for specific bacterial infections). Most resolve in 3-7 days.",
-  
-  "disposition": "Most can be managed at home with oral rehydration. ER if severe dehydration, unable to tolerate fluids, or red flags present.",
-  
-  "patient_education": "Gastroenteritis (stomach flu) is usually viral and self-limited. Focus on staying hydrated with small frequent sips. Avoid solid foods until vomiting stops. Most people recover in a few days."
+    "Severe dehydration (dry mucous membranes, decreased urine output, orthostatic hypotension) - needs IV fluids",
+    "Bloody diarrhea with high fever >102°F - invasive bacterial infection (Shigella, Salmonella, E. coli), may need antibiotics",
+    "Severe abdominal pain with peritoneal signs - suggests perforation or alternative diagnosis, not simple gastroenteritis",
+    "Immunocompromised patients or infants - higher risk of severe dehydration and complications"
+  ]
 }
-

@@ -1,7 +1,7 @@
 {
   "condition": "Acute Pancreatitis",
-  "category": "gastrointestinal",
-  "icd10_codes": ["K85.90", "K85.00", "K85.10"],
+  "icd10": "K85.90",
+  "snomed": "197456007",
   "chief_complaint_triggers": [
     "abdominal pain",
     "upper abdominal pain",
@@ -9,159 +9,16 @@
     "stomach pain",
     "pain radiating to back"
   ],
-  "prevalence": "common",
   "urgency": "urgent",
   
   "key_features": {
-    "classic_presentation": "Acute pancreatitis presents with severe epigastric pain radiating to the back, often described as boring or penetrating. Pain develops rapidly over hours. Nausea and vomiting are prominent. Patient often leans forward for relief.",
-    "typical_demographics": "Most common causes: gallstones (40%) and alcohol (30%). Can occur at any age but peak 40-60 years. Male predominance in alcoholic pancreatitis.",
-    "pathophysiology_brief": "Premature activation of pancreatic enzymes leads to autodigestion of pancreas, inflammation, and systemic complications."
+    "classic_presentation": "Acute pancreatitis presents with SUDDEN ONSET severe epigastric (upper mid-abdomen) pain that RADIATES STRAIGHT THROUGH TO THE BACK ('boring' or 'band-like' pain) - this radiation is highly characteristic. Pain is CONSTANT and SEVERE (8-10/10), described as deep, aching, or knife-like. Onset is typically within hours to 1-2 days, often triggered by ALCOHOL BINGE or HEAVY FATTY MEAL (if gallstone-related). Pain is WORSE WHEN LYING FLAT and BETTER WHEN SITTING UP AND LEANING FORWARD - patients often assume a 'fetal position' or lean forward for relief. Key associated symptoms: PERSISTENT NAUSEA AND VOMITING (often severe and not relieved by vomiting), anorexia, low-grade fever, and abdominal distension. Location: Pain is epigastric and periumbilical, may radiate to left upper quadrant or diffusely across upper abdomen. Key history: Recent alcohol use (most common), known gallstones, history of pancreatitis, or medications (thiazides, azathioprine). Key positives: Tachycardia, fever, decreased bowel sounds, epigastric tenderness. Key negatives: Pain that doesn't radiate to back is less typical. Diarrhea is uncommon initially. Right lower quadrant pain suggests appendicitis instead."
   },
   
-  "diagnostic_questions": [
-    {
-      "question_focus": "pain location",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "upper stomach",
-        "epigastric",
-        "upper abdomen",
-        "middle upper abdomen",
-        "upper middle"
-      ],
-      "negative_responses": [
-        "right lower",
-        "left lower",
-        "right upper only"
-      ],
-      "context": "Epigastric location is classic. Pain is midline or slightly left of midline."
-    },
-    {
-      "question_focus": "pain radiation",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "radiates to back",
-        "goes through to back",
-        "back pain",
-        "feels pain in back too",
-        "boring through to back"
-      ],
-      "context": "Radiation to back is highly specific for pancreatitis (70-80%). Described as 'boring' or 'penetrating' through."
-    },
-    {
-      "question_focus": "pain quality and severity",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "severe",
-        "worst pain ever",
-        "8-10 out of 10",
-        "unbearable",
-        "excruciating"
-      ],
-      "context": "Pancreatitis pain is typically severe (8-10/10) and constant. One of the most painful conditions."
-    },
-    {
-      "question_focus": "position of comfort",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "leaning forward helps",
-        "sitting up and bent forward",
-        "fetal position",
-        "lying on side helps"
-      ],
-      "negative_responses": [
-        "lying flat is comfortable",
-        "standing helps",
-        "no position helps"
-      ],
-      "context": "Leaning forward or fetal position often provides some relief. Lying supine worsens pain."
-    },
-    {
-      "question_focus": "nausea and vomiting",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "severe nausea",
-        "vomiting",
-        "can't keep anything down",
-        "persistent vomiting"
-      ],
-      "context": "Nausea and vomiting present in >90% of cases. Often severe and persistent."
-    },
-    {
-      "question_focus": "alcohol or gallstone history",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "drink alcohol",
-        "heavy drinker",
-        "had gallstones",
-        "history of gallbladder problems",
-        "binge drinking recently"
-      ],
-      "context": "Gallstones and alcohol account for 70% of cases. Ask specifically about recent alcohol consumption."
-    },
-    {
-      "question_focus": "timeline",
-      "diagnostic_value": "moderate",
-      "expected_positive_responses": [
-        "started hours ago",
-        "today",
-        "last night",
-        "yesterday"
-      ],
-      "context": "Onset typically over 1-6 hours. Reaches maximum intensity quickly."
-    },
-    {
-      "question_focus": "fever",
-      "diagnostic_value": "moderate",
-      "expected_positive_responses": [
-        "fever",
-        "chills",
-        "feeling hot"
-      ],
-      "context": "Low-grade fever common. High fever suggests necrotizing pancreatitis or infected necrosis."
-    }
-  ],
-  
-  "differential_diagnosis": [
-    {
-      "condition": "Peptic Ulcer Perforation",
-      "key_difference": "Sudden onset, rigid abdomen, free air on imaging",
-      "similarity": "Epigastric pain, severe"
-    },
-    {
-      "condition": "Acute Cholecystitis",
-      "key_difference": "RUQ (not epigastric), Murphy's sign, no back radiation",
-      "similarity": "Post-prandial onset, nausea/vomiting"
-    },
-    {
-      "condition": "Mesenteric Ischemia",
-      "key_difference": "Pain out of proportion to exam, older age, vascular disease",
-      "similarity": "Severe pain, nausea/vomiting"
-    }
-  ],
-  
   "red_flags": [
-    {
-      "finding": "Hypotension, tachycardia, confusion",
-      "urgency": "call_911",
-      "action": "Severe pancreatitis with shock - ICU level care needed"
-    },
-    {
-      "finding": "Rigid abdomen, rebound",
-      "urgency": "call_911",
-      "action": "Possible perforation or necrotizing pancreatitis - surgical emergency"
-    },
-    {
-      "finding": "Bluish discoloration around umbilicus (Cullen's sign) or flanks (Grey Turner's sign)",
-      "urgency": "emergency",
-      "action": "Hemorrhagic pancreatitis - immediate intensive care"
-    }
-  ],
-  
-  "typical_management": "NPO, aggressive IV fluid resuscitation, pain control, monitor for complications. Mild pancreatitis: supportive care, usually resolves in 3-7 days. Severe: ICU monitoring, may require intervention.",
-  
-  "disposition": "Emergency department for evaluation. Mild cases: admission for supportive care. Severe: ICU admission.",
-  
-  "patient_education": "Pancreatitis is inflammation of the pancreas. It requires immediate medical care and hospitalization. Treatment focuses on rest, fluids, and pain control while the pancreas heals. Severe cases can be life-threatening."
+    "Severe abdominal pain with hypotension or tachycardia - severe pancreatitis with third-spacing, needs ICU",
+    "Respiratory distress or low oxygen saturation - ARDS complication, call 911",
+    "Altered mental status, severe dehydration - severe systemic inflammation",
+    "Grey-Turner sign (flank bruising) or Cullen sign (periumbilical bruising) - hemorrhagic pancreatitis, very severe"
+  ]
 }
-

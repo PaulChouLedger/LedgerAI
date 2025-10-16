@@ -1,302 +1,175 @@
 #!/usr/bin/env python3
 """
-Adaptive Diagnostic Engine - Intelligent Medical Diagnosis System
+Adaptive Diagnostic Engine - LLM-Driven Medical Diagnosis
 
-This system uses:
-1. JSON guidelines for chief complaint matching and scoring criteria
-2. RAG for rich clinical content (questions, reasoning, differentials)
-3. LLM for natural language understanding and question generation
-4. Multi-guideline simultaneous scoring (not rigid decision tree)
+SIMPLIFIED APPROACH:
+1. Chief complaint → Match 5 most relevant guidelines
+2. Feed all 5 guidelines' classical presentations to LLM
+3. LLM analyzes and develops question roadmap
+4. Ask question → LLM scores all 5 → Re-rank by score
+5. Repeat until diagnosis clear
 
-Key differences from triage:
-- Evaluates ALL guidelines simultaneously with weighted scoring
-- Extracts multiple features from natural language answers
-- Adapts question order based on information gain
-- Can backtrack and update scores
-- Natural conversation, not multiple choice
+NO complex feature extraction, NO pattern matching
+LLM does ALL the reasoning - we just provide structure
 """
 
 import json
 import os
 import re
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple
-import requests
+from typing import List, Dict, Any, Optional
 
 
 class AdaptiveDiagnosticEngine:
     """
-    Adaptive diagnostic engine that mimics clinical reasoning
+    LLM-driven diagnostic engine
     
-    Hybrid Architecture:
-    1. Rolling Top-5 Differential List (scalability)
-    2. LLM + RAG Question Generation (intelligence)
-    
-    Flow:
-    1. User states chief complaint
-    2. Match to ALL relevant guidelines (JSON triggers + synonyms)
-    3. Maintain top 5 active, rest in reserve pool
-    4. For each question: Retrieve RAG content for top 3 differentials
-    5. LLM reads clinical guidelines and generates intelligent question
-    6. User answers → extract features, score all active guidelines
-    7. Rule out low-scoring, promote from reserve (rolling update)
-    8. Repeat until diagnosis clear
-    9. Provide education using RAG content
+    The LLM is the intelligence - it reads guidelines and reasons about diagnosis.
+    We provide structure and keep it focused.
     """
     
     def __init__(self, guidelines_dir: str = "/app/medical/guidelines", llm_chat_fn=None):
         """
-        Initialize adaptive diagnostic engine
+        Initialize diagnostic engine
         
         Args:
-            guidelines_dir: Path to directory containing JSON guidelines
-            llm_chat_fn: LLM chat function for question generation
+            guidelines_dir: Path to JSON guidelines
+            llm_chat_fn: LLM function for reasoning
         """
         self.guidelines_dir = Path(guidelines_dir)
-        self.guidelines = {}
-        self.synonyms = {}
-        self.llm_chat_fn = llm_chat_fn  # For intelligent question generation
+        self.llm_chat_fn = llm_chat_fn
         
-        # Load all JSON guidelines
+        # Load guidelines
+        self.all_guidelines = {}
         self._load_guidelines()
         
-        # Load medical synonyms for better matching
-        self._load_synonyms()
-        
-        # Active assessment state
+        # Current assessment state
         self.reset_assessment()
     
     def _load_guidelines(self):
         """Load all JSON guideline files"""
-        print(f"[Adaptive] 📚 Loading guidelines from {self.guidelines_dir}")
+        print(f"\n{'='*80}")
+        print(f"[Engine] 📚 LOADING MEDICAL GUIDELINES")
+        print(f"{'='*80}")
         
         if not self.guidelines_dir.exists():
-            print(f"[Adaptive] ⚠️ Guidelines directory not found: {self.guidelines_dir}")
+            print(f"[Engine] ❌ Directory not found: {self.guidelines_dir}")
             return
         
-        for json_file in self.guidelines_dir.glob("*.json"):
+        for json_file in sorted(self.guidelines_dir.glob("*.json")):
             try:
                 with open(json_file, 'r') as f:
                     guideline = json.load(f)
-                    
-                    # Use condition name as key
-                    name = guideline.get('condition', guideline.get('guideline_name'))
-                    if name:
-                        self.guidelines[name] = guideline
-                        print(f"[Adaptive]   ✓ Loaded: {name}")
-            
+                    name = guideline.get('condition', json_file.stem)
+                    self.all_guidelines[name] = guideline
+                    print(f"[Engine]   ✓ {name}")
             except Exception as e:
-                print(f"[Adaptive] ⚠️ Failed to load {json_file.name}: {e}")
+                print(f"[Engine] ⚠️ Failed to load {json_file.name}: {e}")
         
-        print(f"[Adaptive] ✅ Loaded {len(self.guidelines)} guidelines")
-    
-    def _load_synonyms(self):
-        """Load medical synonym dictionaries"""
-        synonyms_dir = Path("/app/synonyms")
-        
-        if not synonyms_dir.exists():
-            print(f"[Adaptive] ⚠️ Synonyms directory not found")
-            return
-        
-        for syn_file in synonyms_dir.glob("*_synonyms.json"):
-            try:
-                with open(syn_file, 'r') as f:
-                    syn_data = json.load(f)
-                    self.synonyms.update(syn_data)
-            except Exception as e:
-                print(f"[Adaptive] ⚠️ Failed to load synonyms from {syn_file.name}: {e}")
-        
-        print(f"[Adaptive] ✅ Loaded {len(self.synonyms)} synonym mappings")
+        print(f"[Engine] ✅ Loaded {len(self.all_guidelines)} guidelines")
+        print(f"{'='*80}\n")
     
     def reset_assessment(self):
-        """Reset state for new assessment"""
-        self.active_guidelines = []  # Top 5 most likely diagnoses
-        self.reserve_pool = []       # Remaining matched guidelines (sorted by score)
-        self.ruled_out = []          # Guidelines ruled out (for reference)
-        self.answered_features = {}  # Dict of extracted clinical features
-        self.raw_answers = []        # Raw user responses for recap
-        self.questions_asked = []    # History of questions asked
-        self.demographics = {}       # Patient demographics (age, sex)
-        self.chief_complaint = ""    # Original complaint
-        self.status = "idle"         # idle, questioning, diagnosed
-        self.diagnosis = None        # Final diagnosis when reached
-        
-        # Configuration
-        self.MAX_ACTIVE = 5          # Keep top 5 differentials active
-        self.RULE_OUT_THRESHOLD = 0.3  # Score below this → ruled out
+        """Reset for new patient"""
+        self.active_guidelines = []  # The 5 chosen guidelines with scores
+        self.chief_complaint = ""
+        self.demographics = {}  # age, sex
+        self.conversation_history = []  # All Q&A
+        self.status = "idle"  # idle, questioning, diagnosed
     
     def start_assessment(self, chief_complaint: str) -> Dict[str, Any]:
         """
-        Start new diagnostic assessment
+        Start new assessment
         
         Args:
-            chief_complaint: User's initial complaint (e.g., "I have abdominal pain")
+            chief_complaint: e.g., "I have abdominal pain"
         
         Returns:
-            Response dict with first question
+            Response with first question
         """
-        print(f"\n[Adaptive] 🔄 Starting new assessment for: '{chief_complaint}'")
+        print(f"\n{'='*80}")
+        print(f"[Engine] 🚀 NEW ASSESSMENT")
+        print(f"{'='*80}")
+        print(f"[Engine] Chief Complaint: '{chief_complaint}'")
         
         self.reset_assessment()
+        self.chief_complaint = chief_complaint
         self.status = "questioning"
-        self.chief_complaint = chief_complaint  # Store for later use
         
-        # Extract and normalize chief complaint
-        normalized = self._normalize_text(chief_complaint)
+        # STEP 1: Match to 5 guidelines based on chief complaint triggers
+        matched = self._match_to_guidelines(chief_complaint)
         
-        # Match to guidelines
-        matched = self._match_chief_complaint(normalized)
-        
-        if not matched:
-            print(f"[Adaptive] ❌ No guidelines matched for: '{chief_complaint}'")
+        if len(matched) == 0:
             return {
                 'success': False,
-                'message': "I couldn't identify a specific medical condition from that description. Could you provide more details about your symptoms?"
+                'message': "I couldn't identify relevant medical conditions. Please describe your symptoms more specifically."
             }
         
-        print(f"[Adaptive] 🎯 Matched {len(matched)} guidelines:")
-        for name, score in matched:
-            print(f"[Adaptive]    - {name} (initial: {score:.2f})")
+        # Take top 5 (or fewer if less than 5 matched)
+        self.active_guidelines = matched[:5]
         
-        # Sort matched guidelines by score
-        matched_sorted = sorted(matched, key=lambda x: x[1], reverse=True)
-        
-        # Split into active (top 5) and reserve pool
-        all_matched = [
-            {
-                'name': name,
-                'score': initial_score,
-                'guideline_data': self.guidelines[name],
-                'rag_content': None
-            }
-            for name, initial_score in matched_sorted
-        ]
-        
-        self.active_guidelines = all_matched[:self.MAX_ACTIVE]
-        self.reserve_pool = all_matched[self.MAX_ACTIVE:]
-        
-        print(f"[Adaptive] 📊 Active differentials (top {len(self.active_guidelines)}):")
+        print(f"\n[Engine] 📋 SELECTED 5 GUIDELINES:")
         for i, g in enumerate(self.active_guidelines, 1):
-            print(f"[Adaptive]    {i}. {g['name']}: {g['score']:.3f}")
+            print(f"[Engine]   {i}. {g['name']} (initial score: {g['score']:.2f})")
+        print(f"{'='*80}\n")
         
-        if self.reserve_pool:
-            print(f"[Adaptive] 💾 Reserve pool: {len(self.reserve_pool)} additional guidelines")
+        # STEP 2: Ask demographics first (age/sex) - simple templates
+        age_question = "How old are you?"
         
-        # Extract symptom from chief complaint (e.g., "abdominal pain")
-        symptom = self._extract_symptom_from_complaint(chief_complaint)
-        
-        # TEMPLATE: Simple, reliable opening (no LLM needed - fast and consistent)
-        opening_templates = [
-            f"I understand you're having {symptom}. How old are you?",
-            f"I'm sorry to hear that. How old are you?",
-            f"Let me help you with that {symptom}. First, what's your age?"
-        ]
-        
-        # Rotate through templates for variety (deterministic based on symptom)
-        import hashlib
-        template_index = int(hashlib.md5(symptom.encode()).hexdigest(), 16) % len(opening_templates)
-        opening_question = opening_templates[template_index]
-        
-        print(f"[Adaptive] 💬 Using template opening (fast): '{opening_question}'")
-        
-        self.questions_asked.append({
-            'focus': 'demographics_age',
-            'question': opening_question,
-            'value': 'critical'
+        self.conversation_history.append({
+            'type': 'question',
+            'question': age_question,
+            'focus': 'age'
         })
         
         return {
             'success': True,
-            'question': opening_question,
-            'status': 'questioning',
-            'differentials': [
-                {'name': g['name'], 'score': g['score']} 
-                for g in self.active_guidelines[:3]
-            ]
+            'question': age_question,
+            'status': 'questioning'
         }
     
     def process_answer(self, user_answer: str) -> Dict[str, Any]:
         """
-        Process user's answer and continue assessment
+        Process answer and continue assessment
         
         Args:
-            user_answer: User's natural language response
+            user_answer: User's response
         
         Returns:
-            Response dict with next question or diagnosis
+            Next question or diagnosis
         """
-        # Check if this looks like a NEW chief complaint (restart assessment)
-        if self._is_new_chief_complaint(user_answer):
-            print(f"[Adaptive] 🔄 Detected new chief complaint - restarting assessment")
-            return self.start_assessment(user_answer)
-        
         if self.status != "questioning":
-            return {
-                'success': False,
-                'message': "No active assessment"
-            }
+            return {'success': False, 'message': "No active assessment"}
         
-        print(f"\n[Adaptive] 💬 Processing answer: '{user_answer}'")
+        print(f"\n{'='*80}")
+        print(f"[Engine] 💬 PROCESSING ANSWER")
+        print(f"{'='*80}")
+        print(f"[Engine] User: '{user_answer}'")
         
-        # Validate answer is meaningful (not garbage transcription)
-        if not self._is_valid_medical_response(user_answer):
-            print(f"[Adaptive] ⚠️ Invalid/unclear answer - asking for clarification")
-            last_q = self.questions_asked[-1] if self.questions_asked else None
-            
-            if last_q:
-                # Use LLM to extract core question (no hardcoded patterns!)
-                core_question = self._extract_core_question(last_q['question'])
-                
-                return {
-                    'success': True,
-                    'question': f"I didn't quite catch that. {core_question}",
-                    'status': 'questioning'
-                }
-            else:
-                return {
-                    'success': False,
-                    'message': "I didn't understand. Can you repeat that?"
-                }
+        # Store answer
+        last_q = self.conversation_history[-1] if self.conversation_history else {}
+        self.conversation_history.append({
+            'type': 'answer',
+            'answer': user_answer,
+            'to_question': last_q.get('focus', 'unknown')
+        })
         
-        # Context-aware validation: Check if answer actually addresses the question
-        last_q = self.questions_asked[-1] if self.questions_asked else None
-        if last_q and not self._answer_addresses_question(last_q, user_answer):
-            print(f"[Adaptive] ⚠️ Answer doesn't address the question - re-asking")
-            
-            # Use LLM to extract core question (no hardcoded patterns!)
-            core_question = self._extract_core_question(last_q['question'])
-            
-            return {
-                'success': True,
-                'question': f"Could you be more specific? {core_question}",
-                'status': 'questioning'
-            }
-        
-        # Extract ALL clinical features from the answer FIRST
-        extracted = self._extract_features_from_text(user_answer)
-        
-        print(f"[Adaptive] 📝 Extracted features: {list(extracted.keys())}")
-        
-        # Handle demographics questions first
-        last_q = self.questions_asked[-1] if self.questions_asked else None
-        
-        if last_q and last_q.get('focus') == 'demographics_age':
+        # Handle demographics
+        if last_q.get('focus') == 'age':
             # Extract age
             age_match = re.search(r'\d+', user_answer)
             if age_match:
                 self.demographics['age'] = int(age_match.group())
-                print(f"[Adaptive] 👤 Age: {self.demographics['age']}")
+                print(f"[Engine] 👤 Age: {self.demographics['age']}")
             
-            # TEMPLATE: Simple sex question (no LLM needed - fast and clear)
+            # Ask sex
             sex_question = "Are you male or female?"
-            
-            print(f"[Adaptive] 💬 Using template sex question (fast): '{sex_question}'")
-            
-            self.questions_asked.append({
-                'focus': 'demographics_sex',
+            self.conversation_history.append({
+                'type': 'question',
                 'question': sex_question,
-                'value': 'critical'
+                'focus': 'sex'
             })
+            print(f"{'='*80}\n")
             
             return {
                 'success': True,
@@ -304,1325 +177,287 @@ class AdaptiveDiagnosticEngine:
                 'status': 'questioning'
             }
         
-        elif last_q and last_q.get('focus') == 'demographics_sex':
+        elif last_q.get('focus') == 'sex':
             # Extract sex
             text_lower = user_answer.lower()
-            if 'female' in text_lower or 'woman' in text_lower or 'girl' in text_lower:
+            if 'female' in text_lower or 'woman' in text_lower:
                 self.demographics['sex'] = 'female'
-            elif 'male' in text_lower or 'man' in text_lower or 'boy' in text_lower:
+            elif 'male' in text_lower or 'man' in text_lower:
                 self.demographics['sex'] = 'male'
             
-            print(f"[Adaptive] 👤 Sex: {self.demographics.get('sex', 'unknown')}")
+            print(f"[Engine] 👤 Sex: {self.demographics.get('sex', 'unknown')}")
+            print(f"{'='*80}\n")
             
-            # Now ask LOCATION (first clinical question for GI/abdominal complaints)
-            if 'abdominal' in self.chief_complaint.lower() or 'stomach' in self.chief_complaint.lower() or 'belly' in self.chief_complaint.lower():
-                location_q = "Where in your abdomen is the pain located?"
-                
-                self.questions_asked.append({
-                    'focus': 'pain_location',
-                    'question': location_q,
-                    'value': 'critical'
-                })
-                
-                return {
-                    'success': True,
-                    'question': location_q,
-                    'status': 'questioning'
-                }
+            # NOW: Feed guidelines to LLM and get first clinical question
+            return self._ask_next_clinical_question()
         
-        # Check if we just asked location and need clarification
-        elif last_q and last_q.get('focus') == 'pain_location':
-            text_lower = user_answer.lower()
-            
-            # Check if answer is ambiguous (needs clarification)
-            ambiguous_right = 'right' in text_lower and not any(specific in text_lower for specific in ['upper right', 'lower right', 'ruq', 'rlq'])
-            ambiguous_left = 'left' in text_lower and not any(specific in text_lower for specific in ['upper left', 'lower left', 'luq', 'llq'])
-            
-            if ambiguous_right:
-                print(f"[Adaptive] ⚠️ Ambiguous location: 'right side' - clarifying")
-                self.questions_asked.append({
-                    'focus': 'pain_location_clarify',
-                    'question': 'Is it in the upper right (below your ribs) or lower right side of your abdomen?',
-                    'value': 'critical'
-                })
-                
-                return {
-                    'success': True,
-                    'question': 'Is it in the upper right (below your ribs) or lower right side of your abdomen?',
-                    'status': 'questioning'
-                }
-            
-            elif ambiguous_left:
-                print(f"[Adaptive] ⚠️ Ambiguous location: 'left side' - clarifying")
-                self.questions_asked.append({
-                    'focus': 'pain_location_clarify',
-                    'question': 'Is it in the upper left or lower left side of your abdomen?',
-                    'value': 'critical'
-                })
-                
-                return {
-                    'success': True,
-                    'question': 'Is it in the upper left or lower left side of your abdomen?',
-                    'status': 'questioning'
-                }
-        
-        # Store raw answer + normalized matches for recap
-        answer_record = {
-            'question': last_q['question'] if last_q else 'chief_complaint',
-            'question_focus': last_q.get('focus', 'unknown') if last_q else 'chief_complaint',
-            'raw_answer': user_answer,
-            'normalized_matches': [],
-            'timestamp': len(self.raw_answers)
-        }
-        
-        # Add normalized matches if any
-        if 'positive_findings' in extracted:
-            for finding in extracted['positive_findings']:
-                answer_record['normalized_matches'].append({
-                    'matched_to': finding['normalized_response'],
-                    'fuzzy': finding.get('fuzzy_match', False),
-                    'similarity': finding.get('similarity', 1.0)
-                })
-        
-        self.raw_answers.append(answer_record)
-        
-        # Update answered features (merge, don't replace)
-        if extracted:  # Only update if we extracted something
-            self.answered_features.update(extracted)
-            
-            # Re-score ALL active guidelines
-            self._score_all_guidelines()
         else:
-            # No features extracted, but answer was valid
-            # This might be a vague answer - continue asking
-            print(f"[Adaptive] 💡 No specific features extracted, but answer was valid - continuing")
-        
-        # ROLLING UPDATE: Remove ruled-out guidelines, pull from reserve
-        self._update_differential_list()
-        
-        # Sort by score
-        self.active_guidelines.sort(key=lambda x: x['score'], reverse=True)
-        
-        # Print current top candidates with full detail
-        print(f"\n{'='*80}")
-        print(f"[Adaptive] 📊 CURRENT DIFFERENTIAL DIAGNOSIS (Top {len(self.active_guidelines)})")
-        print(f"{'='*80}")
-        
-        for i, g in enumerate(self.active_guidelines, 1):
-            urgency = g['guideline_data'].get('urgency', 'routine')
-            urgency_emoji = "🚨" if urgency == "emergent" else "⚠️" if urgency == "urgent" else "📋"
-            print(f"[Adaptive] {i}. {g['name']}")
-            print(f"[Adaptive]    Score: {g['score']:.3f} ({int(g['score']*100)}% probability)")
-            print(f"[Adaptive]    Urgency: {urgency_emoji} {urgency.upper()}")
-        
-        print(f"\n[Adaptive] 📈 Pool Status:")
-        print(f"[Adaptive]    Active differentials: {len(self.active_guidelines)}/{self.MAX_ACTIVE}")
-        if self.reserve_pool:
-            print(f"[Adaptive]    Reserve pool: {len(self.reserve_pool)} conditions waiting")
-        if self.ruled_out:
-            print(f"[Adaptive]    Ruled out: {len(self.ruled_out)} conditions eliminated")
-        print(f"{'='*80}\n")
-        
-        # Check if diagnosis reached
-        # IMPORTANT: Require minimum questions to avoid premature diagnosis
-        MIN_QUESTIONS_FOR_DIAGNOSIS = 4  # Must ask at least 4 questions
-        questions_answered = len(self.raw_answers)
-        
-        if len(self.active_guidelines) > 0:
-            top = self.active_guidelines[0]
-            
-            print(f"[Adaptive] 🔍 Diagnosis check: score={top['score']:.3f}, questions={questions_answered}/{MIN_QUESTIONS_FOR_DIAGNOSIS}")
-            
-            # High confidence diagnosis (AND minimum questions met)
-            if top['score'] > 0.90 and questions_answered >= MIN_QUESTIONS_FOR_DIAGNOSIS:
-                print(f"[Adaptive] ✅ High confidence threshold met - finalizing diagnosis")
-                return self._finalize_diagnosis(top)
-            
-            # All critical questions answered with good score
-            if questions_answered >= MIN_QUESTIONS_FOR_DIAGNOSIS and top['score'] > 0.80:
-                print(f"[Adaptive] ✅ Minimum questions met with good score - finalizing diagnosis")
-                return self._finalize_diagnosis(top)
-            
-            # Safety valve: if answered 6+ questions, finalize even with lower score
-            if questions_answered >= 6:
-                print(f"[Adaptive] ✅ Asked {questions_answered} questions - finalizing with available data")
-                return self._finalize_diagnosis(top)
-            
-            # Otherwise, continue asking
-            if questions_answered < MIN_QUESTIONS_FOR_DIAGNOSIS:
-                print(f"[Adaptive] 🔄 Need more questions ({questions_answered}/{MIN_QUESTIONS_FOR_DIAGNOSIS}) - continuing")
-        
-        # Check if we've exhausted all guidelines
-        if len(self.active_guidelines) == 0 and len(self.reserve_pool) == 0:
-            print(f"[Adaptive] ⚠️ All guidelines ruled out - no diagnosis possible")
-            self.reset_assessment()
-            return {
-                'success': False,
-                'message': "I couldn't match your symptoms to a specific condition. Please seek medical attention for a proper evaluation."
-            }
-        
-        # Ask next discriminating question
-        return self._ask_next_question()
+            # Clinical question - use LLM to score and ask next
+            return self._process_clinical_answer(user_answer)
     
-    def _match_chief_complaint(self, normalized_text: str) -> List[Tuple[str, float]]:
+    def _match_to_guidelines(self, complaint: str) -> List[Dict]:
         """
-        Match chief complaint to guidelines using triggers and synonyms
+        Match chief complaint to guidelines
         
         Returns:
-            List of (guideline_name, initial_score) tuples
+            List of matched guidelines with initial scores, sorted by relevance
         """
+        complaint_lower = complaint.lower()
         matched = []
         
-        print(f"[Adaptive] 🔍 Matching '{normalized_text}' against {len(self.guidelines)} guidelines")
+        print(f"\n[Engine] 🔍 MATCHING TO GUIDELINES...")
         
-        for name, guideline in self.guidelines.items():
+        for name, guideline in self.all_guidelines.items():
             triggers = guideline.get('chief_complaint_triggers', [])
             
-            print(f"[Adaptive]   Checking {name}: triggers={triggers}")
-            
-            # Check each trigger
+            # Check if any trigger matches
             for trigger in triggers:
-                trigger_normalized = self._normalize_text(trigger)
-                
-                # Direct match
-                if trigger_normalized in normalized_text:
-                    print(f"[Adaptive]     ✅ Direct match: '{trigger_normalized}' in text")
-                    matched.append((name, 0.5))  # Base score for match
+                if trigger.lower() in complaint_lower:
+                    matched.append({
+                        'name': name,
+                        'score': 0.5,  # Initial score (neutral)
+                        'data': guideline
+                    })
+                    print(f"[Engine]   ✓ {name} (trigger: '{trigger}')")
                     break
-                
-                # Synonym match
-                for word in trigger_normalized.split():
-                    if word in self.synonyms:
-                        for synonym in self.synonyms[word]:
-                            if synonym in normalized_text:
-                                print(f"[Adaptive]     ✅ Synonym match: '{synonym}' → '{word}'")
-                                matched.append((name, 0.4))  # Slightly lower for synonym
-                                break
         
-        # Remove duplicates, keep highest score
-        unique_matched = {}
-        for name, score in matched:
-            if name not in unique_matched or score > unique_matched[name]:
-                unique_matched[name] = score
+        # Sort by name for now (can add better scoring later)
+        matched.sort(key=lambda x: x['name'])
         
-        print(f"[Adaptive] 🎯 Matched {len(unique_matched)} guidelines")
-        
-        return list(unique_matched.items())
+        return matched
     
-    def _update_differential_list(self):
+    def _ask_next_clinical_question(self) -> Dict[str, Any]:
         """
-        Update the active differential list using rolling replacement strategy
+        Use LLM to analyze all 5 guidelines and generate next best question
         
-        Key algorithm:
-        1. Rule out guidelines with score < threshold
-        2. Move ruled-out to ruled_out list
-        3. Pull from reserve pool to maintain MAX_ACTIVE (5) guidelines
-        4. This ensures we always consider top candidates without overwhelming
+        This is the CORE intelligence of the system.
         """
         print(f"\n{'='*80}")
-        print(f"[Adaptive] 🔄 ROLLING DIFFERENTIAL UPDATE")
+        print(f"[Engine] 🧠 LLM QUESTION GENERATION")
         print(f"{'='*80}")
-        print(f"[Adaptive] 📊 Rule-out threshold: {self.RULE_OUT_THRESHOLD} (scores below this are removed)")
-        print(f"[Adaptive] 📊 Max active: {self.MAX_ACTIVE} (maintain this many differentials)")
         
-        # Identify guidelines to rule out
-        to_remove = []
-        for guideline_obj in self.active_guidelines:
-            if guideline_obj['score'] < self.RULE_OUT_THRESHOLD:
-                to_remove.append(guideline_obj)
-                print(f"[Adaptive] ❌ RULING OUT: {guideline_obj['name']}")
-                print(f"[Adaptive]    Reason: Score {guideline_obj['score']:.3f} < threshold {self.RULE_OUT_THRESHOLD}")
+        # Build context for LLM
+        patient_info = f"{self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')} with {self.chief_complaint}"
         
-        # Move to ruled_out
-        if to_remove:
-            for guideline_obj in to_remove:
-                self.active_guidelines.remove(guideline_obj)
-                self.ruled_out.append(guideline_obj)
-            print(f"[Adaptive] ✅ Ruled out {len(to_remove)} condition(s)\n")
-        else:
-            print(f"[Adaptive] ✅ No conditions ruled out (all scores ≥ {self.RULE_OUT_THRESHOLD})\n")
-        
-        # Pull from reserve to maintain MAX_ACTIVE
-        promoted = []
-        while len(self.active_guidelines) < self.MAX_ACTIVE and len(self.reserve_pool) > 0:
-            # Get next from reserve (already sorted)
-            next_guideline = self.reserve_pool.pop(0)
-            self.active_guidelines.append(next_guideline)
-            promoted.append(next_guideline)
-            print(f"[Adaptive] 🔼 PROMOTING: {next_guideline['name']}")
-            print(f"[Adaptive]    From reserve (score: {next_guideline['score']:.3f})")
-        
-        if promoted:
-            print(f"[Adaptive] ✅ Promoted {len(promoted)} condition(s) from reserve\n")
-        elif to_remove and len(self.reserve_pool) == 0:
-            print(f"[Adaptive] ⚠️ Reserve pool empty - active list now has {len(self.active_guidelines)} conditions\n")
-        
-        print(f"[Adaptive] 📊 Current pool sizes:")
-        print(f"[Adaptive]    Active: {len(self.active_guidelines)}/{self.MAX_ACTIVE}")
-        print(f"[Adaptive]    Reserve: {len(self.reserve_pool)}")
-        print(f"[Adaptive]    Ruled out: {len(self.ruled_out)}")
-        print(f"{'='*80}\n")
-    
-    def _normalize_text(self, text: str) -> str:
-        """Normalize text for matching"""
-        return text.lower().strip()
-    
-    def _extract_symptom_from_complaint(self, complaint: str) -> str:
-        """Extract the symptom from chief complaint for empathy message"""
-        complaint_lower = complaint.lower()
-        
-        if 'abdominal pain' in complaint_lower or 'stomach pain' in complaint_lower or 'belly pain' in complaint_lower:
-            return "abdominal pain"
-        elif 'chest pain' in complaint_lower:
-            return "chest pain"
-        elif 'headache' in complaint_lower or 'head pain' in complaint_lower:
-            return "headache"
-        elif 'pain' in complaint_lower:
-            return "pain"
-        else:
-            return "these symptoms"
-    
-    def _is_new_chief_complaint(self, text: str) -> bool:
-        """
-        Detect if user is stating a NEW chief complaint vs answering a question
-        
-        Only returns True if it's clearly a different complaint, NOT just
-        providing more detail about the current complaint.
-        """
-        text_lower = text.lower().strip()
-        
-        # If we already have a chief complaint, check if this is DIFFERENT
-        if self.chief_complaint:
-            current_symptom = self._extract_symptom_from_complaint(self.chief_complaint)
-            new_symptom = self._extract_symptom_from_complaint(text)
+        # Get classical presentations from all 5 guidelines
+        guidelines_context = []
+        for i, g in enumerate(self.active_guidelines, 1):
+            classic = g['data'].get('key_features', {}).get('classic_presentation', 'N/A')
+            urgency = g['data'].get('urgency', 'routine')
             
-            # Same symptom type = not a new complaint
-            if current_symptom == new_symptom:
-                return False
+            guidelines_context.append(f"""
+Guideline {i}: {g['name']} (Current Score: {g['score']:.0%}, Urgency: {urgency})
+Classic Presentation: {classic}
+""")
         
-        # Only trigger on clear new chief complaints with symptom
-        new_complaint_patterns = [
-            ('i have', ['pain', 'ache', 'hurt', 'discomfort', 'burning', 'pressure', 'fever', 'cough', 'shortness']),
-            ('i am having', ['pain', 'ache', 'difficulty', 'trouble']),
-            ('i feel', ['pain', 'dizzy', 'weak', 'sick']),
-        ]
+        guidelines_text = "\n".join(guidelines_context)
         
-        for pattern, symptoms in new_complaint_patterns:
-            if text_lower.startswith(pattern):
-                if any(symptom in text_lower for symptom in symptoms):
-                    return True
+        # Get questions already asked
+        asked = []
+        for item in self.conversation_history:
+            if item['type'] == 'question' and item.get('focus') not in ['age', 'sex']:
+                asked.append(item['question'])
         
-        return False
-    
-    def _extract_core_question(self, full_text: str) -> str:
-        """
-        Use LLM to extract the core question from text that may include empathy/preamble
+        asked_text = "\n".join([f"- {q}" for q in asked]) if asked else "None yet"
         
-        Example:
-        Input: "That sounds uncomfortable. Let me help. First, how old are you?"
-        Output: "How old are you?"
-        """
-        extraction_prompt = f"""Extract the CORE QUESTION from this text:
+        print(f"[Engine] 📋 Patient: {patient_info}")
+        print(f"[Engine] 📋 Guidelines in context: {len(self.active_guidelines)}")
+        print(f"[Engine] 📋 Questions asked: {len(asked)}")
+        
+        # LLM PROMPT: Generate next question
+        prompt = f"""You are a diagnostic AI analyzing these 5 possible conditions:
 
-"{full_text}"
+{guidelines_text}
 
-The text may include empathy statements, preambles, or explanations. Extract ONLY the actual question being asked.
+Patient: {patient_info}
 
-Examples:
-- "I'm sorry you're in pain. How old are you?" → "How old are you?"
-- "That sounds uncomfortable. Let me help. Are you male or female?" → "Are you male or female?"
-- "Where is the pain?" → "Where is the pain?"
+Questions already asked:
+{asked_text}
 
-Output ONLY the core question (no quotes, no preamble):"""
-        
+Your task: Generate ONE key question that will best differentiate between these 5 conditions.
+- Focus on symptoms from the classical presentations
+- Ask about ONE specific symptom at a time
+- Make it conversational and clear
+- Prioritize the most discriminating questions first
+
+Output ONLY the question (no explanation):"""
+
         try:
             response = self.llm_chat_fn(
-                [{"role": "user", "content": extraction_prompt}],
+                [{"role": "user", "content": prompt}],
                 max_tokens=50,
-                temperature=0.0
+                temperature=0.3
             )
             
-            core_question = response.strip().strip('"\'')
+            question = response.strip().strip('"\'')
+            if not question.endswith('?'):
+                question += '?'
             
-            # Ensure ends with ?
-            if not core_question.endswith('?'):
-                core_question += '?'
+            print(f"[Engine] ✅ Generated Question: '{question}'")
+            print(f"{'='*80}\n")
             
-            print(f"[Adaptive] 🔍 Extracted core question: '{core_question}'")
-            return core_question
-            
-        except Exception as e:
-            print(f"[Adaptive] ⚠️ Core question extraction failed: {e}")
-            # Fallback to original text
-            return full_text
-    
-    def _answer_addresses_question(self, question_obj: Dict, answer: str) -> bool:
-        """
-        LLM-based validation: Does the answer actually address what was asked?
-        
-        Pure LLM approach - let the AI use internal logic to evaluate responses.
-        No hardcoded patterns.
-        
-        Returns False if answer is non-responsive to the question.
-        """
-        question = question_obj.get('question', '')
-        
-        # STRUCTURED JSON VALIDATION - more reliable than free text
-        validation_prompt = f"""Q: {question}
-A: {answer}
-
-Output JSON:
-{{"valid": true/false, "reason": "brief explanation"}}
-
-JSON:"""
-        
-        try:
-            # Debug: Show the validation prompt being sent
-            print(f"\n[Adaptive] 🧠 VALIDATION (JSON mode):")
-            print(f"[Adaptive]    Q: '{question}'")
-            print(f"[Adaptive]    A: '{answer}'")
-            
-            # Call LLM for validation
-            response = self.llm_chat_fn(
-                [{"role": "user", "content": validation_prompt}],
-                max_tokens=40,
-                temperature=0.0
-            )
-            
-            response_text = response.strip()
-            
-            # Debug: Show raw response
-            print(f"[Adaptive] 🧠 LLM RAW:")
-            print(f"[Adaptive]    '{response_text}'")
-            
-            # Try parse JSON
-            import json
-            try:
-                # Clean markdown
-                json_text = response_text
-                if '```' in json_text:
-                    json_text = json_text.split('```')[1].strip() if json_text.count('```') >= 2 else json_text
-                
-                result = json.loads(json_text.strip('`'))
-                valid = result.get('valid', True)
-                reason = result.get('reason', '')
-                
-                print(f"[Adaptive] 🧠 REASONING: {reason}")
-                
-                if valid:
-                    print(f"[Adaptive] ✅ Answer validation: ACCEPTED")
-                    return True
-                else:
-                    print(f"[Adaptive] ❌ Answer validation: REJECTED")
-                    return False
-                    
-            except json.JSONDecodeError:
-                # Fallback to text parsing
-                print(f"[Adaptive] ⚠️ JSON parse failed, using text fallback")
-                if 'true' in response_text.lower() or 'yes' in response_text.lower():
-                    print(f"[Adaptive] ✅ Answer validation: ACCEPTED (fallback)")
-                    return True
-                elif 'false' in response_text.lower() or 'no' in response_text.lower():
-                    print(f"[Adaptive] ❌ Answer validation: REJECTED (fallback)")
-                    return False
-                else:
-                    print(f"[Adaptive] ⚠️ Unclear - accepting")
-                    return True
-                
-        except Exception as e:
-            print(f"[Adaptive] ⚠️ Answer validation failed (LLM error): {e}")
-            import traceback
-            traceback.print_exc()
-            # On error, be permissive (assume answer is acceptable)
-            return True
-    
-    def _is_valid_medical_response(self, text: str) -> bool:
-        """
-        Validate that response is meaningful (not garbage transcription or too short)
-        
-        Returns False for:
-        - Very short fragments ("on the", "time.", "go.")
-        - Gibberish ("good else to go")
-        - Empty responses
-        
-        Returns True for:
-        - Numbers (age, duration, etc.)
-        - Demographic answers (male/female)
-        - Valid medical responses
-        """
-        text = text.strip()
-        
-        # Too short (but allow single-char if it's a number or letter)
-        if len(text) < 2:
-            return False
-        
-        # Check if this is a number (age, duration, etc.) - ALWAYS VALID
-        if re.search(r'\d+', text):
-            return True
-        
-        # Check if this is a demographic answer (male/female/man/woman) - ALWAYS VALID
-        demographic_answers = ['male', 'female', 'man', 'woman', 'boy', 'girl', 'm', 'f']
-        if text.lower() in demographic_answers:
-            return True
-        
-        # Only punctuation or filler words
-        filler_patterns = [
-            r'^(on the|the|a|an|to|for|with)[\s\.,]*$',
-            r'^[\.,;:!?]+$',
-            r'^(uh|um|er|ah)[\s\.,]*$'
-        ]
-        
-        for pattern in filler_patterns:
-            if re.match(pattern, text.lower()):
-                return False
-        
-        # Has at least one real word (2+ chars, reduced from 3)
-        words = text.split()
-        real_words = [w for w in words if len(w.strip('.,!?')) >= 2]
-        
-        if len(real_words) == 0:
-            return False
-        
-        return True
-    
-    def _extract_features_from_text(self, text: str) -> Dict[str, Any]:
-        """
-        Extract clinical features using HYBRID approach:
-        1. Universal features (onset time, severity) - simple patterns
-        2. Guideline-specific features - from JSON expected_positive_responses
-        
-        Args:
-            text: User's natural language text
-        
-        Returns:
-            Dict with 'universal_features' and 'positive_findings'/'negative_findings'
-        """
-        print(f"\n{'='*80}")
-        print(f"[Adaptive] 🔍 FEATURE EXTRACTION FROM: '{text}'")
-        print(f"{'='*80}")
-        
-        features = {}
-        text_lower = text.lower()
-        
-        # ==== UNIVERSAL FEATURES (not guideline-specific) ====
-        print(f"[Adaptive] 📋 Checking universal features...")
-        
-        # Onset timing - simple time marker detection
-        if 'hour' in text_lower:
-            features['onset_timing'] = 'acute_hours'
-            print(f"[Adaptive]    ✅ Onset timing: acute_hours (detected: 'hour')")
-        elif 'day' in text_lower:
-            features['onset_timing'] = 'acute_days'
-            print(f"[Adaptive]    ✅ Onset timing: acute_days (detected: 'day')")
-        elif 'week' in text_lower:
-            features['onset_timing'] = 'subacute'
-            print(f"[Adaptive]    ✅ Onset timing: subacute (detected: 'week')")
-        elif any(marker in text_lower for marker in ['month', 'year', 'chronic', 'always', 'long time']):
-            features['onset_timing'] = 'chronic'
-            matched = [m for m in ['month', 'year', 'chronic', 'always', 'long time'] if m in text_lower][0]
-            print(f"[Adaptive]    ✅ Onset timing: chronic (detected: '{matched}')")
-        elif 'today' in text_lower or 'tonight' in text_lower or 'this morning' in text_lower:
-            features['onset_timing'] = 'acute_hours'
-            matched = [m for m in ['today', 'tonight', 'this morning'] if m in text_lower][0]
-            print(f"[Adaptive]    ✅ Onset timing: acute_hours (detected: '{matched}')")
-        elif 'yesterday' in text_lower or 'last night' in text_lower:
-            features['onset_timing'] = 'acute_days'
-            matched = [m for m in ['yesterday', 'last night'] if m in text_lower][0]
-            print(f"[Adaptive]    ✅ Onset timing: acute_days (detected: '{matched}')")
-        
-        # Severity (universal)
-        severity_match = re.search(r'(\d+)\s*(?:out of|/)\s*10', text_lower)
-        if severity_match:
-            features['severity_score'] = int(severity_match.group(1))
-            print(f"[Adaptive]    ✅ Severity: {features['severity_score']}/10 (numeric scale)")
-        elif any(word in text_lower for word in ['severe', 'terrible', 'unbearable', 'worst']):
-            features['severity_score'] = 9
-            matched = [w for w in ['severe', 'terrible', 'unbearable', 'worst'] if w in text_lower][0]
-            print(f"[Adaptive]    ✅ Severity: 9/10 (detected: '{matched}')")
-        elif any(word in text_lower for word in ['moderate', 'medium', 'okay']):
-            features['severity_score'] = 5
-            matched = [w for w in ['moderate', 'medium', 'okay'] if w in text_lower][0]
-            print(f"[Adaptive]    ✅ Severity: 5/10 (detected: '{matched}')")
-        elif any(word in text_lower for word in ['mild', 'slight', 'minor']):
-            features['severity_score'] = 3
-            matched = [w for w in ['mild', 'slight', 'minor'] if w in text_lower][0]
-            print(f"[Adaptive]    ✅ Severity: 3/10 (detected: '{matched}')")
-        
-        # ==== GUIDELINE-SPECIFIC FEATURES (from JSON) ====
-        print(f"\n[Adaptive] 📋 Checking guideline-specific features from JSON...")
-        
-        # For each active guideline, check all diagnostic questions
-        for guideline_obj in self.active_guidelines:
-            guideline = guideline_obj['guideline_data']
-            guideline_name = guideline_obj['name']
-            
-            print(f"[Adaptive]    Checking {guideline_name}:")
-            
-            diagnostic_questions = guideline.get('diagnostic_questions', [])
-            
-            for question in diagnostic_questions:
-                question_focus = question.get('question_focus', '')
-                expected_positive = question.get('expected_positive_responses', [])
-                negative_responses = question.get('negative_responses', [])
-                diagnostic_value = question.get('diagnostic_value', 'moderate')
-                
-                # Check for negative responses first (rule out)
-                for negative in negative_responses:
-                    if negative.lower() in text_lower:
-                        print(f"[Adaptive]      ❌ NEGATIVE MATCH: '{negative}' for {question_focus} (rules out)")
-                        # Track negative findings
-                        if 'negative_findings' not in features:
-                            features['negative_findings'] = []
-                        features['negative_findings'].append({
-                            'guideline': guideline_name,
-                            'question': question_focus,
-                            'response': negative
-                        })
-                
-                # Check for positive responses (with fuzzy matching for misspellings)
-                for positive in expected_positive:
-                    positive_lower = positive.lower()
-                    
-                    # Direct substring match
-                    if positive_lower in text_lower:
-                        print(f"[Adaptive]      ✅ POSITIVE MATCH: '{positive}' for {question_focus} (value={diagnostic_value})")
-                        # Track positive findings
-                        if 'positive_findings' not in features:
-                            features['positive_findings'] = []
-                        features['positive_findings'].append({
-                            'guideline': guideline_name,
-                            'question': question_focus,
-                            'response': positive,
-                            'normalized_response': positive,  # What it matched to
-                            'value': diagnostic_value
-                        })
-                        break
-                    
-                    # Fuzzy match for misspellings/mispronunciations
-                    # Use SequenceMatcher for character-level similarity
-                    from difflib import SequenceMatcher
-                    similarity = SequenceMatcher(None, positive_lower, text_lower).ratio()
-                    
-                    # Also check if key words from expected response are in text
-                    positive_words = set(positive_lower.split())
-                    text_words = set(text_lower.split())
-                    word_overlap = len(positive_words & text_words) / len(positive_words) if positive_words else 0
-                    
-                    # Match if high similarity OR high word overlap
-                    if similarity > 0.7 or word_overlap > 0.6:
-                        if 'positive_findings' not in features:
-                            features['positive_findings'] = []
-                        features['positive_findings'].append({
-                            'guideline': guideline_name,
-                            'question': question_focus,
-                            'response': positive,
-                            'normalized_response': positive,  # Normalized to expected
-                            'value': diagnostic_value,
-                            'fuzzy_match': True,
-                            'similarity': similarity
-                        })
-                        print(f"[Adaptive]    🔍 Fuzzy match: '{text_lower[:50]}' → '{positive}' (similarity: {similarity:.2f})")
-                        break
-        
-        # ==== EXTRACTION SUMMARY ====
-        print(f"\n{'─'*80}")
-        print(f"[Adaptive] 📊 FEATURE EXTRACTION SUMMARY")
-        print(f"{'─'*80}")
-        
-        if len(features) > 0:
-            if 'onset_timing' in features:
-                print(f"[Adaptive] ⏰ Onset Timing: {features['onset_timing']}")
-            if 'severity_score' in features:
-                print(f"[Adaptive] 📊 Severity Score: {features['severity_score']}/10")
-            
-            if 'positive_findings' in features:
-                print(f"\n[Adaptive] ✅ POSITIVE FINDINGS ({len(features['positive_findings'])} total):")
-                for finding in features['positive_findings']:
-                    fuzzy = " (fuzzy)" if finding.get('fuzzy_match') else ""
-                    print(f"[Adaptive]    • {finding['guideline']}: {finding['question']}")
-                    print(f"[Adaptive]      Matched: '{finding['response']}' (weight={finding['value']}){fuzzy}")
-            
-            if 'negative_findings' in features:
-                print(f"\n[Adaptive] ❌ NEGATIVE FINDINGS ({len(features['negative_findings'])} total - RULE OUT):")
-                for finding in features['negative_findings']:
-                    print(f"[Adaptive]    • {finding['guideline']}: {finding['question']}")
-                    print(f"[Adaptive]      Matched: '{finding['response']}' (penalty=-0.15)")
-        else:
-            print(f"[Adaptive] ⚠️ No clinical features extracted from: '{text}'")
-        
-        print(f"{'='*80}\n")
-        
-        return features
-    
-    def _score_all_guidelines(self):
-        """
-        Score ALL active guidelines based on guideline-driven feature matches
-        
-        Uses the diagnostic_questions from each guideline's JSON to score matches.
-        No hardcoded logic - 100% data-driven!
-        """
-        print(f"\n{'='*80}")
-        print(f"[Adaptive] 🔢 SCORING PHASE - Evaluating {len(self.active_guidelines)} active guidelines")
-        print(f"{'='*80}")
-        
-        # Weight mapping for diagnostic_value
-        diagnostic_weights = {
-            'critical': 0.30,
-            'high': 0.20,
-            'moderate': 0.10,
-            'low': 0.05
-        }
-        
-        print(f"[Adaptive] 📊 Weight system: critical=+0.30, high=+0.20, moderate=+0.10, low=+0.05")
-        print(f"[Adaptive] 📊 Negative findings: -0.15 penalty")
-        print(f"[Adaptive] 📊 Features extracted: {list(self.answered_features.keys())}\n")
-        
-        for guideline_obj in self.active_guidelines:
-            guideline = guideline_obj['guideline_data']  # FIX: Extract guideline data
-            guideline_name = guideline_obj['name']
-            initial_score = guideline_obj['score']
-            score = initial_score
-            urgency = guideline.get('urgency', 'routine')
-            
-            print(f"[Adaptive]   ┌─ {guideline_name}")
-            print(f"[Adaptive]   │  Initial score: {initial_score:.3f}")
-            print(f"[Adaptive]   │  Urgency level: {urgency}")
-            
-            # Score universal features (apply to all guidelines)
-            score_changes = []
-            
-            if 'onset_timing' in self.answered_features:
-                onset = self.answered_features['onset_timing']
-                urgency_level = guideline.get('urgency', '').lower()
-                
-                # Acute onset matches urgent/emergent conditions
-                if onset in ['acute_hours', 'acute_days'] and urgency_level in ['urgent', 'emergent', 'emergency']:
-                    score += 0.10
-                    score_changes.append(f"Onset ({onset}) matches urgency ({urgency}): +0.10")
-                # Chronic onset doesn't match urgent conditions
-                elif onset == 'chronic' and urgency_level in ['urgent', 'emergent', 'emergency']:
-                    score -= 0.20
-                    score_changes.append(f"Chronic onset contradicts {urgency}: -0.20")
-            
-            if 'severity_score' in self.answered_features:
-                severity = self.answered_features['severity_score']
-                urgency_level = guideline.get('urgency', '').lower()
-                
-                # High severity matches urgent conditions
-                if severity >= 7 and urgency_level in ['urgent', 'emergent', 'emergency']:
-                    score += 0.05
-                    score_changes.append(f"High severity ({severity}/10) supports {urgency}: +0.05")
-            
-            # Count positive findings for this guideline (from JSON)
-            positive_count = 0
-            if 'positive_findings' in self.answered_features:
-                for finding in self.answered_features['positive_findings']:
-                    if finding['guideline'] == guideline_name:
-                        weight = diagnostic_weights.get(finding['value'], 0.10)
-                        score += weight
-                        positive_count += 1
-                        score_changes.append(f"{finding['question']}: +{weight:.2f} (value={finding['value']})")
-            
-            # Penalize negative findings
-            negative_count = 0
-            if 'negative_findings' in self.answered_features:
-                for finding in self.answered_features['negative_findings']:
-                    if finding['guideline'] == guideline_name:
-                        score -= 0.15  # Penalty for negative finding
-                        negative_count += 1
-                        score_changes.append(f"{finding['question']}: -0.15 (RULE OUT)")
-            
-            # Update score
-            guideline_obj['score'] = max(0.0, min(score, 1.0))  # Clamp between 0-1
-            
-            # Print all changes
-            if score_changes:
-                for change in score_changes:
-                    print(f"[Adaptive]   │  {change}")
-            else:
-                print(f"[Adaptive]   │  (no scoring changes)")
-            
-            print(f"[Adaptive]   │  Positive findings: {positive_count}, Negative: {negative_count}")
-            print(f"[Adaptive]   └─ FINAL SCORE: {guideline_obj['score']:.3f} ({initial_score:.3f} → {guideline_obj['score']:.3f})\n")
-    
-    def _ask_next_question(self) -> Dict[str, Any]:
-        """
-        Select and ask the most discriminating next question
-        
-        Strategy: Find the question that appears in MULTIPLE top guidelines
-        with high diagnostic value - this will best differentiate the differential.
-        
-        100% data-driven from guideline JSON!
-        """
-        if not self.active_guidelines:
-            return {
-                'success': False,
-                'message': "I need more information to make a diagnosis."
-            }
-        
-        # Collect all questions from ALL active guidelines
-        all_questions = {}  # question_focus → list of (guideline_name, diagnostic_value)
-        
-        for guideline_obj in self.active_guidelines[:3]:  # Top 3 differentials
-            guideline = guideline_obj['guideline_data']
-            guideline_name = guideline_obj['name']
-            diagnostic_questions = guideline.get('diagnostic_questions', [])
-            
-            for q in diagnostic_questions:
-                focus = q.get('question_focus', '')
-                value = q.get('diagnostic_value', 'moderate')
-                
-                if focus not in all_questions:
-                    all_questions[focus] = []
-                all_questions[focus].append({
-                    'guideline': guideline_name,
-                    'value': value,
-                    'question_data': q
-                })
-        
-        # Track which question_focus areas we've already asked about
-        asked_focuses = set()
-        for q in self.questions_asked:
-            asked_focuses.add(q.get('focus', ''))
-        
-        print(f"[Adaptive] 📋 Already asked: {asked_focuses}")
-        
-        # Score each potential question by discriminating power
-        question_scores = {}
-        
-        for focus, guidelines_asking in all_questions.items():
-            if focus in asked_focuses:
-                continue  # Skip already asked
-            
-            # Calculate discriminating power:
-            # - How many top differentials have this question? (breadth)
-            # - What's the diagnostic value? (importance)
-            # - Is it 'critical' for top diagnosis? (priority)
-            
-            num_guidelines = len(guidelines_asking)
-            avg_value_weight = sum([
-                {'critical': 0.30, 'high': 0.20, 'moderate': 0.10, 'low': 0.05}.get(g['value'], 0.10)
-                for g in guidelines_asking
-            ]) / num_guidelines
-            
-            # Bonus if top guideline considers it critical/high
-            top_guideline_bonus = 0
-            for g in guidelines_asking:
-                if g['guideline'] == self.active_guidelines[0]['name']:
-                    if g['value'] == 'critical':
-                        top_guideline_bonus = 0.5
-                    elif g['value'] == 'high':
-                        top_guideline_bonus = 0.3
-            
-            # Combined score
-            discriminating_score = (num_guidelines * 0.3) + avg_value_weight + top_guideline_bonus
-            question_scores[focus] = {
-                'score': discriminating_score,
-                'data': guidelines_asking[0]['question_data']  # Use first guideline's question
-            }
-        
-        # Use LLM to generate intelligent question (if available)
-        if self.llm_chat_fn:
-            question_text = self._generate_llm_question()
-        else:
-            # Fallback: Use template-based generation
-            if question_scores:
-                best_focus = max(question_scores, key=lambda f: question_scores[f]['score'])
-                best_question_data = question_scores[best_focus]['data']
-                question_text = self._generate_question_from_focus(best_focus, best_question_data)
-                
-                print(f"[Adaptive] ✅ Selected: '{best_focus}' (score: {question_scores[best_focus]['score']:.2f})")
-            else:
-                question_text = "Can you tell me more about your symptoms?"
-        
-        # Track the question
-        self.questions_asked.append({
-            'focus': 'llm_generated' if self.llm_chat_fn else best_focus,
-            'question': question_text,
-            'value': 'high'
-        })
-        
-        return {
-            'success': True,
-            'question': question_text,
-            'status': 'questioning',
-            'differentials': [
-                {'name': g['name'], 'score': g['score']} 
-                for g in self.active_guidelines[:3]
-            ]
-        }
-        
-        # All questions asked - try to finalize
-        if len(self.active_guidelines) > 0:
-            return self._finalize_diagnosis(self.active_guidelines[0])
-        
-        return {
-            'success': False,
-            'message': "I need more information to make a diagnosis."
-        }
-    
-    def _generate_llm_question(self) -> str:
-        """
-        Use LLM + RAG to generate intelligent, conversational diagnostic question
-        
-        This is the KEY to making the system feel natural and adaptive.
-        The LLM reads full clinical guidelines and reasons about what to ask.
-        """
-        print(f"[Adaptive] 🤖 Generating LLM-driven question...")
-        
-        # Get top 3 differentials for context
-        top_3 = self.active_guidelines[:3]
-        
-        # Build clinical context from JSON key_features (structured, focused)
-        guidelines_content = []
-        for guideline_obj in top_3:
-            guideline_name = guideline_obj['name']
-            guideline_data = guideline_obj['guideline_data']
-            
-            # Get key_features from JSON
-            key_features = guideline_data.get('key_features', {})
-            classic_presentation = key_features.get('classic_presentation', '')
-            
-            # Get urgency
-            urgency = guideline_data.get('urgency', 'routine')
-            
-            # Build focused clinical summary
-            clinical_summary = f"""
-{guideline_name} (Score: {guideline_obj['score']:.0%}, Urgency: {urgency}):
-Classic Presentation: {classic_presentation}
-"""
-            
-            guidelines_content.append({
-                'name': guideline_name,
-                'score': guideline_obj['score'],
-                'content': clinical_summary
+            # Store question
+            self.conversation_history.append({
+                'type': 'question',
+                'question': question,
+                'focus': 'clinical'
             })
             
-            print(f"[Adaptive]   📚 Using key_features for {guideline_name}")
+            return {
+                'success': True,
+                'question': question,
+                'status': 'questioning'
+            }
         
-        # Build patient summary
-        patient_summary = []
-        for answer_obj in self.raw_answers:
-            patient_summary.append(f"- {answer_obj['raw_answer']}")
+        except Exception as e:
+            print(f"[Engine] ❌ Question generation failed: {e}")
+            raise RuntimeError(f"LLM question generation failed: {e}")
+    
+    def _process_clinical_answer(self, answer: str) -> Dict[str, Any]:
+        """
+        Use LLM to score all 5 guidelines based on the answer
         
-        patient_info = "\n".join(patient_summary) if patient_summary else "No information yet"
+        This is the CORE diagnostic reasoning.
+        """
+        print(f"\n{'='*80}")
+        print(f"[Engine] 🔢 LLM SCORING PHASE")
+        print(f"{'='*80}")
         
-        # Build differentials list
-        differentials_list = "\n".join([
-            f"{i}. {g['name']} (confidence: {g['score']:.0%})"
-            for i, g in enumerate(top_3, 1)
-        ])
+        # Get the last question
+        last_q = None
+        for item in reversed(self.conversation_history):
+            if item['type'] == 'question':
+                last_q = item['question']
+                break
         
-        # Build clinical guidelines context from key_features
-        guidelines_text = ""
-        for g_content in guidelines_content:
-            guidelines_text += g_content['content']
+        # Build Q&A history for context
+        qa_pairs = []
+        temp_q = None
+        for item in self.conversation_history:
+            if item['type'] == 'question' and item.get('focus') not in ['age', 'sex']:
+                temp_q = item['question']
+            elif item['type'] == 'answer' and temp_q:
+                qa_pairs.append(f"Q: {temp_q}\nA: {item['answer']}")
+                temp_q = None
         
-        # Build list of what we already know
-        already_know = []
-        if self.demographics.get('age'):
-            already_know.append(f"Age: {self.demographics['age']}")
-        if self.demographics.get('sex'):
-            already_know.append(f"Sex: {self.demographics['sex']}")
+        history_text = "\n\n".join(qa_pairs) if qa_pairs else "None"
         
-        for answer in self.raw_answers:
-            focus = answer.get('question_focus', '')
-            if focus not in ['demographics_age', 'demographics_sex']:
-                already_know.append(f"{focus}: {answer['raw_answer']}")
+        print(f"[Engine] 📋 Last Question: '{last_q}'")
+        print(f"[Engine] 📋 Answer: '{answer}'")
+        print(f"[Engine] 📋 History: {len(qa_pairs)} Q&A pairs")
         
-        already_assessed = "\n".join(already_know) if already_know else "None yet"
+        # FOR EACH GUIDELINE: Ask LLM to score it
+        print(f"\n[Engine] 🎯 SCORING EACH GUIDELINE:\n")
         
-        # STRUCTURED JSON - prevents hallucination, forces valid format
-        prompt = f"""Patient: {self.demographics.get('age', '?')}yo {self.demographics.get('sex', '?')} with {self.chief_complaint}
-Top diagnoses: {', '.join([g['name'][:30] for g in top_3])}
+        for g in self.active_guidelines:
+            classic = g['data'].get('key_features', {}).get('classic_presentation', 'N/A')
+            
+            # Scoring prompt
+            scoring_prompt = f"""You are scoring how well a patient matches this condition:
 
-Generate ONE key symptom question to help distinguish between these diagnoses.
+Condition: {g['name']}
+Classic Presentation: {classic}
 
-Output ONLY valid JSON:
-{{"question": "Your question here?", "focus": "fever/nausea/timing/quality"}}
+Patient History:
+{history_text}
 
-JSON:"""
-        
-        # Call LLM with JSON mode
-        try:
-            # Debug: Show abbreviated prompt context
-            print(f"\n[Adaptive] 🧠 QUESTION GENERATION (JSON mode):")
-            print(f"[Adaptive]    Patient: {self.demographics.get('age', '?')} yo {self.demographics.get('sex', '?')}")
-            print(f"[Adaptive]    Chief complaint: {self.chief_complaint}")
-            print(f"[Adaptive]    Top differentials: {', '.join([g['name'] for g in top_3])}")
-            
-            response = self.llm_chat_fn(
-                [{"role": "user", "content": prompt}],
-                max_tokens=60,  # Enough for JSON
-                temperature=0.5  # Lower for more structured output
-            )
-            
-            # Extract and parse JSON
-            response_text = response.strip()
-            
-            # Debug: Show raw LLM output
-            print(f"[Adaptive] 🧠 LLM RAW OUTPUT:")
-            print(f"[Adaptive]    '{response_text}'")
-            
-            # Try to parse as JSON
-            import json
+Latest Q&A:
+Q: {last_q}
+A: {answer}
+
+Based on ALL the information, rate how likely this patient has {g['name']}.
+
+Output ONLY a score from 0-100 (integer only, no explanation):"""
+
             try:
-                # Clean potential markdown code blocks
-                json_text = response_text
-                if '```json' in json_text:
-                    json_text = json_text.split('```json')[1].split('```')[0]
-                elif '```' in json_text:
-                    json_text = json_text.split('```')[1].split('```')[0]
+                response = self.llm_chat_fn(
+                    [{"role": "user", "content": scoring_prompt}],
+                    max_tokens=5,
+                    temperature=0.0
+                )
                 
-                json_text = json_text.strip()
+                # Extract score
+                score_text = response.strip()
+                score_match = re.search(r'\d+', score_text)
                 
-                # Parse JSON
-                result = json.loads(json_text)
-                question = result.get('question', '')
-                focus = result.get('focus', 'unknown')
-                
-                print(f"[Adaptive] ✅ Parsed JSON successfully")
-                print(f"[Adaptive]    Question: '{question}'")
-                print(f"[Adaptive]    Focus: {focus}")
-                
-            except json.JSONDecodeError as e:
-                print(f"[Adaptive] ⚠️ JSON parse failed: {e}")
-                print(f"[Adaptive] 🔄 Treating as plain text")
-                question = response_text
-                
-                # Clean as plain text
-                question = re.sub(r'^\d+[\.)]\s*', '', question)
-                question = re.sub(r'^(Question|Q\d+|Next question):\s*', '', question, flags=re.IGNORECASE)
-                question = question.split('\n')[0]
-                question = question.strip()
-                question = question.strip('"\'')
-            
-            # Garbage detection
-            from collections import Counter
-            if len(question) > 10:
-                char_counts = Counter(c for c in question if c.isalnum())
-                if char_counts:
-                    most_common_char, count = char_counts.most_common(1)[0]
-                    total_alnum = len([c for c in question if c.isalnum()])
-                    ratio = count / total_alnum if total_alnum > 0 else 0
+                if score_match:
+                    new_score = int(score_match.group()) / 100.0  # Convert to 0-1
+                    old_score = g['score']
+                    g['score'] = new_score
                     
-                    if ratio > 0.4:
-                        print(f"[Adaptive] ⚠️ GARBAGE DETECTED: char='{most_common_char}', ratio={ratio:.2f}")
-                        print(f"[Adaptive] 🔄 Using fallback")
-                        return "Can you tell me more about your symptoms?"
+                    change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
+                    print(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change}")
+                else:
+                    print(f"[Engine]   {g['name']}: Could not parse score from '{score_text}'")
             
-            # Ensure ends with ?
-            if not question.endswith('?'):
-                question += '?'
-            
-            # Final validation - reject if still too complex
-            if len(question.split()) > 20 or '?' in question[:-1]:  # Multiple questions
-                print(f"[Adaptive] ⚠️ LLM question too complex, using fallback")
-                question = "Can you tell me more about your symptoms?"
-            
-            print(f"[Adaptive] ✅ FINAL QUESTION: '{question}'")
-            
-            return question
+            except Exception as e:
+                print(f"[Engine] ⚠️ Scoring failed for {g['name']}: {e}")
         
-        except Exception as e:
-            print(f"[Adaptive] ❌ LLM question generation failed: {e}")
-            # Fallback to template
-            return "Can you tell me more about your symptoms?"
-    
-    def _generate_opening_message(self, symptom: str) -> str:
-        """
-        Generate varied, natural opening empathy message + age question
+        # RE-RANK by score
+        self.active_guidelines.sort(key=lambda x: x['score'], reverse=True)
         
-        Uses LLM to avoid repetitive phrasing like:
-        "I'm sorry you're experiencing X. Let me ask you some questions..."
+        print(f"\n[Engine] 📊 UPDATED RANKINGS:")
+        for i, g in enumerate(self.active_guidelines, 1):
+            urgency_emoji = "🚨" if g['data'].get('urgency') == 'emergent' else "⚠️" if g['data'].get('urgency') == 'urgent' else "📋"
+            print(f"[Engine]   {i}. {g['name']}: {g['score']:.0%} {urgency_emoji}")
         
-        Returns empathy + age question combined (e.g., "I understand you're having stomach pain. 
-        To help you better, can you tell me your age?")
-        """
-        print(f"\n[Adaptive] 💬 Generating opening message for: {symptom}")
+        print(f"{'='*80}\n")
         
-        # Clear, focused prompt
-        prompt = f"""Patient: "{symptom}"
-
-Your response (1 sentence): Show empathy, then ask "How old are you?"
-
-Example: "I'm sorry to hear that. How old are you?"
-
-Your response:"""
+        # CHECK FOR DIAGNOSIS
+        top = self.active_guidelines[0]
+        num_questions = len([item for item in self.conversation_history if item['type'] == 'question' and item.get('focus') == 'clinical'])
         
-        try:
-            response = self.llm_chat_fn(
-                [{"role": "user", "content": prompt}],
-                max_tokens=40,  # Short to avoid rambling
-                temperature=0.6  # Moderate temp
-            )
-            
-            question = response.strip()
-            
-            # Debug: Show LLM output
-            print(f"[Adaptive] 🧠 LLM OPENING RAW: '{question}'")
-            
-            # Garbage detection
-            from collections import Counter
-            if len(question) > 10:
-                char_counts = Counter(c for c in question if c.isalnum())
-                if char_counts:
-                    most_common_char, count = char_counts.most_common(1)[0]
-                    total_alnum = len([c for c in question if c.isalnum()])
-                    ratio = count / total_alnum if total_alnum > 0 else 0
-                    
-                    if ratio > 0.4:
-                        print(f"[Adaptive] ⚠️ GARBAGE in opening: char='{most_common_char}', ratio={ratio:.2f}")
-                        print(f"[Adaptive] 🔄 Using simple fallback")
-                        return f"I understand you're having {symptom}. How old are you?"
-            
-            # Strip quotes if LLM added them
-            question = question.strip('"\'')
-            
-            # Ensure ends with ?
-            if not question.endswith('?'):
-                question += '?'
-            
-            print(f"[Adaptive] ✅ FINAL OPENING: '{question}'")
-            return question
-        
-        except Exception as e:
-            print(f"[Adaptive] ❌ Opening generation failed: {e}")
-            import traceback
-            traceback.print_exc()
-            # Fallback
-            return f"I understand you're having {symptom}. To help you, can you tell me your age?"
-    
-    def _generate_sex_question(self) -> str:
-        """
-        Generate varied, natural way to ask about patient's sex
-        
-        Avoids repetitive "Are you male or female?"
-        """
-        print(f"\n[Adaptive] 💬 Generating sex question")
-        
-        # Clear, focused prompt
-        prompt = """Ask patient for biological sex.
-
-Example: "Are you male or female?"
-
-Your question:"""
-        
-        try:
-            response = self.llm_chat_fn(
-                [{"role": "user", "content": prompt}],
-                max_tokens=20,  # Short question only
-                temperature=0.6  # Moderate temp
-            )
-            
-            question = response.strip()
-            
-            # Debug: Show LLM output
-            print(f"[Adaptive] 🧠 LLM SEX QUESTION RAW: '{question}'")
-            
-            # Garbage detection
-            from collections import Counter
-            if len(question) > 5:
-                char_counts = Counter(c for c in question if c.isalnum())
-                if char_counts:
-                    most_common_char, count = char_counts.most_common(1)[0]
-                    total_alnum = len([c for c in question if c.isalnum()])
-                    ratio = count / total_alnum if total_alnum > 0 else 0
-                    
-                    if ratio > 0.4:
-                        print(f"[Adaptive] ⚠️ GARBAGE in sex question: char='{most_common_char}', ratio={ratio:.2f}")
-                        print(f"[Adaptive] 🔄 Using hardcoded fallback")
-                        return "Are you male or female?"
-            
-            # Strip quotes if LLM added them
-            question = question.strip('"\'')
-            
-            # Ensure ends with ?
-            if not question.endswith('?'):
-                question += '?'
-            
-            print(f"[Adaptive] ✅ FINAL SEX QUESTION: '{question}'")
-            return question
-        
-        except Exception as e:
-            print(f"[Adaptive] ❌ Sex question generation failed: {e}")
-            import traceback
-            traceback.print_exc()
-            # Fallback
-            return "Are you male or female?"
-    
-    def _generate_question_from_focus(self, focus: str, question_data: Dict) -> str:
-        """
-        Generate natural question from focus area
-        
-        Uses simple templates based on focus keywords.
-        Could be enhanced with LLM in future.
-        """
-        focus_lower = focus.lower()
-        
-        # Use context as the question if available
-        context = question_data.get('context', '')
-        
-        # Simple template mapping
-        if 'onset' in focus_lower:
-            return "When did this pain start?"
-        elif 'location' in focus_lower or 'where' in focus_lower:
-            return "Where exactly do you feel the pain?"
-        elif 'migration' in focus_lower or 'move' in focus_lower:
-            return "Did the pain start in one place and move to another?"
-        elif 'quality' in focus_lower or 'character' in focus_lower:
-            return "How would you describe the pain?"
-        elif 'severity' in focus_lower:
-            return "On a scale of 1-10, how severe is the pain?"
-        elif 'appetite' in focus_lower or 'nausea' in focus_lower:
-            return "Have you had any nausea or loss of appetite?"
-        elif 'fever' in focus_lower:
-            return "Have you had any fever?"
-        elif 'bowel' in focus_lower:
-            return "Have you had any changes in your bowel movements?"
-        elif 'movement' in focus_lower:
-            return "Does movement make the pain worse?"
+        # Diagnosis criteria: High confidence OR asked enough questions
+        if top['score'] >= 0.80 and num_questions >= 3:
+            print(f"[Engine] ✅ DIAGNOSIS REACHED: {top['name']} ({top['score']:.0%} confidence)")
+            return self._finalize_diagnosis(top)
+        elif num_questions >= 8:
+            print(f"[Engine] ✅ DIAGNOSIS BY QUESTIONS LIMIT: {top['name']} ({top['score']:.0%} confidence)")
+            return self._finalize_diagnosis(top)
         else:
-            # Fallback: use the focus as-is
-            return f"Can you tell me about {focus}?"
+            print(f"[Engine] 🔄 Continuing (Q{num_questions}, top score: {top['score']:.0%})")
+            # Ask next question
+            return self._ask_next_clinical_question()
     
     def _finalize_diagnosis(self, diagnosis_obj: Dict) -> Dict[str, Any]:
         """
-        Finalize diagnosis and provide education using RAG
-        
-        Args:
-            diagnosis_obj: The guideline object with highest score
-        
-        Returns:
-            Response with diagnosis and education
+        Finalize and return diagnosis
         """
         self.status = "diagnosed"
-        self.diagnosis = diagnosis_obj
         
-        guideline_name = diagnosis_obj['name']
+        name = diagnosis_obj['name']
         score = diagnosis_obj['score']
-        urgency = diagnosis_obj['guideline_data'].get('urgency', 'routine')
-        
-        print(f"[Adaptive] ✅ DIAGNOSIS: {guideline_name} (confidence: {score:.2%})")
-        
-        # Retrieve education content from RAG
-        education = self._get_education_from_rag(guideline_name, urgency)
-        
-        # Build diagnosis response
-        response = {
-            'success': True,
-            'status': 'diagnosed',
-            'diagnosis': guideline_name,
-            'confidence': score,
-            'urgency': urgency,
-            'education': education,
-            'message': self._format_diagnosis_message(guideline_name, urgency, education)
-        }
-        
-        return response
-    
-    def _get_education_from_rag(self, guideline_name: str, urgency: str) -> Dict[str, str]:
-        """Retrieve education content from RAG"""
-        try:
-            # Use metadata-based retrieval to get ALL chunks from this guideline
-            response = requests.get(
-                f"http://localhost:11435/rag/guideline/{guideline_name}",
-                timeout=10
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                chunks = data.get('results', [])
-                
-                # Extract relevant sections
-                education = {
-                    'description': '',
-                    'urgency_info': '',
-                    'red_flags': '',
-                    'typical_treatment': ''
-                }
-                
-                # Combine all chunk text
-                all_text = '\n'.join([chunk.get('text', '') for chunk in chunks])
-                
-                # Extract sections (simple approach for now)
-                if '🚨' in all_text or 'RED FLAG' in all_text.upper():
-                    # Extract red flags section
-                    red_flag_match = re.search(r'(RED FLAG.*?(?=\n\n|\Z))', all_text, re.DOTALL | re.IGNORECASE)
-                    if red_flag_match:
-                        education['red_flags'] = red_flag_match.group(1)
-                
-                return education
-        
-        except Exception as e:
-            print(f"[Adaptive] ⚠️ Failed to retrieve education from RAG: {e}")
-        
-        return {}
-    
-    def _format_diagnosis_message(self, diagnosis: str, urgency: str, education: Dict) -> str:
-        """Format diagnosis message for user with clinical recap"""
+        urgency = diagnosis_obj['data'].get('urgency', 'routine')
         
         urgency_messages = {
-            'emergency': '🚨 This is a medical emergency. Call 911 immediately.',
-            'urgent': '⚠️ This requires prompt medical attention. Go to the emergency room or urgent care today.',
-            'semi_urgent': '⏰ This should be evaluated by a doctor within 24-48 hours.',
-            'routine': '📋 Schedule an appointment with your primary care doctor.'
+            'emergent': '🚨 This is a medical emergency. Call 911 or go to the ER immediately.',
+            'urgent': '⚠️ This requires prompt medical attention. Go to urgent care or ER today.',
+            'routine': '📋 Schedule an appointment with your doctor soon.'
         }
         
         urgency_msg = urgency_messages.get(urgency, urgency_messages['routine'])
         
-        # Build clinical recap from raw answers
-        # Deduplicate: keep only the LAST answer for each question_focus
-        focus_to_answer = {}
-        for answer_obj in self.raw_answers:
-            focus = answer_obj.get('question_focus', 'unknown')
-            focus_to_answer[focus] = answer_obj  # Overwrites previous answer for same focus
+        message = f"Based on your symptoms, this is most likely {name} (confidence: {score:.0%}).\n\n{urgency_msg}"
         
-        # Build recap from deduplicated answers
-        recap_parts = []
-        for focus, answer_obj in focus_to_answer.items():
-            raw = answer_obj['raw_answer']
-            
-            # Skip non-informative answers
-            if raw.lower() in ['yes', 'no', 'yes, sir', 'no, sir']:
-                continue
-            
-            # Use focus area to determine how to phrase it
-            if 'onset' in focus or 'when' in focus or 'timeline' in focus:
-                recap_parts.append(f"pain started {raw}")
-            elif 'location' in focus or 'where' in focus:
-                recap_parts.append(f"located {raw}")
-            elif 'migration' in focus or 'move' in focus:
-                recap_parts.append(f"{raw}")
-            elif 'quality' in focus or 'character' in focus:
-                recap_parts.append(f"pain described as {raw}")
-            elif 'severity' in focus:
-                recap_parts.append(f"severity {raw}")
-            elif 'appetite' in focus or 'nausea' in focus:
-                recap_parts.append(f"with nausea/loss of appetite")
-            elif 'fever' in focus:
-                recap_parts.append(f"with fever")
-            else:
-                # Generic - just include the answer if substantive
-                if len(raw.split()) > 2:  # More than 2 words
-                    recap_parts.append(raw)
+        print(f"\n{'='*80}")
+        print(f"[Engine] 🎯 FINAL DIAGNOSIS")
+        print(f"{'='*80}")
+        print(f"[Engine] Condition: {name}")
+        print(f"[Engine] Confidence: {score:.0%}")
+        print(f"[Engine] Urgency: {urgency}")
+        print(f"{'='*80}\n")
         
-        recap = ", ".join(recap_parts) if recap_parts else "your symptoms"
-        
-        # Build message with recap
-        message = f"Based on your symptoms - {recap} - this is likely {diagnosis}.\n\n{urgency_msg}"
-        
-        if education.get('red_flags'):
-            message += f"\n\n{education['red_flags']}"
-        
-        return message
+        return {
+            'success': True,
+            'status': 'diagnosed',
+            'diagnosis': name,
+            'confidence': score,
+            'urgency': urgency,
+            'message': message
+        }
 
 
-# Test function
+# Test
 if __name__ == "__main__":
     engine = AdaptiveDiagnosticEngine()
-    
-    # Test assessment
-    response = engine.start_assessment("I have abdominal pain")
-    print(f"\nResponse: {response}")
-
+    print(f"\nEngine initialized with {len(engine.all_guidelines)} guidelines")
