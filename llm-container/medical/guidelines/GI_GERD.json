@@ -1,7 +1,7 @@
 {
   "condition": "GERD (Gastroesophageal Reflux Disease)",
-  "category": "gastrointestinal",
-  "icd10_codes": ["K21.9", "K21.0"],
+  "icd10": "K21.9",
+  "snomed": "235595009",
   "chief_complaint_triggers": [
     "heartburn",
     "chest pain",
@@ -9,119 +9,16 @@
     "acid reflux",
     "regurgitation"
   ],
-  "prevalence": "very_common",
   "urgency": "routine",
   
   "key_features": {
-    "classic_presentation": "GERD presents with burning substernal or epigastric discomfort (heartburn), regurgitation of acid, worse when lying down or bending over. Chronic/recurrent pattern. May have chronic cough or hoarseness.",
-    "typical_demographics": "Affects 20% of adults. Risk factors: obesity, hiatal hernia, pregnancy, smoking. Can occur at any age.",
-    "pathophysiology_brief": "Lower esophageal sphincter dysfunction allows gastric acid to reflux into esophagus, causing mucosal irritation."
+    "classic_presentation": "GERD presents with BURNING sensation in the chest (heartburn) that rises from epigastrium toward throat. Pain is WORSE AFTER MEALS, when LYING DOWN, or BENDING OVER. RELIEVED by antacids or sitting upright. Pain is CHRONIC/RECURRENT over weeks to months (not acute). Severity 3-6/10, burning quality. Key associated symptoms: SOUR TASTE in mouth (acid regurgitation), belching, difficulty swallowing (dysphagia if chronic), chronic cough, hoarseness. Location: Retrosternal (behind breastbone), epigastric. Key triggers: Spicy foods, caffeine, alcohol, large meals, lying down after eating. Key positives: Improvement with antacids, worse at night, chronic pattern. Key negatives: NEW or SEVERE chest pain requires cardiac evaluation first (rule out heart attack). Dysphagia with weight loss suggests esophageal stricture or cancer. Vomiting blood (hematemesis) suggests ulcer or severe esophagitis."
   },
   
-  "diagnostic_questions": [
-    {
-      "question_focus": "pain location and quality",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "burning in chest",
-        "heartburn",
-        "burning behind breastbone",
-        "burning rising up",
-        "acid taste"
-      ],
-      "negative_responses": [
-        "sharp",
-        "crushing pressure",
-        "tearing"
-      ],
-      "context": "Burning quality is hallmark. Substernal or epigastric location."
-    },
-    {
-      "question_focus": "positional relationship",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "worse lying down",
-        "worse at night",
-        "worse bending over",
-        "better sitting up"
-      ],
-      "negative_responses": [
-        "position doesn't matter",
-        "worse sitting up"
-      ],
-      "context": "Supine position worsens reflux. Patients often sleep with head elevated."
-    },
-    {
-      "question_focus": "chronicity",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "chronic problem",
-        "happens often",
-        "weeks to months",
-        "recurring",
-        "long-standing issue"
-      ],
-      "negative_responses": [
-        "first time",
-        "sudden onset",
-        "acute"
-      ],
-      "context": "GERD is chronic condition with episodic symptoms, not acute first presentation."
-    },
-    {
-      "question_focus": "regurgitation",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "acid coming up",
-        "sour taste",
-        "regurgitation",
-        "food coming back up"
-      ],
-      "context": "Regurgitation of acid or food is specific for GERD."
-    },
-    {
-      "question_focus": "antacid response",
-      "diagnostic_value": "moderate",
-      "expected_positive_responses": [
-        "antacids help",
-        "Tums works",
-        "omeprazole helps",
-        "Pepcid relieves it"
-      ],
-      "context": "Response to antacids/PPIs is supportive of GERD diagnosis."
-    }
-  ],
-  
-  "differential_diagnosis": [
-    {
-      "condition": "Cardiac chest pain",
-      "key_difference": "Pressure/heaviness, exertional, radiation to arm/jaw, no positional change",
-      "similarity": "Substernal location, can be burning"
-    },
-    {
-      "condition": "Peptic Ulcer",
-      "key_difference": "Epigastric (not substernal), meal-related, less positional",
-      "similarity": "Burning quality, antacid relief"
-    }
-  ],
-  
   "red_flags": [
-    {
-      "finding": "Dysphagia (difficulty swallowing)",
-      "urgency": "urgent",
-      "action": "Possible stricture or malignancy - needs endoscopy"
-    },
-    {
-      "finding": "Weight loss, anemia",
-      "urgency": "urgent",
-      "action": "Concerning for malignancy - urgent evaluation needed"
-    }
-  ],
-  
-  "typical_management": "Lifestyle modifications: elevate head of bed, avoid triggers (alcohol, caffeine, spicy foods), weight loss. PPI therapy (omeprazole, pantoprazole). Most respond well to treatment.",
-  
-  "disposition": "Outpatient management. Endoscopy if alarm symptoms or refractory to treatment.",
-  
-  "patient_education": "GERD is chronic acid reflux that can damage the esophagus. Treatment includes lifestyle changes and medications to reduce acid. Most people get good relief with PPIs."
+    "New severe chest pain - rule out cardiac causes (MI, angina) FIRST before attributing to GERD",
+    "Dysphagia (difficulty swallowing) with weight loss - esophageal stricture or cancer, needs endoscopy",
+    "Vomiting blood or black tarry stools - GI bleeding from severe esophagitis or ulcer",
+    "Symptoms not responding to PPI therapy - consider alternative diagnosis or Barrett's esophagus"
+  ]
 }
-

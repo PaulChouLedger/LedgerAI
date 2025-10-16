@@ -1,86 +1,22 @@
 {
   "condition": "Acute Mesenteric Ischemia",
-  "category": "gastrointestinal",
-  "icd10_codes": ["K55.059", "K55.069"],
+  "icd10": "K55.059",
+  "snomed": "61490001",
   "chief_complaint_triggers": [
     "abdominal pain",
     "severe abdominal pain",
     "stomach pain"
   ],
-  "prevalence": "uncommon",
-  "urgency": "emergency",
+  "urgency": "emergent",
   
   "key_features": {
-    "classic_presentation": "Mesenteric ischemia presents with sudden-onset severe periumbilical pain out of proportion to physical exam findings. Patient appears very uncomfortable but abdomen may be soft initially. High mortality if delayed diagnosis.",
-    "typical_demographics": "Elderly (>60 years), atrial fibrillation, vascular disease, recent MI. Very rare in young patients without risk factors.",
-    "pathophysiology_brief": "Arterial embolism, thrombosis, or non-occlusive ischemia causes bowel infarction."
+    "classic_presentation": "Acute mesenteric ischemia presents with SUDDEN ONSET SEVERE PERIUMBILICAL PAIN (9-10/10) that is OUT OF PROPORTION to physical exam findings (severe pain but minimal tenderness). Classic presentation: 'PAIN OUT OF PROPORTION'. Pain is CONSTANT, crampy or colicky initially, becoming steady. Onset is acute, within hours. Occurs almost exclusively in patients >60 years with vascular disease. Key associated symptoms: BLOODY DIARRHEA (late finding), nausea, vomiting, urgent bowel movements. Patient appears in severe distress despite benign abdominal exam initially. Location: Diffuse, periumbilical. Key history: ATRIAL FIBRILLATION (embolic source), peripheral vascular disease, prior MI, hypercoagulable state. Classic triad: severe pain + minimal findings + elderly with vascular disease. Key positives: Severe pain with soft abdomen early, bloody diarrhea (late), metabolic acidosis. Key negatives: Young patient without vascular disease makes mesenteric ischemia extremely unlikely."
   },
   
-  "diagnostic_questions": [
-    {
-      "question_focus": "pain out of proportion to exam",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "excruciating pain",
-        "worst pain ever",
-        "10/10 pain",
-        "unbearable"
-      ],
-      "context": "Classic finding: severe pain but benign abdominal exam initially."
-    },
-    {
-      "question_focus": "age and vascular risk factors",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "over 60",
-        "over 70",
-        "atrial fibrillation",
-        "heart problems",
-        "vascular disease",
-        "recent heart attack"
-      ],
-      "negative_responses": [
-        "young",
-        "under 40",
-        "no medical problems"
-      ],
-      "context": "Very rare without vascular risk factors. Age >60 + AF = high risk."
-    },
-    {
-      "question_focus": "onset",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "sudden onset",
-        "came on suddenly",
-        "hit me all at once"
-      ],
-      "context": "Sudden onset if embolic, more gradual if thrombotic."
-    },
-    {
-      "question_focus": "bloody stool",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "bloody stool",
-        "blood in stool",
-        "dark stool",
-        "maroon stool"
-      ],
-      "context": "Late finding (indicates bowel infarction already occurred)."
-    }
-  ],
-  
   "red_flags": [
-    {
-      "finding": "All presentations are red flags",
-      "urgency": "call_911",
-      "action": "Mortality 60-80% if delayed. Immediate surgical consultation required."
-    }
-  ],
-  
-  "typical_management": "Emergency surgery, vascular intervention, anticoagulation. Early diagnosis critical for survival.",
-  
-  "disposition": "Emergency department, immediate surgical consultation, likely ICU.",
-  
-  "patient_education": "This is a life-threatening emergency requiring immediate surgery."
+    "EMERGENCY CONDITION - severe pain out of proportion to exam in elderly with AFib - call 911 immediately",
+    "Bloody diarrhea with severe pain - bowel infarction, needs immediate vascular surgery",
+    "Peritoneal signs developing - bowel necrosis/perforation, fatal without emergency surgery",
+    "Metabolic acidosis with elevated lactate - tissue ischemia, extremely poor prognosis without immediate intervention"
+  ]
 }
-

@@ -1,110 +1,23 @@
 {
   "condition": "Inflammatory Bowel Disease Flare (Crohn's/Ulcerative Colitis)",
-  "category": "gastrointestinal",
-  "icd10_codes": ["K50.90", "K51.90"],
+  "icd10": "K50.90",
+  "snomed": "34000006",
   "chief_complaint_triggers": [
     "abdominal pain",
     "diarrhea",
     "bloody diarrhea",
     "cramping"
   ],
-  "prevalence": "common",
   "urgency": "urgent",
   
   "key_features": {
-    "classic_presentation": "IBD flare presents with crampy abdominal pain, bloody diarrhea, urgency, and weight loss. Chronic/recurrent pattern. Extraintestinal manifestations (arthritis, eye inflammation) may occur. Known IBD history typical but can be new diagnosis.",
-    "typical_demographics": "Peak onset 15-30 years. Northern latitudes, Caucasians, Ashkenazi Jews higher risk. Family history common.",
-    "pathophysiology_brief": "Chronic immune-mediated inflammation of GI tract. Crohn's: transmural, any GI location. UC: mucosal, colon only."
+    "classic_presentation": "IBD flare presents with CRAMPY ABDOMINAL PAIN and CHRONIC BLOODY DIARRHEA (3-10+ stools/day). Pain is INTERMITTENT, crampy, 5-8/10 severity. Onset is over days to weeks. Patient usually has KNOWN DIAGNOSIS of Crohn's or ulcerative colitis with prior flares. Key associated symptoms: BLOODY or MUCOID diarrhea (hallmark), urgency, tenesmus (feeling of incomplete evacuation), weight loss, fatigue, LOW-GRADE FEVER. Location: Diffuse cramping, or RLQ if Crohn's (terminal ileum). Key history: Diagnosed IBD, missed medications, recent infections, stress. May have extra-intestinal manifestations (joint pain, eye inflammation, skin lesions). Key positives: Blood and mucus in stool, cramping relieved by defecation, chronic/relapsing pattern. Key negatives: Acute onset diarrhea without blood suggests gastroenteritis. First episode of bloody diarrhea needs workup (not assumed to be IBD)."
   },
   
-  "diagnostic_questions": [
-    {
-      "question_focus": "bloody diarrhea",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "blood in stool",
-        "bloody diarrhea",
-        "red blood with stool",
-        "blood mixed with stool"
-      ],
-      "context": "Bloody diarrhea is hallmark of UC. Less common in Crohn's. Distinguishes from IBS."
-    },
-    {
-      "question_focus": "chronicity",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "months",
-        "chronic problem",
-        "had this before",
-        "recurring",
-        "ongoing issue",
-        "known IBD",
-        "Crohn's disease",
-        "ulcerative colitis"
-      ],
-      "negative_responses": [
-        "first time",
-        "sudden acute onset",
-        "just today"
-      ],
-      "context": "IBD is chronic disease with relapses. Not acute first-time presentation typically."
-    },
-    {
-      "question_focus": "diarrhea frequency",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "multiple times per day",
-        "10+ bowel movements",
-        "constant diarrhea",
-        "all day"
-      ],
-      "context": "Severe flares: >6 BM/day. UC flares can have 10-20+ bloody stools daily."
-    },
-    {
-      "question_focus": "urgency and tenesmus",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "urgent need to go",
-        "can't hold it",
-        "feeling like need to go but nothing",
-        "incomplete evacuation"
-      ],
-      "context": "Urgency and tenesmus are characteristic of UC."
-    },
-    {
-      "question_focus": "weight loss",
-      "diagnostic_value": "moderate",
-      "expected_positive_responses": [
-        "losing weight",
-        "weight loss",
-        "lost pounds"
-      ],
-      "context": "Unintentional weight loss common in active disease."
-    }
-  ],
-  
   "red_flags": [
-    {
-      "finding": "Severe abdominal distension with no BM",
-      "urgency": "call_911",
-      "action": "Toxic megacolon - life-threatening, needs emergency surgery"
-    },
-    {
-      "finding": "Fever, tachycardia, severe pain",
-      "urgency": "emergency",
-      "action": "Severe flare or complication - urgent hospitalization"
-    },
-    {
-      "finding": "Peritoneal signs",
-      "urgency": "call_911",
-      "action": "Possible perforation - surgical emergency"
-    }
-  ],
-  
-  "typical_management": "Corticosteroids for flares, biologics (anti-TNF), immunomodulators. Severe: hospitalization, IV steroids. Surgical consultation if complications.",
-  
-  "disposition": "Mild-moderate: outpatient with GI follow-up. Severe: hospital admission. Complications: emergency department.",
-  
-  "patient_education": "IBD is chronic intestinal inflammation. Flares require treatment intensification. With proper management, most achieve remission. Urgent care needed for severe symptoms."
+    "Severe abdominal pain with peritoneal signs - toxic megacolon or perforation, call 911",
+    "High fever >102°F with tachycardia - severe colitis, toxic megacolon risk",
+    "Severe bloody diarrhea with >10 stools/day - severe flare, needs hospitalization",
+    "Abdominal distension with decreased bowel sounds - toxic megacolon, surgical emergency"
+  ]
 }
-

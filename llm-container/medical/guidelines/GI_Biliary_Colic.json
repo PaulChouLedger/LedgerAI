@@ -1,132 +1,22 @@
 {
   "condition": "Biliary Colic",
-  "category": "gastrointestinal",
-  "icd10_codes": ["K80.20", "K80.21"],
+  "icd10": "K80.20",
+  "snomed": "235856003",
   "chief_complaint_triggers": [
     "abdominal pain",
     "right upper abdominal pain",
     "RUQ pain",
     "pain after eating"
   ],
-  "prevalence": "common",
-  "urgency": "semi_urgent",
+  "urgency": "routine",
   
   "key_features": {
-    "classic_presentation": "Biliary colic presents with episodic RUQ or epigastric pain triggered by fatty meals. Pain builds to peak over 15 minutes, plateaus for 1-4 hours, then gradually resolves. No fever. Recurrent episodes over weeks to months.",
-    "typical_demographics": "Same as cholecystitis - Female, Forty, Fat, Fertile. 10-15% of US adults have gallstones.",
-    "pathophysiology_brief": "Temporary cystic duct obstruction by gallstone causes gallbladder spasm and pain. Stone passes, pain resolves. No inflammation."
+    "classic_presentation": "Biliary colic presents with EPISODIC (comes and goes) right upper quadrant (RUQ) pain that occurs 30 minutes to 2 hours AFTER EATING, especially after FATTY OR GREASY MEALS. Each episode lasts 30 minutes to 6 hours (shorter than cholecystitis which lasts >6 hours), then COMPLETELY RESOLVES between episodes. Pain is SEVERE (7-10/10), steady (not crampy), and may RADIATE TO RIGHT SHOULDER OR BACK. Pain is caused by gallstone temporarily blocking the cystic duct. Key associated symptoms: Nausea without vomiting (or minimal vomiting), bloating, belching. NO FEVER (fever suggests cholecystitis). Location: RUQ or epigastric pain. Pattern: RECURRENT episodes over weeks to months - patient usually has had similar episodes before. Key positives: Pain triggered by specific foods (fried foods, fatty meats, dairy), pain-free between attacks. Key negatives: CONSTANT pain that doesn't resolve suggests cholecystitis not colic. Fever rules out simple biliary colic. Jaundice suggests bile duct stone (choledocholithiasis)."
   },
   
-  "diagnostic_questions": [
-    {
-      "question_focus": "pain pattern",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "comes and goes",
-        "episodic",
-        "attacks",
-        "lasts few hours then stops",
-        "intermittent"
-      ],
-      "negative_responses": [
-        "constant for days",
-        "steady",
-        "not resolving"
-      ],
-      "context": "Intermittent pattern distinguishes from cholecystitis. Each episode lasts 30min-6h (typically 1-4h)."
-    },
-    {
-      "question_focus": "pain location",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "right upper abdomen",
-        "upper right",
-        "RUQ",
-        "epigastric"
-      ],
-      "context": "RUQ or epigastric. May radiate to right scapula."
-    },
-    {
-      "question_focus": "meal relationship",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "after fatty foods",
-        "after eating",
-        "triggered by meals",
-        "especially greasy food"
-      ],
-      "context": "Often triggered by fatty meals (causes CCK release → gallbladder contraction)."
-    },
-    {
-      "question_focus": "fever",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [],
-      "negative_responses": [
-        "fever",
-        "chills",
-        "feeling hot"
-      ],
-      "context": "NO fever in uncomplicated biliary colic. Fever indicates cholecystitis."
-    },
-    {
-      "question_focus": "recurrence",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "had similar episodes",
-        "happens every few weeks",
-        "recurrent attacks",
-        "multiple times"
-      ],
-      "context": "Recurrent episodes over weeks to months is typical. Single first episode is less specific."
-    },
-    {
-      "question_focus": "timeline",
-      "diagnostic_value": "moderate",
-      "expected_positive_responses": [
-        "1-4 hours",
-        "few hours",
-        "started after dinner",
-        "resolving now"
-      ],
-      "context": "Individual episodes last 1-6 hours. If >6 hours consider cholecystitis."
-    }
-  ],
-  
-  "differential_diagnosis": [
-    {
-      "condition": "Acute Cholecystitis",
-      "key_difference": "Constant pain >6 hours, fever, more severe",
-      "similarity": "RUQ location, post-prandial"
-    },
-    {
-      "condition": "Peptic Ulcer",
-      "key_difference": "Epigastric midline, burning quality, chronic",
-      "similarity": "Post-prandial pain"
-    }
-  ],
-  
   "red_flags": [
-    {
-      "finding": "Pain lasting >6 hours",
-      "urgency": "emergency",
-      "action": "Possible progression to cholecystitis - ER evaluation"
-    },
-    {
-      "finding": "Fever with RUQ pain",
-      "urgency": "emergency",
-      "action": "Cholecystitis, not simple colic - urgent care needed"
-    },
-    {
-      "finding": "Jaundice",
-      "urgency": "emergency",
-      "action": "Possible choledocholithiasis - ER evaluation"
-    }
-  ],
-  
-  "typical_management": "Pain control during episodes. Elective cholecystectomy to prevent recurrence and complications. Most progress to cholecystitis within 2-3 years if not treated.",
-  
-  "disposition": "Outpatient management if uncomplicated. Surgical referral for cholecystectomy.",
-  
-  "patient_education": "Biliary colic is pain from gallstones temporarily blocking the gallbladder duct. While not immediately dangerous, it often recurs and can progress to gallbladder inflammation. Gallbladder removal is the definitive treatment."
+    "Pain lasting >6 hours with fever - suggests acute cholecystitis, needs urgent evaluation",
+    "Jaundice (yellow skin/eyes) - bile duct obstruction, needs urgent imaging and possible ERCP",
+    "Severe pain with vomiting and unable to tolerate liquids - dehydration risk"
+  ]
 }
-

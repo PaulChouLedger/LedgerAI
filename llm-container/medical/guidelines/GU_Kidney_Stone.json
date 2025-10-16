@@ -1,7 +1,7 @@
 {
   "condition": "Kidney Stone (Nephrolithiasis/Ureterolithiasis)",
-  "category": "gastrointestinal",
-  "icd10_codes": ["N20.0", "N20.1", "N20.2"],
+  "icd10": "N20.0",
+  "snomed": "95570007",
   "chief_complaint_triggers": [
     "abdominal pain",
     "flank pain",
@@ -9,161 +9,16 @@
     "side pain",
     "kidney pain"
   ],
-  "prevalence": "common",
   "urgency": "urgent",
   
   "key_features": {
-    "classic_presentation": "Kidney stone presents with sudden-onset severe colicky flank pain radiating to groin. Pain comes in waves, patient cannot find comfortable position (writhing in pain). Hematuria (blood in urine) in 85%. Nausea and vomiting common.",
-    "typical_demographics": "Peak age 30-50 years. Male predominance (2:1). Higher in hot climates, dehydration, family history. 12% lifetime risk.",
-    "pathophysiology_brief": "Stone passes from kidney into ureter causing obstruction, ureteral spasm, and severe colicky pain."
+    "classic_presentation": "Kidney stone presents with SUDDEN ONSET SEVERE COLICKY FLANK PAIN (8-10/10) that COMES IN WAVES and RADIATES from flank to groin/testicle in males or labia in females. Pain is described as the 'WORST PAIN OF MY LIFE'. Patient is RESTLESS, cannot find comfortable position (unlike peritonitis where patient lies still). Pain intensity waxes and wanes in waves. Onset is acute, within minutes to hours. Key associated symptoms: NAUSEA and VOMITING (very common), HEMATURIA (blood in urine - gross or microscopic in 90%), urinary frequency and urgency. Location: Unilateral flank pain radiating to groin. Key history: Prior stones, dehydration, family history. Patient often paces, writhes in pain. Key positives: CVA (costovertebral angle) tenderness, gross hematuria, inability to sit still. Key negatives: Peritoneal signs (guarding, rigidity) suggest alternative diagnosis. Fever with flank pain suggests pyelonephritis, not simple stone."
   },
   
-  "diagnostic_questions": [
-    {
-      "question_focus": "pain location",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "flank",
-        "side",
-        "back",
-        "kidney area",
-        "costovertebral angle"
-      ],
-      "negative_responses": [
-        "front of abdomen only",
-        "epigastric",
-        "no back involvement"
-      ],
-      "context": "Flank pain is classic. Starts in back/side and radiates anteriorly."
-    },
-    {
-      "question_focus": "pain radiation",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "radiates to groin",
-        "goes to testicle",
-        "goes to labia",
-        "down to pelvis",
-        "wraps around front"
-      ],
-      "context": "Radiation to groin/genitals is highly specific (stone moving down ureter). Follows ureteral path."
-    },
-    {
-      "question_focus": "pain quality and pattern",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "comes in waves",
-        "colicky",
-        "waxing and waning",
-        "spasms",
-        "intermittent severe pain"
-      ],
-      "negative_responses": [
-        "constant steady pain"
-      ],
-      "context": "Colicky pattern (waves) due to ureteral peristalsis. Severe during spasms, better between."
-    },
-    {
-      "question_focus": "patient behavior",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "can't stay still",
-        "writhing around",
-        "pacing",
-        "can't find comfortable position",
-        "moving constantly"
-      ],
-      "negative_responses": [
-        "lying perfectly still"
-      ],
-      "context": "Patients with kidney stones are restless/writhing (vs appendicitis where they lie still)."
-    },
-    {
-      "question_focus": "urinary symptoms",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "blood in urine",
-        "pink urine",
-        "red urine",
-        "painful urination",
-        "frequent urination"
-      ],
-      "context": "Hematuria in 85%. Dysuria and frequency when stone near bladder."
-    },
-    {
-      "question_focus": "onset",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "sudden onset",
-        "came on suddenly",
-        "hit me all at once",
-        "woke me up"
-      ],
-      "context": "Onset is typically sudden and dramatic, reaching maximum intensity quickly."
-    },
-    {
-      "question_focus": "nausea and vomiting",
-      "diagnostic_value": "moderate",
-      "expected_positive_responses": [
-        "nauseous",
-        "vomiting",
-        "threw up"
-      ],
-      "context": "Nausea/vomiting common (50%) due to shared nerve pathways."
-    },
-    {
-      "question_focus": "timeline",
-      "diagnostic_value": "moderate",
-      "expected_positive_responses": [
-        "started today",
-        "this morning",
-        "hours ago",
-        "suddenly today"
-      ],
-      "context": "Acute onset, typically hours to 1-2 days."
-    }
-  ],
-  
-  "differential_diagnosis": [
-    {
-      "condition": "Appendicitis",
-      "key_difference": "RLQ pain, migration pattern, patient lies still",
-      "similarity": "Severe pain, nausea/vomiting"
-    },
-    {
-      "condition": "Ovarian Torsion",
-      "key_difference": "Lower abdominal pain, no hematuria",
-      "similarity": "Sudden onset, severe, colicky"
-    },
-    {
-      "condition": "Ruptured AAA",
-      "key_difference": "Hemodynamic instability, pulsatile mass, older age",
-      "similarity": "Flank/back pain, sudden onset"
-    }
-  ],
-  
   "red_flags": [
-    {
-      "finding": "Fever + flank pain",
-      "urgency": "emergency",
-      "action": "Possible infected stone (pyonephrosis) - urgent care needed"
-    },
-    {
-      "finding": "Anuria (no urine output)",
-      "urgency": "call_911",
-      "action": "Bilateral obstruction or single kidney - emergency"
-    },
-    {
-      "finding": "Sepsis signs",
-      "urgency": "call_911",
-      "action": "Obstructive pyelonephritis - life-threatening emergency"
-    }
-  ],
-  
-  "typical_management": "Pain control (NSAIDs, opioids), IV fluids, alpha-blockers (tamsulosin) to facilitate passage. Most stones <5mm pass spontaneously. Larger stones may need lithotripsy or ureteroscopy.",
-  
-  "disposition": "Emergency department for pain control and imaging. Most can be discharged with urology follow-up. Admission if intractable pain, infection, or obstruction.",
-  
-  "patient_education": "Kidney stones are mineral crystals that can block the urinary tract. Most pass on their own with hydration and pain medication. Larger stones may need procedures. Increase fluid intake to prevent recurrence."
+    "Fever with flank pain - infected stone (pyonephrosis), needs urgent urology intervention",
+    "Anuria (no urine output) - complete obstruction, needs urgent decompression",
+    "Single kidney with obstructing stone - urgent urology consult",
+    "Severe pain unresponsive to narcotics - may need urgent intervention"
+  ]
 }
-

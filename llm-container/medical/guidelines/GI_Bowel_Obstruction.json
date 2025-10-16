@@ -1,7 +1,7 @@
 {
   "condition": "Small Bowel Obstruction",
-  "category": "gastrointestinal",
-  "icd10_codes": ["K56.60", "K56.69"],
+  "icd10": "K56.60",
+  "snomed": "81060008",
   "chief_complaint_triggers": [
     "abdominal pain",
     "cramping",
@@ -10,120 +10,16 @@
     "can't pass gas",
     "bloating"
   ],
-  "prevalence": "common",
   "urgency": "urgent",
   
   "key_features": {
-    "classic_presentation": "Small bowel obstruction presents with crampy, intermittent abdominal pain, vomiting (often bilious), abdominal distension, and inability to pass gas or stool. Pain comes in waves. High-pitched bowel sounds early, then silent abdomen later.",
-    "typical_demographics": "Most common cause: adhesions from prior abdominal surgery (60%). Also hernias, malignancy. Any age, but elderly at higher risk.",
-    "pathophysiology_brief": "Mechanical blockage of small intestine leads to proximal dilation, fluid accumulation, bacterial overgrowth, and potential ischemia/perforation."
+    "classic_presentation": "Small bowel obstruction presents with COLICKY CRAMPING pain that COMES AND GOES IN WAVES (not constant), typically every 4-5 minutes. Pain is diffuse, periumbilical, 6-9/10 severity during cramps. Onset is usually within 12-48 hours. Key associated symptoms: BILIOUS (green/yellow) VOMITING that becomes progressively more frequent and feculent if complete obstruction, ABSOLUTE CONSTIPATION (unable to pass stool OR GAS for >12-24 hours), progressive abdominal DISTENSION (belly swelling). Location: Periumbilical and diffuse cramping, not localized. Key history: Prior abdominal surgery (adhesions most common cause), hernia, prior obstruction. Patient may have TINKLING or HIGH-PITCHED bowel sounds. Key positives: Crampy pain relieved temporarily after vomiting, inability to pass flatus, progressive bloating. Key negatives: Diarrhea rules out complete obstruction. Constant pain with peritoneal signs suggests strangulation (surgical emergency). Blood in vomit suggests advanced obstruction."
   },
   
-  "diagnostic_questions": [
-    {
-      "question_focus": "pain pattern",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "comes and goes",
-        "crampy",
-        "waves of pain",
-        "intermittent",
-        "spasms every few minutes"
-      ],
-      "negative_responses": [
-        "constant",
-        "steady",
-        "doesn't change"
-      ],
-      "context": "Colicky pain in waves (every 4-5 minutes) is classic for obstruction."
-    },
-    {
-      "question_focus": "vomiting",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "vomiting",
-        "throwing up",
-        "bilious vomit",
-        "green vomit",
-        "can't keep anything down"
-      ],
-      "context": "Vomiting is prominent, often bilious (green/yellow). Proximal obstruction: earlier, more profuse vomiting."
-    },
-    {
-      "question_focus": "bowel movements and gas",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "no bowel movement",
-        "can't pass gas",
-        "no flatus",
-        "constipated",
-        "nothing coming out"
-      ],
-      "context": "Inability to pass gas or stool is hallmark. Complete obstruction: absolute constipation."
-    },
-    {
-      "question_focus": "abdominal distension",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "bloated",
-        "swollen belly",
-        "abdomen distended",
-        "stomach blown up"
-      ],
-      "context": "Visible distension develops over hours. More prominent in distal obstruction."
-    },
-    {
-      "question_focus": "previous abdominal surgery",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "had surgery before",
-        "previous abdominal operation",
-        "C-section",
-        "appendectomy",
-        "any belly surgery"
-      ],
-      "context": "Prior surgery is #1 risk factor (adhesions). Ask specifically about any abdominal operations."
-    },
-    {
-      "question_focus": "hernia",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "have a hernia",
-        "bulge in groin",
-        "lump that won't go back in",
-        "painful bulge"
-      ],
-      "context": "Incarcerated hernia is important cause. Check for inguinal, umbilical, or incisional hernias."
-    },
-    {
-      "question_focus": "timeline",
-      "diagnostic_value": "moderate",
-      "expected_positive_responses": [
-        "started today",
-        "yesterday",
-        "last 24 hours"
-      ],
-      "context": "Symptoms typically develop over hours to 1-2 days."
-    }
-  ],
-  
   "red_flags": [
-    {
-      "finding": "Fever + severe pain + peritoneal signs",
-      "urgency": "call_911",
-      "action": "Possible perforation or strangulation - surgical emergency"
-    },
-    {
-      "finding": "Severe unrelenting pain (not colicky)",
-      "urgency": "call_911",
-      "action": "Suggests strangulation with ischemia - emergency surgery needed"
-    }
-  ],
-  
-  "typical_management": "NPO, NGtube decompression, IV fluids, surgical consultation. Many resolve with conservative management. Surgery if strangulation, perforation, or failure to improve.",
-  
-  "disposition": "Emergency department for urgent surgical evaluation. Most require hospital admission.",
-  
-  "patient_education": "Bowel obstruction is a blockage preventing food and fluid from passing through the intestines. It requires immediate medical care and often hospitalization. Treatment may be supportive or require surgery."
+    "Severe constant pain with fever and peritoneal signs - strangulated bowel, call 911",
+    "Bloody vomit or stool - ischemic bowel, needs immediate surgery",
+    "Severe abdominal distension with tachycardia - complete obstruction with possible perforation",
+    "Previous bowel obstruction - higher risk of recurrence and complications"
+  ]
 }
-

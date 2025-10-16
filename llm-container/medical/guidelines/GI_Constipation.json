@@ -1,7 +1,7 @@
 {
   "condition": "Severe Constipation",
-  "category": "gastrointestinal",
-  "icd10_codes": ["K59.00", "K59.09"],
+  "icd10": "K59.00",
+  "snomed": "14760008",
   "chief_complaint_triggers": [
     "abdominal pain",
     "stomach pain",
@@ -10,102 +10,16 @@
     "can't have bowel movement",
     "constipation"
   ],
-  "prevalence": "very_common",
   "urgency": "routine",
   
   "key_features": {
-    "classic_presentation": "Severe constipation presents with lower abdominal cramping, bloating, straining with bowel movements, hard stools, and sensation of incomplete evacuation. Pain is usually mild-moderate, diffuse. Gradual onset over days to weeks.",
-    "typical_demographics": "More common in elderly, females, sedentary lifestyle. Medications (opioids, anticholinergics) are common causes.",
-    "pathophysiology_brief": "Slow colonic transit or defecation disorders lead to hard, infrequent stools."
+    "classic_presentation": "Severe constipation presents with LOWER ABDOMINAL cramping pain and BLOATING that is INTERMITTENT (comes and goes) and MILD TO MODERATE severity (3-6/10). Onset is GRADUAL over days to weeks (not acute). Key symptom: NO BOWEL MOVEMENT for 3-7+ days, or hard/pellet-like stools when passing. Pain is RELIEVED by bowel movement or passing gas. Location: Lower abdomen, diffuse cramping. Key associated symptoms: Bloating, sensation of incomplete evacuation, straining, hard stools. Usually NO fever, NO vomiting (unless severe impaction). Key history: Poor fiber/water intake, sedentary lifestyle, medications (opioids, iron, anticholinergics), chronic constipation pattern. Key positives: Gradual onset, able to pass gas (unlike obstruction), pain better after defecation. Key negatives: Sudden onset with inability to pass gas suggests obstruction not constipation. Vomiting is uncommon. Severe pain suggests alternative diagnosis."
   },
   
-  "diagnostic_questions": [
-    {
-      "question_focus": "bowel movement frequency",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "no bowel movement",
-        "haven't gone in days",
-        "3+ days without BM",
-        "can't pass stool"
-      ],
-      "context": "<3 BM per week defines constipation."
-    },
-    {
-      "question_focus": "stool consistency",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "hard stools",
-        "like rocks",
-        "pellets",
-        "difficult to pass",
-        "straining"
-      ],
-      "context": "Hard, lumpy stools (Bristol 1-2) are characteristic."
-    },
-    {
-      "question_focus": "pain quality",
-      "diagnostic_value": "moderate",
-      "expected_positive_responses": [
-        "cramping",
-        "bloating",
-        "discomfort",
-        "fullness"
-      ],
-      "negative_responses": [
-        "severe sharp pain",
-        "worst pain ever",
-        "excruciating"
-      ],
-      "context": "Pain is usually mild-moderate cramping/bloating, not severe."
-    },
-    {
-      "question_focus": "chronicity",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "ongoing problem",
-        "always had issues",
-        "chronic",
-        "weeks to months"
-      ],
-      "context": "Often chronic issue, not acute first presentation."
-    },
-    {
-      "question_focus": "medications",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "taking pain pills",
-        "opioids",
-        "codeine",
-        "iron supplements",
-        "antidepressants"
-      ],
-      "context": "Many medications cause constipation. Opioids are most common."
-    }
-  ],
-  
   "red_flags": [
-    {
-      "finding": "Severe pain with no BM for >7 days",
-      "urgency": "emergency",
-      "action": "Possible obstruction - needs imaging"
-    },
-    {
-      "finding": "Vomiting, inability to pass gas",
-      "urgency": "emergency",
-      "action": "Bowel obstruction - ER evaluation"
-    },
-    {
-      "finding": "Blood in stool with new-onset constipation",
-      "urgency": "urgent",
-      "action": "Rule out malignancy or other serious cause"
-    }
-  ],
-  
-  "typical_management": "Increase fiber, hydration, exercise. Stool softeners, osmotic laxatives (miralax). Avoid chronic stimulant laxative use.",
-  
-  "disposition": "Outpatient management unless red flags present.",
-  
-  "patient_education": "Constipation is very common. Treatment includes dietary changes, fluids, and laxatives if needed. See doctor if it doesn't improve or if you have concerning symptoms."
+    "Sudden onset severe constipation with vomiting - possible bowel obstruction, needs urgent imaging",
+    "Complete inability to pass gas - suggests obstruction not simple constipation",
+    "Blood in stool with weight loss - concern for colon cancer, needs colonoscopy",
+    "New onset constipation in elderly - higher risk of serious pathology"
+  ]
 }
-

@@ -1,7 +1,7 @@
 {
   "condition": "Acute Hepatitis",
-  "category": "gastrointestinal",
-  "icd10_codes": ["K72.00", "B15.9", "B16.9", "K71.9"],
+  "icd10": "K72.00",
+  "snomed": "37871000",
   "chief_complaint_triggers": [
     "abdominal pain",
     "right upper abdominal pain",
@@ -9,141 +9,16 @@
     "yellow eyes",
     "dark urine"
   ],
-  "prevalence": "uncommon",
   "urgency": "urgent",
   
   "key_features": {
-    "classic_presentation": "Acute hepatitis presents with RUQ discomfort, fatigue, nausea, jaundice (yellow skin/eyes), dark urine, pale stools. Onset over days to weeks. Viral (A, B, C), drug-induced, or autoimmune. Tender hepatomegaly on exam.",
-    "typical_demographics": "Viral: young adults. Drug-induced: any age, medication exposure. Alcoholic: chronic heavy drinking.",
-    "pathophysiology_brief": "Hepatocellular injury and inflammation from viral infection, drugs (acetaminophen, medications), alcohol, or autoimmune."
+    "classic_presentation": "Acute hepatitis presents with RIGHT UPPER QUADRANT pain or discomfort (liver area), JAUNDICE (yellow skin and eyes), and DARK URINE (tea-colored). Pain is DULL, ACHING, 4-7/10 severity, constant. Onset is subacute over days to weeks. Key associated symptoms: PROFOUND FATIGUE and malaise, anorexia, nausea, vomiting, LOW-GRADE FEVER. JAUNDICE appears after 1-2 weeks of prodromal symptoms. LIGHT-COLORED (clay-colored) STOOLS. Location: RUQ tenderness, hepatomegaly (enlarged liver). Key history: Risk factors include IV drug use, unprotected sex, travel to endemic areas, alcohol abuse, medications (acetaminophen overdose, certain antibiotics). Key positives: Scleral icterus (yellow eyes), dark urine, profound fatigue. Key negatives: Acute severe RUQ pain without jaundice suggests cholecystitis. High fever with rigors suggests cholangitis."
   },
   
-  "diagnostic_questions": [
-    {
-      "question_focus": "jaundice",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "yellow eyes",
-        "yellow skin",
-        "jaundiced",
-        "turning yellow"
-      ],
-      "context": "Jaundice is hallmark when bilirubin >3. May notice eyes first."
-    },
-    {
-      "question_focus": "dark urine",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "dark urine",
-        "brown urine",
-        "tea-colored urine",
-        "cola-colored"
-      ],
-      "context": "Dark urine (bili rubinuria) often precedes jaundice."
-    },
-    {
-      "question_focus": "pale stools",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "pale stools",
-        "clay-colored",
-        "light-colored stools"
-      ],
-      "context": "Acholic stools indicate cholestatic jaundice."
-    },
-    {
-      "question_focus": "pain quality and location",
-      "diagnostic_value": "moderate",
-      "expected_positive_responses": [
-        "right upper abdomen",
-        "dull ache",
-        "discomfort",
-        "RUQ"
-      ],
-      "negative_responses": [
-        "severe sharp pain",
-        "excruciating"
-      ],
-      "context": "RUQ discomfort/fullness, not severe pain. Severe pain suggests other diagnosis."
-    },
-    {
-      "question_focus": "constitutional symptoms",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "very tired",
-        "fatigue",
-        "malaise",
-        "no energy",
-        "flu-like"
-      ],
-      "context": "Fatigue and malaise often prominent, sometimes preceding jaundice."
-    },
-    {
-      "question_focus": "nausea and anorexia",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "nauseous",
-        "loss of appetite",
-        "can't eat",
-        "food aversion"
-      ],
-      "context": "Nausea and anorexia common (70%)."
-    },
-    {
-      "question_focus": "risk factors",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "new medication",
-        "Tylenol overdose",
-        "heavy drinking",
-        "IV drug use",
-        "travel",
-        "exposure to hepatitis"
-      ],
-      "context": "Ask about: medications, alcohol, drug use, exposures, travel."
-    },
-    {
-      "question_focus": "timeline",
-      "diagnostic_value": "moderate",
-      "expected_positive_responses": [
-        "days to weeks",
-        "gradual onset",
-        "slowly getting worse"
-      ],
-      "context": "Onset over days to weeks, not acute hours."
-    }
-  ],
-  
-  "differential_diagnosis": [
-    {
-      "condition": "Cholecystitis",
-      "key_difference": "Severe RUQ pain, fever, acute onset",
-      "similarity": "RUQ location"
-    },
-    {
-      "condition": "Choledocholithiasis",
-      "key_difference": "Severe pain, rapid jaundice, Charcot's triad",
-      "similarity": "Jaundice, RUQ pain"
-    }
-  ],
-  
   "red_flags": [
-    {
-      "finding": "Confusion, coagulopathy, encephalopathy",
-      "urgency": "call_911",
-      "action": "Acute liver failure - ICU level care required"
-    },
-    {
-      "finding": "Acetaminophen overdose history",
-      "urgency": "emergency",
-      "action": "Possible fulminant hepatic failure - urgent care, consider N-acetylcysteine"
-    }
-  ],
-  
-  "typical_management": "Supportive care. Stop offending agents (alcohol, medications). Viral: rest, hydration. Drug-induced: stop drug, NAC if acetaminophen. Monitor liver enzymes, coags.",
-  
-  "disposition": "Mild: outpatient with close follow-up. Moderate-severe: admission. Acute liver failure: ICU.",
-  
-  "patient_education": "Hepatitis is liver inflammation. Causes include viruses, medications, and alcohol. Most viral hepatitis resolves with supportive care. Avoid alcohol and unnecessary medications during recovery."
+    "Altered mental status (confusion, drowsiness) - acute liver failure, call 911",
+    "Coagulopathy (easy bruising, bleeding) - severe hepatitis with liver synthetic dysfunction",
+    "Hypoglycemia, severe jaundice - fulminant hepatic failure, needs ICU",
+    "Acetaminophen overdose history - potentially fatal, needs immediate N-acetylcysteine"
+  ]
 }
-

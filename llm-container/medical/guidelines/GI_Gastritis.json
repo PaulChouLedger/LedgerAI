@@ -1,7 +1,7 @@
 {
   "condition": "Acute Gastritis",
-  "category": "gastrointestinal",
-  "icd10_codes": ["K29.70", "K29.00"],
+  "icd10": "K29.70",
+  "snomed": "4556007",
   "chief_complaint_triggers": [
     "abdominal pain",
     "stomach pain",
@@ -9,104 +9,16 @@
     "nausea",
     "upper abdominal pain"
   ],
-  "prevalence": "very_common",
   "urgency": "routine",
   
   "key_features": {
-    "classic_presentation": "Acute gastritis presents with epigastric discomfort, burning, nausea, and sometimes vomiting. Often associated with NSAID use, alcohol, or stress. Symptoms develop over hours to days. Diffuse epigastric tenderness.",
-    "typical_demographics": "All ages. Common triggers: NSAIDs, alcohol, H. pylori infection, stress.",
-    "pathophysiology_brief": "Mucosal inflammation from NSAIDs, alcohol, H. pylori, or stress disrupts protective barrier."
+    "classic_presentation": "Acute gastritis presents with EPIGASTRIC (upper mid-abdomen) pain or discomfort that is GNAWING or BURNING in quality, typically 4-7/10 severity. Pain is WORSE WITH EATING (unlike peptic ulcer which may improve with food). Onset is acute, within hours to days, often triggered by NSAIDs (ibuprofen, aspirin), alcohol, or stress. Key associated symptoms: NAUSEA (very common), vomiting, loss of appetite, bloating, early satiety (feeling full quickly). Location: Epigastric, diffuse upper abdomen. NO radiation. Key triggers: Recent NSAID use, heavy alcohol consumption, severe stress/illness. Key positives: Nausea worse with eating, diffuse epigastric tenderness without peritoneal signs. Key negatives: Severe localized pain suggests ulcer. Vomiting blood (hematemesis) or black tarry stools (melena) suggests bleeding gastritis or ulcer requiring urgent evaluation. Weight loss suggests chronic condition or malignancy."
   },
   
-  "diagnostic_questions": [
-    {
-      "question_focus": "pain location",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "upper stomach",
-        "epigastric",
-        "upper abdomen",
-        "pit of stomach"
-      ],
-      "context": "Epigastric location, often diffuse rather than point tenderness."
-    },
-    {
-      "question_focus": "pain quality",
-      "diagnostic_value": "moderate",
-      "expected_positive_responses": [
-        "burning",
-        "gnawing",
-        "discomfort",
-        "upset stomach"
-      ],
-      "context": "Pain usually mild-moderate, not severe."
-    },
-    {
-      "question_focus": "NSAID or alcohol use",
-      "diagnostic_value": "critical",
-      "expected_positive_responses": [
-        "taking ibuprofen",
-        "aspirin",
-        "drinking alcohol",
-        "took NSAIDs",
-        "heavy drinking recently"
-      ],
-      "context": "Recent NSAID or alcohol use strongly suggests gastritis."
-    },
-    {
-      "question_focus": "nausea",
-      "diagnostic_value": "high",
-      "expected_positive_responses": [
-        "nauseous",
-        "queasy",
-        "upset stomach",
-        "feeling sick"
-      ],
-      "context": "Nausea very common (80%)."
-    },
-    {
-      "question_focus": "timeline",
-      "diagnostic_value": "moderate",
-      "expected_positive_responses": [
-        "started today",
-        "yesterday",
-        "past day or two",
-        "acute onset"
-      ],
-      "context": "Acute onset over hours to 1-2 days after trigger."
-    }
-  ],
-  
-  "differential_diagnosis": [
-    {
-      "condition": "Peptic Ulcer",
-      "key_difference": "More severe, chronic/recurrent, specific meal pattern",
-      "similarity": "Epigastric burning, NSAID-related"
-    },
-    {
-      "condition": "GERD",
-      "key_difference": "Heartburn, positional, chronic",
-      "similarity": "Epigastric burning"
-    }
-  ],
-  
   "red_flags": [
-    {
-      "finding": "Hematemesis (vomiting blood)",
-      "urgency": "call_911",
-      "action": "Upper GI bleed - emergency care"
-    },
-    {
-      "finding": "Severe unrelenting pain",
-      "urgency": "emergency",
-      "action": "May be ulcer or other serious condition"
-    }
-  ],
-  
-  "typical_management": "Stop NSAIDs/alcohol, PPI or H2-blocker, bland diet. Usually resolves in few days.",
-  
-  "disposition": "Outpatient management unless severe or bleeding.",
-  
-  "patient_education": "Gastritis is stomach lining inflammation. Avoid NSAIDs and alcohol. Medications reduce acid. Most cases resolve quickly with treatment."
+    "Vomiting blood (hematemesis) or coffee-ground emesis - GI bleeding, needs urgent endoscopy",
+    "Black tarry stools (melena) - upper GI bleeding",
+    "Severe pain with peritoneal signs - concern for perforation",
+    "Persistent symptoms despite stopping NSAIDs and taking PPIs - needs endoscopy to rule out ulcer or malignancy"
+  ]
 }
-
