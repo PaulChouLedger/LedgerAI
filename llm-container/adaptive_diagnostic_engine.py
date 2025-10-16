@@ -531,22 +531,8 @@ Output:"""
         print(f"[Engine] 🧠 LLM QUESTION GENERATION")
         print(f"{'='*80}")
         
-        # Build context for LLM
+        # Build context for LLM (MINIMAL - no guidelines, just OLDCARTS template)
         patient_info = f"{self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')} with {self.chief_complaint}"
-        
-        # Get ONLY classical presentations (minimal context for LLM)
-        # Full guideline with red flags sent ONLY at final diagnosis
-        guidelines_context = []
-        for i, g in enumerate(self.active_guidelines, 1):
-            classic = g['data'].get('key_features', {}).get('classic_presentation', 'N/A')
-            urgency = g['data'].get('urgency', 'routine')
-            
-            guidelines_context.append(f"""
-Guideline {i}: {g['name']} (Current Score: {g['score']:.0%}, Urgency: {urgency})
-Classic Presentation: {classic}
-""")
-        
-        guidelines_text = "\n".join(guidelines_context)
         
         # Get questions already asked
         asked = []
@@ -554,78 +540,51 @@ Classic Presentation: {classic}
             if item['type'] == 'question' and item.get('focus') not in ['age', 'sex']:
                 asked.append(item['question'])
         
-        asked_text = "\n".join([f"- {q}" for q in asked]) if asked else "None yet"
-        
         print(f"[Engine] 📋 Patient: {patient_info}")
-        print(f"[Engine] 📋 Guidelines in context: {len(self.active_guidelines)}")
         print(f"[Engine] 📋 Questions asked: {len(asked)}")
         
-        # LLM PROMPT: Generate next question
-        # Read classical presentations and extract KEY DISCRIMINATING FEATURE
-        system_msg = "You are a diagnostic AI. Ask ONE simple question about ONE symptom only. Never combine questions with 'and'. Output ONLY the question."
-        
-        # Extract KEY features from each guideline (CAPS words indicate important differentiators)
-        key_features = []
-        for g in self.active_guidelines:
-            classic = g['data'].get('key_features', {}).get('classic_presentation', '')
-            # Look for CAPITALIZED keywords (these are the discriminators)
-            caps_words = re.findall(r'\b[A-Z]{3,}[A-Z\s]*', classic)
-            if caps_words:
-                key_features.append(f"{g['name']}: {', '.join(caps_words[:3])}")
-        
-        features_text = '\n'.join(key_features) if key_features else "Location, Timing, Quality"
-        
-        print(f"[Engine] 📋 Extracted key features:")
-        print(f"{features_text}")
-        
-        # Build list of already asked questions to avoid repeats
-        asked_list = "\n".join([f"- {q}" for q in asked]) if asked else "None"
+        # LLM PROMPT: Generate next question using ONLY generic OLDCARTS template
+        system_msg = "You are a medical assistant. Generate ONE simple question. Output ONLY the question text, no explanations."
         
         # Show OLDCARTS coverage
         covered_elements = [k for k, v in self.oldcarts_covered.items() if v]
         uncovered_elements = [k for k, v in self.oldcarts_covered.items() if not v]
         coverage_str = ''.join([k if v else '_' for k, v in self.oldcarts_covered.items()])
         
-        user_msg = f"""Patient: {patient_info}
+        # Determine next OLDCARTS element to ask about
+        next_element = uncovered_elements[0] if uncovered_elements else None
+        
+        element_questions = {
+            'L': "Where exactly is the pain located?",
+            'D': "How long does the pain last?",
+            'C': "How would you describe the pain?",
+            'A': "What makes the pain worse?",
+            'R': "What makes the pain better?",
+            'T': "Is the pain constant or does it come and go?",
+            'S': "On a scale of 1 to 10, how severe is the pain?"
+        }
+        
+        # Ultra-minimal prompt - just show what to ask
+        if next_element:
+            element_name = {'L': 'LOCATION', 'D': 'DURATION', 'C': 'CHARACTER', 
+                           'A': 'AGGRAVATING', 'R': 'RELIEVING', 'T': 'TIMING', 'S': 'SEVERITY'}[next_element]
+            example = element_questions[next_element]
+            
+            user_msg = f"""Patient has {self.chief_complaint}.
 
-OLDCARTS COVERAGE: {coverage_str} ({len(covered_elements)}/8 complete)
-✓ Covered: {', '.join(covered_elements) if covered_elements else 'None'}
-⚠ Need to ask: {', '.join(uncovered_elements) if uncovered_elements else 'All done'}
+Ask about {element_name}.
 
-OLDCARTS CLINICAL ROADMAP:
+Example: {example}
 
-O - ONSET: When did the symptom/pain start? (sudden vs gradual, hours/days/weeks ago)
+Your question:"""
+        else:
+            user_msg = f"""Patient has {self.chief_complaint}.
 
-L - LOCATION: Where exactly is the symptom/pain? (specific body location, side, region)
+Ask about fever, nausea, or vomiting.
 
-D - DURATION: How long does each episode last? (seconds, minutes, hours, constant vs episodic)
+Example: Have you had any fever?
 
-C - CHARACTER: How would you describe it? (sharp, dull, burning, crampy, aching, throbbing, pressure)
-
-A - AGGRAVATING: What makes it worse? (eating, movement, position, activity, time of day)
-
-R - RELIEVING: What makes it better? (rest, position, food, medications, nothing helps)
-
-T - TIMING: What is the pattern? (constant, intermittent, comes in waves, specific times)
-
-S - SEVERITY: How bad is it? (scale 1-10, mild/moderate/severe)
-
-ADDITIONAL (After OLDCARTS complete):
-- Associated symptoms from guidelines (fever, nausea, vomiting, etc.)
-- Migration pattern (did symptom move from one location to another?)
-- Key positives/negatives from differential diagnosis
-
-Active Guidelines:
-{guidelines_text}
-
-Already asked:
-{asked_list}
-
-Generate the NEXT question prioritizing uncovered OLDCARTS elements.
-Focus on: {uncovered_elements[0] if uncovered_elements else 'Associated symptoms'}
-ONE question only. DO NOT combine.
-
-Question:"""
+Your question:"""
 
         try:
             response = self.llm_chat_fn(
