@@ -424,19 +424,24 @@ Answer: {answer}
 
 Does the answer address the question? Output 'yes' or 'no':"""
         
+        print(f"[Engine] 🧠 VALIDATION PROMPT:")
+        print(f"[Engine]   System: {system_msg[:100]}...")
+        print(f"[Engine]   User: {user_msg}")
+        
         response = self.llm_chat_fn(
             [
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
-            max_tokens=3,
+            max_tokens=50,  # Increased to capture potential reasoning
             temperature=0.0
         )
         
         result = response.strip().lower()
         is_valid = 'yes' in result or 'valid' in result
         
-        print(f"[Engine]   LLM validation: '{result}' → {'ACCEPT' if is_valid else 'REJECT'}")
+        print(f"[Engine] 🤖 RAW LLM RESPONSE: '{response}'")
+        print(f"[Engine] 📊 PARSED: '{result}' → {'ACCEPT ✅' if is_valid else 'REJECT ❌'}")
         
         return is_valid
     
