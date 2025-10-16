@@ -116,6 +116,8 @@ class AdaptiveDiagnosticEngine:
         self.answered_features = {}  # Dict of extracted clinical features
         self.raw_answers = []        # Raw user responses for recap
         self.questions_asked = []    # History of questions asked
+        self.demographics = {}       # Patient demographics (age, sex)
+        self.chief_complaint = ""    # Original complaint
         self.status = "idle"         # idle, questioning, diagnosed
         self.diagnosis = None        # Final diagnosis when reached
         
@@ -137,6 +139,7 @@ class AdaptiveDiagnosticEngine:
         
         self.reset_assessment()
         self.status = "questioning"
+        self.chief_complaint = chief_complaint  # Store for later use
         
         # Extract and normalize chief complaint
         normalized = self._normalize_text(chief_complaint)
@@ -179,11 +182,30 @@ class AdaptiveDiagnosticEngine:
         if self.reserve_pool:
             print(f"[Adaptive] 💾 Reserve pool: {len(self.reserve_pool)} additional guidelines")
         
-        # Extract any features from the chief complaint itself
-        self._extract_features_from_text(chief_complaint)
+        # Extract symptom from chief complaint (e.g., "abdominal pain")
+        symptom = self._extract_symptom_from_complaint(chief_complaint)
         
-        # Ask first discriminating question
-        return self._ask_next_question()
+        # Start with empathy + demographics
+        empathy_msg = f"I'm sorry you're experiencing {symptom}. Let me ask you some questions to help determine what's causing it."
+        
+        # First question: Age (critical for many differentials)
+        first_question = "How old are you?"
+        
+        self.questions_asked.append({
+            'focus': 'demographics_age',
+            'question': first_question,
+            'value': 'critical'
+        })
+        
+        return {
+            'success': True,
+            'question': f"{empathy_msg} {first_question}",
+            'status': 'questioning',
+            'differentials': [
+                {'name': g['name'], 'score': g['score']} 
+                for g in self.active_guidelines[:3]
+            ]
+        }
     
     def process_answer(self, user_answer: str) -> Dict[str, Any]:
         """
@@ -230,8 +252,92 @@ class AdaptiveDiagnosticEngine:
         
         print(f"[Adaptive] 📝 Extracted features: {list(extracted.keys())}")
         
-        # Store raw answer + normalized matches for recap
+        # Handle demographics questions first
         last_q = self.questions_asked[-1] if self.questions_asked else None
+        
+        if last_q and last_q.get('focus') == 'demographics_age':
+            # Extract age
+            age_match = re.search(r'\d+', user_answer)
+            if age_match:
+                self.demographics['age'] = int(age_match.group())
+                print(f"[Adaptive] 👤 Age: {self.demographics['age']}")
+            
+            # Ask for sex next
+            self.questions_asked.append({
+                'focus': 'demographics_sex',
+                'question': 'Are you male or female?',
+                'value': 'critical'
+            })
+            
+            return {
+                'success': True,
+                'question': 'Are you male or female?',
+                'status': 'questioning'
+            }
+        
+        elif last_q and last_q.get('focus') == 'demographics_sex':
+            # Extract sex
+            text_lower = user_answer.lower()
+            if 'female' in text_lower or 'woman' in text_lower or 'girl' in text_lower:
+                self.demographics['sex'] = 'female'
+            elif 'male' in text_lower or 'man' in text_lower or 'boy' in text_lower:
+                self.demographics['sex'] = 'male'
+            
+            print(f"[Adaptive] 👤 Sex: {self.demographics.get('sex', 'unknown')}")
+            
+            # Now ask LOCATION (first clinical question for GI/abdominal complaints)
+            if 'abdominal' in self.chief_complaint.lower() or 'stomach' in self.chief_complaint.lower() or 'belly' in self.chief_complaint.lower():
+                location_q = "Where in your abdomen is the pain located?"
+                
+                self.questions_asked.append({
+                    'focus': 'pain_location',
+                    'question': location_q,
+                    'value': 'critical'
+                })
+                
+                return {
+                    'success': True,
+                    'question': location_q,
+                    'status': 'questioning'
+                }
+        
+        # Check if we just asked location and need clarification
+        elif last_q and last_q.get('focus') == 'pain_location':
+            text_lower = user_answer.lower()
+            
+            # Check if answer is ambiguous (needs clarification)
+            ambiguous_right = 'right' in text_lower and not any(specific in text_lower for specific in ['upper right', 'lower right', 'ruq', 'rlq'])
+            ambiguous_left = 'left' in text_lower and not any(specific in text_lower for specific in ['upper left', 'lower left', 'luq', 'llq'])
+            
+            if ambiguous_right:
+                print(f"[Adaptive] ⚠️ Ambiguous location: 'right side' - clarifying")
+                self.questions_asked.append({
+                    'focus': 'pain_location_clarify',
+                    'question': 'Is it in the upper right (below your ribs) or lower right side of your abdomen?',
+                    'value': 'critical'
+                })
+                
+                return {
+                    'success': True,
+                    'question': 'Is it in the upper right (below your ribs) or lower right side of your abdomen?',
+                    'status': 'questioning'
+                }
+            
+            elif ambiguous_left:
+                print(f"[Adaptive] ⚠️ Ambiguous location: 'left side' - clarifying")
+                self.questions_asked.append({
+                    'focus': 'pain_location_clarify',
+                    'question': 'Is it in the upper left or lower left side of your abdomen?',
+                    'value': 'critical'
+                })
+                
+                return {
+                    'success': True,
+                    'question': 'Is it in the upper left or lower left side of your abdomen?',
+                    'status': 'questioning'
+                }
+        
+        # Store raw answer + normalized matches for recap
         answer_record = {
             'question': last_q['question'] if last_q else 'chief_complaint',
             'question_focus': last_q.get('focus', 'unknown') if last_q else 'chief_complaint',
@@ -397,31 +503,49 @@ class AdaptiveDiagnosticEngine:
         """Normalize text for matching"""
         return text.lower().strip()
     
+    def _extract_symptom_from_complaint(self, complaint: str) -> str:
+        """Extract the symptom from chief complaint for empathy message"""
+        complaint_lower = complaint.lower()
+        
+        if 'abdominal pain' in complaint_lower or 'stomach pain' in complaint_lower or 'belly pain' in complaint_lower:
+            return "abdominal pain"
+        elif 'chest pain' in complaint_lower:
+            return "chest pain"
+        elif 'headache' in complaint_lower or 'head pain' in complaint_lower:
+            return "headache"
+        elif 'pain' in complaint_lower:
+            return "pain"
+        else:
+            return "these symptoms"
+    
     def _is_new_chief_complaint(self, text: str) -> bool:
         """
-        Detect if user is stating a new chief complaint vs answering a question
+        Detect if user is stating a NEW chief complaint vs answering a question
         
-        Returns True if text looks like "I have X pain" or similar
+        Only returns True if it's clearly a different complaint, NOT just
+        providing more detail about the current complaint.
         """
         text_lower = text.lower().strip()
         
-        # Patterns for chief complaints
-        complaint_patterns = [
-            'i have',
-            'i am having',
-            'i feel',
-            'my',
-            'there is',
-            'i got'
+        # If we already have a chief complaint, check if this is DIFFERENT
+        if self.chief_complaint:
+            current_symptom = self._extract_symptom_from_complaint(self.chief_complaint)
+            new_symptom = self._extract_symptom_from_complaint(text)
+            
+            # Same symptom type = not a new complaint
+            if current_symptom == new_symptom:
+                return False
+        
+        # Only trigger on clear new chief complaints with symptom
+        new_complaint_patterns = [
+            ('i have', ['pain', 'ache', 'hurt', 'discomfort', 'burning', 'pressure', 'fever', 'cough', 'shortness']),
+            ('i am having', ['pain', 'ache', 'difficulty', 'trouble']),
+            ('i feel', ['pain', 'dizzy', 'weak', 'sick']),
         ]
         
-        # Common symptoms
-        symptom_words = ['pain', 'ache', 'hurt', 'discomfort', 'burning', 'pressure']
-        
-        # Check if starts with complaint pattern and contains symptom
-        for pattern in complaint_patterns:
+        for pattern, symptoms in new_complaint_patterns:
             if text_lower.startswith(pattern):
-                if any(symptom in text_lower for symptom in symptom_words):
+                if any(symptom in text_lower for symptom in symptoms):
                     return True
         
         return False
@@ -794,35 +918,32 @@ class AdaptiveDiagnosticEngine:
         # Get top 3 differentials for context
         top_3 = self.active_guidelines[:3]
         
-        # Retrieve RAG content for each
+        # Build clinical context from JSON key_features (structured, focused)
         guidelines_content = []
         for guideline_obj in top_3:
             guideline_name = guideline_obj['name']
+            guideline_data = guideline_obj['guideline_data']
             
-            try:
-                # Use metadata-based retrieval
-                response = requests.get(
-                    f"http://localhost:11435/rag/guideline/{guideline_name}",
-                    timeout=10
-                )
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    chunks = data.get('results', [])
-                    
-                    # Combine chunks
-                    full_text = '\n'.join([c.get('text', '') for c in chunks[:5]])  # Use first 5 chunks
-                    
-                    guidelines_content.append({
-                        'name': guideline_name,
-                        'score': guideline_obj['score'],
-                        'content': full_text[:3000]  # Limit to 3k chars per guideline
-                    })
-                    
-                    print(f"[Adaptive]   📚 Retrieved {len(chunks)} chunks for {guideline_name}")
+            # Get key_features from JSON
+            key_features = guideline_data.get('key_features', {})
+            classic_presentation = key_features.get('classic_presentation', '')
             
-            except Exception as e:
-                print(f"[Adaptive]   ⚠️ Failed to retrieve RAG for {guideline_name}: {e}")
+            # Get urgency
+            urgency = guideline_data.get('urgency', 'routine')
+            
+            # Build focused clinical summary
+            clinical_summary = f"""
+{guideline_name} (Score: {guideline_obj['score']:.0%}, Urgency: {urgency}):
+Classic Presentation: {classic_presentation}
+"""
+            
+            guidelines_content.append({
+                'name': guideline_name,
+                'score': guideline_obj['score'],
+                'content': clinical_summary
+            })
+            
+            print(f"[Adaptive]   📚 Using key_features for {guideline_name}")
         
         # Build patient summary
         patient_summary = []
@@ -837,40 +958,56 @@ class AdaptiveDiagnosticEngine:
             for i, g in enumerate(top_3, 1)
         ])
         
-        # Build clinical guidelines context
+        # Build clinical guidelines context from key_features
         guidelines_text = ""
         for g_content in guidelines_content:
-            guidelines_text += f"\n=== {g_content['name']} (Current Score: {g_content['score']:.0%}) ===\n"
-            guidelines_text += g_content['content'][:2000]  # Limit per guideline
-            guidelines_text += "\n"
+            guidelines_text += g_content['content']
         
-        # Prompt for LLM
-        prompt = f"""You are a physician conducting a diagnostic interview.
+        # Build list of what we already know
+        already_know = []
+        if self.demographics.get('age'):
+            already_know.append(f"Age: {self.demographics['age']}")
+        if self.demographics.get('sex'):
+            already_know.append(f"Sex: {self.demographics['sex']}")
+        
+        for answer in self.raw_answers:
+            focus = answer.get('question_focus', '')
+            if focus not in ['demographics_age', 'demographics_sex']:
+                already_know.append(f"{focus}: {answer['raw_answer']}")
+        
+        already_assessed = "\n".join(already_know) if already_know else "None yet"
+        
+        # Prompt for LLM - FOCUSED on classic presentations
+        prompt = f"""You are a physician conducting a medical interview.
 
-CURRENT DIFFERENTIAL DIAGNOSES:
-{differentials_list}
+PATIENT: {self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')}
+CHIEF COMPLAINT: {self.chief_complaint}
 
-CLINICAL GUIDELINES (from medical literature):
+TOP 3 POSSIBLE DIAGNOSES:
 {guidelines_text}
 
-PATIENT INFORMATION GATHERED SO FAR:
-{patient_info}
-
-QUESTIONS ALREADY ASKED:
-{', '.join([q['question'] for q in self.questions_asked[-3:]])}
+INFORMATION ALREADY GATHERED:
+{already_assessed}
 
 YOUR TASK:
-Based on the clinical guidelines above, generate the SINGLE MOST IMPORTANT next question to ask this patient.
+Based on the "Classic Presentation" of each diagnosis above, ask the SINGLE MOST IMPORTANT next question.
 
-REQUIREMENTS:
-1. The question should help differentiate between the top diagnoses
-2. Focus on key clinical features not yet assessed
-3. Be conversational and natural (not robotic)
-4. Be specific and targeted (not vague)
-5. Consider what information would most change the probability of each diagnosis
+Focus on key distinguishing features mentioned in the classic presentations.
 
-OUTPUT ONLY THE QUESTION - no explanation, no preamble.
-"""
+STRICT RULES:
+- Ask ONLY ONE question (never combine)
+- Use simple, conversational language
+- Be specific and direct
+- No medical jargon
+
+Good: "Have you had any fever?"
+Good: "When did the pain start?"
+Good: "Does the pain come and go, or stay constant?"
+
+Bad: "Describe pain patterns and exacerbation sites" (too technical)
+Bad: "Any fever, chills, or nausea?" (combining multiple)
+
+OUTPUT ONLY THE QUESTION (no number, no preamble):"""
         
         # Call LLM
         try:
@@ -883,13 +1020,20 @@ OUTPUT ONLY THE QUESTION - no explanation, no preamble.
             # Extract question from response
             question = response.strip()
             
-            # Clean up any meta-text
-            question = re.sub(r'^(Question|Q\d+):\s*', '', question, flags=re.IGNORECASE)
+            # Clean up any meta-text, numbers, prefixes
+            question = re.sub(r'^\d+[\.)]\s*', '', question)  # Remove "3. " or "3) "
+            question = re.sub(r'^(Question|Q\d+|Next question):\s*', '', question, flags=re.IGNORECASE)
             question = question.split('\n')[0]  # Take first line only
+            question = question.strip()
             
             # Ensure ends with ?
             if not question.endswith('?'):
                 question += '?'
+            
+            # Final validation - reject if still too complex
+            if len(question.split()) > 20 or '?' in question[:-1]:  # Multiple questions
+                print(f"[Adaptive] ⚠️ LLM question too complex, using fallback")
+                question = "Can you tell me more about your symptoms?"
             
             print(f"[Adaptive] 🤖 LLM generated: '{question}'")
             
