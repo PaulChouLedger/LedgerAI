@@ -113,18 +113,18 @@ class AdaptiveDiagnosticEngine:
             print(f"[Engine]   {i}. {g['name']} (initial score: {g['score']:.2f})")
         print(f"{'='*80}\n")
         
-        # STEP 2: Ask demographics first (age/sex) - simple templates
-        age_question = "How old are you?"
+        # STEP 2: Use LLM to generate empathetic opening + age question
+        opening_question = self._generate_opening_question(chief_complaint)
         
         self.conversation_history.append({
             'type': 'question',
-            'question': age_question,
+            'question': opening_question,
             'focus': 'age'
         })
         
         return {
             'success': True,
-            'question': age_question,
+            'question': opening_question,
             'status': 'questioning'
         }
     
@@ -177,12 +177,12 @@ class AdaptiveDiagnosticEngine:
             else:
                 print(f"[Engine] 👤 Age: Not found in answer")
             
-            # VALIDATION: If no age found, re-ask
+            # VALIDATION: If no age found, re-ask using LLM
             if 'age' not in self.demographics:
                 print(f"[Engine] ⚠️ Invalid answer - re-asking for age")
                 print(f"{'='*80}\n")
                 
-                age_question = "I didn't catch that. How old are you?"
+                age_question = self._generate_clarification_question("age")
                 self.conversation_history.append({
                     'type': 'question',
                     'question': age_question,
@@ -195,8 +195,8 @@ class AdaptiveDiagnosticEngine:
                     'status': 'questioning'
                 }
             
-            # Ask sex
-            sex_question = "Are you male or female?"
+            # Ask sex using LLM
+            sex_question = self._generate_sex_question()
             self.conversation_history.append({
                 'type': 'question',
                 'question': sex_question,
@@ -220,12 +220,12 @@ class AdaptiveDiagnosticEngine:
             
             print(f"[Engine] 👤 Sex: {self.demographics.get('sex', 'unknown')}")
             
-            # VALIDATION: If sex is still unknown, re-ask
+            # VALIDATION: If sex is still unknown, re-ask using LLM
             if 'sex' not in self.demographics:
                 print(f"[Engine] ⚠️ Invalid answer - re-asking for sex")
                 print(f"{'='*80}\n")
                 
-                sex_question = "I didn't catch that. Are you male or female?"
+                sex_question = self._generate_clarification_question("sex")
                 self.conversation_history.append({
                     'type': 'question',
                     'question': sex_question,
@@ -317,18 +317,21 @@ Classic Presentation: {classic}
         print(f"[Engine] 📋 Questions asked: {len(asked)}")
         
         # LLM PROMPT: Generate next question
-        # Direct, explicit prompt with clear examples
-        prompt = f"""You are a diagnostic assistant. Based on these 3 possible conditions, ask ONE specific medical question.
+        # Very direct - no room for chatbot behavior
+        prompt = f"""DIAGNOSTIC MODE - Ask clinical question only.
 
 PATIENT: {patient_info}
 
-POSSIBLE CONDITIONS:
+TOP 3 DIAGNOSES:
 {guidelines_text}
 
-TASK: Generate ONE clinical question to help distinguish between these conditions.
-Examples: "Where exactly is the pain located?" or "When did the pain start?" or "Is the pain constant or does it come and go?"
+Based on the classical presentations above, ask ONE diagnostic question about:
+- Pain location (RUQ/RLQ/LLQ/epigastric)
+- Pain timing (when started, duration)
+- Pain quality (constant/crampy/sharp/burning)
+- Associated symptoms (fever/nausea/vomiting/diarrhea)
 
-Your question (one sentence only):"""
+DO NOT greet or explain. Output ONLY the question:"""
 
         try:
             response = self.llm_chat_fn(
@@ -393,6 +396,9 @@ Your question (one sentence only):"""
         print(f"[Engine] 📋 Last Question: '{last_q}'")
         print(f"[Engine] 📋 Answer: '{answer}'")
         print(f"[Engine] 📋 History: {len(qa_pairs)} Q&A pairs")
+        
+        # Build patient summary for scoring
+        patient_info = f"{self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')} with {self.chief_complaint}"
         
         # FOR EACH GUIDELINE: Ask LLM to score it
         print(f"\n[Engine] 🎯 SCORING EACH GUIDELINE:\n")
@@ -504,6 +510,112 @@ Score 0-100 how well this matches:"""
             'urgency': urgency,
             'message': message
         }
+    
+    def _generate_opening_question(self, chief_complaint: str) -> str:
+        """
+        LLM-generated opening: Show empathy and ask for age
+        """
+        print(f"[Engine] 🧠 Generating LLM opening question...")
+        
+        prompt = f"""Patient says: "{chief_complaint}"
+
+Show empathy and ask their age.
+Example: "I'm sorry you're experiencing that. How old are you?"
+
+Your response (one sentence):"""
+        
+        try:
+            response = self.llm_chat_fn(
+                [{"role": "user", "content": prompt}],
+                max_tokens=30,
+                temperature=0.7
+            )
+            
+            question = response.strip().strip('"\'')
+            if not question.endswith('?'):
+                question += '?'
+            
+            print(f"[Engine] ✅ Opening: '{question}'")
+            return question
+        
+        except Exception as e:
+            print(f"[Engine] ❌ Opening generation failed: {e}")
+            raise RuntimeError(f"Opening question generation failed: {e}")
+    
+    def _generate_sex_question(self) -> str:
+        """
+        LLM-generated sex question
+        """
+        print(f"[Engine] 🧠 Generating LLM sex question...")
+        
+        prompt = """Ask patient for biological sex (male or female).
+
+Example: "Are you male or female?"
+
+Your question:"""
+        
+        try:
+            response = self.llm_chat_fn(
+                [{"role": "user", "content": prompt}],
+                max_tokens=20,
+                temperature=0.5
+            )
+            
+            question = response.strip().strip('"\'')
+            if not question.endswith('?'):
+                question += '?'
+            
+            print(f"[Engine] ✅ Sex question: '{question}'")
+            return question
+        
+        except Exception as e:
+            print(f"[Engine] ❌ Sex question generation failed: {e}")
+            raise RuntimeError(f"Sex question generation failed: {e}")
+    
+    def _generate_clarification_question(self, topic: str) -> str:
+        """
+        LLM-generated clarification when answer was unclear
+        """
+        print(f"[Engine] 🧠 Generating clarification for: {topic}")
+        
+        if topic == "age":
+            prompt = """Patient didn't provide their age clearly.
+
+Ask again politely.
+Example: "I didn't catch that. How old are you?"
+
+Your question:"""
+        elif topic == "sex":
+            prompt = """Patient didn't specify male or female.
+
+Ask again politely.
+Example: "I didn't quite hear that. Are you male or female?"
+
+Your question:"""
+        else:
+            prompt = f"""Patient's answer was unclear.
+
+Ask them to clarify about {topic}.
+
+Your question:"""
+        
+        try:
+            response = self.llm_chat_fn(
+                [{"role": "user", "content": prompt}],
+                max_tokens=25,
+                temperature=0.6
+            )
+            
+            question = response.strip().strip('"\'')
+            if not question.endswith('?'):
+                question += '?'
+            
+            print(f"[Engine] ✅ Clarification: '{question}'")
+            return question
+        
+        except Exception as e:
+            print(f"[Engine] ❌ Clarification generation failed: {e}")
+            raise RuntimeError(f"Clarification generation failed: {e}")
 
 
 # Test
