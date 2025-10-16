@@ -244,6 +244,16 @@ class AdaptiveDiagnosticEngine:
                     'message': "I didn't understand. Can you repeat that?"
                 }
         
+        # Context-aware validation: Check if answer actually addresses the question
+        last_q = self.questions_asked[-1] if self.questions_asked else None
+        if last_q and not self._answer_addresses_question(last_q, user_answer):
+            print(f"[Adaptive] ⚠️ Answer doesn't address the question - re-asking")
+            return {
+                'success': True,
+                'question': f"Could you be more specific? {last_q['question']}",
+                'status': 'questioning'
+            }
+        
         # Extract ALL clinical features from the answer FIRST
         extracted = self._extract_features_from_text(user_answer)
         
@@ -548,6 +558,59 @@ class AdaptiveDiagnosticEngine:
                     return True
         
         return False
+    
+    def _answer_addresses_question(self, question_obj: Dict, answer: str) -> bool:
+        """
+        LLM-based validation: Does the answer actually address what was asked?
+        
+        Uses the LLM to intelligently determine if the response is appropriate,
+        avoiding hardcoded pattern matching.
+        
+        Returns False if answer is non-responsive to the question.
+        """
+        question = question_obj.get('question', '')
+        
+        # Use LLM to evaluate if answer addresses the question
+        validation_prompt = f"""You are evaluating a patient's response during a medical interview.
+
+Question asked: "{question}"
+Patient's answer: "{answer}"
+
+Does the patient's answer actually address what was asked in the question?
+
+Rules:
+- If the question asks for clarification (e.g., "upper or lower?"), the answer must specify which option
+- If the question asks about timing (e.g., "when?"), the answer must include time information
+- If the question asks yes/no, the answer should indicate yes, no, or provide relevant detail
+- The answer should not just repeat the question without providing information
+
+Respond with ONLY "YES" if the answer addresses the question, or "NO" if it doesn't.
+"""
+        
+        try:
+            # Call LLM for validation
+            response = self.llm_chat_fn(
+                [{"role": "user", "content": validation_prompt}],
+                max_tokens=10,
+                temperature=0.1  # Low temp for consistent judgments
+            )
+            
+            response_text = response.strip().upper()
+            
+            # Check if LLM says answer addresses question
+            if 'YES' in response_text:
+                print(f"[Adaptive] ✅ Answer validation: Acceptable")
+                return True
+            else:
+                print(f"[Adaptive] ❌ Answer validation: Does not address question")
+                print(f"[Adaptive]   Q: '{question}'")
+                print(f"[Adaptive]   A: '{answer}'")
+                return False
+                
+        except Exception as e:
+            print(f"[Adaptive] ⚠️ Answer validation failed (LLM error): {e}")
+            # On error, be permissive (assume answer is acceptable)
+            return True
     
     def _is_valid_medical_response(self, text: str) -> bool:
         """
