@@ -561,7 +561,9 @@ def check_for_new_guidelines_quick():
             if not os.path.exists(txt_path):
                 return True  # Found at least one new guideline
         
-        return False  # All guidelines already converted
+        # All already converted
+        print(f"[Aura] ✅ All {len(json_files)} medical guidelines already converted - skipping rebuild")
+        return False
     
     except Exception as e:
         print(f"[Aura] ⚠️ Error checking guidelines: {e}")

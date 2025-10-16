@@ -185,21 +185,18 @@ class AdaptiveDiagnosticEngine:
         # Extract symptom from chief complaint (e.g., "abdominal pain")
         symptom = self._extract_symptom_from_complaint(chief_complaint)
         
-        # Start with empathy + demographics
-        empathy_msg = f"I'm sorry you're experiencing {symptom}. Let me ask you some questions to help determine what's causing it."
-        
-        # First question: Age (critical for many differentials)
-        first_question = "How old are you?"
+        # Generate natural, varied empathy + age question using LLM
+        opening_question = self._generate_opening_message(symptom)
         
         self.questions_asked.append({
             'focus': 'demographics_age',
-            'question': first_question,
+            'question': opening_question,
             'value': 'critical'
         })
         
         return {
             'success': True,
-            'question': f"{empathy_msg} {first_question}",
+            'question': opening_question,
             'status': 'questioning',
             'differentials': [
                 {'name': g['name'], 'score': g['score']} 
@@ -262,16 +259,18 @@ class AdaptiveDiagnosticEngine:
                 self.demographics['age'] = int(age_match.group())
                 print(f"[Adaptive] 👤 Age: {self.demographics['age']}")
             
-            # Ask for sex next
+            # Ask for sex next (LLM-generated for variety)
+            sex_question = self._generate_sex_question()
+            
             self.questions_asked.append({
                 'focus': 'demographics_sex',
-                'question': 'Are you male or female?',
+                'question': sex_question,
                 'value': 'critical'
             })
             
             return {
                 'success': True,
-                'question': 'Are you male or female?',
+                'question': sex_question,
                 'status': 'questioning'
             }
         
@@ -558,12 +557,26 @@ class AdaptiveDiagnosticEngine:
         - Very short fragments ("on the", "time.", "go.")
         - Gibberish ("good else to go")
         - Empty responses
+        
+        Returns True for:
+        - Numbers (age, duration, etc.)
+        - Demographic answers (male/female)
+        - Valid medical responses
         """
         text = text.strip()
         
-        # Too short
-        if len(text) < 3:
+        # Too short (but allow single-char if it's a number or letter)
+        if len(text) < 2:
             return False
+        
+        # Check if this is a number (age, duration, etc.) - ALWAYS VALID
+        if re.search(r'\d+', text):
+            return True
+        
+        # Check if this is a demographic answer (male/female/man/woman) - ALWAYS VALID
+        demographic_answers = ['male', 'female', 'man', 'woman', 'boy', 'girl', 'm', 'f']
+        if text.lower() in demographic_answers:
+            return True
         
         # Only punctuation or filler words
         filler_patterns = [
@@ -576,9 +589,9 @@ class AdaptiveDiagnosticEngine:
             if re.match(pattern, text.lower()):
                 return False
         
-        # Has at least one real word (3+ chars)
+        # Has at least one real word (2+ chars, reduced from 3)
         words = text.split()
-        real_words = [w for w in words if len(w.strip('.,!?')) >= 3]
+        real_words = [w for w in words if len(w.strip('.,!?')) >= 2]
         
         if len(real_words) == 0:
             return False
@@ -1043,6 +1056,101 @@ OUTPUT ONLY THE QUESTION (no number, no preamble):"""
             print(f"[Adaptive] ❌ LLM question generation failed: {e}")
             # Fallback to template
             return "Can you tell me more about your symptoms?"
+    
+    def _generate_opening_message(self, symptom: str) -> str:
+        """
+        Generate varied, natural opening empathy message + age question
+        
+        Uses LLM to avoid repetitive phrasing like:
+        "I'm sorry you're experiencing X. Let me ask you some questions..."
+        
+        Returns empathy + age question combined (e.g., "I understand you're having stomach pain. 
+        To help you better, can you tell me your age?")
+        """
+        print(f"[Adaptive] 💬 Generating opening message for: {symptom}")
+        
+        prompt = f"""You are a compassionate physician starting a medical interview.
+
+The patient just said they have: {symptom}
+
+Generate a natural opening that:
+1. Shows empathy (varied phrasing, not always "I'm sorry")
+2. Smoothly asks for their age
+
+EXAMPLES:
+"I understand you're having {symptom}. To help you better, can you tell me your age?"
+"That sounds uncomfortable. Let me ask some questions to figure out what's going on. First, how old are you?"
+"I'm here to help with your {symptom}. To start, what's your age?"
+
+Use similar empathetic, conversational tone. Keep it SHORT (1-2 sentences max).
+
+OUTPUT ONLY THE COMBINED MESSAGE (no preamble):"""
+        
+        try:
+            response = self.llm_chat_fn(
+                [{"role": "user", "content": prompt}],
+                max_tokens=80,
+                temperature=0.8  # Higher temp for variety
+            )
+            
+            question = response.strip()
+            
+            # Ensure ends with ?
+            if not question.endswith('?'):
+                question += '?'
+            
+            print(f"[Adaptive] 💬 Generated opening: '{question}'")
+            return question
+        
+        except Exception as e:
+            print(f"[Adaptive] ❌ Opening generation failed: {e}")
+            # Fallback
+            return f"I understand you're having {symptom}. To help you, can you tell me your age?"
+    
+    def _generate_sex_question(self) -> str:
+        """
+        Generate varied, natural way to ask about patient's sex
+        
+        Avoids repetitive "Are you male or female?"
+        """
+        print(f"[Adaptive] 💬 Generating sex question")
+        
+        prompt = """You are a physician conducting a medical interview.
+
+You need to ask about the patient's biological sex (for medical diagnostic purposes).
+
+Generate a natural, respectful way to ask this. Vary the phrasing.
+
+EXAMPLES:
+"Are you male or female?"
+"What's your biological sex?"
+"Are you a man or a woman?"
+"Can you tell me your sex?"
+
+Use similar conversational tone. Keep it SHORT (one simple question).
+
+OUTPUT ONLY THE QUESTION (no preamble):"""
+        
+        try:
+            response = self.llm_chat_fn(
+                [{"role": "user", "content": prompt}],
+                max_tokens=30,
+                temperature=0.8  # Higher temp for variety
+            )
+            
+            question = response.strip()
+            
+            # Ensure ends with ?
+            if not question.endswith('?'):
+                question += '?'
+            
+            print(f"[Adaptive] 💬 Generated sex question: '{question}'")
+            return question
+        
+        except Exception as e:
+            print(f"[Adaptive] ❌ Sex question generation failed: {e}")
+            # Fallback
+            return "Are you male or female?"
     
     def _generate_question_from_focus(self, focus: str, question_data: Dict) -> str:
         """
