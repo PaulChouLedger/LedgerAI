@@ -424,9 +424,11 @@ Answer: {answer}
 
 Does the answer address the question? Output 'yes' or 'no':"""
         
-        print(f"[Engine] 🧠 VALIDATION PROMPT:")
-        print(f"[Engine]   System: {system_msg[:100]}...")
-        print(f"[Engine]   User: {user_msg}")
+        print(f"[Engine] 🧠 VALIDATION PROMPT (FULL):")
+        print(f"[Engine]   === SYSTEM ===")
+        print(f"{system_msg}")
+        print(f"[Engine]   === USER ===")
+        print(f"{user_msg}")
         
         response = self.llm_chat_fn(
             [
