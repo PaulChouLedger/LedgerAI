@@ -1338,6 +1338,20 @@ OUTPUT ONLY THE COMBINED MESSAGE (no preamble):"""
             # Debug: Show LLM output
             print(f"[Adaptive] 🧠 LLM OPENING RAW: '{question}'")
             
+            # Garbage detection
+            from collections import Counter
+            if len(question) > 10:
+                char_counts = Counter(c for c in question if c.isalnum())
+                if char_counts:
+                    most_common_char, count = char_counts.most_common(1)[0]
+                    total_alnum = len([c for c in question if c.isalnum()])
+                    ratio = count / total_alnum if total_alnum > 0 else 0
+                    
+                    if ratio > 0.4:
+                        print(f"[Adaptive] ⚠️ GARBAGE in opening: char='{most_common_char}', ratio={ratio:.2f}")
+                        print(f"[Adaptive] 🔄 Using simple fallback")
+                        return f"I understand you're having {symptom}. How old are you?"
+            
             # Strip quotes if LLM added them
             question = question.strip('"\'')
             
@@ -1392,6 +1406,20 @@ OUTPUT ONLY THE QUESTION (no preamble):"""
             
             # Debug: Show LLM output
             print(f"[Adaptive] 🧠 LLM SEX QUESTION RAW: '{question}'")
+            
+            # Garbage detection
+            from collections import Counter
+            if len(question) > 5:
+                char_counts = Counter(c for c in question if c.isalnum())
+                if char_counts:
+                    most_common_char, count = char_counts.most_common(1)[0]
+                    total_alnum = len([c for c in question if c.isalnum()])
+                    ratio = count / total_alnum if total_alnum > 0 else 0
+                    
+                    if ratio > 0.4:
+                        print(f"[Adaptive] ⚠️ GARBAGE in sex question: char='{most_common_char}', ratio={ratio:.2f}")
+                        print(f"[Adaptive] 🔄 Using hardcoded fallback")
+                        return "Are you male or female?"
             
             # Strip quotes if LLM added them
             question = question.strip('"\'')
