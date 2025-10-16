@@ -292,14 +292,21 @@ class AdaptiveDiagnosticEngine:
             if not self._is_acceptable_clinical_answer(user_answer):
                 print(f"[Engine] ⚠️ Answer too vague or unclear - asking for clarification")
                 
-                # Find last question
+                # Find last question and extract CORE question (strip clarification prefix)
                 last_q = None
                 for item in reversed(self.conversation_history):
                     if item.get('type') == 'question':
                         last_q = item.get('question', 'the question')
                         break
                 
-                clarify = f"I didn't quite understand. {last_q if last_q else 'Can you clarify?'}"
+                # Strip "I didn't quite understand. " prefix if present (avoid repetition)
+                core_question = last_q
+                if last_q and last_q.startswith("I didn't quite understand. "):
+                    core_question = last_q.replace("I didn't quite understand. ", "").strip()
+                if core_question and core_question.startswith("Could you be more specific? "):
+                    core_question = core_question.replace("Could you be more specific? ", "").strip()
+                
+                clarify = f"I didn't quite understand. {core_question if core_question else 'Can you clarify?'}"
                 
                 self.conversation_history.append({
                     'type': 'question',
@@ -335,6 +342,41 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine] 🔍 Validating answer...")
         print(f"[Engine]   Q: '{last_question}'")
         print(f"[Engine]   A: '{answer}'")
+        
+        # PROGRAMMATIC VALIDATION for simple cases (avoid LLM for obvious answers)
+        answer_lower = answer.lower().strip()
+        
+        # Accept common yes/no variations
+        yes_no_words = ['yes', 'no', 'yeah', 'nope', 'nah', 'yep', 'sure', 'maybe', 'sometimes', 'not really']
+        if any(word in answer_lower for word in yes_no_words):
+            print(f"[Engine]   ✓ Programmatic validation: ACCEPT (yes/no response)")
+            return True
+        
+        # Accept time-related words
+        time_words = ['today', 'yesterday', 'hour', 'day', 'week', 'month', 'year', 'ago', 'morning', 'night']
+        if any(word in answer_lower for word in time_words):
+            print(f"[Engine]   ✓ Programmatic validation: ACCEPT (time reference)")
+            return True
+        
+        # Accept location words
+        location_words = ['right', 'left', 'upper', 'lower', 'middle', 'center', 'side', 'top', 'bottom']
+        if any(word in answer_lower for word in location_words):
+            print(f"[Engine]   ✓ Programmatic validation: ACCEPT (location)")
+            return True
+        
+        # Accept numbers (age, severity, etc.)
+        if any(char.isdigit() for char in answer):
+            print(f"[Engine]   ✓ Programmatic validation: ACCEPT (contains number)")
+            return True
+        
+        # Reject single vague words
+        vague_single_words = ['oh', 'um', 'uh', 'well', 'so', 'now', 'then', 'just']
+        if answer_lower in vague_single_words:
+            print(f"[Engine]   ✗ Programmatic validation: REJECT (vague single word)")
+            return False
+        
+        # For everything else, use LLM validation
+        print(f"[Engine]   → Using LLM validation...")
         
         # Use LLM to validate
         system_msg = "You are a medical validator. Does the answer provide requested information? Output ONLY 'yes' or 'no'."
@@ -414,21 +456,29 @@ Output (yes/no):"""
                     print(f"[Engine]   ✓ {name} (trigger: '{trigger}', prevalence: {prevalence}, initial: {initial_score:.0%})")
                     break
         
-        # Sort by URGENCY first, then by PREVALENCE (score), then shuffle within same tier
-        # This ensures: emergent > urgent > routine, common > rare, but variety within tier
-        urgency_priority = {'emergent': 0, 'urgent': 1, 'routine': 2}
+        # PREVALENCE-FIRST sorting with urgency boost
+        # Goal: Common urgent (appendicitis) BEFORE rare emergent (ectopic)
+        # But emergent conditions get a boost to stay competitive
         
-        # Sort by urgency, then by score (prevalence)
-        matched.sort(key=lambda x: (
-            urgency_priority.get(x['data'].get('urgency', 'routine'), 2),
-            -x['score']  # Negative for descending (higher scores first)
-        ))
+        urgency_boost = {
+            'emergent': 0.15,  # +15% boost
+            'urgent': 0.00,    # No change
+            'routine': -0.05   # -5% penalty
+        }
         
-        print(f"\n[Engine] 📊 SORTED BY URGENCY + PREVALENCE (emergent > urgent > routine, common > rare):")
+        # Apply urgency boost to scores (prevalence + urgency adjustment)
+        for m in matched:
+            urgency = m['data'].get('urgency', 'routine')
+            m['combined_score'] = m['score'] + urgency_boost.get(urgency, 0)
+        
+        # Sort by combined score (prevalence + urgency boost)
+        matched.sort(key=lambda x: -x['combined_score'])
+        
+        print(f"\n[Engine] 📊 SORTED BY COMBINED SCORE (prevalence + urgency boost):")
         for i, m in enumerate(matched[:10], 1):  # Show top 10
             urgency = m['data'].get('urgency', 'routine')
             prevalence = m['data'].get('prevalence', 'uncommon')
-            print(f"[Engine]   {i}. {m['name']} ({prevalence}, {urgency}, {m['score']:.0%})")
+            print(f"[Engine]   {i}. {m['name']} ({prevalence}, {urgency}, combined: {m['combined_score']:.0%})")
         if len(matched) > 10:
             print(f"[Engine]   ... and {len(matched) - 10} more")
         
@@ -447,15 +497,28 @@ Output (yes/no):"""
         # Build context for LLM
         patient_info = f"{self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')} with {self.chief_complaint}"
         
-        # Get classical presentations from ALL active guidelines (now 3 instead of 5)
+        # Get FULL guidelines (classic presentation + red flags + urgency)
         guidelines_context = []
         for i, g in enumerate(self.active_guidelines, 1):
             classic = g['data'].get('key_features', {}).get('classic_presentation', 'N/A')
+            red_flags = g['data'].get('red_flags', [])
             urgency = g['data'].get('urgency', 'routine')
+            prevalence = g['data'].get('prevalence', 'uncommon')
+            
+            # Format red flags
+            red_flags_text = '\n  - '.join(red_flags) if red_flags else 'None'
             
             guidelines_context.append(f"""
-Guideline {i}: {g['name']} (Current Score: {g['score']:.0%}, Urgency: {urgency})
-Classic Presentation: {classic}
+Guideline {i}: {g['name']}
+  Current Score: {g['score']:.0%}
+  Urgency: {urgency}
+  Prevalence: {prevalence}
+  
+  Classic Presentation:
+  {classic}
+  
+  RED FLAGS (immediately escalate if present):
+  - {red_flags_text}
 """)
         
         guidelines_text = "\n".join(guidelines_context)
@@ -495,24 +558,29 @@ Classic Presentation: {classic}
         
         user_msg = f"""Patient: {patient_info}
 
-Key features to ask about:
+Active Guidelines with Key Features:
+{guidelines_text}
+
+Key discriminating features:
 {features_text}
 
 Already asked:
 {asked_list}
 
-Generate ONE specific medical question based on the key features above.
-Ask about ONE thing only (location/migration/timing/quality/fever/nausea/vomiting/triggers).
+Generate ONE specific medical question to:
+1. Screen for RED FLAGS (life-threatening symptoms) if not yet asked
+2. Differentiate between the 3 active conditions using key features
+3. Ask about ONE thing only (location/migration/timing/quality/fever/triggers/red flags)
+
 DO NOT combine questions with "and".
 
 Examples:
 - "Where exactly is the pain located?"
 - "Did the pain migrate from one place to another?"
-- "When did the pain start?"
-- "Have you had any fever?"
-- "Have you had nausea or vomiting?"
-- "Does eating make the pain worse?"
-- "Is the pain constant or does it come and go?"
+- "Have you had any fever or chills?"
+- "Have you noticed any blood in your stool?" (red flag)
+- "Are you having severe pain that won't go away?" (red flag)
+- "Does eating fatty foods make the pain worse?"
 
 Question:"""
 
@@ -646,12 +714,22 @@ Question:"""
         
         for g in self.active_guidelines:
             classic = g['data'].get('key_features', {}).get('classic_presentation', 'N/A')
+            red_flags = g['data'].get('red_flags', [])
+            urgency = g['data'].get('urgency', 'routine')
+            
+            # Format red flags
+            red_flags_text = '\n'.join([f"  - {rf}" for rf in red_flags]) if red_flags else '  None'
             
             # Scoring prompt - ULTRA-STRICT: System + user roles, number only
-            system_msg = "You are a diagnostic scoring AI. Output ONLY integers 0-100. No explanations. Lower scores for 'no' answers to key features."
+            system_msg = "You are a diagnostic scoring AI. Output ONLY integers 0-100. No explanations. Lower scores for 'no' answers to key features. Higher scores if red flags present."
             
-            user_msg = f"""{g['name']}:
+            user_msg = f"""{g['name']} (Urgency: {urgency}):
+
+Classic Presentation:
 {classic}
+
+RED FLAGS:
+{red_flags_text}
 
 Patient: {patient_info}
 Question: {last_q}
@@ -659,6 +737,7 @@ Answer: {answer}
 
 If answer is "no" to a key feature, give LOW score.
 If answer matches classic presentation, give HIGH score.
+If RED FLAG present, give VERY HIGH score (80-95).
 
 Score 0-100:"""
 
@@ -762,13 +841,14 @@ Score 0-100:"""
     
     def _finalize_diagnosis(self, diagnosis_obj: Dict) -> Dict[str, Any]:
         """
-        Finalize and return diagnosis
+        Finalize and return diagnosis (with RED FLAGS if applicable)
         """
         self.status = "diagnosed"
         
         name = diagnosis_obj['name']
         score = diagnosis_obj['score']
         urgency = diagnosis_obj['data'].get('urgency', 'routine')
+        red_flags = diagnosis_obj['data'].get('red_flags', [])
         
         urgency_messages = {
             'emergent': '🚨 This is a medical emergency. Call 911 or go to the ER immediately.',
@@ -778,7 +858,14 @@ Score 0-100:"""
         
         urgency_msg = urgency_messages.get(urgency, urgency_messages['routine'])
         
+        # Build message with red flags if applicable
         message = f"Based on your symptoms, this is most likely {name} (confidence: {score:.0%}).\n\n{urgency_msg}"
+        
+        # Add red flags warning if any
+        if red_flags and urgency in ['emergent', 'urgent']:
+            message += f"\n\n⚠️ Watch for these warning signs:\n"
+            for rf in red_flags[:3]:  # Show top 3 red flags
+                message += f"• {rf}\n"
         
         print(f"\n{'='*80}")
         print(f"[Engine] 🎯 FINAL DIAGNOSIS")
@@ -786,6 +873,8 @@ Score 0-100:"""
         print(f"[Engine] Condition: {name}")
         print(f"[Engine] Confidence: {score:.0%}")
         print(f"[Engine] Urgency: {urgency}")
+        if red_flags:
+            print(f"[Engine] Red Flags: {len(red_flags)} warning signs")
         print(f"{'='*80}\n")
         
         return {
@@ -794,6 +883,7 @@ Score 0-100:"""
             'diagnosis': name,
             'confidence': score,
             'urgency': urgency,
+            'red_flags': red_flags,
             'message': message
         }
     
