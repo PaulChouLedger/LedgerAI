@@ -563,73 +563,73 @@ class AdaptiveDiagnosticEngine:
         """
         LLM-based validation: Does the answer actually address what was asked?
         
-        Uses the LLM to intelligently determine if the response is appropriate,
-        avoiding hardcoded pattern matching.
+        Pure LLM approach - let the AI use internal logic to evaluate responses.
+        No hardcoded patterns.
         
         Returns False if answer is non-responsive to the question.
         """
         question = question_obj.get('question', '')
         
         # Use LLM to evaluate if answer addresses the question
-        validation_prompt = f"""You are evaluating if a patient's answer addresses the medical question asked.
+        validation_prompt = f"""Question: {question}
+Answer: {answer}
 
-Full question text: "{question}"
-Patient's answer: "{answer}"
+Does the answer provide information requested by the question?
 
-YOUR TASK:
-Identify the ACTUAL QUESTION being asked (ignoring empathy/preamble), then determine if the answer addresses it.
+Think step-by-step:
+1. What information does the question ask for? (Ignore polite preamble like "I'm sorry" or "Let me help")
+2. Does the answer provide that information?
 
-IMPORTANT: 
-- Ignore empathy statements like "I'm sorry", "That sounds uncomfortable", "Let me help you"
-- Focus ONLY on what information is being requested
-- Numbers, ages, and simple facts ARE valid answers
+Examples:
+- Q: "How old are you?" A: "35" → YES
+- Q: "I'm sorry you're in pain. How old are you?" A: "25" → YES  
+- Q: "Are you male or female?" A: "male" → YES
+- Q: "Is it upper or lower right?" A: "right side" → NO (incomplete)
+- Q: "Is it upper or lower right?" A: "lower right" → YES
+- Q: "When did it start?" A: "yesterday" → YES
+- Q: "When did it start?" A: "the pain" → NO
 
-EXAMPLES:
-
-Question: "I'm sorry you're in pain. How old are you?"
-Answer: "35" → YES (directly answers the age question)
-
-Question: "That sounds uncomfortable. First, how old are you?"  
-Answer: "35" → YES (answers age, ignore preamble)
-
-Question: "Is it upper right or lower right?"
-Answer: "right side" → NO (doesn't specify upper vs lower)
-Answer: "lower right" → YES (specifies which)
-
-Question: "When did it start?"
-Answer: "the pain" → NO (no timing info)
-Answer: "yesterday" → YES (has timing)
-
-Question: "Have you had fever?"
-Answer: "yes" → YES
-Answer: "no" → YES
-Answer: "had" → NO (just echoing question)
-
-Respond with ONLY "YES" or "NO".
-"""
+Answer ONLY with YES or NO:"""
         
         try:
+            # Debug: Show the validation prompt being sent
+            print(f"\n[Adaptive] 🧠 VALIDATION PROMPT:")
+            print(f"[Adaptive]    Q: '{question}'")
+            print(f"[Adaptive]    A: '{answer}'")
+            
             # Call LLM for validation
             response = self.llm_chat_fn(
                 [{"role": "user", "content": validation_prompt}],
-                max_tokens=10,
-                temperature=0.1  # Low temp for consistent judgments
+                max_tokens=100,  # Allow space for reasoning
+                temperature=0.0  # Zero temp for most consistent judgments
             )
             
-            response_text = response.strip().upper()
+            response_text = response.strip()
+            
+            # Debug: Show LLM's full reasoning
+            print(f"[Adaptive] 🧠 LLM REASONING:")
+            print(f"[Adaptive]    {response_text}")
+            
+            # Parse response - be flexible with format
+            response_upper = response_text.upper()
             
             # Check if LLM says answer addresses question
-            if 'YES' in response_text:
-                print(f"[Adaptive] ✅ Answer validation: Acceptable")
+            # Look for YES anywhere in response (could be "YES" or "YES, the answer...")
+            if 'YES' in response_upper and 'NO' not in response_upper:
+                print(f"[Adaptive] ✅ Answer validation: ACCEPTED")
                 return True
-            else:
-                print(f"[Adaptive] ❌ Answer validation: Does not address question")
-                print(f"[Adaptive]   Q: '{question}'")
-                print(f"[Adaptive]   A: '{answer}'")
+            elif 'NO' in response_upper:
+                print(f"[Adaptive] ❌ Answer validation: REJECTED")
                 return False
+            else:
+                # Unclear response - be permissive
+                print(f"[Adaptive] ⚠️ Unclear LLM validation response - accepting answer")
+                return True
                 
         except Exception as e:
             print(f"[Adaptive] ⚠️ Answer validation failed (LLM error): {e}")
+            import traceback
+            traceback.print_exc()
             # On error, be permissive (assume answer is acceptable)
             return True
     
@@ -1111,6 +1111,12 @@ OUTPUT ONLY THE SYMPTOM QUESTION (no number, no preamble):"""
         
         # Call LLM
         try:
+            # Debug: Show abbreviated prompt context
+            print(f"\n[Adaptive] 🧠 QUESTION GENERATION PROMPT:")
+            print(f"[Adaptive]    Patient: {self.demographics.get('age', '?')} yo {self.demographics.get('sex', '?')}")
+            print(f"[Adaptive]    Chief complaint: {self.chief_complaint}")
+            print(f"[Adaptive]    Top differentials: {', '.join([g['name'] for g in top_3])}")
+            
             response = self.llm_chat_fn(
                 [{"role": "user", "content": prompt}],
                 max_tokens=100,
@@ -1120,11 +1126,19 @@ OUTPUT ONLY THE SYMPTOM QUESTION (no number, no preamble):"""
             # Extract question from response
             question = response.strip()
             
+            # Debug: Show raw LLM output before cleaning
+            print(f"[Adaptive] 🧠 LLM RAW OUTPUT:")
+            print(f"[Adaptive]    '{question}'")
+            
             # Clean up any meta-text, numbers, prefixes
             question = re.sub(r'^\d+[\.)]\s*', '', question)  # Remove "3. " or "3) "
             question = re.sub(r'^(Question|Q\d+|Next question):\s*', '', question, flags=re.IGNORECASE)
             question = question.split('\n')[0]  # Take first line only
             question = question.strip()
+            
+            # Debug: Show cleaned question
+            print(f"[Adaptive] 🧠 LLM CLEANED OUTPUT:")
+            print(f"[Adaptive]    '{question}'")
             
             # Ensure ends with ?
             if not question.endswith('?'):
@@ -1154,7 +1168,7 @@ OUTPUT ONLY THE SYMPTOM QUESTION (no number, no preamble):"""
         Returns empathy + age question combined (e.g., "I understand you're having stomach pain. 
         To help you better, can you tell me your age?")
         """
-        print(f"[Adaptive] 💬 Generating opening message for: {symptom}")
+        print(f"\n[Adaptive] 💬 Generating opening message for: {symptom}")
         
         prompt = f"""You are a compassionate physician starting a medical interview.
 
@@ -1182,15 +1196,20 @@ OUTPUT ONLY THE COMBINED MESSAGE (no preamble):"""
             
             question = response.strip()
             
+            # Debug: Show LLM output
+            print(f"[Adaptive] 🧠 LLM OPENING RAW: '{question}'")
+            
             # Ensure ends with ?
             if not question.endswith('?'):
                 question += '?'
             
-            print(f"[Adaptive] 💬 Generated opening: '{question}'")
+            print(f"[Adaptive] ✅ FINAL OPENING: '{question}'")
             return question
         
         except Exception as e:
             print(f"[Adaptive] ❌ Opening generation failed: {e}")
+            import traceback
+            traceback.print_exc()
             # Fallback
             return f"I understand you're having {symptom}. To help you, can you tell me your age?"
     
@@ -1200,7 +1219,7 @@ OUTPUT ONLY THE COMBINED MESSAGE (no preamble):"""
         
         Avoids repetitive "Are you male or female?"
         """
-        print(f"[Adaptive] 💬 Generating sex question")
+        print(f"\n[Adaptive] 💬 Generating sex question")
         
         prompt = """You are a physician conducting a medical interview.
 
@@ -1227,15 +1246,20 @@ OUTPUT ONLY THE QUESTION (no preamble):"""
             
             question = response.strip()
             
+            # Debug: Show LLM output
+            print(f"[Adaptive] 🧠 LLM SEX QUESTION RAW: '{question}'")
+            
             # Ensure ends with ?
             if not question.endswith('?'):
                 question += '?'
             
-            print(f"[Adaptive] 💬 Generated sex question: '{question}'")
+            print(f"[Adaptive] ✅ FINAL SEX QUESTION: '{question}'")
             return question
         
         except Exception as e:
             print(f"[Adaptive] ❌ Sex question generation failed: {e}")
+            import traceback
+            traceback.print_exc()
             # Fallback
             return "Are you male or female?"
     
