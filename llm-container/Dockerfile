@@ -33,6 +33,7 @@ COPY medical/guidelines/ /app/medical/guidelines/
 #COPY models/qwen2.5-1.5b-instruct-q4_0.gguf /models/qwen2.5-1.5b-instruct-q4_0.gguf
 COPY models/Llama-3.2-3B-Instruct-Q4_K_M.gguf /models/Llama-3.2-3B-Instruct-Q4_K_M.gguf
 COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K_M.gguf
+COPY models/Llama-3.2-8B-Instruct-Q4_K_M.ggu /models/Llama-3.2-8B-Instruct-Q4_K_M.ggu
 
 # Install Python dependencies (LLM only)
 RUN pip3 install --no-cache-dir --ignore-installed \
