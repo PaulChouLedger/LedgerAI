@@ -200,8 +200,32 @@ class AdaptiveDiagnosticEngine:
         
         # SPECIAL HANDLING: Red flag screening
         if self.status == 'red_flag_screening' and last_q.get('focus') == 'red_flag':
-            answer_lower = user_answer.lower()
+            answer_lower = user_answer.lower().strip()
+            
+            # Check for yes/no (accept various forms)
             is_yes = any(word in answer_lower for word in ['yes', 'yeah', 'yep', 'yup', 'sure'])
+            is_no = any(word in answer_lower for word in ['no', 'nope', 'nah', 'not'])
+            
+            # If unclear answer, re-ask
+            if not is_yes and not is_no and len(answer_lower.split()) < 3:
+                print(f"[Engine] ⚠️ Unclear red flag answer: '{user_answer}' - re-asking")
+                # Re-ask the same red flag question
+                red_flag_text = last_q.get('red_flag_text', '')
+                question = self._red_flag_to_question(red_flag_text)
+                
+                self.conversation_history.append({
+                    'type': 'question',
+                    'question': f"Please answer yes or no: {question}",
+                    'focus': 'red_flag',
+                    'red_flag_text': red_flag_text,
+                    'red_flag_index': self.red_flag_index
+                })
+                
+                return {
+                    'success': True,
+                    'question': f"Please answer yes or no: {question}",
+                    'status': 'red_flag_screening'
+                }
             
             if is_yes:
                 red_flag_text = last_q.get('red_flag_text', 'Warning sign')
@@ -370,6 +394,13 @@ class AdaptiveDiagnosticEngine:
         yes_no_words = ['yes', 'no', 'yeah', 'nope', 'nah', 'yep', 'sure', 'maybe', 'sometimes', 'not really']
         if any(word in answer_lower for word in yes_no_words):
             print(f"[Engine]   ✓ Programmatic validation: ACCEPT (yes/no response)")
+            return True
+        
+        # Accept symptom confirmations (e.g., "I've had nausea" for "Have you had nausea?")
+        symptom_words = ['nausea', 'vomiting', 'diarrhea', 'constipation', 'fever', 'chills', 
+                        'headache', 'dizziness', 'bleeding', 'constant', 'sharp', 'dull']
+        if any(word in answer_lower for word in symptom_words):
+            print(f"[Engine]   ✓ Programmatic validation: ACCEPT (symptom confirmation)")
             return True
         
         # Accept time-related words
@@ -617,15 +648,14 @@ Question:"""
             if not question.endswith('?'):
                 question += '?'
             
-            # VALIDATION: Reject multi-part questions (containing "and")
-            if ' and ' in question.lower() or ' or ' in question.lower():
-                # Extract just the first part before "and/or"
-                if ' and ' in question.lower():
-                    question = question.split(' and ')[0] + '?'
-                    print(f"[Engine] ⚠️ Multi-part question detected - using first part only")
-                elif ' or ' in question.lower() and question.count('?') > 1:
-                    question = question.split('?')[0] + '?'
-                    print(f"[Engine] ⚠️ Multi-part question detected - using first part only")
+            # VALIDATION: Reject multi-part questions ONLY if combining unrelated symptoms
+            # "fever AND chills" → multi-part (BAD)
+            # "constant OR intermittent" → choice (OK)
+            # "constant or does it come and go" → choice (OK)
+            if ' and ' in question.lower() and not any(phrase in question.lower() for phrase in ['come and go', 'vomiting and', 'nausea and vomiting']):
+                # Split on "and" only if it's combining separate questions
+                question = question.split(' and ')[0] + '?'
+                print(f"[Engine] ⚠️ Multi-part question detected - using first part only")
             
             # VALIDATION: Check if we already asked this (or very similar)
             is_repeat = False
