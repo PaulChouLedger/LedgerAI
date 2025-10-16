@@ -423,13 +423,15 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine]   Q: '{last_question}'")
         print(f"[Engine]   A: '{answer}'")
         
-        # Use LLM to validate (fully dynamic, no hardcoded patterns)
-        system_msg = """You validate medical conversation answers. Determine if the patient's response addresses the question asked. Only reject filler words (um, uh, oh) or completely unrelated responses. Accept any substantive attempt to answer. Output ONLY 'yes' or 'no'."""
+        # Use LLM to validate (fully dynamic - direct analysis)
+        system_msg = f"""Validate if this answer addresses the question:
 
-        user_msg = f"""Question: {last_question}
-Answer: {answer}
+Question: "{last_question}"
+Answer: "{answer}"
 
-Does the answer address the question? Output 'yes' or 'no':"""
+Only reject if answer is pure filler (um, uh, oh) or completely unrelated. Otherwise accept any substantive response. Output ONLY 'yes' or 'no'."""
+
+        user_msg = "Valid?"
         
         print(f"[Engine] 🧠 VALIDATION PROMPT (FULL):")
         print(f"[Engine]   === SYSTEM ===")
@@ -552,29 +554,46 @@ Does the answer address the question? Output 'yes' or 'no':"""
         # Determine next OLDCARTS element to ask about
         next_element = uncovered_elements[0] if uncovered_elements else None
         
-        element_questions = {
-            'L': "Where exactly is the pain located?",
-            'D': "How long does the pain last?",
-            'C': "How would you describe the pain?",
-            'A': "What makes the pain worse?",
-            'R': "What makes the pain better?",
-            'T': "Is the pain constant or does it come and go?",
-            'S': "On a scale of 1 to 10, how severe is the pain?"
-        }
-        
-        # Ultra-minimal prompt - just show what to ask
+        # Ultra-clear prompts for each OLDCARTS element
         if next_element:
-            element_name = {'L': 'LOCATION', 'D': 'DURATION', 'C': 'CHARACTER', 
-                           'A': 'AGGRAVATING', 'R': 'RELIEVING', 'T': 'TIMING', 'S': 'SEVERITY'}[next_element]
-            example = element_questions[next_element]
-            
-            user_msg = f"""Patient has {self.chief_complaint}.
-
-Ask about {element_name}.
-
-Example: {example}
-
+            element_prompts = {
+                'L': f"""Patient has {self.chief_complaint}.
+Ask where the pain is located (be conversational, not robotic).
+Example: Where exactly is the pain?
+Your question:""",
+                
+                'D': f"""Patient has {self.chief_complaint}.
+Ask how long the pain lasts or duration (be conversational).
+Example: How long does each episode last?
+Your question:""",
+                
+                'C': f"""Patient has {self.chief_complaint}.
+Ask about the pain quality/description (sharp, dull, stabbing, aching, burning, crampy, throbbing).
+Example: Can you describe what the pain feels like?
+Your question:""",
+                
+                'A': f"""Patient has {self.chief_complaint}.
+Ask what makes the pain worse (aggravating factors).
+Example: What makes it worse?
+Your question:""",
+                
+                'R': f"""Patient has {self.chief_complaint}.
+Ask what makes the pain better (relieving factors).
+Example: What helps relieve it?
+Your question:""",
+                
+                'T': f"""Patient has {self.chief_complaint}.
+Ask about timing/pattern (constant vs intermittent).
+Example: Is it constant or does it come and go?
+Your question:""",
+                
+                'S': f"""Patient has {self.chief_complaint}.
+Ask about pain severity/intensity.
+Example: How bad is the pain?
 Your question:"""
+            }
+            
+            user_msg = element_prompts.get(next_element)
         else:
             user_msg = f"""Patient has {self.chief_complaint}.
 
