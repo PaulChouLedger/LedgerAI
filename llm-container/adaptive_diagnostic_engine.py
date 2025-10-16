@@ -233,9 +233,12 @@ class AdaptiveDiagnosticEngine:
             last_q = self.questions_asked[-1] if self.questions_asked else None
             
             if last_q:
+                # Use LLM to extract core question (no hardcoded patterns!)
+                core_question = self._extract_core_question(last_q['question'])
+                
                 return {
                     'success': True,
-                    'question': f"I didn't quite catch that. {last_q['question']}",
+                    'question': f"I didn't quite catch that. {core_question}",
                     'status': 'questioning'
                 }
             else:
@@ -248,9 +251,13 @@ class AdaptiveDiagnosticEngine:
         last_q = self.questions_asked[-1] if self.questions_asked else None
         if last_q and not self._answer_addresses_question(last_q, user_answer):
             print(f"[Adaptive] ⚠️ Answer doesn't address the question - re-asking")
+            
+            # Use LLM to extract core question (no hardcoded patterns!)
+            core_question = self._extract_core_question(last_q['question'])
+            
             return {
                 'success': True,
-                'question': f"Could you be more specific? {last_q['question']}",
+                'question': f"Could you be more specific? {core_question}",
                 'status': 'questioning'
             }
         
@@ -559,6 +566,48 @@ class AdaptiveDiagnosticEngine:
         
         return False
     
+    def _extract_core_question(self, full_text: str) -> str:
+        """
+        Use LLM to extract the core question from text that may include empathy/preamble
+        
+        Example:
+        Input: "That sounds uncomfortable. Let me help. First, how old are you?"
+        Output: "How old are you?"
+        """
+        extraction_prompt = f"""Extract the CORE QUESTION from this text:
+
+"{full_text}"
+
+The text may include empathy statements, preambles, or explanations. Extract ONLY the actual question being asked.
+
+Examples:
+- "I'm sorry you're in pain. How old are you?" → "How old are you?"
+- "That sounds uncomfortable. Let me help. Are you male or female?" → "Are you male or female?"
+- "Where is the pain?" → "Where is the pain?"
+
+Output ONLY the core question (no quotes, no preamble):"""
+        
+        try:
+            response = self.llm_chat_fn(
+                [{"role": "user", "content": extraction_prompt}],
+                max_tokens=50,
+                temperature=0.0
+            )
+            
+            core_question = response.strip().strip('"\'')
+            
+            # Ensure ends with ?
+            if not core_question.endswith('?'):
+                core_question += '?'
+            
+            print(f"[Adaptive] 🔍 Extracted core question: '{core_question}'")
+            return core_question
+            
+        except Exception as e:
+            print(f"[Adaptive] ⚠️ Core question extraction failed: {e}")
+            # Fallback to original text
+            return full_text
+    
     def _answer_addresses_question(self, question_obj: Dict, answer: str) -> bool:
         """
         LLM-based validation: Does the answer actually address what was asked?
@@ -571,7 +620,12 @@ class AdaptiveDiagnosticEngine:
         question = question_obj.get('question', '')
         
         # Use LLM to evaluate if answer addresses the question
-        validation_prompt = f"""EVALUATE THIS PATIENT RESPONSE:
+        validation_prompt = f"""MEDICAL INTERVIEW EVALUATION:
+
+You are evaluating responses in a MEDICAL diagnostic interview. In this medical context:
+- "Sex" always means BIOLOGICAL SEX (male/female) for diagnostic purposes
+- Simple factual answers like "35", "male", "female" are valid and complete
+- Do NOT overthink gender identity or social aspects
 
 THE QUESTION ASKED:
 {question}
@@ -598,14 +652,20 @@ Decision: YES
 
 Q: "Can you tell me your sex?"
 A: "female"
-Step 1: Question requests biological sex for medical purposes
-Step 2: Answer provides biological sex (female)
+Step 1: Medical question requests biological sex (male or female)
+Step 2: Answer provides "female" which is a biological sex
+Decision: YES
+
+Q: "What is your biological sex?"
+A: "male"
+Step 1: Medical question requests biological sex
+Step 2: Answer provides "male" which is a biological sex
 Decision: YES
 
 Q: "Are you male or female?"
-A: "male"
-Step 1: Question requests biological sex
-Step 2: Answer provides biological sex (male)
+A: "female"
+Step 1: Medical question asks to choose male or female
+Step 2: Answer chooses "female"
 Decision: YES
 
 Q: "Is it upper right or lower right?" 
@@ -1294,15 +1354,17 @@ OUTPUT ONLY THE COMBINED MESSAGE (no preamble):"""
         
         prompt = """You are a physician conducting a medical interview.
 
-You need to ask about the patient's biological sex (for medical diagnostic purposes).
+You need to ask about the patient's BIOLOGICAL SEX (male or female) for medical diagnostic purposes.
 
 Generate a natural, respectful way to ask this. Vary the phrasing.
 
+CRITICAL: Always include "biological sex" or clearly indicate male/female options to avoid confusion with gender identity.
+
 EXAMPLES:
-"Are you male or female?"
-"What's your biological sex?"
-"Are you a man or a woman?"
-"Can you tell me your sex?"
+"What is your biological sex - male or female?"
+"Are you biologically male or female?"
+"Can you tell me your biological sex?"
+"For medical purposes, are you male or female?"
 
 Use similar conversational tone. Keep it SHORT (one simple question).
 
