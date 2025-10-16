@@ -1,128 +1,122 @@
-# Red Flag Integration - Full Guideline Context for LLM
+# Red Flag Integration - Minimal Context During Diagnosis, Full Context at Final Message
 
 ## Overview
 
-The LLM now receives the **entire guideline** (not just `classic_presentation`) for each active condition. This includes red flags, urgency, prevalence, and full clinical context.
+During diagnostic questioning and scoring, the LLM receives **only the classic presentation** (minimal context to prevent hallucination). 
+
+At final diagnosis, the **entire guideline** (with red flags, urgency, prevalence) is used to generate a comprehensive disposition message.
 
 ---
 
 ## What Changed
 
-### Before: Classic Presentation Only
+### Phase 1: Diagnostic Questioning (Classic Presentation Only)
 ```
 Guideline 1: Acute Appendicitis (Current Score: 60%, Urgency: urgent)
 Classic Presentation: Acute appendicitis typically presents with periumbilical pain...
 ```
 
-### After: Full Guideline with Red Flags
-```
-Guideline 1: Acute Appendicitis
-  Current Score: 60%
-  Urgency: urgent
-  Prevalence: common
-  
-  Classic Presentation:
-  Acute appendicitis typically presents with periumbilical pain that MIGRATES to the 
-  right lower quadrant (RLQ) over 12-24 hours...
-  
-  RED FLAGS (immediately escalate if present):
-  - Sudden severe pain that then improves briefly - may indicate PERFORATION
-  - Severe pain with abdominal rigidity (board-like abdomen) - perforation with peritonitis, call 911
-  - High fever >103°F with severe pain - possible perforation
-  - Hypotension, tachycardia, altered mental status - septic shock, call 911
-```
+**Why minimal context?**
+- Small LLMs (1B-3B) can hallucinate with too much context
+- Classic presentation alone is sufficient for question generation
+- Keeps token usage low (~800 tokens vs ~1,400 tokens)
 
----
-
-## Benefits
-
-### 1. ✅ **Red Flag Detection**
-The LLM can now:
-- Screen for life-threatening symptoms
-- Ask targeted questions about red flags
-- Escalate scores (80-95%) when red flags are present
-- Prioritize dangerous conditions over benign ones
-
-**Example:**
-```
-Patient: "The pain was terrible, then suddenly got better about an hour ago."
-
-LLM recognizes: "sudden improvement after severe pain" = RED FLAG for perforation
-LLM scores Appendicitis → 90% (was 60%)
-LLM asks: "Are you having any fever or feeling dizzy?" (screening for sepsis)
-```
-
-### 2. ✅ **Urgency-Aware Questioning**
-The LLM knows which conditions are emergent vs urgent vs routine and can:
-- Prioritize screening for emergent conditions
-- Ask more direct/rapid questions for emergent diagnoses
-- Take a more thorough approach for routine conditions
-
-### 3. ✅ **Better Scoring**
-With full context, the LLM can:
-- Give higher scores when red flags are present
-- Lower scores when key features are absent
-- Make more nuanced assessments
-
-**Scoring Prompt Example:**
-```
-If answer is "no" to a key feature, give LOW score.
-If answer matches classic presentation, give HIGH score.
-If RED FLAG present, give VERY HIGH score (80-95).
-```
-
-### 4. ✅ **Final Diagnosis with Red Flags**
-The diagnosis message now includes red flags for urgent/emergent conditions:
+### Phase 2: Final Diagnosis (Full Guideline with Red Flags)
 ```
 Based on your symptoms, this is most likely Acute Appendicitis (confidence: 92%).
 
 ⚠️ This requires prompt medical attention. Go to urgent care or ER today.
 
 ⚠️ Watch for these warning signs:
-• Sudden severe pain that then improves briefly - may indicate PERFORATION
-• Severe pain with abdominal rigidity (board-like abdomen) - call 911
-• High fever >103°F with severe pain - possible perforation
+  • Sudden severe pain that then improves briefly - may indicate PERFORATION
+  • Severe pain with abdominal rigidity (board-like abdomen) - call 911
+  • High fever >103°F with severe pain - possible perforation
 ```
+
+**Why full context here?**
+- No need for LLM generation (just template formatting)
+- Patient education requires complete red flag information
+- Safety-critical information communicated clearly
 
 ---
 
-## Token Usage
+## Benefits
 
-### Per Guideline Estimate:
-- Classic presentation: ~250 tokens
-- Red flags (4 items): ~75 tokens
-- Metadata (name, urgency, prevalence): ~20 tokens
-- **Total per guideline: ~345 tokens**
+### 1. ✅ **Prevents LLM Hallucination**
+**During questioning/scoring:**
+- Minimal context (classic presentation only)
+- Prevents "3333..." and other hallucinations
+- Keeps LLM focused on diagnostic features
+- Faster inference with smaller token count
 
-### For 3 Active Guidelines:
-- **3 × 345 = ~1,035 tokens**
+### 2. ✅ **Comprehensive Red Flag Communication**
+**At final diagnosis:**
+- Full guideline context used for patient message
+- Top 3 red flags clearly communicated
+- Specific action items ("call 911", "go to ER")
+- Patient education without overwhelming the LLM
 
-### Total Context for Question Generation:
-- 3 guidelines: ~1,035 tokens
+### 3. ✅ **Token Efficiency**
+
+**Phase 1 (Questioning):**
+- 3 guidelines × ~250 tokens = ~750 tokens
+- Patient info + history: ~200 tokens
+- **Total: ~950 tokens per question**
+
+**Phase 2 (Final Diagnosis):**
+- Full guideline for diagnosed condition only (1 guideline)
+- ~350 tokens (classic + red flags + metadata)
+- **Used only once at the end**
+
+### 4. ✅ **Safety Without Compromise**
+- Red flags still captured in final message
+- Patient receives critical safety information
+- No risk of red flag questions confusing small LLM
+- Clear, actionable guidance
+
+---
+
+## Token Usage Breakdown
+
+### Phase 1: Diagnostic Questioning (Per Question)
+- Classic presentation × 3 guidelines: ~750 tokens
 - Patient info + history: ~200 tokens
 - System prompt + instructions: ~150 tokens
-- **Total: ~1,385 tokens**
+- **Total: ~1,100 tokens per question**
 
-✅ **Well within limits** even for small models (1B-3B with 4096 context)
+### Phase 2: Final Diagnosis (One-Time)
+- Full guideline (1 condition): ~350 tokens
+- Patient summary: ~100 tokens
+- Template formatting: ~50 tokens
+- **Total: ~500 tokens (used once)**
+
+### Comparison to Full Context Approach:
+| Approach | Tokens per Question | Risk |
+|----------|-------------------|------|
+| **Minimal (Current)** | ~1,100 | ✅ Low hallucination risk |
+| Full Context | ~1,400 | ❌ High hallucination risk ("3333...") |
+
+✅ **Optimized for small models (1B-3B)** while maintaining safety
 
 ---
 
 ## Updated Sections
 
-### 1. Question Generation (Lines 500-585)
-- Now includes full guideline with red flags
-- Instructs LLM to screen for red flags first
-- Examples include red flag questions
+### 1. Question Generation (Lines 500-568)
+- **Classic presentation only** (reverted from full context)
+- Simple prompt focused on discriminating features
+- No red flag screening during questions (prevents hallucination)
 
-### 2. Scoring (Lines 710-737)
-- Full guideline + red flags sent to LLM
-- Scoring prompt explicitly mentions red flags
-- Higher scores (80-95%) for red flag presence
+### 2. Scoring (Lines 696-714)
+- **Classic presentation only** (reverted from full context)
+- Minimal prompt to prevent hallucination
+- No red flag bonus (keeps scoring simple)
 
 ### 3. Final Diagnosis (Lines 842-888)
-- Red flags included in diagnosis message
+- **Full guideline with red flags** (enhanced)
+- Red flags included in patient message
 - Top 3 red flags shown for urgent/emergent conditions
-- Red flag count logged
+- Clear action items ("call 911", "go to ER")
 
 ---
 

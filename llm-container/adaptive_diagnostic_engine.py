@@ -86,7 +86,9 @@ class AdaptiveDiagnosticEngine:
         self.chief_complaint = ""
         self.demographics = {}  # age, sex
         self.conversation_history = []  # All Q&A
-        self.status = "idle"  # idle, questioning, diagnosed
+        self.status = "idle"  # idle, questioning, red_flag_screening, diagnosed
+        self.red_flags_present = []  # Track which red flags are present
+        self.red_flag_index = 0  # Track which red flag we're asking about
         
         # Thresholds
         self.RULE_OUT_THRESHOLD = 0.30  # Below 30% → rule out and replace
@@ -167,7 +169,7 @@ class AdaptiveDiagnosticEngine:
         Returns:
             Next question or diagnosis
         """
-        if self.status != "questioning":
+        if self.status not in ["questioning", "red_flag_screening"]:
             return {'success': False, 'message': "No active assessment"}
         
         # SAFETY CHECK: If active_guidelines is empty (first attempt failed),
@@ -195,6 +197,24 @@ class AdaptiveDiagnosticEngine:
             'answer': user_answer,
             'to_question': last_q.get('focus', 'unknown')
         })
+        
+        # SPECIAL HANDLING: Red flag screening
+        if self.status == 'red_flag_screening' and last_q.get('focus') == 'red_flag':
+            answer_lower = user_answer.lower()
+            is_yes = any(word in answer_lower for word in ['yes', 'yeah', 'yep', 'yup', 'sure'])
+            
+            if is_yes:
+                red_flag_text = last_q.get('red_flag_text', 'Warning sign')
+                self.red_flags_present.append(red_flag_text)
+                print(f"[Engine] ⚠️  RED FLAG PRESENT: {red_flag_text}")
+            else:
+                print(f"[Engine] ✓ Red flag not present")
+            
+            # Move to next red flag
+            self.red_flag_index += 1
+            
+            # Continue screening (or finalize if done)
+            return self._screen_red_flags(self.active_guidelines[0])
         
         # Handle demographics
         if last_q.get('focus') == 'age':
@@ -497,28 +517,16 @@ Output (yes/no):"""
         # Build context for LLM
         patient_info = f"{self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')} with {self.chief_complaint}"
         
-        # Get FULL guidelines (classic presentation + red flags + urgency)
+        # Get ONLY classical presentations (minimal context for LLM)
+        # Full guideline with red flags sent ONLY at final diagnosis
         guidelines_context = []
         for i, g in enumerate(self.active_guidelines, 1):
             classic = g['data'].get('key_features', {}).get('classic_presentation', 'N/A')
-            red_flags = g['data'].get('red_flags', [])
             urgency = g['data'].get('urgency', 'routine')
-            prevalence = g['data'].get('prevalence', 'uncommon')
-            
-            # Format red flags
-            red_flags_text = '\n  - '.join(red_flags) if red_flags else 'None'
             
             guidelines_context.append(f"""
-Guideline {i}: {g['name']}
-  Current Score: {g['score']:.0%}
-  Urgency: {urgency}
-  Prevalence: {prevalence}
-  
-  Classic Presentation:
-  {classic}
-  
-  RED FLAGS (immediately escalate if present):
-  - {red_flags_text}
+Guideline {i}: {g['name']} (Current Score: {g['score']:.0%}, Urgency: {urgency})
+Classic Presentation: {classic}
 """)
         
         guidelines_text = "\n".join(guidelines_context)
@@ -558,29 +566,24 @@ Guideline {i}: {g['name']}
         
         user_msg = f"""Patient: {patient_info}
 
-Active Guidelines with Key Features:
-{guidelines_text}
-
-Key discriminating features:
+Key features to ask about:
 {features_text}
 
 Already asked:
 {asked_list}
 
-Generate ONE specific medical question to:
-1. Screen for RED FLAGS (life-threatening symptoms) if not yet asked
-2. Differentiate between the 3 active conditions using key features
-3. Ask about ONE thing only (location/migration/timing/quality/fever/triggers/red flags)
-
+Generate ONE specific medical question based on the key features above.
+Ask about ONE thing only (location/migration/timing/quality/fever/nausea/vomiting/triggers).
 DO NOT combine questions with "and".
 
 Examples:
 - "Where exactly is the pain located?"
 - "Did the pain migrate from one place to another?"
-- "Have you had any fever or chills?"
-- "Have you noticed any blood in your stool?" (red flag)
-- "Are you having severe pain that won't go away?" (red flag)
-- "Does eating fatty foods make the pain worse?"
+- "When did the pain start?"
+- "Have you had any fever?"
+- "Have you had nausea or vomiting?"
+- "Does eating make the pain worse?"
+- "Is the pain constant or does it come and go?"
 
 Question:"""
 
@@ -714,22 +717,12 @@ Question:"""
         
         for g in self.active_guidelines:
             classic = g['data'].get('key_features', {}).get('classic_presentation', 'N/A')
-            red_flags = g['data'].get('red_flags', [])
-            urgency = g['data'].get('urgency', 'routine')
-            
-            # Format red flags
-            red_flags_text = '\n'.join([f"  - {rf}" for rf in red_flags]) if red_flags else '  None'
             
             # Scoring prompt - ULTRA-STRICT: System + user roles, number only
-            system_msg = "You are a diagnostic scoring AI. Output ONLY integers 0-100. No explanations. Lower scores for 'no' answers to key features. Higher scores if red flags present."
+            system_msg = "You are a diagnostic scoring AI. Output ONLY integers 0-100. No explanations. Lower scores for 'no' answers to key features."
             
-            user_msg = f"""{g['name']} (Urgency: {urgency}):
-
-Classic Presentation:
+            user_msg = f"""{g['name']}:
 {classic}
-
-RED FLAGS:
-{red_flags_text}
 
 Patient: {patient_info}
 Question: {last_q}
@@ -737,7 +730,6 @@ Answer: {answer}
 
 If answer is "no" to a key feature, give LOW score.
 If answer matches classic presentation, give HIGH score.
-If RED FLAG present, give VERY HIGH score (80-95).
 
 Score 0-100:"""
 
@@ -830,14 +822,103 @@ Score 0-100:"""
         # Diagnosis criteria: High confidence OR asked enough questions
         if top['score'] >= 0.90 and num_questions >= 7:
             print(f"[Engine] ✅ DIAGNOSIS REACHED: {top['name']} ({top['score']:.0%} confidence)")
-            return self._finalize_diagnosis(top)
+            print(f"[Engine] 🚩 Starting RED FLAG screening...")
+            return self._screen_red_flags(top)
         elif num_questions >= 12:
             print(f"[Engine] ✅ DIAGNOSIS BY QUESTIONS LIMIT: {top['name']} ({top['score']:.0%} confidence)")
-            return self._finalize_diagnosis(top)
+            print(f"[Engine] 🚩 Starting RED FLAG screening...")
+            return self._screen_red_flags(top)
         else:
             print(f"[Engine] 🔄 Continuing (Q{num_questions}, top score: {top['score']:.0%})")
             # Ask next question
             return self._ask_next_clinical_question()
+    
+    def _screen_red_flags(self, diagnosis_obj: Dict) -> Dict[str, Any]:
+        """
+        Screen for all red flags after diagnosis is reached
+        Ask yes/no questions for each red flag to ensure nothing is missed
+        """
+        red_flags = diagnosis_obj['data'].get('red_flags', [])
+        
+        # If no red flags, skip screening
+        if not red_flags:
+            print(f"[Engine] ℹ️  No red flags to screen - proceeding to finalize")
+            return self._finalize_diagnosis(diagnosis_obj)
+        
+        # If just starting screening, set status and reset index
+        if self.status != 'red_flag_screening':
+            self.status = 'red_flag_screening'
+            self.red_flag_index = 0
+            self.red_flags_present = []
+            print(f"[Engine] 🚩 Screening {len(red_flags)} red flags for {diagnosis_obj['name']}")
+        
+        # If we've asked about all red flags, finalize
+        if self.red_flag_index >= len(red_flags):
+            print(f"[Engine] ✅ Red flag screening complete ({len(self.red_flags_present)} flags present)")
+            return self._finalize_diagnosis(diagnosis_obj)
+        
+        # Ask about next red flag
+        current_red_flag = red_flags[self.red_flag_index]
+        
+        # Convert red flag to yes/no question
+        # Extract the core symptom from the red flag text
+        question = self._red_flag_to_question(current_red_flag)
+        
+        print(f"[Engine] 🚩 Red flag {self.red_flag_index + 1}/{len(red_flags)}: {current_red_flag}")
+        
+        self.conversation_history.append({
+            'type': 'question',
+            'question': question,
+            'focus': 'red_flag',
+            'red_flag_text': current_red_flag,
+            'red_flag_index': self.red_flag_index
+        })
+        
+        return {
+            'success': True,
+            'question': question,
+            'status': 'red_flag_screening'
+        }
+    
+    def _red_flag_to_question(self, red_flag: str) -> str:
+        """
+        Convert a red flag statement to a yes/no question
+        
+        Example:
+        "High fever >103°F with severe pain - possible perforation"
+        → "Have you had a fever higher than 103 degrees?"
+        """
+        # Simple conversion: extract key symptom and make it a question
+        # These are meant to be simple, direct yes/no questions
+        
+        lower = red_flag.lower()
+        
+        # Common patterns
+        if 'fever' in lower and '103' in lower:
+            return "Have you had a fever higher than 103 degrees?"
+        elif 'fever' in lower:
+            return "Have you had any fever or chills?"
+        elif 'pain that then improves' in lower or 'sudden' in lower and 'better' in lower:
+            return "Did the pain suddenly get much better after being severe?"
+        elif 'rigid' in lower or 'board-like' in lower:
+            return "Is your abdomen very hard or rigid when you press on it?"
+        elif 'hypotension' in lower or 'dizzy' in lower or 'faint' in lower:
+            return "Have you felt dizzy, lightheaded, or like you might faint?"
+        elif 'tachycardia' in lower or 'heart' in lower:
+            return "Is your heart racing or beating very fast?"
+        elif 'altered mental' in lower or 'confusion' in lower:
+            return "Have you felt confused or had trouble thinking clearly?"
+        elif 'blood' in lower and ('stool' in lower or 'diarrhea' in lower):
+            return "Have you seen any blood in your stool or diarrhea?"
+        elif 'blood' in lower and 'vomit' in lower:
+            return "Have you vomited any blood?"
+        elif 'jaundice' in lower or 'yellow' in lower:
+            return "Have your eyes or skin turned yellow?"
+        elif 'unable to pass gas' in lower or 'no bowel movement' in lower:
+            return "Have you been unable to pass gas or have a bowel movement?"
+        else:
+            # Generic fallback: Ask if they're experiencing the symptom
+            return f"Are you experiencing: {red_flag.split('-')[0].strip()}?"
     
     def _finalize_diagnosis(self, diagnosis_obj: Dict) -> Dict[str, Any]:
         """
@@ -848,7 +929,15 @@ Score 0-100:"""
         name = diagnosis_obj['name']
         score = diagnosis_obj['score']
         urgency = diagnosis_obj['data'].get('urgency', 'routine')
-        red_flags = diagnosis_obj['data'].get('red_flags', [])
+        all_red_flags = diagnosis_obj['data'].get('red_flags', [])
+        
+        # ESCALATE URGENCY if red flags are present
+        if len(self.red_flags_present) > 0:
+            if urgency == 'routine':
+                urgency = 'urgent'
+            elif urgency == 'urgent':
+                urgency = 'emergent'
+            print(f"[Engine] ⚠️  RED FLAGS DETECTED - Urgency escalated to: {urgency}")
         
         urgency_messages = {
             'emergent': '🚨 This is a medical emergency. Call 911 or go to the ER immediately.',
@@ -858,13 +947,20 @@ Score 0-100:"""
         
         urgency_msg = urgency_messages.get(urgency, urgency_messages['routine'])
         
-        # Build message with red flags if applicable
+        # Build message
         message = f"Based on your symptoms, this is most likely {name} (confidence: {score:.0%}).\n\n{urgency_msg}"
         
-        # Add red flags warning if any
-        if red_flags and urgency in ['emergent', 'urgent']:
+        # Add detected red flags (if any were found during screening)
+        if len(self.red_flags_present) > 0:
+            message += f"\n\n🚨 WARNING SIGNS DETECTED:\n"
+            for rf in self.red_flags_present:
+                message += f"• {rf}\n"
+            message += "\nSeek immediate medical attention."
+        
+        # Add general red flags to watch for (if urgent/emergent and not already shown)
+        elif all_red_flags and urgency in ['emergent', 'urgent']:
             message += f"\n\n⚠️ Watch for these warning signs:\n"
-            for rf in red_flags[:3]:  # Show top 3 red flags
+            for rf in all_red_flags[:3]:  # Show top 3 red flags
                 message += f"• {rf}\n"
         
         print(f"\n{'='*80}")
@@ -873,8 +969,10 @@ Score 0-100:"""
         print(f"[Engine] Condition: {name}")
         print(f"[Engine] Confidence: {score:.0%}")
         print(f"[Engine] Urgency: {urgency}")
-        if red_flags:
-            print(f"[Engine] Red Flags: {len(red_flags)} warning signs")
+        if len(self.red_flags_present) > 0:
+            print(f"[Engine] 🚨 Red Flags Detected: {len(self.red_flags_present)}")
+            for rf in self.red_flags_present:
+                print(f"[Engine]   - {rf}")
         print(f"{'='*80}\n")
         
         return {
@@ -883,7 +981,7 @@ Score 0-100:"""
             'diagnosis': name,
             'confidence': score,
             'urgency': urgency,
-            'red_flags': red_flags,
+            'red_flags_detected': self.red_flags_present,
             'message': message
         }
     
