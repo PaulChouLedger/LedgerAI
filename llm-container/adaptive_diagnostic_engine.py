@@ -103,12 +103,18 @@ class AdaptiveDiagnosticEngine:
     
     def reset_assessment(self):
         """Reset state for new assessment"""
-        self.active_guidelines = []  # List of (guideline_name, score, metadata)
+        self.active_guidelines = []  # Top 5 most likely diagnoses
+        self.reserve_pool = []       # Remaining matched guidelines (sorted by score)
+        self.ruled_out = []          # Guidelines ruled out (for reference)
         self.answered_features = {}  # Dict of extracted clinical features
         self.raw_answers = []        # Raw user responses for recap
         self.questions_asked = []    # History of questions asked
         self.status = "idle"         # idle, questioning, diagnosed
         self.diagnosis = None        # Final diagnosis when reached
+        
+        # Configuration
+        self.MAX_ACTIVE = 5          # Keep top 5 differentials active
+        self.RULE_OUT_THRESHOLD = 0.3  # Score below this → ruled out
     
     def start_assessment(self, chief_complaint: str) -> Dict[str, Any]:
         """
@@ -142,16 +148,29 @@ class AdaptiveDiagnosticEngine:
         for name, score in matched:
             print(f"[Adaptive]    - {name} (initial: {score:.2f})")
         
-        # Initialize active guidelines with initial scores
-        self.active_guidelines = [
+        # Sort matched guidelines by score
+        matched_sorted = sorted(matched, key=lambda x: x[1], reverse=True)
+        
+        # Split into active (top 5) and reserve pool
+        all_matched = [
             {
                 'name': name,
                 'score': initial_score,
                 'guideline_data': self.guidelines[name],
-                'rag_content': None  # Will be loaded when needed
+                'rag_content': None
             }
-            for name, initial_score in matched
+            for name, initial_score in matched_sorted
         ]
+        
+        self.active_guidelines = all_matched[:self.MAX_ACTIVE]
+        self.reserve_pool = all_matched[self.MAX_ACTIVE:]
+        
+        print(f"[Adaptive] 📊 Active differentials (top {len(self.active_guidelines)}):")
+        for i, g in enumerate(self.active_guidelines, 1):
+            print(f"[Adaptive]    {i}. {g['name']}: {g['score']:.3f}")
+        
+        if self.reserve_pool:
+            print(f"[Adaptive] 💾 Reserve pool: {len(self.reserve_pool)} additional guidelines")
         
         # Extract any features from the chief complaint itself
         self._extract_features_from_text(chief_complaint)
@@ -236,13 +255,21 @@ class AdaptiveDiagnosticEngine:
             # This might be a vague answer - continue asking
             print(f"[Adaptive] 💡 No specific features extracted, but answer was valid - continuing")
         
+        # ROLLING UPDATE: Remove ruled-out guidelines, pull from reserve
+        self._update_differential_list()
+        
         # Sort by score
         self.active_guidelines.sort(key=lambda x: x['score'], reverse=True)
         
         # Print current top candidates
-        print(f"[Adaptive] 📊 Current top differentials:")
-        for i, g in enumerate(self.active_guidelines[:5], 1):
+        print(f"[Adaptive] 📊 Current active differentials:")
+        for i, g in enumerate(self.active_guidelines, 1):
             print(f"[Adaptive]    {i}. {g['name']}: {g['score']:.3f}")
+        
+        if self.ruled_out:
+            print(f"[Adaptive] ❌ Ruled out: {len(self.ruled_out)} conditions")
+        if self.reserve_pool:
+            print(f"[Adaptive] 💾 Reserve pool: {len(self.reserve_pool)} remaining")
         
         # Check if diagnosis reached
         # IMPORTANT: Require minimum questions to avoid premature diagnosis
@@ -273,24 +300,13 @@ class AdaptiveDiagnosticEngine:
             if questions_answered < MIN_QUESTIONS_FOR_DIAGNOSIS:
                 print(f"[Adaptive] 🔄 Need more questions ({questions_answered}/{MIN_QUESTIONS_FOR_DIAGNOSIS}) - continuing")
         
-        # Filter out low-scoring guidelines (but keep at least 1!)
-        threshold = 0.2  # Lower threshold for more flexibility
-        filtered = [g for g in self.active_guidelines if g['score'] > threshold]
-        
-        # Always keep at least the top guideline
-        if len(filtered) == 0 and len(self.active_guidelines) > 0:
-            print(f"[Adaptive] ⚠️ No guidelines above {threshold}, keeping top guideline")
-            self.active_guidelines = [self.active_guidelines[0]]
-        else:
-            self.active_guidelines = filtered
-        
-        if len(self.active_guidelines) == 0:
-            print(f"[Adaptive] ⚠️ No guidelines remain")
-            # Reset and ask for new chief complaint
+        # Check if we've exhausted all guidelines
+        if len(self.active_guidelines) == 0 and len(self.reserve_pool) == 0:
+            print(f"[Adaptive] ⚠️ All guidelines ruled out - no diagnosis possible")
             self.reset_assessment()
             return {
                 'success': False,
-                'message': "I couldn't match your symptoms to a specific condition. Can you describe what's bothering you?"
+                'message': "I couldn't match your symptoms to a specific condition. Please seek medical attention for a proper evaluation."
             }
         
         # Ask next discriminating question
@@ -340,6 +356,35 @@ class AdaptiveDiagnosticEngine:
         print(f"[Adaptive] 🎯 Matched {len(unique_matched)} guidelines")
         
         return list(unique_matched.items())
+    
+    def _update_differential_list(self):
+        """
+        Update the active differential list using rolling replacement strategy
+        
+        Key algorithm:
+        1. Rule out guidelines with score < threshold
+        2. Move ruled-out to ruled_out list
+        3. Pull from reserve pool to maintain MAX_ACTIVE (5) guidelines
+        4. This ensures we always consider top candidates without overwhelming
+        """
+        # Identify guidelines to rule out
+        to_remove = []
+        for guideline_obj in self.active_guidelines:
+            if guideline_obj['score'] < self.RULE_OUT_THRESHOLD:
+                to_remove.append(guideline_obj)
+                print(f"[Adaptive] ❌ Ruling out: {guideline_obj['name']} (score: {guideline_obj['score']:.3f} < {self.RULE_OUT_THRESHOLD})")
+        
+        # Move to ruled_out
+        for guideline_obj in to_remove:
+            self.active_guidelines.remove(guideline_obj)
+            self.ruled_out.append(guideline_obj)
+        
+        # Pull from reserve to maintain MAX_ACTIVE
+        while len(self.active_guidelines) < self.MAX_ACTIVE and len(self.reserve_pool) > 0:
+            # Get next from reserve (already sorted)
+            next_guideline = self.reserve_pool.pop(0)
+            self.active_guidelines.append(next_guideline)
+            print(f"[Adaptive] 🔄 Promoting from reserve: {next_guideline['name']} (score: {next_guideline['score']:.3f})")
     
     def _normalize_text(self, text: str) -> str:
         """Normalize text for matching"""
@@ -616,9 +661,11 @@ class AdaptiveDiagnosticEngine:
     
     def _ask_next_question(self) -> Dict[str, Any]:
         """
-        Select and ask the most discriminating next question from guideline
+        Select and ask the most discriminating next question
         
-        Picks the highest-value question from the top guideline that hasn't been asked yet.
+        Strategy: Find the question that appears in MULTIPLE top guidelines
+        with high diagnostic value - this will best differentiate the differential.
+        
         100% data-driven from guideline JSON!
         """
         if not self.active_guidelines:
@@ -627,52 +674,92 @@ class AdaptiveDiagnosticEngine:
                 'message': "I need more information to make a diagnosis."
             }
         
-        # Get questions from top guideline
-        top_guideline = self.active_guidelines[0]
-        guideline = top_guideline['guideline_data']
-        diagnostic_questions = guideline.get('diagnostic_questions', [])
+        # Collect all questions from ALL active guidelines
+        all_questions = {}  # question_focus → list of (guideline_name, diagnostic_value)
+        
+        for guideline_obj in self.active_guidelines[:3]:  # Top 3 differentials
+            guideline = guideline_obj['guideline_data']
+            guideline_name = guideline_obj['name']
+            diagnostic_questions = guideline.get('diagnostic_questions', [])
+            
+            for q in diagnostic_questions:
+                focus = q.get('question_focus', '')
+                value = q.get('diagnostic_value', 'moderate')
+                
+                if focus not in all_questions:
+                    all_questions[focus] = []
+                all_questions[focus].append({
+                    'guideline': guideline_name,
+                    'value': value,
+                    'question_data': q
+                })
         
         # Track which question_focus areas we've already asked about
-        # Use questions_asked history, NOT positive_findings (user might give vague answer)
         asked_focuses = set()
         for q in self.questions_asked:
             asked_focuses.add(q.get('focus', ''))
         
-        print(f"[Adaptive] 📋 Already asked about: {asked_focuses}")
+        print(f"[Adaptive] 📋 Already asked: {asked_focuses}")
         
-        # Find highest-value unanswered question
-        priority_order = ['critical', 'high', 'moderate', 'low']
+        # Score each potential question by discriminating power
+        question_scores = {}
         
-        for priority in priority_order:
-            for question_data in diagnostic_questions:
-                question_focus = question_data.get('question_focus', '')
-                diagnostic_value = question_data.get('diagnostic_value', 'moderate')
-                
-                print(f"[Adaptive]   Checking question: '{question_focus}' (value: {diagnostic_value})")
-                
-                if diagnostic_value == priority and question_focus not in asked_focuses:
-                    # Generate natural question from focus
-                    question_text = self._generate_question_from_focus(question_focus, question_data)
-                    
-                    print(f"[Adaptive] ✅ Selected question: '{question_focus}' → '{question_text}'")
-                    
-                    self.questions_asked.append({
-                        'focus': question_focus,
-                        'question': question_text,
-                        'value': diagnostic_value
-                    })
-                    
-                    return {
-                        'success': True,
-                        'question': question_text,
-                        'status': 'questioning',
-                        'differentials': [
-                            {'name': g['name'], 'score': g['score']} 
-                            for g in self.active_guidelines[:3]
-                        ]
-                    }
-                elif question_focus in asked_focuses:
-                    print(f"[Adaptive]     ⏭️ Already asked about '{question_focus}' - skipping")
+        for focus, guidelines_asking in all_questions.items():
+            if focus in asked_focuses:
+                continue  # Skip already asked
+            
+            # Calculate discriminating power:
+            # - How many top differentials have this question? (breadth)
+            # - What's the diagnostic value? (importance)
+            # - Is it 'critical' for top diagnosis? (priority)
+            
+            num_guidelines = len(guidelines_asking)
+            avg_value_weight = sum([
+                {'critical': 0.30, 'high': 0.20, 'moderate': 0.10, 'low': 0.05}.get(g['value'], 0.10)
+                for g in guidelines_asking
+            ]) / num_guidelines
+            
+            # Bonus if top guideline considers it critical/high
+            top_guideline_bonus = 0
+            for g in guidelines_asking:
+                if g['guideline'] == self.active_guidelines[0]['name']:
+                    if g['value'] == 'critical':
+                        top_guideline_bonus = 0.5
+                    elif g['value'] == 'high':
+                        top_guideline_bonus = 0.3
+            
+            # Combined score
+            discriminating_score = (num_guidelines * 0.3) + avg_value_weight + top_guideline_bonus
+            question_scores[focus] = {
+                'score': discriminating_score,
+                'data': guidelines_asking[0]['question_data']  # Use first guideline's question
+            }
+        
+        # Pick highest-scoring question
+        if question_scores:
+            best_focus = max(question_scores, key=lambda f: question_scores[f]['score'])
+            best_question_data = question_scores[best_focus]['data']
+            
+            question_text = self._generate_question_from_focus(best_focus, best_question_data)
+            
+            print(f"[Adaptive] ✅ Selected most discriminating question: '{best_focus}' (score: {question_scores[best_focus]['score']:.2f})")
+            print(f"[Adaptive]    Question: '{question_text}'")
+            
+            self.questions_asked.append({
+                'focus': best_focus,
+                'question': question_text,
+                'value': best_question_data.get('diagnostic_value', 'moderate')
+            })
+            
+            return {
+                'success': True,
+                'question': question_text,
+                'status': 'questioning',
+                'differentials': [
+                    {'name': g['name'], 'score': g['score']} 
+                    for g in self.active_guidelines[:3]
+                ]
+            }
         
         # All questions asked - try to finalize
         if len(self.active_guidelines) > 0:
