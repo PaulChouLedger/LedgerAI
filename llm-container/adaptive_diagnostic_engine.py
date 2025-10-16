@@ -619,85 +619,13 @@ Output ONLY the core question (no quotes, no preamble):"""
         """
         question = question_obj.get('question', '')
         
-        # Use LLM to evaluate if answer addresses the question
-        validation_prompt = f"""MEDICAL INTERVIEW EVALUATION:
+        # MINIMAL prompt - avoid overwhelming small models
+        validation_prompt = f"""Q: {question}
+A: {answer}
 
-You are evaluating if a patient's answer provides the SPECIFIC MEDICAL INFORMATION requested.
-
-THE QUESTION ASKED:
-{question}
-
-THE PATIENT'S ANSWER:
-{answer}
-
-CRITICAL VALIDATION RULES:
-The answer must match the SPECIFIC DATA TYPE requested by the question.
-
-Question Types and Valid Answer Types:
-- Age question → Answer must be a NUMBER (e.g., "35", "twenty-five")
-- Biological sex question → Answer must be MALE/FEMALE (e.g., "male", "female", "man", "woman")
-- Location question → Answer must specify BODY LOCATION (e.g., "right side", "upper abdomen")
-- Timing question → Answer must have TIME REFERENCE (e.g., "yesterday", "2 days ago")
-- Yes/No question → Answer must be YES/NO or descriptive detail
-
-REJECT if answer doesn't match the expected data type (e.g., "email" for sex question, "the pain" for timing)
-
-Think step-by-step:
-Step 1: What SPECIFIC DATA TYPE does the question request?
-Step 2: Does the patient's answer match that DATA TYPE?
-Step 3: Decision: YES or NO
-
-Examples:
-
-Q: "How old are you?" 
-A: "35"
-Step 1: Question requests age
-Step 2: Answer provides age (35)
-Decision: YES
-
-Q: "Can you tell me your sex?"
-A: "female"
-Step 1: Question requests biological sex (male/female)
-Step 2: Answer is "female" (valid biological sex)
-Decision: YES
-
-Q: "Can you tell me your sex?"
-A: "email"
-Step 1: Question requests biological sex (male/female)
-Step 2: Answer is "email" (not a biological sex)
-Decision: NO
-
-Q: "What is your biological sex?"
-A: "male"
-Step 1: Question requests biological sex
-Step 2: Answer is "male" (valid biological sex)
-Decision: YES
-
-Q: "Are you male or female?"
-A: "yes"
-Step 1: Question asks to specify male or female
-Step 2: Answer is "yes" (doesn't specify which)
-Decision: NO
-
-Q: "Is it upper right or lower right?" 
-A: "on the upper"
-Step 1: Question asks to choose between upper vs lower
-Step 2: Answer says "upper" (specifies which)
-Decision: YES
-
-Q: "Is it upper right or lower right?" 
-A: "right side"
-Step 1: Question asks to choose between upper vs lower
-Step 2: Answer says "right side" but doesn't specify upper or lower
-Decision: NO
-
-Q: "When did it start?" 
-A: "yesterday"
-Step 1: Question asks for timing
-Step 2: Answer provides timing (yesterday)
-Decision: YES
-
-Now evaluate. Show your reasoning, then end with "Decision: YES" or "Decision: NO":"""
+Think: Does answer provide what question asks for?
+Reply: YES or NO
+Reasoning:"""
         
         try:
             # Debug: Show the validation prompt being sent
@@ -705,47 +633,31 @@ Now evaluate. Show your reasoning, then end with "Decision: YES" or "Decision: N
             print(f"[Adaptive]    Q: '{question}'")
             print(f"[Adaptive]    A: '{answer}'")
             
-            # Call LLM for validation
+            # Call LLM for validation (allow reasoning)
             response = self.llm_chat_fn(
                 [{"role": "user", "content": validation_prompt}],
-                max_tokens=100,  # Allow space for reasoning
-                temperature=0.0  # Zero temp for most consistent judgments
+                max_tokens=50,  # Space for brief reasoning
+                temperature=0.0
             )
             
             response_text = response.strip()
             
-            # Debug: Show LLM's full reasoning
+            # Debug: Show full response
             print(f"[Adaptive] 🧠 LLM REASONING:")
             for line in response_text.split('\n'):
                 print(f"[Adaptive]    {line}")
             
-            # Parse decision from response
+            # Simple parse
             response_upper = response_text.upper()
-            
-            # Look for "Decision: YES" or "Decision: NO" in the response
-            if 'DECISION:' in response_upper or 'DECISION =' in response_upper:
-                # Extract the line with the decision
-                decision_line = [line for line in response_text.split('\n') if 'decision' in line.lower()]
-                if decision_line:
-                    decision_text = decision_line[-1].upper()  # Take last occurrence
-                    
-                    if 'YES' in decision_text:
-                        print(f"[Adaptive] ✅ Answer validation: ACCEPTED")
-                        return True
-                    elif 'NO' in decision_text:
-                        print(f"[Adaptive] ❌ Answer validation: REJECTED")
-                        return False
-            
-            # Fallback: Look for YES/NO anywhere in response
-            if 'YES' in response_upper and 'NO' not in response_upper:
-                print(f"[Adaptive] ✅ Answer validation: ACCEPTED (fallback parsing)")
+            if 'YES' in response_upper:
+                print(f"[Adaptive] ✅ Answer validation: ACCEPTED")
                 return True
-            elif 'NO' in response_upper and 'YES' not in response_upper:
-                print(f"[Adaptive] ❌ Answer validation: REJECTED (fallback parsing)")
+            elif 'NO' in response_upper:
+                print(f"[Adaptive] ❌ Answer validation: REJECTED")
                 return False
             else:
-                # Unclear response - be permissive
-                print(f"[Adaptive] ⚠️ Unclear LLM validation response - accepting answer")
+                # Unclear - accept
+                print(f"[Adaptive] ⚠️ Unclear - accepting")
                 return True
                 
         except Exception as e:
@@ -1196,40 +1108,12 @@ Classic Presentation: {classic_presentation}
         
         already_assessed = "\n".join(already_know) if already_know else "None yet"
         
-        # Prompt for LLM - FOCUSED on classic presentations
-        prompt = f"""You are a physician conducting a medical interview about the patient's SYMPTOMS.
+        # MINIMAL prompt - avoid model breakdown
+        prompt = f"""{self.demographics.get('age', '?')} yo {self.demographics.get('sex', '?')} with {self.chief_complaint}.
 
-PATIENT: {self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')}
-CHIEF COMPLAINT: {self.chief_complaint}
+Possible: {', '.join([g['name'][:20] for g in top_3])}
 
-TOP 3 POSSIBLE DIAGNOSES:
-{guidelines_text}
-
-INFORMATION ALREADY GATHERED:
-{already_assessed}
-
-YOUR TASK:
-Ask the SINGLE MOST IMPORTANT medical question about the patient's SYMPTOMS to help distinguish between these diagnoses.
-
-CRITICAL REQUIREMENTS:
-- Ask about a SYMPTOM or MEDICAL SIGN (fever, nausea, vomiting, pain quality, etc.)
-- Ask ONLY ONE question (never combine multiple symptoms)
-- Use simple, conversational language
-- Be specific and direct
-
-GOOD EXAMPLES (medical symptoms):
-"Have you had any fever?"
-"Have you vomited?"
-"When did the pain start?"
-"Is the pain sharp or dull?"
-"Have you noticed any yellowing of your skin or eyes?"
-
-BAD EXAMPLES (avoid these):
-"What is the temperature like today?" (asking about weather, not fever!)
-"Describe pain patterns and exacerbation sites" (too technical)
-"Any fever, chills, or nausea?" (combining multiple symptoms)
-
-OUTPUT ONLY THE SYMPTOM QUESTION (no number, no preamble):"""
+Ask ONE symptom question:"""
         
         # Call LLM
         try:
@@ -1309,22 +1193,8 @@ OUTPUT ONLY THE SYMPTOM QUESTION (no number, no preamble):"""
         """
         print(f"\n[Adaptive] 💬 Generating opening message for: {symptom}")
         
-        prompt = f"""You are a compassionate physician starting a medical interview.
-
-The patient just said they have: {symptom}
-
-Generate a natural opening that:
-1. Shows empathy (varied phrasing, not always "I'm sorry")
-2. Smoothly asks for their age
-
-EXAMPLES:
-"I understand you're having {symptom}. To help you better, can you tell me your age?"
-"That sounds uncomfortable. Let me ask some questions to figure out what's going on. First, how old are you?"
-"I'm here to help with your {symptom}. To start, what's your age?"
-
-Use similar empathetic, conversational tone. Keep it SHORT (1-2 sentences max).
-
-OUTPUT ONLY THE COMBINED MESSAGE (no preamble):"""
+        # MINIMAL prompt to avoid model breakdown
+        prompt = f"""Patient has {symptom}. Show empathy and ask age:"""
         
         try:
             response = self.llm_chat_fn(
@@ -1377,23 +1247,10 @@ OUTPUT ONLY THE COMBINED MESSAGE (no preamble):"""
         """
         print(f"\n[Adaptive] 💬 Generating sex question")
         
-        prompt = """You are a physician conducting a medical interview.
+        # MINIMAL prompt to avoid model breakdown
+        prompt = """Ask patient: biological sex (male/female)?
 
-You need to ask about the patient's BIOLOGICAL SEX (male or female) for medical diagnostic purposes.
-
-Generate a natural, respectful way to ask this. Vary the phrasing.
-
-CRITICAL: Always include "biological sex" or clearly indicate male/female options to avoid confusion with gender identity.
-
-EXAMPLES:
-"What is your biological sex - male or female?"
-"Are you biologically male or female?"
-"Can you tell me your biological sex?"
-"For medical purposes, are you male or female?"
-
-Use similar conversational tone. Keep it SHORT (one simple question).
-
-OUTPUT ONLY THE QUESTION (no preamble):"""
+Question:"""
         
         try:
             response = self.llm_chat_fn(
