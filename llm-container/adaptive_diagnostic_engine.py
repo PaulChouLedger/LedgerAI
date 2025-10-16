@@ -571,35 +571,50 @@ class AdaptiveDiagnosticEngine:
         question = question_obj.get('question', '')
         
         # Use LLM to evaluate if answer addresses the question
-        validation_prompt = f"""Question: {question}
-Answer: {answer}
+        validation_prompt = f"""EVALUATE THIS PATIENT RESPONSE:
 
-Does the answer provide information requested by the question?
+THE QUESTION ASKED:
+{question}
 
-Think step-by-step and EXPLAIN YOUR REASONING:
+THE PATIENT'S ANSWER:
+{answer}
 
-Step 1: What information does the question ask for? (Ignore polite preamble)
-Step 2: Does the answer provide that information?
+IMPORTANT: The answer text is SEPARATE from the question text. Do NOT confuse clarifications in the question with the patient's answer.
+
+Does the patient's answer provide the information requested?
+
+Think step-by-step:
+Step 1: What information does the question request? (Ignore empathy/preamble)
+Step 2: Looking ONLY at the patient's answer text, does it provide that information?
 Step 3: Decision: YES or NO
 
 Examples:
-Q: "How old are you?" A: "35"
-Reasoning: Question asks for age. Answer gives age number.
+
+Q: "How old are you?" 
+A: "35"
+Step 1: Question requests age
+Step 2: Answer provides age (35)
 Decision: YES
 
-Q: "Are you male or female?" A: "female"
-Reasoning: Question asks for biological sex. Answer provides sex.
+Q: "Is it upper right or lower right?" 
+A: "on the upper"
+Step 1: Question asks to choose between upper vs lower
+Step 2: Answer says "upper" (specifies which)
 Decision: YES
 
-Q: "Is it upper or lower right?" A: "right side"
-Reasoning: Question asks to specify upper vs lower. Answer only says "right" without specifying which.
+Q: "Is it upper right or lower right?" 
+A: "right side"
+Step 1: Question asks to choose between upper vs lower
+Step 2: Answer says "right side" but doesn't specify upper or lower
 Decision: NO
 
-Q: "When did it start?" A: "the pain"
-Reasoning: Question asks for timing. Answer just repeats "the pain" with no time info.
-Decision: NO
+Q: "When did it start?" 
+A: "yesterday"
+Step 1: Question asks for timing
+Step 2: Answer provides timing (yesterday)
+Decision: YES
 
-Now evaluate the question and answer above. SHOW YOUR REASONING, then end with "Decision: YES" or "Decision: NO":"""
+Now evaluate. Show your reasoning, then end with "Decision: YES" or "Decision: NO":"""
         
         try:
             # Debug: Show the validation prompt being sent
@@ -1154,6 +1169,20 @@ OUTPUT ONLY THE SYMPTOM QUESTION (no number, no preamble):"""
             print(f"[Adaptive] 🧠 LLM RAW OUTPUT:")
             print(f"[Adaptive]    '{question}'")
             
+            # IMMEDIATE garbage detection before any processing
+            from collections import Counter
+            if len(question) > 10:
+                char_counts = Counter(c for c in question if c.isalnum())
+                if char_counts:
+                    most_common_char, count = char_counts.most_common(1)[0]
+                    total_alnum = len([c for c in question if c.isalnum()])
+                    ratio = count / total_alnum if total_alnum > 0 else 0
+                    
+                    if ratio > 0.4:  # More than 40% is same character = garbage
+                        print(f"[Adaptive] ⚠️ GARBAGE DETECTED: char='{most_common_char}', ratio={ratio:.2f}, output='{question[:100]}'")
+                        print(f"[Adaptive] 🔄 Using simple fallback question")
+                        return "Can you tell me more about your symptoms?"
+            
             # Clean up any meta-text, numbers, prefixes
             question = re.sub(r'^\d+[\.)]\s*', '', question)  # Remove "3. " or "3) "
             question = re.sub(r'^(Question|Q\d+|Next question):\s*', '', question, flags=re.IGNORECASE)
@@ -1173,7 +1202,7 @@ OUTPUT ONLY THE SYMPTOM QUESTION (no number, no preamble):"""
                 print(f"[Adaptive] ⚠️ LLM question too complex, using fallback")
                 question = "Can you tell me more about your symptoms?"
             
-            print(f"[Adaptive] 🤖 LLM generated: '{question}'")
+            print(f"[Adaptive] ✅ FINAL QUESTION: '{question}'")
             
             return question
         

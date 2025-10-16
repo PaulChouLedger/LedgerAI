@@ -183,7 +183,7 @@ def run_container(name, port, image, timeout=15):
         # Read from host .env, fallback to defaults
         model_path  = HOST_ENV.get("MODEL_PATH", "/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf")
         chat_format = HOST_ENV.get("CHAT_FORMAT", "llama-3")
-        n_ctx       = HOST_ENV.get("N_CTX", "2048")  # Increased for medical mode with RAG guidelines
+        n_ctx       = HOST_ENV.get("N_CTX", "4096")  # Increased for medical mode with complex reasoning and guidelines
 
         # Get workspace root (LedgerAI directory)
         workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
