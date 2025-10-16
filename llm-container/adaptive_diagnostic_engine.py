@@ -240,8 +240,23 @@ class AdaptiveDiagnosticEngine:
             
             print(f"{'='*80}\n")
             
-            # NOW: Feed guidelines to LLM and get first clinical question
-            return self._ask_next_clinical_question()
+            # FIRST CLINICAL QUESTION: Always ask about CHRONICITY (when started)
+            # This is the most important differentiator (acute vs chronic)
+            timing_question = "When did the pain start?"
+            
+            print(f"[Engine] 💬 First question: CHRONICITY (when started)")
+            
+            self.conversation_history.append({
+                'type': 'question',
+                'question': timing_question,
+                'focus': 'clinical'
+            })
+            
+            return {
+                'success': True,
+                'question': timing_question,
+                'status': 'questioning'
+            }
         
         else:
             # Clinical question - use LLM to score and ask next
@@ -273,10 +288,37 @@ class AdaptiveDiagnosticEngine:
                     print(f"[Engine]   ✓ {name} (trigger: '{trigger}')")
                     break
         
-        # Sort by name for now (can add better scoring later)
-        matched.sort(key=lambda x: x['name'])
+        # Sort by urgency first (emergent > urgent > routine), then shuffle within tier
+        # This ensures life-threatening conditions are always considered, but variety in order
+        urgency_priority = {'emergent': 0, 'urgent': 1, 'routine': 2}
         
-        return matched
+        def get_sort_key(item):
+            urgency = item['data'].get('urgency', 'routine')
+            return urgency_priority.get(urgency, 2)
+        
+        matched.sort(key=get_sort_key)
+        
+        # Shuffle within each urgency tier for variety
+        import random
+        random.seed()  # Use time-based seed for true randomness
+        
+        grouped = {}
+        for item in matched:
+            urgency = item['data'].get('urgency', 'routine')
+            if urgency not in grouped:
+                grouped[urgency] = []
+            grouped[urgency].append(item)
+        
+        # Shuffle each group and recombine
+        result = []
+        for urgency in ['emergent', 'urgent', 'routine']:
+            if urgency in grouped:
+                random.shuffle(grouped[urgency])
+                result.extend(grouped[urgency])
+        
+        print(f"[Engine] 🎲 Shuffled within urgency tiers for variety")
+        
+        return result
     
     def _ask_next_clinical_question(self) -> Dict[str, Any]:
         """
@@ -345,10 +387,18 @@ Key features to ask about:
 Already asked:
 {asked_list}
 
-Generate ONE simple question about ONE symptom only.
-DO NOT combine multiple questions with "and" or "or".
+Generate ONE specific medical question based on the key features above.
+Ask about ONE thing only (location/migration/timing/quality/fever/nausea/vomiting/triggers).
+DO NOT combine questions with "and".
 
-Examples: "Where is the pain?" "When did it start?" "Is it constant or does it come and go?"
+Examples:
+- "Where exactly is the pain located?"
+- "Did the pain migrate from one place to another?"
+- "When did the pain start?"
+- "Have you had any fever?"
+- "Have you had nausea or vomiting?"
+- "Does eating make the pain worse?"
+- "Is the pain constant or does it come and go?"
 
 Question:"""
 
@@ -393,18 +443,33 @@ Question:"""
                     print(f"[Engine] ⚠️ Multi-part question detected - using first part only")
             
             # VALIDATION: Check if we already asked this (or very similar)
+            is_repeat = False
             for prev_q in asked:
-                # Simple similarity check - if >70% of words overlap, it's a repeat
+                # Simple similarity check - if >60% of words overlap, it's a repeat
                 q_words = set(question.lower().split())
                 prev_words = set(prev_q.lower().split())
                 overlap = len(q_words & prev_words) / len(q_words) if q_words else 0
                 
-                if overlap > 0.7:
+                if overlap > 0.6:
                     print(f"[Engine] ⚠️ Question too similar to already asked: '{prev_q}'")
-                    print(f"[Engine] ⚠️ Regenerating with different focus...")
-                    # For now, just modify to ask about different aspect
-                    question = "What other symptoms have you experienced?"
+                    print(f"[Engine] ⚠️ Asking about different symptom...")
+                    is_repeat = True
                     break
+            
+            # If repeat, ask about a different symptom from the list
+            if is_repeat:
+                # Check what we haven't asked about yet
+                asked_lower = ' '.join(asked).lower()
+                if 'fever' not in asked_lower:
+                    question = "Have you had any fever?"
+                elif 'nausea' not in asked_lower and 'vomit' not in asked_lower:
+                    question = "Have you had any nausea or vomiting?"
+                elif 'eating' not in asked_lower and 'food' not in asked_lower:
+                    question = "Does eating make the pain worse?"
+                elif 'move' not in asked_lower and 'movement' not in asked_lower:
+                    question = "Does movement make the pain worse?"
+                else:
+                    question = "How would you describe the pain?"
             
             print(f"[Engine] ✅ Generated Question: '{question}'")
             print(f"{'='*80}\n")
@@ -534,10 +599,10 @@ Score 0-100:"""
         num_questions = len([item for item in self.conversation_history if item['type'] == 'question' and item.get('focus') == 'clinical'])
         
         # Diagnosis criteria: High confidence OR asked enough questions
-        if top['score'] >= 0.85 and num_questions >= 5:
+        if top['score'] >= 0.90 and num_questions >= 7:
             print(f"[Engine] ✅ DIAGNOSIS REACHED: {top['name']} ({top['score']:.0%} confidence)")
             return self._finalize_diagnosis(top)
-        elif num_questions >= 8:
+        elif num_questions >= 12:
             print(f"[Engine] ✅ DIAGNOSIS BY QUESTIONS LIMIT: {top['name']} ({top['score']:.0%} confidence)")
             return self._finalize_diagnosis(top)
         else:
@@ -661,41 +726,39 @@ Your response:"""
         """
         print(f"[Engine] 🧠 Generating clarification for: {topic}")
         
-        system_msg = "You are a medical assistant. Politely re-ask the question. Output ONE short question only."
-        
+        # ULTRA-SIMPLE: Just use hardcoded templates (LLM keeps deviating)
         if topic == "age":
-            user_msg = """Patient didn't provide age.
-
-Re-ask:"""
+            question = "I didn't catch that. How old are you?"
+            print(f"[Engine] 💬 Using template (age)")
         elif topic == "sex":
-            user_msg = """Patient didn't specify male or female.
-
-Re-ask:"""
+            question = "I didn't catch that. Are you male or female?"
+            print(f"[Engine] 💬 Using template (sex)")
         else:
-            user_msg = f"""Patient's answer about {topic} was unclear.
-
-Re-ask:"""
-        
-        try:
-            response = self.llm_chat_fn(
-                [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg}
-                ],
-                max_tokens=20,
-                temperature=0.5
-            )
+            # For other topics, use LLM
+            system_msg = f"You are a medical assistant. Politely re-ask about {topic}."
+            user_msg = f"Re-ask about {topic}:"
             
-            question = response.strip().strip('"\'')
-            if not question.endswith('?'):
-                question += '?'
-            
-            print(f"[Engine] ✅ Clarification: '{question}'")
-            return question
+            try:
+                response = self.llm_chat_fn(
+                    [
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_msg}
+                    ],
+                    max_tokens=20,
+                    temperature=0.5
+                )
+                
+                question = response.strip().strip('"\'')
+            except Exception as e:
+                print(f"[Engine] ❌ Clarification generation failed: {e}")
+                raise RuntimeError(f"Clarification generation failed: {e}")
         
-        except Exception as e:
-            print(f"[Engine] ❌ Clarification generation failed: {e}")
-            raise RuntimeError(f"Clarification generation failed: {e}")
+        # Ensure ends with ?
+        if not question.endswith('?'):
+            question += '?'
+        
+        print(f"[Engine] ✅ Clarification: '{question}'")
+        return question
 
 
 # Test
