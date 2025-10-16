@@ -534,18 +534,16 @@ def convert_and_ingest_all():
     
     Two-stage process:
     1. Convert medical guidelines (JSON → TXT in data/input/)
-    2. Ingest all data from data/input/ and rebuild embeddings
+    2. Wait for RAG container, then ingest all data and rebuild embeddings
     """
-    # Wait a few seconds for containers to start first
-    time.sleep(5)
-    
     print("[Aura] 🔄 Starting background data processing...")
     
     # STAGE 1: Convert medical guidelines (if any new ones exist)
+    # This can run immediately - no container dependencies
     guidelines_converted = convert_medical_guidelines()
     
     # STAGE 2: Ingest ALL files from data/input/ (guidelines + any other files)
-    # This runs regardless of whether guidelines were converted (checks for any new data)
+    # This waits for RAG container to be ready, then processes ALL file types
     ingest_and_rebuild_embeddings()
 
 
@@ -624,7 +622,8 @@ def ingest_and_rebuild_embeddings():
     """
     STAGE 2: Universal data ingestion from data/input/
     
-    1. Triggers RAG ingest (parses PDFs, copies TXT to data/parsed/)
+    Waits for RAG container, then:
+    1. Triggers /rag/ingest (extracts PDFs, copies TXT files to data/parsed/)
     2. Rebuilds embeddings from data/parsed/
     3. Reloads RAG container with new embeddings
     
@@ -633,10 +632,33 @@ def ingest_and_rebuild_embeddings():
     try:
         workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
         
+        print(f"[Aura] 📂 Waiting for RAG container to be ready for data ingestion...")
+        
+        import requests
+        import time
+        
+        # Wait up to 30 seconds for RAG container to be ready
+        rag_ready = False
+        for attempt in range(30):
+            try:
+                health_check = requests.get("http://localhost:11435/health", timeout=2)
+                if health_check.status_code == 200:
+                    rag_ready = True
+                    print(f"[Aura] ✅ RAG container ready")
+                    break
+            except:
+                if attempt < 29:
+                    time.sleep(1)
+                else:
+                    print(f"[Aura] ⚠️ RAG container not responding - skipping data ingestion")
+                    return
+        
+        if not rag_ready:
+            return
+        
         print(f"[Aura] 📂 Checking data/input/ for new files to ingest...")
         
-        # Step 1: Trigger RAG ingest (parses/copies from data/input → data/parsed)
-        import requests
+        # Step 1: Trigger RAG ingest (handles ALL file types: PDF extraction, TXT copy, etc.)
         ingest_response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
         
         if ingest_response.status_code == 200:
@@ -664,7 +686,7 @@ def ingest_and_rebuild_embeddings():
                     if embed_result.returncode == 0:
                         print(f"[Aura] ✅ Embeddings rebuilt successfully")
                         
-                        # Step 3: Reload RAG container
+                        # Step 3: Reload RAG container with new embeddings
                         print(f"[Aura] 🔄 Reloading RAG with new embeddings...")
                         reload_response = requests.post("http://localhost:11435/rag/reload", timeout=10)
                         
