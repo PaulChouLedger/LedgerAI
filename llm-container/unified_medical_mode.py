@@ -43,6 +43,45 @@ except ImportError as e:
     ADAPTIVE_ENGINE_AVAILABLE = False
     print(f"[Unified Medical] ⚠️ Adaptive engine not available: {e}")
 
+
+class RAGEmbeddingAPI:
+    """
+    Wrapper for RAG container's embedding service
+    Provides same interface as SentenceTransformer but uses API calls
+    """
+    def __init__(self, rag_url: str = "http://localhost:11435"):
+        self.rag_url = rag_url
+    
+    def encode(self, texts: List[str]) -> List:
+        """
+        Generate embeddings via RAG container API
+        
+        Args:
+            texts: List of texts to embed
+        
+        Returns:
+            List of embedding vectors (numpy arrays)
+        
+        Raises:
+            RuntimeError if embedding service fails
+        """
+        import numpy as np
+        import requests
+        
+        response = requests.post(
+            f"{self.rag_url}/embed",
+            json={"texts": texts},
+            timeout=5
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            embeddings = data.get('embeddings', [])
+            # Convert to numpy arrays
+            return [np.array(emb, dtype=np.float32) for emb in embeddings]
+        else:
+            raise RuntimeError(f"RAG embed API returned status {response.status_code}")
+
 # Load shared medical terms from centralized file (used by both Whisper and LLM)
 MEDICAL_TERMS = {}
 MEDICAL_TERMS_FILE = "/shared/medical_terms.json"  # Mounted from repo_root/shared/
@@ -107,27 +146,20 @@ class UnifiedMedicalSession:
         self.dynamic_assessment = None  # Legacy - kept for compatibility
         self.medical_rag = None
         
-        # NEW: Adaptive diagnostic engine (with LLM + embeddings for semantic similarity)
+        # NEW: Adaptive diagnostic engine (with LLM + RAG embeddings for semantic similarity)
         self.adaptive_engine = None
-        self.embedding_model = None
         
         if ADAPTIVE_ENGINE_AVAILABLE:
             try:
-                # Load embedding model for semantic similarity scoring
-                try:
-                    from sentence_transformers import SentenceTransformer
-                    self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-                    print("[Unified Medical] ✅ Loaded embedding model: all-MiniLM-L6-v2")
-                except Exception as e:
-                    print(f"[Unified Medical] ⚠️ Could not load embedding model: {e}")
-                    self.embedding_model = None
+                # Use RAG container's embedding service (no local model needed)
+                embedding_api = RAGEmbeddingAPI()
                 
-                # Initialize adaptive engine with embeddings
+                # Initialize adaptive engine with embeddings from RAG container
                 self.adaptive_engine = AdaptiveDiagnosticEngine(
                     llm_chat_fn=self.llm_chat_fn,
-                    embedding_model=self.embedding_model
+                    embedding_model=embedding_api
                 )
-                print("[Unified Medical] ✅ Adaptive engine initialized with LLM + semantic similarity")
+                print("[Unified Medical] ✅ Adaptive engine initialized with LLM + RAG embeddings")
             except Exception as e:
                 print(f"[Unified Medical] ⚠️ Failed to initialize adaptive engine: {e}")
         

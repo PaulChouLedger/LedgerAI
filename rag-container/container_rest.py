@@ -524,6 +524,43 @@ def rag_reload():
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/embed', methods=['POST'])
+def embed_texts():
+    """
+    Generate embeddings for texts using RAG's embedding model
+    Used by LLM container for semantic similarity scoring
+    """
+    try:
+        data = request.get_json()
+        texts = data.get('texts', [])
+        
+        if not texts or not isinstance(texts, list):
+            return jsonify({'error': 'texts must be a non-empty list'}), 400
+        
+        # Get RAG instance (has embedding model)
+        rag = get_rag()
+        if not rag or not rag.encoder:
+            return jsonify({'error': 'RAG encoder not initialized'}), 500
+        
+        # Generate embeddings
+        import numpy as np
+        embeddings = rag.encoder.encode(texts, convert_to_numpy=True)
+        
+        # Convert to list for JSON serialization
+        embeddings_list = [emb.tolist() for emb in embeddings]
+        
+        return jsonify({
+            'embeddings': embeddings_list,
+            'count': len(embeddings_list),
+            'model': 'all-MiniLM-L6-v2'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating embeddings: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Initialize service
     if initialize_service():

@@ -440,26 +440,21 @@ Is this answer responsive to the question?
 
 Output:"""
         
-        try:
-            response = self.llm_chat_fn(
-                [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg}
-                ],
-                max_tokens=3,
-                temperature=0.0
-            )
-            
-            result = response.strip().lower()
-            is_valid = 'yes' in result or 'valid' in result
-            
-            print(f"[Engine]   LLM validation: '{result}' → {'ACCEPT' if is_valid else 'REJECT'}")
-            
-            return is_valid
+        response = self.llm_chat_fn(
+            [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ],
+            max_tokens=3,
+            temperature=0.0
+        )
         
-        except Exception as e:
-            print(f"[Engine] ⚠️ Validation failed: {e} - accepting by default")
-            return True  # On error, be permissive
+        result = response.strip().lower()
+        is_valid = 'yes' in result or 'valid' in result
+        
+        print(f"[Engine]   LLM validation: '{result}' → {'ACCEPT' if is_valid else 'REJECT'}")
+        
+        return is_valid
     
     def _match_to_guidelines(self, complaint: str) -> List[Dict]:
         """
@@ -795,7 +790,7 @@ Question:"""
         
         # Find the section using regex
         # Pattern: "ELEMENT_NAME: ...text... NEXT_ELEMENT:"
-        pattern = f"{element_name}:([^.]*(?:\.[^A-Z:][^.]*)*)"
+        pattern = f"{element_name}:([^.]*(?:\\.[^A-Z:][^.]*)*)"
         match = re.search(pattern, classic_presentation, re.IGNORECASE)
         
         if match:
@@ -813,26 +808,27 @@ Question:"""
         Compute semantic similarity between two texts using embeddings
         
         Returns: Similarity score 0-1
+        
+        Raises:
+            RuntimeError if embeddings not available or computation fails
         """
-        if not self.embedding_model or not text1 or not text2:
-            return 0.5  # Neutral score if can't compute
+        if not self.embedding_model:
+            raise RuntimeError("Embedding model not initialized")
         
-        try:
-            # Generate embeddings
-            emb1 = self.embedding_model.encode([text1])[0]
-            emb2 = self.embedding_model.encode([text2])[0]
-            
-            # Compute cosine similarity
-            similarity = np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
-            
-            # Convert from [-1, 1] to [0, 1]
-            similarity = (similarity + 1) / 2
-            
-            return float(similarity)
+        if not text1 or not text2:
+            raise ValueError("Both text1 and text2 must be non-empty")
         
-        except Exception as e:
-            print(f"[Engine] ⚠️ Similarity computation failed: {e}")
-            return 0.5  # Neutral score on error
+        # Generate embeddings
+        emb1 = self.embedding_model.encode([text1])[0]
+        emb2 = self.embedding_model.encode([text2])[0]
+        
+        # Compute cosine similarity
+        similarity = np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
+        
+        # Convert from [-1, 1] to [0, 1]
+        similarity = (similarity + 1) / 2
+        
+        return float(similarity)
     
     def _process_clinical_answer(self, answer: str) -> Dict[str, Any]:
         """
@@ -879,58 +875,36 @@ Question:"""
         # FOR EACH GUIDELINE: Score using VECTOR SIMILARITY
         print(f"\n[Engine] 🎯 SEMANTIC SIMILARITY SCORING:\n")
         
-        if oldcarts_element and self.embedding_model:
-            print(f"[Engine] 📊 Matching answer to OLDCARTS element: {oldcarts_element}")
-            
-            for g in self.active_guidelines:
-                classic = g['data'].get('key_features', {}).get('classic_presentation', '')
-                
-                # Extract the specific OLDCARTS section for this element
-                oldcarts_section = self._extract_oldcarts_section(classic, oldcarts_element)
-                
-                if oldcarts_section:
-                    # Compute semantic similarity between answer and guideline's OLDCARTS section
-                    similarity = self._compute_similarity(answer, oldcarts_section)
-                    
-                    # Update score with weighted average (70% old score + 30% new similarity)
-                    # This prevents wild swings while incorporating new information
-                    old_score = g['score']
-                    new_score = (old_score * 0.7) + (similarity * 0.3)
-                    g['score'] = new_score
-                    
-                    change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
-                    print(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change}")
-                    print(f"[Engine]     Similarity: {similarity:.2f} to {oldcarts_element} section")
-                    print(f"[Engine]     Section: {oldcarts_section[:80]}...")
-                else:
-                    print(f"[Engine]   {g['name']}: ⚠️ Could not extract {oldcarts_element} section")
+        if not oldcarts_element:
+            raise RuntimeError(f"Question has no OLDCARTS element assigned - cannot score")
         
-        else:
-            # Fallback to simple scoring for non-OLDCARTS questions (fever, nausea, etc.)
-            print(f"[Engine] 📊 Non-OLDCARTS question - using simple keyword matching")
+        if not self.embedding_model:
+            raise RuntimeError("Embedding model not initialized - cannot compute similarity")
+        
+        print(f"[Engine] 📊 Matching answer to OLDCARTS element: {oldcarts_element}")
+        
+        for g in self.active_guidelines:
+            classic = g['data'].get('key_features', {}).get('classic_presentation', '')
             
-            for g in self.active_guidelines:
-                classic = g['data'].get('key_features', {}).get('classic_presentation', '')
-                
-                # Simple keyword-based boost/penalty
-                answer_lower = answer.lower()
-                classic_lower = classic.lower()
-                
-                # Check if answer aligns with guideline
-                boost = 0.0
-                if 'yes' in answer_lower or 'yeah' in answer_lower:
-                    # Check if the question symptom appears in guideline
-                    if last_q and any(symptom in classic_lower for symptom in ['fever', 'nausea', 'vomiting', 'diarrhea'] if symptom in last_q.lower()):
-                        boost = 0.05  # Small boost
-                elif 'no' in answer_lower or 'nope' in answer_lower:
-                    # Negative answer - small penalty if symptom is key feature
-                    boost = -0.03
-                
-                old_score = g['score']
-                g['score'] = min(1.0, max(0.0, old_score + boost))
-                
-                change = "↑" if boost > 0 else "↓" if boost < 0 else "="
-                print(f"[Engine]   {g['name']}: {old_score:.0%} → {g['score']:.0%} {change}")
+            # Extract the specific OLDCARTS section for this element
+            oldcarts_section = self._extract_oldcarts_section(classic, oldcarts_element)
+            
+            if not oldcarts_section:
+                raise RuntimeError(f"Could not extract {oldcarts_element} section from {g['name']}")
+            
+            # Compute semantic similarity between answer and guideline's OLDCARTS section
+            similarity = self._compute_similarity(answer, oldcarts_section)
+            
+            # Update score with weighted average (70% old score + 30% new similarity)
+            # This prevents wild swings while incorporating new information
+            old_score = g['score']
+            new_score = (old_score * 0.7) + (similarity * 0.3)
+            g['score'] = new_score
+            
+            change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
+            print(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change}")
+            print(f"[Engine]     Similarity: {similarity:.2f} to {oldcarts_element} section")
+            print(f"[Engine]     Section: {oldcarts_section[:80]}...")
         
         # ROLLING REPLACEMENT: Rule out low-scoring guidelines and promote from reserve
         ruled_out_this_round = []
