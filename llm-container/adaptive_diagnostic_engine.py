@@ -417,28 +417,12 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine]   A: '{answer}'")
         
         # Use LLM to validate (fully dynamic, no hardcoded patterns)
-        system_msg = """You are a medical conversation validator. Determine if the patient's answer is responsive to the question.
-
-Accept these types of answers:
-- Yes/no in any form (yes, no, yeah, nope, yep, I have, I haven't, not really)
-- Direct symptom confirmations ("I've had nausea", "constant pain", "sharp")
-- Time references (today, yesterday, hours ago, 2 days)
-- Location descriptions (right side, upper abdomen, lower left)
-- Numbers (8 out of 10, 35 years, 103 degrees)
-- Descriptive responses (sharp, dull, burning, crampy)
-
-Reject only these:
-- Single filler words with no meaning (oh, um, uh, hmm, well)
-- Completely unrelated responses
-
-Output ONLY 'yes' (accept) or 'no' (reject)."""
+        system_msg = """You validate medical conversation answers. Determine if the patient's response addresses the question asked. Only reject filler words (um, uh, oh) or completely unrelated responses. Accept any substantive attempt to answer. Output ONLY 'yes' or 'no'."""
 
         user_msg = f"""Question: {last_question}
 Answer: {answer}
 
-Is this answer responsive to the question?
-
-Output:"""
+Does the answer address the question? Output 'yes' or 'no':"""
         
         response = self.llm_chat_fn(
             [
