@@ -576,20 +576,30 @@ Answer: {answer}
 
 Does the answer provide information requested by the question?
 
-Think step-by-step:
-1. What information does the question ask for? (Ignore polite preamble like "I'm sorry" or "Let me help")
-2. Does the answer provide that information?
+Think step-by-step and EXPLAIN YOUR REASONING:
+
+Step 1: What information does the question ask for? (Ignore polite preamble)
+Step 2: Does the answer provide that information?
+Step 3: Decision: YES or NO
 
 Examples:
-- Q: "How old are you?" A: "35" → YES
-- Q: "I'm sorry you're in pain. How old are you?" A: "25" → YES  
-- Q: "Are you male or female?" A: "male" → YES
-- Q: "Is it upper or lower right?" A: "right side" → NO (incomplete)
-- Q: "Is it upper or lower right?" A: "lower right" → YES
-- Q: "When did it start?" A: "yesterday" → YES
-- Q: "When did it start?" A: "the pain" → NO
+Q: "How old are you?" A: "35"
+Reasoning: Question asks for age. Answer gives age number.
+Decision: YES
 
-Answer ONLY with YES or NO:"""
+Q: "Are you male or female?" A: "female"
+Reasoning: Question asks for biological sex. Answer provides sex.
+Decision: YES
+
+Q: "Is it upper or lower right?" A: "right side"
+Reasoning: Question asks to specify upper vs lower. Answer only says "right" without specifying which.
+Decision: NO
+
+Q: "When did it start?" A: "the pain"
+Reasoning: Question asks for timing. Answer just repeats "the pain" with no time info.
+Decision: NO
+
+Now evaluate the question and answer above. SHOW YOUR REASONING, then end with "Decision: YES" or "Decision: NO":"""
         
         try:
             # Debug: Show the validation prompt being sent
@@ -608,18 +618,32 @@ Answer ONLY with YES or NO:"""
             
             # Debug: Show LLM's full reasoning
             print(f"[Adaptive] 🧠 LLM REASONING:")
-            print(f"[Adaptive]    {response_text}")
+            for line in response_text.split('\n'):
+                print(f"[Adaptive]    {line}")
             
-            # Parse response - be flexible with format
+            # Parse decision from response
             response_upper = response_text.upper()
             
-            # Check if LLM says answer addresses question
-            # Look for YES anywhere in response (could be "YES" or "YES, the answer...")
+            # Look for "Decision: YES" or "Decision: NO" in the response
+            if 'DECISION:' in response_upper or 'DECISION =' in response_upper:
+                # Extract the line with the decision
+                decision_line = [line for line in response_text.split('\n') if 'decision' in line.lower()]
+                if decision_line:
+                    decision_text = decision_line[-1].upper()  # Take last occurrence
+                    
+                    if 'YES' in decision_text:
+                        print(f"[Adaptive] ✅ Answer validation: ACCEPTED")
+                        return True
+                    elif 'NO' in decision_text:
+                        print(f"[Adaptive] ❌ Answer validation: REJECTED")
+                        return False
+            
+            # Fallback: Look for YES/NO anywhere in response
             if 'YES' in response_upper and 'NO' not in response_upper:
-                print(f"[Adaptive] ✅ Answer validation: ACCEPTED")
+                print(f"[Adaptive] ✅ Answer validation: ACCEPTED (fallback parsing)")
                 return True
-            elif 'NO' in response_upper:
-                print(f"[Adaptive] ❌ Answer validation: REJECTED")
+            elif 'NO' in response_upper and 'YES' not in response_upper:
+                print(f"[Adaptive] ❌ Answer validation: REJECTED (fallback parsing)")
                 return False
             else:
                 # Unclear response - be permissive
