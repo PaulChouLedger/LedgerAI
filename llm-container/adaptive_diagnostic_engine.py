@@ -596,6 +596,18 @@ Step 1: Question requests age
 Step 2: Answer provides age (35)
 Decision: YES
 
+Q: "Can you tell me your sex?"
+A: "female"
+Step 1: Question requests biological sex for medical purposes
+Step 2: Answer provides biological sex (female)
+Decision: YES
+
+Q: "Are you male or female?"
+A: "male"
+Step 1: Question requests biological sex
+Step 2: Answer provides biological sex (male)
+Decision: YES
+
 Q: "Is it upper right or lower right?" 
 A: "on the upper"
 Step 1: Question asks to choose between upper vs lower
@@ -1189,6 +1201,9 @@ OUTPUT ONLY THE SYMPTOM QUESTION (no number, no preamble):"""
             question = question.split('\n')[0]  # Take first line only
             question = question.strip()
             
+            # Strip quotes if LLM added them
+            question = question.strip('"\'')
+            
             # Debug: Show cleaned question
             print(f"[Adaptive] 🧠 LLM CLEANED OUTPUT:")
             print(f"[Adaptive]    '{question}'")
@@ -1252,6 +1267,9 @@ OUTPUT ONLY THE COMBINED MESSAGE (no preamble):"""
             # Debug: Show LLM output
             print(f"[Adaptive] 🧠 LLM OPENING RAW: '{question}'")
             
+            # Strip quotes if LLM added them
+            question = question.strip('"\'')
+            
             # Ensure ends with ?
             if not question.endswith('?'):
                 question += '?'
@@ -1301,6 +1319,9 @@ OUTPUT ONLY THE QUESTION (no preamble):"""
             
             # Debug: Show LLM output
             print(f"[Adaptive] 🧠 LLM SEX QUESTION RAW: '{question}'")
+            
+            # Strip quotes if LLM added them
+            question = question.strip('"\'')
             
             # Ensure ends with ?
             if not question.endswith('?'):
