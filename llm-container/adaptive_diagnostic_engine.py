@@ -141,6 +141,19 @@ class AdaptiveDiagnosticEngine:
         if self.status != "questioning":
             return {'success': False, 'message': "No active assessment"}
         
+        # SAFETY CHECK: If active_guidelines is empty (first attempt failed),
+        # and user is stating a new chief complaint, restart the assessment
+        if len(self.active_guidelines) == 0:
+            # Check if this looks like a chief complaint (not a simple answer)
+            is_complaint = any(trigger in user_answer.lower() for trigger in [
+                'pain', 'ache', 'hurt', 'nausea', 'vomiting', 'diarrhea', 
+                'fever', 'bleeding', 'shortness'
+            ])
+            
+            if is_complaint:
+                print(f"[Engine] 🔄 No active guidelines - treating as NEW chief complaint")
+                return self.start_assessment(user_answer)
+        
         print(f"\n{'='*80}")
         print(f"[Engine] 💬 PROCESSING ANSWER")
         print(f"{'='*80}")
@@ -402,6 +415,14 @@ Output ONLY a score from 0-100 (integer only, no explanation):"""
             print(f"[Engine]   {i}. {g['name']}: {g['score']:.0%} {urgency_emoji}")
         
         print(f"{'='*80}\n")
+        
+        # SAFETY CHECK: Ensure we have active guidelines
+        if len(self.active_guidelines) == 0:
+            print(f"[Engine] ❌ No active guidelines remaining - cannot diagnose")
+            return {
+                'success': False,
+                'message': "I couldn't identify a specific condition. Please seek medical attention."
+            }
         
         # CHECK FOR DIAGNOSIS
         top = self.active_guidelines[0]
