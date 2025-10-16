@@ -317,16 +317,18 @@ Classic Presentation: {classic}
         print(f"[Engine] 📋 Questions asked: {len(asked)}")
         
         # LLM PROMPT: Generate next question
-        # Simple, direct prompt - keep all medical content but cleaner instructions
-        prompt = f"""Patient: {patient_info}
+        # Direct, explicit prompt with clear examples
+        prompt = f"""You are a diagnostic assistant. Based on these 3 possible conditions, ask ONE specific medical question.
 
-Top 3 Diagnoses:
+PATIENT: {patient_info}
+
+POSSIBLE CONDITIONS:
 {guidelines_text}
 
-Generate ONE question to distinguish between these conditions.
-Focus on key symptoms from the presentations above.
+TASK: Generate ONE clinical question to help distinguish between these conditions.
+Examples: "Where exactly is the pain located?" or "When did the pain start?" or "Is the pain constant or does it come and go?"
 
-Question:"""
+Your question (one sentence only):"""
 
         try:
             response = self.llm_chat_fn(
