@@ -62,7 +62,7 @@ def rebuild_embeddings(data_root="data"):
     # Create embeddings directory
     embeddings_dir.mkdir(parents=True, exist_ok=True)
     
-    # Check for parsed text
+    # Check for parsed text (RAG ingest already copied everything from data/input to data/parsed)
     parsed_files = list(parsed_dir.glob("*.txt"))
     if not parsed_files:
         print("❌ No parsed text files found in data/parsed/")

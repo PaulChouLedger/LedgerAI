@@ -19,7 +19,9 @@ class GuidelineToRAGConverter:
         
         if guidelines_dir is None:
             script_dir = Path(__file__).resolve().parent
-            guidelines_dir = script_dir / "guidelines"
+            repo_root = script_dir.parent
+            # Correct path: llm-container/medical/guidelines (where JSON files actually are)
+            guidelines_dir = repo_root / "llm-container" / "medical" / "guidelines"
         
         if output_dir is None:
             script_dir = Path(__file__).resolve().parent
@@ -210,8 +212,10 @@ class GuidelineToRAGConverter:
                 # Convert to RAG text
                 rag_text = self.convert_to_rag_text(guideline)
                 
-                # Save to output directory
-                output_filename = f"GUIDELINE_{guideline['condition'].replace(' ', '_')}.txt"
+                # Save to output directory - USE JSON FILENAME for consistency with main.py
+                # This ensures GI_Acute_Appendicitis.json → GUIDELINE_GI_Acute_Appendicitis.txt
+                base_name = json_file.stem  # Filename without .json extension
+                output_filename = f"GUIDELINE_{base_name}.txt"
                 output_path = self.output_dir / output_filename
                 
                 with open(output_path, 'w', encoding='utf-8') as f:
