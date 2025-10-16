@@ -276,7 +276,7 @@ class UnifiedMedicalSession:
                     r'\w+ology\b', r'\w+oma\b', r'\w+algia\b'
                 ]
                 if any(re.search(pattern, query_lower) for pattern in medical_suffixes):
-                    return "medical_knowledge"
+                return "medical_knowledge"
 
         # Check for general medical topics
         if any(term in query_lower for term in ["medicine", "medical", "health", "clinical", "patient", "doctor"]):
@@ -292,7 +292,7 @@ class UnifiedMedicalSession:
         intelligent question selection, and natural language understanding
         """
         print(f"[Unified Medical] 🩺 Handling symptom assessment: {symptom_query}")
-        
+
         # Use adaptive engine (new approach)
         if self.use_adaptive_engine and self.adaptive_engine:
             try:
@@ -343,8 +343,8 @@ class UnifiedMedicalSession:
         if self.dynamic_assessment is None:
             print("[Dynamic] 🏥 Starting dynamic guideline-based assessment")
             self.dynamic_assessment = DynamicAssessmentState(chief_complaint=symptom_query)
-            self.current_context = "assessment"
-            
+                    self.current_context = "assessment"
+
             # Categorize the complaint
             self.dynamic_assessment.category = self._categorize_complaint(symptom_query)
             
@@ -543,8 +543,8 @@ class UnifiedMedicalSession:
                         all_guideline_chunks.extend(chunks_from_guideline)
                     else:
                         print(f"[Dynamic] ⚠️ Failed to get chunks for {guideline_name}: HTTP {response2.status_code}")
-                        
-                except Exception as e:
+
+            except Exception as e:
                     print(f"[Dynamic] ⚠️ Error fetching chunks for {guideline_name}: {e}")
             
             if all_guideline_chunks:
@@ -1055,7 +1055,7 @@ def is_unified_medical_trigger(prompt: str) -> bool:
         True if should use unified medical mode
     """
     prompt_lower = prompt.lower()
-    
+
     # Simple, flexible approach: Check for medical keywords
     # Load from medical_terms.json (shared across all containers)
     medical_keywords = _get_medical_keywords()
@@ -1064,8 +1064,8 @@ def is_unified_medical_trigger(prompt: str) -> bool:
     for keyword in medical_keywords:
         if keyword.lower() in prompt_lower:
             print(f"[Unified Medical] 🎯 Medical keyword: '{keyword}'")
-            return True
-    
+        return True
+
     # Also check built-in common symptom terms (always medical)
     common_symptoms = [
         'pain', 'ache', 'hurt', 'sore', 'nausea', 'nauseous', 'vomit', 'vomiting',
@@ -1079,11 +1079,11 @@ def is_unified_medical_trigger(prompt: str) -> bool:
         if symptom in prompt_lower:
             print(f"[Unified Medical] 🎯 Common symptom: '{symptom}'")
             return True
-    
+
     # General medical context
     if any(term in prompt_lower for term in ["medical", "diagnosis", "treatment", "symptom"]):
         return True
-    
+
     return False
 
 
@@ -1194,7 +1194,7 @@ def _is_medical_topic_fast(text: str) -> bool:
     
     for pattern in medical_suffixes:
         if re.search(pattern, text):
-            return True
+        return True
     
     return False
 

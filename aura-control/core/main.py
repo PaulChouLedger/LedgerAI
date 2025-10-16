@@ -534,6 +534,99 @@ def focus_gui_window():
     except Exception as e:
         print(f"[Aura] ⚠️  Window focus warning: {e}")
 
+# === Auto-Convert New Medical Guidelines ===
+def check_and_convert_new_guidelines():
+    """
+    Check if new medical guidelines (JSON) have been added and auto-convert to RAG format
+    
+    Only runs if:
+    1. New JSON files exist in llm-container/medical/guidelines/
+    2. Corresponding GUIDELINE_*.txt doesn't exist in data/input/
+    
+    This ensures embeddings are always up-to-date without manual intervention.
+    """
+    try:
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+        guidelines_dir = os.path.join(workspace_root, 'llm-container', 'medical', 'guidelines')
+        output_dir = os.path.join(workspace_root, 'data', 'input')
+        
+        if not os.path.exists(guidelines_dir):
+            print(f"[Aura] ℹ️ No medical guidelines directory found - skipping")
+            return
+        
+        # Check for new guidelines
+        json_files = [f for f in os.listdir(guidelines_dir) if f.endswith('.json')]
+        
+        if not json_files:
+            return
+        
+        new_guidelines = []
+        for json_file in json_files:
+            # Expected output filename
+            txt_filename = f"GUIDELINE_{json_file.replace('.json', '.txt')}"
+            txt_path = os.path.join(output_dir, txt_filename)
+            
+            # Check if RAG file exists
+            if not os.path.exists(txt_path):
+                new_guidelines.append(json_file)
+        
+        if not new_guidelines:
+            print(f"[Aura] ✅ All {len(json_files)} medical guidelines already converted")
+            return
+        
+        print(f"[Aura] 🔄 Found {len(new_guidelines)} new medical guidelines - auto-converting...")
+        for guideline in new_guidelines[:5]:  # Show first 5
+            print(f"[Aura]    - {guideline}")
+        if len(new_guidelines) > 5:
+            print(f"[Aura]    ... and {len(new_guidelines) - 5} more")
+        
+        # Run converter script
+        converter_script = os.path.join(workspace_root, 'medical', 'convert_guidelines_to_rag.py')
+        
+        if not os.path.exists(converter_script):
+            print(f"[Aura] ⚠️ Converter script not found: {converter_script}")
+            return
+        
+        result = subprocess.run(
+            ["python3", converter_script],
+            cwd=workspace_root,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        
+        if result.returncode == 0:
+            print(f"[Aura] ✅ Guidelines converted to RAG format")
+            
+            # Rebuild embeddings on host
+            print(f"[Aura] 🔄 Rebuilding embeddings with new guidelines...")
+            embed_script = os.path.join(workspace_root, 'setup', 'scripts', 'rebuild_embeddings_host.py')
+            
+            if os.path.exists(embed_script):
+                embed_result = subprocess.run(
+                    ["python3", embed_script],
+                    cwd=workspace_root,
+                    capture_output=True,
+                    text=True,
+                    timeout=180
+                )
+                
+                if embed_result.returncode == 0:
+                    print(f"[Aura] ✅ Embeddings rebuilt - new guidelines ready for RAG!")
+                else:
+                    print(f"[Aura] ⚠️ Embedding rebuild failed:")
+                    print(embed_result.stderr[:500])
+            else:
+                print(f"[Aura] ⚠️ Embedding script not found")
+        else:
+            print(f"[Aura] ⚠️ Guideline conversion failed:")
+            print(result.stderr[:500])
+    
+    except Exception as e:
+        print(f"[Aura] ⚠️ Error in guideline auto-conversion: {e}")
+        # Don't block startup on error
+
+
 # === Main Entrypoint ===
 def main():
     print("[Aura] 🌀 Launching Aura...")
@@ -566,6 +659,9 @@ def main():
     else:
         print("[Aura] ⚠️  GUI ready timeout - continuing anyway")
 
+    # Check for new medical guidelines and auto-convert if needed
+    check_and_convert_new_guidelines()
+    
     # Start TTS warm-up and services in background while GUI is visible
     warm_up_tts()
     threading.Thread(target=start_services, daemon=True).start()
