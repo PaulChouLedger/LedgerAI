@@ -571,28 +571,39 @@ class AdaptiveDiagnosticEngine:
         question = question_obj.get('question', '')
         
         # Use LLM to evaluate if answer addresses the question
-        validation_prompt = f"""You are a strict evaluator of patient responses during a medical interview.
+        validation_prompt = f"""You are evaluating if a patient's answer addresses the medical question asked.
 
-Question: "{question}"
-Answer: "{answer}"
+Full question text: "{question}"
+Patient's answer: "{answer}"
 
-CRITICAL: Does the answer directly address what was asked?
+YOUR TASK:
+Identify the ACTUAL QUESTION being asked (ignoring empathy/preamble), then determine if the answer addresses it.
 
-REJECT (answer "NO") if:
-- Question asks to choose between options (e.g., "upper or lower?") but answer doesn't specify which
-- Question asks for timing (e.g., "when?") but answer has no time information
-- Question asks yes/no but answer just repeats words from the question
-- Answer is vague or doesn't provide the requested information
+IMPORTANT: 
+- Ignore empathy statements like "I'm sorry", "That sounds uncomfortable", "Let me help you"
+- Focus ONLY on what information is being requested
+- Numbers, ages, and simple facts ARE valid answers
 
-EXAMPLE 1:
-Q: "Is it upper right or lower right?"
-A: "right side" → NO (doesn't specify upper vs lower)
-A: "lower right" → YES (specifies lower)
+EXAMPLES:
 
-EXAMPLE 2:
-Q: "When did it start?"
-A: "the pain" → NO (no timing)
-A: "yesterday" → YES (has timing)
+Question: "I'm sorry you're in pain. How old are you?"
+Answer: "35" → YES (directly answers the age question)
+
+Question: "That sounds uncomfortable. First, how old are you?"  
+Answer: "35" → YES (answers age, ignore preamble)
+
+Question: "Is it upper right or lower right?"
+Answer: "right side" → NO (doesn't specify upper vs lower)
+Answer: "lower right" → YES (specifies which)
+
+Question: "When did it start?"
+Answer: "the pain" → NO (no timing info)
+Answer: "yesterday" → YES (has timing)
+
+Question: "Have you had fever?"
+Answer: "yes" → YES
+Answer: "no" → YES
+Answer: "had" → NO (just echoing question)
 
 Respond with ONLY "YES" or "NO".
 """
