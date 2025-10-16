@@ -317,30 +317,44 @@ Classic Presentation: {classic}
         print(f"[Engine] 📋 Questions asked: {len(asked)}")
         
         # LLM PROMPT: Generate next question
-        # Very direct - no room for chatbot behavior
-        prompt = f"""DIAGNOSTIC MODE - Ask clinical question only.
+        # ULTRA-STRICT: System message + minimal user prompt
+        system_msg = "You are a diagnostic AI. Output ONLY medical questions. No greetings, no explanations, no meta-commentary."
+        
+        user_msg = f"""Patient: {patient_info}
 
-PATIENT: {patient_info}
+Conditions: {', '.join([g['name'] for g in self.active_guidelines])}
 
-TOP 3 DIAGNOSES:
-{guidelines_text}
+Ask ONE question about pain location, timing, quality, or associated symptoms.
 
-Based on the classical presentations above, ask ONE diagnostic question about:
-- Pain location (RUQ/RLQ/LLQ/epigastric)
-- Pain timing (when started, duration)
-- Pain quality (constant/crampy/sharp/burning)
-- Associated symptoms (fever/nausea/vomiting/diarrhea)
-
-DO NOT greet or explain. Output ONLY the question:"""
+Question:"""
 
         try:
             response = self.llm_chat_fn(
-                [{"role": "user", "content": prompt}],
-                max_tokens=50,
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=30,  # Shorter - just need the question
                 temperature=0.3
             )
             
             question = response.strip().strip('"\'')
+            
+            # AGGRESSIVE CLEANING: Remove any meta-commentary
+            # If LLM outputs "I think..." or "Let me...", extract just the question
+            question_lines = question.split('\n')
+            for line in question_lines:
+                line = line.strip()
+                # Skip meta lines
+                if any(line.startswith(prefix) for prefix in ['I think', 'Let me', 'Here', 'I would', 'The question']):
+                    continue
+                # If line has a question mark, use it
+                if '?' in line:
+                    question = line
+                    break
+            
+            # Clean quotes and ensure ends with ?
+            question = question.strip('"\'')
             if not question.endswith('?'):
                 question += '?'
             
@@ -406,19 +420,22 @@ DO NOT greet or explain. Output ONLY the question:"""
         for g in self.active_guidelines:
             classic = g['data'].get('key_features', {}).get('classic_presentation', 'N/A')
             
-            # Scoring prompt - SIMPLIFIED for small models
-            scoring_prompt = f"""Condition: {g['name']}
-{classic}
+            # Scoring prompt - ULTRA-STRICT: System + user roles, number only
+            system_msg = "You are a diagnostic scoring AI. Output ONLY integers 0-100. No explanations."
+            
+            user_msg = f"""{g['name']}: {classic}
 
-Patient: {patient_info}
-Latest answer: {answer}
+Patient: {patient_info}, answered: {answer}
 
-Score 0-100 how well this matches:"""
+Score 0-100:"""
 
             try:
                 response = self.llm_chat_fn(
-                    [{"role": "user", "content": scoring_prompt}],
-                    max_tokens=5,
+                    [
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_msg}
+                    ],
+                    max_tokens=3,  # Just need "50" or "75"
                     temperature=0.0
                 )
                 
@@ -517,18 +534,20 @@ Score 0-100 how well this matches:"""
         """
         print(f"[Engine] 🧠 Generating LLM opening question...")
         
-        prompt = f"""Patient says: "{chief_complaint}"
+        system_msg = "You are a medical assistant. Output ONE sentence showing empathy and asking for age. No greetings."
+        
+        user_msg = f"""Patient: "{chief_complaint}"
 
-Show empathy and ask their age.
-Example: "I'm sorry you're experiencing that. How old are you?"
-
-Your response (one sentence):"""
+Your response:"""
         
         try:
             response = self.llm_chat_fn(
-                [{"role": "user", "content": prompt}],
-                max_tokens=30,
-                temperature=0.7
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=25,
+                temperature=0.6
             )
             
             question = response.strip().strip('"\'')
@@ -548,17 +567,18 @@ Your response (one sentence):"""
         """
         print(f"[Engine] 🧠 Generating LLM sex question...")
         
-        prompt = """Ask patient for biological sex (male or female).
-
-Example: "Are you male or female?"
-
-Your question:"""
+        system_msg = "You are a medical assistant. Ask for biological sex (male/female). Output ONE question only."
+        
+        user_msg = """Your question:"""
         
         try:
             response = self.llm_chat_fn(
-                [{"role": "user", "content": prompt}],
-                max_tokens=20,
-                temperature=0.5
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=15,
+                temperature=0.4
             )
             
             question = response.strip().strip('"\'')
@@ -578,32 +598,29 @@ Your question:"""
         """
         print(f"[Engine] 🧠 Generating clarification for: {topic}")
         
+        system_msg = "You are a medical assistant. Politely re-ask the question. Output ONE short question only."
+        
         if topic == "age":
-            prompt = """Patient didn't provide their age clearly.
+            user_msg = """Patient didn't provide age.
 
-Ask again politely.
-Example: "I didn't catch that. How old are you?"
-
-Your question:"""
+Re-ask:"""
         elif topic == "sex":
-            prompt = """Patient didn't specify male or female.
+            user_msg = """Patient didn't specify male or female.
 
-Ask again politely.
-Example: "I didn't quite hear that. Are you male or female?"
-
-Your question:"""
+Re-ask:"""
         else:
-            prompt = f"""Patient's answer was unclear.
+            user_msg = f"""Patient's answer about {topic} was unclear.
 
-Ask them to clarify about {topic}.
-
-Your question:"""
+Re-ask:"""
         
         try:
             response = self.llm_chat_fn(
-                [{"role": "user", "content": prompt}],
-                max_tokens=25,
-                temperature=0.6
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=20,
+                temperature=0.5
             )
             
             question = response.strip().strip('"\'')
