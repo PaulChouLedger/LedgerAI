@@ -124,7 +124,7 @@ class GuidelineToRAGConverter:
             sections.append("")
             
             for flag in guideline['red_flags']:
-                sections.append(f"  🚨 {flag['symptom']}")
+                sections.append(f"  🚨 {flag['finding']}")
                 sections.append(f"     Urgency: {flag['urgency']}")
                 sections.append(f"     Action: {flag['action']}")
                 sections.append("")

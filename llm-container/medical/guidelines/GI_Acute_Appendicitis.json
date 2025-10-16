@@ -147,22 +147,22 @@
   
   "red_flags": [
     {
-      "symptom": "Sudden severe pain that then improves briefly (may indicate perforation)",
+      "finding": "Sudden severe pain that then improves briefly (may indicate perforation)",
       "urgency": "emergency_department",
       "action": "Immediate surgical evaluation - possible perforation with peritonitis"
     },
     {
-      "symptom": "Severe pain with abdominal rigidity (board-like abdomen)",
+      "finding": "Severe pain with abdominal rigidity (board-like abdomen)",
       "urgency": "call_911",
       "action": "Perforation with peritonitis - needs immediate surgical intervention"
     },
     {
-      "symptom": "High fever >103°F with severe pain",
+      "finding": "High fever >103°F with severe pain",
       "urgency": "emergency_department",
       "action": "Possible perforation or alternative serious diagnosis (e.g., perforated diverticulitis)"
     },
     {
-      "symptom": "Hypotension, tachycardia, altered mental status",
+      "finding": "Hypotension, tachycardia, altered mental status",
       "urgency": "call_911",
       "action": "Septic shock - immediate emergency care needed"
     }
