@@ -3,10 +3,10 @@
 Adaptive Diagnostic Engine - LLM-Driven Medical Diagnosis
 
 SIMPLIFIED APPROACH:
-1. Chief complaint → Match 5 most relevant guidelines
-2. Feed all 5 guidelines' classical presentations to LLM
+1. Chief complaint → Match 3 most relevant guidelines
+2. Feed all 3 guidelines' classical presentations to LLM
 3. LLM analyzes and develops question roadmap
-4. Ask question → LLM scores all 5 → Re-rank by score
+4. Ask question → LLM scores all 3 → Re-rank by score
 5. Repeat until diagnosis clear
 
 NO complex feature extraction, NO pattern matching
@@ -71,7 +71,7 @@ class AdaptiveDiagnosticEngine:
     
     def reset_assessment(self):
         """Reset for new patient"""
-        self.active_guidelines = []  # The 5 chosen guidelines with scores
+        self.active_guidelines = []  # The 3 chosen guidelines with scores
         self.chief_complaint = ""
         self.demographics = {}  # age, sex
         self.conversation_history = []  # All Q&A
@@ -105,10 +105,10 @@ class AdaptiveDiagnosticEngine:
                 'message': "I couldn't identify relevant medical conditions. Please describe your symptoms more specifically."
             }
         
-        # Take top 5 (or fewer if less than 5 matched)
-        self.active_guidelines = matched[:5]
+        # Take top 3 (or fewer if less than 3 matched)
+        self.active_guidelines = matched[:3]
         
-        print(f"\n[Engine] 📋 SELECTED 5 GUIDELINES:")
+        print(f"\n[Engine] 📋 SELECTED 3 GUIDELINES:")
         for i, g in enumerate(self.active_guidelines, 1):
             print(f"[Engine]   {i}. {g['name']} (initial score: {g['score']:.2f})")
         print(f"{'='*80}\n")
@@ -174,6 +174,26 @@ class AdaptiveDiagnosticEngine:
             if age_match:
                 self.demographics['age'] = int(age_match.group())
                 print(f"[Engine] 👤 Age: {self.demographics['age']}")
+            else:
+                print(f"[Engine] 👤 Age: Not found in answer")
+            
+            # VALIDATION: If no age found, re-ask
+            if 'age' not in self.demographics:
+                print(f"[Engine] ⚠️ Invalid answer - re-asking for age")
+                print(f"{'='*80}\n")
+                
+                age_question = "I didn't catch that. How old are you?"
+                self.conversation_history.append({
+                    'type': 'question',
+                    'question': age_question,
+                    'focus': 'age'
+                })
+                
+                return {
+                    'success': True,
+                    'question': age_question,
+                    'status': 'questioning'
+                }
             
             # Ask sex
             sex_question = "Are you male or female?"
@@ -199,6 +219,25 @@ class AdaptiveDiagnosticEngine:
                 self.demographics['sex'] = 'male'
             
             print(f"[Engine] 👤 Sex: {self.demographics.get('sex', 'unknown')}")
+            
+            # VALIDATION: If sex is still unknown, re-ask
+            if 'sex' not in self.demographics:
+                print(f"[Engine] ⚠️ Invalid answer - re-asking for sex")
+                print(f"{'='*80}\n")
+                
+                sex_question = "I didn't catch that. Are you male or female?"
+                self.conversation_history.append({
+                    'type': 'question',
+                    'question': sex_question,
+                    'focus': 'sex'
+                })
+                
+                return {
+                    'success': True,
+                    'question': sex_question,
+                    'status': 'questioning'
+                }
+            
             print(f"{'='*80}\n")
             
             # NOW: Feed guidelines to LLM and get first clinical question
@@ -241,7 +280,7 @@ class AdaptiveDiagnosticEngine:
     
     def _ask_next_clinical_question(self) -> Dict[str, Any]:
         """
-        Use LLM to analyze all 5 guidelines and generate next best question
+        Use LLM to analyze all 3 guidelines and generate next best question
         
         This is the CORE intelligence of the system.
         """
@@ -252,7 +291,7 @@ class AdaptiveDiagnosticEngine:
         # Build context for LLM
         patient_info = f"{self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')} with {self.chief_complaint}"
         
-        # Get classical presentations from all 5 guidelines
+        # Get classical presentations from ALL active guidelines (now 3 instead of 5)
         guidelines_context = []
         for i, g in enumerate(self.active_guidelines, 1):
             classic = g['data'].get('key_features', {}).get('classic_presentation', 'N/A')
