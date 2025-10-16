@@ -2,17 +2,16 @@
   "condition": "Ruptured Ovarian Cyst",
   "icd10": "N83.20",
   "snomed": "11489009",
+  "prevalence": "uncommon",
   "chief_complaint_triggers": [
     "abdominal pain",
     "pelvic pain",
     "lower abdominal pain"
   ],
   "urgency": "urgent",
-  
   "key_features": {
     "classic_presentation": "Ruptured ovarian cyst presents with SUDDEN ONSET SHARP UNILATERAL LOWER ABDOMINAL/PELVIC PAIN that occurs mid-cycle or just before menses. Pain is initially SHARP (7-9/10), then becomes dull/aching over hours as it resolves. Onset is acute, within minutes, often associated with intercourse, exercise, or pelvic exam. Pain IMPROVES OVER 24-48 HOURS (unlike torsion which worsens). Key associated symptoms: Mild nausea, sometimes vaginal spotting, feeling of pressure. Location: Unilateral lower quadrant/adnexal region. Key history: Known ovarian cysts, mid-cycle timing (corpus luteum rupture), reproductive age. Usually BENIGN and SELF-LIMITED. Key positives: Sudden onset, unilateral, improves over hours to days, possible free fluid on ultrasound. Key negatives: Worsening pain suggests torsion not rupture. Hypotension suggests hemorrhagic cyst with significant blood loss (rare)."
   },
-  
   "red_flags": [
     "Hypotension or syncope - hemorrhagic cyst with significant blood loss, needs urgent surgery",
     "Severe pain not improving or worsening - consider ovarian torsion instead",

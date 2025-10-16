@@ -2,6 +2,7 @@
   "condition": "Inflammatory Bowel Disease Flare (Crohn's/Ulcerative Colitis)",
   "icd10": "K50.90",
   "snomed": "34000006",
+  "prevalence": "uncommon",
   "chief_complaint_triggers": [
     "abdominal pain",
     "diarrhea",
@@ -9,14 +10,12 @@
     "cramping"
   ],
   "urgency": "urgent",
-  
   "key_features": {
     "classic_presentation": "IBD flare presents with CRAMPY ABDOMINAL PAIN and CHRONIC BLOODY DIARRHEA (3-10+ stools/day). Pain is INTERMITTENT, crampy, 5-8/10 severity. Onset is over days to weeks. Patient usually has KNOWN DIAGNOSIS of Crohn's or ulcerative colitis with prior flares. Key associated symptoms: BLOODY or MUCOID diarrhea (hallmark), urgency, tenesmus (feeling of incomplete evacuation), weight loss, fatigue, LOW-GRADE FEVER. Location: Diffuse cramping, or RLQ if Crohn's (terminal ileum). Key history: Diagnosed IBD, missed medications, recent infections, stress. May have extra-intestinal manifestations (joint pain, eye inflammation, skin lesions). Key positives: Blood and mucus in stool, cramping relieved by defecation, chronic/relapsing pattern. Key negatives: Acute onset diarrhea without blood suggests gastroenteritis. First episode of bloody diarrhea needs workup (not assumed to be IBD)."
   },
-  
   "red_flags": [
     "Severe abdominal pain with peritoneal signs - toxic megacolon or perforation, call 911",
-    "High fever >102°F with tachycardia - severe colitis, toxic megacolon risk",
+    "High fever >102\u00b0F with tachycardia - severe colitis, toxic megacolon risk",
     "Severe bloody diarrhea with >10 stools/day - severe flare, needs hospitalization",
     "Abdominal distension with decreased bowel sounds - toxic megacolon, surgical emergency"
   ]

@@ -2,6 +2,7 @@
   "condition": "Acute Diverticulitis",
   "icd10": "K57.92",
   "snomed": "307496006",
+  "prevalence": "uncommon",
   "chief_complaint_triggers": [
     "abdominal pain",
     "left lower abdominal pain",
@@ -9,13 +10,11 @@
     "lower left side pain"
   ],
   "urgency": "urgent",
-  
   "key_features": {
-    "classic_presentation": "Acute diverticulitis presents with LEFT LOWER QUADRANT (LLQ) PAIN that is CONSTANT and LOCALIZED (unlike right-sided appendicitis). Pain is 6-9/10 severity, aching or sharp. Onset is usually within 1-3 days (subacute). Occurs almost exclusively in patients >40 years old (very rare in young adults). Key associated symptoms: LOW-GRADE FEVER (100-101°F), change in bowel habits (DIARRHEA or constipation), nausea, anorexia. Location: LLQ tenderness, sometimes palpable tender mass. Key history: Known diverticulosis, low-fiber diet, prior episodes. Key positives: LLQ tenderness worse with movement, fever, elevated WBC. Key negatives: Right-sided pain suggests appendicitis. High fever >102°F suggests complicated diverticulitis (abscess, perforation). Profuse diarrhea suggests gastroenteritis. Age <40 makes diverticulitis unlikely."
+    "classic_presentation": "Acute diverticulitis presents with LEFT LOWER QUADRANT (LLQ) PAIN that is CONSTANT and LOCALIZED (unlike right-sided appendicitis). Pain is 6-9/10 severity, aching or sharp. Onset is usually within 1-3 days (subacute). Occurs almost exclusively in patients >40 years old (very rare in young adults). Key associated symptoms: LOW-GRADE FEVER (100-101\u00b0F), change in bowel habits (DIARRHEA or constipation), nausea, anorexia. Location: LLQ tenderness, sometimes palpable tender mass. Key history: Known diverticulosis, low-fiber diet, prior episodes. Key positives: LLQ tenderness worse with movement, fever, elevated WBC. Key negatives: Right-sided pain suggests appendicitis. High fever >102\u00b0F suggests complicated diverticulitis (abscess, perforation). Profuse diarrhea suggests gastroenteritis. Age <40 makes diverticulitis unlikely."
   },
-  
   "red_flags": [
-    "Severe LLQ pain with high fever >102°F and rigors - diverticular abscess, needs CT and possible drainage",
+    "Severe LLQ pain with high fever >102\u00b0F and rigors - diverticular abscess, needs CT and possible drainage",
     "Sudden severe pain with peritoneal signs - perforation with peritonitis, call 911",
     "Unable to tolerate oral intake with vomiting - possible obstruction from inflammation",
     "Immunocompromised patients - higher risk of perforation and sepsis"

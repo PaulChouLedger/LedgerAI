@@ -2,6 +2,7 @@
   "condition": "Kidney Stone (Nephrolithiasis/Ureterolithiasis)",
   "icd10": "N20.0",
   "snomed": "95570007",
+  "prevalence": "common",
   "chief_complaint_triggers": [
     "abdominal pain",
     "flank pain",
@@ -10,11 +11,9 @@
     "kidney pain"
   ],
   "urgency": "urgent",
-  
   "key_features": {
     "classic_presentation": "Kidney stone presents with SUDDEN ONSET SEVERE COLICKY FLANK PAIN (8-10/10) that COMES IN WAVES and RADIATES from flank to groin/testicle in males or labia in females. Pain is described as the 'WORST PAIN OF MY LIFE'. Patient is RESTLESS, cannot find comfortable position (unlike peritonitis where patient lies still). Pain intensity waxes and wanes in waves. Onset is acute, within minutes to hours. Key associated symptoms: NAUSEA and VOMITING (very common), HEMATURIA (blood in urine - gross or microscopic in 90%), urinary frequency and urgency. Location: Unilateral flank pain radiating to groin. Key history: Prior stones, dehydration, family history. Patient often paces, writhes in pain. Key positives: CVA (costovertebral angle) tenderness, gross hematuria, inability to sit still. Key negatives: Peritoneal signs (guarding, rigidity) suggest alternative diagnosis. Fever with flank pain suggests pyelonephritis, not simple stone."
   },
-  
   "red_flags": [
     "Fever with flank pain - infected stone (pyonephrosis), needs urgent urology intervention",
     "Anuria (no urine output) - complete obstruction, needs urgent decompression",

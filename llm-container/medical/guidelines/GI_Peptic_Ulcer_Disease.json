@@ -2,6 +2,7 @@
   "condition": "Peptic Ulcer Disease",
   "icd10": "K27.9",
   "snomed": "13200003",
+  "prevalence": "common",
   "chief_complaint_triggers": [
     "abdominal pain",
     "stomach pain",
@@ -10,11 +11,9 @@
     "upper abdominal pain"
   ],
   "urgency": "routine",
-  
   "key_features": {
     "classic_presentation": "Peptic ulcer disease presents with EPIGASTRIC PAIN that is BURNING or GNAWING in quality, 5-8/10 severity. Pain has a CHARACTERISTIC TIMING PATTERN: DUODENAL ulcers improve with food and worsen 2-5 hours after meals (empty stomach), while GASTRIC ulcers worsen with food. Pain is often NOCTURNAL (wakes patient at night). Onset is chronic/recurrent over weeks to months. Key associated symptoms: Nausea, bloating, early satiety. Location: Epigastric, midline. Key history: NSAID use, H. pylori infection history, smoking, alcohol. Key positives: Pain relieved by antacids, predictable pattern with meals, nocturnal pain. Key negatives: NEW ONSET severe pain may indicate perforation. Vomiting blood (hematemesis) or black tarry stools (melena) indicates bleeding ulcer requiring urgent evaluation. Weight loss suggests gastric cancer, not simple ulcer."
   },
-  
   "red_flags": [
     "Sudden severe epigastric pain with peritoneal signs - perforated ulcer, call 911",
     "Vomiting blood or coffee-ground emesis - bleeding ulcer, needs urgent endoscopy",

@@ -2,6 +2,7 @@
   "condition": "GERD (Gastroesophageal Reflux Disease)",
   "icd10": "K21.9",
   "snomed": "235595009",
+  "prevalence": "uncommon",
   "chief_complaint_triggers": [
     "heartburn",
     "chest pain",
@@ -10,11 +11,9 @@
     "regurgitation"
   ],
   "urgency": "routine",
-  
   "key_features": {
     "classic_presentation": "GERD presents with BURNING sensation in the chest (heartburn) that rises from epigastrium toward throat. Pain is WORSE AFTER MEALS, when LYING DOWN, or BENDING OVER. RELIEVED by antacids or sitting upright. Pain is CHRONIC/RECURRENT over weeks to months (not acute). Severity 3-6/10, burning quality. Key associated symptoms: SOUR TASTE in mouth (acid regurgitation), belching, difficulty swallowing (dysphagia if chronic), chronic cough, hoarseness. Location: Retrosternal (behind breastbone), epigastric. Key triggers: Spicy foods, caffeine, alcohol, large meals, lying down after eating. Key positives: Improvement with antacids, worse at night, chronic pattern. Key negatives: NEW or SEVERE chest pain requires cardiac evaluation first (rule out heart attack). Dysphagia with weight loss suggests esophageal stricture or cancer. Vomiting blood (hematemesis) suggests ulcer or severe esophagitis."
   },
-  
   "red_flags": [
     "New severe chest pain - rule out cardiac causes (MI, angina) FIRST before attributing to GERD",
     "Dysphagia (difficulty swallowing) with weight loss - esophageal stricture or cancer, needs endoscopy",

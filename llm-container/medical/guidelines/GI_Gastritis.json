@@ -2,6 +2,7 @@
   "condition": "Acute Gastritis",
   "icd10": "K29.70",
   "snomed": "4556007",
+  "prevalence": "uncommon",
   "chief_complaint_triggers": [
     "abdominal pain",
     "stomach pain",
@@ -10,11 +11,9 @@
     "upper abdominal pain"
   ],
   "urgency": "routine",
-  
   "key_features": {
     "classic_presentation": "Acute gastritis presents with EPIGASTRIC (upper mid-abdomen) pain or discomfort that is GNAWING or BURNING in quality, typically 4-7/10 severity. Pain is WORSE WITH EATING (unlike peptic ulcer which may improve with food). Onset is acute, within hours to days, often triggered by NSAIDs (ibuprofen, aspirin), alcohol, or stress. Key associated symptoms: NAUSEA (very common), vomiting, loss of appetite, bloating, early satiety (feeling full quickly). Location: Epigastric, diffuse upper abdomen. NO radiation. Key triggers: Recent NSAID use, heavy alcohol consumption, severe stress/illness. Key positives: Nausea worse with eating, diffuse epigastric tenderness without peritoneal signs. Key negatives: Severe localized pain suggests ulcer. Vomiting blood (hematemesis) or black tarry stools (melena) suggests bleeding gastritis or ulcer requiring urgent evaluation. Weight loss suggests chronic condition or malignancy."
   },
-  
   "red_flags": [
     "Vomiting blood (hematemesis) or coffee-ground emesis - GI bleeding, needs urgent endoscopy",
     "Black tarry stools (melena) - upper GI bleeding",

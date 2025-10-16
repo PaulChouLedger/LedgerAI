@@ -2,6 +2,7 @@
   "condition": "Acute Cholecystitis",
   "icd10": "K81.0",
   "snomed": "65275009",
+  "prevalence": "common",
   "chief_complaint_triggers": [
     "abdominal pain",
     "right upper abdominal pain",
@@ -11,13 +12,11 @@
     "gallbladder pain"
   ],
   "urgency": "urgent",
-  
   "key_features": {
-    "classic_presentation": "Acute cholecystitis presents with SUDDEN ONSET severe right upper quadrant (RUQ) pain that is CONSTANT (not colicky like biliary colic). Pain often begins 30 minutes to 2 hours AFTER A FATTY MEAL (fried foods, heavy meals) and lasts >6 hours (unlike biliary colic which lasts <6 hours). The pain RADIATES TO THE RIGHT SHOULDER OR SCAPULA (referred pain from phrenic nerve). Pain severity is typically 7-10/10, sharp or aching. Onset is usually within 12-48 hours (acute, not chronic). Key associated symptoms: NAUSEA AND VOMITING are very common, fever (100.5-102°F) develops within 12-24 hours, and patients may have right-sided tenderness with MURPHY'S SIGN (inspiratory arrest during RUQ palpation). Location: Pain is precisely localized to RUQ, just below the right rib cage. Patients may have had PRIOR EPISODES of similar but shorter-lasting pain (biliary colic from gallstones). Key positives: Pain worse with deep breathing or movement, may have jaundice (yellowing) if common bile duct involved, anorexia. Key negatives: Diarrhea is uncommon. Left-sided pain rules out cholecystitis. Pain that completely resolves within 1-2 hours suggests biliary colic, not cholecystitis."
+    "classic_presentation": "Acute cholecystitis presents with SUDDEN ONSET severe right upper quadrant (RUQ) pain that is CONSTANT (not colicky like biliary colic). Pain often begins 30 minutes to 2 hours AFTER A FATTY MEAL (fried foods, heavy meals) and lasts >6 hours (unlike biliary colic which lasts <6 hours). The pain RADIATES TO THE RIGHT SHOULDER OR SCAPULA (referred pain from phrenic nerve). Pain severity is typically 7-10/10, sharp or aching. Onset is usually within 12-48 hours (acute, not chronic). Key associated symptoms: NAUSEA AND VOMITING are very common, fever (100.5-102\u00b0F) develops within 12-24 hours, and patients may have right-sided tenderness with MURPHY'S SIGN (inspiratory arrest during RUQ palpation). Location: Pain is precisely localized to RUQ, just below the right rib cage. Patients may have had PRIOR EPISODES of similar but shorter-lasting pain (biliary colic from gallstones). Key positives: Pain worse with deep breathing or movement, may have jaundice (yellowing) if common bile duct involved, anorexia. Key negatives: Diarrhea is uncommon. Left-sided pain rules out cholecystitis. Pain that completely resolves within 1-2 hours suggests biliary colic, not cholecystitis."
   },
-  
   "red_flags": [
-    "High fever >102.5°F with rigors - suggests gangrenous cholecystitis or ascending cholangitis",
+    "High fever >102.5\u00b0F with rigors - suggests gangrenous cholecystitis or ascending cholangitis",
     "Jaundice with confusion or sepsis - ascending cholangitis, needs urgent ERCP",
     "Severe RUQ pain with hypotension - gallbladder perforation or septic shock, call 911",
     "Elderly or diabetic patients - higher risk of gangrenous cholecystitis and perforation"

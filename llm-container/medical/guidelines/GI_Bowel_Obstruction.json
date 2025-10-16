@@ -2,6 +2,7 @@
   "condition": "Small Bowel Obstruction",
   "icd10": "K56.60",
   "snomed": "81060008",
+  "prevalence": "uncommon",
   "chief_complaint_triggers": [
     "abdominal pain",
     "cramping",
@@ -11,11 +12,9 @@
     "bloating"
   ],
   "urgency": "urgent",
-  
   "key_features": {
     "classic_presentation": "Small bowel obstruction presents with COLICKY CRAMPING pain that COMES AND GOES IN WAVES (not constant), typically every 4-5 minutes. Pain is diffuse, periumbilical, 6-9/10 severity during cramps. Onset is usually within 12-48 hours. Key associated symptoms: BILIOUS (green/yellow) VOMITING that becomes progressively more frequent and feculent if complete obstruction, ABSOLUTE CONSTIPATION (unable to pass stool OR GAS for >12-24 hours), progressive abdominal DISTENSION (belly swelling). Location: Periumbilical and diffuse cramping, not localized. Key history: Prior abdominal surgery (adhesions most common cause), hernia, prior obstruction. Patient may have TINKLING or HIGH-PITCHED bowel sounds. Key positives: Crampy pain relieved temporarily after vomiting, inability to pass flatus, progressive bloating. Key negatives: Diarrhea rules out complete obstruction. Constant pain with peritoneal signs suggests strangulation (surgical emergency). Blood in vomit suggests advanced obstruction."
   },
-  
   "red_flags": [
     "Severe constant pain with fever and peritoneal signs - strangulated bowel, call 911",
     "Bloody vomit or stool - ischemic bowel, needs immediate surgery",

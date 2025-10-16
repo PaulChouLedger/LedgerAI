@@ -2,6 +2,7 @@
   "condition": "Acute Gastroenteritis",
   "icd10": "K52.9",
   "snomed": "25374005",
+  "prevalence": "common",
   "chief_complaint_triggers": [
     "abdominal pain",
     "diarrhea",
@@ -12,14 +13,12 @@
     "food poisoning"
   ],
   "urgency": "routine",
-  
   "key_features": {
     "classic_presentation": "Acute gastroenteritis presents with DIARRHEA as the PREDOMINANT symptom (often more prominent than pain), with 3+ loose or watery stools per day. Abdominal pain is CRAMPY, DIFFUSE, and INTERMITTENT (comes and goes in waves) - NOT constant or localized to one spot. Pain is typically 3-6/10 severity, relieved temporarily after bowel movements. Onset is sudden, usually within hours to 1-2 days. Key associated symptoms: NAUSEA AND VOMITING often occur BEFORE or SIMULTANEOUSLY with diarrhea (unlike appendicitis where pain comes first), low-grade fever or no fever (high fever suggests invasive bacteria), and diffuse abdominal cramping with bowel movements. Location: Pain is periumbilical or diffuse throughout abdomen, NOT localized to one quadrant. Key history: Recent sick contacts, contaminated food/water, travel, daycare exposure. APPETITE is often PRESERVED or only mildly reduced (unlike appendicitis where anorexia is severe). Key positives: Hyperactive bowel sounds, diffuse tenderness without guarding, watery or bloody diarrhea. Key negatives: Pain that MIGRATES to RLQ suggests appendicitis not gastroenteritis. SEVERE localized tenderness with guarding rules out simple gastroenteritis. Pain without diarrhea is uncommon."
   },
-  
   "red_flags": [
     "Severe dehydration (dry mucous membranes, decreased urine output, orthostatic hypotension) - needs IV fluids",
-    "Bloody diarrhea with high fever >102°F - invasive bacterial infection (Shigella, Salmonella, E. coli), may need antibiotics",
+    "Bloody diarrhea with high fever >102\u00b0F - invasive bacterial infection (Shigella, Salmonella, E. coli), may need antibiotics",
     "Severe abdominal pain with peritoneal signs - suggests perforation or alternative diagnosis, not simple gastroenteritis",
     "Immunocompromised patients or infants - higher risk of severe dehydration and complications"
   ]

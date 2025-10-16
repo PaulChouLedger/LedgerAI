@@ -2,6 +2,7 @@
   "condition": "Irritable Bowel Syndrome (IBS)",
   "icd10": "K58.9",
   "snomed": "10743008",
+  "prevalence": "uncommon",
   "chief_complaint_triggers": [
     "abdominal pain",
     "cramping",
@@ -10,11 +11,9 @@
     "constipation"
   ],
   "urgency": "routine",
-  
   "key_features": {
     "classic_presentation": "IBS presents with CHRONIC RECURRENT crampy abdominal pain (at least once per week for 3+ months) associated with CHANGE IN BOWEL HABITS (diarrhea, constipation, or alternating). Pain is CRAMPY, INTERMITTENT, 3-6/10 severity, RELIEVED by defecation. Location: Lower abdomen, diffuse, migrating. NO alarm features: NO blood in stool, NO weight loss, NO nocturnal symptoms, NO fever. Key associated symptoms: BLOATING and gas, mucus in stool (without blood), sense of incomplete evacuation. Symptoms WORSE with stress or certain foods. Pattern: Chronic over months to years, waxing and waning. Key positives: Pain better after bowel movement, symptoms for >6 months, triggered by stress/food. Key negatives: NEW onset in patient >50 years requires workup to rule out cancer. Blood in stool rules out IBS. Weight loss, fever, or nocturnal diarrhea suggests organic disease not IBS."
   },
-  
   "red_flags": [
     "Blood in stool - needs colonoscopy to rule out IBD or colon cancer",
     "Unintentional weight loss - organic pathology, not IBS",

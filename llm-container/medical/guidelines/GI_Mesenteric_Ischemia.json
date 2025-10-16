@@ -2,17 +2,16 @@
   "condition": "Acute Mesenteric Ischemia",
   "icd10": "K55.059",
   "snomed": "61490001",
+  "prevalence": "rare",
   "chief_complaint_triggers": [
     "abdominal pain",
     "severe abdominal pain",
     "stomach pain"
   ],
   "urgency": "emergent",
-  
   "key_features": {
     "classic_presentation": "Acute mesenteric ischemia presents with SUDDEN ONSET SEVERE PERIUMBILICAL PAIN (9-10/10) that is OUT OF PROPORTION to physical exam findings (severe pain but minimal tenderness). Classic presentation: 'PAIN OUT OF PROPORTION'. Pain is CONSTANT, crampy or colicky initially, becoming steady. Onset is acute, within hours. Occurs almost exclusively in patients >60 years with vascular disease. Key associated symptoms: BLOODY DIARRHEA (late finding), nausea, vomiting, urgent bowel movements. Patient appears in severe distress despite benign abdominal exam initially. Location: Diffuse, periumbilical. Key history: ATRIAL FIBRILLATION (embolic source), peripheral vascular disease, prior MI, hypercoagulable state. Classic triad: severe pain + minimal findings + elderly with vascular disease. Key positives: Severe pain with soft abdomen early, bloody diarrhea (late), metabolic acidosis. Key negatives: Young patient without vascular disease makes mesenteric ischemia extremely unlikely."
   },
-  
   "red_flags": [
     "EMERGENCY CONDITION - severe pain out of proportion to exam in elderly with AFib - call 911 immediately",
     "Bloody diarrhea with severe pain - bowel infarction, needs immediate vascular surgery",

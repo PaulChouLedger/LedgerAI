@@ -2,6 +2,7 @@
   "condition": "Ovarian Torsion",
   "icd10": "N83.51",
   "snomed": "51363008",
+  "prevalence": "rare",
   "chief_complaint_triggers": [
     "abdominal pain",
     "pelvic pain",
@@ -9,11 +10,9 @@
     "severe pelvic pain"
   ],
   "urgency": "emergent",
-  
   "key_features": {
     "classic_presentation": "Ovarian torsion presents with SUDDEN ONSET SEVERE UNILATERAL LOWER ABDOMINAL/PELVIC PAIN (8-10/10) in a reproductive-age woman. Pain is CONSTANT and SEVERE, often described as 'WORST PAIN EVER'. Onset is acute, within minutes to hours, often associated with physical activity or position change. Key associated symptoms: NAUSEA and VOMITING (in 70%), sometimes low-grade fever. Location: Unilateral adnexal region, lower quadrant. Key history: Known ovarian cyst, pregnancy (corpus luteum cyst), ovarian hyperstimulation. More common on RIGHT side. SURGICAL EMERGENCY - ovary is twisting on its vascular pedicle causing ischemia. Patient appears in severe distress. Key positives: Severe unilateral tenderness, adnexal mass on exam, nausea out of proportion to findings. Key negatives: Bilateral pain less likely. Gradual onset suggests alternative diagnosis."
   },
-  
   "red_flags": [
     "SURGICAL EMERGENCY - delayed treatment leads to ovarian necrosis and loss of ovary",
     "Sudden severe unilateral pelvic pain in woman - needs urgent ultrasound with Doppler",

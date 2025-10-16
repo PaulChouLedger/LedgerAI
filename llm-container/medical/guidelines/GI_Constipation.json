@@ -2,6 +2,7 @@
   "condition": "Severe Constipation",
   "icd10": "K59.00",
   "snomed": "14760008",
+  "prevalence": "uncommon",
   "chief_complaint_triggers": [
     "abdominal pain",
     "stomach pain",
@@ -11,11 +12,9 @@
     "constipation"
   ],
   "urgency": "routine",
-  
   "key_features": {
     "classic_presentation": "Severe constipation presents with LOWER ABDOMINAL cramping pain and BLOATING that is INTERMITTENT (comes and goes) and MILD TO MODERATE severity (3-6/10). Onset is GRADUAL over days to weeks (not acute). Key symptom: NO BOWEL MOVEMENT for 3-7+ days, or hard/pellet-like stools when passing. Pain is RELIEVED by bowel movement or passing gas. Location: Lower abdomen, diffuse cramping. Key associated symptoms: Bloating, sensation of incomplete evacuation, straining, hard stools. Usually NO fever, NO vomiting (unless severe impaction). Key history: Poor fiber/water intake, sedentary lifestyle, medications (opioids, iron, anticholinergics), chronic constipation pattern. Key positives: Gradual onset, able to pass gas (unlike obstruction), pain better after defecation. Key negatives: Sudden onset with inability to pass gas suggests obstruction not constipation. Vomiting is uncommon. Severe pain suggests alternative diagnosis."
   },
-  
   "red_flags": [
     "Sudden onset severe constipation with vomiting - possible bowel obstruction, needs urgent imaging",
     "Complete inability to pass gas - suggests obstruction not simple constipation",

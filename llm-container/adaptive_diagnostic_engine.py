@@ -3,11 +3,20 @@
 Adaptive Diagnostic Engine - LLM-Driven Medical Diagnosis
 
 SIMPLIFIED APPROACH:
-1. Chief complaint → Match 3 most relevant guidelines
-2. Feed all 3 guidelines' classical presentations to LLM
-3. LLM analyzes and develops question roadmap
-4. Ask question → LLM scores all 3 → Re-rank by score
-5. Repeat until diagnosis clear
+1. Chief complaint → Match relevant guidelines
+2. Sort by URGENCY (emergent > urgent > routine) then PREVALENCE (common > rare)
+3. Top 3 become active differentials, rest go to reserve pool
+4. Feed all 3 guidelines' classical presentations to LLM
+5. LLM analyzes and develops question roadmap
+6. Ask question → LLM scores all 3 → Re-rank by score
+7. Rule out <30% → Promote from reserve (prioritize COMMON conditions)
+8. Repeat until diagnosis clear
+
+PREVALENCE-BASED ROLLING DIFFERENTIAL:
+- Start with common conditions (appendicitis, cholecystitis, UTI, etc.)
+- Only consider rare conditions (ectopic, mesenteric ischemia) after common ones ruled out
+- Mimics clinical reasoning: "Common things are common"
+- Reserve pool sorted by prevalence ensures common conditions promoted first
 
 NO complex feature extraction, NO pattern matching
 LLM does ALL the reasoning - we just provide structure
@@ -112,16 +121,25 @@ class AdaptiveDiagnosticEngine:
             }
         
         # Split into active (top 3) and reserve pool (rest)
+        # Active = highest urgency + prevalence
+        # Reserve = sorted by prevalence (common first, rare last)
         self.active_guidelines = matched[:self.MAX_ACTIVE]
         self.reserve_pool = matched[self.MAX_ACTIVE:]
         
         print(f"\n[Engine] 📋 ACTIVE DIFFERENTIALS (Top {len(self.active_guidelines)}):")
         for i, g in enumerate(self.active_guidelines, 1):
             urgency_emoji = "🚨" if g['data'].get('urgency') == 'emergent' else "⚠️" if g['data'].get('urgency') == 'urgent' else "📋"
-            print(f"[Engine]   {i}. {g['name']} (score: {g['score']:.0%}) {urgency_emoji}")
+            prevalence = g['data'].get('prevalence', 'uncommon')
+            print(f"[Engine]   {i}. {g['name']} ({prevalence}, {g['score']:.0%}) {urgency_emoji}")
         
         if self.reserve_pool:
-            print(f"[Engine] 💾 Reserve pool: {len(self.reserve_pool)} additional conditions")
+            print(f"\n[Engine] 💾 RESERVE POOL ({len(self.reserve_pool)} conditions, prioritized by prevalence):")
+            for i, g in enumerate(self.reserve_pool[:5], 1):  # Show first 5
+                prevalence = g['data'].get('prevalence', 'uncommon')
+                urgency = g['data'].get('urgency', 'routine')
+                print(f"[Engine]   {i}. {g['name']} ({prevalence}, {urgency}, {g['score']:.0%})")
+            if len(self.reserve_pool) > 5:
+                print(f"[Engine]   ... and {len(self.reserve_pool) - 5} more")
         print(f"{'='*80}\n")
         
         # STEP 2: Use LLM to generate empathetic opening + age question
@@ -274,8 +292,14 @@ class AdaptiveDiagnosticEngine:
             if not self._is_acceptable_clinical_answer(user_answer):
                 print(f"[Engine] ⚠️ Answer too vague or unclear - asking for clarification")
                 
-                last_question = self.conversation_history[-1]['question'] if self.conversation_history else "the question"
-                clarify = f"I didn't quite understand. {last_question}"
+                # Find last question
+                last_q = None
+                for item in reversed(self.conversation_history):
+                    if item.get('type') == 'question':
+                        last_q = item.get('question', 'the question')
+                        break
+                
+                clarify = f"I didn't quite understand. {last_q if last_q else 'Can you clarify?'}"
                 
                 self.conversation_history.append({
                     'type': 'question',
@@ -313,15 +337,22 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine]   A: '{answer}'")
         
         # Use LLM to validate
-        system_msg = "You are a medical validator. Determine if the patient's answer addresses the question. Output ONLY 'yes' or 'no'."
+        system_msg = "You are a medical validator. Does the answer provide requested information? Output ONLY 'yes' or 'no'."
         
-        user_msg = f"""Question: {last_question}
-Answer: {answer}
+        user_msg = f"""Q: {last_question}
+A: {answer}
 
-Does this answer provide meaningful information for the question?
-- "yes" or "no" = valid
-- Vague words like "now", "oh", "up" = invalid
-- Location/time/symptom words = valid
+Valid answers include:
+- Yes/no responses
+- Time words (today, yesterday, hour, day, week, ago)
+- Location words (right, left, upper, lower, side)
+- Symptom words (fever, nausea, vomiting, sharp, dull)
+
+Invalid answers:
+- Single vague words (now, oh, so, up, well)
+- Non-responsive words
+
+Is "{answer}" a valid response?
 
 Output (yes/no):"""
         
@@ -364,45 +395,44 @@ Output (yes/no):"""
             # Check if any trigger matches
             for trigger in triggers:
                 if trigger.lower() in complaint_lower:
+                    # Initial score based on PREVALENCE from guideline JSON
+                    prevalence = guideline.get('prevalence', 'uncommon')
+                    
+                    prevalence_scores = {
+                        'common': 0.60,    # Frequent conditions
+                        'uncommon': 0.50,  # Moderate frequency
+                        'rare': 0.40       # Low frequency but important
+                    }
+                    
+                    initial_score = prevalence_scores.get(prevalence, 0.50)
+                    
                     matched.append({
                         'name': name,
-                        'score': 0.5,  # Initial score (neutral)
+                        'score': initial_score,
                         'data': guideline
                     })
-                    print(f"[Engine]   ✓ {name} (trigger: '{trigger}')")
+                    print(f"[Engine]   ✓ {name} (trigger: '{trigger}', prevalence: {prevalence}, initial: {initial_score:.0%})")
                     break
         
-        # Sort by urgency first (emergent > urgent > routine), then shuffle within tier
-        # This ensures life-threatening conditions are always considered, but variety in order
+        # Sort by URGENCY first, then by PREVALENCE (score), then shuffle within same tier
+        # This ensures: emergent > urgent > routine, common > rare, but variety within tier
         urgency_priority = {'emergent': 0, 'urgent': 1, 'routine': 2}
         
-        def get_sort_key(item):
-            urgency = item['data'].get('urgency', 'routine')
-            return urgency_priority.get(urgency, 2)
+        # Sort by urgency, then by score (prevalence)
+        matched.sort(key=lambda x: (
+            urgency_priority.get(x['data'].get('urgency', 'routine'), 2),
+            -x['score']  # Negative for descending (higher scores first)
+        ))
         
-        matched.sort(key=get_sort_key)
+        print(f"\n[Engine] 📊 SORTED BY URGENCY + PREVALENCE (emergent > urgent > routine, common > rare):")
+        for i, m in enumerate(matched[:10], 1):  # Show top 10
+            urgency = m['data'].get('urgency', 'routine')
+            prevalence = m['data'].get('prevalence', 'uncommon')
+            print(f"[Engine]   {i}. {m['name']} ({prevalence}, {urgency}, {m['score']:.0%})")
+        if len(matched) > 10:
+            print(f"[Engine]   ... and {len(matched) - 10} more")
         
-        # Shuffle within each urgency tier for variety
-        import random
-        random.seed()  # Use time-based seed for true randomness
-        
-        grouped = {}
-        for item in matched:
-            urgency = item['data'].get('urgency', 'routine')
-            if urgency not in grouped:
-                grouped[urgency] = []
-            grouped[urgency].append(item)
-        
-        # Shuffle each group and recombine
-        result = []
-        for urgency in ['emergent', 'urgent', 'routine']:
-            if urgency in grouped:
-                random.shuffle(grouped[urgency])
-                result.extend(grouped[urgency])
-        
-        print(f"[Engine] 🎲 Shuffled within urgency tiers for variety")
-        
-        return result
+        return matched
     
     def _ask_next_clinical_question(self) -> Dict[str, Any]:
         """
@@ -670,12 +700,19 @@ Score 0-100:"""
                 ruled_out_this_round.append(g)
         
         # Promote from reserve to maintain MAX_ACTIVE
+        # PRIORITIZE BY PREVALENCE: common conditions before rare ones
         promoted_this_round = []
         while len(self.active_guidelines) < self.MAX_ACTIVE and len(self.reserve_pool) > 0:
+            # Sort reserve pool by prevalence (higher score = more common)
+            # This ensures common conditions are considered before rare ones
+            self.reserve_pool.sort(key=lambda x: x['score'], reverse=True)
+            
+            # Take the highest-prevalence condition
             next_condition = self.reserve_pool.pop(0)
+            prevalence = next_condition['data'].get('prevalence', 'uncommon')
             self.active_guidelines.append(next_condition)
             promoted_this_round.append(next_condition)
-            print(f"[Engine] 🔼 PROMOTING: {next_condition['name']} (score: {next_condition['score']:.0%}) from reserve")
+            print(f"[Engine] 🔼 PROMOTING: {next_condition['name']} ({prevalence}, score: {next_condition['score']:.0%}) from reserve")
         
         # RE-RANK by score
         self.active_guidelines.sort(key=lambda x: x['score'], reverse=True)

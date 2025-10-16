@@ -2,17 +2,16 @@
   "condition": "Perforated Viscus (Perforated Ulcer/Bowel)",
   "icd10": "K63.1",
   "snomed": "840580004",
+  "prevalence": "rare",
   "chief_complaint_triggers": [
     "abdominal pain",
     "severe abdominal pain",
     "sudden severe pain"
   ],
   "urgency": "emergent",
-  
   "key_features": {
     "classic_presentation": "Perforated viscus presents with SUDDEN ONSET SEVERE EPIGASTRIC or DIFFUSE abdominal pain (10/10 severity) that is CONSTANT. Patient describes feeling like they were 'STABBED' or 'KICKED'. Pain starts localized then becomes DIFFUSE as peritonitis develops. Onset is ACUTE, within minutes to hours. Key physical findings: BOARD-LIKE RIGID ABDOMEN (involuntary guarding), patient lies VERY STILL (movement worsens pain), severe generalized tenderness with rebound. Key associated symptoms: Nausea, vomiting, inability to pass gas, fever developing after 6-12 hours. Location: Initially epigastric (perforated ulcer) or localized, then diffuse. Patient appears in severe distress, may have shoulder pain (referred from diaphragmatic irritation). Key history: Known ulcer disease, NSAID use, recent instrumentation. SURGICAL EMERGENCY. Key positives: Rigid abdomen, severe rebound tenderness, absent bowel sounds. Key negatives: Soft abdomen rules out perforation. Gradual onset suggests alternative diagnosis."
   },
-  
   "red_flags": [
     "SURGICAL EMERGENCY - rigid abdomen with severe pain - call 911 immediately",
     "Hypotension or tachycardia - septic shock from peritonitis",

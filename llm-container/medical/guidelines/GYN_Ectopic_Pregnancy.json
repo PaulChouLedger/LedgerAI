@@ -2,6 +2,7 @@
   "condition": "Ectopic Pregnancy",
   "icd10": "O00.90",
   "snomed": "34801009",
+  "prevalence": "rare",
   "chief_complaint_triggers": [
     "abdominal pain",
     "pelvic pain",
@@ -9,11 +10,9 @@
     "vaginal bleeding"
   ],
   "urgency": "emergent",
-  
   "key_features": {
     "classic_presentation": "Ectopic pregnancy presents with UNILATERAL LOWER ABDOMINAL/PELVIC PAIN in a woman of CHILDBEARING AGE with MISSED PERIOD or abnormal vaginal bleeding. Pain is initially crampy, becoming sharp if rupture occurs. Onset is 6-8 weeks after last menstrual period. MUST BE RULED OUT in ANY female of childbearing age with abdominal pain. Key associated symptoms: Vaginal spotting or bleeding (lighter than normal period), dizziness, shoulder pain (if ruptured with hemoperitoneum irritating diaphragm). Location: Unilateral adnexal pain, sometimes cervical motion tenderness. Key history: Prior ectopic, PID history, IUD use, tubal surgery. PREGNANCY TEST POSITIVE. If RUPTURED: sudden severe pain, lightheadedness, syncope, peritoneal signs. Key positives: Positive pregnancy test, unilateral pain, vaginal bleeding. Key negatives: Negative pregnancy test essentially rules out ectopic."
   },
-  
   "red_flags": [
     "LIFE-THREATENING if ruptured - sudden severe pain with hypotension/syncope - call 911",
     "Shoulder pain with abdominal pain in pregnant woman - ruptured ectopic with hemoperitoneum",

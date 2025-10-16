@@ -2,6 +2,7 @@
   "condition": "Urinary Tract Infection / Pyelonephritis",
   "icd10": "N39.0",
   "snomed": "68566005",
+  "prevalence": "common",
   "chief_complaint_triggers": [
     "abdominal pain",
     "flank pain",
@@ -10,11 +11,9 @@
     "burning with urination"
   ],
   "urgency": "urgent",
-  
   "key_features": {
-    "classic_presentation": "Pyelonephritis (kidney infection) presents with FLANK PAIN (unilateral or bilateral), HIGH FEVER (>101°F) with rigors (shaking chills), and urinary symptoms. Pain is CONSTANT, ACHING, 6-8/10 severity in flank/back. Onset is within 1-3 days. Simple cystitis (bladder infection) has urinary symptoms WITHOUT fever or flank pain. Key urinary symptoms: DYSURIA (burning with urination), frequency, urgency, sometimes hematuria. Location: CVA (costovertebral angle) tenderness, lower abdominal discomfort. Key associated symptoms: Nausea, vomiting, malaise. More common in FEMALES. Key history: Prior UTIs, sexual activity, diabetes, pregnancy. Key positives: Fever + flank pain + dysuria = classic triad of pyelonephritis. CVA tenderness. Key negatives: No fever with just dysuria suggests cystitis not pyelonephritis. Unilateral flank pain without urinary symptoms more likely kidney stone."
+    "classic_presentation": "Pyelonephritis (kidney infection) presents with FLANK PAIN (unilateral or bilateral), HIGH FEVER (>101\u00b0F) with rigors (shaking chills), and urinary symptoms. Pain is CONSTANT, ACHING, 6-8/10 severity in flank/back. Onset is within 1-3 days. Simple cystitis (bladder infection) has urinary symptoms WITHOUT fever or flank pain. Key urinary symptoms: DYSURIA (burning with urination), frequency, urgency, sometimes hematuria. Location: CVA (costovertebral angle) tenderness, lower abdominal discomfort. Key associated symptoms: Nausea, vomiting, malaise. More common in FEMALES. Key history: Prior UTIs, sexual activity, diabetes, pregnancy. Key positives: Fever + flank pain + dysuria = classic triad of pyelonephritis. CVA tenderness. Key negatives: No fever with just dysuria suggests cystitis not pyelonephritis. Unilateral flank pain without urinary symptoms more likely kidney stone."
   },
-  
   "red_flags": [
     "Sepsis (hypotension, altered mental status, high fever) - urosepsis, call 911",
     "Pregnant patient with pyelonephritis - high risk, needs hospitalization",

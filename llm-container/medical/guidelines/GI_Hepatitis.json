@@ -2,6 +2,7 @@
   "condition": "Acute Hepatitis",
   "icd10": "K72.00",
   "snomed": "37871000",
+  "prevalence": "rare",
   "chief_complaint_triggers": [
     "abdominal pain",
     "right upper abdominal pain",
@@ -10,11 +11,9 @@
     "dark urine"
   ],
   "urgency": "urgent",
-  
   "key_features": {
     "classic_presentation": "Acute hepatitis presents with RIGHT UPPER QUADRANT pain or discomfort (liver area), JAUNDICE (yellow skin and eyes), and DARK URINE (tea-colored). Pain is DULL, ACHING, 4-7/10 severity, constant. Onset is subacute over days to weeks. Key associated symptoms: PROFOUND FATIGUE and malaise, anorexia, nausea, vomiting, LOW-GRADE FEVER. JAUNDICE appears after 1-2 weeks of prodromal symptoms. LIGHT-COLORED (clay-colored) STOOLS. Location: RUQ tenderness, hepatomegaly (enlarged liver). Key history: Risk factors include IV drug use, unprotected sex, travel to endemic areas, alcohol abuse, medications (acetaminophen overdose, certain antibiotics). Key positives: Scleral icterus (yellow eyes), dark urine, profound fatigue. Key negatives: Acute severe RUQ pain without jaundice suggests cholecystitis. High fever with rigors suggests cholangitis."
   },
-  
   "red_flags": [
     "Altered mental status (confusion, drowsiness) - acute liver failure, call 911",
     "Coagulopathy (easy bruising, bleeding) - severe hepatitis with liver synthetic dysfunction",
