@@ -28,27 +28,34 @@ class AdaptiveDiagnosticEngine:
     """
     Adaptive diagnostic engine that mimics clinical reasoning
     
+    Hybrid Architecture:
+    1. Rolling Top-5 Differential List (scalability)
+    2. LLM + RAG Question Generation (intelligence)
+    
     Flow:
     1. User states chief complaint
-    2. Match to relevant guidelines (JSON triggers + synonyms)
-    3. Retrieve full clinical content from RAG
-    4. Ask discriminating questions intelligently
-    5. Score all guidelines simultaneously
-    6. Filter and narrow differentials
-    7. Reach diagnosis with high confidence
-    8. Provide education using RAG content
+    2. Match to ALL relevant guidelines (JSON triggers + synonyms)
+    3. Maintain top 5 active, rest in reserve pool
+    4. For each question: Retrieve RAG content for top 3 differentials
+    5. LLM reads clinical guidelines and generates intelligent question
+    6. User answers → extract features, score all active guidelines
+    7. Rule out low-scoring, promote from reserve (rolling update)
+    8. Repeat until diagnosis clear
+    9. Provide education using RAG content
     """
     
-    def __init__(self, guidelines_dir: str = "/app/medical/guidelines"):
+    def __init__(self, guidelines_dir: str = "/app/medical/guidelines", llm_chat_fn=None):
         """
         Initialize adaptive diagnostic engine
         
         Args:
             guidelines_dir: Path to directory containing JSON guidelines
+            llm_chat_fn: LLM chat function for question generation
         """
         self.guidelines_dir = Path(guidelines_dir)
         self.guidelines = {}
         self.synonyms = {}
+        self.llm_chat_fn = llm_chat_fn  # For intelligent question generation
         
         # Load all JSON guidelines
         self._load_guidelines()
@@ -735,31 +742,36 @@ class AdaptiveDiagnosticEngine:
                 'data': guidelines_asking[0]['question_data']  # Use first guideline's question
             }
         
-        # Pick highest-scoring question
-        if question_scores:
-            best_focus = max(question_scores, key=lambda f: question_scores[f]['score'])
-            best_question_data = question_scores[best_focus]['data']
-            
-            question_text = self._generate_question_from_focus(best_focus, best_question_data)
-            
-            print(f"[Adaptive] ✅ Selected most discriminating question: '{best_focus}' (score: {question_scores[best_focus]['score']:.2f})")
-            print(f"[Adaptive]    Question: '{question_text}'")
-            
-            self.questions_asked.append({
-                'focus': best_focus,
-                'question': question_text,
-                'value': best_question_data.get('diagnostic_value', 'moderate')
-            })
-            
-            return {
-                'success': True,
-                'question': question_text,
-                'status': 'questioning',
-                'differentials': [
-                    {'name': g['name'], 'score': g['score']} 
-                    for g in self.active_guidelines[:3]
-                ]
-            }
+        # Use LLM to generate intelligent question (if available)
+        if self.llm_chat_fn:
+            question_text = self._generate_llm_question()
+        else:
+            # Fallback: Use template-based generation
+            if question_scores:
+                best_focus = max(question_scores, key=lambda f: question_scores[f]['score'])
+                best_question_data = question_scores[best_focus]['data']
+                question_text = self._generate_question_from_focus(best_focus, best_question_data)
+                
+                print(f"[Adaptive] ✅ Selected: '{best_focus}' (score: {question_scores[best_focus]['score']:.2f})")
+            else:
+                question_text = "Can you tell me more about your symptoms?"
+        
+        # Track the question
+        self.questions_asked.append({
+            'focus': 'llm_generated' if self.llm_chat_fn else best_focus,
+            'question': question_text,
+            'value': 'high'
+        })
+        
+        return {
+            'success': True,
+            'question': question_text,
+            'status': 'questioning',
+            'differentials': [
+                {'name': g['name'], 'score': g['score']} 
+                for g in self.active_guidelines[:3]
+            ]
+        }
         
         # All questions asked - try to finalize
         if len(self.active_guidelines) > 0:
@@ -769,6 +781,124 @@ class AdaptiveDiagnosticEngine:
             'success': False,
             'message': "I need more information to make a diagnosis."
         }
+    
+    def _generate_llm_question(self) -> str:
+        """
+        Use LLM + RAG to generate intelligent, conversational diagnostic question
+        
+        This is the KEY to making the system feel natural and adaptive.
+        The LLM reads full clinical guidelines and reasons about what to ask.
+        """
+        print(f"[Adaptive] 🤖 Generating LLM-driven question...")
+        
+        # Get top 3 differentials for context
+        top_3 = self.active_guidelines[:3]
+        
+        # Retrieve RAG content for each
+        guidelines_content = []
+        for guideline_obj in top_3:
+            guideline_name = guideline_obj['name']
+            
+            try:
+                # Use metadata-based retrieval
+                response = requests.get(
+                    f"http://localhost:11435/rag/guideline/{guideline_name}",
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    chunks = data.get('results', [])
+                    
+                    # Combine chunks
+                    full_text = '\n'.join([c.get('text', '') for c in chunks[:5]])  # Use first 5 chunks
+                    
+                    guidelines_content.append({
+                        'name': guideline_name,
+                        'score': guideline_obj['score'],
+                        'content': full_text[:3000]  # Limit to 3k chars per guideline
+                    })
+                    
+                    print(f"[Adaptive]   📚 Retrieved {len(chunks)} chunks for {guideline_name}")
+            
+            except Exception as e:
+                print(f"[Adaptive]   ⚠️ Failed to retrieve RAG for {guideline_name}: {e}")
+        
+        # Build patient summary
+        patient_summary = []
+        for answer_obj in self.raw_answers:
+            patient_summary.append(f"- {answer_obj['raw_answer']}")
+        
+        patient_info = "\n".join(patient_summary) if patient_summary else "No information yet"
+        
+        # Build differentials list
+        differentials_list = "\n".join([
+            f"{i}. {g['name']} (confidence: {g['score']:.0%})"
+            for i, g in enumerate(top_3, 1)
+        ])
+        
+        # Build clinical guidelines context
+        guidelines_text = ""
+        for g_content in guidelines_content:
+            guidelines_text += f"\n=== {g_content['name']} (Current Score: {g_content['score']:.0%}) ===\n"
+            guidelines_text += g_content['content'][:2000]  # Limit per guideline
+            guidelines_text += "\n"
+        
+        # Prompt for LLM
+        prompt = f"""You are a physician conducting a diagnostic interview.
+
+CURRENT DIFFERENTIAL DIAGNOSES:
+{differentials_list}
+
+CLINICAL GUIDELINES (from medical literature):
+{guidelines_text}
+
+PATIENT INFORMATION GATHERED SO FAR:
+{patient_info}
+
+QUESTIONS ALREADY ASKED:
+{', '.join([q['question'] for q in self.questions_asked[-3:]])}
+
+YOUR TASK:
+Based on the clinical guidelines above, generate the SINGLE MOST IMPORTANT next question to ask this patient.
+
+REQUIREMENTS:
+1. The question should help differentiate between the top diagnoses
+2. Focus on key clinical features not yet assessed
+3. Be conversational and natural (not robotic)
+4. Be specific and targeted (not vague)
+5. Consider what information would most change the probability of each diagnosis
+
+OUTPUT ONLY THE QUESTION - no explanation, no preamble.
+"""
+        
+        # Call LLM
+        try:
+            response = self.llm_chat_fn(
+                [{"role": "user", "content": prompt}],
+                max_tokens=100,
+                temperature=0.7
+            )
+            
+            # Extract question from response
+            question = response.strip()
+            
+            # Clean up any meta-text
+            question = re.sub(r'^(Question|Q\d+):\s*', '', question, flags=re.IGNORECASE)
+            question = question.split('\n')[0]  # Take first line only
+            
+            # Ensure ends with ?
+            if not question.endswith('?'):
+                question += '?'
+            
+            print(f"[Adaptive] 🤖 LLM generated: '{question}'")
+            
+            return question
+        
+        except Exception as e:
+            print(f"[Adaptive] ❌ LLM question generation failed: {e}")
+            # Fallback to template
+            return "Can you tell me more about your symptoms?"
     
     def _generate_question_from_focus(self, focus: str, question_data: Dict) -> str:
         """

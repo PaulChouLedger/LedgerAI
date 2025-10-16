@@ -107,12 +107,12 @@ class UnifiedMedicalSession:
         self.dynamic_assessment = None  # Legacy - kept for compatibility
         self.medical_rag = None
         
-        # NEW: Adaptive diagnostic engine
+        # NEW: Adaptive diagnostic engine (with LLM function for intelligent questions)
         self.adaptive_engine = None
         if ADAPTIVE_ENGINE_AVAILABLE:
             try:
-                self.adaptive_engine = AdaptiveDiagnosticEngine()
-                print("[Unified Medical] ✅ Adaptive engine initialized")
+                self.adaptive_engine = AdaptiveDiagnosticEngine(llm_chat_fn=self.llm_chat_fn)
+                print("[Unified Medical] ✅ Adaptive engine initialized with LLM intelligence")
             except Exception as e:
                 print(f"[Unified Medical] ⚠️ Failed to initialize adaptive engine: {e}")
         

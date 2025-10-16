@@ -1,0 +1,156 @@
+{
+  "condition": "Peptic Ulcer Disease",
+  "category": "gastrointestinal",
+  "icd10_codes": ["K27.9", "K25.9", "K26.9"],
+  "chief_complaint_triggers": [
+    "abdominal pain",
+    "stomach pain",
+    "epigastric pain",
+    "burning stomach",
+    "upper abdominal pain"
+  ],
+  "prevalence": "common",
+  "urgency": "semi_urgent",
+  
+  "key_features": {
+    "classic_presentation": "Peptic ulcer disease presents with epigastric burning or gnawing pain, often related to meals. Gastric ulcer: pain with eating. Duodenal ulcer: pain 2-3 hours after meals, relieved by eating. May have nausea, early satiety. Chronic/recurrent pattern typical.",
+    "typical_demographics": "H. pylori infection and NSAIDs are major risk factors. Can occur at any age but peak 55-65 years. Male slight predominance for duodenal ulcers.",
+    "pathophysiology_brief": "Imbalance between gastric acid/pepsin and mucosal defense mechanisms leads to erosion through stomach or duodenal lining."
+  },
+  
+  "diagnostic_questions": [
+    {
+      "question_focus": "pain location",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "upper stomach",
+        "epigastric",
+        "upper abdomen",
+        "pit of stomach"
+      ],
+      "context": "Epigastric location is typical. Pain is midline or slightly off-center."
+    },
+    {
+      "question_focus": "pain quality",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "burning",
+        "gnawing",
+        "aching",
+        "hunger-like pain"
+      ],
+      "negative_responses": [
+        "sharp",
+        "stabbing",
+        "tearing"
+      ],
+      "context": "Burning or gnawing quality is characteristic. Sharp pain suggests perforation."
+    },
+    {
+      "question_focus": "relationship to meals",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "pain after eating",
+        "worse with food",
+        "better with eating",
+        "pain 2-3 hours after meals",
+        "wakes me at night"
+      ],
+      "context": "Gastric ulcer: pain WITH meals. Duodenal ulcer: pain 2-3h AFTER meals, relieved by eating. Night pain (2-3am) classic for duodenal."
+    },
+    {
+      "question_focus": "NSAID or aspirin use",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "taking ibuprofen",
+        "using NSAIDs",
+        "aspirin daily",
+        "advil",
+        "aleve",
+        "naproxen"
+      ],
+      "context": "NSAIDs are major risk factor (30% of ulcers). Ask about all pain medications."
+    },
+    {
+      "question_focus": "chronicity",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "had this before",
+        "comes and goes for weeks",
+        "chronic problem",
+        "recurring pain"
+      ],
+      "negative_responses": [
+        "first time",
+        "sudden onset",
+        "never had before"
+      ],
+      "context": "Peptic ulcers are typically chronic/recurrent, not acute first-time presentation."
+    },
+    {
+      "question_focus": "antacid response",
+      "diagnostic_value": "moderate",
+      "expected_positive_responses": [
+        "antacids help",
+        "Tums works",
+        "milk helps",
+        "eating helps"
+      ],
+      "context": "Temporary relief with antacids or food is suggestive of peptic ulcer."
+    },
+    {
+      "question_focus": "timeline",
+      "diagnostic_value": "moderate",
+      "expected_positive_responses": [
+        "weeks",
+        "months",
+        "on and off",
+        "chronic"
+      ],
+      "context": "Chronic condition with episodic pain over weeks to months."
+    }
+  ],
+  
+  "differential_diagnosis": [
+    {
+      "condition": "GERD",
+      "key_difference": "Heartburn, regurgitation, lying down worsens, no meal relationship",
+      "similarity": "Epigastric burning, antacid relief"
+    },
+    {
+      "condition": "Gastritis",
+      "key_difference": "More diffuse pain, often acute onset, alcohol/NSAID related",
+      "similarity": "Epigastric pain, nausea"
+    },
+    {
+      "condition": "Pancreatitis",
+      "key_difference": "Radiates to back, severe (8-10/10), acute onset",
+      "similarity": "Epigastric location"
+    }
+  ],
+  
+  "red_flags": [
+    {
+      "finding": "Sudden severe pain with rigid abdomen",
+      "urgency": "call_911",
+      "action": "Perforation - surgical emergency"
+    },
+    {
+      "finding": "Vomiting blood or coffee-ground material",
+      "urgency": "call_911",
+      "action": "Upper GI bleed - emergency care needed"
+    },
+    {
+      "finding": "Black tarry stools (melena)",
+      "urgency": "emergency",
+      "action": "GI bleeding - go to ER immediately"
+    }
+  ],
+  
+  "typical_management": "PPI therapy (omeprazole, pantoprazole), H. pylori testing and treatment if positive, stop NSAIDs. Most heal with 4-8 weeks of treatment.",
+  
+  "disposition": "Uncomplicated: outpatient management. Bleeding or perforation: emergency department.",
+  
+  "patient_education": "Peptic ulcers are sores in the stomach or intestine lining. Treatment includes medications to reduce acid and antibiotics if H. pylori is present. Avoid NSAIDs. Most heal completely with treatment."
+}
+

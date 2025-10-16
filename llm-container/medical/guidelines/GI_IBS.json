@@ -1,0 +1,132 @@
+{
+  "condition": "Irritable Bowel Syndrome (IBS)",
+  "category": "gastrointestinal",
+  "icd10_codes": ["K58.9", "K58.0"],
+  "chief_complaint_triggers": [
+    "abdominal pain",
+    "cramping",
+    "bloating",
+    "diarrhea",
+    "constipation"
+  ],
+  "prevalence": "very_common",
+  "urgency": "routine",
+  
+  "key_features": {
+    "classic_presentation": "IBS presents with chronic/recurrent abdominal pain associated with bowel habit changes (diarrhea, constipation, or alternating). Pain relieved by defecation. Bloating common. NO red flags (no blood, weight loss, fever, nocturnal symptoms). Diagnosis of exclusion.",
+    "typical_demographics": "10-15% of population. Female predominance (2:1). Peak onset 20-40 years. Associated with stress, anxiety.",
+    "pathophysiology_brief": "Functional disorder (no structural abnormality). Visceral hypersensitivity and altered gut motility."
+  },
+  
+  "diagnostic_questions": [
+    {
+      "question_focus": "chronicity",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "chronic problem",
+        "months to years",
+        "ongoing issue",
+        "had this for long time",
+        "recurring"
+      ],
+      "negative_responses": [
+        "first time",
+        "acute onset",
+        "sudden"
+      ],
+      "context": "IBS is chronic (>6 months). New acute symptoms suggest other diagnosis."
+    },
+    {
+      "question_focus": "pain relief with defecation",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "better after bowel movement",
+        "relieved by going to bathroom",
+        "improves with defecation"
+      ],
+      "context": "Pain relief with defecation is a Rome IV criterion for IBS."
+    },
+    {
+      "question_focus": "bowel habit changes",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "diarrhea",
+        "constipation",
+        "alternates",
+        "changes in bowel pattern"
+      ],
+      "context": "IBS-D (diarrhea predominant), IBS-C (constipation), or IBS-M (mixed)."
+    },
+    {
+      "question_focus": "absence of red flags",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [],
+      "negative_responses": [
+        "blood in stool",
+        "weight loss",
+        "fever",
+        "wakes me at night",
+        "anemia"
+      ],
+      "context": "RED FLAGS rule OUT IBS. IBS doesn't cause: bleeding, weight loss, fever, nocturnal symptoms."
+    },
+    {
+      "question_focus": "pain quality",
+      "diagnostic_value": "moderate",
+      "expected_positive_responses": [
+        "cramping",
+        "bloating",
+        "discomfort",
+        "gassy"
+      ],
+      "negative_responses": [
+        "severe",
+        "worst pain ever"
+      ],
+      "context": "Pain is usually mild-moderate, not severe."
+    },
+    {
+      "question_focus": "stress relationship",
+      "diagnostic_value": "moderate",
+      "expected_positive_responses": [
+        "worse with stress",
+        "anxiety makes it worse",
+        "stress-related"
+      ],
+      "context": "Stress often exacerbates IBS symptoms."
+    }
+  ],
+  
+  "differential_diagnosis": [
+    {
+      "condition": "IBD",
+      "key_difference": "Blood in stool, weight loss, fever, inflammation on testing",
+      "similarity": "Chronic diarrhea, cramping"
+    },
+    {
+      "condition": "Celiac Disease",
+      "key_difference": "Diarrhea after gluten, weight loss, nutrient deficiencies",
+      "similarity": "Chronic abdominal discomfort, bloating"
+    }
+  ],
+  
+  "red_flags": [
+    {
+      "finding": "Age >50 with new onset",
+      "urgency": "urgent",
+      "action": "Need colonoscopy to rule out malignancy"
+    },
+    {
+      "finding": "ANY alarm symptoms (blood, weight loss, fever, anemia)",
+      "urgency": "urgent",
+      "action": "Not IBS - needs workup for organic disease"
+    }
+  ],
+  
+  "typical_management": "Dietary modifications (low FODMAP), fiber, antispasmodics, loperamide for diarrhea. Stress management, CBT. Symptom-directed therapy.",
+  
+  "disposition": "Outpatient management. Referral to GI if not responding to initial therapy.",
+  
+  "patient_education": "IBS is a functional bowel disorder causing chronic symptoms without structural damage. While not dangerous, it can be uncomfortable. Treatment focuses on symptom management and lifestyle changes."
+}
+

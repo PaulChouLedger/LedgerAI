@@ -1,0 +1,86 @@
+{
+  "condition": "Acute Mesenteric Ischemia",
+  "category": "gastrointestinal",
+  "icd10_codes": ["K55.059", "K55.069"],
+  "chief_complaint_triggers": [
+    "abdominal pain",
+    "severe abdominal pain",
+    "stomach pain"
+  ],
+  "prevalence": "uncommon",
+  "urgency": "emergency",
+  
+  "key_features": {
+    "classic_presentation": "Mesenteric ischemia presents with sudden-onset severe periumbilical pain out of proportion to physical exam findings. Patient appears very uncomfortable but abdomen may be soft initially. High mortality if delayed diagnosis.",
+    "typical_demographics": "Elderly (>60 years), atrial fibrillation, vascular disease, recent MI. Very rare in young patients without risk factors.",
+    "pathophysiology_brief": "Arterial embolism, thrombosis, or non-occlusive ischemia causes bowel infarction."
+  },
+  
+  "diagnostic_questions": [
+    {
+      "question_focus": "pain out of proportion to exam",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "excruciating pain",
+        "worst pain ever",
+        "10/10 pain",
+        "unbearable"
+      ],
+      "context": "Classic finding: severe pain but benign abdominal exam initially."
+    },
+    {
+      "question_focus": "age and vascular risk factors",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "over 60",
+        "over 70",
+        "atrial fibrillation",
+        "heart problems",
+        "vascular disease",
+        "recent heart attack"
+      ],
+      "negative_responses": [
+        "young",
+        "under 40",
+        "no medical problems"
+      ],
+      "context": "Very rare without vascular risk factors. Age >60 + AF = high risk."
+    },
+    {
+      "question_focus": "onset",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "sudden onset",
+        "came on suddenly",
+        "hit me all at once"
+      ],
+      "context": "Sudden onset if embolic, more gradual if thrombotic."
+    },
+    {
+      "question_focus": "bloody stool",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "bloody stool",
+        "blood in stool",
+        "dark stool",
+        "maroon stool"
+      ],
+      "context": "Late finding (indicates bowel infarction already occurred)."
+    }
+  ],
+  
+  "red_flags": [
+    {
+      "finding": "All presentations are red flags",
+      "urgency": "call_911",
+      "action": "Mortality 60-80% if delayed. Immediate surgical consultation required."
+    }
+  ],
+  
+  "typical_management": "Emergency surgery, vascular intervention, anticoagulation. Early diagnosis critical for survival.",
+  
+  "disposition": "Emergency department, immediate surgical consultation, likely ICU.",
+  
+  "patient_education": "This is a life-threatening emergency requiring immediate surgery."
+}
+

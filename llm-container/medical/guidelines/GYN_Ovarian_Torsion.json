@@ -1,0 +1,106 @@
+{
+  "condition": "Ovarian Torsion",
+  "category": "gastrointestinal",
+  "icd10_codes": ["N83.51", "N83.52"],
+  "chief_complaint_triggers": [
+    "abdominal pain",
+    "pelvic pain",
+    "lower abdominal pain",
+    "severe pelvic pain"
+  ],
+  "prevalence": "uncommon",
+  "urgency": "emergency",
+  
+  "key_features": {
+    "classic_presentation": "Ovarian torsion presents with sudden-onset severe unilateral lower abdominal/pelvic pain, often with nausea and vomiting. Pain may be intermittent (torsion/detorsion). More common with ovarian masses (cysts, tumors). Surgical emergency to save ovary.",
+    "typical_demographics": "Reproductive age women. Risk factors: ovarian cysts >5cm, ovarian masses, pregnancy.",
+    "pathophysiology_brief": "Ovary twists on vascular pedicle causing venous congestion then arterial ischemia and infarction."
+  },
+  
+  "diagnostic_questions": [
+    {
+      "question_focus": "female reproductive age",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "female",
+        "woman"
+      ],
+      "negative_responses": [
+        "male"
+      ],
+      "context": "Only affects females with ovaries."
+    },
+    {
+      "question_focus": "onset",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "sudden onset",
+        "came on suddenly",
+        "hit me all at once",
+        "acute"
+      ],
+      "context": "Sudden onset is classic (70%). May occur during exercise or sudden movement."
+    },
+    {
+      "question_focus": "pain laterality",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "right side",
+        "left side",
+        "one side only",
+        "unilateral"
+      ],
+      "negative_responses": [
+        "both sides",
+        "all over"
+      ],
+      "context": "Unilateral pain (side of torsion). Right more common than left (3:2 ratio)."
+    },
+    {
+      "question_focus": "pain severity",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "severe",
+        "8-10/10",
+        "worst pain ever",
+        "unbearable"
+      ],
+      "context": "Pain is typically severe. May come in waves if intermittent torsion/detorsion."
+    },
+    {
+      "question_focus": "nausea and vomiting",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "nauseous",
+        "vomiting",
+        "throwing up"
+      ],
+      "context": "Nausea/vomiting present in 70%."
+    },
+    {
+      "question_focus": "known ovarian cyst",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "have ovarian cyst",
+        "cyst on ovary",
+        "known cyst"
+      ],
+      "context": "History of ovarian cyst is major risk factor."
+    }
+  ],
+  
+  "red_flags": [
+    {
+      "finding": "All presentations require urgent evaluation",
+      "urgency": "emergency",
+      "action": "Time-sensitive - delay causes ovarian loss. Immediate surgical consultation needed."
+    }
+  ],
+  
+  "typical_management": "Emergency laparoscopy for detorsion. Goal: save ovary if viable. Delay leads to infarction and ovarian loss.",
+  
+  "disposition": "Emergency department, immediate OB/GYN surgical consultation.",
+  
+  "patient_education": "Ovarian torsion is twisting of the ovary cutting off blood supply. It's a surgical emergency to save the ovary. Requires immediate treatment."
+}
+

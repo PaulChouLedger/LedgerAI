@@ -1,0 +1,97 @@
+{
+  "condition": "Perforated Viscus (Perforated Ulcer/Bowel)",
+  "category": "gastrointestinal",
+  "icd10_codes": ["K25.1", "K63.1"],
+  "chief_complaint_triggers": [
+    "abdominal pain",
+    "severe abdominal pain",
+    "sudden severe pain"
+  ],
+  "prevalence": "uncommon",
+  "urgency": "emergency",
+  
+  "key_features": {
+    "classic_presentation": "Perforated viscus presents with sudden-onset severe diffuse abdominal pain. Board-like rigid abdomen. Patient lies perfectly still (peritonitis). Fever develops. Peptic ulcer perforation: sudden epigastric pain. Bowel perforation: varies by location. Surgical emergency.",
+    "typical_demographics": "Peptic ulcer perforation: H. pylori, NSAID use. Bowel perforation: diverticulitis, cancer, trauma, ischemia. Any age but elderly higher risk.",
+    "pathophysiology_brief": "Perforation allows gastric acid or bowel contents into peritoneal cavity causing chemical then bacterial peritonitis."
+  },
+  
+  "diagnostic_questions": [
+    {
+      "question_focus": "onset",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "sudden onset",
+        "came on suddenly",
+        "instantaneous",
+        "like something burst"
+      ],
+      "context": "Sudden onset is classic for perforation. Dramatic presentation."
+    },
+    {
+      "question_focus": "pain severity and quality",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "worst pain ever",
+        "10/10",
+        "excruciating",
+        "unbearable",
+        "feels like stabbed"
+      ],
+      "context": "Severe unrelenting pain. Chemical peritonitis is intensely painful."
+    },
+    {
+      "question_focus": "abdominal rigidity",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "abdomen very hard",
+        "board-like",
+        "rigid",
+        "can't touch stomach",
+        "hurts to press"
+      ],
+      "context": "Board-like rigidity is pathognomonic for perforated viscus."
+    },
+    {
+      "question_focus": "position",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "lying perfectly still",
+        "don't want to move",
+        "any movement hurts",
+        "immobile"
+      ],
+      "negative_responses": [
+        "writhing around",
+        "can't stay still"
+      ],
+      "context": "Patients with peritonitis lie motionless. Movement worsens pain. (Contrast: kidney stones = writhing)"
+    },
+    {
+      "question_focus": "NSAID or ulcer history",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "ulcer history",
+        "taking NSAIDs",
+        "chronic ulcer",
+        "H. pylori"
+      ],
+      "context": "Peptic ulcer perforation often has preceding ulcer history or NSAID use."
+    }
+  ],
+  
+  "red_flags": [
+    {
+      "finding": "All presentations are surgical emergencies",
+      "urgency": "call_911",
+      "action": "Peritonitis - immediate surgical intervention required. Mortality increases with delay."
+    }
+  ],
+  
+  "typical_management": "NPO, IV antibiotics, IV fluids, immediate surgical consultation. Most require emergency laparotomy/laparoscopy for repair.",
+  
+  "disposition": "Emergency department, immediate surgical consultation, OR.",
+  
+  "patient_education": "Perforation means a hole in the stomach or intestine. This is a surgical emergency requiring immediate operation."
+}
+

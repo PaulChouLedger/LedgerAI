@@ -1,0 +1,176 @@
+{
+  "condition": "Acute Cholecystitis",
+  "category": "gastrointestinal",
+  "icd10_codes": ["K81.0", "K81.9"],
+  "chief_complaint_triggers": [
+    "abdominal pain",
+    "right upper abdominal pain",
+    "RUQ pain",
+    "upper right side pain",
+    "pain after eating"
+  ],
+  "prevalence": "common",
+  "urgency": "urgent",
+  
+  "key_features": {
+    "classic_presentation": "Acute cholecystitis presents with right upper quadrant (RUQ) pain that develops over hours, often after a fatty meal. Pain is constant and severe. Murphy's sign (arrest of inspiration during RUQ palpation) is highly specific. Fever and nausea are common.",
+    "typical_demographics": "More common in females (4:1 ratio). Risk factors: 4 F's - Female, Forty, Fat, Fertile. However, can occur in any demographic with gallstones.",
+    "pathophysiology_brief": "Obstruction of cystic duct by gallstone leads to gallbladder inflammation, distension, and potential necrosis/perforation if untreated."
+  },
+  
+  "diagnostic_questions": [
+    {
+      "question_focus": "pain location",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "right upper abdomen",
+        "upper right side",
+        "RUQ",
+        "under right ribcage",
+        "right upper quadrant"
+      ],
+      "negative_responses": [
+        "right lower",
+        "left side",
+        "center",
+        "all over"
+      ],
+      "context": "RUQ location is highly specific for cholecystitis. Pain may radiate to right shoulder/scapula."
+    },
+    {
+      "question_focus": "pain onset and timing",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "after eating",
+        "after fatty meal",
+        "postprandial",
+        "within hours of eating"
+      ],
+      "negative_responses": [
+        "woke up with it",
+        "random timing",
+        "always present"
+      ],
+      "context": "Cholecystitis often triggered by fatty meal. Pain develops over 1-6 hours and becomes constant."
+    },
+    {
+      "question_focus": "pain quality and duration",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "constant",
+        "steady",
+        "doesn't come and go",
+        "continuous for hours"
+      ],
+      "negative_responses": [
+        "comes and goes",
+        "intermittent",
+        "colicky"
+      ],
+      "context": "Cholecystitis pain is constant (unlike biliary colic which is intermittent). Lasting > 6 hours is typical."
+    },
+    {
+      "question_focus": "fever",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "fever",
+        "chills",
+        "feeling hot",
+        "temperature elevated"
+      ],
+      "context": "Fever present in 35-40% of cholecystitis. High fever may indicate complications."
+    },
+    {
+      "question_focus": "nausea and vomiting",
+      "diagnostic_value": "moderate",
+      "expected_positive_responses": [
+        "nauseous",
+        "vomiting",
+        "threw up",
+        "feeling sick"
+      ],
+      "context": "Nausea/vomiting common (70%) but non-specific. Persistent vomiting may indicate complications."
+    },
+    {
+      "question_focus": "pain radiation",
+      "diagnostic_value": "moderate",
+      "expected_positive_responses": [
+        "radiates to right shoulder",
+        "goes to right shoulder blade",
+        "feels pain in right scapula",
+        "right back pain"
+      ],
+      "context": "Right shoulder/scapular radiation (Kehr's sign) occurs in 60% due to diaphragmatic irritation."
+    },
+    {
+      "question_focus": "timeline",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "started 6-24 hours ago",
+        "yesterday",
+        "this morning",
+        "today"
+      ],
+      "context": "Most present within 24 hours of onset. Symptoms > 7 days suggest chronic cholecystitis."
+    },
+    {
+      "question_focus": "previous similar episodes",
+      "diagnostic_value": "moderate",
+      "expected_positive_responses": [
+        "had this before",
+        "similar pain in past",
+        "prior episodes",
+        "comes and goes over weeks"
+      ],
+      "context": "History of biliary colic (intermittent RUQ pain) common. Acute-on-chronic presentation is typical."
+    }
+  ],
+  
+  "differential_diagnosis": [
+    {
+      "condition": "Biliary Colic",
+      "key_difference": "Intermittent pain (not constant), resolves within 6 hours, no fever",
+      "similarity": "Same RUQ location, post-prandial onset"
+    },
+    {
+      "condition": "Acute Pancreatitis",
+      "key_difference": "Epigastric (not RUQ), radiates to back, amylase/lipase elevated",
+      "similarity": "Post-prandial onset, nausea/vomiting"
+    },
+    {
+      "condition": "Acute Appendicitis",
+      "key_difference": "RLQ pain (not RUQ), periumbilical migration",
+      "similarity": "Fever, nausea, acute onset"
+    },
+    {
+      "condition": "Hepatitis",
+      "key_difference": "Jaundice, darker urine, more gradual onset",
+      "similarity": "RUQ pain, nausea"
+    }
+  ],
+  
+  "red_flags": [
+    {
+      "finding": "Sepsis (hypotension, altered mental status)",
+      "urgency": "call_911",
+      "action": "Septic cholecystitis - immediate emergency care"
+    },
+    {
+      "finding": "Jaundice with severe pain",
+      "urgency": "emergency",
+      "action": "Possible choledocholithiasis or Mirizzi syndrome - immediate ER"
+    },
+    {
+      "finding": "Rigid abdomen, rebound tenderness",
+      "urgency": "call_911",
+      "action": "Possible perforation - surgical emergency"
+    }
+  ],
+  
+  "typical_management": "Urgent surgical consultation. NPO (nothing by mouth). IV antibiotics. Cholecystectomy typically within 72 hours of symptom onset. Delayed surgery increases complication risk.",
+  
+  "disposition": "Emergency department for urgent surgical evaluation. Most require hospital admission and cholecystectomy.",
+  
+  "patient_education": "Cholecystitis is inflammation of the gallbladder, usually caused by a gallstone blocking the duct. It requires surgery to remove the gallbladder. Without treatment, it can lead to serious complications including infection, gangrene, or rupture."
+}
+

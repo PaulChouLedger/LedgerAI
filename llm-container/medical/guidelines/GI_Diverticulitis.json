@@ -1,0 +1,136 @@
+{
+  "condition": "Acute Diverticulitis",
+  "category": "gastrointestinal",
+  "icd10_codes": ["K57.92", "K57.32"],
+  "chief_complaint_triggers": [
+    "abdominal pain",
+    "left lower abdominal pain",
+    "LLQ pain",
+    "lower left side pain"
+  ],
+  "prevalence": "common",
+  "urgency": "urgent",
+  
+  "key_features": {
+    "classic_presentation": "Acute diverticulitis presents with left lower quadrant (LLQ) pain that is constant and progressively worsening. Low-grade fever and changes in bowel habits (diarrhea or constipation) are common. More common in older adults (>50 years).",
+    "typical_demographics": "Incidence increases with age. 50% of people >60 have diverticulosis, 10-25% develop diverticulitis. Western diet, low fiber increase risk.",
+    "pathophysiology_brief": "Inflammation/infection of colonic diverticulum (outpouching) leads to microperforation, abscess formation, or free perforation."
+  },
+  
+  "diagnostic_questions": [
+    {
+      "question_focus": "pain location",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "left lower abdomen",
+        "lower left side",
+        "LLQ",
+        "left lower quadrant"
+      ],
+      "negative_responses": [
+        "right side",
+        "upper abdomen",
+        "all over"
+      ],
+      "context": "LLQ pain is classic (85%). Right-sided occurs in 15% (Asian populations higher, cecal diverticula)."
+    },
+    {
+      "question_focus": "pain quality and duration",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "constant",
+        "steady",
+        "doesn't go away",
+        "getting worse",
+        "days of pain"
+      ],
+      "negative_responses": [
+        "comes and goes",
+        "intermittent"
+      ],
+      "context": "Pain is constant and progressively worsens over hours to days."
+    },
+    {
+      "question_focus": "fever",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "fever",
+        "chills",
+        "feeling feverish",
+        "temperature elevated"
+      ],
+      "context": "Low-grade fever (100-102°F) present in most cases. High fever suggests abscess or perforation."
+    },
+    {
+      "question_focus": "bowel habit changes",
+      "diagnostic_value": "moderate",
+      "expected_positive_responses": [
+        "diarrhea",
+        "constipation",
+        "changes in bowel movements",
+        "alternating diarrhea and constipation"
+      ],
+      "context": "Changes in bowel habits common (60%). Can be diarrhea, constipation, or alternating."
+    },
+    {
+      "question_focus": "age and risk factors",
+      "diagnostic_value": "moderate",
+      "expected_positive_responses": [
+        "over 50",
+        "over 60",
+        "older",
+        "had diverticulosis before"
+      ],
+      "context": "Much more common in older adults. Rare under age 40."
+    },
+    {
+      "question_focus": "timeline",
+      "diagnostic_value": "moderate",
+      "expected_positive_responses": [
+        "started 1-3 days ago",
+        "couple days",
+        "few days",
+        "yesterday"
+      ],
+      "context": "Symptoms typically develop over 1-3 days, not sudden onset."
+    }
+  ],
+  
+  "differential_diagnosis": [
+    {
+      "condition": "Appendicitis",
+      "key_difference": "RLQ pain (not LLQ), younger age typically",
+      "similarity": "Constant pain, fever, nausea"
+    },
+    {
+      "condition": "Colorectal Cancer",
+      "key_difference": "More gradual, weight loss, blood in stool over weeks",
+      "similarity": "LLQ pain, bowel changes"
+    },
+    {
+      "condition": "IBD (Crohn's)",
+      "key_difference": "Chronic/recurrent, younger age, bloody diarrhea",
+      "similarity": "LLQ pain, diarrhea"
+    }
+  ],
+  
+  "red_flags": [
+    {
+      "finding": "Peritoneal signs (rigid abdomen, severe rebound)",
+      "urgency": "call_911",
+      "action": "Possible perforation - surgical emergency"
+    },
+    {
+      "finding": "Sepsis (hypotension, altered mental status)",
+      "urgency": "call_911",
+      "action": "Complicated diverticulitis - ICU level care"
+    }
+  ],
+  
+  "typical_management": "Mild: outpatient antibiotics, clear liquid diet. Moderate-severe: admission, IV antibiotics, NPO. Complicated: surgical consultation for abscess drainage or resection.",
+  
+  "disposition": "Uncomplicated: may treat outpatient with close follow-up. Complicated: emergency department, likely admission.",
+  
+  "patient_education": "Diverticulitis is inflammation of small pouches in the colon. It requires antibiotics and bowel rest. Most cases respond to treatment, but complications like abscess or perforation can occur."
+}
+

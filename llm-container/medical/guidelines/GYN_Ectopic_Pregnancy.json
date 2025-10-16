@@ -1,0 +1,100 @@
+{
+  "condition": "Ectopic Pregnancy",
+  "category": "gastrointestinal",
+  "icd10_codes": ["O00.9"],
+  "chief_complaint_triggers": [
+    "abdominal pain",
+    "pelvic pain",
+    "lower abdominal pain",
+    "vaginal bleeding"
+  ],
+  "prevalence": "uncommon",
+  "urgency": "emergency",
+  
+  "key_features": {
+    "classic_presentation": "Ectopic pregnancy presents with lower abdominal/pelvic pain and vaginal bleeding in a woman of reproductive age with missed period. Pain may be unilateral. Can rupture causing life-threatening hemorrhage. Any woman of childbearing age with abdominal pain needs pregnancy test.",
+    "typical_demographics": "Women of reproductive age (15-45). Risk factors: prior ectopic, PID, tubal surgery, IUD.",
+    "pathophysiology_brief": "Embryo implants outside uterus (usually fallopian tube). As it grows, can rupture causing hemorrhage."
+  },
+  
+  "diagnostic_questions": [
+    {
+      "question_focus": "reproductive age female",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "female",
+        "woman",
+        "could be pregnant",
+        "sexually active"
+      ],
+      "negative_responses": [
+        "male",
+        "post-menopausal",
+        "had hysterectomy"
+      ],
+      "context": "ALWAYS consider in women of reproductive age. Pregnancy test mandatory."
+    },
+    {
+      "question_focus": "missed period",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "missed period",
+        "late period",
+        "overdue",
+        "period delayed"
+      ],
+      "context": "Missed period is key finding. May be subtle (1-2 weeks late)."
+    },
+    {
+      "question_focus": "vaginal bleeding",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "vaginal bleeding",
+        "spotting",
+        "light bleeding",
+        "abnormal bleeding"
+      ],
+      "context": "Abnormal vaginal bleeding in 75%. Usually light, not like normal period."
+    },
+    {
+      "question_focus": "pain laterality",
+      "diagnostic_value": "moderate",
+      "expected_positive_responses": [
+        "one side",
+        "right side",
+        "left side",
+        "unilateral"
+      ],
+      "context": "Often unilateral (side of ectopic) but can be diffuse."
+    },
+    {
+      "question_focus": "shoulder pain",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "shoulder pain",
+        "shoulder tip pain"
+      ],
+      "context": "Shoulder pain indicates intraperitoneal bleeding (blood irritating diaphragm)."
+    }
+  ],
+  
+  "red_flags": [
+    {
+      "finding": "Hypotension, tachycardia, syncope",
+      "urgency": "call_911",
+      "action": "Ruptured ectopic with hemorrhagic shock - life-threatening emergency"
+    },
+    {
+      "finding": "Severe sudden-onset pain with missed period",
+      "urgency": "call_911",
+      "action": "Possible rupture - emergency surgery needed"
+    }
+  ],
+  
+  "typical_management": "Immediate OB/GYN consultation. Transvaginal ultrasound, quantitative hCG. Treatment: methotrexate if unruptured, surgery if ruptured.",
+  
+  "disposition": "Emergency department for any suspected ectopic. Potentially life-threatening.",
+  
+  "patient_education": "Ectopic pregnancy is a pregnancy outside the uterus. It cannot develop normally and can be life-threatening if it ruptures. Requires immediate medical care."
+}
+

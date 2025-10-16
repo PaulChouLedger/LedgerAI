@@ -1,0 +1,112 @@
+{
+  "condition": "Acute Gastritis",
+  "category": "gastrointestinal",
+  "icd10_codes": ["K29.70", "K29.00"],
+  "chief_complaint_triggers": [
+    "abdominal pain",
+    "stomach pain",
+    "epigastric pain",
+    "nausea",
+    "upper abdominal pain"
+  ],
+  "prevalence": "very_common",
+  "urgency": "routine",
+  
+  "key_features": {
+    "classic_presentation": "Acute gastritis presents with epigastric discomfort, burning, nausea, and sometimes vomiting. Often associated with NSAID use, alcohol, or stress. Symptoms develop over hours to days. Diffuse epigastric tenderness.",
+    "typical_demographics": "All ages. Common triggers: NSAIDs, alcohol, H. pylori infection, stress.",
+    "pathophysiology_brief": "Mucosal inflammation from NSAIDs, alcohol, H. pylori, or stress disrupts protective barrier."
+  },
+  
+  "diagnostic_questions": [
+    {
+      "question_focus": "pain location",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "upper stomach",
+        "epigastric",
+        "upper abdomen",
+        "pit of stomach"
+      ],
+      "context": "Epigastric location, often diffuse rather than point tenderness."
+    },
+    {
+      "question_focus": "pain quality",
+      "diagnostic_value": "moderate",
+      "expected_positive_responses": [
+        "burning",
+        "gnawing",
+        "discomfort",
+        "upset stomach"
+      ],
+      "context": "Pain usually mild-moderate, not severe."
+    },
+    {
+      "question_focus": "NSAID or alcohol use",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "taking ibuprofen",
+        "aspirin",
+        "drinking alcohol",
+        "took NSAIDs",
+        "heavy drinking recently"
+      ],
+      "context": "Recent NSAID or alcohol use strongly suggests gastritis."
+    },
+    {
+      "question_focus": "nausea",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "nauseous",
+        "queasy",
+        "upset stomach",
+        "feeling sick"
+      ],
+      "context": "Nausea very common (80%)."
+    },
+    {
+      "question_focus": "timeline",
+      "diagnostic_value": "moderate",
+      "expected_positive_responses": [
+        "started today",
+        "yesterday",
+        "past day or two",
+        "acute onset"
+      ],
+      "context": "Acute onset over hours to 1-2 days after trigger."
+    }
+  ],
+  
+  "differential_diagnosis": [
+    {
+      "condition": "Peptic Ulcer",
+      "key_difference": "More severe, chronic/recurrent, specific meal pattern",
+      "similarity": "Epigastric burning, NSAID-related"
+    },
+    {
+      "condition": "GERD",
+      "key_difference": "Heartburn, positional, chronic",
+      "similarity": "Epigastric burning"
+    }
+  ],
+  
+  "red_flags": [
+    {
+      "finding": "Hematemesis (vomiting blood)",
+      "urgency": "call_911",
+      "action": "Upper GI bleed - emergency care"
+    },
+    {
+      "finding": "Severe unrelenting pain",
+      "urgency": "emergency",
+      "action": "May be ulcer or other serious condition"
+    }
+  ],
+  
+  "typical_management": "Stop NSAIDs/alcohol, PPI or H2-blocker, bland diet. Usually resolves in few days.",
+  
+  "disposition": "Outpatient management unless severe or bleeding.",
+  
+  "patient_education": "Gastritis is stomach lining inflammation. Avoid NSAIDs and alcohol. Medications reduce acid. Most cases resolve quickly with treatment."
+}
+

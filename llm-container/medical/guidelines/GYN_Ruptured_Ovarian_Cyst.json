@@ -1,0 +1,90 @@
+{
+  "condition": "Ruptured Ovarian Cyst",
+  "category": "gastrointestinal",
+  "icd10_codes": ["N83.0"],
+  "chief_complaint_triggers": [
+    "abdominal pain",
+    "pelvic pain",
+    "lower abdominal pain"
+  ],
+  "prevalence": "common",
+  "urgency": "semi_urgent",
+  
+  "key_features": {
+    "classic_presentation": "Ruptured ovarian cyst presents with sudden-onset sharp lower abdominal/pelvic pain, often unilateral. Pain often occurs mid-cycle or with ovulation. Usually self-limited, resolves in hours to days. Large hemorrhagic cysts can cause more significant bleeding.",
+    "typical_demographics": "Women of reproductive age. Functional cysts common with normal ovulation.",
+    "pathophysiology_brief": "Rupture of physiologic or pathologic ovarian cyst releases fluid into pelvis causing peritoneal irritation."
+  },
+  
+  "diagnostic_questions": [
+    {
+      "question_focus": "female reproductive age",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "female",
+        "woman"
+      ],
+      "context": "Only in reproductive age females."
+    },
+    {
+      "question_focus": "onset",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "sudden sharp pain",
+        "came on suddenly",
+        "acute onset"
+      ],
+      "context": "Sudden onset at time of rupture."
+    },
+    {
+      "question_focus": "pain laterality",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "right side",
+        "left side",
+        "one side",
+        "lower abdomen one side"
+      ],
+      "context": "Unilateral pain (side of ruptured cyst)."
+    },
+    {
+      "question_focus": "menstrual cycle timing",
+      "diagnostic_value": "moderate",
+      "expected_positive_responses": [
+        "mid-cycle",
+        "around ovulation",
+        "two weeks after period"
+      ],
+      "context": "Often occurs mid-cycle (mittelschmerz - ovulation pain)."
+    },
+    {
+      "question_focus": "improvement",
+      "diagnostic_value": "moderate",
+      "expected_positive_responses": [
+        "getting better",
+        "improving",
+        "not as bad now"
+      ],
+      "negative_responses": [
+        "getting worse",
+        "worsening"
+      ],
+      "context": "Simple ruptured cysts improve over hours. Worsening pain suggests other diagnosis."
+    }
+  ],
+  
+  "red_flags": [
+    {
+      "finding": "Hypotension, tachycardia, severe ongoing pain",
+      "urgency": "emergency",
+      "action": "Possible significant hemorrhage - needs urgent evaluation"
+    }
+  ],
+  
+  "typical_management": "Supportive care, pain control. Most resolve spontaneously. Large hemorrhagic cysts may need observation or rarely surgery.",
+  
+  "disposition": "Mild: outpatient. Severe pain or hemodynamic changes: ER evaluation.",
+  
+  "patient_education": "Ovarian cysts are common fluid-filled sacs. When they rupture, they cause temporary pain that usually resolves on its own. Most don't require treatment."
+}
+

@@ -1,0 +1,120 @@
+{
+  "condition": "Urinary Tract Infection / Pyelonephritis",
+  "category": "gastrointestinal",
+  "icd10_codes": ["N39.0", "N10"],
+  "chief_complaint_triggers": [
+    "abdominal pain",
+    "flank pain",
+    "back pain",
+    "painful urination",
+    "burning with urination"
+  ],
+  "prevalence": "very_common",
+  "urgency": "urgent",
+  
+  "key_features": {
+    "classic_presentation": "UTI: dysuria, frequency, urgency, suprapubic discomfort. Pyelonephritis: flank pain, fever, chills, nausea/vomiting, costovertebral angle tenderness. Pyelonephritis is upper tract infection requiring urgent treatment.",
+    "typical_demographics": "Females >> males (except elderly). Risk factors: sexual activity, pregnancy, diabetes, catheters.",
+    "pathophysiology_brief": "Bacterial infection of bladder (cystitis) or kidney (pyelonephritis). E. coli most common (80%)."
+  },
+  
+  "diagnostic_questions": [
+    {
+      "question_focus": "dysuria",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "burning with urination",
+        "painful to pee",
+        "hurts to urinate",
+        "stinging when I go"
+      ],
+      "context": "Dysuria is hallmark of UTI. Present in 90% of cystitis."
+    },
+    {
+      "question_focus": "urinary frequency and urgency",
+      "diagnostic_value": "high",
+      "expected_positive_responses": [
+        "going all the time",
+        "frequent urination",
+        "urgent need to go",
+        "can't hold it"
+      ],
+      "context": "Frequency and urgency very common in cystitis."
+    },
+    {
+      "question_focus": "fever",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "fever",
+        "chills",
+        "shaking chills",
+        "high fever"
+      ],
+      "context": "Fever indicates pyelonephritis (upper tract). Cystitis typically no fever."
+    },
+    {
+      "question_focus": "flank pain",
+      "diagnostic_value": "critical",
+      "expected_positive_responses": [
+        "back pain",
+        "flank pain",
+        "kidney pain",
+        "pain in back/side"
+      ],
+      "context": "Flank pain + fever + dysuria = pyelonephritis (urgent)."
+    },
+    {
+      "question_focus": "nausea and vomiting",
+      "diagnostic_value": "moderate",
+      "expected_positive_responses": [
+        "nauseous",
+        "vomiting",
+        "feeling sick"
+      ],
+      "context": "Common in pyelonephritis, uncommon in simple cystitis."
+    },
+    {
+      "question_focus": "hematuria",
+      "diagnostic_value": "moderate",
+      "expected_positive_responses": [
+        "blood in urine",
+        "pink urine",
+        "red urine"
+      ],
+      "context": "Gross hematuria in 30% of cystitis."
+    }
+  ],
+  
+  "differential_diagnosis": [
+    {
+      "condition": "Kidney Stone",
+      "key_difference": "Colicky pain, radiation to groin, no dysuria typically",
+      "similarity": "Flank pain, hematuria"
+    },
+    {
+      "condition": "Appendicitis",
+      "key_difference": "RLQ pain, no urinary symptoms",
+      "similarity": "Fever, nausea"
+    }
+  ],
+  
+  "red_flags": [
+    {
+      "finding": "Sepsis (hypotension, confusion)",
+      "urgency": "call_911",
+      "action": "Urosepsis - life-threatening, needs ICU"
+    },
+    {
+      "finding": "Pregnancy + pyelonephritis",
+      "urgency": "emergency",
+      "action": "High risk for preterm labor - urgent hospitalization"
+    }
+  ],
+  
+  "typical_management": "Cystitis: oral antibiotics (nitrofurantoin, Bactrim). Pyelonephritis: may need IV antibiotics, admission. Pregnant: always admit.",
+  
+  "disposition": "Cystitis: outpatient. Pyelonephritis: many require admission, especially if can't tolerate PO, pregnant, or toxic-appearing.",
+  
+  "patient_education": "UTI is bacterial infection of urinary tract. Bladder infection (cystitis) treated with oral antibiotics. Kidney infection (pyelonephritis) is more serious and may need hospitalization."
+}
+
