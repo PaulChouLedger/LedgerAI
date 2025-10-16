@@ -571,20 +571,30 @@ class AdaptiveDiagnosticEngine:
         question = question_obj.get('question', '')
         
         # Use LLM to evaluate if answer addresses the question
-        validation_prompt = f"""You are evaluating a patient's response during a medical interview.
+        validation_prompt = f"""You are a strict evaluator of patient responses during a medical interview.
 
-Question asked: "{question}"
-Patient's answer: "{answer}"
+Question: "{question}"
+Answer: "{answer}"
 
-Does the patient's answer actually address what was asked in the question?
+CRITICAL: Does the answer directly address what was asked?
 
-Rules:
-- If the question asks for clarification (e.g., "upper or lower?"), the answer must specify which option
-- If the question asks about timing (e.g., "when?"), the answer must include time information
-- If the question asks yes/no, the answer should indicate yes, no, or provide relevant detail
-- The answer should not just repeat the question without providing information
+REJECT (answer "NO") if:
+- Question asks to choose between options (e.g., "upper or lower?") but answer doesn't specify which
+- Question asks for timing (e.g., "when?") but answer has no time information
+- Question asks yes/no but answer just repeats words from the question
+- Answer is vague or doesn't provide the requested information
 
-Respond with ONLY "YES" if the answer addresses the question, or "NO" if it doesn't.
+EXAMPLE 1:
+Q: "Is it upper right or lower right?"
+A: "right side" → NO (doesn't specify upper vs lower)
+A: "lower right" → YES (specifies lower)
+
+EXAMPLE 2:
+Q: "When did it start?"
+A: "the pain" → NO (no timing)
+A: "yesterday" → YES (has timing)
+
+Respond with ONLY "YES" or "NO".
 """
         
         try:
@@ -1054,7 +1064,7 @@ Classic Presentation: {classic_presentation}
         already_assessed = "\n".join(already_know) if already_know else "None yet"
         
         # Prompt for LLM - FOCUSED on classic presentations
-        prompt = f"""You are a physician conducting a medical interview.
+        prompt = f"""You are a physician conducting a medical interview about the patient's SYMPTOMS.
 
 PATIENT: {self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')}
 CHIEF COMPLAINT: {self.chief_complaint}
@@ -1066,24 +1076,27 @@ INFORMATION ALREADY GATHERED:
 {already_assessed}
 
 YOUR TASK:
-Based on the "Classic Presentation" of each diagnosis above, ask the SINGLE MOST IMPORTANT next question.
+Ask the SINGLE MOST IMPORTANT medical question about the patient's SYMPTOMS to help distinguish between these diagnoses.
 
-Focus on key distinguishing features mentioned in the classic presentations.
-
-STRICT RULES:
-- Ask ONLY ONE question (never combine)
+CRITICAL REQUIREMENTS:
+- Ask about a SYMPTOM or MEDICAL SIGN (fever, nausea, vomiting, pain quality, etc.)
+- Ask ONLY ONE question (never combine multiple symptoms)
 - Use simple, conversational language
 - Be specific and direct
-- No medical jargon
 
-Good: "Have you had any fever?"
-Good: "When did the pain start?"
-Good: "Does the pain come and go, or stay constant?"
+GOOD EXAMPLES (medical symptoms):
+"Have you had any fever?"
+"Have you vomited?"
+"When did the pain start?"
+"Is the pain sharp or dull?"
+"Have you noticed any yellowing of your skin or eyes?"
 
-Bad: "Describe pain patterns and exacerbation sites" (too technical)
-Bad: "Any fever, chills, or nausea?" (combining multiple)
+BAD EXAMPLES (avoid these):
+"What is the temperature like today?" (asking about weather, not fever!)
+"Describe pain patterns and exacerbation sites" (too technical)
+"Any fever, chills, or nausea?" (combining multiple symptoms)
 
-OUTPUT ONLY THE QUESTION (no number, no preamble):"""
+OUTPUT ONLY THE SYMPTOM QUESTION (no number, no preamble):"""
         
         # Call LLM
         try:
