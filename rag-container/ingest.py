@@ -181,11 +181,9 @@ class AutoIngest:
                 "hash": file_hash,
                 "timestamp": str(Path(file_path).stat().st_mtime)
             }
-            self.state["total_chunks"] = self.rag.index.ntotal
             self.save_state()
             
             print(f"[Ingest] ✅ Processed {file_path.name}")
-            print(f"[Ingest] 📊 Total chunks in RAG: {self.rag.index.ntotal}")
             
             return True
             
@@ -233,7 +231,8 @@ class AutoIngest:
         }
         
         if processed_count > 0:
-            print(f"\n[Ingest] ✅ Scan complete: {processed_count} processed, {skipped_count} skipped, {error_count} errors")
+            print(f"\n[Ingest] ✅ Scan complete: {processed_count} file(s) extracted to data/parsed/")
+            print(f"[Ingest] 💡 Host will build embeddings from {processed_count} new file(s)")
         
         return result
 
