@@ -366,11 +366,13 @@ class AdaptiveDiagnosticEngine:
                 print(f"[Engine] ⚠️ Answer too vague or unclear - asking for clarification")
                 
                 # Find last question and extract CORE question (strip clarification prefix)
-                last_q = None
+                last_q_item = None
                 for item in reversed(self.conversation_history):
                     if item.get('type') == 'question':
-                        last_q = item.get('question', 'the question')
+                        last_q_item = item
                         break
+                
+                last_q = last_q_item.get('question', 'the question') if last_q_item else 'the question'
                 
                 # Strip "I didn't quite understand. " prefix if present (avoid repetition)
                 core_question = last_q
@@ -381,11 +383,16 @@ class AdaptiveDiagnosticEngine:
                 
                 clarify = f"I didn't quite understand. {core_question if core_question else 'Can you clarify?'}"
                 
-                self.conversation_history.append({
+                # IMPORTANT: Preserve OLDCARTS element from original question
+                new_question = {
                     'type': 'question',
                     'question': clarify,
                     'focus': 'clinical'
-                })
+                }
+                if last_q_item and 'oldcarts' in last_q_item:
+                    new_question['oldcarts'] = last_q_item['oldcarts']
+                
+                self.conversation_history.append(new_question)
                 
                 return {
                     'success': True,
