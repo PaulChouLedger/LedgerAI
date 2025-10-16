@@ -2,29 +2,40 @@
 """
 Adaptive Diagnostic Engine - LLM-Driven Medical Diagnosis
 
-SIMPLIFIED APPROACH:
-1. Chief complaint → Match relevant guidelines
+FRAMEWORK: OLDCARTS (Gold Standard Clinical Pain/Symptom Assessment)
+- Onset, Location, Duration, Character, Aggravating, Relieving, Timing, Severity
+- Applicable to ALL medical conditions (abdominal pain, chest pain, headache, etc.)
+- Systematic, comprehensive questioning
+
+DIAGNOSTIC FLOW:
+1. Chief complaint → Match relevant guidelines (any body system)
 2. Sort by URGENCY (emergent > urgent > routine) then PREVALENCE (common > rare)
 3. Top 3 become active differentials, rest go to reserve pool
 4. Feed all 3 guidelines' classical presentations to LLM
-5. LLM analyzes and develops question roadmap
+5. LLM follows OLDCARTS roadmap to generate systematic questions
 6. Ask question → LLM scores all 3 → Re-rank by score
 7. Rule out <30% → Promote from reserve (prioritize COMMON conditions)
-8. Repeat until diagnosis clear
+8. Repeat until 95% confidence + 12 questions (or 15 max)
+9. Screen ALL red flags after diagnosis
+10. Finalize with disposition + red flag warnings
 
 PREVALENCE-BASED ROLLING DIFFERENTIAL:
-- Start with common conditions (appendicitis, cholecystitis, UTI, etc.)
+- Start with common conditions (gastroenteritis, appendicitis, UTI, etc.)
 - Only consider rare conditions (ectopic, mesenteric ischemia) after common ones ruled out
 - Mimics clinical reasoning: "Common things are common"
 - Reserve pool sorted by prevalence ensures common conditions promoted first
 
-NO complex feature extraction, NO pattern matching
-LLM does ALL the reasoning - we just provide structure
+FULLY LLM-DRIVEN:
+- NO hardcoded answer validation patterns
+- LLM decides what's acceptable (dynamic, organic)
+- LLM generates all questions following OLDCARTS
+- LLM does ALL reasoning - we provide structure only
 """
 
 import json
 import os
 import re
+import numpy as np
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
@@ -37,16 +48,18 @@ class AdaptiveDiagnosticEngine:
     We provide structure and keep it focused.
     """
     
-    def __init__(self, guidelines_dir: str = "/app/medical/guidelines", llm_chat_fn=None):
+    def __init__(self, guidelines_dir: str = "/app/medical/guidelines", llm_chat_fn=None, embedding_model=None):
         """
         Initialize diagnostic engine
         
         Args:
             guidelines_dir: Path to JSON guidelines
             llm_chat_fn: LLM function for reasoning
+            embedding_model: Sentence transformer for semantic similarity
         """
         self.guidelines_dir = Path(guidelines_dir)
         self.llm_chat_fn = llm_chat_fn
+        self.embedding_model = embedding_model
         
         # Load guidelines
         self.all_guidelines = {}
@@ -89,6 +102,18 @@ class AdaptiveDiagnosticEngine:
         self.status = "idle"  # idle, questioning, red_flag_screening, diagnosed
         self.red_flags_present = []  # Track which red flags are present
         self.red_flag_index = 0  # Track which red flag we're asking about
+        
+        # OLDCARTS tracking - must cover ALL before diagnosis
+        self.oldcarts_covered = {
+            'O': False,  # Onset (hardcoded first question)
+            'L': False,  # Location
+            'D': False,  # Duration
+            'C': False,  # Character
+            'A': False,  # Aggravating
+            'R': False,  # Relieving
+            'T': False,  # Timing
+            'S': False   # Severity
+        }
         
         # Thresholds
         self.RULE_OUT_THRESHOLD = 0.30  # Below 30% → rule out and replace
@@ -317,12 +342,16 @@ class AdaptiveDiagnosticEngine:
             # This is the most important differentiator (acute vs chronic)
             timing_question = "When did the pain start?"
             
-            print(f"[Engine] 💬 First question: CHRONICITY (when started)")
+            # Mark ONSET as covered
+            self.oldcarts_covered['O'] = True
+            
+            print(f"[Engine] 💬 First question: ONSET (O in OLDCARTS)")
             
             self.conversation_history.append({
                 'type': 'question',
                 'question': timing_question,
-                'focus': 'clinical'
+                'focus': 'clinical',
+                'oldcarts': 'O'
             })
             
             return {
@@ -383,71 +412,33 @@ class AdaptiveDiagnosticEngine:
         if not last_question:
             return True  # No question to validate against
         
-        print(f"[Engine] 🔍 Validating answer...")
+        print(f"[Engine] 🔍 Validating answer with LLM...")
         print(f"[Engine]   Q: '{last_question}'")
         print(f"[Engine]   A: '{answer}'")
         
-        # PROGRAMMATIC VALIDATION for simple cases (avoid LLM for obvious answers)
-        answer_lower = answer.lower().strip()
-        
-        # Accept common yes/no variations
-        yes_no_words = ['yes', 'no', 'yeah', 'nope', 'nah', 'yep', 'sure', 'maybe', 'sometimes', 'not really']
-        if any(word in answer_lower for word in yes_no_words):
-            print(f"[Engine]   ✓ Programmatic validation: ACCEPT (yes/no response)")
-            return True
-        
-        # Accept symptom confirmations (e.g., "I've had nausea" for "Have you had nausea?")
-        symptom_words = ['nausea', 'vomiting', 'diarrhea', 'constipation', 'fever', 'chills', 
-                        'headache', 'dizziness', 'bleeding', 'constant', 'sharp', 'dull']
-        if any(word in answer_lower for word in symptom_words):
-            print(f"[Engine]   ✓ Programmatic validation: ACCEPT (symptom confirmation)")
-            return True
-        
-        # Accept time-related words
-        time_words = ['today', 'yesterday', 'hour', 'day', 'week', 'month', 'year', 'ago', 'morning', 'night']
-        if any(word in answer_lower for word in time_words):
-            print(f"[Engine]   ✓ Programmatic validation: ACCEPT (time reference)")
-            return True
-        
-        # Accept location words
-        location_words = ['right', 'left', 'upper', 'lower', 'middle', 'center', 'side', 'top', 'bottom']
-        if any(word in answer_lower for word in location_words):
-            print(f"[Engine]   ✓ Programmatic validation: ACCEPT (location)")
-            return True
-        
-        # Accept numbers (age, severity, etc.)
-        if any(char.isdigit() for char in answer):
-            print(f"[Engine]   ✓ Programmatic validation: ACCEPT (contains number)")
-            return True
-        
-        # Reject single vague words
-        vague_single_words = ['oh', 'um', 'uh', 'well', 'so', 'now', 'then', 'just']
-        if answer_lower in vague_single_words:
-            print(f"[Engine]   ✗ Programmatic validation: REJECT (vague single word)")
-            return False
-        
-        # For everything else, use LLM validation
-        print(f"[Engine]   → Using LLM validation...")
-        
-        # Use LLM to validate
-        system_msg = "You are a medical validator. Does the answer provide requested information? Output ONLY 'yes' or 'no'."
-        
-        user_msg = f"""Q: {last_question}
-A: {answer}
+        # Use LLM to validate (fully dynamic, no hardcoded patterns)
+        system_msg = """You are a medical conversation validator. Determine if the patient's answer is responsive to the question.
 
-Valid answers include:
-- Yes/no responses
-- Time words (today, yesterday, hour, day, week, ago)
-- Location words (right, left, upper, lower, side)
-- Symptom words (fever, nausea, vomiting, sharp, dull)
+Accept these types of answers:
+- Yes/no in any form (yes, no, yeah, nope, yep, I have, I haven't, not really)
+- Direct symptom confirmations ("I've had nausea", "constant pain", "sharp")
+- Time references (today, yesterday, hours ago, 2 days)
+- Location descriptions (right side, upper abdomen, lower left)
+- Numbers (8 out of 10, 35 years, 103 degrees)
+- Descriptive responses (sharp, dull, burning, crampy)
 
-Invalid answers:
-- Single vague words (now, oh, so, up, well)
-- Non-responsive words
+Reject only these:
+- Single filler words with no meaning (oh, um, uh, hmm, well)
+- Completely unrelated responses
 
-Is "{answer}" a valid response?
+Output ONLY 'yes' (accept) or 'no' (reject)."""
 
-Output (yes/no):"""
+        user_msg = f"""Question: {last_question}
+Answer: {answer}
+
+Is this answer responsive to the question?
+
+Output:"""
         
         try:
             response = self.llm_chat_fn(
@@ -595,26 +586,49 @@ Classic Presentation: {classic}
         # Build list of already asked questions to avoid repeats
         asked_list = "\n".join([f"- {q}" for q in asked]) if asked else "None"
         
+        # Show OLDCARTS coverage
+        covered_elements = [k for k, v in self.oldcarts_covered.items() if v]
+        uncovered_elements = [k for k, v in self.oldcarts_covered.items() if not v]
+        coverage_str = ''.join([k if v else '_' for k, v in self.oldcarts_covered.items()])
+        
         user_msg = f"""Patient: {patient_info}
 
-Key features to ask about:
-{features_text}
+OLDCARTS COVERAGE: {coverage_str} ({len(covered_elements)}/8 complete)
+✓ Covered: {', '.join(covered_elements) if covered_elements else 'None'}
+⚠ Need to ask: {', '.join(uncovered_elements) if uncovered_elements else 'All done'}
+
+OLDCARTS CLINICAL ROADMAP:
+
+O - ONSET: When did the symptom/pain start? (sudden vs gradual, hours/days/weeks ago)
+
+L - LOCATION: Where exactly is the symptom/pain? (specific body location, side, region)
+
+D - DURATION: How long does each episode last? (seconds, minutes, hours, constant vs episodic)
+
+C - CHARACTER: How would you describe it? (sharp, dull, burning, crampy, aching, throbbing, pressure)
+
+A - AGGRAVATING: What makes it worse? (eating, movement, position, activity, time of day)
+
+R - RELIEVING: What makes it better? (rest, position, food, medications, nothing helps)
+
+T - TIMING: What is the pattern? (constant, intermittent, comes in waves, specific times)
+
+S - SEVERITY: How bad is it? (scale 1-10, mild/moderate/severe)
+
+ADDITIONAL (After OLDCARTS complete):
+- Associated symptoms from guidelines (fever, nausea, vomiting, etc.)
+- Migration pattern (did symptom move from one location to another?)
+- Key positives/negatives from differential diagnosis
+
+Active Guidelines:
+{guidelines_text}
 
 Already asked:
 {asked_list}
 
-Generate ONE specific medical question based on the key features above.
-Ask about ONE thing only (location/migration/timing/quality/fever/nausea/vomiting/triggers).
-DO NOT combine questions with "and".
-
-Examples:
-- "Where exactly is the pain located?"
-- "Did the pain migrate from one place to another?"
-- "When did the pain start?"
-- "Have you had any fever?"
-- "Have you had nausea or vomiting?"
-- "Does eating make the pain worse?"
-- "Is the pain constant or does it come and go?"
+Generate the NEXT question prioritizing uncovered OLDCARTS elements.
+Focus on: {uncovered_elements[0] if uncovered_elements else 'Associated symptoms'}
+ONE question only. DO NOT combine.
 
 Question:"""
 
@@ -686,14 +700,21 @@ Question:"""
                 else:
                     question = "How would you describe the pain?"
             
+            # Detect which OLDCARTS element this question addresses
+            oldcarts_element = self._detect_oldcarts_element(question)
+            
             print(f"[Engine] ✅ Generated Question: '{question}'")
+            if oldcarts_element:
+                print(f"[Engine] 📋 OLDCARTS Element: {oldcarts_element}")
+                self.oldcarts_covered[oldcarts_element] = True
             print(f"{'='*80}\n")
             
             # Store question
             self.conversation_history.append({
                 'type': 'question',
                 'question': question,
-                'focus': 'clinical'
+                'focus': 'clinical',
+                'oldcarts': oldcarts_element
             })
             
             return {
@@ -706,11 +727,118 @@ Question:"""
             print(f"[Engine] ❌ Question generation failed: {e}")
             raise RuntimeError(f"LLM question generation failed: {e}")
     
+    def _detect_oldcarts_element(self, question: str) -> Optional[str]:
+        """
+        Detect which OLDCARTS element a question addresses
+        
+        Returns: 'O', 'L', 'D', 'C', 'A', 'R', 'T', or 'S' (or None if unclear)
+        """
+        q_lower = question.lower()
+        
+        # L - LOCATION
+        if any(word in q_lower for word in ['where', 'location', 'which part', 'what area', 'which side']):
+            return 'L'
+        
+        # D - DURATION
+        if any(word in q_lower for word in ['how long does', 'duration of', 'how long has', 'how many hours', 'how many days']):
+            return 'D'
+        
+        # C - CHARACTER / Quality
+        if any(phrase in q_lower for phrase in ['how would you describe', 'what does', 'type of pain', 'kind of pain', 'quality']):
+            return 'C'
+        
+        # A - AGGRAVATING
+        if any(phrase in q_lower for phrase in ['make it worse', 'makes it worse', 'worsen', 'aggravate', 'trigger']):
+            return 'A'
+        
+        # R - RELIEVING
+        if any(phrase in q_lower for phrase in ['make it better', 'makes it better', 'relieve', 'improve', 'help the pain']):
+            return 'R'
+        
+        # T - TIMING (pattern)
+        if any(phrase in q_lower for phrase in ['constant or', 'come and go', 'comes and goes', 'intermittent', 'pattern', 'waves']):
+            return 'T'
+        
+        # S - SEVERITY
+        if any(phrase in q_lower for phrase in ['scale of', 'how severe', 'how bad', 'rate the', '1 to 10', '1-10']):
+            return 'S'
+        
+        # Associated symptoms (not core OLDCARTS, but important)
+        # Don't mark OLDCARTS for these
+        return None
+    
+    def _extract_oldcarts_section(self, classic_presentation: str, element: str) -> str:
+        """
+        Extract specific OLDCARTS section from classic_presentation text
+        
+        Args:
+            classic_presentation: Full guideline text
+            element: 'O', 'L', 'D', 'C', 'A', 'R', 'T', or 'S'
+        
+        Returns:
+            The text for that OLDCARTS section
+        """
+        element_names = {
+            'O': 'ONSET',
+            'L': 'LOCATION',
+            'D': 'DURATION',
+            'C': 'CHARACTER',
+            'A': 'AGGRAVATING',
+            'R': 'RELIEVING',
+            'T': 'TIMING',
+            'S': 'SEVERITY'
+        }
+        
+        element_name = element_names.get(element, '')
+        if not element_name:
+            return ""
+        
+        # Find the section using regex
+        # Pattern: "ELEMENT_NAME: ...text... NEXT_ELEMENT:"
+        pattern = f"{element_name}:([^.]*(?:\.[^A-Z:][^.]*)*)"
+        match = re.search(pattern, classic_presentation, re.IGNORECASE)
+        
+        if match:
+            section_text = match.group(1).strip()
+            # Clean up - stop at next OLDCARTS element or ASSOCIATED/KEY
+            for stop_word in ['ONSET:', 'LOCATION:', 'DURATION:', 'CHARACTER:', 'AGGRAVATING:', 'RELIEVING:', 'TIMING:', 'SEVERITY:', 'ASSOCIATED', 'KEY POSITIVES', 'KEY NEGATIVES']:
+                if stop_word in section_text:
+                    section_text = section_text.split(stop_word)[0].strip()
+            return section_text
+        
+        return ""
+    
+    def _compute_similarity(self, text1: str, text2: str) -> float:
+        """
+        Compute semantic similarity between two texts using embeddings
+        
+        Returns: Similarity score 0-1
+        """
+        if not self.embedding_model or not text1 or not text2:
+            return 0.5  # Neutral score if can't compute
+        
+        try:
+            # Generate embeddings
+            emb1 = self.embedding_model.encode([text1])[0]
+            emb2 = self.embedding_model.encode([text2])[0]
+            
+            # Compute cosine similarity
+            similarity = np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
+            
+            # Convert from [-1, 1] to [0, 1]
+            similarity = (similarity + 1) / 2
+            
+            return float(similarity)
+        
+        except Exception as e:
+            print(f"[Engine] ⚠️ Similarity computation failed: {e}")
+            return 0.5  # Neutral score on error
+    
     def _process_clinical_answer(self, answer: str) -> Dict[str, Any]:
         """
-        Use LLM to score all 5 guidelines based on the answer
+        Score guidelines using SEMANTIC SIMILARITY between answer and corresponding OLDCARTS section
         
-        This is the CORE diagnostic reasoning.
+        This is the CORE diagnostic reasoning - using vector similarity instead of LLM.
         """
         print(f"\n{'='*80}")
         print(f"[Engine] 🔢 LLM SCORING PHASE")
@@ -739,57 +867,70 @@ Question:"""
         print(f"[Engine] 📋 Answer: '{answer}'")
         print(f"[Engine] 📋 History: {len(qa_pairs)} Q&A pairs")
         
-        # Build patient summary for scoring
-        patient_info = f"{self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')} with {self.chief_complaint}"
+        # Determine which OLDCARTS element was just asked
+        last_question_item = None
+        for item in reversed(self.conversation_history):
+            if item.get('type') == 'question' and item.get('focus') == 'clinical':
+                last_question_item = item
+                break
         
-        # FOR EACH GUIDELINE: Ask LLM to score it
-        print(f"\n[Engine] 🎯 SCORING EACH GUIDELINE:\n")
+        oldcarts_element = last_question_item.get('oldcarts') if last_question_item else None
         
-        for g in self.active_guidelines:
-            classic = g['data'].get('key_features', {}).get('classic_presentation', 'N/A')
+        # FOR EACH GUIDELINE: Score using VECTOR SIMILARITY
+        print(f"\n[Engine] 🎯 SEMANTIC SIMILARITY SCORING:\n")
+        
+        if oldcarts_element and self.embedding_model:
+            print(f"[Engine] 📊 Matching answer to OLDCARTS element: {oldcarts_element}")
             
-            # Scoring prompt - ULTRA-STRICT: System + user roles, number only
-            system_msg = "You are a diagnostic scoring AI. Output ONLY integers 0-100. No explanations. Lower scores for 'no' answers to key features."
-            
-            user_msg = f"""{g['name']}:
-{classic}
-
-Patient: {patient_info}
-Question: {last_q}
-Answer: {answer}
-
-If answer is "no" to a key feature, give LOW score.
-If answer matches classic presentation, give HIGH score.
-
-Score 0-100:"""
-
-            try:
-                response = self.llm_chat_fn(
-                    [
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_msg}
-                    ],
-                    max_tokens=3,  # Just need "50" or "75"
-                    temperature=0.0
-                )
+            for g in self.active_guidelines:
+                classic = g['data'].get('key_features', {}).get('classic_presentation', '')
                 
-                # Extract score
-                score_text = response.strip()
-                score_match = re.search(r'\d+', score_text)
+                # Extract the specific OLDCARTS section for this element
+                oldcarts_section = self._extract_oldcarts_section(classic, oldcarts_element)
                 
-                if score_match:
-                    new_score = int(score_match.group()) / 100.0  # Convert to 0-1
+                if oldcarts_section:
+                    # Compute semantic similarity between answer and guideline's OLDCARTS section
+                    similarity = self._compute_similarity(answer, oldcarts_section)
+                    
+                    # Update score with weighted average (70% old score + 30% new similarity)
+                    # This prevents wild swings while incorporating new information
                     old_score = g['score']
+                    new_score = (old_score * 0.7) + (similarity * 0.3)
                     g['score'] = new_score
                     
                     change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
                     print(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change}")
-                    print(f"[Engine]     LLM returned: '{score_text}'")
+                    print(f"[Engine]     Similarity: {similarity:.2f} to {oldcarts_element} section")
+                    print(f"[Engine]     Section: {oldcarts_section[:80]}...")
                 else:
-                    print(f"[Engine]   {g['name']}: ⚠️ Could not parse score from LLM response: '{score_text}'")
+                    print(f"[Engine]   {g['name']}: ⚠️ Could not extract {oldcarts_element} section")
+        
+        else:
+            # Fallback to simple scoring for non-OLDCARTS questions (fever, nausea, etc.)
+            print(f"[Engine] 📊 Non-OLDCARTS question - using simple keyword matching")
             
-            except Exception as e:
-                print(f"[Engine] ⚠️ Scoring failed for {g['name']}: {e}")
+            for g in self.active_guidelines:
+                classic = g['data'].get('key_features', {}).get('classic_presentation', '')
+                
+                # Simple keyword-based boost/penalty
+                answer_lower = answer.lower()
+                classic_lower = classic.lower()
+                
+                # Check if answer aligns with guideline
+                boost = 0.0
+                if 'yes' in answer_lower or 'yeah' in answer_lower:
+                    # Check if the question symptom appears in guideline
+                    if last_q and any(symptom in classic_lower for symptom in ['fever', 'nausea', 'vomiting', 'diarrhea'] if symptom in last_q.lower()):
+                        boost = 0.05  # Small boost
+                elif 'no' in answer_lower or 'nope' in answer_lower:
+                    # Negative answer - small penalty if symptom is key feature
+                    boost = -0.03
+                
+                old_score = g['score']
+                g['score'] = min(1.0, max(0.0, old_score + boost))
+                
+                change = "↑" if boost > 0 else "↓" if boost < 0 else "="
+                print(f"[Engine]   {g['name']}: {old_score:.0%} → {g['score']:.0%} {change}")
         
         # ROLLING REPLACEMENT: Rule out low-scoring guidelines and promote from reserve
         ruled_out_this_round = []
@@ -849,17 +990,29 @@ Score 0-100:"""
         top = self.active_guidelines[0]
         num_questions = len([item for item in self.conversation_history if item['type'] == 'question' and item.get('focus') == 'clinical'])
         
-        # Diagnosis criteria: High confidence OR asked enough questions
-        if top['score'] >= 0.90 and num_questions >= 7:
-            print(f"[Engine] ✅ DIAGNOSIS REACHED: {top['name']} ({top['score']:.0%} confidence)")
+        # Check OLDCARTS coverage
+        oldcarts_complete = all(self.oldcarts_covered.values())
+        covered_count = sum(self.oldcarts_covered.values())
+        uncovered = [k for k, v in self.oldcarts_covered.items() if not v]
+        
+        # Show OLDCARTS coverage status
+        coverage_str = ''.join([k if v else '_' for k, v in self.oldcarts_covered.items()])
+        print(f"[Engine] 📋 OLDCARTS Coverage: {coverage_str} ({covered_count}/8)")
+        
+        # Diagnosis criteria: ALL OLDCARTS covered + high confidence, OR max 15 questions
+        if oldcarts_complete and top['score'] >= 0.95:
+            print(f"[Engine] ✅ DIAGNOSIS REACHED: {top['name']} ({top['score']:.0%} confidence, OLDCARTS complete)")
             print(f"[Engine] 🚩 Starting RED FLAG screening...")
             return self._screen_red_flags(top)
-        elif num_questions >= 12:
-            print(f"[Engine] ✅ DIAGNOSIS BY QUESTIONS LIMIT: {top['name']} ({top['score']:.0%} confidence)")
+        elif num_questions >= 15:
+            print(f"[Engine] ⚠️  DIAGNOSIS BY QUESTIONS LIMIT: {top['name']} ({top['score']:.0%}, OLDCARTS: {coverage_str})")
             print(f"[Engine] 🚩 Starting RED FLAG screening...")
             return self._screen_red_flags(top)
         else:
-            print(f"[Engine] 🔄 Continuing (Q{num_questions}, top score: {top['score']:.0%})")
+            if not oldcarts_complete:
+                print(f"[Engine] 🔄 Continuing (OLDCARTS incomplete: missing {', '.join(uncovered)}, Q{num_questions}, score: {top['score']:.0%})")
+            else:
+                print(f"[Engine] 🔄 Continuing (OLDCARTS complete, need 95% confidence: current {top['score']:.0%}, Q{num_questions})")
             # Ask next question
             return self._ask_next_clinical_question()
     

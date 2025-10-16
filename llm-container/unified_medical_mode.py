@@ -107,12 +107,27 @@ class UnifiedMedicalSession:
         self.dynamic_assessment = None  # Legacy - kept for compatibility
         self.medical_rag = None
         
-        # NEW: Adaptive diagnostic engine (with LLM function for intelligent questions)
+        # NEW: Adaptive diagnostic engine (with LLM + embeddings for semantic similarity)
         self.adaptive_engine = None
+        self.embedding_model = None
+        
         if ADAPTIVE_ENGINE_AVAILABLE:
             try:
-                self.adaptive_engine = AdaptiveDiagnosticEngine(llm_chat_fn=self.llm_chat_fn)
-                print("[Unified Medical] ✅ Adaptive engine initialized with LLM intelligence")
+                # Load embedding model for semantic similarity scoring
+                try:
+                    from sentence_transformers import SentenceTransformer
+                    self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+                    print("[Unified Medical] ✅ Loaded embedding model: all-MiniLM-L6-v2")
+                except Exception as e:
+                    print(f"[Unified Medical] ⚠️ Could not load embedding model: {e}")
+                    self.embedding_model = None
+                
+                # Initialize adaptive engine with embeddings
+                self.adaptive_engine = AdaptiveDiagnosticEngine(
+                    llm_chat_fn=self.llm_chat_fn,
+                    embedding_model=self.embedding_model
+                )
+                print("[Unified Medical] ✅ Adaptive engine initialized with LLM + semantic similarity")
             except Exception as e:
                 print(f"[Unified Medical] ⚠️ Failed to initialize adaptive engine: {e}")
         
@@ -208,8 +223,8 @@ class UnifiedMedicalSession:
         })
 
         # PRIORITY 1: Check if adaptive engine has active assessment
-        if self.adaptive_engine and self.adaptive_engine.status == "questioning":
-            print(f"[Unified Medical] 🔄 Continuing active adaptive assessment")
+        if self.adaptive_engine and self.adaptive_engine.status in ["questioning", "red_flag_screening"]:
+            print(f"[Unified Medical] 🔄 Continuing active adaptive assessment (status: {self.adaptive_engine.status})")
             return self._handle_symptom_assessment(user_input)
         
         # PRIORITY 2: Check if we have an active dynamic assessment in progress (legacy)
