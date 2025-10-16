@@ -317,22 +317,16 @@ Classic Presentation: {classic}
         print(f"[Engine] 📋 Questions asked: {len(asked)}")
         
         # LLM PROMPT: Generate next question
-        prompt = f"""You are a diagnostic AI analyzing these 5 possible conditions:
+        # Simple, direct prompt - keep all medical content but cleaner instructions
+        prompt = f"""Patient: {patient_info}
 
+Top 3 Diagnoses:
 {guidelines_text}
 
-Patient: {patient_info}
+Generate ONE question to distinguish between these conditions.
+Focus on key symptoms from the presentations above.
 
-Questions already asked:
-{asked_text}
-
-Your task: Generate ONE key question that will best differentiate between these 5 conditions.
-- Focus on symptoms from the classical presentations
-- Ask about ONE specific symptom at a time
-- Make it conversational and clear
-- Prioritize the most discriminating questions first
-
-Output ONLY the question (no explanation):"""
+Question:"""
 
         try:
             response = self.llm_chat_fn(
@@ -404,22 +398,14 @@ Output ONLY the question (no explanation):"""
         for g in self.active_guidelines:
             classic = g['data'].get('key_features', {}).get('classic_presentation', 'N/A')
             
-            # Scoring prompt
-            scoring_prompt = f"""You are scoring how well a patient matches this condition:
+            # Scoring prompt - SIMPLIFIED for small models
+            scoring_prompt = f"""Condition: {g['name']}
+{classic}
 
-Condition: {g['name']}
-Classic Presentation: {classic}
+Patient: {patient_info}
+Latest answer: {answer}
 
-Patient History:
-{history_text}
-
-Latest Q&A:
-Q: {last_q}
-A: {answer}
-
-Based on ALL the information, rate how likely this patient has {g['name']}.
-
-Output ONLY a score from 0-100 (integer only, no explanation):"""
+Score 0-100 how well this matches:"""
 
             try:
                 response = self.llm_chat_fn(
@@ -439,8 +425,9 @@ Output ONLY a score from 0-100 (integer only, no explanation):"""
                     
                     change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
                     print(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change}")
+                    print(f"[Engine]     LLM returned: '{score_text}'")
                 else:
-                    print(f"[Engine]   {g['name']}: Could not parse score from '{score_text}'")
+                    print(f"[Engine]   {g['name']}: ⚠️ Could not parse score from LLM response: '{score_text}'")
             
             except Exception as e:
                 print(f"[Engine] ⚠️ Scoring failed for {g['name']}: {e}")
