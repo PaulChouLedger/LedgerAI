@@ -71,11 +71,17 @@ class AdaptiveDiagnosticEngine:
     
     def reset_assessment(self):
         """Reset for new patient"""
-        self.active_guidelines = []  # The 3 chosen guidelines with scores
+        self.active_guidelines = []  # The 3 active guidelines with scores
+        self.reserve_pool = []  # Remaining matched guidelines (for rolling replacement)
+        self.ruled_out = []  # Guidelines ruled out (for logging)
         self.chief_complaint = ""
         self.demographics = {}  # age, sex
         self.conversation_history = []  # All Q&A
         self.status = "idle"  # idle, questioning, diagnosed
+        
+        # Thresholds
+        self.RULE_OUT_THRESHOLD = 0.30  # Below 30% → rule out and replace
+        self.MAX_ACTIVE = 3  # Keep 3 active differentials
     
     def start_assessment(self, chief_complaint: str) -> Dict[str, Any]:
         """
@@ -105,12 +111,17 @@ class AdaptiveDiagnosticEngine:
                 'message': "I couldn't identify relevant medical conditions. Please describe your symptoms more specifically."
             }
         
-        # Take top 3 (or fewer if less than 3 matched)
-        self.active_guidelines = matched[:3]
+        # Split into active (top 3) and reserve pool (rest)
+        self.active_guidelines = matched[:self.MAX_ACTIVE]
+        self.reserve_pool = matched[self.MAX_ACTIVE:]
         
-        print(f"\n[Engine] 📋 SELECTED 3 GUIDELINES:")
+        print(f"\n[Engine] 📋 ACTIVE DIFFERENTIALS (Top {len(self.active_guidelines)}):")
         for i, g in enumerate(self.active_guidelines, 1):
-            print(f"[Engine]   {i}. {g['name']} (initial score: {g['score']:.2f})")
+            urgency_emoji = "🚨" if g['data'].get('urgency') == 'emergent' else "⚠️" if g['data'].get('urgency') == 'urgent' else "📋"
+            print(f"[Engine]   {i}. {g['name']} (score: {g['score']:.0%}) {urgency_emoji}")
+        
+        if self.reserve_pool:
+            print(f"[Engine] 💾 Reserve pool: {len(self.reserve_pool)} additional conditions")
         print(f"{'='*80}\n")
         
         # STEP 2: Use LLM to generate empathetic opening + age question
@@ -576,6 +587,23 @@ Score 0-100:"""
             except Exception as e:
                 print(f"[Engine] ⚠️ Scoring failed for {g['name']}: {e}")
         
+        # ROLLING REPLACEMENT: Rule out low-scoring guidelines and promote from reserve
+        ruled_out_this_round = []
+        for g in list(self.active_guidelines):  # Use list() to avoid modification during iteration
+            if g['score'] < self.RULE_OUT_THRESHOLD:
+                print(f"[Engine] ❌ RULING OUT: {g['name']} (score {g['score']:.0%} < {self.RULE_OUT_THRESHOLD:.0%})")
+                self.active_guidelines.remove(g)
+                self.ruled_out.append(g)
+                ruled_out_this_round.append(g)
+        
+        # Promote from reserve to maintain MAX_ACTIVE
+        promoted_this_round = []
+        while len(self.active_guidelines) < self.MAX_ACTIVE and len(self.reserve_pool) > 0:
+            next_condition = self.reserve_pool.pop(0)
+            self.active_guidelines.append(next_condition)
+            promoted_this_round.append(next_condition)
+            print(f"[Engine] 🔼 PROMOTING: {next_condition['name']} (score: {next_condition['score']:.0%}) from reserve")
+        
         # RE-RANK by score
         self.active_guidelines.sort(key=lambda x: x['score'], reverse=True)
         
@@ -584,14 +612,26 @@ Score 0-100:"""
             urgency_emoji = "🚨" if g['data'].get('urgency') == 'emergent' else "⚠️" if g['data'].get('urgency') == 'urgent' else "📋"
             print(f"[Engine]   {i}. {g['name']}: {g['score']:.0%} {urgency_emoji}")
         
+        if ruled_out_this_round or promoted_this_round:
+            print(f"\n[Engine] 🔄 Pool status: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
+        
         print(f"{'='*80}\n")
         
         # SAFETY CHECK: Ensure we have active guidelines
-        if len(self.active_guidelines) == 0:
-            print(f"[Engine] ❌ No active guidelines remaining - cannot diagnose")
+        if len(self.active_guidelines) == 0 and len(self.reserve_pool) == 0:
+            print(f"[Engine] ❌ All guidelines exhausted - no diagnosis possible")
+            print(f"[Engine] 📋 Ruled out {len(self.ruled_out)} conditions")
             return {
                 'success': False,
-                'message': "I couldn't identify a specific condition. Please seek medical attention."
+                'message': "I couldn't match your symptoms to a specific condition. Please seek medical evaluation."
+            }
+        
+        # If active is empty but reserve exists, this shouldn't happen (rolling replacement should have filled it)
+        if len(self.active_guidelines) == 0:
+            print(f"[Engine] ⚠️ Active list empty but reserve has {len(self.reserve_pool)} - this is a bug")
+            return {
+                'success': False,
+                'message': "I encountered an error. Please seek medical attention."
             }
         
         # CHECK FOR DIAGNOSIS
