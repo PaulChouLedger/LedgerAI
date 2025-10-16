@@ -1,0 +1,26 @@
+{
+  "condition": "Acute Bacterial Prostatitis",
+  "icd10": "N41.0",
+  "snomed": "9713002",
+  "prevalence": "uncommon",
+  "chief_complaint_triggers": [
+    "pelvic pain",
+    "perineal pain",
+    "painful urination",
+    "dysuria",
+    "lower abdominal pain",
+    "rectal pain",
+    "difficulty urinating"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: ACUTE onset over hours to days. More common in men 30-50 years. LOCATION: Perineum (between scrotum and rectum), suprapubic, lower back, or rectal area. Diffuse pelvic discomfort. DURATION: CONSTANT pain lasting days. CHARACTER: DULL, ACHING, CONSTANT deep pelvic/perineal pain. May be SHARP with urination. AGGRAVATING: Urination, bowel movements, prolonged sitting worsen pain. RELIEVING: Urination may briefly relieve pressure but causes dysuria. Lying down may help slightly. TIMING: CONSTANT baseline pain with exacerbations during urination/defecation. SEVERITY: 6-8/10, moderate to severe. ASSOCIATED SYMPTOMS: High fever with rigors, dysuria (painful urination), urinary frequency and urgency, hesitancy, weak stream, perineal fullness. Tender, boggy prostate on exam (if performed). May have gross hematuria. KEY POSITIVES: Fever + dysuria + perineal pain, urinary symptoms, recent UTI or instrumentation. KEY NEGATIVES: Absence of fever suggests chronic prostatitis or prostatodynia."
+  },
+  "red_flags": [
+    "High fever >103°F with rigors - urosepsis risk, may need admission",
+    "Complete urinary retention - bladder outlet obstruction, needs catheter",
+    "Hypotension with fever - septic shock, call 911",
+    "Severe prostatic tenderness - prostatic abscess possible"
+  ]
+}
+

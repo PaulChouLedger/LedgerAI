@@ -69,7 +69,7 @@ class AdaptiveDiagnosticEngine:
         self.reset_assessment()
     
     def _load_guidelines(self):
-        """Load all JSON guideline files"""
+        """Load all JSON guideline files from subdirectories"""
         print(f"\n{'='*80}")
         print(f"[Engine] 📚 LOADING MEDICAL GUIDELINES")
         print(f"{'='*80}")
@@ -78,13 +78,15 @@ class AdaptiveDiagnosticEngine:
             print(f"[Engine] ❌ Directory not found: {self.guidelines_dir}")
             return
         
-        for json_file in sorted(self.guidelines_dir.glob("*.json")):
+        # Load from subdirectories (GI, GU, GYN, etc.)
+        for json_file in sorted(self.guidelines_dir.glob("**/*.json")):
             try:
                 with open(json_file, 'r') as f:
                     guideline = json.load(f)
                     name = guideline.get('condition', json_file.stem)
+                    organ_system = json_file.parent.name if json_file.parent != self.guidelines_dir else "Other"
                     self.all_guidelines[name] = guideline
-                    print(f"[Engine]   ✓ {name}")
+                    print(f"[Engine]   ✓ {organ_system}/{name}")
             except Exception as e:
                 print(f"[Engine] ⚠️ Failed to load {json_file.name}: {e}")
         
@@ -169,18 +171,24 @@ class AdaptiveDiagnosticEngine:
                 print(f"[Engine]   ... and {len(self.reserve_pool) - 5} more")
         print(f"{'='*80}\n")
         
-        # STEP 2: Use LLM to generate empathetic opening + age question
-        opening_question = self._generate_opening_question(chief_complaint)
+        # STEP 2: Generate empathetic opening statement (separate from questions)
+        opening_statement = self._generate_opening_statement(chief_complaint)
+        
+        # STEP 3: Generate age question
+        age_question = self._generate_age_question()
+        
+        # Combine them with proper spacing
+        combined_message = f"{opening_statement} {age_question}"
         
         self.conversation_history.append({
             'type': 'question',
-            'question': opening_question,
+            'question': combined_message,
             'focus': 'age'
         })
         
         return {
             'success': True,
-            'question': opening_question,
+            'question': combined_message,
             'status': 'questioning'
         }
     
@@ -546,7 +554,7 @@ Output 'yes' to accept or 'no' to reject."""
         print(f"[Engine] 📋 Questions asked: {len(asked)}")
         
         # LLM PROMPT: Generate next question using ONLY generic OLDCARTS template
-        system_msg = "You are a medical assistant. Generate ONE simple question. Output ONLY the question text, no explanations."
+        system_msg = "You are a medical assistant. Generate ONE OPEN-ENDED question that starts with How/What/Where/When/Describe. NEVER generate yes/no questions. Output ONLY the question text, no explanations."
         
         # Show OLDCARTS coverage
         covered_elements = [k for k, v in self.oldcarts_covered.items() if v]
@@ -556,42 +564,49 @@ Output 'yes' to accept or 'no' to reject."""
         # Determine next OLDCARTS element to ask about
         next_element = uncovered_elements[0] if uncovered_elements else None
         
-        # Ultra-clear prompts for each OLDCARTS element
+        # Ultra-clear prompts for each OLDCARTS element - MUST BE OPEN-ENDED
         if next_element:
             element_prompts = {
                 'L': f"""Patient has {self.chief_complaint}.
-Ask where the pain is located (be conversational, not robotic).
+Ask OPEN-ENDED question about pain location (start with Where/What).
+NEVER ask yes/no questions like "Is it on the right?"
 Example: Where exactly is the pain?
 Your question:""",
                 
                 'D': f"""Patient has {self.chief_complaint}.
-Ask how long the pain lasts or duration (be conversational).
-Example: How long does each episode last?
+Ask OPEN-ENDED question about duration/how long (start with How).
+NEVER ask yes/no questions.
+Example: How long does the pain last?
 Your question:""",
                 
                 'C': f"""Patient has {self.chief_complaint}.
-Ask about the pain quality/description (sharp, dull, stabbing, aching, burning, crampy, throbbing).
-Example: Can you describe what the pain feels like?
+Ask OPEN-ENDED question about pain quality/description (start with How/What/Describe).
+NEVER ask yes/no like "Is it sharp?"
+Example: How would you describe the pain?
 Your question:""",
                 
                 'A': f"""Patient has {self.chief_complaint}.
-Ask what makes the pain worse (aggravating factors).
-Example: What makes it worse?
+Ask OPEN-ENDED question about aggravating factors (start with What).
+NEVER ask yes/no questions.
+Example: What makes the pain worse?
 Your question:""",
                 
                 'R': f"""Patient has {self.chief_complaint}.
-Ask what makes the pain better (relieving factors).
+Ask OPEN-ENDED question about relieving factors (start with What).
+NEVER ask yes/no questions.
 Example: What helps relieve it?
 Your question:""",
                 
                 'T': f"""Patient has {self.chief_complaint}.
-Ask about timing/pattern (constant vs intermittent).
-Example: Is it constant or does it come and go?
+Ask OPEN-ENDED question about timing/pattern (start with How/When).
+NEVER ask yes/no like "Is it constant?"
+Example: How often does the pain come?
 Your question:""",
                 
                 'S': f"""Patient has {self.chief_complaint}.
-Ask about pain severity/intensity.
-Example: How bad is the pain?
+Ask OPEN-ENDED question about severity (start with How).
+NEVER ask yes/no questions.
+Example: How severe is the pain?
 Your question:"""
             }
             
@@ -1120,20 +1135,23 @@ Your question:"""
             'message': message
         }
     
-    def _generate_opening_question(self, chief_complaint: str) -> str:
+    def _generate_opening_statement(self, chief_complaint: str) -> str:
         """
-        LLM-generated opening: Show empathy and ask for age
+        LLM-generated empathetic opening statement (separate from age question)
         """
-        print(f"[Engine] 🧠 Generating LLM opening question...")
+        print(f"[Engine] 🧠 Generating LLM opening statement...")
         
-        system_msg = "You are a medical assistant. Your task: show brief empathy, then ask 'How old are you?'"
+        system_msg = "You are an empathetic medical assistant. Show brief empathy and let the patient know you'll ask questions to help determine the cause. Be conversational."
         
         user_msg = f"""Patient says: "{chief_complaint}"
 
-Output format: "[Empathy]. How old are you?"
-Example: "I'm sorry to hear that. How old are you?"
+Generate a brief empathetic statement (1-2 sentences) that:
+1. Acknowledges their concern
+2. Sets expectation of questions to help diagnose
 
-Your response:"""
+Be natural and conversational. Don't ask any questions yet.
+
+Your statement:"""
         
         try:
             response = self.llm_chat_fn(
@@ -1141,36 +1159,34 @@ Your response:"""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=25,
-                temperature=0.6
+                max_tokens=40,
+                temperature=0.7
             )
             
-            question = response.strip().strip('"\'')
+            statement = response.strip().strip('"\'')
             
-            # Ensure it ends with the age question
-            if 'how old' not in question.lower():
-                # Force it if LLM didn't follow instructions
-                question = f"I understand. How old are you?"
+            # Ensure proper ending
+            if not statement.endswith('.') and not statement.endswith('!'):
+                statement += '.'
             
-            if not question.endswith('?'):
-                question += '?'
-            
-            print(f"[Engine] ✅ Opening: '{question}'")
-            return question
+            print(f"[Engine] ✅ Opening: '{statement}'")
+            return statement
         
         except Exception as e:
-            print(f"[Engine] ❌ Opening generation failed: {e}")
-            raise RuntimeError(f"Opening question generation failed: {e}")
+            print(f"[Engine] ❌ Opening statement generation failed: {e}")
+            raise RuntimeError(f"Opening statement generation failed: {e}")
     
-    def _generate_sex_question(self) -> str:
+    def _generate_age_question(self) -> str:
         """
-        LLM-generated sex question
+        LLM-generated age question (flexible, conversational)
         """
-        print(f"[Engine] 🧠 Generating LLM sex question...")
+        print(f"[Engine] 🧠 Generating LLM age question...")
         
-        system_msg = "You are a medical assistant. Ask for biological sex (male/female). Output ONE question only."
+        system_msg = "You are a medical assistant. Ask for the patient's age naturally and conversationally."
         
-        user_msg = """Your question:"""
+        user_msg = """Generate ONE question asking for age. Be natural.
+
+Your question:"""
         
         try:
             response = self.llm_chat_fn(
@@ -1179,7 +1195,42 @@ Your response:"""
                     {"role": "user", "content": user_msg}
                 ],
                 max_tokens=15,
-                temperature=0.4
+                temperature=0.7
+            )
+            
+            question = response.strip().strip('"\'')
+            
+            # Ensure it ends with ?
+            if not question.endswith('?'):
+                question += '?'
+            
+            print(f"[Engine] ✅ Age question: '{question}'")
+            return question
+        
+        except Exception as e:
+            print(f"[Engine] ❌ Age question generation failed: {e}")
+            raise RuntimeError(f"Age question generation failed: {e}")
+    
+    def _generate_sex_question(self) -> str:
+        """
+        LLM-generated sex question (flexible, conversational)
+        """
+        print(f"[Engine] 🧠 Generating LLM sex question...")
+        
+        system_msg = "You are a medical assistant. Ask for biological sex naturally and conversationally. Keep it simple - male or female."
+        
+        user_msg = """Generate ONE question asking for biological sex. Be natural.
+
+Your question:"""
+        
+        try:
+            response = self.llm_chat_fn(
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=20,
+                temperature=0.7
             )
             
             question = response.strip().strip('"\'')
