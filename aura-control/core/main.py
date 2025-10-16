@@ -535,6 +535,65 @@ def focus_gui_window():
         print(f"[Aura] ⚠️  Window focus warning: {e}")
 
 # === Auto-Convert New Medical Guidelines ===
+def check_for_new_guidelines_quick():
+    """
+    Quick check if new guidelines exist (doesn't convert)
+    Returns True if new JSONs found, False otherwise
+    """
+    try:
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+        guidelines_dir = os.path.join(workspace_root, 'llm-container', 'medical', 'guidelines')
+        output_dir = os.path.join(workspace_root, 'data', 'input')
+        
+        if not os.path.exists(guidelines_dir):
+            return False
+        
+        json_files = [f for f in os.listdir(guidelines_dir) if f.endswith('.json')]
+        
+        if not json_files:
+            return False
+        
+        # Check for any missing RAG files
+        for json_file in json_files:
+            txt_filename = f"GUIDELINE_{json_file.replace('.json', '.txt')}"
+            txt_path = os.path.join(output_dir, txt_filename)
+            
+            if not os.path.exists(txt_path):
+                return True  # Found at least one new guideline
+        
+        return False  # All guidelines already converted
+    
+    except Exception as e:
+        print(f"[Aura] ⚠️ Error checking guidelines: {e}")
+        return False
+
+
+def convert_and_rebuild_guidelines():
+    """Convert new guidelines and rebuild embeddings (runs in background)"""
+    # Wait a few seconds for containers to start first
+    time.sleep(5)
+    
+    print("[Aura] 🔄 Starting background guideline conversion...")
+    check_and_convert_new_guidelines()
+    
+    # Trigger RAG reload after embeddings rebuilt
+    try:
+        import requests
+        print("[Aura] 🔄 Triggering RAG reload with new guidelines...")
+        response = requests.post("http://localhost:11435/rag/reload", timeout=10)
+        
+        if response.status_code == 200:
+            result = response.json()
+            total_chunks = result.get('total_chunks', 0)
+            print(f"[Aura] ✅ RAG reloaded: {total_chunks} total chunks now available")
+        else:
+            print(f"[Aura] ⚠️ RAG reload failed: HTTP {response.status_code}")
+    
+    except Exception as e:
+        print(f"[Aura] ⚠️ Could not reload RAG: {e}")
+        print(f"[Aura] 💡 New guidelines will be available after restart")
+
+
 def check_and_convert_new_guidelines():
     """
     Check if new medical guidelines (JSON) have been added and auto-convert to RAG format
@@ -659,12 +718,22 @@ def main():
     else:
         print("[Aura] ⚠️  GUI ready timeout - continuing anyway")
 
-    # Check for new medical guidelines and auto-convert if needed
-    check_and_convert_new_guidelines()
-    
-    # Start TTS warm-up and services in background while GUI is visible
+    # Start TTS warm-up FIRST (fast, shows system is responsive)
     warm_up_tts()
-    threading.Thread(target=start_services, daemon=True).start()
+    
+    # Check for new medical guidelines (but don't rebuild embeddings yet if found)
+    # This is quick - just checks if new JSONs exist
+    new_guidelines_exist = check_for_new_guidelines_quick()
+    
+    if new_guidelines_exist:
+        print("[Aura] 📋 New medical guidelines detected - will process in background")
+        # Start services first (user can interact immediately)
+        threading.Thread(target=start_services, daemon=True).start()
+        # Convert and rebuild in background
+        threading.Thread(target=convert_and_rebuild_guidelines, daemon=True).start()
+    else:
+        # No new guidelines - start immediately
+        threading.Thread(target=start_services, daemon=True).start()
     
     # Bring GUI to front after launch
     threading.Thread(target=focus_gui_window, daemon=True).start()
