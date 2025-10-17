@@ -262,7 +262,7 @@ class AuraGUI(QMainWindow):
         
         # Pass self as parent so dialog appears on top properly
         print("[AuraGUI] 📂 Showing upload dialog...")
-        from file_upload_dialog import FileUploadDialog
+        from gui.file_upload_dialog import FileUploadDialog
         
         # Create and show dialog with this window as parent
         dialog = FileUploadDialog(parent=self)
@@ -296,7 +296,7 @@ class AuraGUI(QMainWindow):
             print("[AuraGUI] ⚠️ Could not import listener blocking functions")
         
         try:
-            from wallet_dialog import WalletDialog
+            from gui.wallet_dialog import WalletDialog
 
             # Create and show wallet dialog (modal, like upload dialog)
             dialog = WalletDialog(parent=self)

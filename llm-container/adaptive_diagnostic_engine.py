@@ -333,21 +333,53 @@ class AdaptiveDiagnosticEngine:
             }
         
         elif last_q.get('focus') == 'sex':
-            # Extract sex - use simple keyword matching first, then LLM fallback
+            # Extract sex - use keyword matching with fuzzy tolerance for typos
             print(f"[Engine] 🔍 Extracting sex from answer: '{user_answer}'")
             
             answer_lower = user_answer.lower()
-            words = answer_lower.split()
+            # Strip punctuation and split into words
+            import string
+            cleaned = answer_lower.translate(str.maketrans('', '', string.punctuation))
+            words = cleaned.split()
             
             # Check for explicit sex words (standalone)
             male_words = {'male', 'man', 'boy', 'guy'}
             female_words = {'female', 'woman', 'girl', 'lady'}
             
-            # Fast keyword check
+            # Fast exact keyword check first
             if any(word in male_words for word in words):
                 self.demographics['sex'] = 'male'
             elif any(word in female_words for word in words):
                 self.demographics['sex'] = 'female'
+            else:
+                # Fuzzy match for typos (e.g., "femal", "mal", "womann")
+                def char_similarity(word, target):
+                    """Simple character overlap similarity (0-1)"""
+                    if len(word) == 0 or len(target) == 0:
+                        return 0.0
+                    # Count matching characters in order
+                    matches = sum(1 for a, b in zip(word, target) if a == b)
+                    # Normalize by average length
+                    avg_len = (len(word) + len(target)) / 2
+                    return matches / avg_len if avg_len > 0 else 0.0
+                
+                # Check each word for fuzzy match (>80% similarity)
+                for word in words:
+                    if len(word) >= 3:  # Only check words with 3+ chars
+                        for male_word in male_words:
+                            if char_similarity(word, male_word) > 0.80:
+                                self.demographics['sex'] = 'male'
+                                print(f"[Engine] 🔍 Fuzzy match: '{word}' → '{male_word}' ({char_similarity(word, male_word):.2f})")
+                                break
+                        
+                        for female_word in female_words:
+                            if char_similarity(word, female_word) > 0.80:
+                                self.demographics['sex'] = 'female'
+                                print(f"[Engine] 🔍 Fuzzy match: '{word}' → '{female_word}' ({char_similarity(word, female_word):.2f})")
+                                break
+                        
+                        if 'sex' in self.demographics:
+                            break
             
             print(f"[Engine] 👤 Sex: {self.demographics.get('sex', 'unknown')}")
             
