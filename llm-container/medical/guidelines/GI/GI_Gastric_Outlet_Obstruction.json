@@ -2,6 +2,7 @@
   "condition": "Gastric Outlet Obstruction",
   "icd10": "K31.1",
   "snomed": "29468003",
+  "sex": "both",
   "prevalence": "uncommon",
   "chief_complaint_triggers": [
     "abdominal pain",
@@ -23,4 +24,3 @@
     "Severe electrolyte imbalances - hypochloremic, hypokalemic alkalosis"
   ]
 }
-

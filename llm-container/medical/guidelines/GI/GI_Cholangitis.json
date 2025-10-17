@@ -2,6 +2,7 @@
   "condition": "Acute Cholangitis",
   "icd10": "K83.09",
   "snomed": "82403002",
+  "sex": "both",
   "prevalence": "uncommon",
   "chief_complaint_triggers": [
     "abdominal pain",
@@ -19,8 +20,7 @@
   "red_flags": [
     "Hypotension with fever and RUQ pain - septic shock, call 911",
     "Altered mental status with fever and jaundice - severe sepsis, call 911",
-    "Rigors (shaking chills) with high fever >103°F - bacteremia",
+    "Rigors (shaking chills) with high fever >103\u00b0F - bacteremia",
     "Progressive jaundice with confusion - hepatic encephalopathy risk"
   ]
 }
-

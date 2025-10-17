@@ -2,6 +2,7 @@
   "condition": "Biliary Colic",
   "icd10": "K80.20",
   "snomed": "235856003",
+  "sex": "both",
   "prevalence": "common",
   "chief_complaint_triggers": [
     "abdominal pain",

@@ -2,6 +2,7 @@
   "condition": "Ovarian Torsion",
   "icd10": "N83.51",
   "snomed": "51363008",
+  "sex": "female",
   "prevalence": "rare",
   "chief_complaint_triggers": [
     "abdominal pain",

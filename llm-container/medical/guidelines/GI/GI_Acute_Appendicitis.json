@@ -2,6 +2,7 @@
   "condition": "Acute Appendicitis",
   "icd10": "K35.80",
   "snomed": "85189001",
+  "sex": "both",
   "prevalence": "common",
   "chief_complaint_triggers": [
     "abdominal pain",
@@ -13,7 +14,7 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within 6-48 hours (acute, NOT chronic). LOCATION: Pain MIGRATES from periumbilical to right lower quadrant (RLQ) over 12-24 hours - highly specific migration pattern. Localizes to McBurney's point in RLQ. DURATION: CONSTANT pain lasting hours to days (not episodic). CHARACTER: SHARP and CONSTANT (NOT crampy or intermittent). AGGRAVATING: WORSENS WITH MOVEMENT - patients can't jump, cough, or tolerate car bumps. Lying still required. RELIEVING: Lying motionless provides slight relief. NOTHING fully relieves pain. Movement worsens it. TIMING: CONSTANT and progressively worsening over time (not waves). SEVERITY: 7-10/10, moderate to severe. ASSOCIATED SYMPTOMS: ANOREXIA in >90% (ask 'are you hungry?' - 'yes' makes appendicitis unlikely), nausea and vomiting (AFTER pain onset), low-grade fever (100-102°F). KEY POSITIVES: Anorexia, RLQ tenderness, periumbilical→RLQ migration. KEY NEGATIVES: Pain starting in RLQ without migration is less typical. CRAMPY pain suggests obstruction. PROFUSE WATERY DIARRHEA suggests gastroenteritis. High fever >103°F suggests perforation."
+    "classic_presentation": "ONSET: SUDDEN onset within 6-48 hours (acute, NOT chronic). LOCATION: Pain MIGRATES from periumbilical to right lower quadrant (RLQ) over 12-24 hours - highly specific migration pattern. Localizes to McBurney's point in RLQ. DURATION: CONSTANT pain lasting hours to days (not episodic). CHARACTER: SHARP and CONSTANT (NOT crampy or intermittent). AGGRAVATING: WORSENS WITH MOVEMENT - patients can't jump, cough, or tolerate car bumps. Lying still required. RELIEVING: Lying motionless provides slight relief. NOTHING fully relieves pain. Movement worsens it. TIMING: CONSTANT and progressively worsening over time (not waves). SEVERITY: 7-10/10, moderate to severe. ASSOCIATED SYMPTOMS: ANOREXIA in >90% (ask 'are you hungry?' - 'yes' makes appendicitis unlikely), nausea and vomiting (AFTER pain onset), low-grade fever (100-102\u00b0F). KEY POSITIVES: Anorexia, RLQ tenderness, periumbilical\u2192RLQ migration. KEY NEGATIVES: Pain starting in RLQ without migration is less typical. CRAMPY pain suggests obstruction. PROFUSE WATERY DIARRHEA suggests gastroenteritis. High fever >103\u00b0F suggests perforation."
   },
   "red_flags": [
     "Sudden severe pain that then improves briefly - may indicate PERFORATION",

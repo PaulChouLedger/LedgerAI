@@ -1397,35 +1397,60 @@ def show_current_settings():
 
 def led_off():
     """Turn off all LEDs on ReSpeaker"""
-    import usb.core
-    
-    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
-    if usb_dev is None:
-        print("\n  ❌ ReSpeaker USB device not found")
-        return False
-    
     print("\n" + "="*80)
     print("  💡 LED CONTROL: Turn Off")
     print("="*80 + "\n")
     
     try:
-        # Send command to turn off LEDs (mono mode with all zeros)
-        # Command format: [cmd, data0, data1, data2, data3]
-        usb_dev.ctrl_transfer(
-            0x40,           # bmRequestType
-            0xAE,           # bRequest (custom command)
-            0x0001,         # wValue (command: mono mode)
-            0x0000,         # wIndex
-            [0, 0, 0, 0]    # data: all LEDs off (R=0, G=0, B=0)
-        )
-        print("  ✅ LEDs turned OFF")
+        # Try to use pixel_ring library if available
+        try:
+            from pixel_ring import pixel_ring
+            pixel_ring.off()
+            print("  ✅ LEDs turned OFF (using pixel_ring library)")
+            print("\n  All 12 RGB LEDs are now disabled.")
+            print("  This reduces power consumption by ~10mA.\n")
+            print("="*80 + "\n")
+            return True
+        except ImportError:
+            print("  ⚠️  pixel_ring library not found, using USB control transfer...\n")
+        
+        # Fallback: Use USB control transfer directly
+        import usb.core
+        
+        usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+        if usb_dev is None:
+            print("  ❌ ReSpeaker USB device not found")
+            return False
+        
+        # ReSpeaker LED control uses HID protocol
+        # Command 1 = mono mode: set all LEDs to single color
+        # Data: [red, green, blue, 0] where 0,0,0 = off
+        data = [0] * 4  # All zeros = LEDs off
+        
+        # Try to write to the device using different methods
+        try:
+            # Method 1: Try HID write
+            usb_dev.write(0x02, [1] + data, 100)  # endpoint 0x02, command 1 (mono)
+        except:
+            try:
+                # Method 2: Try control transfer
+                usb_dev.ctrl_transfer(0x21, 0x09, 0x0201, 0x0000, [1] + data)
+            except Exception as e2:
+                print(f"  ❌ Failed to control LEDs: {e2}")
+                print("\n  💡 Install pixel_ring library for better LED control:")
+                print("     sudo pip install pixel-ring")
+                print("     git clone https://github.com/respeaker/pixel_ring.git")
+                print("     cd pixel_ring && sudo python setup.py install\n")
+                print("="*80 + "\n")
+                return False
+        
+        print("  ✅ LEDs turned OFF (using USB control)")
         print("\n  All 12 RGB LEDs are now disabled.")
         print("  This reduces power consumption by ~10mA.\n")
         
     except Exception as e:
-        print(f"  ❌ Failed to control LEDs: {e}")
-        print("  Note: LED control uses USB control transfers")
-        print("  Make sure you have permissions (run with sudo)\n")
+        print(f"  ❌ Failed to control LEDs: {e}\n")
+        print("="*80 + "\n")
         return False
     
     print("="*80 + "\n")

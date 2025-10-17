@@ -2,6 +2,7 @@
   "condition": "Inflammatory Bowel Disease Flare (Crohn's/Ulcerative Colitis)",
   "icd10": "K50.90",
   "snomed": "34000006",
+  "sex": "both",
   "prevalence": "uncommon",
   "chief_complaint_triggers": [
     "abdominal pain",

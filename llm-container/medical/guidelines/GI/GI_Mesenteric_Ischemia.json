@@ -2,6 +2,7 @@
   "condition": "Acute Mesenteric Ischemia",
   "icd10": "K55.059",
   "snomed": "61490001",
+  "sex": "both",
   "prevalence": "rare",
   "chief_complaint_triggers": [
     "abdominal pain",

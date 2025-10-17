@@ -2,6 +2,7 @@
   "condition": "Small Bowel Obstruction",
   "icd10": "K56.60",
   "snomed": "81060008",
+  "sex": "both",
   "prevalence": "uncommon",
   "chief_complaint_triggers": [
     "abdominal pain",

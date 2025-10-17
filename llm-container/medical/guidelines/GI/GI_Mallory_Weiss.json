@@ -2,6 +2,7 @@
   "condition": "Mallory-Weiss Tear",
   "icd10": "K22.6",
   "snomed": "29502009",
+  "sex": "both",
   "prevalence": "uncommon",
   "chief_complaint_triggers": [
     "vomiting blood",
@@ -21,4 +22,3 @@
     "Known liver disease or varices - higher risk of severe bleeding"
   ]
 }
-

@@ -55,6 +55,7 @@ Each guideline is a JSON file with:
 - `condition`: Full condition name
 - `icd10`: ICD-10 code
 - `snomed`: SNOMED CT code
+- `sex`: male / female / both (for filtering by patient's biological sex)
 - `prevalence`: common / uncommon / rare
 - `chief_complaint_triggers`: Keywords that match this condition
 - `urgency`: emergent / urgent / routine

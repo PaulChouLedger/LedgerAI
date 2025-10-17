@@ -2,6 +2,7 @@
   "condition": "Sigmoid Volvulus",
   "icd10": "K56.2",
   "snomed": "82403008",
+  "sex": "both",
   "prevalence": "rare",
   "chief_complaint_triggers": [
     "abdominal pain",
@@ -23,4 +24,3 @@
     "Bloody or dark red stools - mucosal ischemia"
   ]
 }
-

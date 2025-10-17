@@ -2,6 +2,7 @@
   "condition": "Pelvic Inflammatory Disease (PID)",
   "icd10": "N73.9",
   "snomed": "198130006",
+  "sex": "female",
   "prevalence": "common",
   "chief_complaint_triggers": [
     "pelvic pain",
@@ -21,4 +22,3 @@
     "Hypotension or sepsis - ruptured tubo-ovarian abscess, call 911"
   ]
 }
-

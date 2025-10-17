@@ -2,6 +2,7 @@
   "condition": "Cecal Volvulus",
   "icd10": "K56.2",
   "snomed": "235753000",
+  "sex": "both",
   "prevalence": "rare",
   "chief_complaint_triggers": [
     "abdominal pain",
@@ -22,4 +23,3 @@
     "Bloody diarrhea - mucosal ischemia"
   ]
 }
-

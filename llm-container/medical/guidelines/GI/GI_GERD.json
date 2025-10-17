@@ -2,6 +2,7 @@
   "condition": "GERD (Gastroesophageal Reflux Disease)",
   "icd10": "K21.9",
   "snomed": "235595009",
+  "sex": "both",
   "prevalence": "uncommon",
   "chief_complaint_triggers": [
     "heartburn",

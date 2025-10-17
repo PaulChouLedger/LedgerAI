@@ -2,6 +2,7 @@
   "condition": "Perforated Viscus (Perforated Ulcer/Bowel)",
   "icd10": "K63.1",
   "snomed": "840580004",
+  "sex": "both",
   "prevalence": "rare",
   "chief_complaint_triggers": [
     "abdominal pain",

@@ -2,6 +2,7 @@
   "condition": "Ectopic Pregnancy",
   "icd10": "O00.90",
   "snomed": "34801009",
+  "sex": "female",
   "prevalence": "rare",
   "chief_complaint_triggers": [
     "abdominal pain",

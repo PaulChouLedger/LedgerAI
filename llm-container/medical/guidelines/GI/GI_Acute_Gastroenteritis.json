@@ -2,6 +2,7 @@
   "condition": "Acute Gastroenteritis",
   "icd10": "K52.9",
   "snomed": "25374005",
+  "sex": "both",
   "prevalence": "common",
   "chief_complaint_triggers": [
     "abdominal pain",

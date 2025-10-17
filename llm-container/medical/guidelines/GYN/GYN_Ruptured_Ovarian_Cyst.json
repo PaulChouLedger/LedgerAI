@@ -2,6 +2,7 @@
   "condition": "Ruptured Ovarian Cyst",
   "icd10": "N83.20",
   "snomed": "11489009",
+  "sex": "female",
   "prevalence": "uncommon",
   "chief_complaint_triggers": [
     "abdominal pain",

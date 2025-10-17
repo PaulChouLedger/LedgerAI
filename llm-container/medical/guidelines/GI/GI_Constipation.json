@@ -2,6 +2,7 @@
   "condition": "Severe Constipation",
   "icd10": "K59.00",
   "snomed": "14760008",
+  "sex": "both",
   "prevalence": "uncommon",
   "chief_complaint_triggers": [
     "abdominal pain",

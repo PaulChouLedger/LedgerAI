@@ -2,6 +2,7 @@
   "condition": "Peptic Ulcer Disease",
   "icd10": "K27.9",
   "snomed": "13200003",
+  "sex": "both",
   "prevalence": "common",
   "chief_complaint_triggers": [
     "abdominal pain",

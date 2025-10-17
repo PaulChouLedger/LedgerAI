@@ -2,6 +2,7 @@
   "condition": "Testicular Torsion",
   "icd10": "N44.00",
   "snomed": "59952004",
+  "sex": "male",
   "prevalence": "rare",
   "chief_complaint_triggers": [
     "testicular pain",
@@ -22,4 +23,3 @@
     "Nausea/vomiting with testicular pain - torsion until proven otherwise"
   ]
 }
-

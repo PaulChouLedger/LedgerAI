@@ -2,6 +2,7 @@
   "condition": "Acute Hepatitis",
   "icd10": "K72.00",
   "snomed": "37871000",
+  "sex": "both",
   "prevalence": "rare",
   "chief_complaint_triggers": [
     "abdominal pain",

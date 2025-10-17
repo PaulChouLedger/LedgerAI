@@ -369,6 +369,10 @@ Examples:
             
             print(f"[Engine] 👤 Sex: {self.demographics.get('sex', 'unknown')}")
             
+            # FILTER guidelines by sex NOW that we know it
+            if 'sex' in self.demographics:
+                self._filter_by_gender()
+            
             # VALIDATION: If sex is still unknown, re-ask using LLM
             if 'sex' not in self.demographics:
                 print(f"[Engine] ⚠️ Invalid answer - re-asking for sex")
@@ -510,6 +514,62 @@ Output 'yes' to accept or 'no' to reject."""
         
         return is_valid
     
+    def _filter_by_gender(self):
+        """
+        Filter active and reserve pools based on patient's biological sex.
+        Called AFTER sex is collected.
+        Uses 'sex' field from guideline JSON: 'male', 'female', or 'both'
+        """
+        patient_sex = self.demographics.get('sex')
+        if not patient_sex:
+            return
+        
+        print(f"\n[Engine] 🚺🚹 GENDER FILTERING (patient is {patient_sex})...")
+        
+        excluded_count = 0
+        
+        # Filter active guidelines
+        filtered_active = []
+        for g in self.active_guidelines:
+            guideline_sex = g['data'].get('sex', 'both')
+            
+            # Skip if guideline is sex-specific and doesn't match patient
+            if guideline_sex != 'both' and guideline_sex != patient_sex:
+                print(f"[Engine]   ⛔ Excluding {g['name']} from active (requires {guideline_sex}, patient is {patient_sex})")
+                excluded_count += 1
+                continue
+            
+            filtered_active.append(g)
+        
+        # Filter reserve pool
+        filtered_reserve = []
+        for g in self.reserve_pool:
+            guideline_sex = g['data'].get('sex', 'both')
+            
+            # Skip if guideline is sex-specific and doesn't match patient
+            if guideline_sex != 'both' and guideline_sex != patient_sex:
+                print(f"[Engine]   ⛔ Excluding {g['name']} from reserve (requires {guideline_sex}, patient is {patient_sex})")
+                excluded_count += 1
+                continue
+            
+            filtered_reserve.append(g)
+        
+        self.active_guidelines = filtered_active
+        self.reserve_pool = filtered_reserve
+        
+        # Promote from reserve if active is now < MAX_ACTIVE
+        while len(self.active_guidelines) < self.MAX_ACTIVE and len(self.reserve_pool) > 0:
+            self.reserve_pool.sort(key=lambda x: x['score'], reverse=True)
+            next_condition = self.reserve_pool.pop(0)
+            self.active_guidelines.append(next_condition)
+            print(f"[Engine]   🔼 PROMOTING: {next_condition['name']} to active after filtering")
+        
+        self.active_guidelines.sort(key=lambda x: x['score'], reverse=True)
+        
+        print(f"[Engine] ✅ Excluded {excluded_count} sex-specific conditions")
+        print(f"[Engine] 🔄 After filtering: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}")
+        print(f"{'='*80}\n")
+    
     def _match_to_guidelines(self, complaint: str) -> List[Dict]:
         """
         Match chief complaint to guidelines
@@ -547,31 +607,8 @@ Output 'yes' to accept or 'no' to reject."""
                     print(f"[Engine]   ✓ {name} (trigger: '{trigger}', prevalence: {prevalence}, initial: {initial_score:.0%})")
                     break
         
-        # GENDER FILTERING: Remove sex-specific conditions
-        patient_sex = self.demographics.get('sex')
-        if patient_sex:
-            gyn_keywords = ['ectopic', 'ovarian', 'pelvic inflammatory', 'pid']
-            male_gu_keywords = ['testicular', 'prostatitis', 'prostate']
-            
-            filtered_matched = []
-            for m in matched:
-                name_lower = m['name'].lower()
-                
-                # If male, skip GYN conditions
-                if patient_sex == 'male' and any(keyword in name_lower for keyword in gyn_keywords):
-                    print(f"[Engine]   ⛔ Excluding {m['name']} (patient is male)")
-                    continue
-                
-                # If female, skip male-specific GU conditions
-                if patient_sex == 'female' and any(keyword in name_lower for keyword in male_gu_keywords):
-                    print(f"[Engine]   ⛔ Excluding {m['name']} (patient is female)")
-                    continue
-                
-                filtered_matched.append(m)
-            
-            matched = filtered_matched
-        
         # PREVALENCE-FIRST sorting with urgency boost
+        # NOTE: Gender filtering happens AFTER sex is collected (see _filter_by_gender)
         # Goal: Common urgent (appendicitis) BEFORE rare emergent (ectopic)
         # But emergent conditions get a boost to stay competitive
         
@@ -590,12 +627,11 @@ Output 'yes' to accept or 'no' to reject."""
         matched.sort(key=lambda x: -x['combined_score'])
         
         print(f"\n[Engine] 📊 SORTED BY COMBINED SCORE (prevalence + urgency boost):")
-        for i, m in enumerate(matched[:10], 1):  # Show top 10
+        print(f"[Engine] 📋 Total matched: {len(matched)} conditions")
+        for i, m in enumerate(matched, 1):  # Show ALL
             urgency = m['data'].get('urgency', 'routine')
             prevalence = m['data'].get('prevalence', 'uncommon')
             print(f"[Engine]   {i}. {m['name']} ({prevalence}, {urgency}, combined: {m['combined_score']:.0%})")
-        if len(matched) > 10:
-            print(f"[Engine]   ... and {len(matched) - 10} more")
         
         return matched
     
@@ -856,14 +892,19 @@ Output 'yes' to accept or 'no' to reject."""
             return self._ask_next_clinical_question()
         
         # FOR EACH GUIDELINE: Score using VECTOR SIMILARITY
+        # IMPORTANT: Score ALL guidelines (active + reserve) so we can re-rank dynamically
         print(f"\n[Engine] 🎯 SEMANTIC SIMILARITY SCORING:\n")
         
         if not self.embedding_model:
             raise RuntimeError("Embedding model not initialized - cannot compute similarity")
         
         print(f"[Engine] 📊 Matching answer to OLDCARTS element: {oldcarts_element}")
+        print(f"[Engine] 📋 Scoring ALL {len(self.active_guidelines) + len(self.reserve_pool)} guidelines (active + reserve)\n")
         
-        for g in self.active_guidelines:
+        # Combine active + reserve for scoring
+        all_guidelines = self.active_guidelines + self.reserve_pool
+        
+        for g in all_guidelines:
             classic = g['data'].get('key_features', {}).get('classic_presentation', '')
             
             # Extract the specific OLDCARTS section for this element
@@ -886,32 +927,42 @@ Output 'yes' to accept or 'no' to reject."""
             print(f"[Engine]     Similarity: {similarity:.2f} to {oldcarts_element} section")
             print(f"[Engine]     Section: {oldcarts_section[:80]}...")
         
-        # ROLLING REPLACEMENT: Rule out low-scoring guidelines and promote from reserve
+        # DYNAMIC RE-RANKING: Sort ALL guidelines by updated scores
+        # This ensures conditions like Diverticulitis (LLQ) jump to top when "left side" is mentioned
+        print(f"\n[Engine] 🔄 RE-RANKING all guidelines by updated scores...")
+        
+        # First, rule out any with score < threshold
         ruled_out_this_round = []
-        for g in list(self.active_guidelines):  # Use list() to avoid modification during iteration
+        remaining = []
+        for g in all_guidelines:
             if g['score'] < self.RULE_OUT_THRESHOLD:
-                print(f"[Engine] ❌ RULING OUT: {g['name']} (score {g['score']:.0%} < {self.RULE_OUT_THRESHOLD:.0%})")
-                self.active_guidelines.remove(g)
-                self.ruled_out.append(g)
-                ruled_out_this_round.append(g)
+                if g not in self.ruled_out:  # Avoid duplicates
+                    print(f"[Engine] ❌ RULING OUT: {g['name']} (score {g['score']:.0%} < {self.RULE_OUT_THRESHOLD:.0%})")
+                    self.ruled_out.append(g)
+                    ruled_out_this_round.append(g)
+            else:
+                remaining.append(g)
         
-        # Promote from reserve to maintain MAX_ACTIVE
-        # PRIORITIZE BY PREVALENCE: common conditions before rare ones
-        promoted_this_round = []
-        while len(self.active_guidelines) < self.MAX_ACTIVE and len(self.reserve_pool) > 0:
-            # Sort reserve pool by prevalence (higher score = more common)
-            # This ensures common conditions are considered before rare ones
-            self.reserve_pool.sort(key=lambda x: x['score'], reverse=True)
-            
-            # Take the highest-prevalence condition
-            next_condition = self.reserve_pool.pop(0)
-            prevalence = next_condition['data'].get('prevalence', 'uncommon')
-            self.active_guidelines.append(next_condition)
-            promoted_this_round.append(next_condition)
-            print(f"[Engine] 🔼 PROMOTING: {next_condition['name']} ({prevalence}, score: {next_condition['score']:.0%}) from reserve")
+        # Sort remaining by score (highest first)
+        remaining.sort(key=lambda x: x['score'], reverse=True)
         
-        # RE-RANK by score
-        self.active_guidelines.sort(key=lambda x: x['score'], reverse=True)
+        # Split into active (top MAX_ACTIVE) and reserve (rest)
+        self.active_guidelines = remaining[:self.MAX_ACTIVE]
+        self.reserve_pool = remaining[self.MAX_ACTIVE:]
+        
+        # Track promotions and demotions for logging
+        promoted_this_round = [g for g in self.active_guidelines if g not in [item for item in all_guidelines[:self.MAX_ACTIVE]]]
+        demoted_this_round = [g for g in self.reserve_pool if g in [item for item in all_guidelines[:self.MAX_ACTIVE]]]
+        
+        if promoted_this_round:
+            print(f"\n[Engine] 🔼 PROMOTED to active:")
+            for g in promoted_this_round:
+                print(f"[Engine]   ↑ {g['name']} (score: {g['score']:.0%})")
+        
+        if demoted_this_round:
+            print(f"\n[Engine] 🔽 DEMOTED to reserve:")
+            for g in demoted_this_round:
+                print(f"[Engine]   ↓ {g['name']} (score: {g['score']:.0%})")
         
         print(f"\n[Engine] 📊 UPDATED RANKINGS:")
         for i, g in enumerate(self.active_guidelines, 1):

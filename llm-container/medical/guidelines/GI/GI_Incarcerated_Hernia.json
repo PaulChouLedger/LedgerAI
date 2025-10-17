@@ -2,6 +2,7 @@
   "condition": "Incarcerated Inguinal/Femoral Hernia",
   "icd10": "K40.30",
   "snomed": "236477004",
+  "sex": "both",
   "prevalence": "uncommon",
   "chief_complaint_triggers": [
     "groin pain",
@@ -22,4 +23,3 @@
     "Sudden relief of pain - possible bowel perforation, call 911"
   ]
 }
-
