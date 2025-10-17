@@ -578,34 +578,69 @@ Output 'yes' to accept or 'no' to reject."""
             List of matched guidelines with initial scores, sorted by relevance
         """
         complaint_lower = complaint.lower()
+        
+        # Extract core symptom by removing common filler words
+        # This allows "I have abdominal pain" to match "lower abdominal pain"
+        filler_words = ['i', 'have', 'my', 'the', 'a', 'an', 'is', 'am', 'feel', 'feeling']
+        symptom_words = [w for w in complaint_lower.split() if w not in filler_words]
+        core_symptom = ' '.join(symptom_words)
+        
         matched = []
         
         print(f"\n[Engine] 🔍 MATCHING TO GUIDELINES...")
+        print(f"[Engine] 📋 Core symptom extracted: '{core_symptom}'")
         
         for name, guideline in self.all_guidelines.items():
             triggers = guideline.get('chief_complaint_triggers', [])
             
-            # Check if any trigger matches
+            # Check if any trigger matches using HYBRID approach
+            matched_trigger = None
+            match_type = None
+            
             for trigger in triggers:
-                if trigger.lower() in complaint_lower:
-                    # Initial score based on PREVALENCE from guideline JSON
-                    prevalence = guideline.get('prevalence', 'uncommon')
-                    
-                    prevalence_scores = {
-                        'common': 0.60,    # Frequent conditions
-                        'uncommon': 0.50,  # Moderate frequency
-                        'rare': 0.40       # Low frequency but important
-                    }
-                    
-                    initial_score = prevalence_scores.get(prevalence, 0.50)
-                    
-                    matched.append({
-                        'name': name,
-                        'score': initial_score,
-                        'data': guideline
-                    })
-                    print(f"[Engine]   ✓ {name} (trigger: '{trigger}', prevalence: {prevalence}, initial: {initial_score:.0%})")
+                trigger_lower = trigger.lower()
+                
+                # FAST PATH: Exact keyword matching
+                # 1. Exact: trigger in complaint (e.g., "chest pain" in "I have chest pain")
+                if trigger_lower in complaint_lower:
+                    matched_trigger = trigger
+                    match_type = "exact"
                     break
+                
+                # 2. Subset: core symptom in trigger (e.g., "abdominal pain" in "lower abdominal pain")
+                if core_symptom in trigger_lower:
+                    matched_trigger = trigger
+                    match_type = "subset"
+                    break
+            
+            # SEMANTIC PATH: Use embeddings for fuzzy/synonym matching
+            # Handles typos ("abdomnal pain"), synonyms ("belly pain" = "abdominal pain")
+            if not matched_trigger and self.embedding_model:
+                for trigger in triggers:
+                    similarity = self._compute_similarity(core_symptom, trigger)
+                    if similarity > 0.70:  # Semantic threshold
+                        matched_trigger = trigger
+                        match_type = f"semantic ({similarity:.2f})"
+                        break
+            
+            if matched_trigger:
+                # Initial score based on PREVALENCE from guideline JSON
+                prevalence = guideline.get('prevalence', 'uncommon')
+                
+                prevalence_scores = {
+                    'common': 0.60,    # Frequent conditions
+                    'uncommon': 0.50,  # Moderate frequency
+                    'rare': 0.40       # Low frequency but important
+                }
+                
+                initial_score = prevalence_scores.get(prevalence, 0.50)
+                
+                matched.append({
+                    'name': name,
+                    'score': initial_score,
+                    'data': guideline
+                })
+                print(f"[Engine]   ✓ {name} (trigger: '{matched_trigger}', match: {match_type}, prevalence: {prevalence}, initial: {initial_score:.0%})")
         
         # PREVALENCE-FIRST sorting with urgency boost
         # NOTE: Gender filtering happens AFTER sex is collected (see _filter_by_gender)
