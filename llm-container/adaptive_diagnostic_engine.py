@@ -745,6 +745,18 @@ class AdaptiveDiagnosticEngine:
         
         print(f"\n[Engine] 🔍 MATCHING TO GUIDELINES...")
         print(f"[Engine] 📋 Core symptom extracted: '{core_symptom}'")
+        print(f"[Engine] 🎯 Matching strategy: exact > subset > char_overlap(>0.65) > semantic(>0.88)")
+        
+        # Helper function for character overlap
+        def char_overlap(str1: str, str2: str) -> float:
+            """Calculate character-level overlap between two strings"""
+            set1 = set(str1.lower().replace(' ', ''))
+            set2 = set(str2.lower().replace(' ', ''))
+            if not set1 or not set2:
+                return 0.0
+            intersection = len(set1 & set2)
+            union = len(set1 | set2)
+            return intersection / union if union > 0 else 0.0
         
         for name, guideline in self.all_guidelines.items():
             triggers = guideline.get('chief_complaint_triggers', [])
@@ -769,12 +781,23 @@ class AdaptiveDiagnosticEngine:
                     match_type = "subset"
                     break
             
+            # CHARACTER OVERLAP: Check if trigger and symptom share significant characters
+            # This filters "chest pain" (overlap ~0.6) from "abdominal pain" (overlap ~0.3)
+            if not matched_trigger:
+                for trigger in triggers:
+                    overlap = char_overlap(core_symptom, trigger)
+                    if overlap > 0.65:  # Require 65% character overlap
+                        matched_trigger = trigger
+                        match_type = f"char_overlap ({overlap:.2f})"
+                        break
+            
             # SEMANTIC PATH: Use embeddings for fuzzy/synonym matching
-            # Handles typos ("abdomnal pain"), synonyms ("belly pain" = "abdominal pain")
+            # Handles typos ("abdomnal pain"), synonyms ("belly ache" = "abdominal pain")
+            # STRICT threshold to avoid false matches across body regions
             if not matched_trigger and self.embedding_model:
                 for trigger in triggers:
                     similarity = self._compute_similarity(core_symptom, trigger)
-                    if similarity > 0.70:  # Semantic threshold
+                    if similarity > 0.88:  # Very strict (was 0.70, then 0.85)
                         matched_trigger = trigger
                         match_type = f"semantic ({similarity:.2f})"
                         break

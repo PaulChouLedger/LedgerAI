@@ -1,0 +1,27 @@
+{
+  "condition": "Mitral Valve Prolapse (Symptomatic)",
+  "icd10": "I34.1",
+  "snomed": "409712001",
+  "chief_complaint_triggers": [
+    "chest pain",
+    "palpitations",
+    "chest discomfort",
+    "irregular heartbeat"
+  ],
+  "urgency": "routine",
+  "prevalence": "common",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Episodic, often asymptomatic discovered incidentally. LOCATION: Left chest or precordial. DURATION: Brief episodes of palpitations or atypical chest pain. CHARACTER: Sharp, brief, atypical chest pain NOT typical angina. Palpitations. AGGRAVATING: Anxiety, caffeine, dehydration. RELIEVING: Rest, beta-blockers. TIMING: Episodic, unpredictable. SEVERITY: Mild, 2-4/10. KEY POSITIVES: Young female (classic), mid-systolic click on exam, late systolic murmur, palpitations, atypical chest pain, anxiety, thin body habitus. KEY NEGATIVES: NOT exertional angina, NOT dyspnea typically (unless severe regurgitation)."
+  },
+  "red_flags": [
+    "Severe mitral regurgitation",
+    "Heart failure symptoms",
+    "Atrial fibrillation",
+    "Endocarditis",
+    "Syncope",
+    "Severe palpitations",
+    "Family history of sudden cardiac death"
+  ]
+}
+

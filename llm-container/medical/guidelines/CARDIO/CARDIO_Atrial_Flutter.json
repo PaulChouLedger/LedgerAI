@@ -1,0 +1,27 @@
+{
+  "condition": "Atrial Flutter",
+  "icd10": "I48.92",
+  "snomed": "5370000",
+  "chief_complaint_triggers": [
+    "palpitations",
+    "irregular heartbeat",
+    "fast heartbeat",
+    "fluttering in chest"
+  ],
+  "urgency": "urgent",
+  "prevalence": "uncommon",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Can be sudden or gradual. LOCATION: Chest (palpitations). DURATION: Minutes to persistent. CHARACTER: Regular RAPID palpitations, \"flutter\" sensation. AGGRAVATING: Exertion, stress. RELIEVING: Cardioversion, rate control medications. TIMING: Paroxysmal or persistent. SEVERITY: Discomfort, not severe pain. KEY POSITIVES: Regular rapid heart rate (often 150 bpm with 2:1 block), dyspnea, lightheadedness, sawtooth pattern on ECG, history of AFib or structural heart disease. KEY NEGATIVES: NOT irregularly irregular (AFib), NOT sudden start/stop (SVT typically)."
+  },
+  "red_flags": [
+    "Hemodynamic instability",
+    "Severe dyspnea",
+    "Chest pain",
+    "Heart failure symptoms",
+    "Syncope",
+    "Rapid ventricular response >150 bpm",
+    "History of structural heart disease"
+  ]
+}
+

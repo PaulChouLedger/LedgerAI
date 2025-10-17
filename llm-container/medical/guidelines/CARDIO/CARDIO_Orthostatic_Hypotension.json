@@ -1,0 +1,25 @@
+{
+  "condition": "Orthostatic Hypotension",
+  "icd10": "I95.1",
+  "snomed": "28651003",
+  "chief_complaint_triggers": [
+    "lightheadedness when standing",
+    "dizziness when standing up",
+    "feeling faint when standing"
+  ],
+  "urgency": "routine",
+  "prevalence": "common",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Immediate, within seconds to minutes of standing. LOCATION: Generalized lightheadedness, dizziness. DURATION: Brief, seconds to minutes, resolves when sitting/lying down. CHARACTER: Lightheadedness, dizziness, blurred vision, weakness. AGGRAVATING: STANDING UP from sitting or lying, prolonged standing, hot environment, dehydration. RELIEVING: Sitting or lying down immediately. TIMING: Reproducible with postural changes. SEVERITY: Variable, can lead to syncope if severe. KEY POSITIVES: Occurs with postural change, elderly patient, medications (antihypertensives, diuretics), dehydration, rapid resolution when sitting. KEY NEGATIVES: NOT constant dizziness, NOT spinning vertigo (BPPV), NOT exertional."
+  },
+  "red_flags": [
+    "Syncope or actual loss of consciousness",
+    "Falls or injury from lightheadedness",
+    "Severe dehydration",
+    "GI bleeding or anemia",
+    "New medication (antihypertensive)",
+    "Autonomic neuropathy (diabetes)"
+  ]
+}
+

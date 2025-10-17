@@ -1,0 +1,26 @@
+{
+  "condition": "Takotsubo Cardiomyopathy (Broken Heart Syndrome)",
+  "icd10": "I51.81",
+  "snomed": "418304008",
+  "chief_complaint_triggers": [
+    "chest pain",
+    "shortness of breath",
+    "chest pain after stress"
+  ],
+  "urgency": "urgent",
+  "prevalence": "rare",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Acute, often after EMOTIONAL or PHYSICAL STRESS. LOCATION: Chest (retrosternal). RADIATES to arm, jaw. DURATION: Minutes to hours. CHARACTER: Chest pain, pressure, dyspnea mimicking MI. AGGRAVATING: Recent severe emotional stress (death of loved one, bad news, argument). RELIEVING: Supportive care. TIMING: Acute onset after stressor. SEVERITY: 7-9/10. KEY POSITIVES: Postmenopausal woman, recent severe stress or emotional event, ECG mimics MI (ST elevation or T-wave inversion), normal coronaries on angiography, apical ballooning on echo. KEY NEGATIVES: NO significant coronary artery disease (differentiates from true MI)."
+  },
+  "red_flags": [
+    "Severe chest pain mimicking MI",
+    "ST elevation on ECG",
+    "Troponin elevation (mild)",
+    "Heart failure symptoms",
+    "Arrhythmias",
+    "Cardiogenic shock",
+    "Recent severe emotional stress"
+  ]
+}
+

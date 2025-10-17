@@ -1,0 +1,26 @@
+{
+  "condition": "Benign Arrhythmia (PAC/PVC)",
+  "icd10": "I49.9",
+  "snomed": "698247007",
+  "chief_complaint_triggers": [
+    "palpitations",
+    "heart skipping beats",
+    "fluttering in chest",
+    "irregular heartbeat"
+  ],
+  "urgency": "routine",
+  "prevalence": "common",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Intermittent, episodic. LOCATION: Chest, precordial area. DURATION: Brief, seconds per episode. CHARACTER: \"Skipped beat\", \"flip-flop\", brief flutter or pause. AGGRAVATING: Caffeine, alcohol, stress, fatigue, lack of sleep. RELIEVING: Relaxation, reducing stimulants. TIMING: Intermittent, random. SEVERITY: Mild discomfort, more bothersome than painful. KEY POSITIVES: Brief episodes, no syncope, no dyspnea, otherwise healthy, triggered by caffeine or stress. KEY NEGATIVES: NO sustained rapid heart rate, NO syncope, NO chest pain, NO dyspnea."
+  },
+  "red_flags": [
+    "Syncope or near-syncope",
+    "Chest pain",
+    "Severe dyspnea",
+    "Sustained palpitations >30 seconds",
+    "Family history of sudden cardiac death",
+    "Structural heart disease"
+  ]
+}
+

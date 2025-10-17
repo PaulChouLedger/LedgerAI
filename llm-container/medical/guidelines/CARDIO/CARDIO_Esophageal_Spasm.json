@@ -1,0 +1,24 @@
+{
+  "condition": "Esophageal Spasm",
+  "icd10": "K22.4",
+  "snomed": "82470000",
+  "chief_complaint_triggers": [
+    "chest pain",
+    "chest pain when swallowing",
+    "difficulty swallowing"
+  ],
+  "urgency": "routine",
+  "prevalence": "uncommon",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Sudden, often during or after eating/drinking. LOCATION: RETROSTERNAL (midline chest behind breastbone). RADIATES to back occasionally. DURATION: Minutes, typically brief. CHARACTER: SQUEEZING, gripping, can mimic cardiac pain. AGGRAVATING: Swallowing (especially hot or cold liquids), eating. RELIEVING: Spontaneous resolution, nitroglycerin (can relieve, causing confusion with angina), calcium channel blockers. TIMING: Episodic, related to swallowing. SEVERITY: 5-8/10, can be severe. KEY POSITIVES: Dysphagia (difficulty swallowing), related to eating/drinking, relieved by nitrates (mimics angina!), no exertional pattern. KEY NEGATIVES: NOT exertional, NOT radiating to arm/jaw typically."
+  },
+  "red_flags": [
+    "New onset in elderly (rule out cardiac)",
+    "Exertional component (suggests cardiac)",
+    "Weight loss or dysphagia to solids (suggests stricture/cancer)",
+    "Persistent dysphagia",
+    "Not related to swallowing (suggests cardiac)"
+  ]
+}
+

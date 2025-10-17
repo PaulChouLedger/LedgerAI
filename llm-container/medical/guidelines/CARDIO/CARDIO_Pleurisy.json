@@ -1,0 +1,25 @@
+{
+  "condition": "Pleurisy (Pleuritis)",
+  "icd10": "R09.1",
+  "snomed": "196075003",
+  "chief_complaint_triggers": [
+    "chest pain with breathing",
+    "sharp chest pain",
+    "pain when breathing deeply"
+  ],
+  "urgency": "routine",
+  "prevalence": "uncommon",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual, over hours to days, often post-viral or post-pneumonia. LOCATION: Lateral chest wall, unilateral. DURATION: Days to weeks. CHARACTER: SHARP, STABBING, PLEURITIC (worse with breathing). AGGRAVATING: DEEP INSPIRATION, cough, chest movement. RELIEVING: Splinting chest, shallow breathing, lying on affected side. TIMING: Constant but fluctuates with breathing. SEVERITY: 5-8/10 with deep breath. KEY POSITIVES: Recent respiratory infection, pleural friction rub on exam, worse with breathing/cough, unilateral. KEY NEGATIVES: NOT cardiac radiation (arm/jaw), NOT exertional, NOT crushing pressure."
+  },
+  "red_flags": [
+    "Fever >101°F (suggests pneumonia)",
+    "Hypoxia",
+    "Hemoptysis (coughing blood)",
+    "Unilateral leg swelling (PE risk)",
+    "Severe dyspnea",
+    "Persistent despite treatment"
+  ]
+}
+

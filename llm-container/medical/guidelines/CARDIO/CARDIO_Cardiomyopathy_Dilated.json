@@ -1,0 +1,28 @@
+{
+  "condition": "Dilated Cardiomyopathy (Decompensated)",
+  "icd10": "I42.0",
+  "snomed": "195020003",
+  "chief_complaint_triggers": [
+    "shortness of breath",
+    "fatigue",
+    "leg swelling",
+    "can't breathe lying flat"
+  ],
+  "urgency": "urgent",
+  "prevalence": "uncommon",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Progressive over weeks to months, acute decompensation possible. LOCATION: Generalized dyspnea, bilateral lower extremity edema. DURATION: Progressive, chronic with acute worsening. CHARACTER: Dyspnea on exertion progressing to dyspnea at rest, orthopnea, paroxysmal nocturnal dyspnea, fatigue. AGGRAVATING: Exertion, lying flat, salt intake. RELIEVING: Diuretics, sitting upright. TIMING: Progressive worsening. SEVERITY: Severe dyspnea. KEY POSITIVES: Bilateral leg edema, weight gain, orthopnea, PND, S3 gallop, cardiomegaly on CXR, history of alcohol abuse or chemotherapy or viral illness. KEY NEGATIVES: NOT acute MI presentation, NOT pleuritic."
+  },
+  "red_flags": [
+    "Severe dyspnea at rest",
+    "Hypotension",
+    "Altered mental status",
+    "Cold extremities",
+    "Severe edema or anasarca",
+    "Arrhythmias (AFib, VT)",
+    "Syncope",
+    "Chest pain (suggests ischemia)"
+  ]
+}
+

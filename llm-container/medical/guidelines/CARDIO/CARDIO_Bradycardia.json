@@ -1,0 +1,29 @@
+{
+  "condition": "Symptomatic Bradycardia / Heart Block",
+  "icd10": "R00.1",
+  "snomed": "48867003",
+  "chief_complaint_triggers": [
+    "slow heartbeat",
+    "lightheadedness",
+    "fatigue",
+    "syncope",
+    "dizziness"
+  ],
+  "urgency": "urgent",
+  "prevalence": "uncommon",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual or sudden depending on cause. LOCATION: Generalized symptoms. DURATION: Continuous while bradycardic. CHARACTER: Lightheadedness, fatigue, weakness, syncope. AGGRAVATING: Exertion (symptoms worsen with fixed low heart rate). RELIEVING: Increased heart rate (pacing, medications). TIMING: Can be constant or episodic. SEVERITY: Variable, from asymptomatic to syncope. KEY POSITIVES: Heart rate <60 bpm with symptoms, syncope or near-syncope, fatigue, dyspnea on exertion, elderly patient, medications (beta-blockers, calcium blockers), prolonged PR or AV block on ECG. KEY NEGATIVES: NOT tachycardia, NOT palpitations."
+  },
+  "red_flags": [
+    "Syncope or near-syncope",
+    "Heart rate <40 bpm",
+    "Complete heart block (third-degree AV block)",
+    "Chest pain",
+    "Dyspnea",
+    "Altered mental status",
+    "Hypotension",
+    "Recent MI"
+  ]
+}
+

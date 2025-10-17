@@ -1,0 +1,26 @@
+{
+  "condition": "Costochondritis (Chest Wall Pain)",
+  "icd10": "M94.0",
+  "snomed": "64109004",
+  "chief_complaint_triggers": [
+    "chest pain",
+    "chest wall pain",
+    "pain when breathing",
+    "rib pain"
+  ],
+  "urgency": "routine",
+  "prevalence": "common",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual or after physical activity, coughing, or trauma. LOCATION: ANTERIOR CHEST WALL, costochondral junctions (where ribs meet cartilage), often left-sided. DURATION: Days to weeks. CHARACTER: SHARP, stabbing, localized. AGGRAVATING: Deep breathing, coughing, palpation of affected area, arm movements, twisting. RELIEVING: Rest, NSAIDs, avoiding movements. TIMING: Intermittent, worse with movements. SEVERITY: 4-7/10. KEY POSITIVES: REPRODUCIBLE with palpation (tender to touch), young patient, recent URI or cough, musculoskeletal pattern. KEY NEGATIVES: NOT radiating to arm/jaw, NOT exertional, NOT diaphoresis, NOT dyspnea."
+  },
+  "red_flags": [
+    "Fever (suggests infection)",
+    "Cardiac risk factors present",
+    "Radiation to arm or jaw (suggests cardiac)",
+    "Dyspnea",
+    "Diaphoresis",
+    "Not reproducible with palpation (suggests cardiac)"
+  ]
+}
+

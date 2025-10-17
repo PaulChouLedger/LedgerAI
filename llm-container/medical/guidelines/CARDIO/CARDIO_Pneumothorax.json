@@ -1,0 +1,28 @@
+{
+  "condition": "Pneumothorax (Collapsed Lung)",
+  "icd10": "J93.9",
+  "snomed": "36118008",
+  "chief_complaint_triggers": [
+    "sudden chest pain",
+    "sudden shortness of breath",
+    "difficulty breathing",
+    "sharp chest pain"
+  ],
+  "urgency": "emergent",
+  "prevalence": "uncommon",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset. LOCATION: UNILATERAL chest pain (left or right). DURATION: Continuous until treated. CHARACTER: SHARP, PLEURITIC (worse with breathing). AGGRAVATING: Deep inspiration, cough. RELIEVING: Shallow breathing, sitting upright. TIMING: Sudden onset, persistent. SEVERITY: 7-10/10 for pain and dyspnea. KEY POSITIVES: Tall, thin young male (spontaneous), recent trauma or procedure, decreased breath sounds on affected side, hyperresonance, dyspnea. KEY NEGATIVES: NOT bilateral, NOT gradual onset, NOT cardiac radiation pattern."
+  },
+  "red_flags": [
+    "Severe dyspnea",
+    "Hypoxia",
+    "Hypotension (tension pneumothorax)",
+    "Tracheal deviation (tension)",
+    "Jugular venous distension (tension)",
+    "Recent trauma or central line placement",
+    "Mechanical ventilation",
+    "Absent breath sounds on one side"
+  ]
+}
+
