@@ -554,7 +554,7 @@ Output 'yes' to accept or 'no' to reject."""
         print(f"[Engine] 📋 Questions asked: {len(asked)}")
         
         # LLM PROMPT: Generate next question using ONLY generic OLDCARTS template
-        system_msg = "Medical assistant. Generate ONE OPEN-ENDED question starting with How/What/Where/When/Describe. NEVER yes/no. Output ONLY the question, nothing else."
+        system_msg = "Generate question. Follow the format exactly. Output ONLY the question text, no other words."
         
         # Show OLDCARTS coverage
         covered_elements = [k for k, v in self.oldcarts_covered.items() if v]
@@ -567,47 +567,54 @@ Output 'yes' to accept or 'no' to reject."""
         # Ultra-clear prompts for each OLDCARTS element - MUST BE OPEN-ENDED
         if next_element:
             element_prompts = {
-                'L': f"""Patient has {self.chief_complaint}.
-Ask OPEN-ENDED question about pain location (start with Where/What).
-NEVER ask yes/no questions like "Is it on the right?"
+                'L': f"""Ask where the pain is located. Start with "Where".
+
+Format: "Where [rest of question]?"
 Example: Where exactly is the pain?
-Your question:""",
+
+Question:""",
                 
-                'D': f"""Patient has {self.chief_complaint}.
-Ask OPEN-ENDED question about duration/how long (start with How).
-NEVER ask yes/no questions.
-Example: How long does the pain last?
-Your question:""",
+                'D': f"""Ask how long the pain lasts. Start with "How long".
+
+Format: "How long [rest of question]?"
+Example: How long does each episode last?
+
+Question:""",
                 
-                'C': f"""Patient has {self.chief_complaint}.
-Ask OPEN-ENDED question about pain quality/description (start with How/What/Describe).
-NEVER ask yes/no like "Is it sharp?"
+                'C': f"""Ask what the pain feels like. Start with "How would you describe" or "What does".
+
+Format: "How would you describe [the pain]?" or "What does [the pain feel like]?"
 Example: How would you describe the pain?
-Your question:""",
+
+Question:""",
                 
-                'A': f"""Patient has {self.chief_complaint}.
-Ask OPEN-ENDED question about aggravating factors (start with What).
-NEVER ask yes/no questions.
+                'A': f"""Ask what makes the pain worse. Start with "What makes".
+
+Format: "What makes [the pain worse]?"
 Example: What makes the pain worse?
-Your question:""",
+
+Question:""",
                 
-                'R': f"""Patient has {self.chief_complaint}.
-Ask OPEN-ENDED question about relieving factors (start with What).
-NEVER ask yes/no questions.
+                'R': f"""Ask what helps relieve the pain. Start with "What helps" or "What relieves".
+
+Format: "What helps [relieve the pain]?" or "What relieves [it]?"
 Example: What helps relieve it?
-Your question:""",
+
+Question:""",
                 
-                'T': f"""Patient has {self.chief_complaint}.
-Ask OPEN-ENDED question about timing/pattern (start with How/When).
-NEVER ask yes/no like "Is it constant?"
-Example: How often does the pain come?
-Your question:""",
+                'T': f"""Ask about pain timing or pattern. Start with "Is it" or "Does it".
+
+Format: "Is it constant or [does it come and go]?"
+Example: Is it constant or does it come and go?
+
+Question:""",
                 
-                'S': f"""Patient has {self.chief_complaint}.
-Ask OPEN-ENDED question about severity (start with How).
-NEVER ask yes/no questions.
+                'S': f"""Ask about pain severity. Start with "How severe" or "How bad".
+
+Format: "How severe [is the pain]?" or "How bad [is it]?"
 Example: How severe is the pain?
-Your question:"""
+
+Question:"""
             }
             
             user_msg = element_prompts.get(next_element)
@@ -626,8 +633,8 @@ Your question:"""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=20,  # Just the question
-                temperature=0.1  # Very low - stick to instructions
+                max_tokens=15,  # Just the question
+                temperature=0.05  # Extremely low - follow format exactly
             )
             
             question = response.strip().strip('"\'')
@@ -1141,17 +1148,14 @@ Your question:"""
         """
         print(f"[Engine] 🧠 Generating LLM opening statement...")
         
-        system_msg = "You are a empathetic medical assistant. Acknowledge the patient's complaint and say you'll ask questions to help. ONE or TWO sentences max. Output ONLY the statement."
+        system_msg = "Generate empathy statement. Follow format. Output ONLY the statement."
         
-        user_msg = f"""Patient says: "{chief_complaint}"
+        user_msg = f"""Patient: "{chief_complaint}"
 
-Generate a brief empathetic statement (1-2 sentences) that:
-1. Acknowledges their concern
-2. Sets expectation of questions to help diagnose
+Format: "[Acknowledge]. [I'll ask questions to help]."
+Example: "I understand. I'll ask some questions to help figure this out."
 
-Be natural and conversational. Don't ask any questions yet.
-
-Your statement:"""
+Statement:"""
         
         try:
             response = self.llm_chat_fn(
@@ -1159,8 +1163,8 @@ Your statement:"""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=30,
-                temperature=0.2  # Low - follow example closely
+                max_tokens=25,
+                temperature=0.05  # Very low - follow format exactly
             )
             
             statement = response.strip().strip('"\'')
@@ -1182,11 +1186,12 @@ Your statement:"""
         """
         print(f"[Engine] 🧠 Generating LLM age question...")
         
-        system_msg = "You are a medical assistant. Ask for the patient's age naturally and conversationally."
+        system_msg = "Generate age question. Follow format. Output ONLY the question."
         
-        user_msg = """Generate ONE question asking for age. Be natural.
+        user_msg = """Format: "How old [are you]?" or "What's [your age]?"
+Example: How old are you?
 
-Your question:"""
+Question:"""
         
         try:
             response = self.llm_chat_fn(
@@ -1195,7 +1200,7 @@ Your question:"""
                     {"role": "user", "content": user_msg}
                 ],
                 max_tokens=10,
-                temperature=0.2
+                temperature=0.05  # Very low - follow format exactly
             )
             
             question = response.strip().strip('"\'')
@@ -1217,11 +1222,12 @@ Your question:"""
         """
         print(f"[Engine] 🧠 Generating LLM sex question...")
         
-        system_msg = "You are a medical assistant. Ask for biological sex naturally and conversationally. Keep it simple - male or female."
+        system_msg = "Generate sex question. Follow format. Output ONLY the question."
         
-        user_msg = """Generate ONE question asking for biological sex. Be natural.
+        user_msg = """Format: "Are you [male or female]?" or "What is [your sex]?"
+Example: Are you male or female?
 
-Your question:"""
+Question:"""
         
         try:
             response = self.llm_chat_fn(
@@ -1229,8 +1235,8 @@ Your question:"""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=15,
-                temperature=0.2
+                max_tokens=10,
+                temperature=0.05  # Very low - follow format exactly
             )
             
             question = response.strip().strip('"\'')
