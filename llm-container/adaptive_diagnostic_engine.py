@@ -638,8 +638,8 @@ Output 'yes' to accept or 'no' to reject."""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=20,
-                temperature=0.3  # Moderate - natural variation
+                max_tokens=15,
+                temperature=0.0  # Deterministic - follow format exactly
             )
             
             question = response.strip().strip('"\'')
@@ -697,8 +697,8 @@ Output 'yes' to accept or 'no' to reject."""
                         {"role": "system", "content": alt_system_msg},
                         {"role": "user", "content": alt_user_msg}
                     ],
-                    max_tokens=20,
-                    temperature=0.4
+                    max_tokens=15,
+                    temperature=0.0  # Deterministic
                 )
                 question = alt_response.strip().strip('"\'')
                 if not question.endswith('?'):
@@ -1079,8 +1079,8 @@ Output ONLY the single letter (O/L/D/C/A/R/T/S)."""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=25,
-                temperature=0.3
+                max_tokens=20,
+                temperature=0.0  # Deterministic
             )
             
             question = response.strip().strip('"\'')
@@ -1176,8 +1176,8 @@ Output ONLY the single letter (O/L/D/C/A/R/T/S)."""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=35,
-                temperature=0.4
+                max_tokens=20,
+                temperature=0.0  # Deterministic
             )
             
             statement = response.strip().strip('"\'')
@@ -1208,8 +1208,8 @@ Output ONLY the single letter (O/L/D/C/A/R/T/S)."""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=12,
-                temperature=0.3
+                max_tokens=8,
+                temperature=0.0  # Deterministic
             )
             
             question = response.strip().strip('"\'')
@@ -1240,8 +1240,8 @@ Output ONLY the single letter (O/L/D/C/A/R/T/S)."""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=15,
-                temperature=0.3
+                max_tokens=10,
+                temperature=0.0  # Deterministic
             )
             
             question = response.strip().strip('"\'')
@@ -1280,8 +1280,8 @@ Output ONLY the single letter (O/L/D/C/A/R/T/S)."""
                         {"role": "system", "content": system_msg},
                         {"role": "user", "content": user_msg}
                     ],
-                    max_tokens=20,
-                    temperature=0.5
+                    max_tokens=15,
+                    temperature=0.0  # Deterministic
                 )
                 
                 question = response.strip().strip('"\'')
