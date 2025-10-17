@@ -722,28 +722,37 @@ class AdaptiveDiagnosticEngine:
             patient_info = f"{self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')}"
             symptom = self.chief_complaint.lower().replace('i have', '').replace('i had', '').replace('i\'m having', '').strip()
             
-            system_msg = f"""Generate a single, conversational question to ask a {patient_info} patient about: {element_desc}
-
-Patient's symptom: {symptom}
-
-Requirements:
-- Ask about {element_desc}
-- Make it open-ended (NOT yes/no)
-- Natural and conversational for voice
-- One question only
-- No explanations or meta-text
-
-Output ONLY the question."""
+            # Example questions for each OLDCARTS element
+            oldcarts_examples = {
+                'O': "When did the pain start?",
+                'L': "Where exactly is the pain?",
+                'D': "How long does the pain last?",
+                'C': "How would you describe the pain?",
+                'A': "What makes the pain worse?",
+                'R': "What helps relieve the pain?",
+                'T': "Is the pain constant or does it come and go?",
+                'S': "How severe is the pain on a scale of 1 to 10?"
+            }
             
-            user_msg = "Question:"
+            example = oldcarts_examples.get(next_element, "Tell me about the symptom")
+            
+            system_msg = "You are a medical assistant. Output ONLY a single question, nothing else."
+            
+            user_msg = f"""Patient: {patient_info} with {symptom}
+
+Ask about: {element_desc}
+
+Example: "{example}"
+
+Generate a similar question (open-ended, NOT yes/no):"""
             
             response = self.llm_chat_fn(
                 [
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=30,
-                temperature=0.3
+                max_tokens=25,
+                temperature=0.2
             )
             
             question = response.strip().strip('"\'')
@@ -788,36 +797,27 @@ Output ONLY the question."""
                     key_pos = parts[1].split('KEY NEGATIVES:')[0] if 'KEY NEGATIVES:' in parts[1] else parts[1]
                     key_symptoms.append(f"{g['name']}: {key_pos[:100]}")
         
-        symptoms_context = '\n'.join(key_symptoms[:3]) if key_symptoms else "Common associated symptoms"
+        symptoms_context = ', '.join([s.split(':')[0] for s in key_symptoms[:3]]) if key_symptoms else "common symptoms"
         
-        system_msg = f"""Generate a single question about associated symptoms for this patient.
-
-Patient: {patient_info} with {symptom}
-
-Questions already asked: {len(asked)} questions
-
-Top differential diagnoses have these key associated symptoms:
-{symptoms_context}
-
-Generate ONE question about an important associated symptom (fever, nausea, vomiting, diarrhea, appetite, etc).
-
-Requirements:
-- Ask about ONE associated symptom only
-- Natural and conversational
-- Can be yes/no or open-ended
-- No meta-text
-
-Output ONLY the question."""
+        system_msg = "You are a medical assistant. Output ONLY a single question, nothing else."
         
-        user_msg = "Question:"
+        user_msg = f"""Patient: {patient_info} with {symptom}
+
+Top diagnoses: {symptoms_context}
+
+Ask about ONE associated symptom (fever, nausea, vomiting, diarrhea, etc).
+
+Example: "Have you had any fever?"
+
+Your question:"""
         
         response = self.llm_chat_fn(
             [
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
-            max_tokens=25,
-            temperature=0.4
+            max_tokens=20,
+            temperature=0.3
         )
         
         question = response.strip().strip('"\'')
@@ -1454,17 +1454,17 @@ Output ONLY the question. Make it natural for voice."""
         """
         print(f"[Engine] 🧠 Generating opening statement...")
         
-        system_msg = f"""Generate a brief, empathetic opening statement for a patient who said: "{chief_complaint}"
-
-Requirements:
-- Show empathy and reassurance (1 sentence)
-- Set expectation that you'll ask questions to help (1 sentence)
-- Be warm and conversational
-- Total: 2 sentences max
-
-Output ONLY the statement (no meta-text)."""
+        system_msg = "You are a medical assistant. Output ONLY the empathetic statement requested, nothing else."
         
-        user_msg = "Statement:"
+        user_msg = f"""Patient: "{chief_complaint}"
+
+Write 2 sentences:
+1. Empathetic acknowledgment
+2. Tell them you'll ask questions to help
+
+Example: "I understand that must be concerning. Let me ask some questions to better understand what's happening."
+
+Your statement:"""
         
         response = self.llm_chat_fn(
             [
@@ -1485,24 +1485,21 @@ Output ONLY the statement (no meta-text)."""
         """
         print(f"[Engine] 🧠 Generating age question...")
         
-        system_msg = """Generate a single, conversational question asking for the patient's age.
-
-Requirements:
-- Natural and friendly tone
-- One simple question
-- No extra explanation
-
-Output ONLY the question."""
+        system_msg = "You are a medical assistant. Output ONLY the question requested, nothing else."
         
-        user_msg = "Question:"
+        user_msg = """Generate a single question asking for the patient's age.
+
+Example: "How old are you?"
+
+Your question:"""
         
         response = self.llm_chat_fn(
             [
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
-            max_tokens=20,
-            temperature=0.3
+            max_tokens=15,
+            temperature=0.2
         )
         
         question = response.strip().strip('"\'')
@@ -1517,24 +1514,21 @@ Output ONLY the question."""
         """
         print(f"[Engine] 🧠 Generating sex question...")
         
-        system_msg = """Generate a single question asking for the patient's biological sex.
-
-Requirements:
-- Ask for "male or female" (biological sex for medical purposes)
-- Simple and direct
-- One question only
-
-Output ONLY the question."""
+        system_msg = "You are a medical assistant. Output ONLY the question requested, nothing else."
         
-        user_msg = "Question:"
+        user_msg = """Generate a single question asking for biological sex (male or female).
+
+Example: "Are you male or female?"
+
+Your question:"""
         
         response = self.llm_chat_fn(
             [
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
-            max_tokens=20,
-            temperature=0.3
+            max_tokens=15,
+            temperature=0.2
         )
         
         question = response.strip().strip('"\'')
@@ -1549,32 +1543,30 @@ Output ONLY the question."""
         """
         print(f"[Engine] 🧠 Generating clarification for: {topic}")
         
-        topic_descriptions = {
-            "age": "the patient's age in years",
-            "sex": "the patient's biological sex (male or female)"
+        examples = {
+            "age": "I didn't catch that. How old are you?",
+            "sex": "I didn't catch that. Are you male or female?"
         }
         
-        desc = topic_descriptions.get(topic, "your answer")
+        example = examples.get(topic, "Can you clarify?")
         
-        system_msg = f"""The patient didn't provide a clear answer. Generate a polite re-asking question for: {desc}
-
-Requirements:
-- Start with brief acknowledgment ("I didn't catch that")
-- Re-ask the same information
-- Keep it simple and direct
-- Natural for voice
-
-Output ONLY the question."""
+        system_msg = "You are a medical assistant. Output ONLY a single clarification question, nothing else."
         
-        user_msg = "Question:"
+        user_msg = f"""The patient didn't answer clearly about {topic}.
+
+Re-ask with: "I didn't catch that" + original question
+
+Example: "{example}"
+
+Your question:"""
         
         response = self.llm_chat_fn(
             [
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
-            max_tokens=25,
-            temperature=0.3
+            max_tokens=20,
+            temperature=0.2
         )
         
         question = response.strip().strip('"\'')
