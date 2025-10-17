@@ -38,6 +38,7 @@ import re
 import numpy as np
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+from thinking_fillers import get_filler
 
 
 class AdaptiveDiagnosticEngine:
@@ -173,10 +174,16 @@ class AdaptiveDiagnosticEngine:
         print(f"\n[Engine] 🔄 Initial pool status: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
         print(f"{'='*80}\n")
         
-        # STEP 2: Generate empathetic opening statement (separate from questions)
+        # STEP 2: Get thinking filler to return immediately (both text + audio)
+        filler = get_filler('opening', use_audio=True)
+        print(f"[Engine] 💬 Filler (for immediate response): [{filler['id']}] '{filler['text']}'")
+        if 'audio_path' in filler:
+            print(f"[Engine]    🎵 Audio: {filler['audio_path']}")
+        
+        # STEP 3: Generate empathetic opening statement (takes time)
         opening_statement = self._generate_opening_statement(chief_complaint)
         
-        # STEP 3: Generate age question
+        # STEP 4: Generate age question
         age_question = self._generate_age_question()
         
         # Combine them with proper spacing
@@ -191,7 +198,8 @@ class AdaptiveDiagnosticEngine:
         return {
             'success': True,
             'question': combined_message,
-            'status': 'questioning'
+            'status': 'questioning',
+            'filler': filler  # Play/send this immediately while waiting for main response
         }
     
     def process_answer(self, user_answer: str) -> Dict[str, Any]:
@@ -742,6 +750,10 @@ Example: "{example}"
 
 Generate a similar question (open-ended, NOT yes/no):"""
             
+            # Get thinking filler before LLM call
+            filler = get_filler('question_generation', use_audio=True)
+            print(f"[Engine] 💬 Filler: [{filler['id']}] '{filler['text']}'")
+            
             response = self.llm_chat_fn(
                 [
                     {"role": "system", "content": system_msg},
@@ -774,7 +786,8 @@ Generate a similar question (open-ended, NOT yes/no):"""
             return {
                 'success': True,
                 'question': question,
-                'status': 'questioning'
+                'status': 'questioning',
+                'filler': filler  # Play/send this immediately while waiting
             }
         
         # After OLDCARTS: Ask about associated symptoms using LLM
@@ -807,6 +820,10 @@ Example: "Have you had any fever?"
 
 Your question:"""
         
+        # Get thinking filler before LLM call
+        filler = get_filler('question_generation', use_audio=True)
+        print(f"[Engine] 💬 Filler: [{filler['id']}] '{filler['text']}'")
+        
         response = self.llm_chat_fn(
             [
                 {"role": "system", "content": system_msg},
@@ -834,7 +851,8 @@ Your question:"""
         return {
             'success': True,
             'question': question,
-            'status': 'questioning'
+            'status': 'questioning',
+            'filler': filler  # Play/send this immediately while waiting
         }
     
     def _detect_oldcarts_element(self, question: str) -> Optional[str]:
@@ -1151,82 +1169,75 @@ Your question:"""
         
         print(f"{'='*80}\n")
         
-        # LOCATION CLARIFICATION: Check if answer has enough anatomical modifiers
-        # Programmatic check: does answer specify both lateral (left/right) AND vertical (upper/lower)?
+        # LOCATION CLARIFICATION: Use guidelines to determine if more detail needed
+        # Extract actual location descriptions from top active guidelines and compare
         if oldcarts_element == 'L' and len(self.active_guidelines) >= 2:
-            print(f"[Engine] 🔍 Checking if location answer has enough anatomical detail...")
+            print(f"[Engine] 🔍 Checking if location answer differentiates top diagnoses...")
             
-            answer_lower = answer.lower()
-            
-            # Check what dimensions patient specified
-            has_lateral = ('left' in answer_lower or 'right' in answer_lower)
-            has_vertical = ('upper' in answer_lower or 'lower' in answer_lower)
-            has_specific_region = any(word in answer_lower for word in [
-                'epigastric', 'periumbilical', 'umbilical', 'suprapubic', 'hypogastric',
-                'ruq', 'luq', 'rlq', 'llq', 'quadrant', 'flank', 'groin'
-            ])
-            
-            # Check what guidelines require
-            guidelines_need_both = False
+            # Get L sections from top 5 active guidelines
+            location_texts = []
             for g in self.active_guidelines[:5]:
                 classic = g['data'].get('key_features', {}).get('classic_presentation', '')
-                location_section = self._extract_oldcarts_section(classic, 'L').upper()
-                
-                # If any guideline has both lateral AND vertical descriptors, we need both
-                has_guide_lateral = ('LEFT' in location_section or 'RIGHT' in location_section)
-                has_guide_vertical = ('UPPER' in location_section or 'LOWER' in location_section or 
-                                     'QUADRANT' in location_section)
-                
-                if has_guide_lateral and has_guide_vertical:
-                    guidelines_need_both = True
-                    break
+                location_section = self._extract_oldcarts_section(classic, 'L')
+                if location_section:
+                    location_texts.append(f"{g['name']}: {location_section}")
             
-            # Need clarification if:
-            # 1. Patient only gave lateral (left/right) but guidelines need vertical too
-            # 2. Patient only gave vertical (upper/lower) but guidelines need lateral too
-            needs_clarification = False
-            
-            if guidelines_need_both and not has_specific_region:
-                if has_lateral and not has_vertical:
-                    needs_clarification = True
-                    print(f"[Engine] ⚠️ Patient said lateral ({answer_lower}) but missing vertical (upper/lower)")
-                elif has_vertical and not has_lateral:
-                    needs_clarification = True
-                    print(f"[Engine] ⚠️ Patient said vertical ({answer_lower}) but missing lateral (left/right)")
-            
-            if needs_clarification:
-                print(f"[Engine] ⚠️ Location needs more specificity for differential diagnosis")
+            if len(location_texts) >= 2:
+                # Compute similarity between top guidelines' location sections
+                # If they're very different, patient answer may not differentiate
+                loc_embeddings = []
+                for loc_text in location_texts[:3]:
+                    # Just the location description, not the guideline name
+                    loc_desc = loc_text.split(':', 1)[1].strip() if ':' in loc_text else loc_text
+                    emb = self.embedding_model.encode([loc_desc])[0]
+                    loc_embeddings.append(emb)
                 
-                # Get location sections from top 5
-                location_sections = []
-                for g in self.active_guidelines[:5]:
-                    classic = g['data'].get('key_features', {}).get('classic_presentation', '')
-                    location_section = self._extract_oldcarts_section(classic, 'L')
-                    if location_section:
-                        location_sections.append(f"{g['name']}: {location_section}")
+                # Compute pairwise similarities between guideline locations
+                import numpy as np
+                similarities = []
+                for i in range(len(loc_embeddings)):
+                    for j in range(i+1, len(loc_embeddings)):
+                        sim = np.dot(loc_embeddings[i], loc_embeddings[j]) / (
+                            np.linalg.norm(loc_embeddings[i]) * np.linalg.norm(loc_embeddings[j])
+                        )
+                        similarities.append((sim + 1) / 2)  # Normalize to [0, 1]
                 
-                guidelines_context = '\n\n'.join(location_sections) if location_sections else ""
+                avg_location_similarity = np.mean(similarities) if similarities else 1.0
                 
-                # LLM generates clarification based on what's missing
-                clarify_system = f"""Patient said: "{answer}"
+                print(f"[Engine] 📊 Guideline location similarity: {avg_location_similarity:.2f}")
+                
+                # If top guidelines describe DIFFERENT locations (low similarity), need clarification
+                if avg_location_similarity < 0.70:
+                    print(f"[Engine] ⚠️ Top guidelines have diverse locations - need more specific answer")
+                    
+                    # Show what the top guidelines need
+                    guidelines_summary = '\n'.join(location_texts[:3])
+                    
+                    clarify_system = "You are a medical assistant. Output ONLY one clarification question."
+                    
+                    clarify_user = f"""Patient said: "{answer}"
 
-Top diagnoses require these location details:
-{guidelines_context}
+Top diagnoses require these specific locations:
+{guidelines_summary}
 
-Generate a single, conversational question to get the missing anatomical detail.
+Ask ONE question to get more specific location detail.
 
-Output ONLY the question. Make it natural for voice."""
-                
-                clarify_user = "Question:"
-                
-                clarify_response = self.llm_chat_fn(
-                    [
-                        {"role": "system", "content": clarify_system},
-                        {"role": "user", "content": clarify_user}
-                    ],
-                    max_tokens=30,
-                    temperature=0.2
-                )
+Example: "Is it more in the upper part or lower part of your abdomen?"
+
+Your question:"""
+                    
+                    # Get thinking filler before LLM call
+                    filler = get_filler('location_clarification', use_audio=True)
+                    print(f"[Engine] 💬 Filler: [{filler['id']}] '{filler['text']}'")
+                    
+                    clarify_response = self.llm_chat_fn(
+                        [
+                            {"role": "system", "content": clarify_system},
+                            {"role": "user", "content": clarify_user}
+                        ],
+                        max_tokens=25,
+                        temperature=0.1
+                    )
                 
                 clarify_location = clarify_response.strip().strip('"\'')
                 if not clarify_location.endswith('?'):
@@ -1246,7 +1257,8 @@ Output ONLY the question. Make it natural for voice."""
                 return {
                     'success': True,
                     'question': clarify_location,
-                    'status': 'questioning'
+                    'status': 'questioning',
+                    'filler': filler  # Play/send this immediately while waiting
                 }
             else:
                 print(f"[Engine] ✅ Location answer has sufficient anatomical detail")
