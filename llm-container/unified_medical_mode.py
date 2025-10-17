@@ -323,7 +323,7 @@ class UnifiedMedicalSession:
                     r'\w+ology\b', r'\w+oma\b', r'\w+algia\b'
                 ]
                 if any(re.search(pattern, query_lower) for pattern in medical_suffixes):
-                return "medical_knowledge"
+                    return "medical_knowledge"
 
         # Check for general medical topics
         if any(term in query_lower for term in ["medicine", "medical", "health", "clinical", "patient", "doctor"]):
@@ -390,7 +390,7 @@ class UnifiedMedicalSession:
         if self.dynamic_assessment is None:
             print("[Dynamic] 🏥 Starting dynamic guideline-based assessment")
             self.dynamic_assessment = DynamicAssessmentState(chief_complaint=symptom_query)
-                    self.current_context = "assessment"
+            self.current_context = "assessment"
 
             # Categorize the complaint
             self.dynamic_assessment.category = self._categorize_complaint(symptom_query)
@@ -590,8 +590,7 @@ class UnifiedMedicalSession:
                         all_guideline_chunks.extend(chunks_from_guideline)
                     else:
                         print(f"[Dynamic] ⚠️ Failed to get chunks for {guideline_name}: HTTP {response2.status_code}")
-
-            except Exception as e:
+                except Exception as e:
                     print(f"[Dynamic] ⚠️ Error fetching chunks for {guideline_name}: {e}")
             
             if all_guideline_chunks:
@@ -1241,7 +1240,7 @@ def _is_medical_topic_fast(text: str) -> bool:
     
     for pattern in medical_suffixes:
         if re.search(pattern, text):
-        return True
+            return True
     
     return False
 
