@@ -494,65 +494,22 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine]   Q: '{last_question}'")
         print(f"[Engine]   A: '{answer}'")
         
-        # Build context-specific validation criteria based on OLDCARTS element
-        validation_criteria = {
-            'O': "Answer must include a time reference (e.g., 'hours ago', 'yesterday', 'this morning').",
-            'L': "Answer must include anatomical location words (e.g., 'left', 'right', 'upper', 'lower', 'chest', 'abdomen', 'side'). 'on my left side' is VALID.",
-            'D': "Answer must describe duration (e.g., 'constant', 'comes and goes', 'few minutes').",
-            'C': "Answer must describe pain character (e.g., 'sharp', 'dull', 'burning', 'cramping').",
-            'A': "Answer must describe aggravating factors (e.g., 'movement', 'eating', 'nothing').",
-            'R': "Answer must describe relieving factors (e.g., 'rest', 'medication', 'nothing').",
-            'T': "Answer must describe timing pattern (e.g., 'constant', 'intermittent', 'comes in waves').",
-            'S': "Answer must indicate severity (e.g., number, 'mild', 'moderate', 'severe')."
-        }
+        # Simple validation: reject pure filler words or fragments
+        # Semantic scoring will determine if answer is specific enough
         
-        # Get specific criteria for this OLDCARTS element
-        specific_criteria = validation_criteria.get(oldcarts_element, 
-            "Must address the question asked (not just filler words).")
+        # Reject pure filler words or meaningless fragments
+        pure_filler = ['um', 'uh', 'oh', 'hmm', 'ah', 'er']
+        fragments = ['on the', 'my', 'the', 'it', 'there', 'here', 'i', 'a', 'an']
         
-        # Use LLM to validate with context-specific criteria
-        system_msg = f"""Validate this answer based on the question and specific requirements.
-
-Question: "{last_question}"
-Answer: "{answer}"
-
-Requirement: {specific_criteria}
-
-Reject if:
-- Only filler words (um, uh, oh, hmm)
-- Incomplete fragments (like "on the", "I", "it")
-- Completely unrelated to what's asked
-- Does NOT meet the requirement above
-
-Output ONLY 'yes' to accept or 'no' to reject."""
-
-        user_msg = "Valid?"
+        answer_stripped = answer.strip().lower()
         
-        print(f"[Engine] 🧠 VALIDATION PROMPT (FULL):")
-        print(f"[Engine]   === SYSTEM ===")
-        print(f"{system_msg}")
-        print(f"[Engine]   === USER ===")
-        print(f"{user_msg}")
+        if answer_stripped in pure_filler or answer_stripped in fragments:
+            print(f"[Engine] 📊 Validation: REJECT ❌ (pure filler or fragment)")
+            return False
         
-        response = self.llm_chat_fn(
-            [
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": user_msg}
-            ],
-            max_tokens=50,  # Increased to capture potential reasoning
-            temperature=0.0
-        )
-        
-        result = response.strip().lower()
-        is_valid = 'yes' in result or 'valid' in result
-        
-        # Show decision with brief reasoning (first 80 chars)
-        reasoning_preview = response.strip()[:80] + "..." if len(response) > 80 else response.strip()
-        decision = 'ACCEPT ✅' if is_valid else 'REJECT ❌'
-        print(f"[Engine] 📊 Validation: {decision}")
-        print(f"[Engine] 💬 Reason: {reasoning_preview}")
-        
-        return is_valid
+        # Accept any substantive answer - semantic scoring will handle specificity
+        print(f"[Engine] 📊 Validation: ACCEPT ✅ (substantive answer)")
+        return True
     
     def _filter_by_gender(self):
         """
@@ -1076,54 +1033,61 @@ Output ONLY 'yes' to accept or 'no' to reject."""
         
         print(f"{'='*80}\n")
         
-        # LOCATION CLARIFICATION: Check if answer needs more detail (ONLY for location, AFTER scoring)
-        if oldcarts_element == 'L':
-            print(f"[Engine] 🔍 Checking if location answer is specific enough for differential diagnosis...")
+        # LOCATION CLARIFICATION: Check if guidelines require more anatomical detail
+        # Compare answer specificity to what top guidelines describe
+        if oldcarts_element == 'L' and len(self.active_guidelines) >= 2:
+            print(f"[Engine] 🔍 Checking if location answer has enough anatomical detail...")
             
-            # Get what the UPDATED active guidelines say about location
-            location_examples = []
-            for g in self.active_guidelines:
+            # Get L sections from top 5 active guidelines
+            location_sections = []
+            for g in self.active_guidelines[:5]:
                 classic = g['data'].get('key_features', {}).get('classic_presentation', '')
                 location_section = self._extract_oldcarts_section(classic, 'L')
                 if location_section:
-                    location_examples.append(f"{g['name']}: {location_section[:100]}")
+                    location_sections.append(f"{g['name']}: {location_section[:150]}")
             
-            if location_examples:
-                guidelines_say = '\n'.join(location_examples)
+            if location_sections:
+                guidelines_context = '\n'.join(location_sections)
                 
-                # Ask LLM: Can we differentiate these guidelines with current answer?
-                analyze_system = f"""Patient answer: "{answer}"
+                # Ask LLM: Does patient's answer have the same level of detail as guidelines?
+                # E.g., guideline says "LEFT LOWER QUADRANT" but patient only said "left side"
+                check_system = f"""Patient answer: "{answer}"
 
 Top differential diagnoses describe locations as:
-{guidelines_say}
+{guidelines_context}
 
-Can the patient's answer differentiate between these specific locations, or do we need more detail?
+Does the patient's answer have the same level of anatomical detail as these guidelines?
 
-Output 'sufficient' if we can differentiate, or 'need_more' if too vague."""
+For example:
+- "left side" vs "LEFT LOWER QUADRANT" → patient is missing "upper/lower" detail
+- "upper abdomen" vs "Epigastric" → patient has sufficient detail
+- "chest" vs "RETROSTERNAL" → patient has sufficient detail (general is OK)
+
+Output 'sufficient' if patient has enough detail, or 'need_clarification' if missing specificity."""
                 
-                analyze_user = "Status:"
+                check_user = "Status:"
                 
-                location_check = self.llm_chat_fn(
+                detail_check = self.llm_chat_fn(
                     [
-                        {"role": "system", "content": analyze_system},
-                        {"role": "user", "content": analyze_user}
+                        {"role": "system", "content": check_system},
+                        {"role": "user", "content": check_user}
                     ],
                     max_tokens=10,
                     temperature=0.0
                 )
                 
-                if 'need_more' in location_check.lower() or 'need' in location_check.lower():
-                    print(f"[Engine] ⚠️ Location insufficient for differential - asking for more detail")
+                if 'need' in detail_check.lower() or 'clarification' in detail_check.lower():
+                    print(f"[Engine] ⚠️ Answer lacks anatomical detail required by guidelines")
                     
-                    # Use LLM to generate clarification question based on what guidelines need
+                    # LLM generates clarification based on what's missing
                     clarify_system = f"""Patient said: "{answer}"
 
-Top differential diagnoses require:
-{guidelines_say}
+Top diagnoses require these location details:
+{guidelines_context}
 
-Generate a single, direct clarifying question to get the specific anatomical location needed to differentiate between these conditions.
+Generate a single, conversational question to get the missing anatomical detail.
 
-Output ONLY the question (no explanations). Make it conversational and natural for voice interaction."""
+Output ONLY the question. Make it natural for voice."""
                     
                     clarify_user = "Question:"
                     
@@ -1140,7 +1104,7 @@ Output ONLY the question (no explanations). Make it conversational and natural f
                     if not clarify_location.endswith('?'):
                         clarify_location += '?'
                     
-                    print(f"[Engine] 💬 Location clarification: '{clarify_location}'")
+                    print(f"[Engine] 💬 Clarification: '{clarify_location}'")
                     print(f"{'='*80}\n")
                     
                     # Preserve OLDCARTS element
@@ -1157,7 +1121,7 @@ Output ONLY the question (no explanations). Make it conversational and natural f
                         'status': 'questioning'
                     }
                 else:
-                    print(f"[Engine] ✅ Location answer is sufficient for differential diagnosis")
+                    print(f"[Engine] ✅ Location answer has sufficient anatomical detail")
         
         # SAFETY CHECK: Ensure we have active guidelines
         if len(self.active_guidelines) == 0 and len(self.reserve_pool) == 0:

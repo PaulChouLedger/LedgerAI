@@ -705,7 +705,7 @@ class WalletDialog(QDialog):
     def open_metamask_payment(self):
         """Open mobile wallet QR code payment dialog"""
         try:
-            from metamask_payment_dialog import MetaMaskPaymentDialog
+            from gui.metamask_payment_dialog import MetaMaskPaymentDialog
             
             payment_dialog = MetaMaskPaymentDialog(parent=self, user_address=self.wallet_manager.connected_address)
             result = payment_dialog.exec_()
@@ -721,7 +721,7 @@ class WalletDialog(QDialog):
     def open_direct_payment(self):
         """Open direct payment dialog (private key method)"""
         try:
-            from payment_dialog import PaymentDialog
+            from gui.payment_dialog import PaymentDialog
             
             payment_dialog = PaymentDialog(parent=self, user_address=self.wallet_manager.connected_address)
             result = payment_dialog.exec_()
