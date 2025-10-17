@@ -169,6 +169,8 @@ class AdaptiveDiagnosticEngine:
                 print(f"[Engine]   {i}. {g['name']} ({prevalence}, {urgency}, {g['score']:.0%})")
             if len(self.reserve_pool) > 5:
                 print(f"[Engine]   ... and {len(self.reserve_pool) - 5} more")
+        
+        print(f"\n[Engine] 🔄 Initial pool status: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
         print(f"{'='*80}\n")
         
         # STEP 2: Generate empathetic opening statement (separate from questions)
@@ -449,89 +451,8 @@ Examples:
                     'status': 'questioning'
                 }
             
-            # LOCATION-SPECIFIC: Check if answer needs clarification (ONLY for location)
-            oldcarts_elem = last_q_item.get('oldcarts') if last_q_item else None
-            
-            if oldcarts_elem == 'L':  # Only for LOCATION
-                print(f"[Engine] 🔍 Analyzing location specificity...")
-                
-                # Get what the top guidelines say about location
-                location_examples = []
-                for g in self.active_guidelines[:3]:
-                    classic = g['data'].get('key_features', {}).get('classic_presentation', '')
-                    location_section = self._extract_oldcarts_section(classic, 'L')
-                    if location_section:
-                        # Extract first 50 chars as example
-                        location_examples.append(f"{g['name']}: {location_section[:80]}")
-                
-                guidelines_say = '\n'.join(location_examples) if location_examples else "No location data"
-                
-                # Ask LLM: Can we match the answer to these specific guideline locations?
-                analyze_system = f"""Patient answer: "{user_answer}"
-
-Guidelines describe locations as:
-{guidelines_say}
-
-Can the patient's answer be matched to these specific locations, or do we need more detail?
-
-Output 'sufficient' if we can match it, or 'need_more' if too vague."""
-                
-                analyze_user = "Status:"
-                
-                location_check = self.llm_chat_fn(
-                    [
-                        {"role": "system", "content": analyze_system},
-                        {"role": "user", "content": analyze_user}
-                    ],
-                    max_tokens=5,
-                    temperature=0.0
-                )
-                
-                if 'need_more' in location_check.lower() or 'need' in location_check.lower():
-                    print(f"[Engine] ⚠️ Location insufficient for guideline matching - asking for more detail")
-                    
-                    # Ask LLM to generate clarification based on what guidelines need
-                    clarify_gen_system = f"""Patient said: "{user_answer}"
-
-But guidelines describe:
-{guidelines_say}
-
-Generate a follow-up question to get the specific location detail needed to match these guidelines.
-
-Question:"""
-                    
-                    clarify_gen_user = "Output:"
-                    
-                    clarify_response = self.llm_chat_fn(
-                        [
-                            {"role": "system", "content": clarify_gen_system},
-                            {"role": "user", "content": clarify_gen_user}
-                        ],
-                        max_tokens=20,
-                        temperature=0.0
-                    )
-                    
-                    clarify_location = clarify_response.strip().strip('"\'')
-                    if not clarify_location.endswith('?'):
-                        clarify_location += '?'
-                    
-                    print(f"[Engine] 💬 Location clarification: '{clarify_location}'")
-                    
-                    # Preserve OLDCARTS element
-                    self.conversation_history.append({
-                        'type': 'question',
-                        'question': clarify_location,
-                        'focus': 'clinical',
-                        'oldcarts': 'L'
-                    })
-                    
-                    return {
-                        'success': True,
-                        'question': clarify_location,
-                        'status': 'questioning'
-                    }
-            
-            # Answer is specific enough - proceed with scoring
+            # Answer is acceptable - score it first, THEN check if needs clarification
+            # This way we use UPDATED top 3 guidelines after scoring
             return self._process_clinical_answer(user_answer)
     
     def _is_acceptable_clinical_answer(self, answer: str) -> bool:
@@ -625,6 +546,30 @@ Output 'yes' to accept or 'no' to reject."""
                     })
                     print(f"[Engine]   ✓ {name} (trigger: '{trigger}', prevalence: {prevalence}, initial: {initial_score:.0%})")
                     break
+        
+        # GENDER FILTERING: Remove sex-specific conditions
+        patient_sex = self.demographics.get('sex')
+        if patient_sex:
+            gyn_keywords = ['ectopic', 'ovarian', 'pelvic inflammatory', 'pid']
+            male_gu_keywords = ['testicular', 'prostatitis', 'prostate']
+            
+            filtered_matched = []
+            for m in matched:
+                name_lower = m['name'].lower()
+                
+                # If male, skip GYN conditions
+                if patient_sex == 'male' and any(keyword in name_lower for keyword in gyn_keywords):
+                    print(f"[Engine]   ⛔ Excluding {m['name']} (patient is male)")
+                    continue
+                
+                # If female, skip male-specific GU conditions
+                if patient_sex == 'female' and any(keyword in name_lower for keyword in male_gu_keywords):
+                    print(f"[Engine]   ⛔ Excluding {m['name']} (patient is female)")
+                    continue
+                
+                filtered_matched.append(m)
+            
+            matched = filtered_matched
         
         # PREVALENCE-FIRST sorting with urgency boost
         # Goal: Common urgent (appendicitis) BEFORE rare emergent (ectopic)
@@ -973,10 +918,93 @@ Output 'yes' to accept or 'no' to reject."""
             urgency_emoji = "🚨" if g['data'].get('urgency') == 'emergent' else "⚠️" if g['data'].get('urgency') == 'urgent' else "📋"
             print(f"[Engine]   {i}. {g['name']}: {g['score']:.0%} {urgency_emoji}")
         
-        if ruled_out_this_round or promoted_this_round:
-            print(f"\n[Engine] 🔄 Pool status: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
+        # Always show pool statistics
+        print(f"\n[Engine] 🔄 Pool status: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
         
         print(f"{'='*80}\n")
+        
+        # LOCATION CLARIFICATION: Check if answer needs more detail (ONLY for location, AFTER scoring)
+        if oldcarts_element == 'L':
+            print(f"[Engine] 🔍 Checking if location answer is specific enough for differential diagnosis...")
+            
+            # Get what the UPDATED top 3 guidelines say about location
+            location_examples = []
+            for g in self.active_guidelines[:3]:
+                classic = g['data'].get('key_features', {}).get('classic_presentation', '')
+                location_section = self._extract_oldcarts_section(classic, 'L')
+                if location_section:
+                    location_examples.append(f"{g['name']}: {location_section[:100]}")
+            
+            if location_examples:
+                guidelines_say = '\n'.join(location_examples)
+                
+                # Ask LLM: Can we differentiate these guidelines with current answer?
+                analyze_system = f"""Patient answer: "{answer}"
+
+Top differential diagnoses describe locations as:
+{guidelines_say}
+
+Can the patient's answer differentiate between these specific locations, or do we need more detail?
+
+Output 'sufficient' if we can differentiate, or 'need_more' if too vague."""
+                
+                analyze_user = "Status:"
+                
+                location_check = self.llm_chat_fn(
+                    [
+                        {"role": "system", "content": analyze_system},
+                        {"role": "user", "content": analyze_user}
+                    ],
+                    max_tokens=10,
+                    temperature=0.0
+                )
+                
+                if 'need_more' in location_check.lower() or 'need' in location_check.lower():
+                    print(f"[Engine] ⚠️ Location insufficient for differential - asking for more detail")
+                    
+                    # Ask LLM to generate clarification based on what guidelines need
+                    clarify_gen_system = f"""Patient said: "{answer}"
+
+Top differential diagnoses require:
+{guidelines_say}
+
+Generate a single clarifying question to get the specific anatomical detail needed.
+
+Question:"""
+                    
+                    clarify_gen_user = "Output:"
+                    
+                    clarify_response = self.llm_chat_fn(
+                        [
+                            {"role": "system", "content": clarify_gen_system},
+                            {"role": "user", "content": clarify_gen_user}
+                        ],
+                        max_tokens=25,
+                        temperature=0.0
+                    )
+                    
+                    clarify_location = clarify_response.strip().strip('"\'')
+                    if not clarify_location.endswith('?'):
+                        clarify_location += '?'
+                    
+                    print(f"[Engine] 💬 Location clarification: '{clarify_location}'")
+                    print(f"{'='*80}\n")
+                    
+                    # Preserve OLDCARTS element
+                    self.conversation_history.append({
+                        'type': 'question',
+                        'question': clarify_location,
+                        'focus': 'clinical',
+                        'oldcarts': 'L'  # Keep as location
+                    })
+                    
+                    return {
+                        'success': True,
+                        'question': clarify_location,
+                        'status': 'questioning'
+                    }
+                else:
+                    print(f"[Engine] ✅ Location answer is sufficient for differential diagnosis")
         
         # SAFETY CHECK: Ensure we have active guidelines
         if len(self.active_guidelines) == 0 and len(self.reserve_pool) == 0:

@@ -22,6 +22,10 @@ STANDARD PRESETS:
     - reset                   : Factory defaults (all OFF)
     - show                    : Show current settings
 
+LED CONTROL:
+    - led_off                 : Turn off all LEDs
+    - led_brightness [0-31]   : Set LED brightness (0=off, 31=max)
+
 TEST PROFILES (systematic optimization):
     - bf         : Beamforming ONLY (pure test)
     - hpbf       : Beamforming + HPF 70Hz
@@ -1391,6 +1395,82 @@ def show_current_settings():
     
     return True
 
+def led_off():
+    """Turn off all LEDs on ReSpeaker"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    print("\n" + "="*80)
+    print("  💡 LED CONTROL: Turn Off")
+    print("="*80 + "\n")
+    
+    try:
+        # Send command to turn off LEDs (mono mode with all zeros)
+        # Command format: [cmd, data0, data1, data2, data3]
+        usb_dev.ctrl_transfer(
+            0x40,           # bmRequestType
+            0xAE,           # bRequest (custom command)
+            0x0001,         # wValue (command: mono mode)
+            0x0000,         # wIndex
+            [0, 0, 0, 0]    # data: all LEDs off (R=0, G=0, B=0)
+        )
+        print("  ✅ LEDs turned OFF")
+        print("\n  All 12 RGB LEDs are now disabled.")
+        print("  This reduces power consumption by ~10mA.\n")
+        
+    except Exception as e:
+        print(f"  ❌ Failed to control LEDs: {e}")
+        print("  Note: LED control uses USB control transfers")
+        print("  Make sure you have permissions (run with sudo)\n")
+        return False
+    
+    print("="*80 + "\n")
+    return True
+
+def led_set_brightness(brightness=0):
+    """Set LED brightness (0-31)"""
+    import usb.core
+    
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("\n  ❌ ReSpeaker USB device not found")
+        return False
+    
+    # Clamp brightness to valid range
+    brightness = max(0, min(31, brightness))
+    
+    print("\n" + "="*80)
+    print(f"  💡 LED CONTROL: Set Brightness to {brightness}/31")
+    print("="*80 + "\n")
+    
+    try:
+        # Command 0x20 = set brightness
+        usb_dev.ctrl_transfer(
+            0x40,           # bmRequestType
+            0xAE,           # bRequest
+            0x0020,         # wValue (command: set brightness)
+            0x0000,         # wIndex
+            [brightness]    # brightness value (0-31)
+        )
+        
+        if brightness == 0:
+            print("  ✅ LED brightness set to MINIMUM (effectively off)")
+        else:
+            print(f"  ✅ LED brightness set to {brightness}/31")
+        
+        print(f"\n  Brightness level: {int(brightness/31*100)}%\n")
+        
+    except Exception as e:
+        print(f"  ❌ Failed to set brightness: {e}\n")
+        return False
+    
+    print("="*80 + "\n")
+    return True
+
 def main():
     """Main execution"""
     # Check if running with sudo
@@ -1431,6 +1511,14 @@ def main():
             success = reset_defaults()
         elif preset == "show":
             success = show_current_settings()
+        
+        # LED Control
+        elif preset == "led_off" or preset == "leds_off":
+            success = led_off()
+        elif preset == "led_brightness":
+            # Get brightness value from command line (default: 0)
+            brightness = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+            success = led_set_brightness(brightness)
         
         # Beamforming presets
         elif preset == "beamforming" or preset == "beam":
@@ -1487,6 +1575,9 @@ def main():
             print(f"    - near_field              : Moderate AGC (1-6 feet)")
             print(f"    - reset                   : Factory defaults (all OFF)")
             print(f"    - show                    : Show current settings")
+            print(f"\n  💡 LED CONTROL:")
+            print(f"    - led_off                 : Turn off all LEDs")
+            print(f"    - led_brightness [0-31]   : Set LED brightness (0=off, 31=max)")
             print(f"\n  🧪 TEST PROFILES (systematic testing):")
             print(f"    - bf         : Beamforming ONLY (pure test)")
             print(f"    - hpbf       : Beamforming + HPF 70Hz")
