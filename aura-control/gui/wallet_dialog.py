@@ -7,8 +7,12 @@ from PyQt5.QtGui import QFont, QColor
 import os
 import sys
 
-# Use relative imports for organized structure
-from ..wallet.wallet_integration import get_wallet_manager, get_usage_tracker
+# Add the parent directories to Python path for imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
+
+from wallet.wallet_integration import get_wallet_manager, get_usage_tracker
 
 
 class BalanceFetchWorker(QThread):

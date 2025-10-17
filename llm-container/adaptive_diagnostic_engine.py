@@ -333,43 +333,21 @@ class AdaptiveDiagnosticEngine:
             }
         
         elif last_q.get('focus') == 'sex':
-            # Extract sex using LLM
+            # Extract sex - use simple keyword matching first, then LLM fallback
             print(f"[Engine] 🔍 Extracting sex from answer: '{user_answer}'")
             
-            extract_system = f"""Extract biological sex from this answer to the question "Are you male or female?"
-
-If the answer clearly states or implies male (man, male, boy, guy), output 'male'.
-If the answer clearly states or implies female (woman, female, girl, lady), output 'female'.
-Otherwise, output 'unknown'.
-
-Examples:
-- "male" → male
-- "I'm a man" → male
-- "female" → female  
-- "woman" → female
-- "yeah" → unknown (doesn't specify sex)
-- "yes" → unknown (doesn't specify sex)
-- "email" → unknown
-- "30" → unknown"""
+            answer_lower = user_answer.lower()
+            words = answer_lower.split()
             
-            extract_user = f"Question: Are you male or female?\nAnswer: {user_answer}\n\nExtracted:"
+            # Check for explicit sex words (standalone)
+            male_words = {'male', 'man', 'boy', 'guy'}
+            female_words = {'female', 'woman', 'girl', 'lady'}
             
-            sex_response = self.llm_chat_fn(
-                [
-                    {"role": "system", "content": extract_system},
-                    {"role": "user", "content": extract_user}
-                ],
-                max_tokens=5,
-                temperature=0.0
-            )
-            
-            sex_result = sex_response.strip().lower()
-            # Only accept exact matches
-            if sex_result == 'female':
-                self.demographics['sex'] = 'female'
-            elif sex_result == 'male':
+            # Fast keyword check
+            if any(word in male_words for word in words):
                 self.demographics['sex'] = 'male'
-            # If LLM outputs 'unknown' or anything else, leave sex unset
+            elif any(word in female_words for word in words):
+                self.demographics['sex'] = 'female'
             
             print(f"[Engine] 👤 Sex: {self.demographics.get('sex', 'unknown')}")
             
@@ -486,14 +464,14 @@ Examples:
         
         # Build context-specific validation criteria based on OLDCARTS element
         validation_criteria = {
-            'O': "MUST indicate WHEN (time reference like 'hours ago', 'yesterday', 'this morning').",
-            'L': "MUST specify WHERE (anatomical location like 'left side', 'upper abdomen', 'chest', NOT just 'on the').",
-            'D': "MUST describe HOW LONG (duration like 'constant', 'comes and goes', 'few minutes').",
-            'C': "MUST describe CHARACTER (quality like 'sharp', 'dull', 'burning', 'cramping').",
-            'A': "MUST describe AGGRAVATING factors (what makes it worse: 'movement', 'eating', or 'nothing').",
-            'R': "MUST describe RELIEVING factors (what helps: 'rest', 'medication', or 'nothing').",
-            'T': "MUST describe TIMING pattern ('constant', 'intermittent', 'comes in waves').",
-            'S': "MUST indicate SEVERITY (number, or 'mild', 'moderate', 'severe')."
+            'O': "Answer must include a time reference (e.g., 'hours ago', 'yesterday', 'this morning').",
+            'L': "Answer must include anatomical location words (e.g., 'left', 'right', 'upper', 'lower', 'chest', 'abdomen', 'side'). 'on my left side' is VALID.",
+            'D': "Answer must describe duration (e.g., 'constant', 'comes and goes', 'few minutes').",
+            'C': "Answer must describe pain character (e.g., 'sharp', 'dull', 'burning', 'cramping').",
+            'A': "Answer must describe aggravating factors (e.g., 'movement', 'eating', 'nothing').",
+            'R': "Answer must describe relieving factors (e.g., 'rest', 'medication', 'nothing').",
+            'T': "Answer must describe timing pattern (e.g., 'constant', 'intermittent', 'comes in waves').",
+            'S': "Answer must indicate severity (e.g., number, 'mild', 'moderate', 'severe')."
         }
         
         # Get specific criteria for this OLDCARTS element
