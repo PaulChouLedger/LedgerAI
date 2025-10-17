@@ -334,8 +334,19 @@ class AdaptiveDiagnosticEngine:
             # Extract sex using LLM
             print(f"[Engine] 🔍 Extracting sex from answer: '{user_answer}'")
             
-            extract_system = f"Extract biological sex from this answer. Output ONLY 'male' or 'female'."
-            extract_user = f"Question: Are you male or female?\nAnswer: {user_answer}\n\nExtracted sex:"
+            extract_system = f"""Extract biological sex from this answer. Output ONLY 'male' or 'female'.
+
+If the answer is not clearly 'male' or 'female', output 'unknown'.
+
+Examples:
+- "male" → male
+- "female" → female  
+- "I'm a man" → male
+- "woman" → female
+- "email" → unknown
+- "30" → unknown"""
+            
+            extract_user = f"Answer: {user_answer}\n\nSex:"
             
             sex_response = self.llm_chat_fn(
                 [
@@ -347,13 +358,12 @@ class AdaptiveDiagnosticEngine:
             )
             
             sex_result = sex_response.strip().lower()
-            # Be strict: ONLY accept if response is exactly 'male' or 'female'
-            if sex_result == 'female' or 'female' in sex_result.split():
+            # Only accept exact matches
+            if sex_result == 'female':
                 self.demographics['sex'] = 'female'
-            elif sex_result == 'male' or 'male' in sex_result.split():
-                # Double-check: 'male' must be standalone word, not part of 'email', 'female', etc
-                if sex_result == 'male' or (sex_result.startswith('male') and len(sex_result) <= 6):
-                    self.demographics['sex'] = 'male'
+            elif sex_result == 'male':
+                self.demographics['sex'] = 'male'
+            # If LLM outputs 'unknown' or anything else, leave sex unset
             
             print(f"[Engine] 👤 Sex: {self.demographics.get('sex', 'unknown')}")
             
@@ -400,16 +410,16 @@ class AdaptiveDiagnosticEngine:
             }
         
         else:
-            # Clinical question - VALIDATE answer first
+            # Clinical question - find last question first
+            last_q_item = None
+            for item in reversed(self.conversation_history):
+                if item.get('type') == 'question':
+                    last_q_item = item
+                    break
+            
+            # VALIDATE answer first
             if not self._is_acceptable_clinical_answer(user_answer):
                 print(f"[Engine] ⚠️ Answer too vague or unclear - asking for clarification")
-                
-                # Find last question and extract CORE question (strip clarification prefix)
-                last_q_item = None
-                for item in reversed(self.conversation_history):
-                    if item.get('type') == 'question':
-                        last_q_item = item
-                        break
                 
                 last_q = last_q_item.get('question', 'the question') if last_q_item else 'the question'
                 
@@ -440,7 +450,6 @@ class AdaptiveDiagnosticEngine:
                 }
             
             # LOCATION-SPECIFIC: Check if answer needs clarification (ONLY for location)
-            last_q = last_q_item.get('question') if last_q_item else ''
             oldcarts_elem = last_q_item.get('oldcarts') if last_q_item else None
             
             if oldcarts_elem == 'L':  # Only for LOCATION
