@@ -790,6 +790,14 @@ class AuraGUI(QMainWindow):
         except Exception as e:
             pass
     
+    @pyqtSlot()
+    def _show_buttons(self):
+        """Thread-safe method to show buttons (must be called from GUI thread)"""
+        if hasattr(self, 'buttons'):
+            for btn in self.buttons:
+                btn.show()
+            print("[AuraGUI] 🔘 Buttons now visible")
+    
     @pyqtSlot(bool)
     def _update_transcribing_state(self, active):
         """Thread-safe method to update transcribing state (must be called from GUI thread)"""
@@ -875,11 +883,10 @@ def set_welcome_played():
     _welcome_played = True
     print("[AuraGUI] 👋 Welcome prompt played - aura eye now static and ready")
     
-    # Show buttons with fade-in animation
-    if _window and hasattr(_window, 'buttons'):
-        for btn in _window.buttons:
-            btn.show()
-        print("[AuraGUI] 🔘 Buttons now visible")
+    # Show buttons using thread-safe Qt mechanism
+    if _window:
+        QMetaObject.invokeMethod(_window, "_show_buttons",
+                                Qt.QueuedConnection)
 
 def set_transcribing(active):
     """Set transcription state - red edge pulsation when user is speaking (thread-safe)"""
