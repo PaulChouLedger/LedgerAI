@@ -241,7 +241,7 @@ def chat_tg():
                     response += intro + " "
                 response += first_question
                 return jsonify({"response": response})
-        else:
+            else:
                 # Continue existing triage
                 question, final_state = process_triage_step(prompt, updated_state, session_id, llm_chat)
                 save_state(final_state, session_id)
@@ -276,7 +276,7 @@ def chat_tg():
                 
                 return jsonify({"response": "I'm sorry, I encountered an error processing your medical query. Please try again or consult a healthcare professional."})
         
-            else:
+        else:
             return jsonify({"response": "I'm sorry, I didn't understand that."})
             
     except Exception as e:
@@ -398,14 +398,14 @@ def chat_tts():
             def generate_triage_continue():
                 try:
                     question, final_state = process_triage_step(prompt, updated_state, session_id, llm_chat)
-                save_state(final_state, session_id)
-                yield f"<sentence_start>\n{question}\n<sentence_end>\n"
-            except Exception as e:
-                print(f"[Aura-LLM] ❌ Error in triage: {e}")
-                import traceback
-                traceback.print_exc()
+                    save_state(final_state, session_id)
+                    yield f"<sentence_start>\n{question}\n<sentence_end>\n"
+                except Exception as e:
+                    print(f"[Aura-LLM] ❌ Error in triage: {e}")
+                    import traceback
+                    traceback.print_exc()
                     print(f"[Aura-LLM] 🔍 Error details: {type(e).__name__}: {str(e)}")
-                yield f"<sentence_start>\nI'm sorry, there was an error processing your triage.\n<sentence_end>\n"
+                    yield f"<sentence_start>\nI'm sorry, there was an error processing your triage.\n<sentence_end>\n"
             # Filter think blocks at container level
             return Response(stream_with_context(filter_think_blocks(generate_triage_continue())), mimetype="text/plain")
 
