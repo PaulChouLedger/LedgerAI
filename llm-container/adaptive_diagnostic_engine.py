@@ -700,23 +700,59 @@ class AdaptiveDiagnosticEngine:
         # Determine next OLDCARTS element to ask about
         next_element = uncovered_elements[0] if uncovered_elements else None
         
-        # Hardcoded OLDCARTS templates (reliable, fast)
+        # LLM-generated OLDCARTS questions
         if next_element:
-            oldcarts_templates = {
-                'L': "Where exactly is the pain?",
-                'D': "How long does the pain last?",
-                'C': "How would you describe the pain?",
-                'A': "What makes the pain worse?",
-                'R': "What helps relieve the pain?",
-                'T': "Is the pain constant or does it come and go?",
-                'S': "How severe is the pain on a scale of 1 to 10?"
+            print(f"[Engine] 🧠 Generating question for OLDCARTS element: {next_element}")
+            
+            # Define what each OLDCARTS element asks about
+            oldcarts_descriptions = {
+                'O': "ONSET - when the symptom started (time/timing)",
+                'L': "LOCATION - where the symptom is located (anatomical location)",
+                'D': "DURATION - how long the symptom lasts or persists",
+                'C': "CHARACTER - what the symptom feels like (quality/description)",
+                'A': "AGGRAVATING factors - what makes the symptom worse",
+                'R': "RELIEVING factors - what makes the symptom better",
+                'T': "TIMING - pattern of the symptom (constant vs intermittent)",
+                'S': "SEVERITY - how bad the symptom is (intensity/scale)"
             }
             
-            question = oldcarts_templates.get(next_element)
+            element_desc = oldcarts_descriptions.get(next_element, "the symptom")
+            
+            # Build patient context
+            patient_info = f"{self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')}"
+            symptom = self.chief_complaint.lower().replace('i have', '').replace('i had', '').replace('i\'m having', '').strip()
+            
+            system_msg = f"""Generate a single, conversational question to ask a {patient_info} patient about: {element_desc}
+
+Patient's symptom: {symptom}
+
+Requirements:
+- Ask about {element_desc}
+- Make it open-ended (NOT yes/no)
+- Natural and conversational for voice
+- One question only
+- No explanations or meta-text
+
+Output ONLY the question."""
+            
+            user_msg = "Question:"
+            
+            response = self.llm_chat_fn(
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=30,
+                temperature=0.3
+            )
+            
+            question = response.strip().strip('"\'')
+            if not question.endswith('?'):
+                question += '?'
+            
             oldcarts_element = next_element
             
-            print(f"[Engine] ✅ Template Question: '{question}'")
-            print(f"[Engine] 📋 OLDCARTS Element: {oldcarts_element}")
+            print(f"[Engine] ✅ OLDCARTS Question ({next_element}): '{question}'")
             
             # Mark as covered
             self.oldcarts_covered[oldcarts_element] = True
@@ -736,18 +772,57 @@ class AdaptiveDiagnosticEngine:
                 'status': 'questioning'
             }
         
-        # After OLDCARTS: Ask about associated symptoms
-        # Simple templates to avoid repeats
+        # After OLDCARTS: Ask about associated symptoms using LLM
+        print(f"[Engine] 🧠 Generating associated symptom question...")
+        
+        # Build context of what's been asked
         asked_lower = ' '.join(asked).lower()
         
-        if 'fever' not in asked_lower:
-            question = "Have you had any fever?"
-        elif 'nausea' not in asked_lower and 'vomit' not in asked_lower:
-            question = "Have you had any nausea or vomiting?"
-        elif 'appetite' not in asked_lower and 'hungry' not in asked_lower:
-            question = "How is your appetite?"
-        else:
-            question = "Any other symptoms?"
+        # Get KEY POSITIVES from top 3 guidelines for context
+        key_symptoms = []
+        for g in self.active_guidelines[:3]:
+            classic = g['data'].get('key_features', {}).get('classic_presentation', '')
+            if 'KEY POSITIVES:' in classic:
+                parts = classic.split('KEY POSITIVES:')
+                if len(parts) > 1:
+                    key_pos = parts[1].split('KEY NEGATIVES:')[0] if 'KEY NEGATIVES:' in parts[1] else parts[1]
+                    key_symptoms.append(f"{g['name']}: {key_pos[:100]}")
+        
+        symptoms_context = '\n'.join(key_symptoms[:3]) if key_symptoms else "Common associated symptoms"
+        
+        system_msg = f"""Generate a single question about associated symptoms for this patient.
+
+Patient: {patient_info} with {symptom}
+
+Questions already asked: {len(asked)} questions
+
+Top differential diagnoses have these key associated symptoms:
+{symptoms_context}
+
+Generate ONE question about an important associated symptom (fever, nausea, vomiting, diarrhea, appetite, etc).
+
+Requirements:
+- Ask about ONE associated symptom only
+- Natural and conversational
+- Can be yes/no or open-ended
+- No meta-text
+
+Output ONLY the question."""
+        
+        user_msg = "Question:"
+        
+        response = self.llm_chat_fn(
+            [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ],
+            max_tokens=25,
+            temperature=0.4
+        )
+        
+        question = response.strip().strip('"\'')
+        if not question.endswith('?'):
+            question += '?'
         
         print(f"[Engine] ✅ Associated symptom question: '{question}'")
         print(f"{'='*80}\n")
@@ -915,12 +990,59 @@ class AdaptiveDiagnosticEngine:
         
         oldcarts_element = last_question_item.get('oldcarts') if last_question_item else None
         
-        # SKIP SCORING for non-OLDCARTS questions (associated symptoms like fever, nausea)
+        # ASSOCIATED SYMPTOMS: Score using KEY POSITIVES/NEGATIVES sections
         if not oldcarts_element:
-            print(f"\n[Engine] ℹ️  Associated symptom question - skipping similarity scoring\n")
-            print(f"[Engine] 📋 Answer noted: '{answer}'\n")
+            print(f"\n[Engine] 🎯 ASSOCIATED SYMPTOM SCORING:\n")
+            print(f"[Engine] 📋 Matching '{answer}' to KEY POSITIVES/NEGATIVES sections\n")
             
-            # Just move to next question without scoring
+            # Combine active + reserve for scoring
+            all_guidelines = self.active_guidelines + self.reserve_pool
+            
+            for g in all_guidelines:
+                classic = g['data'].get('key_features', {}).get('classic_presentation', '')
+                
+                # Extract KEY POSITIVES and KEY NEGATIVES sections
+                key_pos = ""
+                key_neg = ""
+                
+                if 'KEY POSITIVES:' in classic:
+                    parts = classic.split('KEY POSITIVES:')
+                    if len(parts) > 1:
+                        key_section = parts[1].split('KEY NEGATIVES:')[0] if 'KEY NEGATIVES:' in parts[1] else parts[1]
+                        key_pos = key_section.strip()
+                
+                if 'KEY NEGATIVES:' in classic:
+                    parts = classic.split('KEY NEGATIVES:')
+                    if len(parts) > 1:
+                        key_neg = parts[1].strip()
+                
+                # Combine both sections for matching
+                combined_key_features = f"{key_pos} {key_neg}".strip()
+                
+                if combined_key_features:
+                    # Compute similarity
+                    similarity = self._compute_similarity(answer, combined_key_features)
+                    
+                    # Small weight for associated symptoms (10% vs 30% for OLDCARTS)
+                    old_score = g['score']
+                    new_score = (old_score * 0.9) + (similarity * 0.1)
+                    g['score'] = new_score
+                    
+                    change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
+                    print(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (similarity: {similarity:.2f})")
+            
+            # Re-rank after associated symptom scoring
+            all_guidelines.sort(key=lambda x: x['score'], reverse=True)
+            self.active_guidelines = all_guidelines[:self.MAX_ACTIVE]
+            self.reserve_pool = all_guidelines[self.MAX_ACTIVE:]
+            
+            print(f"\n[Engine] 📊 UPDATED RANKINGS after associated symptom:")
+            for i, g in enumerate(self.active_guidelines, 1):
+                print(f"[Engine]   {i}. {g['name']}: {g['score']:.0%}")
+            
+            print(f"\n")
+            
+            # Continue to next question
             return self._ask_next_clinical_question()
         
         # FOR EACH GUIDELINE: Score using VECTOR SIMILARITY
@@ -1033,54 +1155,64 @@ class AdaptiveDiagnosticEngine:
         
         print(f"{'='*80}\n")
         
-        # LOCATION CLARIFICATION: Check if guidelines require more anatomical detail
-        # Compare answer specificity to what top guidelines describe
+        # LOCATION CLARIFICATION: Check if answer has enough anatomical modifiers
+        # Programmatic check: does answer specify both lateral (left/right) AND vertical (upper/lower)?
         if oldcarts_element == 'L' and len(self.active_guidelines) >= 2:
             print(f"[Engine] 🔍 Checking if location answer has enough anatomical detail...")
             
-            # Get L sections from top 5 active guidelines
-            location_sections = []
+            answer_lower = answer.lower()
+            
+            # Check what dimensions patient specified
+            has_lateral = ('left' in answer_lower or 'right' in answer_lower)
+            has_vertical = ('upper' in answer_lower or 'lower' in answer_lower)
+            has_specific_region = any(word in answer_lower for word in [
+                'epigastric', 'periumbilical', 'umbilical', 'suprapubic', 'hypogastric',
+                'ruq', 'luq', 'rlq', 'llq', 'quadrant', 'flank', 'groin'
+            ])
+            
+            # Check what guidelines require
+            guidelines_need_both = False
             for g in self.active_guidelines[:5]:
                 classic = g['data'].get('key_features', {}).get('classic_presentation', '')
-                location_section = self._extract_oldcarts_section(classic, 'L')
-                if location_section:
-                    location_sections.append(f"{g['name']}: {location_section[:150]}")
+                location_section = self._extract_oldcarts_section(classic, 'L').upper()
+                
+                # If any guideline has both lateral AND vertical descriptors, we need both
+                has_guide_lateral = ('LEFT' in location_section or 'RIGHT' in location_section)
+                has_guide_vertical = ('UPPER' in location_section or 'LOWER' in location_section or 
+                                     'QUADRANT' in location_section)
+                
+                if has_guide_lateral and has_guide_vertical:
+                    guidelines_need_both = True
+                    break
             
-            if location_sections:
-                guidelines_context = '\n'.join(location_sections)
+            # Need clarification if:
+            # 1. Patient only gave lateral (left/right) but guidelines need vertical too
+            # 2. Patient only gave vertical (upper/lower) but guidelines need lateral too
+            needs_clarification = False
+            
+            if guidelines_need_both and not has_specific_region:
+                if has_lateral and not has_vertical:
+                    needs_clarification = True
+                    print(f"[Engine] ⚠️ Patient said lateral ({answer_lower}) but missing vertical (upper/lower)")
+                elif has_vertical and not has_lateral:
+                    needs_clarification = True
+                    print(f"[Engine] ⚠️ Patient said vertical ({answer_lower}) but missing lateral (left/right)")
+            
+            if needs_clarification:
+                print(f"[Engine] ⚠️ Location needs more specificity for differential diagnosis")
                 
-                # Ask LLM: Does patient's answer have the same level of detail as guidelines?
-                # E.g., guideline says "LEFT LOWER QUADRANT" but patient only said "left side"
-                check_system = f"""Patient answer: "{answer}"
-
-Top differential diagnoses describe locations as:
-{guidelines_context}
-
-Does the patient's answer have the same level of anatomical detail as these guidelines?
-
-For example:
-- "left side" vs "LEFT LOWER QUADRANT" → patient is missing "upper/lower" detail
-- "upper abdomen" vs "Epigastric" → patient has sufficient detail
-- "chest" vs "RETROSTERNAL" → patient has sufficient detail (general is OK)
-
-Output 'sufficient' if patient has enough detail, or 'need_clarification' if missing specificity."""
+                # Get location sections from top 5
+                location_sections = []
+                for g in self.active_guidelines[:5]:
+                    classic = g['data'].get('key_features', {}).get('classic_presentation', '')
+                    location_section = self._extract_oldcarts_section(classic, 'L')
+                    if location_section:
+                        location_sections.append(f"{g['name']}: {location_section}")
                 
-                check_user = "Status:"
+                guidelines_context = '\n\n'.join(location_sections) if location_sections else ""
                 
-                detail_check = self.llm_chat_fn(
-                    [
-                        {"role": "system", "content": check_system},
-                        {"role": "user", "content": check_user}
-                    ],
-                    max_tokens=10,
-                    temperature=0.0
-                )
-                
-                if 'need' in detail_check.lower() or 'clarification' in detail_check.lower():
-                    print(f"[Engine] ⚠️ Answer lacks anatomical detail required by guidelines")
-                    
-                    # LLM generates clarification based on what's missing
-                    clarify_system = f"""Patient said: "{answer}"
+                # LLM generates clarification based on what's missing
+                clarify_system = f"""Patient said: "{answer}"
 
 Top diagnoses require these location details:
 {guidelines_context}
@@ -1088,40 +1220,40 @@ Top diagnoses require these location details:
 Generate a single, conversational question to get the missing anatomical detail.
 
 Output ONLY the question. Make it natural for voice."""
-                    
-                    clarify_user = "Question:"
-                    
-                    clarify_response = self.llm_chat_fn(
-                        [
-                            {"role": "system", "content": clarify_system},
-                            {"role": "user", "content": clarify_user}
-                        ],
-                        max_tokens=30,
-                        temperature=0.2
-                    )
-                    
-                    clarify_location = clarify_response.strip().strip('"\'')
-                    if not clarify_location.endswith('?'):
-                        clarify_location += '?'
-                    
-                    print(f"[Engine] 💬 Clarification: '{clarify_location}'")
-                    print(f"{'='*80}\n")
-                    
-                    # Preserve OLDCARTS element
-                    self.conversation_history.append({
-                        'type': 'question',
-                        'question': clarify_location,
-                        'focus': 'clinical',
-                        'oldcarts': 'L'  # Keep as location
-                    })
-                    
-                    return {
-                        'success': True,
-                        'question': clarify_location,
-                        'status': 'questioning'
-                    }
-                else:
-                    print(f"[Engine] ✅ Location answer has sufficient anatomical detail")
+                
+                clarify_user = "Question:"
+                
+                clarify_response = self.llm_chat_fn(
+                    [
+                        {"role": "system", "content": clarify_system},
+                        {"role": "user", "content": clarify_user}
+                    ],
+                    max_tokens=30,
+                    temperature=0.2
+                )
+                
+                clarify_location = clarify_response.strip().strip('"\'')
+                if not clarify_location.endswith('?'):
+                    clarify_location += '?'
+                
+                print(f"[Engine] 💬 Clarification: '{clarify_location}'")
+                print(f"{'='*80}\n")
+                
+                # Preserve OLDCARTS element
+                self.conversation_history.append({
+                    'type': 'question',
+                    'question': clarify_location,
+                    'focus': 'clinical',
+                    'oldcarts': 'L'  # Keep as location
+                })
+                
+                return {
+                    'success': True,
+                    'question': clarify_location,
+                    'status': 'questioning'
+                }
+            else:
+                print(f"[Engine] ✅ Location answer has sufficient anatomical detail")
         
         # SAFETY CHECK: Ensure we have active guidelines
         if len(self.active_guidelines) == 0 and len(self.reserve_pool) == 0:
@@ -1318,38 +1450,136 @@ Output ONLY the question. Make it natural for voice."""
     
     def _generate_opening_statement(self, chief_complaint: str) -> str:
         """
-        Hardcoded opening statement
+        LLM-generated empathetic opening statement
         """
-        statement = "I understand. I'll ask some questions to help figure this out."
+        print(f"[Engine] 🧠 Generating opening statement...")
+        
+        system_msg = f"""Generate a brief, empathetic opening statement for a patient who said: "{chief_complaint}"
+
+Requirements:
+- Show empathy and reassurance (1 sentence)
+- Set expectation that you'll ask questions to help (1 sentence)
+- Be warm and conversational
+- Total: 2 sentences max
+
+Output ONLY the statement (no meta-text)."""
+        
+        user_msg = "Statement:"
+        
+        response = self.llm_chat_fn(
+            [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ],
+            max_tokens=50,
+            temperature=0.3
+        )
+        
+        statement = response.strip().strip('"\'')
         print(f"[Engine] ✅ Opening: '{statement}'")
         return statement
     
     def _generate_age_question(self) -> str:
         """
-        Hardcoded age question
+        LLM-generated age question
         """
-        question = "How old are you?"
+        print(f"[Engine] 🧠 Generating age question...")
+        
+        system_msg = """Generate a single, conversational question asking for the patient's age.
+
+Requirements:
+- Natural and friendly tone
+- One simple question
+- No extra explanation
+
+Output ONLY the question."""
+        
+        user_msg = "Question:"
+        
+        response = self.llm_chat_fn(
+            [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ],
+            max_tokens=20,
+            temperature=0.3
+        )
+        
+        question = response.strip().strip('"\'')
+        if not question.endswith('?'):
+            question += '?'
         print(f"[Engine] ✅ Age question: '{question}'")
         return question
     
     def _generate_sex_question(self) -> str:
         """
-        Hardcoded sex question
+        LLM-generated biological sex question
         """
-        question = "Are you male or female?"
+        print(f"[Engine] 🧠 Generating sex question...")
+        
+        system_msg = """Generate a single question asking for the patient's biological sex.
+
+Requirements:
+- Ask for "male or female" (biological sex for medical purposes)
+- Simple and direct
+- One question only
+
+Output ONLY the question."""
+        
+        user_msg = "Question:"
+        
+        response = self.llm_chat_fn(
+            [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ],
+            max_tokens=20,
+            temperature=0.3
+        )
+        
+        question = response.strip().strip('"\'')
+        if not question.endswith('?'):
+            question += '?'
         print(f"[Engine] ✅ Sex question: '{question}'")
         return question
     
     def _generate_clarification_question(self, topic: str) -> str:
         """
-        Hardcoded clarification questions
+        LLM-generated clarification question for invalid answers
         """
-        clarifications = {
-            "age": "I didn't catch that. How old are you?",
-            "sex": "I didn't catch that. Are you male or female?"
+        print(f"[Engine] 🧠 Generating clarification for: {topic}")
+        
+        topic_descriptions = {
+            "age": "the patient's age in years",
+            "sex": "the patient's biological sex (male or female)"
         }
         
-        question = clarifications.get(topic, f"Can you clarify your answer?")
+        desc = topic_descriptions.get(topic, "your answer")
+        
+        system_msg = f"""The patient didn't provide a clear answer. Generate a polite re-asking question for: {desc}
+
+Requirements:
+- Start with brief acknowledgment ("I didn't catch that")
+- Re-ask the same information
+- Keep it simple and direct
+- Natural for voice
+
+Output ONLY the question."""
+        
+        user_msg = "Question:"
+        
+        response = self.llm_chat_fn(
+            [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ],
+            max_tokens=25,
+            temperature=0.3
+        )
+        
+        question = response.strip().strip('"\'')
+        if not question.endswith('?'):
+            question += '?'
         print(f"[Engine] ✅ Clarification: '{question}'")
         return question
 
