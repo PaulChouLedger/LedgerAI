@@ -948,33 +948,60 @@ Output 'yes' to accept or 'no' to reject."""
             if not oldcarts_section:
                 raise RuntimeError(f"Could not extract {oldcarts_element} section from {g['name']}")
             
-            # Compute semantic similarity between answer and guideline's OLDCARTS section
-            similarity = self._compute_similarity(answer, oldcarts_section)
+            # KEYWORD FILTER: For location questions, skip opposite-sided conditions
+            # This is faster and more accurate than semantic similarity for directional terms
+            if oldcarts_element == 'L':
+                answer_lower = answer.lower()
+                section_upper = oldcarts_section.upper()
+                
+                # Check for opposite-sided conditions
+                patient_says_left = 'left' in answer_lower and 'right' not in answer_lower
+                patient_says_right = 'right' in answer_lower and 'left' not in answer_lower
+                
+                guideline_is_right_only = 'RIGHT' in section_upper and 'LEFT' not in section_upper
+                guideline_is_left_only = 'LEFT' in section_upper and 'RIGHT' not in section_upper
+                
+                # Skip this guideline if sides don't match
+                if (patient_says_left and guideline_is_right_only) or (patient_says_right and guideline_is_left_only):
+                    # Set similarity to 0 (will be ruled out or demoted)
+                    similarity = 0.0
+                    print(f"[Engine]   {g['name']}: SKIPPED (location keyword mismatch: {answer_lower} vs {section_upper[:40]})")
+                else:
+                    # Compute semantic similarity normally
+                    similarity = self._compute_similarity(answer, oldcarts_section)
+            else:
+                # Compute semantic similarity normally for non-location questions
+                similarity = self._compute_similarity(answer, oldcarts_section)
             
-            # Update score with weighted average (70% old score + 30% new similarity)
-            # This prevents wild swings while incorporating new information
+            # Update score
             old_score = g['score']
-            new_score = (old_score * 0.7) + (similarity * 0.3)
-            g['score'] = new_score
-            
-            change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
-            print(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change}")
-            print(f"[Engine]     Similarity: {similarity:.2f} to {oldcarts_element} section")
-            print(f"[Engine]     Section: {oldcarts_section[:80]}...")
+            if similarity == 0.0:
+                # Hard mismatch (e.g., left vs right) - rule out immediately
+                new_score = 0.0
+                g['score'] = new_score
+                change = "❌"
+            else:
+                # Normal weighted average (70% old score + 30% new similarity)
+                # This prevents wild swings while incorporating new information
+                new_score = (old_score * 0.7) + (similarity * 0.3)
+                g['score'] = new_score
+                change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
+                print(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change}")
+                print(f"[Engine]     Similarity: {similarity:.2f} to {oldcarts_element} section")
+                print(f"[Engine]     Section: {oldcarts_section[:80]}...")
         
         # DYNAMIC RE-RANKING: Sort ALL guidelines by updated scores
         # This ensures conditions like Diverticulitis (LLQ) jump to top when "left side" is mentioned
         print(f"\n[Engine] 🔄 RE-RANKING all guidelines by updated scores...")
         
-        # First, rule out any with score < threshold
+        # Rule out any with score < threshold
         ruled_out_this_round = []
         remaining = []
         for g in all_guidelines:
             if g['score'] < self.RULE_OUT_THRESHOLD:
-                if g not in self.ruled_out:  # Avoid duplicates
-                    print(f"[Engine] ❌ RULING OUT: {g['name']} (score {g['score']:.0%} < {self.RULE_OUT_THRESHOLD:.0%})")
-                    self.ruled_out.append(g)
-                    ruled_out_this_round.append(g)
+                print(f"[Engine] ❌ RULING OUT: {g['name']} (score {g['score']:.0%} < {self.RULE_OUT_THRESHOLD:.0%})")
+                self.ruled_out.append(g)
+                ruled_out_this_round.append(g)
             else:
                 remaining.append(g)
         
@@ -1048,30 +1075,31 @@ Output 'sufficient' if we can differentiate, or 'need_more' if too vague."""
                 if 'need_more' in location_check.lower() or 'need' in location_check.lower():
                     print(f"[Engine] ⚠️ Location insufficient for differential - asking for more detail")
                     
-                    # Ask LLM to generate clarification based on what guidelines need
-                    clarify_gen_system = f"""Patient said: "{answer}"
-
-Top differential diagnoses require:
-{guidelines_say}
-
-Generate a single clarifying question to get the specific anatomical detail needed.
-
-Question:"""
+                    # Generate a simple, direct clarification question
+                    # Extract key location descriptors from guidelines
+                    location_keywords = set()
+                    for g in self.active_guidelines[:3]:
+                        loc_section = self._extract_oldcarts_section(
+                            g['data'].get('key_features', {}).get('classic_presentation', ''), 'L'
+                        ).upper()
+                        if 'UPPER' in loc_section:
+                            location_keywords.add('upper')
+                        if 'LOWER' in loc_section:
+                            location_keywords.add('lower')
+                        if 'LEFT' in loc_section:
+                            location_keywords.add('left')
+                        if 'RIGHT' in loc_section:
+                            location_keywords.add('right')
                     
-                    clarify_gen_user = "Output:"
-                    
-                    clarify_response = self.llm_chat_fn(
-                        [
-                            {"role": "system", "content": clarify_gen_system},
-                            {"role": "user", "content": clarify_gen_user}
-                        ],
-                        max_tokens=25,
-                        temperature=0.0
-                    )
-                    
-                    clarify_location = clarify_response.strip().strip('"\'')
-                    if not clarify_location.endswith('?'):
-                        clarify_location += '?'
+                    # Generate simple clarification based on what's needed
+                    if 'upper' in location_keywords and 'lower' in location_keywords:
+                        clarify_location = "Is the pain in the upper or lower part of your abdomen?"
+                    elif 'left' in answer.lower():
+                        clarify_location = "Is the pain in the upper left or lower left side of your abdomen?"
+                    elif 'right' in answer.lower():
+                        clarify_location = "Is the pain in the upper right or lower right side of your abdomen?"
+                    else:
+                        clarify_location = "Can you point to exactly where the pain is?"
                     
                     print(f"[Engine] 💬 Location clarification: '{clarify_location}'")
                     print(f"{'='*80}\n")
