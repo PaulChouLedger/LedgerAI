@@ -347,10 +347,13 @@ class AdaptiveDiagnosticEngine:
             )
             
             sex_result = sex_response.strip().lower()
-            if 'female' in sex_result:
+            # Be strict: ONLY accept if response is exactly 'male' or 'female'
+            if sex_result == 'female' or 'female' in sex_result.split():
                 self.demographics['sex'] = 'female'
-            elif 'male' in sex_result:
-                self.demographics['sex'] = 'male'
+            elif sex_result == 'male' or 'male' in sex_result.split():
+                # Double-check: 'male' must be standalone word, not part of 'email', 'female', etc
+                if sex_result == 'male' or (sex_result.startswith('male') and len(sex_result) <= 6):
+                    self.demographics['sex'] = 'male'
             
             print(f"[Engine] 👤 Sex: {self.demographics.get('sex', 'unknown')}")
             
@@ -436,7 +439,90 @@ class AdaptiveDiagnosticEngine:
                     'status': 'questioning'
                 }
             
-            # Answer is acceptable - proceed with scoring
+            # LOCATION-SPECIFIC: Check if answer needs clarification (ONLY for location)
+            last_q = last_q_item.get('question') if last_q_item else ''
+            oldcarts_elem = last_q_item.get('oldcarts') if last_q_item else None
+            
+            if oldcarts_elem == 'L':  # Only for LOCATION
+                print(f"[Engine] 🔍 Analyzing location specificity...")
+                
+                # Get what the top guidelines say about location
+                location_examples = []
+                for g in self.active_guidelines[:3]:
+                    classic = g['data'].get('key_features', {}).get('classic_presentation', '')
+                    location_section = self._extract_oldcarts_section(classic, 'L')
+                    if location_section:
+                        # Extract first 50 chars as example
+                        location_examples.append(f"{g['name']}: {location_section[:80]}")
+                
+                guidelines_say = '\n'.join(location_examples) if location_examples else "No location data"
+                
+                # Ask LLM: Can we match the answer to these specific guideline locations?
+                analyze_system = f"""Patient answer: "{user_answer}"
+
+Guidelines describe locations as:
+{guidelines_say}
+
+Can the patient's answer be matched to these specific locations, or do we need more detail?
+
+Output 'sufficient' if we can match it, or 'need_more' if too vague."""
+                
+                analyze_user = "Status:"
+                
+                location_check = self.llm_chat_fn(
+                    [
+                        {"role": "system", "content": analyze_system},
+                        {"role": "user", "content": analyze_user}
+                    ],
+                    max_tokens=5,
+                    temperature=0.0
+                )
+                
+                if 'need_more' in location_check.lower() or 'need' in location_check.lower():
+                    print(f"[Engine] ⚠️ Location insufficient for guideline matching - asking for more detail")
+                    
+                    # Ask LLM to generate clarification based on what guidelines need
+                    clarify_gen_system = f"""Patient said: "{user_answer}"
+
+But guidelines describe:
+{guidelines_say}
+
+Generate a follow-up question to get the specific location detail needed to match these guidelines.
+
+Question:"""
+                    
+                    clarify_gen_user = "Output:"
+                    
+                    clarify_response = self.llm_chat_fn(
+                        [
+                            {"role": "system", "content": clarify_gen_system},
+                            {"role": "user", "content": clarify_gen_user}
+                        ],
+                        max_tokens=20,
+                        temperature=0.0
+                    )
+                    
+                    clarify_location = clarify_response.strip().strip('"\'')
+                    if not clarify_location.endswith('?'):
+                        clarify_location += '?'
+                    
+                    print(f"[Engine] 💬 Location clarification: '{clarify_location}'")
+                    
+                    # Preserve OLDCARTS element
+                    self.conversation_history.append({
+                        'type': 'question',
+                        'question': clarify_location,
+                        'focus': 'clinical',
+                        'oldcarts': 'L'
+                    })
+                    
+                    return {
+                        'success': True,
+                        'question': clarify_location,
+                        'status': 'questioning'
+                    }
+            
+            # Answer is specific enough - proceed with scoring
             return self._process_clinical_answer(user_answer)
     
     def _is_acceptable_clinical_answer(self, answer: str) -> bool:
@@ -807,11 +893,16 @@ Output 'yes' to accept or 'no' to reject."""
         
         oldcarts_element = last_question_item.get('oldcarts') if last_question_item else None
         
+        # SKIP SCORING for non-OLDCARTS questions (associated symptoms like fever, nausea)
+        if not oldcarts_element:
+            print(f"\n[Engine] ℹ️  Associated symptom question - skipping similarity scoring\n")
+            print(f"[Engine] 📋 Answer noted: '{answer}'\n")
+            
+            # Just move to next question without scoring
+            return self._ask_next_clinical_question()
+        
         # FOR EACH GUIDELINE: Score using VECTOR SIMILARITY
         print(f"\n[Engine] 🎯 SEMANTIC SIMILARITY SCORING:\n")
-        
-        if not oldcarts_element:
-            raise RuntimeError(f"Question has no OLDCARTS element assigned - cannot score")
         
         if not self.embedding_model:
             raise RuntimeError("Embedding model not initialized - cannot compute similarity")
