@@ -119,7 +119,7 @@ class AdaptiveDiagnosticEngine:
         
         # Thresholds
         self.RULE_OUT_THRESHOLD = 0.30  # Below 30% → rule out and replace
-        self.MAX_ACTIVE = 3  # Keep 3 active differentials
+        self.MAX_ACTIVE = 5  # Keep 5 active differentials
     
     def start_assessment(self, chief_complaint: str) -> Dict[str, Any]:
         """
@@ -336,19 +336,23 @@ class AdaptiveDiagnosticEngine:
             # Extract sex using LLM
             print(f"[Engine] 🔍 Extracting sex from answer: '{user_answer}'")
             
-            extract_system = f"""Extract biological sex from this answer. Output ONLY 'male' or 'female'.
+            extract_system = f"""Extract biological sex from this answer to the question "Are you male or female?"
 
-If the answer is not clearly 'male' or 'female', output 'unknown'.
+If the answer clearly states or implies male (man, male, boy, guy), output 'male'.
+If the answer clearly states or implies female (woman, female, girl, lady), output 'female'.
+Otherwise, output 'unknown'.
 
 Examples:
 - "male" → male
-- "female" → female  
 - "I'm a man" → male
+- "female" → female  
 - "woman" → female
+- "yeah" → unknown (doesn't specify sex)
+- "yes" → unknown (doesn't specify sex)
 - "email" → unknown
 - "30" → unknown"""
             
-            extract_user = f"Answer: {user_answer}\n\nSex:"
+            extract_user = f"Question: Are you male or female?\nAnswer: {user_answer}\n\nExtracted:"
             
             sex_response = self.llm_chat_fn(
                 [
@@ -1066,9 +1070,9 @@ Output ONLY 'yes' to accept or 'no' to reject."""
         if oldcarts_element == 'L':
             print(f"[Engine] 🔍 Checking if location answer is specific enough for differential diagnosis...")
             
-            # Get what the UPDATED top 3 guidelines say about location
+            # Get what the UPDATED active guidelines say about location
             location_examples = []
-            for g in self.active_guidelines[:3]:
+            for g in self.active_guidelines:
                 classic = g['data'].get('key_features', {}).get('classic_presentation', '')
                 location_section = self._extract_oldcarts_section(classic, 'L')
                 if location_section:
@@ -1101,31 +1105,30 @@ Output 'sufficient' if we can differentiate, or 'need_more' if too vague."""
                 if 'need_more' in location_check.lower() or 'need' in location_check.lower():
                     print(f"[Engine] ⚠️ Location insufficient for differential - asking for more detail")
                     
-                    # Generate a simple, direct clarification question
-                    # Extract key location descriptors from guidelines
-                    location_keywords = set()
-                    for g in self.active_guidelines[:3]:
-                        loc_section = self._extract_oldcarts_section(
-                            g['data'].get('key_features', {}).get('classic_presentation', ''), 'L'
-                        ).upper()
-                        if 'UPPER' in loc_section:
-                            location_keywords.add('upper')
-                        if 'LOWER' in loc_section:
-                            location_keywords.add('lower')
-                        if 'LEFT' in loc_section:
-                            location_keywords.add('left')
-                        if 'RIGHT' in loc_section:
-                            location_keywords.add('right')
+                    # Use LLM to generate clarification question based on what guidelines need
+                    clarify_system = f"""Patient said: "{answer}"
+
+Top differential diagnoses require:
+{guidelines_say}
+
+Generate a single, direct clarifying question to get the specific anatomical location needed to differentiate between these conditions.
+
+Output ONLY the question (no explanations). Make it conversational and natural for voice interaction."""
                     
-                    # Generate simple clarification based on what's needed
-                    if 'upper' in location_keywords and 'lower' in location_keywords:
-                        clarify_location = "Is the pain in the upper or lower part of your abdomen?"
-                    elif 'left' in answer.lower():
-                        clarify_location = "Is the pain in the upper left or lower left side of your abdomen?"
-                    elif 'right' in answer.lower():
-                        clarify_location = "Is the pain in the upper right or lower right side of your abdomen?"
-                    else:
-                        clarify_location = "Can you point to exactly where the pain is?"
+                    clarify_user = "Question:"
+                    
+                    clarify_response = self.llm_chat_fn(
+                        [
+                            {"role": "system", "content": clarify_system},
+                            {"role": "user", "content": clarify_user}
+                        ],
+                        max_tokens=30,
+                        temperature=0.2
+                    )
+                    
+                    clarify_location = clarify_response.strip().strip('"\'')
+                    if not clarify_location.endswith('?'):
+                        clarify_location += '?'
                     
                     print(f"[Engine] 💬 Location clarification: '{clarify_location}'")
                     print(f"{'='*80}\n")

@@ -71,7 +71,7 @@ class AuraGUI(QMainWindow):
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
 
         # === Load and Scale aura_eye.png ===
-        img_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../assets/aura_eye.png"))
+        img_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../assets/aura_eye.png"))
         print(f"[AuraGUI] ✅ Loaded image: {img_path}")
         pixmap = QPixmap(img_path)
 
@@ -250,14 +250,14 @@ class AuraGUI(QMainWindow):
         
         # Block transcription while dialog is open
         try:
-            from listener import block_transcription, unblock_transcription
+            from ..core.listener import block_transcription, unblock_transcription
             block_transcription("Upload dialog open")
         except ImportError:
             print("[AuraGUI] ⚠️ Could not import listener blocking functions")
         
         # Pass self as parent so dialog appears on top properly
         print("[AuraGUI] 📂 Showing upload dialog...")
-        from file_upload_dialog import FileUploadDialog
+        from .file_upload_dialog import FileUploadDialog
         
         # Create and show dialog with this window as parent
         dialog = FileUploadDialog(parent=self)
@@ -285,22 +285,13 @@ class AuraGUI(QMainWindow):
         
         # Block transcription while dialog is open
         try:
-            from listener import block_transcription, unblock_transcription
+            from ..core.listener import block_transcription, unblock_transcription
             block_transcription("Wallet dialog open")
         except ImportError:
             print("[AuraGUI] ⚠️ Could not import listener blocking functions")
         
         try:
-            # Set up proper imports for organized structure
-            import os
-            import sys
-
-            # Add the parent directories to Python path for imports
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            parent_dir = os.path.dirname(current_dir)
-            sys.path.insert(0, parent_dir)
-
-            from wallet_dialog import WalletDialog
+            from .wallet_dialog import WalletDialog
 
             # Create and show wallet dialog (modal, like upload dialog)
             dialog = WalletDialog(parent=self)
@@ -324,7 +315,7 @@ class AuraGUI(QMainWindow):
         print("[AuraGUI] 🎤 Voice button clicked")
         
         try:
-            from listener import toggle_transcription, is_transcription_blocked
+            from ..core.listener import toggle_transcription, is_transcription_blocked
             
             # Toggle the transcription state
             now_blocked = toggle_transcription()
@@ -462,7 +453,7 @@ class AuraGUI(QMainWindow):
             
             # Get real-time voice frequency from audio analysis
             try:
-                from listener import get_transcription_frequency
+                from ..core.listener import get_transcription_frequency
                 voice_freq = get_transcription_frequency()
                 # voice_freq is 0.0 to 1.0 based on amplitude and pitch
             except ImportError:
@@ -821,7 +812,7 @@ class AuraGUI(QMainWindow):
     def closeEvent(self, event):
         """Handle application close event"""
         print("[AuraGUI] 🚪 Close event triggered - requesting shutdown")
-        from state import request_shutdown
+        from ..core.state import request_shutdown
         request_shutdown()
         event.accept()
     

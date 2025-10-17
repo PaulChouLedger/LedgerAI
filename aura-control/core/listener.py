@@ -17,8 +17,8 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 
-from speaker import speak_llm_response, is_playing
-from gui.aura_gui import set_transcribing
+from . import speaker
+from ..gui.aura_gui import set_transcribing
 
 # === Config ===
 SAMPLE_RATE = 16000
@@ -379,7 +379,7 @@ def send_to_llm(text):
         prompt_history.pop(0)
     
     # speaker.speak_llm_response() handles the LLM request itself
-    speak_llm_response(text)
+    speaker.speak_llm_response(text)
 
 # === Welcome Prompt ===
 def play_welcome_prompt(stream):
@@ -469,10 +469,10 @@ def listen():
         
         while True:
             # Pause during TTS
-            if is_playing():
+            if speaker.is_playing():
                 print("[Listener] ⏸️ Pausing mic during playback")
                 stream.stop()
-                while is_playing():
+                while speaker.is_playing():
                     time.sleep(0.1)
                 stream.start()
                 
@@ -497,7 +497,7 @@ def listen():
                     time.sleep(0.1)
                     continue
                 
-                if is_playing():
+                if speaker.is_playing():
                     break
                 
                 try:
@@ -547,7 +547,7 @@ def listen():
             
             # === Record speech ===
             while True:
-                if is_playing():
+                if speaker.is_playing():
                     set_transcribing(False)
                     break
                 
@@ -580,7 +580,7 @@ def listen():
                 
                 print(".", end="", flush=True)
             
-            if is_playing():
+            if speaker.is_playing():
                 set_transcribing(False)
                 continue
             
