@@ -237,7 +237,7 @@ class UnifiedMedicalSession:
         else:
             print("[Unified Medical] ⚠️ Medical RAG not available")
 
-    def process_medical_query(self, user_input: str) -> str:
+    def process_medical_query(self, user_input: str):
         """
         Process any medical-related query (symptoms or knowledge questions)
 
@@ -245,7 +245,7 @@ class UnifiedMedicalSession:
             user_input: User's medical query
 
         Returns:
-            Physician-like response
+            Response (str for simple queries, dict with filler for adaptive assessment)
         """
         # Store the query
         self.conversation_history.append({
@@ -360,8 +360,12 @@ class UnifiedMedicalSession:
                         print(f"[Adaptive] ✅ Diagnosis: {response.get('diagnosis')}")
                         return response.get('message', 'Assessment complete.')
                     else:
-                        # Return next question
-                        return response.get('question', 'Can you tell me more?')
+                        # Return full response dict (includes filler if present)
+                        if 'filler' in response:
+                            print(f"[Unified Medical] 💬 Response includes filler: {response['filler']['text']}")
+                            return response  # Return dict with question + filler
+                        else:
+                            return response.get('question', 'Can you tell me more?')
                 else:
                     # Error or no match
                     return response.get('message', 'I need more information to help you.')
@@ -1255,7 +1259,7 @@ def handle_unified_medical_response(prompt: str, session_id: str, llm_chat_fn: C
         llm_chat_fn: LLM chat function
 
     Returns:
-        Medical response (could be messages list for streaming or direct response)
+        Medical response (str or dict with {'question', 'filler'} for adaptive assessment)
     """
     session = get_unified_medical_session(session_id, llm_chat_fn)
     
@@ -1268,6 +1272,7 @@ def handle_unified_medical_response(prompt: str, session_id: str, llm_chat_fn: C
     # Save assessment state for next request
     session._save_assessment_state()
     
+    # Return response (can be str or dict with filler)
     return response
 
 

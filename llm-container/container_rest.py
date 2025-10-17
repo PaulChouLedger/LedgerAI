@@ -222,8 +222,15 @@ def chat_tg():
         elif mode == ConversationMode.UNIFIED_MEDICAL:
             try:
                 response = handle_unified_medical_response(prompt, session_id, llm_chat)
-                # llm_chat() now returns strings, so response is already extracted
-                return jsonify({"response": response})
+                
+                # Check if response includes filler (dict) or is simple text (str)
+                if isinstance(response, dict) and 'filler' in response:
+                    print(f"[Container] 💬 Filler: {response['filler']['text']}")
+                    # For non-streaming, just return the question (filler handled in streaming mode)
+                    return jsonify({"response": response.get('question', '')})
+                else:
+                    # Simple text response
+                    return jsonify({"response": response})
             except Exception as e:
                 print(f"[Container] ❌ Error in unified medical mode (non-streaming): {e}")
                 import traceback
@@ -381,13 +388,27 @@ def chat_tts():
                 # Use the unified medical session to process the query
                 response = handle_unified_medical_response(prompt, session_id, llm_chat)
                 
-                # response is already a string from the session
                 print(f"[Container] ✅ Got response from unified medical session")
                 
-                # Wrap in sentence markers for TTS
-                yield "<sentence_start>\n"
-                yield f"{response}\n"
-                yield "<sentence_end>\n"
+                # Check if response includes filler (dict) or is simple text (str)
+                if isinstance(response, dict) and 'filler' in response:
+                    # FILLER FIRST (immediate response while LLM generates)
+                    filler_text = response['filler']['text']
+                    print(f"[Container] 💬 Streaming filler first: '{filler_text}'")
+                    yield "<sentence_start>\n"
+                    yield f"{filler_text}\n"
+                    yield "<sentence_end>\n"
+                    
+                    # Then yield the actual question
+                    question_text = response.get('question', '')
+                    yield "<sentence_start>\n"
+                    yield f"{question_text}\n"
+                    yield "<sentence_end>\n"
+                else:
+                    # Simple text response (no filler)
+                    yield "<sentence_start>\n"
+                    yield f"{response}\n"
+                    yield "<sentence_end>\n"
             except Exception as e:
                 print(f"[Container] ❌ Error in unified medical mode: {e}")
                 import traceback

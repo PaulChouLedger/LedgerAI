@@ -828,7 +828,7 @@ Generate a similar question (open-ended, NOT yes/no):"""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=25,
+                max_tokens=40,
                 temperature=0.2
             )
             
@@ -898,7 +898,7 @@ Your question:"""
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
-            max_tokens=20,
+            max_tokens=30,
             temperature=0.3
         )
         
@@ -1304,33 +1304,33 @@ Your question:"""
                             {"role": "system", "content": clarify_system},
                             {"role": "user", "content": clarify_user}
                         ],
-                        max_tokens=25,
+                        max_tokens=35,
                         temperature=0.1
                     )
-                
-                clarify_location = clarify_response.strip().strip('"\'')
-                if not clarify_location.endswith('?'):
-                    clarify_location += '?'
-                
-                print(f"[Engine] 💬 Clarification: '{clarify_location}'")
-                print(f"{'='*80}\n")
-                
-                # Preserve OLDCARTS element
-                self.conversation_history.append({
-                    'type': 'question',
-                    'question': clarify_location,
-                    'focus': 'clinical',
-                    'oldcarts': 'L'  # Keep as location
-                })
-                
-                return {
-                    'success': True,
-                    'question': clarify_location,
-                    'status': 'questioning',
-                    'filler': filler  # Play/send this immediately while waiting
-                }
-            else:
-                print(f"[Engine] ✅ Location answer has sufficient anatomical detail")
+                    
+                    clarify_location = clarify_response.strip().strip('"\'')
+                    if not clarify_location.endswith('?'):
+                        clarify_location += '?'
+                    
+                    print(f"[Engine] 💬 Clarification: '{clarify_location}'")
+                    print(f"{'='*80}\n")
+                    
+                    # Preserve OLDCARTS element
+                    self.conversation_history.append({
+                        'type': 'question',
+                        'question': clarify_location,
+                        'focus': 'clinical',
+                        'oldcarts': 'L'  # Keep as location
+                    })
+                    
+                    return {
+                        'success': True,
+                        'question': clarify_location,
+                        'status': 'questioning',
+                        'filler': filler  # Play/send this immediately while waiting
+                    }
+                else:
+                    print(f"[Engine] ✅ Location answer has sufficient anatomical detail")
         
         # SAFETY CHECK: Ensure we have active guidelines
         if len(self.active_guidelines) == 0 and len(self.reserve_pool) == 0:
