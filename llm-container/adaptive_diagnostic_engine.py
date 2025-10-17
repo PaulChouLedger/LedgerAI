@@ -280,24 +280,20 @@ class AdaptiveDiagnosticEngine:
             # Extract age using LLM
             print(f"[Engine] 🔍 Extracting age from answer: '{user_answer}'")
             
-            extract_system = "Extract age number from this answer. Output ONLY the number, nothing else."
-            extract_user = f"Question: How old are you?\nAnswer: {user_answer}\n\nExtracted age:"
+            # Use regex to extract numbers (simple and reliable)
+            import re
+            numbers = re.findall(r'\b(\d{1,3})\b', user_answer)
             
-            age_response = self.llm_chat_fn(
-                [
-                    {"role": "system", "content": extract_system},
-                    {"role": "user", "content": extract_user}
-                ],
-                max_tokens=5,
-                temperature=0.0
-            )
-            
-            age_result = age_response.strip()
-            try:
-                self.demographics['age'] = int(age_result)
-                print(f"[Engine] 👤 Age: {self.demographics['age']}")
-            except ValueError:
-                print(f"[Engine] 👤 Age: Could not extract from '{age_result}'")
+            if numbers:
+                # Take first number found
+                age_num = int(numbers[0])
+                if 1 <= age_num <= 120:  # Sanity check
+                    self.demographics['age'] = age_num
+                    print(f"[Engine] 👤 Age: {age_num}")
+                else:
+                    print(f"[Engine] 👤 Age: Invalid ({age_num} out of range 1-120)")
+            else:
+                print(f"[Engine] 👤 Age: No number found in answer")
             
             # VALIDATION: If no age found, re-ask using LLM
             if 'age' not in self.demographics:
@@ -1454,17 +1450,17 @@ Output ONLY the question. Make it natural for voice."""
         """
         print(f"[Engine] 🧠 Generating opening statement...")
         
-        system_msg = "You are a medical assistant. Output ONLY the empathetic statement requested, nothing else."
+        system_msg = "You are a medical assistant. Output ONLY the statement requested. No numbered lists, no meta-text."
         
         user_msg = f"""Patient: "{chief_complaint}"
 
-Write 2 sentences:
-1. Empathetic acknowledgment
-2. Tell them you'll ask questions to help
+Write a brief empathetic response (2 sentences):
+- Acknowledge their concern
+- Say you'll ask questions to help
 
 Example: "I understand that must be concerning. Let me ask some questions to better understand what's happening."
 
-Your statement:"""
+Your response:"""
         
         response = self.llm_chat_fn(
             [
@@ -1476,6 +1472,12 @@ Your statement:"""
         )
         
         statement = response.strip().strip('"\'')
+        
+        # Remove numbered list markers if LLM still outputs them
+        import re
+        statement = re.sub(r'^\d+\.\s*', '', statement)  # Remove "1. " from start
+        statement = re.sub(r'\n\d+\.\s*', ' ', statement)  # Remove "\n2. " from middle
+        
         print(f"[Engine] ✅ Opening: '{statement}'")
         return statement
     
