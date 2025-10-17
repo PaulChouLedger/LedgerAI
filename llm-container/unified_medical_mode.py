@@ -1110,7 +1110,7 @@ def is_unified_medical_trigger(prompt: str) -> bool:
     for keyword in medical_keywords:
         if keyword.lower() in prompt_lower:
             print(f"[Unified Medical] 🎯 Medical keyword: '{keyword}'")
-        return True
+            return True
 
     # Also check built-in common symptom terms (always medical)
     common_symptoms = [

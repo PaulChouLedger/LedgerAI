@@ -592,125 +592,26 @@ Output 'yes' to accept or 'no' to reject."""
         # Determine next OLDCARTS element to ask about
         next_element = uncovered_elements[0] if uncovered_elements else None
         
-        # Flexible prompts for each OLDCARTS element - natural variation
+        # Hardcoded OLDCARTS templates (reliable, fast)
         if next_element:
-            element_prompts = {
-                'L': {
-                    'system': "Ask where the pain is located. Be conversational and natural.",
-                    'user': "Generate question about pain location:"
-                },
-                'D': {
-                    'system': "Ask how long the pain lasts. Be conversational and natural.",
-                    'user': "Generate question about pain duration:"
-                },
-                'C': {
-                    'system': "Ask what the pain feels like (sharp, dull, etc). Be conversational and natural.",
-                    'user': "Generate question about pain quality:"
-                },
-                'A': {
-                    'system': "Ask what makes the pain worse. Be conversational and natural.",
-                    'user': "Generate question about what worsens pain:"
-                },
-                'R': {
-                    'system': "Ask what helps relieve the pain. Be conversational and natural.",
-                    'user': "Generate question about what relieves pain:"
-                },
-                'T': {
-                    'system': "Ask about pain timing/pattern. Be conversational and natural.",
-                    'user': "Generate question about pain pattern:"
-                },
-                'S': {
-                    'system': "Ask about pain severity. Be conversational and natural.",
-                    'user': "Generate question about pain severity:"
-                }
+            oldcarts_templates = {
+                'L': "Where exactly is the pain?",
+                'D': "How long does the pain last?",
+                'C': "How would you describe the pain?",
+                'A': "What makes the pain worse?",
+                'R': "What helps relieve the pain?",
+                'T': "Is the pain constant or does it come and go?",
+                'S': "How severe is the pain on a scale of 1 to 10?"
             }
             
-            prompt_set = element_prompts.get(next_element, {'system': "Ask about symptom.", 'user': "Question:"})
-            system_msg = prompt_set['system']
-            user_msg = prompt_set['user']
-        else:
-            system_msg = "Ask about associated symptoms (fever, nausea, vomiting). Be conversational."
-            user_msg = "Generate question about associated symptoms:"
-
-        try:
-            response = self.llm_chat_fn(
-                [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg}
-                ],
-                max_tokens=15,
-                temperature=0.0  # Deterministic - follow format exactly
-            )
+            question = oldcarts_templates.get(next_element)
+            oldcarts_element = next_element
             
-            question = response.strip().strip('"\'')
+            print(f"[Engine] ✅ Template Question: '{question}'")
+            print(f"[Engine] 📋 OLDCARTS Element: {oldcarts_element}")
             
-            # AGGRESSIVE CLEANING: Remove any meta-commentary
-            # If LLM outputs "I think..." or "Let me...", extract just the question
-            question_lines = question.split('\n')
-            for line in question_lines:
-                line = line.strip()
-                # Skip meta lines
-                if any(line.startswith(prefix) for prefix in ['I think', 'Let me', 'Here', 'I would', 'The question']):
-                    continue
-                # If line has a question mark, use it
-                if '?' in line:
-                    question = line
-                    break
-            
-            # Clean quotes and ensure ends with ?
-            question = question.strip('"\'')
-            if not question.endswith('?'):
-                question += '?'
-            
-            # No hardcoded multi-part detection - trust the LLM output
-            
-            # Use LLM to check if this is a repeat question
-            is_repeat = False
-            if len(asked) > 0:
-                print(f"[Engine] 🔍 Checking if question is repeat...")
-                
-                repeat_check_system = f"Is this new question essentially the same as any previously asked question?\n\nNew: {question}\nPreviously asked: {', '.join(asked[-5:])}\n\nOutput 'yes' if repeat, 'no' if different."
-                repeat_check_user = "Repeat?"
-                
-                repeat_response = self.llm_chat_fn(
-                    [
-                        {"role": "system", "content": repeat_check_system},
-                        {"role": "user", "content": repeat_check_user}
-                    ],
-                    max_tokens=3,
-                    temperature=0.0
-                )
-                
-                if 'yes' in repeat_response.lower():
-                    print(f"[Engine] ⚠️ Question is repeat - generating alternative...")
-                    is_repeat = True
-            
-            # If repeat, ask LLM to generate a different follow-up question
-            if is_repeat:
-                print(f"[Engine] 🔄 Generating alternative follow-up question...")
-                
-                alt_system_msg = f"Patient has {self.chief_complaint}. Generate a different follow-up question about associated symptoms (fever, nausea, vomiting, etc)."
-                alt_user_msg = f"Already asked: {', '.join(asked[-3:])}. Generate different question:"
-                
-                alt_response = self.llm_chat_fn(
-                    [
-                        {"role": "system", "content": alt_system_msg},
-                        {"role": "user", "content": alt_user_msg}
-                    ],
-                    max_tokens=15,
-                    temperature=0.0  # Deterministic
-                )
-                question = alt_response.strip().strip('"\'')
-                if not question.endswith('?'):
-                    question += '?'
-            
-            # Detect which OLDCARTS element this question addresses
-            oldcarts_element = self._detect_oldcarts_element(question)
-            
-            print(f"[Engine] ✅ Generated Question: '{question}'")
-            if oldcarts_element:
-                print(f"[Engine] 📋 OLDCARTS Element: {oldcarts_element}")
-                self.oldcarts_covered[oldcarts_element] = True
+            # Mark as covered
+            self.oldcarts_covered[oldcarts_element] = True
             print(f"{'='*80}\n")
             
             # Store question
@@ -727,9 +628,35 @@ Output 'yes' to accept or 'no' to reject."""
                 'status': 'questioning'
             }
         
-        except Exception as e:
-            print(f"[Engine] ❌ Question generation failed: {e}")
-            raise RuntimeError(f"LLM question generation failed: {e}")
+        # After OLDCARTS: Ask about associated symptoms
+        # Simple templates to avoid repeats
+        asked_lower = ' '.join(asked).lower()
+        
+        if 'fever' not in asked_lower:
+            question = "Have you had any fever?"
+        elif 'nausea' not in asked_lower and 'vomit' not in asked_lower:
+            question = "Have you had any nausea or vomiting?"
+        elif 'appetite' not in asked_lower and 'hungry' not in asked_lower:
+            question = "How is your appetite?"
+        else:
+            question = "Any other symptoms?"
+        
+        print(f"[Engine] ✅ Associated symptom question: '{question}'")
+        print(f"{'='*80}\n")
+        
+        # Store question
+        self.conversation_history.append({
+            'type': 'question',
+            'question': question,
+            'focus': 'clinical',
+            'oldcarts': None  # Not an OLDCARTS question
+        })
+        
+        return {
+            'success': True,
+            'question': question,
+            'status': 'questioning'
+        }
     
     def _detect_oldcarts_element(self, question: str) -> Optional[str]:
         """
@@ -737,50 +664,38 @@ Output 'yes' to accept or 'no' to reject."""
         
         Returns: 'O', 'L', 'D', 'C', 'A', 'R', 'T', or 'S' (or None if unclear)
         """
-        # Use LLM to classify question into OLDCARTS category
-        print(f"[Engine] 🔍 Detecting OLDCARTS element for: '{question}'")
+        # Simple keyword-based detection (reliable, fast)
+        q_lower = question.lower()
         
-        system_msg = f"""Classify this question into ONE OLDCARTS category:
-
-Question: "{question}"
-
-Categories:
-O = Onset/timing (when did it start?)
-L = Location (where is pain?)
-D = Duration (how long does it last?)
-C = Character (what does it feel like? sharp/dull/etc)
-A = Aggravating factors (what makes it worse?)
-R = Relieving factors (what helps?)
-T = Timing pattern (constant or intermittent?)
-S = Severity (how bad is it?)
-
-Output ONLY the single letter (O/L/D/C/A/R/T/S)."""
+        # L - LOCATION
+        if any(word in q_lower for word in ['where', 'location', 'which part', 'what area', 'which side']):
+            return 'L'
         
-        user_msg = "Letter:"
+        # D - DURATION
+        if any(phrase in q_lower for phrase in ['how long', 'duration']):
+            return 'D'
         
-        try:
-            response = self.llm_chat_fn(
-                [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg}
-                ],
-                max_tokens=2,
-                temperature=0.0
-            )
-            
-            result = response.strip().upper()
-            
-            # Extract just the letter
-            if len(result) == 1 and result in 'OLDCARTS':
-                print(f"[Engine] ✅ Detected OLDCARTS: {result}")
-                return result
-            else:
-                print(f"[Engine] ⚠️ Could not classify - response: '{result}'")
-                return None
+        # C - CHARACTER / Quality
+        if any(phrase in q_lower for phrase in ['describe', 'feel like', 'type of', 'kind of', 'quality']):
+            return 'C'
         
-        except Exception as e:
-            print(f"[Engine] ❌ OLDCARTS detection failed: {e}")
-            raise RuntimeError(f"OLDCARTS detection failed: {e}")
+        # A - AGGRAVATING
+        if any(phrase in q_lower for phrase in ['worse', 'worsen', 'aggravate', 'trigger']):
+            return 'A'
+        
+        # R - RELIEVING
+        if any(phrase in q_lower for phrase in ['better', 'relieve', 'improve', 'help']):
+            return 'R'
+        
+        # T - TIMING (pattern)
+        if any(phrase in q_lower for phrase in ['constant', 'come and go', 'intermittent', 'pattern']):
+            return 'T'
+        
+        # S - SEVERITY
+        if any(phrase in q_lower for phrase in ['severe', 'bad', 'scale', '1 to 10', 'intensity']):
+            return 'S'
+        
+        return None
     
     def _extract_oldcarts_section(self, classic_presentation: str, element: str) -> str:
         """
@@ -1065,35 +980,31 @@ Output ONLY the single letter (O/L/D/C/A/R/T/S)."""
         "High fever >103°F with severe pain - possible perforation"
         → "Have you had a fever higher than 103 degrees?"
         """
-        # Use LLM to convert red flag to question
-        print(f"[Engine] 🧠 Converting red flag to question...")
-        print(f"[Engine]   Red flag: {red_flag}")
+        # Simple hardcoded patterns for common red flags
+        lower = red_flag.lower()
         
-        system_msg = f"Convert this warning sign into a simple yes/no question for the patient:\n\n'{red_flag}'\n\nMake it conversational and patient-friendly."
+        if 'fever' in lower and '103' in lower:
+            question = "Have you had a fever higher than 103 degrees?"
+        elif 'fever' in lower:
+            question = "Have you had any fever?"
+        elif 'rigid' in lower or 'board-like' in lower:
+            question = "Does your abdomen feel hard or rigid?"
+        elif 'dizzy' in lower or 'faint' in lower or 'hypotension' in lower:
+            question = "Have you felt dizzy or lightheaded?"
+        elif 'confusion' in lower or 'altered mental' in lower:
+            question = "Have you felt confused?"
+        elif 'blood' in lower and 'stool' in lower:
+            question = "Have you seen blood in your stool?"
+        elif 'blood' in lower and 'vomit' in lower:
+            question = "Have you vomited blood?"
+        elif 'jaundice' in lower or 'yellow' in lower:
+            question = "Have your eyes or skin turned yellow?"
+        else:
+            # Generic
+            question = f"Have you experienced {red_flag.split('-')[0].strip().lower()}?"
         
-        user_msg = "Generate yes/no question:"
-        
-        try:
-            response = self.llm_chat_fn(
-                [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg}
-                ],
-                max_tokens=20,
-                temperature=0.0  # Deterministic
-            )
-            
-            question = response.strip().strip('"\'')
-            
-            if not question.endswith('?'):
-                question += '?'
-            
-            print(f"[Engine] ✅ Red flag question: '{question}'")
-            return question
-        
-        except Exception as e:
-            print(f"[Engine] ❌ Red flag conversion failed: {e}")
-            raise RuntimeError(f"Red flag conversion failed: {e}")
+        print(f"[Engine] ✅ Red flag question: '{question}'")
+        return question
     
     def _finalize_diagnosis(self, diagnosis_obj: Dict) -> Dict[str, Any]:
         """
@@ -1162,137 +1073,38 @@ Output ONLY the single letter (O/L/D/C/A/R/T/S)."""
     
     def _generate_opening_statement(self, chief_complaint: str) -> str:
         """
-        LLM-generated empathetic opening statement
+        Hardcoded opening statement
         """
-        print(f"[Engine] 🧠 Generating LLM opening statement...")
-        
-        system_msg = f"Patient says: '{chief_complaint}'. Acknowledge their concern briefly and say you'll ask questions to help."
-        
-        user_msg = "Generate empathetic response (1-2 sentences):"
-        
-        try:
-            response = self.llm_chat_fn(
-                [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg}
-                ],
-                max_tokens=20,
-                temperature=0.0  # Deterministic
-            )
-            
-            statement = response.strip().strip('"\'')
-            
-            if not statement.endswith('.') and not statement.endswith('!'):
-                statement += '.'
-            
-            print(f"[Engine] ✅ Opening: '{statement}'")
-            return statement
-        
-        except Exception as e:
-            print(f"[Engine] ❌ Opening generation failed: {e}")
-            raise RuntimeError(f"Opening generation failed: {e}")
+        statement = "I understand. I'll ask some questions to help figure this out."
+        print(f"[Engine] ✅ Opening: '{statement}'")
+        return statement
     
     def _generate_age_question(self) -> str:
         """
-        LLM-generated age question (conversational)
+        Hardcoded age question
         """
-        print(f"[Engine] 🧠 Generating LLM age question...")
-        
-        system_msg = "Ask for patient's age conversationally."
-        
-        user_msg = "Generate question asking for age:"
-        
-        try:
-            response = self.llm_chat_fn(
-                [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg}
-                ],
-                max_tokens=8,
-                temperature=0.0  # Deterministic
-            )
-            
-            question = response.strip().strip('"\'')
-            
-            if not question.endswith('?'):
-                question += '?'
-            
-            print(f"[Engine] ✅ Age question: '{question}'")
-            return question
-        
-        except Exception as e:
-            print(f"[Engine] ❌ Age generation failed: {e}")
-            raise RuntimeError(f"Age generation failed: {e}")
+        question = "How old are you?"
+        print(f"[Engine] ✅ Age question: '{question}'")
+        return question
     
     def _generate_sex_question(self) -> str:
         """
-        LLM-generated sex question (conversational)
+        Hardcoded sex question
         """
-        print(f"[Engine] 🧠 Generating LLM sex question...")
-        
-        system_msg = "Ask for patient's biological sex conversationally."
-        
-        user_msg = "Generate question asking for sex (male/female):"
-        
-        try:
-            response = self.llm_chat_fn(
-                [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg}
-                ],
-                max_tokens=10,
-                temperature=0.0  # Deterministic
-            )
-            
-            question = response.strip().strip('"\'')
-            
-            if not question.endswith('?'):
-                question += '?'
-            
-            print(f"[Engine] ✅ Sex question: '{question}'")
-            return question
-        
-        except Exception as e:
-            print(f"[Engine] ❌ Sex generation failed: {e}")
-            raise RuntimeError(f"Sex generation failed: {e}")
+        question = "Are you male or female?"
+        print(f"[Engine] ✅ Sex question: '{question}'")
+        return question
     
     def _generate_clarification_question(self, topic: str) -> str:
         """
-        LLM-generated clarification when answer was unclear
+        Hardcoded clarification questions
         """
-        print(f"[Engine] 🧠 Generating clarification for: {topic}")
+        clarifications = {
+            "age": "I didn't catch that. How old are you?",
+            "sex": "I didn't catch that. Are you male or female?"
+        }
         
-        # ULTRA-SIMPLE: Just use hardcoded templates (LLM keeps deviating)
-        if topic == "age":
-            question = "I didn't catch that. How old are you?"
-            print(f"[Engine] 💬 Using template (age)")
-        elif topic == "sex":
-            question = "I didn't catch that. Are you male or female?"
-            print(f"[Engine] 💬 Using template (sex)")
-        else:
-            # For other topics, use LLM
-            system_msg = f"You are a medical assistant. Politely re-ask about {topic}."
-            user_msg = f"Re-ask about {topic}:"
-            
-            try:
-                response = self.llm_chat_fn(
-                    [
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_msg}
-                    ],
-                    max_tokens=15,
-                    temperature=0.0  # Deterministic
-                )
-                
-                question = response.strip().strip('"\'')
-            except Exception as e:
-                print(f"[Engine] ❌ Clarification generation failed: {e}")
-                raise RuntimeError(f"Clarification generation failed: {e}")
-        
-        # Ensure ends with ?
-        if not question.endswith('?'):
-            question += '?'
-        
+        question = clarifications.get(topic, f"Can you clarify your answer?")
         print(f"[Engine] ✅ Clarification: '{question}'")
         return question
 
