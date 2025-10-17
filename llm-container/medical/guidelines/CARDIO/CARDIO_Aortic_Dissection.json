@@ -1,0 +1,29 @@
+{
+  "condition": "Aortic Dissection",
+  "icd10": "I71.00",
+  "snomed": "423794004",
+  "chief_complaint_triggers": [
+    "tearing chest pain",
+    "ripping chest pain",
+    "sudden severe chest pain",
+    "back pain radiating"
+  ],
+  "urgency": "emergent",
+  "prevalence": "rare",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN, instantaneous, maximal at onset (\"like a light switch\"). LOCATION: ANTERIOR CHEST (Type A) or INTERSCAPULAR BACK (Type B). RADIATES down back as dissection propagates, can radiate to abdomen. DURATION: Continuous, persistent. CHARACTER: TEARING, RIPPING, SHARP, most severe pain ever experienced. AGGRAVATING: None (unprovoked). RELIEVING: Nothing helps. TIMING: Sudden onset, persistent. SEVERITY: 10/10, catastrophic pain. KEY POSITIVES: Pulse differential (unequal pulses between arms), blood pressure differential (>20 mmHg between arms), neurologic deficits, hypertension history, Marfan syndrome. KEY NEGATIVES: NOT gradual onset, NOT pressure/squeezing like MI."
+  },
+  "red_flags": [
+    "Sudden maximal pain at onset",
+    "Tearing or ripping quality",
+    "Pulse differential between arms",
+    "Blood pressure differential >20 mmHg",
+    "Neurologic symptoms (stroke-like)",
+    "History of hypertension",
+    "Marfan syndrome or connective tissue disorder",
+    "Syncope",
+    "Aortic regurgitation murmur"
+  ]
+}
+

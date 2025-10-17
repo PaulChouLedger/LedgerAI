@@ -1,0 +1,28 @@
+{
+  "condition": "Acute Myocarditis",
+  "icd10": "I40.9",
+  "snomed": "50920009",
+  "chief_complaint_triggers": [
+    "chest pain",
+    "shortness of breath",
+    "fatigue",
+    "palpitations"
+  ],
+  "urgency": "urgent",
+  "prevalence": "rare",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Days to weeks, often follows viral illness. LOCATION: Chest (retrosternal or left-sided). DURATION: Continuous over days. CHARACTER: Dull ache, pressure, or sharp pleuritic pain. AGGRAVATING: Exertion. RELIEVING: Rest. TIMING: Progressive over days. SEVERITY: Variable, 4-7/10. KEY POSITIVES: Recent viral illness (URI, GI illness) 1-3 weeks prior, dyspnea, fatigue, palpitations, fever, young patient. KEY NEGATIVES: NOT typical exertional angina pattern, NOT elderly (usually younger patients)."
+  },
+  "red_flags": [
+    "Severe dyspnea or heart failure symptoms",
+    "Syncope or presyncope",
+    "Chest pain with troponin elevation",
+    "Arrhythmias",
+    "Hypotension or shock",
+    "Recent viral illness",
+    "Young patient with MI-like presentation",
+    "Family history of sudden cardiac death"
+  ]
+}
+

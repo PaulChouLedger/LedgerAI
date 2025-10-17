@@ -1,0 +1,29 @@
+{
+  "condition": "Atrial Fibrillation (AFib)",
+  "icd10": "I48.91",
+  "snomed": "49436004",
+  "chief_complaint_triggers": [
+    "palpitations",
+    "irregular heartbeat",
+    "fast heartbeat",
+    "chest fluttering",
+    "racing heart"
+  ],
+  "urgency": "urgent",
+  "prevalence": "common",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Sudden or gradual, can be paroxysmal (comes and goes). LOCATION: Chest (palpitations), generalized. DURATION: Variable (minutes to persistent). CHARACTER: IRREGULAR, RAPID palpitations, \"fluttering\" or \"quivering\" in chest. AGGRAVATING: Caffeine, alcohol, stress, dehydration. RELIEVING: Rest, sometimes spontaneous. TIMING: Paroxysmal (episodic) or persistent. SEVERITY: Variable discomfort. KEY POSITIVES: Dyspnea, lightheadedness, fatigue, irregularly irregular pulse on exam, chest discomfort. KEY NEGATIVES: NOT regular rapid heartbeat (SVT), NOT slow irregular (heart block)."
+  },
+  "red_flags": [
+    "Hemodynamic instability (hypotension)",
+    "Severe dyspnea or chest pain",
+    "Syncope or near-syncope",
+    "Heart rate >150 bpm",
+    "Signs of heart failure",
+    "History of stroke or TIA",
+    "Altered mental status",
+    "Active chest pain"
+  ]
+}
+

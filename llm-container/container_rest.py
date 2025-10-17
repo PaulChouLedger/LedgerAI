@@ -252,10 +252,15 @@ def chat_tg():
                 response = handle_unified_medical_response(prompt, session_id, llm_chat, llm_chat_simple)
                 
                 # Check if response includes filler (dict) or is simple text (str)
-                if isinstance(response, dict) and 'filler' in response:
-                    print(f"[Container] 💬 Filler: {response['filler']['text']}")
-                    # For non-streaming, just return the question (filler handled in streaming mode)
-                    return jsonify({"response": response.get('question', '')})
+                if isinstance(response, dict):
+                    if 'filler' in response:
+                        print(f"[Container] 💬 Filler: {response['filler']['text']}")
+                    # Return question + debug info for Telegram
+                    telegram_response = {
+                        "response": response.get('question', response.get('message', '')),
+                        "debug": response.get('debug')  # Include debug info if available
+                    }
+                    return jsonify(telegram_response)
                 else:
                     # Simple text response
                     return jsonify({"response": response})

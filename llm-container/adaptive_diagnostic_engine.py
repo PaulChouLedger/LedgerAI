@@ -158,6 +158,43 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine] ✅ Validation: Chief complaint appears valid")
         return True
     
+    def _get_debug_info(self, last_answer: str = None) -> Dict:
+        """
+        Build debug information for Telegram display
+        Shows internal reasoning, scores, rankings, OLDCARTS coverage, etc.
+        """
+        # Get question count
+        num_questions = len([item for item in self.conversation_history if item['type'] == 'question' and item.get('focus') == 'clinical'])
+        
+        # OLDCARTS coverage
+        covered_count = sum(self.oldcarts_covered.values())
+        coverage_str = ''.join([k if v else '_' for k, v in self.oldcarts_covered.items()])
+        
+        return {
+            'demographics': self.demographics,
+            'question_number': num_questions,
+            'oldcarts_coverage': coverage_str,
+            'oldcarts_count': f"{covered_count}/8",
+            'clarification_counts': dict(self.clarification_count),
+            'active_differentials': [
+                {
+                    'rank': i+1,
+                    'name': g['name'],
+                    'score': f"{g['score']:.0%}",
+                    'urgency': g['data'].get('urgency', 'routine'),
+                    'prevalence': g['data'].get('prevalence', 'uncommon')
+                }
+                for i, g in enumerate(self.active_guidelines[:5])
+            ],
+            'pool_status': {
+                'active': len(self.active_guidelines),
+                'reserve': len(self.reserve_pool),
+                'ruled_out': len(self.ruled_out)
+            },
+            'last_answer': last_answer,
+            'last_answer_scores': getattr(self, '_last_answer_scores', None)  # Set during scoring
+        }
+    
     def reset_assessment(self):
         """Reset for new patient"""
         self.active_guidelines = []  # The 3 active guidelines with scores
@@ -182,9 +219,13 @@ class AdaptiveDiagnosticEngine:
             'S': False   # Severity
         }
         
+        # Clarification tracking
+        self.clarification_count = {}  # Track how many times we've asked for clarification per OLDCARTS element
+        
         # Thresholds
         self.RULE_OUT_THRESHOLD = 0.30  # Below 30% → rule out and replace
         self.MAX_ACTIVE = 5  # Keep 5 active differentials
+        self.MAX_CLARIFICATIONS = 2  # Max times to ask for clarification before moving on
     
     def start_assessment(self, chief_complaint: str) -> Dict[str, Any]:
         """
@@ -312,7 +353,8 @@ class AdaptiveDiagnosticEngine:
             'success': True,
             'question': combined_message,
             'status': 'questioning',
-            'filler': filler  # Play/send this immediately while waiting for main response
+            'filler': filler,  # Play/send this immediately while waiting for main response
+            'debug': self._get_debug_info()  # For Telegram debug display
         }
     
     def process_answer(self, user_answer: str) -> Dict[str, Any]:
@@ -853,7 +895,7 @@ class AdaptiveDiagnosticEngine:
             
             example = oldcarts_examples.get(next_element, "Tell me about the symptom")
             
-            system_msg = "You are a medical assistant. Output ONLY ONE question. Never combine multiple questions."
+            system_msg = "You are a medical assistant. Output ONLY ONE question. Use PLAIN LANGUAGE (no medical jargon). Never combine multiple questions."
             
             user_msg = f"""Patient: {patient_info} with {symptom}
 
@@ -861,7 +903,7 @@ Ask about: {element_desc}
 
 Example: "{example}"
 
-Generate EXACTLY ONE similar question (open-ended, NOT yes/no). Do NOT combine multiple questions:"""
+Generate EXACTLY ONE similar question using SIMPLE, PLAIN LANGUAGE that anyone can understand (open-ended, NOT yes/no). Do NOT combine multiple questions:"""
             
             # Get thinking filler before LLM call
             filler = get_filler('question_generation', use_audio=True)
@@ -887,8 +929,19 @@ Generate EXACTLY ONE similar question (open-ended, NOT yes/no). Do NOT combine m
             # Check for pattern: "Statement. Question?" which indicates combined questions
             has_sentence_before_question = '. ' in question and question.index('. ') < question.rfind('?')
             
-            if question_mark_count > 1 or has_sentence_before_question:
-                print(f"[Engine] ⚠️ LLM combined multiple questions - using template fallback")
+            # Check for medical jargon that patients won't understand
+            medical_jargon = [
+                'epigastric', 'periumbilical', 'flank', 'costovertebral', 'cva', 'quadrant',
+                'ruq', 'luq', 'rlq', 'llq', 'adnexal', 'suprapubic', 'hypogastric',
+                'retrosternal', 'substernal', 'pelvic', 'inguinal', 'femoral'
+            ]
+            has_jargon = any(term in question.lower() for term in medical_jargon)
+            
+            if question_mark_count > 1 or has_sentence_before_question or has_jargon:
+                if has_jargon:
+                    print(f"[Engine] ⚠️ LLM used medical jargon - using plain language template")
+                else:
+                    print(f"[Engine] ⚠️ LLM combined multiple questions - using template fallback")
                 print(f"[Engine]    Generated: '{question}'")
                 print(f"[Engine]    Using template: '{example}'")
                 # Use simple template fallback
@@ -914,7 +967,8 @@ Generate EXACTLY ONE similar question (open-ended, NOT yes/no). Do NOT combine m
                 'success': True,
                 'question': question,
                 'status': 'questioning',
-                'filler': filler  # Play/send this immediately while waiting
+                'filler': filler,  # Play/send this immediately while waiting
+                'debug': self._get_debug_info()  # For Telegram debug display
             }
         
         # After OLDCARTS: Ask about associated symptoms using LLM
@@ -935,13 +989,11 @@ Generate EXACTLY ONE similar question (open-ended, NOT yes/no). Do NOT combine m
         
         symptoms_context = ', '.join([s.split(':')[0] for s in key_symptoms[:3]]) if key_symptoms else "common symptoms"
         
-        system_msg = "You are a medical assistant. Output ONLY ONE question. Never combine multiple questions."
+        system_msg = "You are a medical assistant. Output ONLY ONE question. Use PLAIN LANGUAGE (no medical jargon). Never combine multiple questions."
         
         user_msg = f"""Patient: {patient_info} with {symptom}
 
-Top diagnoses: {symptoms_context}
-
-Ask about ONE associated symptom (fever, nausea, vomiting, diarrhea, etc). EXACTLY ONE question only.
+Ask about ONE associated symptom using SIMPLE language (fever, nausea, vomiting, diarrhea, etc). EXACTLY ONE question only.
 
 Example: "Have you had any fever?"
 
@@ -989,7 +1041,8 @@ Your question:"""
             'success': True,
             'question': question,
             'status': 'questioning',
-            'filler': filler  # Play/send this immediately while waiting
+            'filler': filler,  # Play/send this immediately while waiting
+            'debug': self._get_debug_info()  # For Telegram debug display
         }
     
     def _detect_oldcarts_element(self, question: str) -> Optional[str]:
@@ -1344,9 +1397,15 @@ Your question:"""
                 print(f"[Engine] 📊 Guideline location similarity: {avg_location_similarity:.2f}")
                 
                 # If top guidelines describe DIFFERENT locations (low similarity), need clarification
-                # Stricter threshold: Even 0.85 is considered different enough to need clarification
-                if avg_location_similarity < 0.85:
-                    print(f"[Engine] ⚠️ Top guidelines have diverse locations - need more specific answer")
+                # But limit clarifications to prevent endless loops
+                
+                # Check how many times we've asked for location clarification
+                location_clarifications = self.clarification_count.get('L', 0)
+                
+                print(f"[Engine] 📊 Clarification tracker: L={location_clarifications}/{self.MAX_CLARIFICATIONS}, Covered={self.oldcarts_covered.get('L', False)}")
+                
+                if avg_location_similarity < 0.85 and location_clarifications < self.MAX_CLARIFICATIONS:
+                    print(f"[Engine] ⚠️ Top guidelines have diverse locations - need more specific answer (clarification #{location_clarifications + 1}/{self.MAX_CLARIFICATIONS})")
                     
                     # Show what the top guidelines need
                     guidelines_summary = '\n'.join(location_texts[:3])
@@ -1355,12 +1414,9 @@ Your question:"""
                     
                     clarify_user = f"""Patient said: "{answer}"
 
-Top diagnoses require these specific locations:
-{guidelines_summary}
+Ask EXACTLY ONE simple question to get more specific location. Use PLAIN LANGUAGE only (no medical terms).
 
-Ask EXACTLY ONE question to get more specific location detail. Do NOT combine multiple questions.
-
-Example: "Is it more in the upper part or lower part of your abdomen?"
+Example: "Is it in the upper part or lower part?"
 
 Your question:"""
                     
@@ -1381,20 +1437,34 @@ Your question:"""
                     if not clarify_location.endswith('?'):
                         clarify_location += '?'
                     
-                    # VALIDATION: Ensure only ONE question
+                    # VALIDATION: Ensure only ONE question and no medical jargon
                     question_mark_count = clarify_location.count('?')
                     has_sentence_before_question = '. ' in clarify_location and clarify_location.index('. ') < clarify_location.rfind('?')
                     
-                    if question_mark_count > 1 or has_sentence_before_question:
-                        print(f"[Engine] ⚠️ Location clarification combined multiple questions - using template")
+                    # Check for medical jargon
+                    medical_jargon = [
+                        'epigastric', 'periumbilical', 'flank', 'costovertebral', 'cva', 'quadrant',
+                        'ruq', 'luq', 'rlq', 'llq', 'adnexal', 'suprapubic', 'hypogastric',
+                        'retrosternal', 'substernal', 'pelvic', 'inguinal', 'femoral', 'navel'
+                    ]
+                    has_jargon = any(term in clarify_location.lower() for term in medical_jargon)
+                    
+                    if question_mark_count > 1 or has_sentence_before_question or has_jargon:
+                        if has_jargon:
+                            print(f"[Engine] ⚠️ Location clarification used medical jargon - using plain template")
+                        else:
+                            print(f"[Engine] ⚠️ Location clarification combined multiple questions - using template")
                         print(f"[Engine]    Generated: '{clarify_location}'")
                         # Use simple fallback
-                        clarify_location = "Can you be more specific about where the pain is located?"
+                        clarify_location = "Where exactly does it hurt?"
                     
                     print(f"[Engine] 💬 Clarification: '{clarify_location}'")
                     print(f"{'='*80}\n")
                     
-                    # Preserve OLDCARTS element
+                    # Increment clarification counter
+                    self.clarification_count['L'] = location_clarifications + 1
+                    
+                    # Preserve OLDCARTS element (keep as 'L' so we can ask again)
                     self.conversation_history.append({
                         'type': 'question',
                         'question': clarify_location,
@@ -1406,10 +1476,21 @@ Your question:"""
                         'success': True,
                         'question': clarify_location,
                         'status': 'questioning',
-                        'filler': filler  # Play/send this immediately while waiting
+                        'filler': filler,  # Play/send this immediately while waiting
+                        'debug': self._get_debug_info(last_answer=answer)  # For Telegram debug display
                     }
+                elif avg_location_similarity < 0.85:
+                    # Hit max clarifications - force move on
+                    print(f"[Engine] ⚠️ Max location clarifications reached ({location_clarifications}/{self.MAX_CLARIFICATIONS}) - accepting answer and moving on")
+                    self.oldcarts_covered['L'] = True  # Force mark as covered
                 else:
                     print(f"[Engine] ✅ Location answer has sufficient anatomical detail")
+                    self.oldcarts_covered['L'] = True  # Mark as covered - we have enough detail!
+            else:
+                # No location texts or only one guideline - can't compare
+                # Just mark as covered
+                print(f"[Engine] ℹ️  Not enough guidelines to compare locations - accepting answer")
+                self.oldcarts_covered['L'] = True
         
         # SAFETY CHECK: Ensure we have active guidelines
         if len(self.active_guidelines) == 0 and len(self.reserve_pool) == 0:

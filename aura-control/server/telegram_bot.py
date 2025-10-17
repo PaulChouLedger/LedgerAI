@@ -9,6 +9,7 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Messa
 load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 AURA_CHAT_URL = os.getenv("AURA_CHAT_URL", "http://127.0.0.1:11434/chat-tg")
+DEBUG_MODE = os.getenv("TELEGRAM_DEBUG", "true").lower() == "true"  # Show internal reasoning
 
 if not TELEGRAM_BOT_TOKEN:
     raise RuntimeError("⚠️ TELEGRAM_BOT_TOKEN not found in environment")
@@ -17,6 +18,62 @@ if not TELEGRAM_BOT_TOKEN:
 sessions = {}  # { chat_id: {"active": bool, "history": []} }
 RESET_KEYWORDS = {"reset", "restart", "new session"}
 EXIT_KEYWORDS = {"exit", "stop", "end", "quit"}
+
+
+def _format_debug_info(debug_data: dict) -> str:
+    """Format debug information for Telegram display"""
+    if not debug_data:
+        return None
+    
+    lines = []
+    lines.append("```")
+    lines.append("🔍 INTERNAL REASONING")
+    lines.append("=" * 40)
+    
+    # Demographics
+    if 'demographics' in debug_data:
+        demo = debug_data['demographics']
+        age = demo.get('age', '?')
+        sex = demo.get('sex', '?')
+        lines.append(f"👤 Patient: {age} y/o {sex}")
+    
+    # Question progress
+    if 'question_number' in debug_data:
+        lines.append(f"📝 Question: #{debug_data['question_number']}")
+    
+    # OLDCARTS coverage
+    if 'oldcarts_coverage' in debug_data:
+        coverage = debug_data['oldcarts_coverage']
+        count = debug_data.get('oldcarts_count', '?/8')
+        lines.append(f"📋 OLDCARTS: {coverage} ({count})")
+    
+    # Clarification tracking
+    if debug_data.get('clarification_counts'):
+        clarif = debug_data['clarification_counts']
+        if clarif:
+            clarif_str = ', '.join([f"{k}:{v}" for k, v in clarif.items()])
+            lines.append(f"🔁 Clarifications: {clarif_str}")
+    
+    # Last answer
+    if debug_data.get('last_answer'):
+        lines.append(f"💬 Answer: '{debug_data['last_answer']}'")
+    
+    # Pool status
+    if 'pool_status' in debug_data:
+        pool = debug_data['pool_status']
+        lines.append(f"")
+        lines.append(f"Pool: Active={pool['active']}, Reserve={pool['reserve']}, Ruled out={pool['ruled_out']}")
+    
+    # Active differentials
+    if 'active_differentials' in debug_data and debug_data['active_differentials']:
+        lines.append("")
+        lines.append("📊 TOP DIFFERENTIALS:")
+        for diff in debug_data['active_differentials']:
+            urgency_emoji = "🚨" if diff['urgency'] == 'emergent' else "⚠️" if diff['urgency'] == 'urgent' else "📋"
+            lines.append(f"  {diff['rank']}. {diff['name']} ({diff['score']}) {urgency_emoji}")
+    
+    lines.append("```")
+    return '\n'.join(lines)
 
 # === Handlers ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -132,15 +189,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             import json
             response_data = resp.json()
             response_text = response_data.get("response", "I'm sorry, I didn't understand that.")
+            debug_data = response_data.get("debug")  # Optional debug info from adaptive engine
         except json.JSONDecodeError:
             print(f"[Telegram] ❌ Failed to parse JSON: {resp.text}")
             response_text = "I'm sorry, there was an error processing your request."
+            debug_data = None
         
         # Debug: Log the response to help diagnose issues
         print(f"[Telegram] 📤 Response to {chat_id}: {response_text[:100]}...")
         
-        # Send the response
+        # Send the main response
         await update.message.reply_text(response_text)
+        
+        # Send debug info if available and debug mode enabled
+        if DEBUG_MODE and debug_data:
+            debug_msg = _format_debug_info(debug_data)
+            if debug_msg:
+                await update.message.reply_text(debug_msg, parse_mode='Markdown')
         
         # Check if this looks like a triage completion
         triage_completed = any(phrase in response_text.lower() for phrase in [
