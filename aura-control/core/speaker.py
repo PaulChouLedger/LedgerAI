@@ -351,8 +351,19 @@ def speak_llm_response(prompt, context=""):
             if not token:
                 continue
 
-            # Filter out empty control tokens
-            if token in ['<sentence_start>', '<sentence_end>']:
+            # Handle sentence control markers
+            if token == '<sentence_start>':
+                # Mark start of new sentence
+                continue
+            elif token == '<sentence_end>':
+                # Flush buffer immediately for separate TTS playback
+                if buffer:
+                    chunk_text = " ".join(buffer).strip()
+                    clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
+                    if clean_text:
+                        print(f"[Speaker] 🎙️ Flushing sentence on <sentence_end>: '{clean_text}'")
+                        enqueue_tts_chunk(clean_text)
+                    buffer.clear()
                 continue
 
             print(f"[LLM] 🧠 {token}")

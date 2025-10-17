@@ -427,7 +427,11 @@ def chat_tts():
                     yield f"{filler_text}\n"
                     yield "<sentence_end>\n"
                     
-                    # Then yield the actual question
+                    # Small delay to ensure filler is processed separately
+                    import time
+                    time.sleep(0.05)
+                    
+                    # Then yield the actual question as SEPARATE sentence
                     question_text = response.get('question', '')
                     yield "<sentence_start>\n"
                     yield f"{question_text}\n"

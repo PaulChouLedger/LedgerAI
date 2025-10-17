@@ -1610,25 +1610,23 @@ Your question:"""
         """
         print(f"[Engine] 🧠 Generating opening statement...")
         
-        system_msg = "You are a medical assistant. Output ONLY the statement requested. No numbered lists, no meta-text."
+        system_msg = "Output ONLY the exact statement requested. No extra words."
         
         user_msg = f"""Patient: "{chief_complaint}"
 
-Write a brief empathetic response (2 sentences):
-- Acknowledge their concern
-- Say you'll ask questions to help
+Write a very brief empathetic statement (1 sentence, under 15 words):
 
-Example: "I understand that must be concerning. Let me ask some questions to better understand what's happening."
+Example: "I understand that must be concerning."
 
-Your response:"""
+Your statement:"""
         
         response = self.llm_chat_simple_fn(  # Use simple model (Llama-1B)
             [
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
-            max_tokens=50,
-            temperature=0.3
+            max_tokens=20,  # Strict limit to prevent rambling
+            temperature=0.0  # Deterministic output
         )
         
         statement = response.strip().strip('"\'')
@@ -1637,6 +1635,22 @@ Your response:"""
         import re
         statement = re.sub(r'^\d+\.\s*', '', statement)  # Remove "1. " from start
         statement = re.sub(r'\n\d+\.\s*', ' ', statement)  # Remove "\n2. " from middle
+        
+        # VALIDATION: Ensure opening doesn't contain questions
+        # If it has a '?', it's asking questions instead of just being empathetic
+        if '?' in statement:
+            print(f"[Engine] ⚠️ Opening contains questions - using simple template")
+            print(f"[Engine]    Generated: '{statement}'")
+            statement = "I understand. I'll ask some questions to help."
+        
+        # VALIDATION: Ensure it's not too long (should be brief)
+        word_count = len(statement.split())
+        if word_count > 20:
+            print(f"[Engine] ⚠️ Opening too long ({word_count} words) - truncating")
+            print(f"[Engine]    Generated: '{statement}'")
+            # Take first sentence only
+            first_sentence = statement.split('.')[0] + '.'
+            statement = first_sentence if len(first_sentence.split()) <= 20 else "I understand. I'll ask some questions to help."
         
         print(f"[Engine] ✅ Opening (simple model): '{statement}'")
         return statement
