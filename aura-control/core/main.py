@@ -21,8 +21,8 @@ sys.path.insert(0, parent_dir)
 
 # Import from organized directories
 from gui.aura_gui import launch_gui, run_gui_loop, is_gui_ready
-from core.listener import listen
-from core import speaker  # ✅ Starts TTS playback loop and queue
+from listener import listen
+import speaker  # ✅ Starts TTS playback loop and queue
 try:
     from server.web_upload_server import start_upload_server
     UPLOAD_SERVER_AVAILABLE = True

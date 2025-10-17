@@ -6,7 +6,7 @@ import threading
 import subprocess
 from dotenv import load_dotenv
 from elevenlabs.client import ElevenLabs
-from .state import set_playing, is_playing
+from state import set_playing, is_playing
 import numpy as np
 
 # === Load API credentials ===
