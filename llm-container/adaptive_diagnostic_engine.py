@@ -462,14 +462,15 @@ Examples:
     def _is_acceptable_clinical_answer(self, answer: str) -> bool:
         """
         LLM-based validation: Does the answer actually address the question asked?
-        
-        Uses LLM to determine if answer is meaningful/responsive.
+        Uses context-aware validation based on what OLDCARTS element is being asked.
         """
-        # Get the last question asked
+        # Get the last question asked and its OLDCARTS element
         last_question = None
+        oldcarts_element = None
         for item in reversed(self.conversation_history):
             if item['type'] == 'question':
                 last_question = item['question']
+                oldcarts_element = item.get('oldcarts')
                 break
         
         if not last_question:
@@ -479,15 +480,37 @@ Examples:
         print(f"[Engine]   Q: '{last_question}'")
         print(f"[Engine]   A: '{answer}'")
         
-        # Use LLM to validate (fully dynamic - direct analysis)
-        system_msg = f"""Does this answer address the question?
+        # Build context-specific validation criteria based on OLDCARTS element
+        validation_criteria = {
+            'O': "MUST indicate WHEN (time reference like 'hours ago', 'yesterday', 'this morning').",
+            'L': "MUST specify WHERE (anatomical location like 'left side', 'upper abdomen', 'chest', NOT just 'on the').",
+            'D': "MUST describe HOW LONG (duration like 'constant', 'comes and goes', 'few minutes').",
+            'C': "MUST describe CHARACTER (quality like 'sharp', 'dull', 'burning', 'cramping').",
+            'A': "MUST describe AGGRAVATING factors (what makes it worse: 'movement', 'eating', or 'nothing').",
+            'R': "MUST describe RELIEVING factors (what helps: 'rest', 'medication', or 'nothing').",
+            'T': "MUST describe TIMING pattern ('constant', 'intermittent', 'comes in waves').",
+            'S': "MUST indicate SEVERITY (number, or 'mild', 'moderate', 'severe')."
+        }
+        
+        # Get specific criteria for this OLDCARTS element
+        specific_criteria = validation_criteria.get(oldcarts_element, 
+            "Must address the question asked (not just filler words).")
+        
+        # Use LLM to validate with context-specific criteria
+        system_msg = f"""Validate this answer based on the question and specific requirements.
 
 Question: "{last_question}"
 Answer: "{answer}"
 
-Accept the answer unless it's ONLY filler words (um, uh, oh, hmm) or completely unrelated. Any attempt to answer the question is valid - including yes, no, single words, or short phrases.
+Requirement: {specific_criteria}
 
-Output 'yes' to accept or 'no' to reject."""
+Reject if:
+- Only filler words (um, uh, oh, hmm)
+- Incomplete fragments (like "on the", "I", "it")
+- Completely unrelated to what's asked
+- Does NOT meet the requirement above
+
+Output ONLY 'yes' to accept or 'no' to reject."""
 
         user_msg = "Valid?"
         
@@ -509,8 +532,11 @@ Output 'yes' to accept or 'no' to reject."""
         result = response.strip().lower()
         is_valid = 'yes' in result or 'valid' in result
         
-        print(f"[Engine] 🤖 RAW LLM RESPONSE: '{response}'")
-        print(f"[Engine] 📊 PARSED: '{result}' → {'ACCEPT ✅' if is_valid else 'REJECT ❌'}")
+        # Show decision with brief reasoning (first 80 chars)
+        reasoning_preview = response.strip()[:80] + "..." if len(response) > 80 else response.strip()
+        decision = 'ACCEPT ✅' if is_valid else 'REJECT ❌'
+        print(f"[Engine] 📊 Validation: {decision}")
+        print(f"[Engine] 💬 Reason: {reasoning_preview}")
         
         return is_valid
     

@@ -52,6 +52,7 @@ BALANCED PROFILES (HPF + NS + AGC):
 import sys
 import os
 import json
+import time
 
 # Add tuning module path (expand ~ properly even with sudo)
 home_dir = os.path.expanduser('~aura') if os.geteuid() == 0 else os.path.expanduser('~')
@@ -1396,65 +1397,88 @@ def show_current_settings():
     return True
 
 def led_off():
-    """Turn off all LEDs on ReSpeaker"""
+    """Turn off all LEDs on ReSpeaker using multiple methods"""
+    import usb.core
+    
     print("\n" + "="*80)
     print("  💡 LED CONTROL: Turn Off")
     print("="*80 + "\n")
     
-    try:
-        # Try to use pixel_ring library if available
-        try:
-            from pixel_ring import pixel_ring
-            pixel_ring.off()
-            print("  ✅ LEDs turned OFF (using pixel_ring library)")
-            print("\n  All 12 RGB LEDs are now disabled.")
-            print("  This reduces power consumption by ~10mA.\n")
-            print("="*80 + "\n")
-            return True
-        except ImportError:
-            print("  ⚠️  pixel_ring library not found, using USB control transfer...\n")
-        
-        # Fallback: Use USB control transfer directly
-        import usb.core
-        
-        usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
-        if usb_dev is None:
-            print("  ❌ ReSpeaker USB device not found")
-            return False
-        
-        # ReSpeaker LED control uses HID protocol
-        # Command 1 = mono mode: set all LEDs to single color
-        # Data: [red, green, blue, 0] where 0,0,0 = off
-        data = [0] * 4  # All zeros = LEDs off
-        
-        # Try to write to the device using different methods
-        try:
-            # Method 1: Try HID write
-            usb_dev.write(0x02, [1] + data, 100)  # endpoint 0x02, command 1 (mono)
-        except:
-            try:
-                # Method 2: Try control transfer
-                usb_dev.ctrl_transfer(0x21, 0x09, 0x0201, 0x0000, [1] + data)
-            except Exception as e2:
-                print(f"  ❌ Failed to control LEDs: {e2}")
-                print("\n  💡 Install pixel_ring library for better LED control:")
-                print("     sudo pip install pixel-ring")
-                print("     git clone https://github.com/respeaker/pixel_ring.git")
-                print("     cd pixel_ring && sudo python setup.py install\n")
-                print("="*80 + "\n")
-                return False
-        
-        print("  ✅ LEDs turned OFF (using USB control)")
-        print("\n  All 12 RGB LEDs are now disabled.")
-        print("  This reduces power consumption by ~10mA.\n")
-        
-    except Exception as e:
-        print(f"  ❌ Failed to control LEDs: {e}\n")
+    # Find ReSpeaker USB device
+    usb_dev = usb.core.find(idVendor=0x2886, idProduct=0x0018)
+    if usb_dev is None:
+        print("  ❌ ReSpeaker USB device not found")
         print("="*80 + "\n")
         return False
     
+    success_count = 0
+    
+    # Method 1: Try pixel_ring library
+    try:
+        from pixel_ring import pixel_ring
+        print("  [1/3] Using pixel_ring library...")
+        pixel_ring.set_brightness(0)
+        time.sleep(0.05)
+        pixel_ring.mono(0x000000)  # Set all to black
+        time.sleep(0.05)
+        pixel_ring.off()
+        success_count += 1
+        print("        ✅ pixel_ring commands sent")
+    except ImportError:
+        print("  [1/3] ⚠️  pixel_ring not installed (optional)")
+    except Exception as e:
+        print(f"  [1/3] ⚠️  pixel_ring error: {e}")
+    
+    # Method 2: Try using Tuning class to disable LED-related features
+    try:
+        dev = Tuning(usb_dev)
+        print("  [2/3] Disabling LED activity indicators...")
+        
+        # Turn off VAD LED indicator
+        try:
+            dev.write("DOALED", 0)  # DOA LED off
+            success_count += 1
+            print("        ✅ DOA LED disabled")
+        except:
+            print("        ⚠️  DOA LED control not available")
+        
+    except Exception as e:
+        print(f"  [2/3] ⚠️  Tuning class error: {e}")
+    
+    # Method 3: Persistent off using multiple pixel_ring calls
+    try:
+        from pixel_ring import pixel_ring
+        print("  [3/3] Applying persistent LED off state...")
+        
+        # Multiple attempts to ensure it sticks
+        for i in range(3):
+            pixel_ring.set_brightness(0)
+            pixel_ring.mono(0x000000)
+            pixel_ring.off()
+            time.sleep(0.05)
+        
+        success_count += 1
+        print("        ✅ Persistent off state applied")
+        
+    except:
+        pass
+    
+    print("\n" + "="*80)
+    if success_count > 0:
+        print("  ✅ LED OFF commands sent successfully")
+        print("\n  NOTE: If LEDs are still on, they may be controlled by:")
+        print("    • A running listener process (check with: ps aux | grep listener)")
+        print("    • Another application accessing the ReSpeaker")
+        print("    • Hardware default state requiring firmware update")
+        print("\n  To verify LEDs are off, unplug and replug the ReSpeaker.")
+    else:
+        print("  ⚠️  Could not control LEDs")
+        print("\n  Install pixel_ring library:")
+        print("    git clone https://github.com/respeaker/pixel_ring.git")
+        print("    cd pixel_ring && sudo python setup.py install")
+    
     print("="*80 + "\n")
-    return True
+    return success_count > 0
 
 def led_set_brightness(brightness=0):
     """Set LED brightness (0-31)"""
