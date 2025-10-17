@@ -554,7 +554,7 @@ Output 'yes' to accept or 'no' to reject."""
         print(f"[Engine] 📋 Questions asked: {len(asked)}")
         
         # LLM PROMPT: Generate next question using ONLY generic OLDCARTS template
-        system_msg = "You are a medical assistant. Generate ONE OPEN-ENDED question that starts with How/What/Where/When/Describe. NEVER generate yes/no questions. Output ONLY the question text, no explanations."
+        system_msg = "Medical assistant. Generate ONE OPEN-ENDED question starting with How/What/Where/When/Describe. NEVER yes/no. Output ONLY the question, nothing else."
         
         # Show OLDCARTS coverage
         covered_elements = [k for k, v in self.oldcarts_covered.items() if v]
@@ -626,8 +626,8 @@ Your question:"""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=25,  # Just the question
-                temperature=0.3
+                max_tokens=20,  # Just the question
+                temperature=0.1  # Very low - stick to instructions
             )
             
             question = response.strip().strip('"\'')
@@ -1141,7 +1141,7 @@ Your question:"""
         """
         print(f"[Engine] 🧠 Generating LLM opening statement...")
         
-        system_msg = "You are an empathetic medical assistant. Show brief empathy and let the patient know you'll ask questions to help determine the cause. Be conversational."
+        system_msg = "You are a empathetic medical assistant. Acknowledge the patient's complaint and say you'll ask questions to help. ONE or TWO sentences max. Output ONLY the statement."
         
         user_msg = f"""Patient says: "{chief_complaint}"
 
@@ -1159,8 +1159,8 @@ Your statement:"""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=40,
-                temperature=0.7
+                max_tokens=30,
+                temperature=0.2  # Low - follow example closely
             )
             
             statement = response.strip().strip('"\'')
@@ -1194,8 +1194,8 @@ Your question:"""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=15,
-                temperature=0.7
+                max_tokens=10,
+                temperature=0.2
             )
             
             question = response.strip().strip('"\'')
@@ -1229,11 +1229,13 @@ Your question:"""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=20,
-                temperature=0.7
+                max_tokens=15,
+                temperature=0.2
             )
             
             question = response.strip().strip('"\'')
+            
+            # Ensure it ends with ?
             if not question.endswith('?'):
                 question += '?'
             
