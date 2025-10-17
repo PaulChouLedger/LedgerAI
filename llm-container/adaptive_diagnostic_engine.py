@@ -94,6 +94,66 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine] ✅ Loaded {len(self.all_guidelines)} guidelines")
         print(f"{'='*80}\n")
     
+    def _is_valid_chief_complaint(self, complaint: str) -> bool:
+        """
+        Validate that chief complaint is coherent (not garbled transcription)
+        
+        Checks:
+        1. Contains common medical/symptom words
+        2. Not complete gibberish (e.g., "domino pain", "word salad")
+        3. Has reasonable length
+        
+        Returns:
+            True if valid, False if nonsensical
+        """
+        complaint_lower = complaint.lower().strip()
+        
+        # Too short or too long
+        if len(complaint_lower) < 5 or len(complaint_lower) > 200:
+            return False
+        
+        # Common medical/symptom words that should appear in valid complaints
+        medical_keywords = [
+            'pain', 'hurt', 'ache', 'sore', 'burn', 'itch', 'bleed', 'swell',
+            'fever', 'cough', 'nausea', 'vomit', 'dizzy', 'tired', 'weak', 'short of breath',
+            'chest', 'abdomen', 'stomach', 'head', 'back', 'leg', 'arm', 'throat',
+            'sick', 'ill', 'problem', 'issue', 'concern', 'discomfort', 'symptom'
+        ]
+        
+        # Common filler words that indicate sentence structure
+        common_words = [
+            'i', 'have', 'had', 'my', 'the', 'a', 'an', 'is', 'am', 'feeling',
+            'experiencing', 'been', 'getting'
+        ]
+        
+        # Extract words from complaint
+        words = complaint_lower.split()
+        
+        # Check if contains at least one medical keyword
+        has_medical_term = any(keyword in complaint_lower for keyword in medical_keywords)
+        
+        if not has_medical_term:
+            # No medical terms - likely garbled
+            print(f"[Engine] 🔍 Validation: No medical keywords found in '{complaint}'")
+            return False
+        
+        # Check for obvious gibberish patterns
+        gibberish_patterns = [
+            'domino pain',  # Known bad transcription
+            'diamond pain',
+            'domain pain',
+            'dummy pain'
+        ]
+        
+        for pattern in gibberish_patterns:
+            if pattern in complaint_lower:
+                print(f"[Engine] 🔍 Validation: Detected gibberish pattern '{pattern}'")
+                return False
+        
+        # If we got here, it looks valid
+        print(f"[Engine] ✅ Validation: Chief complaint appears valid")
+        return True
+    
     def reset_assessment(self):
         """Reset for new patient"""
         self.active_guidelines = []  # The 3 active guidelines with scores
@@ -136,6 +196,15 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine] 🚀 NEW ASSESSMENT")
         print(f"{'='*80}")
         print(f"[Engine] Chief Complaint: '{chief_complaint}'")
+        
+        # VALIDATION: Check if chief complaint is coherent
+        if not self._is_valid_chief_complaint(chief_complaint):
+            print(f"[Engine] ❌ Invalid chief complaint (garbled/nonsensical)")
+            print(f"{'='*80}\n")
+            return {
+                'success': False,
+                'message': "I didn't quite understand that. Can you describe your symptoms again?"
+            }
         
         self.reset_assessment()
         self.chief_complaint = chief_complaint
