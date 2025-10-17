@@ -29,19 +29,19 @@ def load_triage_definitions(triage_dir="/app/triage_defs"):
         print(f"[Triage] ❌ Triage definitions directory not found: {triage_dir}")
         return
     
-    print(f"[Triage] 🔍 Loading triage definitions from: {triage_dir}")
-    
+    # Silently load triage definitions (legacy system - not used by adaptive engine)
     for path in glob(os.path.join(triage_dir, "*.json")):
         try:
             with open(path, "r") as f:
                 data = json.load(f)
                 TRIAGE_DEFS.update(data)
-                print(f"[Triage] ✅ Loaded triage defs: {os.path.basename(path)}")
-                print(f"[Triage] 🔍 Loaded conditions: {list(data.keys())}")
         except Exception as e:
+            # Only log errors
             print(f"[Triage] ⚠️ Failed to load triage defs {path}: {e}")
     
-    print(f"[Triage] 🔍 Total loaded conditions: {len(TRIAGE_DEFS)}")
+    # One-line summary instead of verbose logging
+    if TRIAGE_DEFS:
+        print(f"[Triage] ℹ️  Legacy triage loaded: {len(TRIAGE_DEFS)} conditions (not used - adaptive engine active)")
 
 
 # Load triage definitions on module import

@@ -78,12 +78,16 @@ class AdaptiveDiagnosticEngine:
         print(f"\n{'='*80}")
         print(f"[Engine] 📚 LOADING MEDICAL GUIDELINES")
         print(f"{'='*80}")
+        print(f"[Engine] 📁 Source directory: {self.guidelines_dir}")
         
         if not self.guidelines_dir.exists():
             print(f"[Engine] ❌ Directory not found: {self.guidelines_dir}")
             return
         
-        # Load from subdirectories (GI, GU, GYN, etc.)
+        # Track by organ system
+        organ_systems = {}
+        
+        # Load from subdirectories (GI, CARDIO, GU, etc.)
         for json_file in sorted(self.guidelines_dir.glob("**/*.json")):
             try:
                 with open(json_file, 'r') as f:
@@ -91,11 +95,19 @@ class AdaptiveDiagnosticEngine:
                     name = guideline.get('condition', json_file.stem)
                     organ_system = json_file.parent.name if json_file.parent != self.guidelines_dir else "Other"
                     self.all_guidelines[name] = guideline
+                    
+                    # Track organ system counts
+                    if organ_system not in organ_systems:
+                        organ_systems[organ_system] = []
+                    organ_systems[organ_system].append(name)
+                    
                     print(f"[Engine]   ✓ {organ_system}/{name}")
             except Exception as e:
                 print(f"[Engine] ⚠️ Failed to load {json_file.name}: {e}")
         
-        print(f"[Engine] ✅ Loaded {len(self.all_guidelines)} guidelines")
+        print(f"\n[Engine] ✅ LOADED {len(self.all_guidelines)} GUIDELINES:")
+        for system, conditions in sorted(organ_systems.items()):
+            print(f"[Engine]    📋 {system}: {len(conditions)} conditions")
         print(f"{'='*80}\n")
     
     def _is_valid_chief_complaint(self, complaint: str) -> bool:
@@ -745,11 +757,20 @@ class AdaptiveDiagnosticEngine:
         
         print(f"\n[Engine] 🔍 MATCHING TO GUIDELINES...")
         print(f"[Engine] 📋 Core symptom extracted: '{core_symptom}'")
-        print(f"[Engine] 🎯 Matching strategy: exact > subset > char_overlap(>0.65) > semantic(>0.88)")
+        print(f"[Engine] 🎯 Matching strategy:")
+        print(f"[Engine]    1. Exact match (trigger in complaint)")
+        print(f"[Engine]    2. Subset match (symptom in trigger)")
+        print(f"[Engine]    3. Character overlap (Jaccard > 0.75)")
+        print(f"[Engine]    4. Semantic similarity (cosine > 0.88)")
+        print(f"[Engine] ---")
+        
+        # Thresholds
+        CHAR_OVERLAP_THRESHOLD = 0.75  # Increased from 0.65
+        SEMANTIC_THRESHOLD = 0.88
         
         # Helper function for character overlap
         def char_overlap(str1: str, str2: str) -> float:
-            """Calculate character-level overlap between two strings"""
+            """Calculate character-level overlap between two strings (Jaccard similarity)"""
             set1 = set(str1.lower().replace(' ', ''))
             set2 = set(str2.lower().replace(' ', ''))
             if not set1 or not set2:
@@ -758,8 +779,13 @@ class AdaptiveDiagnosticEngine:
             union = len(set1 | set2)
             return intersection / union if union > 0 else 0.0
         
+        rejected_guidelines = []  # Track filtered guidelines
+        
         for name, guideline in self.all_guidelines.items():
             triggers = guideline.get('chief_complaint_triggers', [])
+            
+            print(f"\n[Engine] 🔍 Evaluating: {name}")
+            print(f"[Engine]    Triggers: {triggers}")
             
             # Check if any trigger matches using HYBRID approach
             matched_trigger = None
@@ -771,36 +797,80 @@ class AdaptiveDiagnosticEngine:
                 # FAST PATH: Exact keyword matching
                 # 1. Exact: trigger in complaint (e.g., "chest pain" in "I have chest pain")
                 if trigger_lower in complaint_lower:
+                    print(f"[Engine]    ✅ EXACT MATCH: '{trigger_lower}' found in '{complaint_lower}'")
                     matched_trigger = trigger
                     match_type = "exact"
                     break
+                else:
+                    print(f"[Engine]    ❌ Exact: '{trigger_lower}' not in '{complaint_lower}'")
                 
                 # 2. Subset: core symptom in trigger (e.g., "abdominal pain" in "lower abdominal pain")
                 if core_symptom in trigger_lower:
+                    print(f"[Engine]    ✅ SUBSET MATCH: '{core_symptom}' found in '{trigger_lower}'")
                     matched_trigger = trigger
                     match_type = "subset"
                     break
+                else:
+                    print(f"[Engine]    ❌ Subset: '{core_symptom}' not in '{trigger_lower}'")
             
             # CHARACTER OVERLAP: Check if trigger and symptom share significant characters
-            # This filters "chest pain" (overlap ~0.6) from "abdominal pain" (overlap ~0.3)
+            # This filters "chest pain" (~0.3 overlap) from "abdominal pain"
             if not matched_trigger:
+                print(f"[Engine]    🔤 Checking character overlap (Jaccard similarity)...")
+                best_overlap = 0.0
+                best_trigger_for_overlap = None
                 for trigger in triggers:
                     overlap = char_overlap(core_symptom, trigger)
-                    if overlap > 0.65:  # Require 65% character overlap
+                    print(f"[Engine]       '{core_symptom}' vs '{trigger}' = {overlap:.2f} (need >{CHAR_OVERLAP_THRESHOLD})")
+                    if overlap > best_overlap:
+                        best_overlap = overlap
+                        best_trigger_for_overlap = trigger
+                    if overlap > CHAR_OVERLAP_THRESHOLD:
+                        print(f"[Engine]    ✅ CHAR OVERLAP MATCH: {overlap:.2f} > {CHAR_OVERLAP_THRESHOLD}")
                         matched_trigger = trigger
                         match_type = f"char_overlap ({overlap:.2f})"
                         break
+                
+                # Log if rejected by character overlap
+                if not matched_trigger and best_overlap > 0.0:
+                    print(f"[Engine]    ❌ Best overlap: {best_overlap:.2f} < {CHAR_OVERLAP_THRESHOLD} (rejected)")
+                    rejected_guidelines.append({
+                        'name': name,
+                        'reason': 'char_overlap_low',
+                        'trigger': best_trigger_for_overlap,
+                        'score': best_overlap,
+                        'threshold': CHAR_OVERLAP_THRESHOLD
+                    })
             
             # SEMANTIC PATH: Use embeddings for fuzzy/synonym matching
             # Handles typos ("abdomnal pain"), synonyms ("belly ache" = "abdominal pain")
             # STRICT threshold to avoid false matches across body regions
             if not matched_trigger and self.embedding_model:
+                print(f"[Engine]    🧠 Checking semantic similarity (embeddings)...")
+                best_semantic = 0.0
+                best_trigger_for_semantic = None
                 for trigger in triggers:
                     similarity = self._compute_similarity(core_symptom, trigger)
-                    if similarity > 0.88:  # Very strict (was 0.70, then 0.85)
+                    print(f"[Engine]       '{core_symptom}' vs '{trigger}' = {similarity:.2f} (need >{SEMANTIC_THRESHOLD})")
+                    if similarity > best_semantic:
+                        best_semantic = similarity
+                        best_trigger_for_semantic = trigger
+                    if similarity > SEMANTIC_THRESHOLD:
+                        print(f"[Engine]    ✅ SEMANTIC MATCH: {similarity:.2f} > {SEMANTIC_THRESHOLD}")
                         matched_trigger = trigger
                         match_type = f"semantic ({similarity:.2f})"
                         break
+                
+                # Log if rejected by semantic threshold
+                if not matched_trigger and best_semantic > 0.0:
+                    print(f"[Engine]    ❌ Best semantic: {best_semantic:.2f} < {SEMANTIC_THRESHOLD} (rejected)")
+                    rejected_guidelines.append({
+                        'name': name,
+                        'reason': 'semantic_low',
+                        'trigger': best_trigger_for_semantic,
+                        'score': best_semantic,
+                        'threshold': SEMANTIC_THRESHOLD
+                    })
             
             if matched_trigger:
                 # Initial score based on PREVALENCE from guideline JSON
@@ -819,7 +889,32 @@ class AdaptiveDiagnosticEngine:
                     'score': initial_score,
                     'data': guideline
                 })
-                print(f"[Engine]   ✓ {name} (trigger: '{matched_trigger}', match: {match_type}, prevalence: {prevalence}, initial: {initial_score:.0%})")
+                print(f"[Engine]    ══════════════════════════════════════")
+                print(f"[Engine]    ✅ ACCEPTED: {name}")
+                print(f"[Engine]       Match: {match_type}")
+                print(f"[Engine]       Trigger: '{matched_trigger}'")
+                print(f"[Engine]       Prevalence: {prevalence}")
+                print(f"[Engine]       Initial score: {initial_score:.0%}")
+            else:
+                print(f"[Engine]    ══════════════════════════════════════")
+                print(f"[Engine]    ❌ REJECTED: {name} (no match found)")
+        
+        # Print filtered guidelines summary
+        if rejected_guidelines:
+            print(f"\n[Engine] 🚫 FILTERED OUT ({len(rejected_guidelines)} guidelines):")
+            # Group by reason
+            char_filtered = [g for g in rejected_guidelines if g['reason'] == 'char_overlap_low']
+            sem_filtered = [g for g in rejected_guidelines if g['reason'] == 'semantic_low']
+            
+            if char_filtered:
+                print(f"[Engine] 📊 Character overlap < {CHAR_OVERLAP_THRESHOLD}:")
+                for g in sorted(char_filtered, key=lambda x: -x['score'])[:5]:  # Show top 5
+                    print(f"[Engine]    ✗ {g['name']}: '{g['trigger']}' (overlap={g['score']:.2f}, need >{g['threshold']:.2f})")
+            
+            if sem_filtered:
+                print(f"[Engine] 📊 Semantic similarity < {SEMANTIC_THRESHOLD}:")
+                for g in sorted(sem_filtered, key=lambda x: -x['score'])[:5]:  # Show top 5
+                    print(f"[Engine]    ✗ {g['name']}: '{g['trigger']}' (similarity={g['score']:.2f}, need >{g['threshold']:.2f})")
         
         # PREVALENCE-FIRST sorting with urgency boost
         # NOTE: Gender filtering happens AFTER sex is collected (see _filter_by_gender)

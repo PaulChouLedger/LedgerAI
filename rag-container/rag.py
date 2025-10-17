@@ -142,9 +142,10 @@ class AuraRAG:
                 guideline_chunks = [m for m in self.chunk_metadata if m.get('is_medical_guideline')]
                 guidelines = set([m['guideline_name'] for m in guideline_chunks if 'guideline_name' in m])
                 
-                print(f"[RAG] ✅ Loaded metadata for {len(self.chunk_metadata)} chunks")
+                print(f"[RAG] ✅ Loaded legacy metadata: {len(self.chunk_metadata)} chunks from data/parsed")
+                print(f"[RAG] ℹ️  Note: Adaptive engine uses /app/medical/guidelines (not this data)")
                 if guidelines:
-                    print(f"[RAG] 📋 Medical guidelines available: {len(guidelines)}")
+                    print(f"[RAG] 📋 Legacy parsed guidelines: {len(guidelines)}")
                     for gname in sorted(list(guidelines)[:5]):  # Show first 5
                         print(f"[RAG]    - {gname}")
             else:

@@ -31,12 +31,12 @@ class MedicalRAG:
         self.medical_embeddings_available = self._check_medical_embeddings()
         
         if self.rag_available:
-            print("[Medical RAG] ✅ RAG service available")
+            print("[Medical RAG] ✅ RAG service available (legacy data from data/parsed)")
         else:
             print("[Medical RAG] ⚠️ RAG service not available")
             
         if self.medical_embeddings_available:
-            print("[Medical RAG] ✅ Medical embeddings available")
+            print("[Medical RAG] ✅ Medical embeddings available (used by adaptive engine for semantic matching)")
         else:
             print("[Medical RAG] ⚠️ Medical embeddings not available (using general RAG)")
     

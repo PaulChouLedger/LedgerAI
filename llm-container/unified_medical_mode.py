@@ -161,7 +161,8 @@ class UnifiedMedicalSession:
                     embedding_model=embedding_api,
                     llm_chat_simple_fn=self.llm_chat_simple_fn  # Pass simple model
                 )
-                print("[Unified Medical] ✅ Adaptive engine initialized with dual models + RAG embeddings")
+                guideline_count = len(self.adaptive_engine.all_guidelines) if hasattr(self.adaptive_engine, 'all_guidelines') else 0
+                print(f"[Unified Medical] ✅ Adaptive engine initialized: {guideline_count} guidelines, dual LLMs, semantic embeddings")
             except Exception as e:
                 print(f"[Unified Medical] ⚠️ Failed to initialize adaptive engine: {e}")
         
@@ -228,16 +229,18 @@ class UnifiedMedicalSession:
             print(f"[Unified Medical] ✅ Restored: {len(self.dynamic_assessment.questions_asked)} questions asked, {len(self.dynamic_assessment.responses_received)} responses received")
 
     def _initialize_medical_rag(self):
-        """Initialize medical RAG for knowledge queries"""
+        """Initialize medical RAG for knowledge queries (legacy - not used by adaptive engine)"""
         if MEDICAL_RAG_AVAILABLE:
             try:
                 self.medical_rag = get_medical_rag()
-                print("[Unified Medical] ✅ Medical RAG initialized")
+                # Note: Old RAG is for legacy knowledge queries only
+                # Adaptive engine loads guidelines directly from /app/medical/guidelines
+                print("[Unified Medical] ℹ️  Legacy RAG loaded (not used for diagnosis - adaptive engine uses /app/medical/guidelines)")
             except Exception as e:
-                print(f"[Unified Medical] ⚠️ Medical RAG initialization failed: {e}")
+                print(f"[Unified Medical] ⚠️ Legacy RAG initialization failed: {e}")
                 self.medical_rag = None
         else:
-            print("[Unified Medical] ⚠️ Medical RAG not available")
+            print("[Unified Medical] ℹ️  Legacy RAG not available (not needed - adaptive engine uses direct guideline loading)")
 
     def process_medical_query(self, user_input: str):
         """
