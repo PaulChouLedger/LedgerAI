@@ -566,66 +566,21 @@ Output 'yes' to accept or 'no' to reject."""
         
         # Ultra-clear prompts for each OLDCARTS element - MUST BE OPEN-ENDED
         if next_element:
-            element_prompts = {
-                'L': f"""Ask where the pain is located. Start with "Where".
-
-Format: "Where [rest of question]?"
-Example: Where exactly is the pain?
-
-Question:""",
-                
-                'D': f"""Ask how long the pain lasts. Start with "How long".
-
-Format: "How long [rest of question]?"
-Example: How long does each episode last?
-
-Question:""",
-                
-                'C': f"""Ask what the pain feels like. Start with "How would you describe" or "What does".
-
-Format: "How would you describe [the pain]?" or "What does [the pain feel like]?"
-Example: How would you describe the pain?
-
-Question:""",
-                
-                'A': f"""Ask what makes the pain worse. Start with "What makes".
-
-Format: "What makes [the pain worse]?"
-Example: What makes the pain worse?
-
-Question:""",
-                
-                'R': f"""Ask what helps relieve the pain. Start with "What helps" or "What relieves".
-
-Format: "What helps [relieve the pain]?" or "What relieves [it]?"
-Example: What helps relieve it?
-
-Question:""",
-                
-                'T': f"""Ask about pain timing or pattern. Start with "Is it" or "Does it".
-
-Format: "Is it constant or [does it come and go]?"
-Example: Is it constant or does it come and go?
-
-Question:""",
-                
-                'S': f"""Ask about pain severity. Start with "How severe" or "How bad".
-
-Format: "How severe [is the pain]?" or "How bad [is it]?"
-Example: How severe is the pain?
-
-Question:"""
+            element_instructions = {
+                'L': "Ask: Where is the pain?",
+                'D': "Ask: How long does it last?",
+                'C': "Ask: How would you describe the pain?",
+                'A': "Ask: What makes it worse?",
+                'R': "Ask: What helps relieve it?",
+                'T': "Ask: Is it constant or does it come and go?",
+                'S': "Ask: How severe is the pain?"
             }
             
-            user_msg = element_prompts.get(next_element)
+            system_msg = element_instructions.get(next_element, "Ask about symptom.")
+            user_msg = "Output question:"
         else:
-            user_msg = f"""Patient has {self.chief_complaint}.
-
-Ask about fever, nausea, or vomiting.
-
-Example: Have you had any fever?
-
-Your question:"""
+            system_msg = "Ask: Have you had any fever?"
+            user_msg = "Output question:"
 
         try:
             response = self.llm_chat_fn(
@@ -633,8 +588,8 @@ Your question:"""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=15,  # Just the question
-                temperature=0.05  # Extremely low - follow format exactly
+                max_tokens=12,  # Short question only
+                temperature=0.0  # Deterministic - no variation
             )
             
             question = response.strip().strip('"\'')
@@ -1148,14 +1103,9 @@ Your question:"""
         """
         print(f"[Engine] 🧠 Generating LLM opening statement...")
         
-        system_msg = "Generate empathy statement. Follow format. Output ONLY the statement."
+        system_msg = f"Patient says: {chief_complaint}. Acknowledge briefly, say you'll ask questions."
         
-        user_msg = f"""Patient: "{chief_complaint}"
-
-Format: "[Acknowledge]. [I'll ask questions to help]."
-Example: "I understand. I'll ask some questions to help figure this out."
-
-Statement:"""
+        user_msg = "I'm sorry to hear that. Let me ask some questions to help."
         
         try:
             response = self.llm_chat_fn(
@@ -1186,12 +1136,9 @@ Statement:"""
         """
         print(f"[Engine] 🧠 Generating LLM age question...")
         
-        system_msg = "Generate age question. Follow format. Output ONLY the question."
+        system_msg = "Ask patient's age. Use 'How old are you' format."
         
-        user_msg = """Format: "How old [are you]?" or "What's [your age]?"
-Example: How old are you?
-
-Question:"""
+        user_msg = "Output question:"
         
         try:
             response = self.llm_chat_fn(
@@ -1222,12 +1169,9 @@ Question:"""
         """
         print(f"[Engine] 🧠 Generating LLM sex question...")
         
-        system_msg = "Generate sex question. Follow format. Output ONLY the question."
+        system_msg = "Ask patient's biological sex. Use 'Are you male or female' format."
         
-        user_msg = """Format: "Are you [male or female]?" or "What is [your sex]?"
-Example: Are you male or female?
-
-Question:"""
+        user_msg = "Output question:"
         
         try:
             response = self.llm_chat_fn(
