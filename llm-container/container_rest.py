@@ -38,30 +38,58 @@ load_dotenv()
 # === Thread Safety ===
 llm_lock = threading.Lock()
 
-# === Model Config (Optimized for Orin NX) ===
-MODEL_PATH = os.getenv("MODEL_PATH", "/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf")
-N_CTX = int(os.getenv("N_CTX", "4096"))  # Increased for medical mode with complex reasoning and guidelines
+# === Dual Model Config (Optimized for Orin NX) ===
+# Complex model (Mistral-7B) for diagnostic reasoning
+MODEL_PATH = os.getenv("MODEL_PATH", "/models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf")
+N_CTX = int(os.getenv("N_CTX", "8192"))
+CHAT_FORMAT = os.getenv("CHAT_FORMAT", "mistral-instruct")
 
+# Simple model (Llama-1B) for templates/validation
+SIMPLE_MODEL_PATH = os.getenv("SIMPLE_MODEL_PATH", "/models/Llama-3.2-1B-Instruct-Q4_K_M.gguf")
+SIMPLE_N_CTX = int(os.getenv("SIMPLE_N_CTX", "2048"))
+SIMPLE_CHAT_FORMAT = os.getenv("SIMPLE_CHAT_FORMAT", "llama-3")
+
+# Complex model config
 model_config = {
     "model_path": MODEL_PATH,
     "n_ctx": N_CTX,
-    "n_gpu_layers": -1,      # All layers on GPU (Orin NX has sufficient VRAM)
-    "n_threads": 6,          # Increased from 4 (Orin NX has 6 performance cores)
-    "chat_format": os.getenv("CHAT_FORMAT", "llama-3"),
+    "n_gpu_layers": -1,
+    "n_threads": 6,
+    "chat_format": CHAT_FORMAT,
     "use_mlock": True,
     "use_mmap": True,
     "verbose": False,
-    # Speed optimizations - applied globally
     "temperature": float(os.getenv("LLM_TEMPERATURE", "0.6")),
     "top_p": float(os.getenv("LLM_TOP_P", "0.85")),
     "top_k": int(os.getenv("LLM_TOP_K", "30")),
     "repeat_penalty": float(os.getenv("LLM_REPEAT_PENALTY", "1.15")),
 }
 
-print(f"[LLM] 🚀 Loading model: {MODEL_PATH}")
-print(f"[LLM] ⚙️  Config: n_ctx={N_CTX}, n_gpu_layers=-1, n_threads=6")
+# Simple model config
+simple_model_config = {
+    "model_path": SIMPLE_MODEL_PATH,
+    "n_ctx": SIMPLE_N_CTX,
+    "n_gpu_layers": -1,
+    "n_threads": 4,  # Fewer threads for simple model
+    "chat_format": SIMPLE_CHAT_FORMAT,
+    "use_mlock": True,
+    "use_mmap": True,
+    "verbose": False,
+    "temperature": float(os.getenv("LLM_TEMPERATURE", "0.6")),
+    "top_p": float(os.getenv("LLM_TOP_P", "0.85")),
+    "top_k": int(os.getenv("LLM_TOP_K", "30")),
+    "repeat_penalty": float(os.getenv("LLM_REPEAT_PENALTY", "1.15")),
+}
+
+print(f"[LLM] 🚀 Loading COMPLEX model: {MODEL_PATH}")
+print(f"[LLM] ⚙️  Config: n_ctx={N_CTX}, format={CHAT_FORMAT}")
 llm = Llama(**model_config)
-print(f"[LLM] ✅ Model loaded successfully")
+print(f"[LLM] ✅ Complex model (Mistral-7B) loaded")
+
+print(f"[LLM] 🚀 Loading SIMPLE model: {SIMPLE_MODEL_PATH}")
+print(f"[LLM] ⚙️  Config: n_ctx={SIMPLE_N_CTX}, format={SIMPLE_CHAT_FORMAT}")
+llm_simple = Llama(**simple_model_config)
+print(f"[LLM] ✅ Simple model (Llama-1B) loaded")
 
 # Note: TRIAGE_DEFS is loaded automatically by triage.py when imported
 
@@ -213,7 +241,7 @@ def chat_tg():
                     response += intro + " "
                 response += first_question
                 return jsonify({"response": response})
-            else:
+        else:
                 # Continue existing triage
                 question, final_state = process_triage_step(prompt, updated_state, session_id, llm_chat)
                 save_state(final_state, session_id)
@@ -221,7 +249,7 @@ def chat_tg():
         
         elif mode == ConversationMode.UNIFIED_MEDICAL:
             try:
-                response = handle_unified_medical_response(prompt, session_id, llm_chat)
+                response = handle_unified_medical_response(prompt, session_id, llm_chat, llm_chat_simple)
                 
                 # Check if response includes filler (dict) or is simple text (str)
                 if isinstance(response, dict) and 'filler' in response:
@@ -248,7 +276,7 @@ def chat_tg():
                 
                 return jsonify({"response": "I'm sorry, I encountered an error processing your medical query. Please try again or consult a healthcare professional."})
         
-        else:
+            else:
             return jsonify({"response": "I'm sorry, I didn't understand that."})
             
     except Exception as e:
@@ -370,14 +398,14 @@ def chat_tts():
             def generate_triage_continue():
                 try:
                     question, final_state = process_triage_step(prompt, updated_state, session_id, llm_chat)
-                    save_state(final_state, session_id)
-                    yield f"<sentence_start>\n{question}\n<sentence_end>\n"
-                except Exception as e:
-                    print(f"[Aura-LLM] ❌ Error in triage: {e}")
-                    import traceback
-                    traceback.print_exc()
+                save_state(final_state, session_id)
+                yield f"<sentence_start>\n{question}\n<sentence_end>\n"
+            except Exception as e:
+                print(f"[Aura-LLM] ❌ Error in triage: {e}")
+                import traceback
+                traceback.print_exc()
                     print(f"[Aura-LLM] 🔍 Error details: {type(e).__name__}: {str(e)}")
-                    yield f"<sentence_start>\nI'm sorry, there was an error processing your triage.\n<sentence_end>\n"
+                yield f"<sentence_start>\nI'm sorry, there was an error processing your triage.\n<sentence_end>\n"
             # Filter think blocks at container level
             return Response(stream_with_context(filter_think_blocks(generate_triage_continue())), mimetype="text/plain")
 
@@ -386,7 +414,7 @@ def chat_tts():
             try:
                 print("[Container] 🔄 Using dynamic medical assessment for UNIFIED_MEDICAL")
                 # Use the unified medical session to process the query
-                response = handle_unified_medical_response(prompt, session_id, llm_chat)
+                response = handle_unified_medical_response(prompt, session_id, llm_chat, llm_chat_simple)
                 
                 print(f"[Container] ✅ Got response from unified medical session")
                 
@@ -562,6 +590,44 @@ def llm_chat(messages, max_tokens=100, temperature=None, stream=False, **kwargs)
                 # Return empty generator for streaming
                 return iter([])
             return ""  # Return empty string on error
+
+
+def llm_chat_simple(messages, max_tokens=100, temperature=None, stream=False, **kwargs):
+    """
+    Wrapper for SIMPLE LLM (Llama-1B) chat completion - for templates and validation
+    
+    Args:
+        messages: Chat messages
+        max_tokens: Max tokens to generate (default: 100)
+        temperature: Sampling temperature (default: use model config)
+        stream: Enable streaming (default: False)
+        **kwargs: Additional LLM parameters
+    """
+    if temperature is None:
+        temperature = simple_model_config.get("temperature", 0.6)
+    
+    generation_params = {
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "top_p": kwargs.pop("top_p", simple_model_config.get("top_p", 0.85)),
+        "top_k": kwargs.pop("top_k", simple_model_config.get("top_k", 30)),
+        "repeat_penalty": kwargs.pop("repeat_penalty", simple_model_config.get("repeat_penalty", 1.15)),
+        "stream": stream,
+        **kwargs
+    }
+    
+    with llm_lock:  # Shared lock for both models
+        try:
+            response = llm_simple.create_chat_completion(**generation_params)
+            if stream:
+                return response
+            return extract_llm_response_content(response)
+        except Exception as e:
+            print(f"[LLM-Simple] ❌ Error in llm_chat_simple: {e}")
+            if stream:
+                return iter([])
+            return ""
 
 
 def llm_chat_once(messages, **kwargs):

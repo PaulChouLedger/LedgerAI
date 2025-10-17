@@ -135,9 +135,10 @@ class UnifiedMedicalSession:
     2. DYNAMIC ASSESSMENT: RAG-powered guideline-based questioning ⭐ NEW
     """
 
-    def __init__(self, session_id: str, llm_chat_fn: Callable):
+    def __init__(self, session_id: str, llm_chat_fn: Callable, llm_chat_simple_fn: Callable = None):
         self.session_id = session_id
-        self.llm_chat_fn = llm_chat_fn
+        self.llm_chat_fn = llm_chat_fn  # Complex model (Mistral-7B)
+        self.llm_chat_simple_fn = llm_chat_simple_fn or llm_chat_fn  # Simple model (Llama-1B)
         
         # Session state
         self.conversation_history = []
@@ -154,12 +155,13 @@ class UnifiedMedicalSession:
                 # Use RAG container's embedding service (no local model needed)
                 embedding_api = RAGEmbeddingAPI()
                 
-                # Initialize adaptive engine with embeddings from RAG container
+                # Initialize adaptive engine with BOTH models + embeddings
                 self.adaptive_engine = AdaptiveDiagnosticEngine(
                     llm_chat_fn=self.llm_chat_fn,
-                    embedding_model=embedding_api
+                    embedding_model=embedding_api,
+                    llm_chat_simple_fn=self.llm_chat_simple_fn  # Pass simple model
                 )
-                print("[Unified Medical] ✅ Adaptive engine initialized with LLM + RAG embeddings")
+                print("[Unified Medical] ✅ Adaptive engine initialized with dual models + RAG embeddings")
             except Exception as e:
                 print(f"[Unified Medical] ⚠️ Failed to initialize adaptive engine: {e}")
         
@@ -1082,11 +1084,11 @@ Remember: You are not a substitute for professional medical advice.
 # Global unified medical session
 unified_medical_session = None
 
-def get_unified_medical_session(session_id: str, llm_chat_fn: Callable) -> UnifiedMedicalSession:
+def get_unified_medical_session(session_id: str, llm_chat_fn: Callable, llm_chat_simple_fn: Callable = None) -> UnifiedMedicalSession:
     """Get or create unified medical session"""
     global unified_medical_session
     if unified_medical_session is None or unified_medical_session.session_id != session_id:
-        unified_medical_session = UnifiedMedicalSession(session_id, llm_chat_fn)
+        unified_medical_session = UnifiedMedicalSession(session_id, llm_chat_fn, llm_chat_simple_fn)
     return unified_medical_session
 
 def is_unified_medical_trigger(prompt: str) -> bool:
@@ -1249,19 +1251,20 @@ def _is_medical_topic_fast(text: str) -> bool:
     return False
 
 
-def handle_unified_medical_response(prompt: str, session_id: str, llm_chat_fn: Callable):
+def handle_unified_medical_response(prompt: str, session_id: str, llm_chat_fn: Callable, llm_chat_simple_fn: Callable = None):
     """
     Handle medical queries through unified medical mode
 
     Args:
         prompt: User prompt
         session_id: Session identifier
-        llm_chat_fn: LLM chat function
+        llm_chat_fn: LLM chat function (complex model)
+        llm_chat_simple_fn: Optional simple LLM function (fast model for templates)
 
     Returns:
         Medical response (str or dict with {'question', 'filler'} for adaptive assessment)
     """
-    session = get_unified_medical_session(session_id, llm_chat_fn)
+    session = get_unified_medical_session(session_id, llm_chat_fn, llm_chat_simple_fn)
     
     # Load persisted assessment state if it exists
     session._load_assessment_state()

@@ -49,18 +49,22 @@ class AdaptiveDiagnosticEngine:
     We provide structure and keep it focused.
     """
     
-    def __init__(self, guidelines_dir: str = "/app/medical/guidelines", llm_chat_fn=None, embedding_model=None):
+    def __init__(self, guidelines_dir: str = "/app/medical/guidelines", llm_chat_fn=None, embedding_model=None, llm_chat_simple_fn=None):
         """
         Initialize diagnostic engine
         
         Args:
             guidelines_dir: Path to JSON guidelines
-            llm_chat_fn: LLM function for reasoning
+            llm_chat_fn: LLM function for complex reasoning (Mistral-7B)
             embedding_model: Sentence transformer for semantic similarity
+            llm_chat_simple_fn: Optional LLM for simple tasks (Llama-1B). If None, uses llm_chat_fn
         """
         self.guidelines_dir = Path(guidelines_dir)
-        self.llm_chat_fn = llm_chat_fn
+        self.llm_chat_fn = llm_chat_fn  # Mistral-7B for complex diagnostic questions
+        self.llm_chat_simple_fn = llm_chat_simple_fn or llm_chat_fn  # Llama-1B for templates/validation
         self.embedding_model = embedding_model
+        
+        print(f"[Engine] 🧠 Using {'dual models (simple + complex)' if llm_chat_simple_fn else 'single model'}")
         
         # Load guidelines
         self.all_guidelines = {}
@@ -210,8 +214,54 @@ class AdaptiveDiagnosticEngine:
         self.chief_complaint = chief_complaint
         self.status = "questioning"
         
-        # STEP 1: Match to 5 guidelines based on chief complaint triggers
-        matched = self._match_to_guidelines(chief_complaint)
+        # STEP 1: Get filler immediately (for instant user feedback)
+        filler = get_filler('opening', use_audio=True)
+        print(f"[Engine] 💬 Filler (for immediate response): [{filler['id']}] '{filler['text']}'")
+        if 'audio_path' in filler:
+            print(f"[Engine]    🎵 Audio: {filler['audio_path']}")
+        
+        # STEP 2: Run RAG and Llama-1B in PARALLEL (major speedup!)
+        import threading
+        import concurrent.futures
+        
+        rag_result = [None]
+        opening_result = [None]
+        age_result = [None]
+        error_result = [None]
+        
+        def run_rag():
+            """Match to guidelines (slow - embeddings)"""
+            try:
+                rag_result[0] = self._match_to_guidelines(chief_complaint)
+            except Exception as e:
+                error_result[0] = f"RAG error: {e}"
+        
+        def run_simple_llm():
+            """Generate opening + age with Llama-1B (fast)"""
+            try:
+                opening_result[0] = self._generate_opening_statement(chief_complaint)
+                age_result[0] = self._generate_age_question()
+            except Exception as e:
+                error_result[0] = f"LLM error: {e}"
+        
+        # Launch both in parallel
+        print(f"[Engine] ⚡ Starting parallel execution (RAG + Llama-1B)...")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            rag_future = executor.submit(run_rag)
+            llm_future = executor.submit(run_simple_llm)
+            
+            # Wait for both to complete
+            concurrent.futures.wait([rag_future, llm_future])
+        
+        # Check for errors
+        if error_result[0]:
+            print(f"[Engine] ❌ Parallel execution error: {error_result[0]}")
+            return {
+                'success': False,
+                'message': "I'm having trouble processing your request. Please try again."
+            }
+        
+        matched = rag_result[0]
         
         if len(matched) == 0:
             return {
@@ -219,9 +269,7 @@ class AdaptiveDiagnosticEngine:
                 'message': "I couldn't identify relevant medical conditions. Please describe your symptoms more specifically."
             }
         
-        # Split into active (top 3) and reserve pool (rest)
-        # Active = highest urgency + prevalence
-        # Reserve = sorted by prevalence (common first, rare last)
+        # Split into active (top 5) and reserve pool (rest)
         self.active_guidelines = matched[:self.MAX_ACTIVE]
         self.reserve_pool = matched[self.MAX_ACTIVE:]
         
@@ -243,17 +291,13 @@ class AdaptiveDiagnosticEngine:
         print(f"\n[Engine] 🔄 Initial pool status: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
         print(f"{'='*80}\n")
         
-        # STEP 2: Get thinking filler to return immediately (both text + audio)
-        filler = get_filler('opening', use_audio=True)
-        print(f"[Engine] 💬 Filler (for immediate response): [{filler['id']}] '{filler['text']}'")
-        if 'audio_path' in filler:
-            print(f"[Engine]    🎵 Audio: {filler['audio_path']}")
+        # STEP 3: Use results from parallel execution
+        opening_statement = opening_result[0]
+        age_question = age_result[0]
         
-        # STEP 3: Generate empathetic opening statement (takes time)
-        opening_statement = self._generate_opening_statement(chief_complaint)
-        
-        # STEP 4: Generate age question
-        age_question = self._generate_age_question()
+        print(f"[Engine] ⚡ Parallel execution complete!")
+        print(f"[Engine]    Opening: '{opening_statement}'")
+        print(f"[Engine]    Age Q: '{age_question}'")
         
         # Combine them with proper spacing
         combined_message = f"{opening_statement} {age_question}"
@@ -809,7 +853,7 @@ class AdaptiveDiagnosticEngine:
             
             example = oldcarts_examples.get(next_element, "Tell me about the symptom")
             
-            system_msg = "You are a medical assistant. Output ONLY a single question, nothing else."
+            system_msg = "You are a medical assistant. Output ONLY ONE question. Never combine multiple questions."
             
             user_msg = f"""Patient: {patient_info} with {symptom}
 
@@ -817,7 +861,7 @@ Ask about: {element_desc}
 
 Example: "{example}"
 
-Generate a similar question (open-ended, NOT yes/no):"""
+Generate EXACTLY ONE similar question (open-ended, NOT yes/no). Do NOT combine multiple questions:"""
             
             # Get thinking filler before LLM call
             filler = get_filler('question_generation', use_audio=True)
@@ -835,6 +879,20 @@ Generate a similar question (open-ended, NOT yes/no):"""
             question = response.strip().strip('"\'')
             if not question.endswith('?'):
                 question += '?'
+            
+            # VALIDATION: Ensure only ONE question
+            # Check for multiple question marks or multiple declarative sentences before the question
+            question_mark_count = question.count('?')
+            
+            # Check for pattern: "Statement. Question?" which indicates combined questions
+            has_sentence_before_question = '. ' in question and question.index('. ') < question.rfind('?')
+            
+            if question_mark_count > 1 or has_sentence_before_question:
+                print(f"[Engine] ⚠️ LLM combined multiple questions - using template fallback")
+                print(f"[Engine]    Generated: '{question}'")
+                print(f"[Engine]    Using template: '{example}'")
+                # Use simple template fallback
+                question = example
             
             oldcarts_element = next_element
             
@@ -877,13 +935,13 @@ Generate a similar question (open-ended, NOT yes/no):"""
         
         symptoms_context = ', '.join([s.split(':')[0] for s in key_symptoms[:3]]) if key_symptoms else "common symptoms"
         
-        system_msg = "You are a medical assistant. Output ONLY a single question, nothing else."
+        system_msg = "You are a medical assistant. Output ONLY ONE question. Never combine multiple questions."
         
         user_msg = f"""Patient: {patient_info} with {symptom}
 
 Top diagnoses: {symptoms_context}
 
-Ask about ONE associated symptom (fever, nausea, vomiting, diarrhea, etc).
+Ask about ONE associated symptom (fever, nausea, vomiting, diarrhea, etc). EXACTLY ONE question only.
 
 Example: "Have you had any fever?"
 
@@ -905,6 +963,16 @@ Your question:"""
         question = response.strip().strip('"\'')
         if not question.endswith('?'):
             question += '?'
+        
+        # VALIDATION: Ensure only ONE question
+        question_mark_count = question.count('?')
+        has_sentence_before_question = '. ' in question and question.index('. ') < question.rfind('?')
+        
+        if question_mark_count > 1 or has_sentence_before_question:
+            print(f"[Engine] ⚠️ LLM combined multiple questions - using template")
+            print(f"[Engine]    Generated: '{question}'")
+            # Use simple template fallback
+            question = "Have you had any fever?"
         
         print(f"[Engine] ✅ Associated symptom question: '{question}'")
         print(f"{'='*80}\n")
@@ -1276,20 +1344,21 @@ Your question:"""
                 print(f"[Engine] 📊 Guideline location similarity: {avg_location_similarity:.2f}")
                 
                 # If top guidelines describe DIFFERENT locations (low similarity), need clarification
-                if avg_location_similarity < 0.70:
+                # Stricter threshold: Even 0.85 is considered different enough to need clarification
+                if avg_location_similarity < 0.85:
                     print(f"[Engine] ⚠️ Top guidelines have diverse locations - need more specific answer")
                     
                     # Show what the top guidelines need
                     guidelines_summary = '\n'.join(location_texts[:3])
                     
-                    clarify_system = "You are a medical assistant. Output ONLY one clarification question."
+                    clarify_system = "You are a medical assistant. Output ONLY ONE question. Never combine multiple questions."
                     
                     clarify_user = f"""Patient said: "{answer}"
 
 Top diagnoses require these specific locations:
 {guidelines_summary}
 
-Ask ONE question to get more specific location detail.
+Ask EXACTLY ONE question to get more specific location detail. Do NOT combine multiple questions.
 
 Example: "Is it more in the upper part or lower part of your abdomen?"
 
@@ -1311,6 +1380,16 @@ Your question:"""
                     clarify_location = clarify_response.strip().strip('"\'')
                     if not clarify_location.endswith('?'):
                         clarify_location += '?'
+                    
+                    # VALIDATION: Ensure only ONE question
+                    question_mark_count = clarify_location.count('?')
+                    has_sentence_before_question = '. ' in clarify_location and clarify_location.index('. ') < clarify_location.rfind('?')
+                    
+                    if question_mark_count > 1 or has_sentence_before_question:
+                        print(f"[Engine] ⚠️ Location clarification combined multiple questions - using template")
+                        print(f"[Engine]    Generated: '{clarify_location}'")
+                        # Use simple fallback
+                        clarify_location = "Can you be more specific about where the pain is located?"
                     
                     print(f"[Engine] 💬 Clarification: '{clarify_location}'")
                     print(f"{'='*80}\n")
@@ -1543,7 +1622,7 @@ Example: "I understand that must be concerning. Let me ask some questions to bet
 
 Your response:"""
         
-        response = self.llm_chat_fn(
+        response = self.llm_chat_simple_fn(  # Use simple model (Llama-1B)
             [
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
@@ -1559,7 +1638,7 @@ Your response:"""
         statement = re.sub(r'^\d+\.\s*', '', statement)  # Remove "1. " from start
         statement = re.sub(r'\n\d+\.\s*', ' ', statement)  # Remove "\n2. " from middle
         
-        print(f"[Engine] ✅ Opening: '{statement}'")
+        print(f"[Engine] ✅ Opening (simple model): '{statement}'")
         return statement
     
     def _generate_age_question(self) -> str:
@@ -1576,7 +1655,7 @@ Example: "How old are you?"
 
 Your question:"""
         
-        response = self.llm_chat_fn(
+        response = self.llm_chat_simple_fn(  # Use simple model (Llama-1B)
             [
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
@@ -1588,7 +1667,7 @@ Your question:"""
         question = response.strip().strip('"\'')
         if not question.endswith('?'):
             question += '?'
-        print(f"[Engine] ✅ Age question: '{question}'")
+        print(f"[Engine] ✅ Age question (simple model): '{question}'")
         return question
     
     def _generate_sex_question(self) -> str:
@@ -1605,7 +1684,7 @@ Example: "Are you male or female?"
 
 Your question:"""
         
-        response = self.llm_chat_fn(
+        response = self.llm_chat_simple_fn(  # Use simple model (Llama-1B)
             [
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
@@ -1617,7 +1696,7 @@ Your question:"""
         question = response.strip().strip('"\'')
         if not question.endswith('?'):
             question += '?'
-        print(f"[Engine] ✅ Sex question: '{question}'")
+        print(f"[Engine] ✅ Sex question (simple model): '{question}'")
         return question
     
     def _generate_clarification_question(self, topic: str) -> str:
@@ -1643,7 +1722,7 @@ Example: "{example}"
 
 Your question:"""
         
-        response = self.llm_chat_fn(
+        response = self.llm_chat_simple_fn(  # Use simple model (Llama-1B)
             [
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
@@ -1655,7 +1734,7 @@ Your question:"""
         question = response.strip().strip('"\'')
         if not question.endswith('?'):
             question += '?'
-        print(f"[Engine] ✅ Clarification: '{question}'")
+        print(f"[Engine] ✅ Clarification (simple model): '{question}'")
         return question
 
 
