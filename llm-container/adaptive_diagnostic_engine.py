@@ -40,6 +40,15 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 from thinking_fillers import get_filler
 
+# Try to import FAISS (CPU version for guideline matching)
+try:
+    import faiss
+    FAISS_AVAILABLE = True
+    print("[Engine] ✅ FAISS-CPU available - will use for fast semantic matching")
+except ImportError:
+    FAISS_AVAILABLE = False
+    print("[Engine] ⚠️ FAISS not available - using brute-force matching (slower for 500+ guidelines)")
+
 
 class AdaptiveDiagnosticEngine:
     """
@@ -66,9 +75,19 @@ class AdaptiveDiagnosticEngine:
         
         print(f"[Engine] 🧠 Using {'dual models (simple + complex)' if llm_chat_simple_fn else 'single model'}")
         
+        # FAISS index for fast semantic matching
+        self.faiss_index = None
+        self.trigger_metadata = []  # Maps FAISS index positions to (guideline_name, trigger) tuples
+        self.use_faiss = False  # Will be enabled after successful index build
+        self.validate_faiss = os.getenv("VALIDATE_FAISS", "false").lower() == "true"  # Compare FAISS vs brute-force
+        
         # Load guidelines
         self.all_guidelines = {}
         self._load_guidelines()
+        
+        # Build FAISS index after guidelines are loaded
+        if FAISS_AVAILABLE and self.embedding_model:
+            self._build_faiss_index()
         
         # Current assessment state
         self.reset_assessment()
@@ -109,6 +128,84 @@ class AdaptiveDiagnosticEngine:
         for system, conditions in sorted(organ_systems.items()):
             print(f"[Engine]    📋 {system}: {len(conditions)} conditions")
         print(f"{'='*80}\n")
+    
+    def _build_faiss_index(self):
+        """
+        Build FAISS index from all guideline triggers for fast semantic search
+        
+        This is a ONE-TIME startup cost that enables fast querying:
+        - Brute-force: O(n) comparisons per query
+        - FAISS: O(log n) comparisons per query
+        """
+        try:
+            print(f"\n{'='*80}")
+            print(f"[Engine] 🏗️  BUILDING FAISS INDEX FOR FAST SEMANTIC MATCHING")
+            print(f"{'='*80}")
+            
+            import time
+            start_time = time.time()
+            
+            # Extract all triggers from all guidelines
+            all_triggers = []
+            trigger_to_guideline = []
+            
+            for guideline_name, guideline in self.all_guidelines.items():
+                triggers = guideline.get('chief_complaint_triggers', [])
+                for trigger in triggers:
+                    all_triggers.append(trigger)
+                    trigger_to_guideline.append({
+                        'guideline_name': guideline_name,
+                        'trigger': trigger,
+                        'guideline_data': guideline
+                    })
+            
+            print(f"[Engine] 📋 Extracted {len(all_triggers)} triggers from {len(self.all_guidelines)} guidelines")
+            
+            if len(all_triggers) == 0:
+                print("[Engine] ⚠️ No triggers found - FAISS index not built")
+                return
+            
+            # Generate embeddings for all triggers
+            print(f"[Engine] 🧠 Generating embeddings for {len(all_triggers)} triggers...")
+            embeddings = self.embedding_model.encode(all_triggers)
+            
+            # Convert to numpy array with float32 (FAISS requirement)
+            embeddings_np = np.array(embeddings, dtype=np.float32)
+            dimension = embeddings_np.shape[1]
+            
+            print(f"[Engine] 📐 Embedding dimension: {dimension}")
+            print(f"[Engine] 📊 Total vectors: {len(embeddings_np)}")
+            
+            # Create FAISS index (CPU version - L2 distance, then convert to cosine)
+            # Use IndexFlatIP (Inner Product) for cosine similarity
+            # First normalize vectors, then IP = cosine similarity
+            faiss.normalize_L2(embeddings_np)
+            self.faiss_index = faiss.IndexFlatIP(dimension)
+            self.faiss_index.add(embeddings_np)
+            
+            # Store metadata
+            self.trigger_metadata = trigger_to_guideline
+            
+            build_time = time.time() - start_time
+            
+            print(f"[Engine] ✅ FAISS index built successfully!")
+            print(f"[Engine]    ⏱️  Build time: {build_time:.2f}s")
+            print(f"[Engine]    📊 Index size: {self.faiss_index.ntotal} vectors")
+            print(f"[Engine]    🎯 Ready for fast semantic search")
+            print(f"{'='*80}\n")
+            
+            # Enable FAISS mode
+            self.use_faiss = True
+            print(f"[Engine] 🚀 FAISS mode ENABLED (brute-force available as fallback)")
+            
+        except Exception as e:
+            print(f"[Engine] ❌ FAISS index build failed: {e}")
+            print(f"[Engine] 🔄 Falling back to brute-force matching")
+            import traceback
+            traceback.print_exc()
+            self.faiss_index = None
+            self.trigger_metadata = []
+            self.use_faiss = False
     
     def _is_valid_chief_complaint(self, complaint: str) -> bool:
         """
@@ -283,11 +380,61 @@ class AdaptiveDiagnosticEngine:
         error_result = [None]
         
         def run_rag():
-            """Match to guidelines (slow - embeddings)"""
+            """Match to guidelines (FAISS or brute-force with fallback + optional validation)"""
             try:
-                rag_result[0] = self._match_to_guidelines(chief_complaint)
+                # VALIDATION MODE: Compare FAISS vs brute-force (set VALIDATE_FAISS=true)
+                if self.validate_faiss and self.use_faiss:
+                    print(f"[Engine] 🧪 VALIDATION MODE: Comparing FAISS vs brute-force...")
+                    
+                    import time
+                    
+                    # Run FAISS
+                    start_faiss = time.time()
+                    faiss_matches = self._match_to_guidelines_faiss(chief_complaint)
+                    faiss_time = time.time() - start_faiss
+                    
+                    # Run brute-force
+                    start_brute = time.time()
+                    brute_matches = self._match_to_guidelines(chief_complaint)
+                    brute_time = time.time() - start_brute
+                    
+                    # Compare results
+                    faiss_names = set([m['name'] for m in faiss_matches])
+                    brute_names = set([m['name'] for m in brute_matches])
+                    
+                    print(f"\n[Engine] 📊 VALIDATION RESULTS:")
+                    print(f"[Engine]    FAISS: {len(faiss_matches)} matches in {faiss_time:.2f}s")
+                    print(f"[Engine]    Brute: {len(brute_matches)} matches in {brute_time:.2f}s")
+                    print(f"[Engine]    Speedup: {brute_time/faiss_time:.1f}x faster")
+                    
+                    if faiss_names == brute_names:
+                        print(f"[Engine]    ✅ MATCH: Both methods returned identical results")
+                    else:
+                        only_faiss = faiss_names - brute_names
+                        only_brute = brute_names - faiss_names
+                        if only_faiss:
+                            print(f"[Engine]    ⚠️ Only in FAISS: {only_faiss}")
+                        if only_brute:
+                            print(f"[Engine]    ⚠️ Only in brute-force: {only_brute}")
+                    
+                    # Use FAISS results
+                    rag_result[0] = faiss_matches
+                
+                # NORMAL MODE: Use FAISS with fallback
+                elif self.use_faiss:
+                    print(f"[Engine] 🚀 Using FAISS mode for matching")
+                    try:
+                        rag_result[0] = self._match_to_guidelines_faiss(chief_complaint)
+                    except Exception as faiss_error:
+                        print(f"[Engine] ❌ FAISS matching failed: {faiss_error}")
+                        print(f"[Engine] 🔄 Falling back to brute-force matching")
+                        self.use_faiss = False  # Disable FAISS for future queries
+                        rag_result[0] = self._match_to_guidelines(chief_complaint)
+                else:
+                    print(f"[Engine] 🐢 Using brute-force mode for matching")
+                    rag_result[0] = self._match_to_guidelines(chief_complaint)
             except Exception as e:
-                error_result[0] = f"RAG error: {e}"
+                error_result[0] = f"Guideline matching error: {e}"
         
         def run_simple_llm():
             """Generate opening + age with Llama-1B (fast)"""
@@ -738,6 +885,110 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine] 🔄 After filtering: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}")
         print(f"{'='*80}\n")
     
+    def _match_to_guidelines_faiss(self, complaint: str) -> List[Dict]:
+        """
+        Match chief complaint to guidelines using FAISS for fast semantic search
+        
+        Strategy:
+        1. Exact/subset matching first (fast string operations)
+        2. FAISS semantic search for remaining candidates (single query)
+        3. Character overlap as final filter
+        
+        Returns:
+            List of matched guidelines with initial scores
+        """
+        complaint_lower = complaint.lower()
+        
+        # Extract core symptom
+        filler_words = ['i', 'have', 'my', 'the', 'a', 'an', 'is', 'am', 'feel', 'feeling']
+        symptom_words = [w for w in complaint_lower.split() if w not in filler_words]
+        core_symptom = ' '.join(symptom_words)
+        
+        matched = []
+        matched_guideline_names = set()  # Track which guidelines already matched
+        
+        print(f"\n[Engine] 🔍 MATCHING TO GUIDELINES (FAISS MODE)...")
+        print(f"[Engine] 📋 Core symptom extracted: '{core_symptom}'")
+        print(f"[Engine] 🎯 Strategy: exact > subset > FAISS semantic > char_overlap")
+        print(f"[Engine] ---")
+        
+        # PHASE 1: Fast exact/subset matching
+        for name, guideline in self.all_guidelines.items():
+            triggers = guideline.get('chief_complaint_triggers', [])
+            
+            for trigger in triggers:
+                trigger_lower = trigger.lower()
+                
+                # Exact match
+                if trigger_lower in complaint_lower:
+                    if name not in matched_guideline_names:
+                        prevalence = guideline.get('prevalence', 'uncommon')
+                        prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
+                        initial_score = prevalence_scores.get(prevalence, 0.50)
+                        matched.append({'name': name, 'score': initial_score, 'data': guideline})
+                        matched_guideline_names.add(name)
+                        print(f"[Engine]   ✓ {name} (trigger: '{trigger}', match: exact, prevalence: {prevalence})")
+                    break
+                
+                # Subset match
+                if core_symptom in trigger_lower:
+                    if name not in matched_guideline_names:
+                        prevalence = guideline.get('prevalence', 'uncommon')
+                        prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
+                        initial_score = prevalence_scores.get(prevalence, 0.50)
+                        matched.append({'name': name, 'score': initial_score, 'data': guideline})
+                        matched_guideline_names.add(name)
+                        print(f"[Engine]   ✓ {name} (trigger: '{trigger}', match: subset, prevalence: {prevalence})")
+                    break
+        
+        # PHASE 2: FAISS semantic search for remaining guidelines
+        if self.faiss_index and self.faiss_index.ntotal > 0:
+            print(f"\n[Engine] 🚀 FAISS semantic search (checking {self.faiss_index.ntotal} triggers)...")
+            
+            # Generate query embedding and normalize
+            query_embedding = self.embedding_model.encode([core_symptom])
+            query_embedding_np = np.array(query_embedding, dtype=np.float32)
+            faiss.normalize_L2(query_embedding_np)
+            
+            # Search for top K most similar triggers
+            k = min(100, self.faiss_index.ntotal)  # Get top 100 candidates
+            distances, indices = self.faiss_index.search(query_embedding_np, k)
+            
+            print(f"[Engine] 📊 FAISS returned {len(indices[0])} candidates")
+            
+            # Process FAISS results (distances are cosine similarities after normalization)
+            for i, (distance, idx) in enumerate(zip(distances[0], indices[0])):
+                if idx == -1:  # FAISS padding for not enough results
+                    break
+                
+                metadata = self.trigger_metadata[idx]
+                guideline_name = metadata['guideline_name']
+                trigger = metadata['trigger']
+                guideline_data = metadata['guideline_data']
+                
+                # Skip if already matched by exact/subset
+                if guideline_name in matched_guideline_names:
+                    continue
+                
+                similarity = float(distance)  # Cosine similarity (0-1)
+                
+                # Apply threshold
+                if similarity > 0.88:  # Same threshold as brute-force
+                    prevalence = guideline_data.get('prevalence', 'uncommon')
+                    prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
+                    initial_score = prevalence_scores.get(prevalence, 0.50)
+                    matched.append({'name': guideline_name, 'score': initial_score, 'data': guideline_data})
+                    matched_guideline_names.add(guideline_name)
+                    print(f"[Engine]   ✓ {guideline_name} (trigger: '{trigger}', match: faiss_semantic ({similarity:.2f}), prevalence: {prevalence})")
+                else:
+                    # Log first few rejections for visibility
+                    if i < 5:
+                        print(f"[Engine]   ✗ {guideline_name}: '{trigger}' (similarity={similarity:.2f} < 0.88)")
+        
+        print(f"\n[Engine] 📊 FAISS matching complete: {len(matched)} guidelines matched")
+        
+        return matched
+    
     def _match_to_guidelines(self, complaint: str) -> List[Dict]:
         """
         Match chief complaint to guidelines
@@ -813,12 +1064,16 @@ class AdaptiveDiagnosticEngine:
                 else:
                     print(f"[Engine]    ❌ Subset: '{core_symptom}' not in '{trigger_lower}'")
             
+            # Track best scores for this guideline (for final rejection logging)
+            best_overlap = 0.0
+            best_trigger_for_overlap = None
+            best_semantic = 0.0
+            best_trigger_for_semantic = None
+            
             # CHARACTER OVERLAP: Check if trigger and symptom share significant characters
             # This filters "chest pain" (~0.3 overlap) from "abdominal pain"
             if not matched_trigger:
                 print(f"[Engine]    🔤 Checking character overlap (Jaccard similarity)...")
-                best_overlap = 0.0
-                best_trigger_for_overlap = None
                 for trigger in triggers:
                     overlap = char_overlap(core_symptom, trigger)
                     print(f"[Engine]       '{core_symptom}' vs '{trigger}' = {overlap:.2f} (need >{CHAR_OVERLAP_THRESHOLD})")
@@ -831,24 +1086,14 @@ class AdaptiveDiagnosticEngine:
                         match_type = f"char_overlap ({overlap:.2f})"
                         break
                 
-                # Log if rejected by character overlap
                 if not matched_trigger and best_overlap > 0.0:
                     print(f"[Engine]    ❌ Best overlap: {best_overlap:.2f} < {CHAR_OVERLAP_THRESHOLD} (rejected)")
-                    rejected_guidelines.append({
-                        'name': name,
-                        'reason': 'char_overlap_low',
-                        'trigger': best_trigger_for_overlap,
-                        'score': best_overlap,
-                        'threshold': CHAR_OVERLAP_THRESHOLD
-                    })
             
             # SEMANTIC PATH: Use embeddings for fuzzy/synonym matching
             # Handles typos ("abdomnal pain"), synonyms ("belly ache" = "abdominal pain")
             # STRICT threshold to avoid false matches across body regions
             if not matched_trigger and self.embedding_model:
                 print(f"[Engine]    🧠 Checking semantic similarity (embeddings)...")
-                best_semantic = 0.0
-                best_trigger_for_semantic = None
                 for trigger in triggers:
                     similarity = self._compute_similarity(core_symptom, trigger)
                     print(f"[Engine]       '{core_symptom}' vs '{trigger}' = {similarity:.2f} (need >{SEMANTIC_THRESHOLD})")
@@ -861,16 +1106,8 @@ class AdaptiveDiagnosticEngine:
                         match_type = f"semantic ({similarity:.2f})"
                         break
                 
-                # Log if rejected by semantic threshold
                 if not matched_trigger and best_semantic > 0.0:
                     print(f"[Engine]    ❌ Best semantic: {best_semantic:.2f} < {SEMANTIC_THRESHOLD} (rejected)")
-                    rejected_guidelines.append({
-                        'name': name,
-                        'reason': 'semantic_low',
-                        'trigger': best_trigger_for_semantic,
-                        'score': best_semantic,
-                        'threshold': SEMANTIC_THRESHOLD
-                    })
             
             if matched_trigger:
                 # Initial score based on PREVALENCE from guideline JSON
@@ -896,8 +1133,29 @@ class AdaptiveDiagnosticEngine:
                 print(f"[Engine]       Prevalence: {prevalence}")
                 print(f"[Engine]       Initial score: {initial_score:.0%}")
             else:
+                # Guideline rejected - log ONCE with best score info
                 print(f"[Engine]    ══════════════════════════════════════")
                 print(f"[Engine]    ❌ REJECTED: {name} (no match found)")
+                
+                # Determine primary rejection reason (semantic takes priority as it's the final check)
+                if best_semantic > 0.0:
+                    rejected_guidelines.append({
+                        'name': name,
+                        'reason': 'semantic_low',
+                        'trigger': best_trigger_for_semantic,
+                        'score': best_semantic,
+                        'threshold': SEMANTIC_THRESHOLD,
+                        'char_overlap': best_overlap  # Include char overlap for reference
+                    })
+                elif best_overlap > 0.0:
+                    rejected_guidelines.append({
+                        'name': name,
+                        'reason': 'char_overlap_low',
+                        'trigger': best_trigger_for_overlap,
+                        'score': best_overlap,
+                        'threshold': CHAR_OVERLAP_THRESHOLD,
+                        'semantic': None
+                    })
         
         # Print filtered guidelines summary
         if rejected_guidelines:

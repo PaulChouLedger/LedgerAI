@@ -1,3 +1,4 @@
 flask
 numpy
 requests
+faiss-cpu  # Fast semantic search for guideline matching (scales to 1000+ guidelines)

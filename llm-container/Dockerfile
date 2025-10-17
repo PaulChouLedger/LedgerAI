@@ -42,6 +42,7 @@ RUN pip3 install --no-cache-dir --ignore-installed \
     flask \
     python-dotenv \
     numpy==1.24.4 \
+    faiss-cpu \
     --index-url https://pypi.org/simple
 
 
