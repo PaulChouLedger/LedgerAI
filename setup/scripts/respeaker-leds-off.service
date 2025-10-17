@@ -1,0 +1,15 @@
+[Unit]
+Description=ReSpeaker LED Control - Keep LEDs Off
+After=multi-user.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/python3 /home/aura/LedgerAI/setup/scripts/led_keeper.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+

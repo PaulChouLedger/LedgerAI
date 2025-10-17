@@ -1788,11 +1788,18 @@ Your question:"""
                     
                     clarify_system = "You are a medical assistant. Output ONLY ONE question. Never combine multiple questions."
                     
-                    clarify_user = f"""Patient said: "{answer}"
+                    # Include chief complaint for context (e.g., "abdominal pain" so LLM knows we're talking about abdomen)
+                    clarify_user = f"""Chief complaint: {self.chief_complaint}
+Previous question: "{last_q_item['question']}"
+Patient answered: "{answer}"
 
-Ask EXACTLY ONE simple question to get more specific location. Use PLAIN LANGUAGE only (no medical terms).
+The patient's answer is too vague to differentiate between conditions. Ask EXACTLY ONE simple clarifying question to get more specific anatomical location.
 
-Example: "Is it in the upper part or lower part?"
+Use PLAIN LANGUAGE only (no medical jargon). Stay focused on the body region from the chief complaint.
+
+Examples:
+- "Is it in the upper part or lower part?"
+- "Is it more toward the middle or the side?"
 
 Your question:"""
                     
