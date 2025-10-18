@@ -1431,7 +1431,7 @@ Generate EXACTLY ONE similar question using SIMPLE, PLAIN LANGUAGE that anyone c
         
         system_msg = "You are a medical assistant. Output ONLY ONE question. Use PLAIN LANGUAGE (no medical jargon). Never combine multiple questions."
         
-        user_msg = f"""Patient: {patient_info} with {symptom}
+        user_msg = f"""Patient: {patient_info}
 
 Ask about ONE associated symptom using SIMPLE language (fever, nausea, vomiting, diarrhea, etc). EXACTLY ONE question only.
 
@@ -2235,9 +2235,12 @@ Your question:"""
         
         user_msg = f"""Patient: "{chief_complaint}"
 
-Write a very brief empathetic statement (1 sentence, under 15 words):
+Write a brief, natural empathetic statement to show you care:
 
-Example: "I understand that must be concerning."
+Examples: 
+- "I'm sorry to hear you're experiencing that."
+- "That sounds uncomfortable, I'm here to help."
+- "I understand that must be concerning."
 
 Your statement:"""
         
@@ -2246,8 +2249,8 @@ Your statement:"""
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
-            max_tokens=20,  # Strict limit to prevent rambling
-            temperature=0.0  # Deterministic output
+            max_tokens=50,  # Allow more natural variation
+            temperature=0.7  # More creative and natural
         )
         
         statement = response.strip().strip('"\'')
@@ -2257,21 +2260,13 @@ Your statement:"""
         statement = re.sub(r'^\d+\.\s*', '', statement)  # Remove "1. " from start
         statement = re.sub(r'\n\d+\.\s*', ' ', statement)  # Remove "\n2. " from middle
         
-        # VALIDATION: Ensure opening doesn't contain questions
-        # If it has a '?', it's asking questions instead of just being empathetic
-        if '?' in statement:
-            print(f"[Engine] ⚠️ Opening contains questions - using simple template")
+        # VALIDATION: Only reject if completely nonsensical
+        # Allow more natural variation in opening statements
+        word_count = len(statement.split())
+        if word_count > 50:  # Only reject if extremely long
+            print(f"[Engine] ⚠️ Opening too long ({word_count} words) - using simple template")
             print(f"[Engine]    Generated: '{statement}'")
             statement = "I understand. I'll ask some questions to help."
-        
-        # VALIDATION: Ensure it's not too long (should be brief)
-        word_count = len(statement.split())
-        if word_count > 20:
-            print(f"[Engine] ⚠️ Opening too long ({word_count} words) - truncating")
-            print(f"[Engine]    Generated: '{statement}'")
-            # Take first sentence only
-            first_sentence = statement.split('.')[0] + '.'
-            statement = first_sentence if len(first_sentence.split()) <= 20 else "I understand. I'll ask some questions to help."
         
         print(f"[Engine] ✅ Opening (simple model): '{statement}'")
         return statement
@@ -2284,9 +2279,12 @@ Your statement:"""
         
         system_msg = "You are a medical assistant. Output ONLY the question requested, nothing else."
         
-        user_msg = """Generate a single question asking for the patient's age.
+        user_msg = """Generate a natural question asking for the patient's age.
 
-Example: "How old are you?"
+Examples: 
+- "How old are you?"
+- "What's your age?"
+- "Can you tell me your age?"
 
 Your question:"""
         
@@ -2295,8 +2293,8 @@ Your question:"""
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
-            max_tokens=15,
-            temperature=0.2
+            max_tokens=30,
+            temperature=0.6
         )
         
         question = response.strip().strip('"\'')
@@ -2313,9 +2311,12 @@ Your question:"""
         
         system_msg = "You are a medical assistant. Output ONLY the question requested, nothing else."
         
-        user_msg = """Generate a single question asking for biological sex (male or female).
+        user_msg = """Generate a natural question asking for biological sex (male or female).
 
-Example: "Are you male or female?"
+Examples: 
+- "Are you male or female?"
+- "What's your biological sex?"
+- "Are you a man or woman?"
 
 Your question:"""
         
@@ -2324,8 +2325,8 @@ Your question:"""
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
-            max_tokens=15,
-            temperature=0.2
+            max_tokens=30,
+            temperature=0.6
         )
         
         question = response.strip().strip('"\'')
