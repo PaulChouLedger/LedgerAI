@@ -379,8 +379,11 @@ class UnifiedMedicalSession:
                 print(f"[Adaptive] ❌ Adaptive engine failed: {e}")
                 print(f"[Adaptive] 📋 Error type: {type(e).__name__}")
                 print(f"[Adaptive] 📍 Error location: {e.__traceback__.tb_frame.f_code.co_filename}:{e.__traceback__.tb_lineno}")
+                print(f"[Adaptive] 🔍 Full traceback:")
                 import traceback
                 traceback.print_exc()
+                print(f"[Adaptive] 🔍 Session state: {session_state}")
+                print(f"[Adaptive] 🔍 Query: {query}")
                 return "I'm having trouble processing your symptoms. Please provide more details."
         
         # Fallback to old dynamic assessment if adaptive engine not available

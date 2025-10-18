@@ -53,7 +53,7 @@ ENABLE_SOFT_LIMITER = False      # Prevent clipping from near-field speech
 LIMITER_THRESHOLD = 0.95        # Start limiting above this peak level
 LIMITER_KNEE = 0.05             # Soft knee width for smooth limiting
 
-DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
+DEVICE_NAME = "4-Mic Array"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
 prompt_history = []
