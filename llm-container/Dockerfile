@@ -21,6 +21,7 @@ COPY adaptive_diagnostic_engine.py .
 COPY thinking_fillers.py .
 COPY test_enhanced_location.py .
 COPY test_pure_semantic.py .
+COPY test_semantic_keyword.py .
 COPY triage_defs/ /app/triage_defs/
 COPY synonyms/ /app/synonyms/
 

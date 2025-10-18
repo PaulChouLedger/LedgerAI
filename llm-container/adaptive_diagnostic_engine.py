@@ -1589,19 +1589,50 @@ Your question:"""
         return float(similarity)
     
     def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str) -> float:
-        """Pure semantic similarity between user location description and guideline location section"""
-        # Direct semantic comparison - no hardcoded lists or keyword matching
-        # Let the embedding model handle all the nuance and medical terminology
-        similarity = self._compute_similarity(user_answer, oldcarts_section)
+        """Semantic similarity + keyword similarity boost for location matching"""
+        # Step 1: Get base semantic similarity
+        semantic_similarity = self._compute_similarity(user_answer, oldcarts_section)
         
-        # Optional: Add a small boost for very high similarity to differentiate excellent matches
-        if similarity > 0.8:
-            # Boost excellent matches slightly to make them stand out more
-            boosted_similarity = min(1.0, similarity + 0.05)
-            print(f"[Engine]   📈 Excellent match boost: {similarity:.3f} → {boosted_similarity:.3f}")
-            return boosted_similarity
+        # Step 2: Calculate keyword similarity boost
+        keyword_boost = self._compute_keyword_similarity_boost(user_answer, oldcarts_section)
         
-        return similarity
+        # Step 3: Combine semantic + keyword boost
+        enhanced_similarity = min(1.0, semantic_similarity + keyword_boost)
+        
+        if keyword_boost > 0:
+            print(f"[Engine]   📈 Enhanced similarity: {semantic_similarity:.3f} + {keyword_boost:.3f} = {enhanced_similarity:.3f}")
+        
+        return enhanced_similarity
+    
+    def _compute_keyword_similarity_boost(self, user_answer: str, oldcarts_section: str) -> float:
+        """Calculate keyword similarity boost between user answer and guideline section"""
+        user_words = set(user_answer.lower().split())
+        guideline_words = set(oldcarts_section.lower().split())
+        
+        # Remove common stop words that don't add meaning
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'must', 'shall'}
+        
+        user_meaningful = user_words - stop_words
+        guideline_meaningful = guideline_words - stop_words
+        
+        if not user_meaningful or not guideline_meaningful:
+            return 0.0
+        
+        # Calculate Jaccard similarity (intersection over union)
+        intersection = user_meaningful.intersection(guideline_meaningful)
+        union = user_meaningful.union(guideline_meaningful)
+        
+        jaccard_similarity = len(intersection) / len(union) if union else 0.0
+        
+        # Convert to boost (0.0 to 0.2 range)
+        # High keyword overlap gets significant boost
+        keyword_boost = jaccard_similarity * 0.2
+        
+        if keyword_boost > 0.05:  # Only log significant boosts
+            print(f"[Engine]   🔑 Keyword boost: {len(intersection)}/{len(union)} words = {jaccard_similarity:.3f} → +{keyword_boost:.3f}")
+            print(f"[Engine]   🔑 Matching words: {intersection}")
+        
+        return keyword_boost
     
     
     def _process_clinical_answer(self, answer: str) -> Dict[str, Any]:
