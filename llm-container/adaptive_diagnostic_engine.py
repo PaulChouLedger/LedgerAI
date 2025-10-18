@@ -1589,85 +1589,20 @@ Your question:"""
         return float(similarity)
     
     def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str) -> float:
-        """Multi-stage location similarity: keyword filtering + semantic similarity"""
-        user_lower = user_answer.lower()
-        guideline_lower = oldcarts_section.lower()
+        """Pure semantic similarity between user location description and guideline location section"""
+        # Direct semantic comparison - no hardcoded lists or keyword matching
+        # Let the embedding model handle all the nuance and medical terminology
+        similarity = self._compute_similarity(user_answer, oldcarts_section)
         
-        # Stage 1: Extract anatomical terms from user answer
-        user_terms = self._extract_anatomical_terms(user_lower)
+        # Optional: Add a small boost for very high similarity to differentiate excellent matches
+        if similarity > 0.8:
+            # Boost excellent matches slightly to make them stand out more
+            boosted_similarity = min(1.0, similarity + 0.05)
+            print(f"[Engine]   📈 Excellent match boost: {similarity:.3f} → {boosted_similarity:.3f}")
+            return boosted_similarity
         
-        # Stage 2: Extract anatomical terms from guideline
-        guideline_terms = self._extract_anatomical_terms(guideline_lower)
-        
-        # Stage 3: Check for direct contradictions (immediate rejection)
-        if self._has_contradictory_terms(user_terms, guideline_terms):
-            print(f"[Engine]   🚫 Contradictory terms detected: {user_terms} vs {guideline_terms}")
-            return 0.0
-        
-        # Stage 4: Check for exact matches (high boost)
-        exact_matches = user_terms.intersection(guideline_terms)
-        if exact_matches:
-            print(f"[Engine]   ✅ Exact anatomical matches: {exact_matches}")
-            # Boost semantic similarity for exact matches
-            base_similarity = self._compute_similarity(user_answer, oldcarts_section)
-            boost = len(exact_matches) * 0.15  # 15% boost per exact match
-            enhanced_similarity = min(1.0, base_similarity + boost)
-            print(f"[Engine]   📈 Enhanced similarity: {base_similarity:.3f} + {boost:.3f} = {enhanced_similarity:.3f}")
-            return enhanced_similarity
-        
-        # Stage 5: Fall back to pure semantic similarity
-        return self._compute_similarity(user_answer, oldcarts_section)
+        return similarity
     
-    def _extract_anatomical_terms(self, text: str) -> set:
-        """Extract anatomical location terms from text"""
-        terms = set()
-        
-        # Directional terms
-        if any(word in text for word in ['left', 'lateral']):
-            terms.add('left')
-        if any(word in text for word in ['right']):
-            terms.add('right')
-        if any(word in text for word in ['upper', 'superior', 'epigastric']):
-            terms.add('upper')
-        if any(word in text for word in ['lower', 'inferior', 'pelvic', 'pelvis']):
-            terms.add('lower')
-        if any(word in text for word in ['center', 'central', 'midline', 'middle']):
-            terms.add('center')
-        if any(word in text for word in ['front', 'anterior']):
-            terms.add('front')
-        if any(word in text for word in ['back', 'posterior', 'flank']):
-            terms.add('back')
-        
-        # Specific anatomical regions
-        if any(word in text for word in ['quadrant', 'llq', 'rlq', 'luq', 'ruq']):
-            terms.add('quadrant')
-        if any(word in text for word in ['abdomen', 'abdominal', 'belly', 'stomach']):
-            terms.add('abdomen')
-        if any(word in text for word in ['chest', 'thoracic']):
-            terms.add('chest')
-        if any(word in text for word in ['rib', 'ribs', 'costal']):
-            terms.add('ribs')
-        
-        return terms
-    
-    def _has_contradictory_terms(self, user_terms: set, guideline_terms: set) -> bool:
-        """Check if user and guideline terms are contradictory"""
-        contradictions = [
-            ({'left'}, {'right'}),
-            ({'upper'}, {'lower'}),
-            ({'front'}, {'back'}),
-            ({'chest'}, {'abdomen'})
-        ]
-        
-        for user_contradict, guideline_contradict in contradictions:
-            if (user_contradict.intersection(user_terms) and 
-                guideline_contradict.intersection(guideline_terms)):
-                return True
-            if (guideline_contradict.intersection(user_terms) and 
-                user_contradict.intersection(guideline_terms)):
-                return True
-        
-        return False
     
     def _process_clinical_answer(self, answer: str) -> Dict[str, Any]:
         """
