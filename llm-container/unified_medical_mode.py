@@ -346,7 +346,9 @@ class UnifiedMedicalSession:
         print(f"[Unified Medical] 🩺 Handling symptom assessment: {symptom_query}")
 
         # Use adaptive engine (new approach)
+        print(f"[Unified Medical] 🔍 Engine check: use_adaptive={self.use_adaptive_engine}, engine_exists={self.adaptive_engine is not None}")
         if self.use_adaptive_engine and self.adaptive_engine:
+            print(f"[Unified Medical] 🔍 Adaptive engine status: {self.adaptive_engine.status if hasattr(self.adaptive_engine, 'status') else 'unknown'}")
             try:
                 # Check if assessment is active
                 if self.adaptive_engine.status == "idle":
@@ -384,14 +386,11 @@ class UnifiedMedicalSession:
                 traceback.print_exc()
                 print(f"[Adaptive] 🔍 Session state: {session_state}")
                 print(f"[Adaptive] 🔍 Query: {query}")
-                return "I'm having trouble processing your symptoms. Please provide more details."
+                # NO FALLBACKS - re-raise the actual error
+                raise e
         
-        # Fallback to old dynamic assessment if adaptive engine not available
-        if hasattr(self, 'use_dynamic_assessment') and self.use_dynamic_assessment:
-            return self._handle_dynamic_assessment(symptom_query)
-        
-        # Final fallback
-        return self._fallback_to_knowledge_response(symptom_query)
+        # NO FALLBACKS - fail cleanly if adaptive engine not available
+        raise RuntimeError("Adaptive engine not available - no fallbacks allowed")
     
     def _handle_dynamic_assessment(self, symptom_query: str) -> str:
         """

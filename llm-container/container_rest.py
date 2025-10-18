@@ -266,20 +266,14 @@ def chat_tg():
                     return jsonify({"response": response})
             except Exception as e:
                 print(f"[Container] ❌ Error in unified medical mode (non-streaming): {e}")
+                print(f"[Container] 📋 Error type: {type(e).__name__}")
+                print(f"[Container] 📍 Error location: {e.__traceback__.tb_frame.f_code.co_filename}:{e.__traceback__.tb_lineno}")
+                print(f"[Container] 🔍 Full traceback:")
                 import traceback
                 traceback.print_exc()
                 
-                # CRITICAL: Clear medical mode state to prevent lock
-                print(f"[Container] 🔓 Clearing medical mode state due to error")
-                state_to_clear = load_state(session_id)
-                if 'dynamic_assessment' in state_to_clear:
-                    del state_to_clear['dynamic_assessment']
-                if 'mode' in state_to_clear:
-                    del state_to_clear['mode']
-                save_state(state_to_clear, session_id)
-                print(f"[Container] ✅ Medical mode cleared - user can try again or ask other questions")
-                
-                return jsonify({"response": "I'm sorry, I encountered an error processing your medical query. Please try again or consult a healthcare professional."})
+                # NO FALLBACKS - re-raise the actual error
+                raise e
         
         else:
             return jsonify({"response": "I'm sorry, I didn't understand that."})
@@ -448,21 +442,14 @@ def chat_tts():
                     yield "<sentence_end>\n"
             except Exception as e:
                 print(f"[Container] ❌ Error in unified medical mode: {e}")
+                print(f"[Container] 📋 Error type: {type(e).__name__}")
+                print(f"[Container] 📍 Error location: {e.__traceback__.tb_frame.f_code.co_filename}:{e.__traceback__.tb_lineno}")
+                print(f"[Container] 🔍 Full traceback:")
                 import traceback
                 traceback.print_exc()
                 
-                # CRITICAL: Clear medical mode state to prevent lock
-                print(f"[Container] 🔓 Clearing medical mode state due to error")
-                state_to_clear = load_state(session_id)
-                if 'dynamic_assessment' in state_to_clear:
-                    del state_to_clear['dynamic_assessment']
-                if 'mode' in state_to_clear:
-                    del state_to_clear['mode']
-                save_state(state_to_clear, session_id)
-                print(f"[Container] ✅ Medical mode cleared - user can try again or ask other questions")
-                
-                # Return error message
-                yield f"<sentence_start>\nI'm sorry, I encountered an error processing your medical query. Please try again or consult a healthcare professional.\n<sentence_end>\n"
+                # NO FALLBACKS - re-raise the actual error
+                raise e
 
         # Filter think blocks at container level
         return Response(stream_with_context(filter_think_blocks(generate_unified_medical())), mimetype="text/plain")
