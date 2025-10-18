@@ -1128,11 +1128,18 @@ class AdaptiveDiagnosticEngine:
             if not matched_trigger and self.embedding_model:
                 print(f"[Engine]    🧠 Checking semantic similarity (embeddings)...")
                 for trigger in triggers:
-                    similarity = self._compute_similarity(core_symptom, trigger)
-                    print(f"[Engine]       '{core_symptom}' vs '{trigger}' = {similarity:.2f} (need >{SEMANTIC_THRESHOLD})")
-                    if similarity > best_semantic:
-                        best_semantic = similarity
-                        best_trigger_for_semantic = trigger
+                    try:
+                        similarity = self._compute_similarity(core_symptom, trigger)
+                        print(f"[Engine]       '{core_symptom}' vs '{trigger}' = {similarity:.2f} (need >{SEMANTIC_THRESHOLD})")
+                        if similarity > best_semantic:
+                            best_semantic = similarity
+                            best_trigger_for_semantic = trigger
+                    except Exception as sim_error:
+                        print(f"[Engine] ❌ Initial similarity computation failed for trigger '{trigger}': {sim_error}")
+                        import traceback
+                        traceback.print_exc()
+                        # Continue with next trigger
+                        continue
                     if similarity > SEMANTIC_THRESHOLD:
                         print(f"[Engine]    ✅ SEMANTIC MATCH: {similarity:.2f} > {SEMANTIC_THRESHOLD}")
                         matched_trigger = trigger
@@ -1654,7 +1661,14 @@ Your question:"""
                 
                 if combined_key_features:
                     # Compute similarity
-                    similarity = self._compute_similarity(answer, combined_key_features)
+                    try:
+                        similarity = self._compute_similarity(answer, combined_key_features)
+                    except Exception as sim_error:
+                        print(f"[Engine] ❌ Associated symptoms similarity computation failed for {g['name']}: {sim_error}")
+                        import traceback
+                        traceback.print_exc()
+                        # Skip this guideline and continue with the next one
+                        continue
                     
                     # Small weight for associated symptoms (10% vs 30% for OLDCARTS)
                     old_score = g['score']
@@ -1721,10 +1735,24 @@ Your question:"""
                     print(f"[Engine]   {g['name']}: SKIPPED (location keyword mismatch: {answer_lower} vs {section_upper[:40]})")
                 else:
                     # Compute semantic similarity normally
-                    similarity = self._compute_similarity(answer, oldcarts_section)
+                    try:
+                        similarity = self._compute_similarity(answer, oldcarts_section)
+                    except Exception as sim_error:
+                        print(f"[Engine] ❌ Similarity computation failed for {g['name']}: {sim_error}")
+                        import traceback
+                        traceback.print_exc()
+                        # Skip this guideline and continue with the next one
+                        continue
             else:
                 # Compute semantic similarity normally for non-location questions
-                similarity = self._compute_similarity(answer, oldcarts_section)
+                try:
+                    similarity = self._compute_similarity(answer, oldcarts_section)
+                except Exception as sim_error:
+                    print(f"[Engine] ❌ Similarity computation failed for {g['name']}: {sim_error}")
+                    import traceback
+                    traceback.print_exc()
+                    # Skip this guideline and continue with the next one
+                    continue
             
             # Update score
             old_score = g['score']
@@ -1733,6 +1761,7 @@ Your question:"""
                 new_score = 0.0
                 g['score'] = new_score
                 change = "❌"
+                print(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (keyword mismatch)")
             else:
                 # Normal weighted average (70% old score + 30% new similarity)
                 # This prevents wild swings while incorporating new information
@@ -1826,8 +1855,16 @@ Your question:"""
                         # Just the location description, not the guideline name
                         loc_desc = loc_text.split(':', 1)[1].strip() if ':' in loc_text else loc_text
                         print(f"[Engine] 📍 Embedding {i+1}: '{loc_desc[:30]}...'")
-                        emb = self.embedding_model.encode([loc_desc])[0]
-                        loc_embeddings.append(emb)
+                        try:
+                            emb = self.embedding_model.encode([loc_desc])[0]
+                            loc_embeddings.append(emb)
+                            print(f"[Engine] ✅ Embedding {i+1} successful (shape: {emb.shape})")
+                        except Exception as emb_error:
+                            print(f"[Engine] ❌ Embedding {i+1} failed: {emb_error}")
+                            import traceback
+                            traceback.print_exc()
+                            # Skip this embedding and continue
+                            continue
                     
                     # Compute pairwise similarities between guideline locations
                     import numpy as np
