@@ -280,9 +280,13 @@ def chat_tg():
             
     except Exception as e:
         print(f"[Telegram] ❌ Error in chat-simple: {e}")
+        print(f"[Telegram] 📋 Error type: {type(e).__name__}")
+        print(f"[Telegram] 📍 Error location: {e.__traceback__.tb_frame.f_code.co_filename}:{e.__traceback__.tb_lineno}")
+        print(f"[Telegram] 🔍 Full traceback:")
         import traceback
         traceback.print_exc()
-        return jsonify({"response": "I'm sorry, there was an error processing your request."})
+        # NO FALLBACKS - re-raise the actual error
+        raise e
 
 
 # === Streaming chat endpoint for TTS/Voice ===
