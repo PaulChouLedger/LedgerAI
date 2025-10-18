@@ -1903,7 +1903,13 @@ Your question:"""
                 elif avg_location_similarity < 0.85 and location_clarifications < self.MAX_CLARIFICATIONS:
                     print(f"[Engine] ⚠️ Top guidelines have diverse locations - need more specific answer (clarification #{location_clarifications + 1}/{self.MAX_CLARIFICATIONS})")
                     
-                    # SAFETY: Ensure we have last_q_item
+                    # SAFETY: Find the last question item
+                    last_q_item = None
+                    for item in reversed(self.conversation_history):
+                        if item.get('type') == 'question':
+                            last_q_item = item
+                            break
+                    
                     if not last_q_item:
                         print(f"[Engine] ❌ No last question item - cannot generate clarification")
                         self.oldcarts_covered['L'] = True
