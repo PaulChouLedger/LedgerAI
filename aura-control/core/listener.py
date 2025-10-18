@@ -34,7 +34,7 @@ MICROPHONE_CHANNEL = 0  # Channel to use for audio processing (0 or 1, device ha
 
 # === Advanced Multi-Feature Speech Detection ===
 # Enabled - Filters out low-energy noise bursts that trigger VAD
-ENABLE_ADVANCED_FILTER = True
+ENABLE_ADVANCED_FILTER = False
 
 # Thresholds tuned from empirical testing
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
