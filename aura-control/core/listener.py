@@ -28,6 +28,10 @@ VAD_START_THRESHOLD = 0.25  # Lowered - beamforming provides good noise rejectio
 VAD_SILENCE_THRESHOLD = 0.15  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
 
+# === Device Configuration ===
+DEVICE_NAME = "4-Mic Array"
+MICROPHONE_CHANNEL = 0  # Channel to use for audio processing (0 or 1, device has 2 channels total)
+
 # === Advanced Multi-Feature Speech Detection ===
 # Enabled - Filters out low-energy noise bursts that trigger VAD
 ENABLE_ADVANCED_FILTER = True
@@ -53,7 +57,6 @@ ENABLE_SOFT_LIMITER = False      # Prevent clipping from near-field speech
 LIMITER_THRESHOLD = 0.95        # Start limiting above this peak level
 LIMITER_KNEE = 0.05             # Soft knee width for smooth limiting
 
-DEVICE_NAME = "4-Mic Array"
 DEVICE_INDEX = None
 CONTEXT_DEPTH = 6
 prompt_history = []
@@ -101,7 +104,7 @@ def find_device_index():
         if DEVICE_NAME.lower() in device["name"].lower():
             DEVICE_INDEX = i
             print(f"[Listener] 🎧 Found: {device['name']} (index {i})")
-            return 6  # Always use 6 channels
+            return 2  # Device has 2 channels total (2 in, 2 out)
     raise RuntimeError("Microphone not found")
 
 # === Audio Feature Extraction ===
@@ -514,16 +517,16 @@ def listen():
                     last_vad_reset = time.time()
                     print(f"\n[VAD] 🔄 Periodic state reset (prevents decay)", end="\r")
                 
-                channel_0 = audio_block[:, 0]
+                channel_audio = audio_block[:, MICROPHONE_CHANNEL]
                 
-                if channel_0.size < 512:
+                if channel_audio.size < 512:
                     continue
                 
                 # Hardware HPF already applied in ReSpeaker DSP
-                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
+                vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
                 
                 # Calculate audio features
-                features = calculate_audio_features(channel_0)
+                features = calculate_audio_features(channel_audio)
                 
                 print(f"[VAD] {vad_prob:.2f} | RMS {features['rms']:.4f} | Peak {features['peak']:.3f}", end="\r")
                 
@@ -558,15 +561,15 @@ def listen():
                     set_transcribing(False)
                     break
                 
-                channel_0 = audio_block[:, 0]
+                channel_audio = audio_block[:, MICROPHONE_CHANNEL]
                 
-                if channel_0.size < 512:
+                if channel_audio.size < 512:
                     continue
                 
                 buffer.append(audio_block)
                 
                 # Hardware HPF already applied in ReSpeaker DSP
-                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
+                vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
                 
                 if vad_prob < VAD_SILENCE_THRESHOLD:
                     if silence_start is None:
