@@ -1610,7 +1610,7 @@ Your question:"""
         guideline_words = set(oldcarts_section.lower().split())
         
         # Remove common stop words that don't add meaning
-        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'must', 'shall'}
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'must', 'shall', 'key', 'differentiator', 'from', 'localized', 'constant', 'tenderness'}
         
         user_meaningful = user_words - stop_words
         guideline_meaningful = guideline_words - stop_words
@@ -1618,18 +1618,22 @@ Your question:"""
         if not user_meaningful or not guideline_meaningful:
             return 0.0
         
-        # Calculate Jaccard similarity (intersection over union)
+        # Calculate intersection (matching words)
         intersection = user_meaningful.intersection(guideline_meaningful)
-        union = user_meaningful.union(guideline_meaningful)
         
-        jaccard_similarity = len(intersection) / len(union) if union else 0.0
+        if not intersection:
+            return 0.0
         
-        # Convert to boost (0.0 to 0.2 range)
-        # High keyword overlap gets significant boost
-        keyword_boost = jaccard_similarity * 0.2
+        # Use a more balanced approach: boost based on match ratio relative to user words
+        # This prevents dilution from long guideline descriptions
+        match_ratio = len(intersection) / len(user_meaningful)
         
-        if keyword_boost > 0.05:  # Only log significant boosts
-            print(f"[Engine]   🔑 Keyword boost: {len(intersection)}/{len(union)} words = {jaccard_similarity:.3f} → +{keyword_boost:.3f}")
+        # Convert to boost (0.0 to 0.15 range)
+        # Higher match ratio gets more boost
+        keyword_boost = match_ratio * 0.15
+        
+        if keyword_boost > 0.02:  # Only log significant boosts
+            print(f"[Engine]   🔑 Keyword boost: {len(intersection)}/{len(user_meaningful)} user words = {match_ratio:.3f} → +{keyword_boost:.3f}")
             print(f"[Engine]   🔑 Matching words: {intersection}")
         
         return keyword_boost
