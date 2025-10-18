@@ -1543,17 +1543,13 @@ Your question:"""
         if not element_name:
             return ""
         
-        # Find the section using regex
-        # Pattern: "ELEMENT_NAME: ...text... NEXT_ELEMENT:"
-        pattern = f"{element_name}:([^.]*(?:\\.[^A-Z:][^.]*)*)"
-        match = re.search(pattern, classic_presentation, re.IGNORECASE)
+        # Find the section using regex - extract everything from ELEMENT: until next OLDCARTS element
+        # Pattern: "ELEMENT_NAME: ...text... NEXT_ELEMENT:" (with optional lookahead for last element)
+        pattern = f"{element_name}:(.*?)(?=(?:ONSET|LOCATION|DURATION|CHARACTER|AGGRAVATING|RELIEVING|TIMING|SEVERITY|ASSOCIATED|KEY POSITIVES|KEY NEGATIVES):|$)"
+        match = re.search(pattern, classic_presentation, re.IGNORECASE | re.DOTALL)
         
         if match:
             section_text = match.group(1).strip()
-            # Clean up - stop at next OLDCARTS element or ASSOCIATED/KEY
-            for stop_word in ['ONSET:', 'LOCATION:', 'DURATION:', 'CHARACTER:', 'AGGRAVATING:', 'RELIEVING:', 'TIMING:', 'SEVERITY:', 'ASSOCIATED', 'KEY POSITIVES', 'KEY NEGATIVES']:
-                if stop_word in section_text:
-                    section_text = section_text.split(stop_word)[0].strip()
             return section_text
         
         return ""
@@ -1702,7 +1698,8 @@ Your question:"""
             oldcarts_section = self._extract_oldcarts_section(classic, oldcarts_element)
             
             if not oldcarts_section:
-                raise RuntimeError(f"Could not extract {oldcarts_element} section from {g['name']}")
+                print(f"[Engine] ⚠️ Warning: Could not extract {oldcarts_element} section from {g['name']} - skipping this guideline")
+                continue  # Skip this guideline instead of crashing
             
             # KEYWORD FILTER: For location questions, skip opposite-sided conditions
             # This is faster and more accurate than semantic similarity for directional terms
@@ -1797,14 +1794,19 @@ Your question:"""
         if oldcarts_element == 'L' and len(self.active_guidelines) >= 2:
             try:
                 print(f"[Engine] 🔍 Checking if location answer differentiates top diagnoses...")
+                print(f"[Engine] 📊 Active guidelines count: {len(self.active_guidelines)}")
                 
                 # Get L sections from top 5 active guidelines
                 location_texts = []
-                for g in self.active_guidelines[:5]:
+                for i, g in enumerate(self.active_guidelines[:5]):
+                    print(f"[Engine] 📋 Processing guideline {i+1}: {g['name']}")
                     classic = g['data'].get('key_features', {}).get('classic_presentation', '')
                     location_section = self._extract_oldcarts_section(classic, 'L')
+                    print(f"[Engine] 📍 Location section: '{location_section[:50]}...' (length: {len(location_section)})")
                     if location_section:
                         location_texts.append(f"{g['name']}: {location_section}")
+                    else:
+                        print(f"[Engine] ⚠️ No location section found for {g['name']}")
             except Exception as loc_error:
                 print(f"[Engine] ❌ Location clarification check failed: {loc_error}")
                 import traceback
@@ -1813,14 +1815,17 @@ Your question:"""
                 self.oldcarts_covered['L'] = True
                 location_texts = []  # Empty list to skip clarification
             
+            print(f"[Engine] 📊 Location texts collected: {len(location_texts)}")
             if len(location_texts) >= 2:
                 try:
+                    print(f"[Engine] 🔍 Computing similarity between location sections...")
                     # Compute similarity between top guidelines' location sections
                     # If they're very different, patient answer may not differentiate
                     loc_embeddings = []
-                    for loc_text in location_texts[:3]:
+                    for i, loc_text in enumerate(location_texts[:3]):
                         # Just the location description, not the guideline name
                         loc_desc = loc_text.split(':', 1)[1].strip() if ':' in loc_text else loc_text
+                        print(f"[Engine] 📍 Embedding {i+1}: '{loc_desc[:30]}...'")
                         emb = self.embedding_model.encode([loc_desc])[0]
                         loc_embeddings.append(emb)
                     
