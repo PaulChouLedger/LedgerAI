@@ -994,7 +994,7 @@ class AdaptiveDiagnosticEngine:
                 similarity = float(distance)  # Cosine similarity (0-1)
                 
                 # Apply threshold
-                if similarity > 0.75:  # Same threshold as brute-force
+                if similarity > 0.65:  # Same threshold as brute-force
                     prevalence = guideline_data.get('prevalence', 'uncommon')
                     prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
                     initial_score = prevalence_scores.get(prevalence, 0.50)
@@ -1004,7 +1004,7 @@ class AdaptiveDiagnosticEngine:
                 else:
                     # Log first few rejections for visibility
                     if i < 5:
-                        print(f"[Engine]   ✗ {guideline_name}: '{trigger}' (similarity={similarity:.2f} < 0.75)")
+                        print(f"[Engine]   ✗ {guideline_name}: '{trigger}' (similarity={similarity:.2f} < 0.65)")
         
         print(f"\n[Engine] 📊 FAISS matching complete: {len(matched)} guidelines matched")
         
@@ -1014,7 +1014,7 @@ class AdaptiveDiagnosticEngine:
             'strategy': 'exact > subset > FAISS semantic',
             'thresholds': {
                 'char_overlap': 0.75,
-                'semantic': 0.75
+                'semantic': 0.65
             },
             'matched_count': len(matched),
             'filtered_count': len(self.all_guidelines) - len(matched)
@@ -1045,12 +1045,12 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine]    1. Exact match (trigger in complaint)")
         print(f"[Engine]    2. Subset match (symptom in trigger)")
         print(f"[Engine]    3. Character overlap (Jaccard > 0.75)")
-        print(f"[Engine]    4. Semantic similarity (cosine > 0.75)")
+        print(f"[Engine]    4. Semantic similarity (cosine > 0.65)")
         print(f"[Engine] ---")
         
         # Thresholds
         CHAR_OVERLAP_THRESHOLD = 0.75  # Increased from 0.65
-        SEMANTIC_THRESHOLD = 0.75  # Lowered from 0.88 to handle typos better
+        SEMANTIC_THRESHOLD = 0.65  # Lowered from 0.75 based on test results
         
         # Helper function for character overlap
         def char_overlap(str1: str, str2: str) -> float:
@@ -1243,7 +1243,7 @@ class AdaptiveDiagnosticEngine:
         # Store matching metadata for debug
         self.matching_metadata = {
             'mode': 'brute-force',
-            'strategy': 'exact > subset > char_overlap(>0.75) > semantic(>0.75)',
+            'strategy': 'exact > subset > char_overlap(>0.75) > semantic(>0.65)',
             'thresholds': {
                 'char_overlap': CHAR_OVERLAP_THRESHOLD,
                 'semantic': SEMANTIC_THRESHOLD
@@ -1588,6 +1588,87 @@ Your question:"""
         
         return float(similarity)
     
+    def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str) -> float:
+        """Multi-stage location similarity: keyword filtering + semantic similarity"""
+        user_lower = user_answer.lower()
+        guideline_lower = oldcarts_section.lower()
+        
+        # Stage 1: Extract anatomical terms from user answer
+        user_terms = self._extract_anatomical_terms(user_lower)
+        
+        # Stage 2: Extract anatomical terms from guideline
+        guideline_terms = self._extract_anatomical_terms(guideline_lower)
+        
+        # Stage 3: Check for direct contradictions (immediate rejection)
+        if self._has_contradictory_terms(user_terms, guideline_terms):
+            print(f"[Engine]   🚫 Contradictory terms detected: {user_terms} vs {guideline_terms}")
+            return 0.0
+        
+        # Stage 4: Check for exact matches (high boost)
+        exact_matches = user_terms.intersection(guideline_terms)
+        if exact_matches:
+            print(f"[Engine]   ✅ Exact anatomical matches: {exact_matches}")
+            # Boost semantic similarity for exact matches
+            base_similarity = self._compute_similarity(user_answer, oldcarts_section)
+            boost = len(exact_matches) * 0.15  # 15% boost per exact match
+            enhanced_similarity = min(1.0, base_similarity + boost)
+            print(f"[Engine]   📈 Enhanced similarity: {base_similarity:.3f} + {boost:.3f} = {enhanced_similarity:.3f}")
+            return enhanced_similarity
+        
+        # Stage 5: Fall back to pure semantic similarity
+        return self._compute_similarity(user_answer, oldcarts_section)
+    
+    def _extract_anatomical_terms(self, text: str) -> set:
+        """Extract anatomical location terms from text"""
+        terms = set()
+        
+        # Directional terms
+        if any(word in text for word in ['left', 'lateral']):
+            terms.add('left')
+        if any(word in text for word in ['right']):
+            terms.add('right')
+        if any(word in text for word in ['upper', 'superior', 'epigastric']):
+            terms.add('upper')
+        if any(word in text for word in ['lower', 'inferior', 'pelvic', 'pelvis']):
+            terms.add('lower')
+        if any(word in text for word in ['center', 'central', 'midline', 'middle']):
+            terms.add('center')
+        if any(word in text for word in ['front', 'anterior']):
+            terms.add('front')
+        if any(word in text for word in ['back', 'posterior', 'flank']):
+            terms.add('back')
+        
+        # Specific anatomical regions
+        if any(word in text for word in ['quadrant', 'llq', 'rlq', 'luq', 'ruq']):
+            terms.add('quadrant')
+        if any(word in text for word in ['abdomen', 'abdominal', 'belly', 'stomach']):
+            terms.add('abdomen')
+        if any(word in text for word in ['chest', 'thoracic']):
+            terms.add('chest')
+        if any(word in text for word in ['rib', 'ribs', 'costal']):
+            terms.add('ribs')
+        
+        return terms
+    
+    def _has_contradictory_terms(self, user_terms: set, guideline_terms: set) -> bool:
+        """Check if user and guideline terms are contradictory"""
+        contradictions = [
+            ({'left'}, {'right'}),
+            ({'upper'}, {'lower'}),
+            ({'front'}, {'back'}),
+            ({'chest'}, {'abdomen'})
+        ]
+        
+        for user_contradict, guideline_contradict in contradictions:
+            if (user_contradict.intersection(user_terms) and 
+                guideline_contradict.intersection(guideline_terms)):
+                return True
+            if (guideline_contradict.intersection(user_terms) and 
+                user_contradict.intersection(guideline_terms)):
+                return True
+        
+        return False
+    
     def _process_clinical_answer(self, answer: str) -> Dict[str, Any]:
         """
         Score guidelines using SEMANTIC SIMILARITY between answer and corresponding OLDCARTS section
@@ -1721,13 +1802,13 @@ Your question:"""
                 answer_lower = answer.lower()
                 section_upper = oldcarts_section.upper()
                 
-                # Use semantic similarity for location matching - much more elegant!
+                # Use enhanced location similarity with multi-stage filtering
                 # This will handle "left lower belly pain towards my pelvis" vs "LEFT LOWER QUADRANT (LLQ)"
                 try:
-                    similarity = self._compute_similarity(answer, oldcarts_section)
-                    print(f"[Engine]   {g['name']}: Location similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
+                    similarity = self._compute_enhanced_location_similarity(answer, oldcarts_section)
+                    print(f"[Engine]   {g['name']}: Enhanced location similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
                 except Exception as sim_error:
-                    print(f"[Engine] ❌ Similarity computation failed for {g['name']}: {sim_error}")
+                    print(f"[Engine] ❌ Enhanced similarity computation failed for {g['name']}: {sim_error}")
                     import traceback
                     traceback.print_exc()
                     # Skip this guideline and continue with the next one
