@@ -994,7 +994,7 @@ class AdaptiveDiagnosticEngine:
                 similarity = float(distance)  # Cosine similarity (0-1)
                 
                 # Apply threshold
-                if similarity > 0.88:  # Same threshold as brute-force
+                if similarity > 0.75:  # Same threshold as brute-force
                     prevalence = guideline_data.get('prevalence', 'uncommon')
                     prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
                     initial_score = prevalence_scores.get(prevalence, 0.50)
@@ -1004,7 +1004,7 @@ class AdaptiveDiagnosticEngine:
                 else:
                     # Log first few rejections for visibility
                     if i < 5:
-                        print(f"[Engine]   ✗ {guideline_name}: '{trigger}' (similarity={similarity:.2f} < 0.88)")
+                        print(f"[Engine]   ✗ {guideline_name}: '{trigger}' (similarity={similarity:.2f} < 0.75)")
         
         print(f"\n[Engine] 📊 FAISS matching complete: {len(matched)} guidelines matched")
         
@@ -1014,7 +1014,7 @@ class AdaptiveDiagnosticEngine:
             'strategy': 'exact > subset > FAISS semantic',
             'thresholds': {
                 'char_overlap': 0.75,
-                'semantic': 0.88
+                'semantic': 0.75
             },
             'matched_count': len(matched),
             'filtered_count': len(self.all_guidelines) - len(matched)
@@ -1045,12 +1045,12 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine]    1. Exact match (trigger in complaint)")
         print(f"[Engine]    2. Subset match (symptom in trigger)")
         print(f"[Engine]    3. Character overlap (Jaccard > 0.75)")
-        print(f"[Engine]    4. Semantic similarity (cosine > 0.88)")
+        print(f"[Engine]    4. Semantic similarity (cosine > 0.75)")
         print(f"[Engine] ---")
         
         # Thresholds
         CHAR_OVERLAP_THRESHOLD = 0.75  # Increased from 0.65
-        SEMANTIC_THRESHOLD = 0.88
+        SEMANTIC_THRESHOLD = 0.75  # Lowered from 0.88 to handle typos better
         
         # Helper function for character overlap
         def char_overlap(str1: str, str2: str) -> float:
@@ -1243,7 +1243,7 @@ class AdaptiveDiagnosticEngine:
         # Store matching metadata for debug
         self.matching_metadata = {
             'mode': 'brute-force',
-            'strategy': 'exact > subset > char_overlap(>0.75) > semantic(>0.88)',
+            'strategy': 'exact > subset > char_overlap(>0.75) > semantic(>0.75)',
             'thresholds': {
                 'char_overlap': CHAR_OVERLAP_THRESHOLD,
                 'semantic': SEMANTIC_THRESHOLD
@@ -1721,28 +1721,17 @@ Your question:"""
                 answer_lower = answer.lower()
                 section_upper = oldcarts_section.upper()
                 
-                # Check for opposite-sided conditions
-                patient_says_left = 'left' in answer_lower and 'right' not in answer_lower
-                patient_says_right = 'right' in answer_lower and 'left' not in answer_lower
-                
-                guideline_is_right_only = 'RIGHT' in section_upper and 'LEFT' not in section_upper
-                guideline_is_left_only = 'LEFT' in section_upper and 'RIGHT' not in section_upper
-                
-                # Skip this guideline if sides don't match
-                if (patient_says_left and guideline_is_right_only) or (patient_says_right and guideline_is_left_only):
-                    # Set similarity to 0 (will be ruled out or demoted)
-                    similarity = 0.0
-                    print(f"[Engine]   {g['name']}: SKIPPED (location keyword mismatch: {answer_lower} vs {section_upper[:40]})")
-                else:
-                    # Compute semantic similarity normally
-                    try:
-                        similarity = self._compute_similarity(answer, oldcarts_section)
-                    except Exception as sim_error:
-                        print(f"[Engine] ❌ Similarity computation failed for {g['name']}: {sim_error}")
-                        import traceback
-                        traceback.print_exc()
-                        # Skip this guideline and continue with the next one
-                        continue
+                # Use semantic similarity for location matching - much more elegant!
+                # This will handle "left lower belly pain towards my pelvis" vs "LEFT LOWER QUADRANT (LLQ)"
+                try:
+                    similarity = self._compute_similarity(answer, oldcarts_section)
+                    print(f"[Engine]   {g['name']}: Location similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
+                except Exception as sim_error:
+                    print(f"[Engine] ❌ Similarity computation failed for {g['name']}: {sim_error}")
+                    import traceback
+                    traceback.print_exc()
+                    # Skip this guideline and continue with the next one
+                    continue
             else:
                 # Compute semantic similarity normally for non-location questions
                 try:
@@ -1929,66 +1918,61 @@ Your question:"""
                             
                             history_text = '\n'.join(location_history) if location_history else "None"
                             
-                            # Build clarification prompt with full context
-                            clarify_system = "You are a medical assistant. Output ONLY ONE question. Never combine multiple questions."
+                            # Use programmatic template-based approach for reliable questions
+                            # This ensures we only ask questions that match guideline structure
                             
-                            clarify_user = f"""Chief complaint: {self.chief_complaint}
-
-Previous location questions and answers:
-{history_text}
-
-Latest question: "{last_q_item['question']}"
-Latest answer: "{answer}"
-
-The patient's answer is still too vague to pinpoint the exact location within the affected body region. Ask EXACTLY ONE simple follow-up question to narrow down the location.
-
-CRITICAL: Stay focused on the SAME body region (e.g., if discussing abdomen, ask about parts of abdomen, NOT other body parts).
-
-Use PLAIN LANGUAGE only (no medical jargon like "epigastric", "quadrant", "flank").
-
-Examples:
-- "Is it in the upper part or lower part?"
-- "Is it more toward the middle or the side?"
-
-Your question:"""
-                            
-                            # Get thinking filler before LLM call
+                            # Get thinking filler
                             filler = get_filler('location_clarification', use_audio=True)
                             print(f"[Engine] 💬 Filler: [{filler['id']}] '{filler['text']}'")
                             
-                            clarify_response = self.llm_chat_fn(
-                                [
-                                    {"role": "system", "content": clarify_system},
-                                    {"role": "user", "content": clarify_user}
-                                ],
-                                max_tokens=35,
-                                temperature=0.1
-                            )
+                            # Use LLM to generate clarification based on guideline LOCATION sections
+                            # This is more elegant than hardcoded logic
                             
-                            clarify_location = clarify_response.strip().strip('"\'')
-                            if not clarify_location.endswith('?'):
-                                clarify_location += '?'
+                            # Collect LOCATION sections from top guidelines
+                            location_sections = []
+                            for g in self.active_guidelines[:3]:
+                                try:
+                                    location_section = self._extract_oldcarts_section(g['data'], 'LOCATION')
+                                    if location_section:
+                                        location_sections.append(f"{g['name']}: {location_section}")
+                                except:
+                                    continue
                             
-                            # VALIDATION: Ensure only ONE question and no medical jargon
-                            question_mark_count = clarify_location.count('?')
-                            has_sentence_before_question = '. ' in clarify_location and clarify_location.index('. ') < clarify_location.rfind('?')
+                            if location_sections:
+                                # Use LLM to generate appropriate clarification question
+                                clarify_system = "You are a medical assistant. Output ONLY ONE question. Never combine multiple questions."
+                                
+                                clarify_user = f"""Patient's current answer: "{answer}"
+
+Guideline LOCATION sections for reference:
+{chr(10).join(location_sections)}
+
+The patient's answer is still too vague. Ask EXACTLY ONE simple follow-up question to narrow down the location based on what the guidelines actually describe.
+
+Use PLAIN LANGUAGE only (no medical jargon).
+
+Your question:"""
+                                
+                                clarify_response = self.llm_chat_simple_fn(
+                                    [
+                                        {"role": "system", "content": clarify_system},
+                                        {"role": "user", "content": clarify_user}
+                                    ],
+                                    max_tokens=40,
+                                    temperature=0.3
+                                )
+                                
+                                clarify_location = clarify_response.strip().strip('"\'')
+                                if not clarify_location.endswith('?'):
+                                    clarify_location += '?'
+                                
+                                # Simple validation - reject if too complex
+                                if clarify_location.count('?') > 1 or len(clarify_location.split()) > 15:
+                                    clarify_location = "Can you be more specific about the exact location?"
+                            else:
+                                clarify_location = "Can you be more specific about the exact location?"
                             
-                            # Check for medical jargon
-                            medical_jargon = [
-                                'epigastric', 'periumbilical', 'flank', 'costovertebral', 'cva', 'quadrant',
-                                'ruq', 'luq', 'rlq', 'llq', 'adnexal', 'suprapubic', 'hypogastric',
-                                'retrosternal', 'substernal', 'pelvic', 'inguinal', 'femoral', 'navel'
-                            ]
-                            has_jargon = any(term in clarify_location.lower() for term in medical_jargon)
-                            
-                            if question_mark_count > 1 or has_sentence_before_question or has_jargon:
-                                if has_jargon:
-                                    print(f"[Engine] ⚠️ Location clarification used medical jargon - using plain template")
-                                else:
-                                    print(f"[Engine] ⚠️ Location clarification combined multiple questions - using template")
-                                print(f"[Engine]    Generated: '{clarify_location}'")
-                                # Use simple fallback
-                                clarify_location = "Where exactly does it hurt?"
+                            print(f"[Engine] 📍 Using template-based clarification: '{clarify_location}'")
                             
                             print(f"[Engine] 💬 Clarification: '{clarify_location}'")
                             print(f"{'='*80}\n")
