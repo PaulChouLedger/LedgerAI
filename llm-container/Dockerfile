@@ -19,6 +19,7 @@ COPY unified_medical_mode.py .
 COPY medical_rag.py .
 COPY adaptive_diagnostic_engine.py .
 COPY thinking_fillers.py .
+COPY test_enhanced_location.py .
 COPY triage_defs/ /app/triage_defs/
 COPY synonyms/ /app/synonyms/
 
