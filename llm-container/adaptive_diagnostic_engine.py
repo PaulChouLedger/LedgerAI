@@ -1795,39 +1795,55 @@ Your question:"""
         # LOCATION CLARIFICATION: Use guidelines to determine if more detail needed
         # Extract actual location descriptions from top active guidelines and compare
         if oldcarts_element == 'L' and len(self.active_guidelines) >= 2:
-            print(f"[Engine] 🔍 Checking if location answer differentiates top diagnoses...")
-            
-            # Get L sections from top 5 active guidelines
-            location_texts = []
-            for g in self.active_guidelines[:5]:
-                classic = g['data'].get('key_features', {}).get('classic_presentation', '')
-                location_section = self._extract_oldcarts_section(classic, 'L')
-                if location_section:
-                    location_texts.append(f"{g['name']}: {location_section}")
+            try:
+                print(f"[Engine] 🔍 Checking if location answer differentiates top diagnoses...")
+                
+                # Get L sections from top 5 active guidelines
+                location_texts = []
+                for g in self.active_guidelines[:5]:
+                    classic = g['data'].get('key_features', {}).get('classic_presentation', '')
+                    location_section = self._extract_oldcarts_section(classic, 'L')
+                    if location_section:
+                        location_texts.append(f"{g['name']}: {location_section}")
+            except Exception as loc_error:
+                print(f"[Engine] ❌ Location clarification check failed: {loc_error}")
+                import traceback
+                traceback.print_exc()
+                # Mark location as covered and move on
+                self.oldcarts_covered['L'] = True
+                location_texts = []  # Empty list to skip clarification
             
             if len(location_texts) >= 2:
-                # Compute similarity between top guidelines' location sections
-                # If they're very different, patient answer may not differentiate
-                loc_embeddings = []
-                for loc_text in location_texts[:3]:
-                    # Just the location description, not the guideline name
-                    loc_desc = loc_text.split(':', 1)[1].strip() if ':' in loc_text else loc_text
-                    emb = self.embedding_model.encode([loc_desc])[0]
-                    loc_embeddings.append(emb)
-                
-                # Compute pairwise similarities between guideline locations
-                import numpy as np
-                similarities = []
-                for i in range(len(loc_embeddings)):
-                    for j in range(i+1, len(loc_embeddings)):
-                        sim = np.dot(loc_embeddings[i], loc_embeddings[j]) / (
-                            np.linalg.norm(loc_embeddings[i]) * np.linalg.norm(loc_embeddings[j])
-                        )
-                        similarities.append((sim + 1) / 2)  # Normalize to [0, 1]
-                
-                avg_location_similarity = np.mean(similarities) if similarities else 1.0
-                
-                print(f"[Engine] 📊 Guideline location similarity: {avg_location_similarity:.2f}")
+                try:
+                    # Compute similarity between top guidelines' location sections
+                    # If they're very different, patient answer may not differentiate
+                    loc_embeddings = []
+                    for loc_text in location_texts[:3]:
+                        # Just the location description, not the guideline name
+                        loc_desc = loc_text.split(':', 1)[1].strip() if ':' in loc_text else loc_text
+                        emb = self.embedding_model.encode([loc_desc])[0]
+                        loc_embeddings.append(emb)
+                    
+                    # Compute pairwise similarities between guideline locations
+                    import numpy as np
+                    similarities = []
+                    for i in range(len(loc_embeddings)):
+                        for j in range(i+1, len(loc_embeddings)):
+                            sim = np.dot(loc_embeddings[i], loc_embeddings[j]) / (
+                                np.linalg.norm(loc_embeddings[i]) * np.linalg.norm(loc_embeddings[j])
+                            )
+                            similarities.append((sim + 1) / 2)  # Normalize to [0, 1]
+                    
+                    avg_location_similarity = np.mean(similarities) if similarities else 1.0
+                    
+                    print(f"[Engine] 📊 Guideline location similarity: {avg_location_similarity:.2f}")
+                except Exception as sim_error:
+                    print(f"[Engine] ❌ Failed to compute location similarity: {sim_error}")
+                    import traceback
+                    traceback.print_exc()
+                    # Default to high similarity (no clarification needed)
+                    avg_location_similarity = 1.0
+                    print(f"[Engine] 🔄 Defaulting to high similarity - skipping clarification")
                 
                 # If top guidelines describe DIFFERENT locations (low similarity), need clarification
                 # But limit clarifications to prevent endless loops
@@ -1845,24 +1861,30 @@ Your question:"""
                 elif avg_location_similarity < 0.85 and location_clarifications < self.MAX_CLARIFICATIONS:
                     print(f"[Engine] ⚠️ Top guidelines have diverse locations - need more specific answer (clarification #{location_clarifications + 1}/{self.MAX_CLARIFICATIONS})")
                     
-                    # Show what the top guidelines need
-                    guidelines_summary = '\n'.join(location_texts[:3])
-                    
-                    clarify_system = "You are a medical assistant. Output ONLY ONE question. Never combine multiple questions."
-                    
-                    # Collect ALL location-related answers so far for full context
-                    location_history = []
-                    for item in self.conversation_history:
-                        if item.get('oldcarts') == 'L':
-                            q_text = item.get('question', '')
-                            a_text = item.get('answer', '')
-                            if q_text and a_text:
-                                location_history.append(f"Q: {q_text}\nA: {a_text}")
-                    
-                    history_text = '\n'.join(location_history) if location_history else "None"
-                    
-                    # Include full context so LLM understands we're refining abdomen location, not asking about body location
-                    clarify_user = f"""Chief complaint: {self.chief_complaint}
+                    # SAFETY: Ensure we have last_q_item
+                    if not last_q_item:
+                        print(f"[Engine] ❌ No last question item - cannot generate clarification")
+                        self.oldcarts_covered['L'] = True
+                    else:
+                        try:
+                            # Collect ALL location-related Q&A pairs so far for full context
+                            location_history = []
+                            temp_q = None
+                            for item in self.conversation_history:
+                                if item.get('type') == 'question' and item.get('oldcarts') == 'L':
+                                    temp_q = item.get('question', '')
+                                elif item.get('type') == 'answer' and temp_q:
+                                    a_text = item.get('answer', '')
+                                    if temp_q and a_text:
+                                        location_history.append(f"Q: {temp_q}\nA: {a_text}")
+                                    temp_q = None  # Reset
+                            
+                            history_text = '\n'.join(location_history) if location_history else "None"
+                            
+                            # Build clarification prompt with full context
+                            clarify_system = "You are a medical assistant. Output ONLY ONE question. Never combine multiple questions."
+                            
+                            clarify_user = f"""Chief complaint: {self.chief_complaint}
 
 Previous location questions and answers:
 {history_text}
@@ -1881,66 +1903,74 @@ Examples:
 - "Is it more toward the middle or the side?"
 
 Your question:"""
-                    
-                    # Get thinking filler before LLM call
-                    filler = get_filler('location_clarification', use_audio=True)
-                    print(f"[Engine] 💬 Filler: [{filler['id']}] '{filler['text']}'")
-                    
-                    clarify_response = self.llm_chat_fn(
-                        [
-                            {"role": "system", "content": clarify_system},
-                            {"role": "user", "content": clarify_user}
-                        ],
-                        max_tokens=35,
-                        temperature=0.1
-                    )
-                    
-                    clarify_location = clarify_response.strip().strip('"\'')
-                    if not clarify_location.endswith('?'):
-                        clarify_location += '?'
-                    
-                    # VALIDATION: Ensure only ONE question and no medical jargon
-                    question_mark_count = clarify_location.count('?')
-                    has_sentence_before_question = '. ' in clarify_location and clarify_location.index('. ') < clarify_location.rfind('?')
-                    
-                    # Check for medical jargon
-                    medical_jargon = [
-                        'epigastric', 'periumbilical', 'flank', 'costovertebral', 'cva', 'quadrant',
-                        'ruq', 'luq', 'rlq', 'llq', 'adnexal', 'suprapubic', 'hypogastric',
-                        'retrosternal', 'substernal', 'pelvic', 'inguinal', 'femoral', 'navel'
-                    ]
-                    has_jargon = any(term in clarify_location.lower() for term in medical_jargon)
-                    
-                    if question_mark_count > 1 or has_sentence_before_question or has_jargon:
-                        if has_jargon:
-                            print(f"[Engine] ⚠️ Location clarification used medical jargon - using plain template")
-                        else:
-                            print(f"[Engine] ⚠️ Location clarification combined multiple questions - using template")
-                        print(f"[Engine]    Generated: '{clarify_location}'")
-                        # Use simple fallback
-                        clarify_location = "Where exactly does it hurt?"
-                    
-                    print(f"[Engine] 💬 Clarification: '{clarify_location}'")
-                    print(f"{'='*80}\n")
-                    
-                    # Increment clarification counter
-                    self.clarification_count['L'] = location_clarifications + 1
-                    
-                    # Preserve OLDCARTS element (keep as 'L' so we can ask again)
-                    self.conversation_history.append({
-                        'type': 'question',
-                        'question': clarify_location,
-                        'focus': 'clinical',
-                        'oldcarts': 'L'  # Keep as location
-                    })
-                    
-                    return {
-                        'success': True,
-                        'question': clarify_location,
-                        'status': 'questioning',
-                        'filler': filler,  # Play/send this immediately while waiting
-                        'debug': self._get_debug_info(last_answer=answer)  # For Telegram debug display
-                    }
+                            
+                            # Get thinking filler before LLM call
+                            filler = get_filler('location_clarification', use_audio=True)
+                            print(f"[Engine] 💬 Filler: [{filler['id']}] '{filler['text']}'")
+                            
+                            clarify_response = self.llm_chat_fn(
+                                [
+                                    {"role": "system", "content": clarify_system},
+                                    {"role": "user", "content": clarify_user}
+                                ],
+                                max_tokens=35,
+                                temperature=0.1
+                            )
+                            
+                            clarify_location = clarify_response.strip().strip('"\'')
+                            if not clarify_location.endswith('?'):
+                                clarify_location += '?'
+                            
+                            # VALIDATION: Ensure only ONE question and no medical jargon
+                            question_mark_count = clarify_location.count('?')
+                            has_sentence_before_question = '. ' in clarify_location and clarify_location.index('. ') < clarify_location.rfind('?')
+                            
+                            # Check for medical jargon
+                            medical_jargon = [
+                                'epigastric', 'periumbilical', 'flank', 'costovertebral', 'cva', 'quadrant',
+                                'ruq', 'luq', 'rlq', 'llq', 'adnexal', 'suprapubic', 'hypogastric',
+                                'retrosternal', 'substernal', 'pelvic', 'inguinal', 'femoral', 'navel'
+                            ]
+                            has_jargon = any(term in clarify_location.lower() for term in medical_jargon)
+                            
+                            if question_mark_count > 1 or has_sentence_before_question or has_jargon:
+                                if has_jargon:
+                                    print(f"[Engine] ⚠️ Location clarification used medical jargon - using plain template")
+                                else:
+                                    print(f"[Engine] ⚠️ Location clarification combined multiple questions - using template")
+                                print(f"[Engine]    Generated: '{clarify_location}'")
+                                # Use simple fallback
+                                clarify_location = "Where exactly does it hurt?"
+                            
+                            print(f"[Engine] 💬 Clarification: '{clarify_location}'")
+                            print(f"{'='*80}\n")
+                            
+                            # Increment clarification counter
+                            self.clarification_count['L'] = location_clarifications + 1
+                            
+                            # Preserve OLDCARTS element (keep as 'L' so we can ask again)
+                            self.conversation_history.append({
+                                'type': 'question',
+                                'question': clarify_location,
+                                'focus': 'clinical',
+                                'oldcarts': 'L'  # Keep as location
+                            })
+                            
+                            return {
+                                'success': True,
+                                'question': clarify_location,
+                                'status': 'questioning',
+                                'filler': filler,  # Play/send this immediately while waiting
+                                'debug': self._get_debug_info(last_answer=answer)  # For Telegram debug display
+                            }
+                        
+                        except Exception as clarify_error:
+                            print(f"[Engine] ❌ Failed to generate location clarification: {clarify_error}")
+                            import traceback
+                            traceback.print_exc()
+                            # Force mark as covered and move on
+                            self.oldcarts_covered['L'] = True
+                
                 elif avg_location_similarity < 0.85:
                     # Hit max clarifications - force move on
                     print(f"[Engine] ⚠️ Max location clarifications reached ({location_clarifications}/{self.MAX_CLARIFICATIONS}) - accepting answer and moving on")
