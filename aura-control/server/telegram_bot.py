@@ -9,7 +9,7 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Messa
 load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 AURA_CHAT_URL = os.getenv("AURA_CHAT_URL", "http://127.0.0.1:11434/chat-tg")
-DEBUG_MODE = os.getenv("TELEGRAM_DEBUG", "true").lower() == "true"  # Show internal reasoning
+# Debug info is now always shown in terminal logs (not in Telegram messages)
 
 if not TELEGRAM_BOT_TOKEN:
     raise RuntimeError("⚠️ TELEGRAM_BOT_TOKEN not found in environment")
@@ -19,61 +19,6 @@ sessions = {}  # { chat_id: {"active": bool, "history": []} }
 RESET_KEYWORDS = {"reset", "restart", "new session"}
 EXIT_KEYWORDS = {"exit", "stop", "end", "quit"}
 
-
-def _format_debug_info(debug_data: dict) -> str:
-    """Format debug information for Telegram display"""
-    if not debug_data:
-        return None
-    
-    lines = []
-    lines.append("```")
-    lines.append("🔍 INTERNAL REASONING")
-    lines.append("=" * 40)
-    
-    # Demographics
-    if 'demographics' in debug_data:
-        demo = debug_data['demographics']
-        age = demo.get('age', '?')
-        sex = demo.get('sex', '?')
-        lines.append(f"👤 Patient: {age} y/o {sex}")
-    
-    # Question progress
-    if 'question_number' in debug_data:
-        lines.append(f"📝 Question: #{debug_data['question_number']}")
-    
-    # OLDCARTS coverage
-    if 'oldcarts_coverage' in debug_data:
-        coverage = debug_data['oldcarts_coverage']
-        count = debug_data.get('oldcarts_count', '?/8')
-        lines.append(f"📋 OLDCARTS: {coverage} ({count})")
-    
-    # Clarification tracking
-    if debug_data.get('clarification_counts'):
-        clarif = debug_data['clarification_counts']
-        if clarif:
-            clarif_str = ', '.join([f"{k}:{v}" for k, v in clarif.items()])
-            lines.append(f"🔁 Clarifications: {clarif_str}")
-    
-    # Last answer
-    if debug_data.get('last_answer'):
-        lines.append(f"💬 Answer: '{debug_data['last_answer']}'")
-    
-    # Pool status
-    if 'pool_status' in debug_data:
-        pool = debug_data['pool_status']
-        lines.append(f"")
-        lines.append(f"Pool: Active={pool['active']}, Reserve={pool['reserve']}, Ruled out={pool['ruled_out']}")
-    
-    # Active differentials
-    if 'active_differentials' in debug_data and debug_data['active_differentials']:
-        lines.append("")
-        lines.append("📊 TOP DIFFERENTIALS:")
-        for diff in debug_data['active_differentials']:
-            urgency_emoji = "🚨" if diff['urgency'] == 'emergent' else "⚠️" if diff['urgency'] == 'urgent' else "📋"
-            lines.append(f"  {diff['rank']}. {diff['name']} ({diff['score']}) {urgency_emoji}")
-    
-    lines.append("```")
-    return '\n'.join(lines)
 
 # === Handlers ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -198,14 +143,71 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Debug: Log the response to help diagnose issues
         print(f"[Telegram] 📤 Response to {chat_id}: {response_text[:100]}...")
         
+        # Print debug info to terminal (always, for monitoring)
+        if debug_data:
+            print(f"\n{'='*80}")
+            print(f"[Telegram] 🔍 INTERNAL REASONING (Session: {chat_id})")
+            print(f"{'='*80}")
+            
+            # Matching algorithm info (if this is initial assessment)
+            if 'matching' in debug_data:
+                match_info = debug_data['matching']
+                print(f"[Telegram] 🎯 MATCHING ALGORITHM:")
+                print(f"[Telegram]    Mode: {match_info.get('mode', 'unknown')}")
+                print(f"[Telegram]    Strategy: {match_info.get('strategy', 'unknown')}")
+                if 'thresholds' in match_info:
+                    thresh = match_info['thresholds']
+                    print(f"[Telegram]    Thresholds:")
+                    print(f"[Telegram]       - Char overlap: >{thresh.get('char_overlap', 0.75)}")
+                    print(f"[Telegram]       - Semantic: >{thresh.get('semantic', 0.88)}")
+                if 'matched_count' in match_info:
+                    print(f"[Telegram]    Matched: {match_info['matched_count']} guidelines")
+                if 'filtered_count' in match_info:
+                    print(f"[Telegram]    Filtered: {match_info['filtered_count']} guidelines")
+                if 'timing' in match_info:
+                    print(f"[Telegram]    Time: {match_info['timing']:.2f}s")
+                print(f"[Telegram]    ---")
+            
+            if 'demographics' in debug_data:
+                demo = debug_data['demographics']
+                print(f"[Telegram] 👤 Patient: {demo.get('age', '?')} y/o {demo.get('sex', '?')}")
+            
+            if 'question_number' in debug_data:
+                print(f"[Telegram] 📝 Question: #{debug_data['question_number']}")
+            
+            if 'oldcarts_coverage' in debug_data:
+                print(f"[Telegram] 📋 OLDCARTS: {debug_data['oldcarts_coverage']} ({debug_data.get('oldcarts_count', '?/8')})")
+            
+            if debug_data.get('clarification_counts'):
+                clarif = debug_data['clarification_counts']
+                if clarif:
+                    clarif_str = ', '.join([f"{k}:{v}" for k, v in clarif.items()])
+                    print(f"[Telegram] 🔁 Clarifications: {clarif_str}")
+            
+            if debug_data.get('last_answer'):
+                print(f"[Telegram] 💬 Last Answer: '{debug_data['last_answer']}'")
+            
+            if 'pool_status' in debug_data:
+                pool = debug_data['pool_status']
+                print(f"[Telegram] 📊 Pool: Active={pool['active']}, Reserve={pool['reserve']}, Ruled out={pool['ruled_out']}")
+            
+            if 'active_differentials' in debug_data and debug_data['active_differentials']:
+                print(f"[Telegram] 📊 TOP DIFFERENTIALS:")
+                for diff in debug_data['active_differentials']:
+                    urgency_emoji = "🚨" if diff['urgency'] == 'emergent' else "⚠️" if diff['urgency'] == 'urgent' else "📋"
+                    print(f"[Telegram]   {diff['rank']}. {diff['name']} ({diff['score']}) {urgency_emoji}")
+            
+            if debug_data.get('last_answer_scores'):
+                scores = debug_data['last_answer_scores']
+                print(f"[Telegram] 🎯 Answer Scores: {scores}")
+            
+            print(f"{'='*80}\n")
+        
         # Send the main response
         await update.message.reply_text(response_text)
         
-        # Send debug info if available and debug mode enabled
-        if DEBUG_MODE and debug_data:
-            debug_msg = _format_debug_info(debug_data)
-            if debug_msg:
-                await update.message.reply_text(debug_msg, parse_mode='Markdown')
+        # Debug info is now ONLY in terminal logs (not sent to Telegram)
+        # This keeps the chat clean while still providing visibility for monitoring
         
         # Check if this looks like a triage completion
         triage_completed = any(phrase in response_text.lower() for phrase in [

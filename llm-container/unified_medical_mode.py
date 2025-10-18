@@ -377,6 +377,8 @@ class UnifiedMedicalSession:
             
             except Exception as e:
                 print(f"[Adaptive] ❌ Adaptive engine failed: {e}")
+                print(f"[Adaptive] 📋 Error type: {type(e).__name__}")
+                print(f"[Adaptive] 📍 Error location: {e.__traceback__.tb_frame.f_code.co_filename}:{e.__traceback__.tb_lineno}")
                 import traceback
                 traceback.print_exc()
                 return "I'm having trouble processing your symptoms. Please provide more details."

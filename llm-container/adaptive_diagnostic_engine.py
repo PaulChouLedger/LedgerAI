@@ -279,7 +279,7 @@ class AdaptiveDiagnosticEngine:
         covered_count = sum(self.oldcarts_covered.values())
         coverage_str = ''.join([k if v else '_' for k, v in self.oldcarts_covered.items()])
         
-        return {
+        debug_info = {
             'demographics': self.demographics,
             'question_number': num_questions,
             'oldcarts_coverage': coverage_str,
@@ -303,11 +303,18 @@ class AdaptiveDiagnosticEngine:
             'last_answer': last_answer,
             'last_answer_scores': getattr(self, '_last_answer_scores', None)  # Set during scoring
         }
+        
+        # Add matching algorithm info if available
+        if hasattr(self, 'matching_metadata') and self.matching_metadata:
+            debug_info['matching'] = self.matching_metadata
+        
+        return debug_info
     
     def reset_assessment(self):
         """Reset for new patient"""
         self.active_guidelines = []  # The 3 active guidelines with scores
         self.reserve_pool = []  # Remaining matched guidelines (for rolling replacement)
+        self.matching_metadata = {}  # Store matching algorithm info for debug
         self.ruled_out = []  # Guidelines ruled out (for logging)
         self.chief_complaint = ""
         self.demographics = {}  # age, sex
@@ -423,16 +430,30 @@ class AdaptiveDiagnosticEngine:
                 # NORMAL MODE: Use FAISS with fallback
                 elif self.use_faiss:
                     print(f"[Engine] 🚀 Using FAISS mode for matching")
+                    import time
+                    start_time = time.time()
                     try:
                         rag_result[0] = self._match_to_guidelines_faiss(chief_complaint)
+                        elapsed = time.time() - start_time
+                        if hasattr(self, 'matching_metadata'):
+                            self.matching_metadata['timing'] = elapsed
                     except Exception as faiss_error:
                         print(f"[Engine] ❌ FAISS matching failed: {faiss_error}")
                         print(f"[Engine] 🔄 Falling back to brute-force matching")
                         self.use_faiss = False  # Disable FAISS for future queries
+                        start_time = time.time()
                         rag_result[0] = self._match_to_guidelines(chief_complaint)
+                        elapsed = time.time() - start_time
+                        if hasattr(self, 'matching_metadata'):
+                            self.matching_metadata['timing'] = elapsed
                 else:
                     print(f"[Engine] 🐢 Using brute-force mode for matching")
+                    import time
+                    start_time = time.time()
                     rag_result[0] = self._match_to_guidelines(chief_complaint)
+                    elapsed = time.time() - start_time
+                    if hasattr(self, 'matching_metadata'):
+                        self.matching_metadata['timing'] = elapsed
             except Exception as e:
                 error_result[0] = f"Guideline matching error: {e}"
         
@@ -987,6 +1008,18 @@ class AdaptiveDiagnosticEngine:
         
         print(f"\n[Engine] 📊 FAISS matching complete: {len(matched)} guidelines matched")
         
+        # Store matching metadata for debug
+        self.matching_metadata = {
+            'mode': 'FAISS',
+            'strategy': 'exact > subset > FAISS semantic',
+            'thresholds': {
+                'char_overlap': 0.75,
+                'semantic': 0.88
+            },
+            'matched_count': len(matched),
+            'filtered_count': len(self.all_guidelines) - len(matched)
+        }
+        
         return matched
     
     def _match_to_guidelines(self, complaint: str) -> List[Dict]:
@@ -1200,6 +1233,18 @@ class AdaptiveDiagnosticEngine:
             prevalence = m['data'].get('prevalence', 'uncommon')
             print(f"[Engine]   {i}. {m['name']} ({prevalence}, {urgency}, combined: {m['combined_score']:.0%})")
         
+        # Store matching metadata for debug
+        self.matching_metadata = {
+            'mode': 'brute-force',
+            'strategy': 'exact > subset > char_overlap(>0.75) > semantic(>0.88)',
+            'thresholds': {
+                'char_overlap': CHAR_OVERLAP_THRESHOLD,
+                'semantic': SEMANTIC_THRESHOLD
+            },
+            'matched_count': len(matched),
+            'filtered_count': len(rejected_guidelines)
+        }
+        
         return matched
     
     def _ask_next_clinical_question(self) -> Dict[str, Any]:
@@ -1348,20 +1393,32 @@ Generate EXACTLY ONE similar question using SIMPLE, PLAIN LANGUAGE that anyone c
             }
         
         # After OLDCARTS: Ask about associated symptoms using LLM
+        print(f"[Engine] ℹ️  OLDCARTS complete - now asking about associated symptoms to reach 95% confidence")
         print(f"[Engine] 🧠 Generating associated symptom question...")
+        
+        # SAFETY: Check if we have active guidelines
+        if not self.active_guidelines:
+            print(f"[Engine] ❌ No active guidelines remaining - cannot generate question")
+            return {
+                'success': False,
+                'message': "I couldn't match your symptoms to a specific condition. Please seek medical evaluation."
+            }
         
         # Build context of what's been asked
         asked_lower = ' '.join(asked).lower()
         
         # Get KEY POSITIVES from top 3 guidelines for context
         key_symptoms = []
-        for g in self.active_guidelines[:3]:
-            classic = g['data'].get('key_features', {}).get('classic_presentation', '')
-            if 'KEY POSITIVES:' in classic:
-                parts = classic.split('KEY POSITIVES:')
-                if len(parts) > 1:
-                    key_pos = parts[1].split('KEY NEGATIVES:')[0] if 'KEY NEGATIVES:' in parts[1] else parts[1]
-                    key_symptoms.append(f"{g['name']}: {key_pos[:100]}")
+        try:
+            for g in self.active_guidelines[:3]:
+                classic = g['data'].get('key_features', {}).get('classic_presentation', '')
+                if 'KEY POSITIVES:' in classic:
+                    parts = classic.split('KEY POSITIVES:')
+                    if len(parts) > 1:
+                        key_pos = parts[1].split('KEY NEGATIVES:')[0] if 'KEY NEGATIVES:' in parts[1] else parts[1]
+                        key_symptoms.append(f"{g['name']}: {key_pos[:100]}")
+        except Exception as e:
+            print(f"[Engine] ⚠️ Error extracting key symptoms: {e}")
         
         symptoms_context = ', '.join([s.split(':')[0] for s in key_symptoms[:3]]) if key_symptoms else "common symptoms"
         
@@ -1779,8 +1836,13 @@ Your question:"""
                 location_clarifications = self.clarification_count.get('L', 0)
                 
                 print(f"[Engine] 📊 Clarification tracker: L={location_clarifications}/{self.MAX_CLARIFICATIONS}, Covered={self.oldcarts_covered.get('L', False)}")
+                print(f"[Engine] 📊 Avg location similarity: {avg_location_similarity:.2f} (need >0.85 for specificity)")
                 
-                if avg_location_similarity < 0.85 and location_clarifications < self.MAX_CLARIFICATIONS:
+                # SAFEGUARD: If already asked 2+ clarifications, FORCE move on (prevent infinite loop)
+                if location_clarifications >= self.MAX_CLARIFICATIONS:
+                    print(f"[Engine] ⚠️ Max location clarifications ALREADY reached ({location_clarifications}/{self.MAX_CLARIFICATIONS}) - forcing Location as covered")
+                    self.oldcarts_covered['L'] = True
+                elif avg_location_similarity < 0.85 and location_clarifications < self.MAX_CLARIFICATIONS:
                     print(f"[Engine] ⚠️ Top guidelines have diverse locations - need more specific answer (clarification #{location_clarifications + 1}/{self.MAX_CLARIFICATIONS})")
                     
                     # Show what the top guidelines need
@@ -1788,14 +1850,31 @@ Your question:"""
                     
                     clarify_system = "You are a medical assistant. Output ONLY ONE question. Never combine multiple questions."
                     
-                    # Include chief complaint for context (e.g., "abdominal pain" so LLM knows we're talking about abdomen)
+                    # Collect ALL location-related answers so far for full context
+                    location_history = []
+                    for item in self.conversation_history:
+                        if item.get('oldcarts') == 'L':
+                            q_text = item.get('question', '')
+                            a_text = item.get('answer', '')
+                            if q_text and a_text:
+                                location_history.append(f"Q: {q_text}\nA: {a_text}")
+                    
+                    history_text = '\n'.join(location_history) if location_history else "None"
+                    
+                    # Include full context so LLM understands we're refining abdomen location, not asking about body location
                     clarify_user = f"""Chief complaint: {self.chief_complaint}
-Previous question: "{last_q_item['question']}"
-Patient answered: "{answer}"
 
-The patient's answer is too vague to differentiate between conditions. Ask EXACTLY ONE simple clarifying question to get more specific anatomical location.
+Previous location questions and answers:
+{history_text}
 
-Use PLAIN LANGUAGE only (no medical jargon). Stay focused on the body region from the chief complaint.
+Latest question: "{last_q_item['question']}"
+Latest answer: "{answer}"
+
+The patient's answer is still too vague to pinpoint the exact location within the affected body region. Ask EXACTLY ONE simple follow-up question to narrow down the location.
+
+CRITICAL: Stay focused on the SAME body region (e.g., if discussing abdomen, ask about parts of abdomen, NOT other body parts).
+
+Use PLAIN LANGUAGE only (no medical jargon like "epigastric", "quadrant", "flank").
 
 Examples:
 - "Is it in the upper part or lower part?"
