@@ -87,25 +87,44 @@ def _load_medical_terms():
     global MEDICAL_TERMS
     
     if not os.path.exists(MEDICAL_TERMS_FILE):
-        raise FileNotFoundError(
-            f"Medical terms file not found: {MEDICAL_TERMS_FILE}\n"
-            f"Ensure shared/ directory is mounted in docker-compose.yml:\n"
-            f"  volumes:\n"
-            f"    - ../shared:/shared\n"
-            f"And that shared/medical_terms.json exists in repo"
-        )
+        print(f"[Clinician] ⚠️ Medical terms file not found: {MEDICAL_TERMS_FILE}")
+        print(f"[Clinician] ⚠️ Using fallback medical terms - some functionality may be limited")
+        print(f"[Clinician] 💡 To fix: Mount shared directory with: -v /path/to/shared:/shared")
+        
+        # Fallback: Use basic medical terms
+        MEDICAL_TERMS = {
+            'symptoms': ['pain', 'fever', 'headache', 'nausea', 'vomiting', 'diarrhea', 'cough', 'shortness of breath', 'chest pain', 'abdominal pain'],
+            'conditions': ['hypertension', 'diabetes', 'asthma', 'pneumonia', 'appendicitis', 'heart attack', 'stroke', 'cancer'],
+            'body_parts': ['head', 'chest', 'abdomen', 'back', 'arm', 'leg', 'heart', 'lung', 'liver', 'kidney'],
+            'medications': ['aspirin', 'ibuprofen', 'acetaminophen', 'insulin', 'antibiotics'],
+            '_all_terms_flat': ['pain', 'fever', 'headache', 'nausea', 'vomiting', 'diarrhea', 'cough', 'shortness of breath', 'chest pain', 'abdominal pain', 'hypertension', 'diabetes', 'asthma', 'pneumonia', 'appendicitis', 'heart attack', 'stroke', 'cancer', 'head', 'chest', 'abdomen', 'back', 'arm', 'leg', 'heart', 'lung', 'liver', 'kidney', 'aspirin', 'ibuprofen', 'acetaminophen', 'insulin', 'antibiotics']
+        }
+        print(f"[Clinician] ✅ Using fallback medical terms ({len(MEDICAL_TERMS['_all_terms_flat'])} terms)")
+        return
     
-    with open(MEDICAL_TERMS_FILE, 'r') as f:
-        MEDICAL_TERMS = json.load(f)
-    
-    # Flatten all terms into a single list for fast keyword matching
-    all_terms = []
-    for category, terms in MEDICAL_TERMS.items():
-        all_terms.extend(terms)
-    MEDICAL_TERMS['_all_terms_flat'] = list(set(all_terms))  # Deduplicate
-    
-    print(f"[Clinician] ✅ Loaded {len(MEDICAL_TERMS['_all_terms_flat'])} medical terms from {MEDICAL_TERMS_FILE}")
-    print(f"[Clinician] ✅ Categories: {', '.join([k for k in MEDICAL_TERMS.keys() if k != '_all_terms_flat'])}")
+    try:
+        with open(MEDICAL_TERMS_FILE, 'r') as f:
+            MEDICAL_TERMS = json.load(f)
+        
+        # Flatten all terms into a single list for fast keyword matching
+        all_terms = []
+        for category, terms in MEDICAL_TERMS.items():
+            all_terms.extend(terms)
+        MEDICAL_TERMS['_all_terms_flat'] = list(set(all_terms))  # Deduplicate
+        
+        print(f"[Clinician] ✅ Loaded {len(MEDICAL_TERMS['_all_terms_flat'])} medical terms from {MEDICAL_TERMS_FILE}")
+        print(f"[Clinician] ✅ Categories: {', '.join([k for k in MEDICAL_TERMS.keys() if k != '_all_terms_flat'])}")
+    except Exception as e:
+        print(f"[Clinician] ❌ Error loading medical terms: {e}")
+        print(f"[Clinician] ⚠️ Using fallback medical terms")
+        # Use the same fallback as above
+        MEDICAL_TERMS = {
+            'symptoms': ['pain', 'fever', 'headache', 'nausea', 'vomiting', 'diarrhea', 'cough', 'shortness of breath', 'chest pain', 'abdominal pain'],
+            'conditions': ['hypertension', 'diabetes', 'asthma', 'pneumonia', 'appendicitis', 'heart attack', 'stroke', 'cancer'],
+            'body_parts': ['head', 'chest', 'abdomen', 'back', 'arm', 'leg', 'heart', 'lung', 'liver', 'kidney'],
+            'medications': ['aspirin', 'ibuprofen', 'acetaminophen', 'insulin', 'antibiotics'],
+            '_all_terms_flat': ['pain', 'fever', 'headache', 'nausea', 'vomiting', 'diarrhea', 'cough', 'shortness of breath', 'chest pain', 'abdominal pain', 'hypertension', 'diabetes', 'asthma', 'pneumonia', 'appendicitis', 'heart attack', 'stroke', 'cancer', 'head', 'chest', 'abdomen', 'back', 'arm', 'leg', 'heart', 'lung', 'liver', 'kidney', 'aspirin', 'ibuprofen', 'acetaminophen', 'insulin', 'antibiotics']
+        }
 
 # Load medical terms on module import
 _load_medical_terms()
