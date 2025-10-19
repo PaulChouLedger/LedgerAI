@@ -1593,6 +1593,9 @@ Your question:"""
         # Step 1: Get base semantic similarity
         semantic_similarity = self._compute_similarity(user_answer, oldcarts_section)
         
+        # DEBUG: Show semantic similarity calculation
+        print(f"[Engine]   🧠 Semantic similarity: '{user_answer}' vs '{oldcarts_section}' = {semantic_similarity:.3f}")
+        
         # Step 2: Calculate keyword similarity boost
         keyword_boost = self._compute_keyword_similarity_boost(user_answer, oldcarts_section)
         
