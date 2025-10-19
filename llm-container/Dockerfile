@@ -24,6 +24,7 @@ COPY test_pure_semantic.py .
 COPY test_semantic_keyword.py .
 COPY test_comprehensive_fuzzy.py .
 COPY test_comprehensive_all_guidelines.py .
+COPY test_real_location_similarity.py .
 COPY triage_defs/ /app/triage_defs/
 COPY synonyms/ /app/synonyms/
 

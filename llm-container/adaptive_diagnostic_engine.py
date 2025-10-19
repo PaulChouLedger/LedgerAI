@@ -1050,7 +1050,7 @@ class AdaptiveDiagnosticEngine:
         
         # Thresholds
         CHAR_OVERLAP_THRESHOLD = 0.75  # Increased from 0.65
-        SEMANTIC_THRESHOLD = 0.80  # Increased to reject wrong locations and generic descriptions
+        SEMANTIC_THRESHOLD = 0.80  # Smart contradiction detection handles wrong locations
         
         # Helper function for character overlap
         def char_overlap(str1: str, str2: str) -> float:
@@ -1639,11 +1639,40 @@ Your question:"""
         # Convert to boost (0.0 to 0.5 range) - increased for complex descriptions
         keyword_boost = weighted_ratio * 0.5
         
+        # Reduce boost for contradictory locations (left vs right, upper vs lower, chest vs abdomen)
+        if self._has_contradictory_locations(user_answer, oldcarts_section):
+            keyword_boost *= 0.3  # Reduce boost by 70% for contradictions
+            print(f"[Engine]   ⚠️ Contradictory locations detected - reducing boost by 70%")
+        
         if keyword_boost > 0.02:  # Only log significant boosts
             print(f"[Engine]   🔑 Weighted keyword boost: {total_weight:.2f}/{len(user_words)} words = {weighted_ratio:.3f} → +{keyword_boost:.3f}")
             print(f"[Engine]   🔑 Matched words: {matched_words}")
         
         return keyword_boost
+    
+    def _has_contradictory_locations(self, user_answer: str, oldcarts_section: str) -> bool:
+        """Check for contradictory location terms between user answer and guideline"""
+        user_lower = user_answer.lower()
+        guideline_lower = oldcarts_section.lower()
+        
+        # Define contradictory pairs
+        contradictions = [
+            (['left'], ['right']),
+            (['right'], ['left']),
+            (['upper'], ['lower']),
+            (['lower'], ['upper']),
+            (['chest'], ['abdomen', 'abdominal', 'belly']),
+            (['abdomen', 'abdominal', 'belly'], ['chest']),
+        ]
+        
+        for user_terms, guideline_terms in contradictions:
+            user_has_term = any(term in user_lower for term in user_terms)
+            guideline_has_term = any(term in guideline_lower for term in guideline_terms)
+            
+            if user_has_term and guideline_has_term:
+                return True
+        
+        return False
     
     def _fuzzy_match(self, word1: str, word2: str) -> float:
         """Calculate fuzzy match score between two words (0.0 to 1.0)"""

@@ -28,17 +28,95 @@ def test_comprehensive_all_guidelines():
         print("✅ Embedding model loaded successfully")
         print()
         
-        # Comprehensive test cases covering all GI and Cardiovascular guidelines
-        test_cases = [
-            # ===== GASTROINTESTINAL (GI) GUIDELINES =====
+        # Load real guidelines and extract LOCATION sections
+        print("🔄 Loading real guidelines and extracting LOCATION sections...")
+        real_test_cases = []
+        
+        # Test with real guideline data
+        for guideline in engine.all_guidelines:
+            guideline_name = guideline['name']
+            guideline_data = guideline['data']
             
-            # ACUTE APPENDICITIS
-            {
-                "user_response": "I have severe pain in my lower right abdomen that started suddenly",
-                "guideline_location": "RIGHT LOWER QUADRANT (RLQ) pain, classically starting periumbilical then migrating to RLQ.",
-                "expected": "ACCEPT (Appendicitis - RLQ pain)",
-                "category": "GI_APPENDICITIS"
-            },
+            # Extract LOCATION section from the guideline
+            location_section = engine._extract_oldcarts_section(guideline_data, 'LOCATION')
+            if not location_section:
+                continue
+                
+            # Create test cases based on the actual LOCATION content
+            if 'appendicitis' in guideline_name.lower():
+                real_test_cases.extend([
+                    {
+                        "user_response": "I have severe pain in my lower right abdomen that started suddenly",
+                        "guideline_name": guideline_name,
+                        "location_section": location_section,
+                        "expected": "ACCEPT (Appendicitis - RLQ pain)",
+                        "category": "GI_APPENDICITIS"
+                    },
+                    {
+                        "user_response": "left side abdominal pain",
+                        "guideline_name": guideline_name,
+                        "location_section": location_section,
+                        "expected": "REJECT (Appendicitis - wrong side)",
+                        "category": "GI_APPENDICITIS"
+                    }
+                ])
+            elif 'cholecystitis' in guideline_name.lower():
+                real_test_cases.extend([
+                    {
+                        "user_response": "I have pain in my upper right abdomen under my ribs",
+                        "guideline_name": guideline_name,
+                        "location_section": location_section,
+                        "expected": "ACCEPT (Cholecystitis - RUQ pain)",
+                        "category": "GI_CHOLECYSTITIS"
+                    },
+                    {
+                        "user_response": "left upper quadrant pain",
+                        "guideline_name": guideline_name,
+                        "location_section": location_section,
+                        "expected": "REJECT (Cholecystitis - wrong side)",
+                        "category": "GI_CHOLECYSTITIS"
+                    }
+                ])
+            elif 'diverticulitis' in guideline_name.lower():
+                real_test_cases.extend([
+                    {
+                        "user_response": "I have sharp left lower belly pain towards my pelvis",
+                        "guideline_name": guideline_name,
+                        "location_section": location_section,
+                        "expected": "ACCEPT (Diverticulitis - LLQ pain)",
+                        "category": "GI_DIVERTICULITIS"
+                    },
+                    {
+                        "user_response": "right lower abdominal pain",
+                        "guideline_name": guideline_name,
+                        "location_section": location_section,
+                        "expected": "REJECT (Diverticulitis - wrong side)",
+                        "category": "GI_DIVERTICULITIS"
+                    }
+                ])
+            elif 'myocardial' in guideline_name.lower() or 'heart attack' in guideline_name.lower():
+                real_test_cases.extend([
+                    {
+                        "user_response": "crushing chest pain that radiates to my left arm",
+                        "guideline_name": guideline_name,
+                        "location_section": location_section,
+                        "expected": "ACCEPT (MI - chest pain)",
+                        "category": "CARDIO_MI"
+                    },
+                    {
+                        "user_response": "abdominal pain",
+                        "guideline_name": guideline_name,
+                        "location_section": location_section,
+                        "expected": "REJECT (MI - wrong location)",
+                        "category": "CARDIO_MI"
+                    }
+                ])
+        
+        print(f"✅ Created {len(real_test_cases)} test cases from real guidelines")
+        print()
+        
+        # Run tests with real data
+        test_cases = real_test_cases
             {
                 "user_response": "sharp pain in my right lower belly",
                 "guideline_location": "RIGHT LOWER QUADRANT (RLQ) pain, classically starting periumbilical then migrating to RLQ.",
