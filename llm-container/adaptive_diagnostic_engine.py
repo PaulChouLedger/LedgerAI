@@ -1593,9 +1593,47 @@ Your question:"""
         print(f"[Engine]   🔍 Norm product: {norm_product:.3f}")
         print(f"[Engine]   🔍 Cosine similarity: {cosine_similarity:.3f}")
         
-        print(f"[Engine]   🔍 Final similarity: {cosine_similarity:.3f}")
+        # Apply directional penalty for opposite directions
+        import re
+        words1 = set(re.findall(r'\b\w+\b', text1.lower()))
+        words2 = set(re.findall(r'\b\w+\b', text2.lower()))
         
-        return float(cosine_similarity)
+        # Hardcoded directional conflicts for patient language
+        opposite_pairs = [
+            # Lateral (left/right) - common patient terms
+            ('left', 'right'),
+            ('right', 'left'),
+            
+            # Vertical (upper/lower) - common patient terms
+            ('upper', 'lower'),
+            ('lower', 'upper'),
+            ('top', 'bottom'),
+            ('bottom', 'top'),
+            
+            # Anterior/Posterior (front/back) - common patient terms
+            ('front', 'back'),
+            ('back', 'front'),
+            
+            # Side specific - common patient terms
+            ('both', 'one'),
+            ('one', 'both'),
+            ('either', 'one'),
+            ('one', 'either')
+        ]
+        
+        penalty = 0.0
+        for dir1, dir2 in opposite_pairs:
+            if dir1 in words1 and dir2 in words2:
+                penalty += 0.2  # Penalty for opposite directions
+                print(f"[Engine]   🔍 Directional penalty: {dir1} vs {dir2} (-0.2)")
+        
+        # Apply penalty
+        final_similarity = cosine_similarity - penalty
+        final_similarity = max(0.0, final_similarity)  # Don't go below 0
+        
+        print(f"[Engine]   🔍 Final similarity (cosine - penalty): {final_similarity:.3f}")
+        
+        return float(final_similarity)
     
     def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str) -> float:
         """Pure semantic similarity for location matching"""
