@@ -96,6 +96,27 @@ def test_oldcarts_normalization_simple():
     
     # Test specific terms first
     print(f"\n🔍 Testing specific terms...")
+    
+    # Flatten OLDCARTS structure into standard_term -> variations mapping
+    synonyms = {}
+    for category, subcategories in oldcarts_synonyms.items():
+        if isinstance(subcategories, dict):
+            for subcategory, variations in subcategories.items():
+                if isinstance(variations, list):
+                    # Create standard term from category and subcategory
+                    standard_term = f"{category}_{subcategory}".replace("_", " ")
+                    synonyms[standard_term] = variations
+                elif isinstance(variations, dict):
+                    # Handle nested structures
+                    for nested_key, nested_variations in variations.items():
+                        if isinstance(nested_variations, list):
+                            standard_term = f"{category}_{subcategory}_{nested_key}".replace("_", " ")
+                            synonyms[standard_term] = nested_variations
+        elif isinstance(subcategories, list):
+            # Direct list of variations
+            standard_term = category.replace("_", " ")
+            synonyms[standard_term] = subcategories
+    
     test_terms = ["tummy", "belly ache", "queasy", "want to throw up", "upper right"]
     for term in test_terms:
         found = False
