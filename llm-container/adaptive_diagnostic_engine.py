@@ -1048,7 +1048,7 @@ class AdaptiveDiagnosticEngine:
         
         print(f"\n[Engine] 🔍 PURE SEMANTIC MATCHING...")
         print(f"[Engine] 📋 Core symptom extracted: '{core_symptom}'")
-        print(f"[Engine] 🎯 Strategy: OLDCARTS normalization → Semantic similarity with guideline descriptions")
+        print(f"[Engine] 🎯 Strategy: OLDCARTS normalization → Jaccard similarity with guideline descriptions")
         print(f"[Engine] ---")
         
         # SEMANTIC THRESHOLD for matching
@@ -1067,9 +1067,15 @@ class AdaptiveDiagnosticEngine:
                 print(f"[Engine] ⚠️ No location description for {name} - skipping")
                 continue
             
+            # ANATOMICAL LOCATION FILTER: Check for quadrant mismatches
+            if self._has_anatomical_mismatch(core_symptom, location_desc):
+                print(f"[Engine]   {name}: ❌ ANATOMICAL MISMATCH - skipping")
+                continue
+            
             try:
-                # Compute semantic similarity between normalized complaint and guideline location
-                similarity = self._compute_similarity(core_symptom, location_desc)
+                # Compute Jaccard similarity between normalized complaint and guideline location
+                # Jaccard is more appropriate for normalized medical terms
+                similarity = self._compute_jaccard_similarity(core_symptom, location_desc)
                 print(f"[Engine]   {name}: {similarity:.3f} ('{core_symptom}' vs '{location_desc[:50]}...')")
                 
                 if similarity > SEMANTIC_THRESHOLD:
@@ -1109,10 +1115,10 @@ class AdaptiveDiagnosticEngine:
         
         # Store matching metadata for debug
         self.matching_metadata = {
-            'mode': 'pure_semantic',
-            'strategy': 'OLDCARTS normalization → Semantic similarity with guideline descriptions',
+            'mode': 'jaccard_similarity',
+            'strategy': 'OLDCARTS normalization → Jaccard similarity with guideline descriptions',
             'thresholds': {
-                'semantic': SEMANTIC_THRESHOLD
+                'jaccard': SEMANTIC_THRESHOLD
             },
             'matched_count': len(matched),
             'filtered_count': len(self.all_guidelines) - len(matched)
@@ -1514,6 +1520,98 @@ Your question:"""
         similarity = intersection / union if union > 0 else 0.0
         
         print(f"[Engine]   🔍 Keyword similarity: {similarity:.3f} (intersection: {intersection}, union: {union})")
+        
+        return similarity
+    
+    def _has_anatomical_mismatch(self, complaint: str, guideline_location: str) -> bool:
+        """
+        Check for anatomical location mismatches (e.g., RUQ vs RLQ)
+        
+        Args:
+            complaint: Normalized patient complaint
+            guideline_location: Guideline location description
+            
+        Returns:
+            True if there's an anatomical mismatch that should rule out the condition
+        """
+        complaint_lower = complaint.lower()
+        guideline_lower = guideline_location.lower()
+        
+        # Define anatomical location mappings
+        anatomical_locations = {
+            'ruq': ['right upper quadrant', 'ruq', 'upper right'],
+            'luq': ['left upper quadrant', 'luq', 'upper left'],
+            'rlq': ['right lower quadrant', 'rlq', 'lower right'],
+            'llq': ['left lower quadrant', 'llq', 'lower left'],
+            'epigastric': ['epigastric', 'upper mid', 'upper middle'],
+            'periumbilical': ['periumbilical', 'around belly button', 'around navel'],
+            'flank': ['flank', 'side']
+        }
+        
+        # Extract locations from complaint and guideline
+        complaint_locations = set()
+        guideline_locations = set()
+        
+        for location_type, variations in anatomical_locations.items():
+            for variation in variations:
+                if variation in complaint_lower:
+                    complaint_locations.add(location_type)
+                if variation in guideline_lower:
+                    guideline_locations.add(location_type)
+        
+        # Check for direct conflicts
+        if complaint_locations and guideline_locations:
+            # If complaint mentions specific quadrant and guideline mentions different quadrant
+            if complaint_locations.isdisjoint(guideline_locations):
+                # Check for specific quadrant conflicts
+                quadrant_conflicts = [
+                    ('ruq', 'rlq'), ('ruq', 'llq'), ('ruq', 'luq'),
+                    ('luq', 'rlq'), ('luq', 'llq'), ('luq', 'ruq'),
+                    ('rlq', 'ruq'), ('rlq', 'llq'), ('rlq', 'luq'),
+                    ('llq', 'ruq'), ('llq', 'rlq'), ('llq', 'luq')
+                ]
+                
+                for loc1, loc2 in quadrant_conflicts:
+                    if loc1 in complaint_locations and loc2 in guideline_locations:
+                        print(f"[Engine]   🚫 ANATOMICAL CONFLICT: {loc1.upper()} vs {loc2.upper()}")
+                        return True
+        
+        return False
+    
+    def _compute_jaccard_similarity(self, text1: str, text2: str) -> float:
+        """
+        Compute Jaccard similarity between two texts based on word overlap
+        
+        Args:
+            text1: First text (normalized complaint)
+            text2: Second text (guideline location description)
+            
+        Returns:
+            Jaccard similarity score 0-1
+        """
+        # Convert to lowercase and split into words
+        words1 = set(text1.lower().split())
+        words2 = set(text2.lower().split())
+        
+        # Remove common stop words that don't add medical meaning
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'my', 'your', 'his', 'her', 'its', 'our', 'their', 'really', 'bad', 'gets', 'worse', 'and', 'it'}
+        
+        words1 = words1 - stop_words
+        words2 = words2 - stop_words
+        
+        if not words1 or not words2:
+            return 0.0
+        
+        # Calculate Jaccard similarity: intersection / union
+        intersection = len(words1 & words2)
+        union = len(words1 | words2)
+        
+        similarity = intersection / union if union > 0 else 0.0
+        
+        print(f"[Engine]   🔍 Jaccard similarity: {similarity:.3f} (intersection: {intersection}, union: {union})")
+        print(f"[Engine]   🔍 Words1: {sorted(words1)}")
+        print(f"[Engine]   🔍 Words2: {sorted(words2)}")
+        print(f"[Engine]   🔍 Intersection: {sorted(words1 & words2)}")
         
         return similarity
     
