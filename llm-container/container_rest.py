@@ -428,16 +428,18 @@ def chat_tts():
                     
                     # Age patterns
                     age_patterns = [
-                        r'^\d+$',  # Just numbers: "35"
-                        r'^\d+\s*years?\s*old$',  # "35 years old"
+                        r'^\d+\.?$',  # Just numbers: "35" or "35."
+                        r'^\d+\s*years?\s*old\.?$',  # "35 years old" or "35 years old."
+                        r'^i\'?m\s+\d+\.?$',  # "I'm 35" or "I'm 35."
+                        r'^i\s+am\s+\d+\.?$',  # "I am 35" or "I am 35."
                         r'^(thirty|forty|fifty|sixty|seventy|eighty|ninety)',  # "thirty five"
                         r'^(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\s+(one|two|three|four|five|six|seven|eight|nine)$'
                     ]
                     
                     # Sex patterns
                     sex_patterns = [
-                        r'^(male|female|man|woman|m|f)$',
-                        r'^(i am|i\'m)\s+(male|female|a man|a woman)$'
+                        r'^(male|female|man|woman|m|f)\.?$',
+                        r'^(i am|i\'m)\s+(male|female|a man|a woman)\.?$'
                     ]
                     
                     # Check for age patterns
@@ -471,9 +473,6 @@ def chat_tts():
                     yield "<sentence_start>\n"
                     yield f"{filler_text}\n"
                     yield "<sentence_end>\n"
-                    
-                    # Add a natural pause between filler and question
-                    yield "<pause>\n"
                 
                 # Now process the actual response in the background
                 response = handle_unified_medical_response(prompt, session_id, llm_chat, llm_chat_simple)
