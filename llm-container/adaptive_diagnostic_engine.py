@@ -2294,6 +2294,10 @@ Your question:"""
             
             print(f"[Engine] 📊 Clarification tracker: L={location_clarifications}/{self.MAX_CLARIFICATIONS}, Covered={self.oldcarts_covered.get('L', False)}")
             print(f"[Engine] 📊 Avg location similarity: {avg_location_similarity:.2f} (need >0.85 for specificity)")
+        else:
+            # Not enough location texts - initialize variables with defaults
+            location_clarifications = self.clarification_count.get('L', 0)
+            print(f"[Engine] 📊 Not enough location texts - using default similarity and clarification count")
 
         # SAFEGUARD: If already asked 2+ clarifications, FORCE move on (prevent infinite loop)
         if location_clarifications >= self.MAX_CLARIFICATIONS:

@@ -416,24 +416,21 @@ def chat_tts():
             try:
                 print("[Container] 🔄 Using dynamic medical assessment for UNIFIED_MEDICAL")
                 
-                # Process the response first to determine if we need a filler
-                response = handle_unified_medical_response(prompt, session_id, llm_chat, llm_chat_simple)
+                # IMMEDIATE FILLER: Always use filler for unified medical as it involves RAG operations
+                # The adaptive engine performs RAG operations (semantic similarity, guideline matching) 
+                # that require processing time, so we should always provide a filler
+                from thinking_fillers import get_filler
+                immediate_filler = get_filler('question_generation', use_audio=True)
+                filler_text = immediate_filler['text']
+                print(f"[Container] 💬 IMMEDIATE filler for RAG operations: '{filler_text}'")
                 
-                # Only use filler for complex operations (dict responses), not simple ones (string responses)
-                if isinstance(response, dict) and 'question' in response:
-                    # Complex operation - use filler
-                    from thinking_fillers import get_filler
-                    immediate_filler = get_filler('question_generation', use_audio=True)
-                    filler_text = immediate_filler['text']
-                    print(f"[Container] 💬 IMMEDIATE filler for complex operation: '{filler_text}'")
-                    
-                    # Stream filler immediately
-                    yield "<sentence_start>\n"
-                    yield f"{filler_text}\n"
-                    yield "<sentence_end>\n"
-                else:
-                    # Simple operation - no filler needed
-                    print(f"[Container] ⚡ Simple operation - no filler needed")
+                # Stream filler immediately
+                yield "<sentence_start>\n"
+                yield f"{filler_text}\n"
+                yield "<sentence_end>\n"
+                
+                # Now process the actual response in the background
+                response = handle_unified_medical_response(prompt, session_id, llm_chat, llm_chat_simple)
                 
                 print(f"[Container] ✅ Got response from unified medical session")
                 
