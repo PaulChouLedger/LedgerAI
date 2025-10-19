@@ -18,7 +18,30 @@ import numpy as np
 from typing import List, Dict, Tuple
 
 # Add the llm-container directory to the path
-sys.path.append('/Users/rcabello/Documents/GitHub/LedgerAI/llm-container')
+# Try multiple possible paths for different environments
+possible_paths = [
+    '/Users/rcabello/Documents/GitHub/LedgerAI/llm-container',  # macOS path
+    '~/LedgerAI/llm-container',  # Ubuntu relative path
+    './llm-container',  # Current directory relative path
+    'llm-container'  # Just the directory name
+]
+
+for path in possible_paths:
+    expanded_path = os.path.expanduser(path)
+    if os.path.exists(expanded_path):
+        sys.path.insert(0, expanded_path)
+        print(f"✅ Added to Python path: {expanded_path}")
+        break
+else:
+    # If none of the paths work, try adding the current working directory
+    current_dir = os.getcwd()
+    llm_container_path = os.path.join(current_dir, 'llm-container')
+    if os.path.exists(llm_container_path):
+        sys.path.insert(0, llm_container_path)
+        print(f"✅ Added to Python path: {llm_container_path}")
+    else:
+        print(f"⚠️  Could not find llm-container directory. Current dir: {current_dir}")
+        print(f"   Available directories: {os.listdir(current_dir)}")
 
 def get_hardcoded_gi_guidelines() -> List[Dict]:
     """Hardcoded GI guidelines for testing."""
@@ -359,10 +382,30 @@ def test_oldcarts_normalization_flow():
     
     # Import the adaptive diagnostic engine
     try:
+        print(f"🔍 Current Python path: {sys.path[:3]}...")  # Show first 3 paths
+        print(f"🔍 Looking for adaptive_diagnostic_engine.py...")
+        
+        # Check if the file exists in the expected locations
+        possible_files = [
+            'adaptive_diagnostic_engine.py',
+            './adaptive_diagnostic_engine.py',
+            'llm-container/adaptive_diagnostic_engine.py'
+        ]
+        
+        for file_path in possible_files:
+            if os.path.exists(file_path):
+                print(f"✅ Found adaptive_diagnostic_engine.py at: {file_path}")
+                break
+        else:
+            print(f"❌ adaptive_diagnostic_engine.py not found in current directory")
+            print(f"   Current directory: {os.getcwd()}")
+            print(f"   Files in current directory: {os.listdir('.')}")
+        
         from adaptive_diagnostic_engine import AdaptiveDiagnosticEngine
         print("✅ Successfully imported AdaptiveDiagnosticEngine")
     except ImportError as e:
         print(f"❌ Failed to import AdaptiveDiagnosticEngine: {e}")
+        print(f"   Python path: {sys.path}")
         return False
     
     # Create an instance
