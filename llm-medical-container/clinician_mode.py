@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Unified Medical Mode - Physician-Like Medical Assistant
+Clinician Mode - Physician-Like Medical Assistant
 
 Combines enhanced clinician (symptom assessment) and thinker (medical knowledge)
 into a single, seamless physician-like mode that can:
@@ -29,19 +29,19 @@ from pathlib import Path
 try:
     from medical_rag import MedicalRAG, get_medical_rag, get_medical_messages
     MEDICAL_RAG_AVAILABLE = True
-    print("[Unified Medical] ✅ Medical RAG imported successfully")
+    print("[Clinician] ✅ Medical RAG imported successfully")
 except ImportError as e:
     MEDICAL_RAG_AVAILABLE = False
-    print(f"[Unified Medical] ⚠️ Medical RAG not available: {e}")
+    print(f"[Clinician] ⚠️ Medical RAG not available: {e}")
 
 # Import adaptive diagnostic engine for guideline-based assessment
 try:
     from adaptive_diagnostic_engine import AdaptiveDiagnosticEngine
     ADAPTIVE_ENGINE_AVAILABLE = True
-    print("[Unified Medical] ✅ Adaptive diagnostic engine imported successfully")
+    print("[Clinician] ✅ Adaptive diagnostic engine imported successfully")
 except ImportError as e:
     ADAPTIVE_ENGINE_AVAILABLE = False
-    print(f"[Unified Medical] ⚠️ Adaptive engine not available: {e}")
+    print(f"[Clinician] ⚠️ Adaptive engine not available: {e}")
 
 
 class RAGEmbeddingAPI:
@@ -108,8 +108,8 @@ def _load_medical_terms():
         all_terms.extend(terms)
     MEDICAL_TERMS['_all_terms_flat'] = list(set(all_terms))  # Deduplicate
     
-    print(f"[Unified Medical] ✅ Loaded {len(MEDICAL_TERMS['_all_terms_flat'])} medical terms from {MEDICAL_TERMS_FILE}")
-    print(f"[Unified Medical] ✅ Categories: {', '.join([k for k in MEDICAL_TERMS.keys() if k != '_all_terms_flat'])}")
+    print(f"[Clinician] ✅ Loaded {len(MEDICAL_TERMS['_all_terms_flat'])} medical terms from {MEDICAL_TERMS_FILE}")
+    print(f"[Clinician] ✅ Categories: {', '.join([k for k in MEDICAL_TERMS.keys() if k != '_all_terms_flat'])}")
 
 # Load medical terms on module import
 _load_medical_terms()
@@ -126,7 +126,7 @@ class DynamicAssessmentState:
         self.category = "unknown"
         self.completed = False
 
-class UnifiedMedicalSession:
+class ClinicianSession:
     """
     Unified medical assistant that handles both symptom assessment and medical knowledge
     
@@ -162,9 +162,9 @@ class UnifiedMedicalSession:
                     llm_chat_simple_fn=self.llm_chat_simple_fn  # Pass simple model
                 )
                 guideline_count = len(self.adaptive_engine.all_guidelines) if hasattr(self.adaptive_engine, 'all_guidelines') else 0
-                print(f"[Unified Medical] ✅ Adaptive engine initialized: {guideline_count} guidelines, dual LLMs, semantic embeddings")
+                print(f"[Clinician] ✅ Adaptive engine initialized: {guideline_count} guidelines, dual LLMs, semantic embeddings")
             except Exception as e:
-                print(f"[Unified Medical] ⚠️ Failed to initialize adaptive engine: {e}")
+                print(f"[Clinician] ⚠️ Failed to initialize adaptive engine: {e}")
         
         # Assessment mode selection
         self.use_adaptive_engine = True  # Use new adaptive engine (not rigid triage)
@@ -176,7 +176,7 @@ class UnifiedMedicalSession:
         # Initialize medical RAG
         self._initialize_medical_rag()
 
-        print(f"[Unified Medical] 🩺 Starting unified medical session: {session_id}")
+        print(f"[Clinician] 🩺 Starting unified medical session: {session_id}")
     
     def _save_assessment_state(self):
         """Persist dynamic assessment state to session file"""
@@ -201,7 +201,7 @@ class UnifiedMedicalSession:
         }
         
         save_state(state, self.session_id)
-        print(f"[Unified Medical] 💾 Saved assessment state (Q{len(self.dynamic_assessment.questions_asked)})")
+        print(f"[Clinician] 💾 Saved assessment state (Q{len(self.dynamic_assessment.questions_asked)})")
     
     def _load_assessment_state(self):
         """Restore dynamic assessment state from session file"""
@@ -211,7 +211,7 @@ class UnifiedMedicalSession:
         assessment_data = state.get('dynamic_assessment')
         
         if assessment_data and not assessment_data.get('completed'):
-            print(f"[Unified Medical] 📂 Restoring assessment state (Q{len(assessment_data.get('questions_asked', []))})")
+            print(f"[Clinician] 📂 Restoring assessment state (Q{len(assessment_data.get('questions_asked', []))})")
             
             # Recreate DynamicAssessmentState object
             self.dynamic_assessment = DynamicAssessmentState(
@@ -226,7 +226,7 @@ class UnifiedMedicalSession:
             self.dynamic_assessment.completed = assessment_data.get('completed', False)
             
             self.current_context = "assessment"
-            print(f"[Unified Medical] ✅ Restored: {len(self.dynamic_assessment.questions_asked)} questions asked, {len(self.dynamic_assessment.responses_received)} responses received")
+            print(f"[Clinician] ✅ Restored: {len(self.dynamic_assessment.questions_asked)} questions asked, {len(self.dynamic_assessment.responses_received)} responses received")
 
     def _initialize_medical_rag(self):
         """Initialize medical RAG for knowledge queries (legacy - not used by adaptive engine)"""
@@ -235,12 +235,12 @@ class UnifiedMedicalSession:
                 self.medical_rag = get_medical_rag()
                 # Note: Old RAG is for legacy knowledge queries only
                 # Adaptive engine loads guidelines directly from /app/medical/guidelines
-                print("[Unified Medical] ℹ️  Legacy RAG loaded (not used for diagnosis - adaptive engine uses /app/medical/guidelines)")
+                print("[Clinician] ℹ️  Legacy RAG loaded (not used for diagnosis - adaptive engine uses /app/medical/guidelines)")
             except Exception as e:
-                print(f"[Unified Medical] ⚠️ Legacy RAG initialization failed: {e}")
+                print(f"[Clinician] ⚠️ Legacy RAG initialization failed: {e}")
                 self.medical_rag = None
         else:
-            print("[Unified Medical] ℹ️  Legacy RAG not available (not needed - adaptive engine uses direct guideline loading)")
+            print("[Clinician] ℹ️  Legacy RAG not available (not needed - adaptive engine uses direct guideline loading)")
 
     def process_medical_query(self, user_input: str):
         """
@@ -261,34 +261,57 @@ class UnifiedMedicalSession:
 
         # PRIORITY 1: Check if adaptive engine has active assessment
         if self.adaptive_engine and self.adaptive_engine.status in ["questioning", "red_flag_screening"]:
-            print(f"[Unified Medical] 🔄 Continuing active adaptive assessment (status: {self.adaptive_engine.status})")
+            print(f"[Clinician] 🔄 Continuing active adaptive assessment (status: {self.adaptive_engine.status})")
             return self._handle_symptom_assessment(user_input)
         
         # PRIORITY 2: Check if we have an active dynamic assessment in progress (legacy)
         if self.dynamic_assessment and not self.dynamic_assessment.completed:
-            print(f"[Unified Medical] 🔄 Continuing active dynamic assessment (Q{len(self.dynamic_assessment.questions_asked)})")
+            print(f"[Clinician] 🔄 Continuing active dynamic assessment (Q{len(self.dynamic_assessment.questions_asked)})")
             return self._handle_dynamic_assessment(user_input)
         
         # PRIORITY 3: Analyze the query type for NEW queries only
         query_type = self._analyze_medical_query(user_input)
 
-        print(f"[Unified Medical] 🔍 Query type: {query_type}")
+        print(f"[Clinician] 🔍 Query type: {query_type}")
 
         if query_type == "symptom_assessment":
             return self._handle_symptom_assessment(user_input)
         elif query_type == "medical_knowledge":
             return self._handle_medical_knowledge(user_input)
+        elif query_type == "casual_greeting":
+            return self._handle_casual_greeting(user_input)
         else:
             return self._handle_general_medical(user_input)
 
     def _analyze_medical_query(self, query: str) -> str:
         """
-        Analyze query to determine if it's symptom assessment, knowledge question, or general medical
+        Analyze query to determine if it's symptom assessment, knowledge question, casual greeting, or general medical
 
         Returns:
-            "symptom_assessment", "medical_knowledge", or "general_medical"
+            "symptom_assessment", "medical_knowledge", "casual_greeting", or "general_medical"
         """
-        query_lower = query.lower()
+        query_lower = query.lower().strip()
+
+        # Check for casual greetings first
+        greeting_patterns = [
+            r'^\s*\bhello\b\s*$',
+            r'^\s*\bhi\b\s*$',
+            r'^\s*\bhey\b\s*$',
+            r'^\s*\bgood morning\b\s*$',
+            r'^\s*\bgood afternoon\b\s*$',
+            r'^\s*\bgood evening\b\s*$',
+            r'^\s*\bhow are you\b\s*$',
+            r'^\s*\bhows it going\b\s*$',
+            r'^\s*\bwhats up\b\s*$',
+            # With "aura" suffix
+            r'^\s*\bhello aura\b\s*$',
+            r'^\s*\bhi aura\b\s*$',
+            r'^\s*\bhey aura\b\s*$',
+        ]
+        
+        import re
+        if any(re.search(pattern, query_lower) for pattern in greeting_patterns):
+            return "casual_greeting"
 
         # Check for symptom assessment (any mention of medical symptoms)
         # Simple keyword-based - no grammar restrictions
@@ -343,12 +366,12 @@ class UnifiedMedicalSession:
         New approach: Uses adaptive diagnostic engine with multi-guideline scoring,
         intelligent question selection, and natural language understanding
         """
-        print(f"[Unified Medical] 🩺 Handling symptom assessment: {symptom_query}")
+        print(f"[Clinician] 🩺 Handling symptom assessment: {symptom_query}")
 
         # Use adaptive engine (new approach)
-        print(f"[Unified Medical] 🔍 Engine check: use_adaptive={self.use_adaptive_engine}, engine_exists={self.adaptive_engine is not None}")
+        print(f"[Clinician] 🔍 Engine check: use_adaptive={self.use_adaptive_engine}, engine_exists={self.adaptive_engine is not None}")
         if self.use_adaptive_engine and self.adaptive_engine:
-            print(f"[Unified Medical] 🔍 Adaptive engine status: {self.adaptive_engine.status if hasattr(self.adaptive_engine, 'status') else 'unknown'}")
+            print(f"[Clinician] 🔍 Adaptive engine status: {self.adaptive_engine.status if hasattr(self.adaptive_engine, 'status') else 'unknown'}")
             try:
                 # Check if assessment is active
                 if self.adaptive_engine.status == "idle":
@@ -369,7 +392,7 @@ class UnifiedMedicalSession:
                     else:
                         # Return full response dict (includes filler if present)
                         if 'filler' in response:
-                            print(f"[Unified Medical] 💬 Response includes filler: {response['filler']['text']}")
+                            print(f"[Clinician] 💬 Response includes filler: {response['filler']['text']}")
                             return response  # Return dict with question + filler
                         else:
                             return response.get('question', 'Can you tell me more?')
@@ -992,7 +1015,7 @@ Assessment:"""
 
     def _handle_medical_knowledge(self, knowledge_query: str) -> str:
         """Handle medical knowledge questions using RAG"""
-        print(f"[Unified Medical] 📚 Handling medical knowledge: {knowledge_query}")
+        print(f"[Clinician] 📚 Handling medical knowledge: {knowledge_query}")
 
         if self.medical_rag:
             try:
@@ -1029,19 +1052,49 @@ IMPORTANT: Always include appropriate medical disclaimers and recommend consulti
                     return response
 
             except Exception as e:
-                print(f"[Unified Medical] ❌ Medical RAG failed: {e}")
+                print(f"[Clinician] ❌ Medical RAG failed: {e}")
 
         return self._fallback_to_general_response(knowledge_query)
 
+    def _handle_casual_greeting(self, greeting: str) -> str:
+        """Handle casual greetings with friendly medical assistant response"""
+        print(f"[Clinician] 👋 Handling casual greeting: {greeting}")
+        
+        # Generate a friendly greeting response
+        system_prompt = (
+            "You are Aura, a friendly and helpful medical AI assistant. "
+            "Respond to greetings warmly and briefly. "
+            "Mention that you're here to help with medical questions or symptom assessment. "
+            "Keep it conversational and inviting. "
+            "Respond in 1-2 short sentences."
+        )
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": greeting}
+        ]
+        
+        try:
+            response = self.llm_chat_fn(
+                messages=messages,
+                max_tokens=100,
+                temperature=0.7
+            )
+            
+            return response.strip()
+        except Exception as e:
+            print(f"[Clinician] ❌ Error generating greeting response: {e}")
+            return "Hello! I'm Aura, your medical AI assistant. I'm here to help with any medical questions or symptom assessment you might have."
+
     def _handle_general_medical(self, general_query: str) -> str:
         """Handle general medical queries"""
-        print(f"[Unified Medical] 💬 Handling general medical: {general_query}")
+        print(f"[Clinician] 💬 Handling general medical: {general_query}")
 
         return self._fallback_to_general_response(general_query)
 
     def _fallback_to_knowledge_response(self, query: str) -> str:
         """Fallback response using medical knowledge when assessment fails"""
-        print(f"[Unified Medical] 🔄 Falling back to knowledge response for: {query}")
+        print(f"[Clinician] 🔄 Falling back to knowledge response for: {query}")
 
         if self.medical_rag:
             try:
@@ -1060,7 +1113,7 @@ Provide a helpful, professional response that addresses their concern while noti
 
                     return self.llm_chat_fn([{"role": "system", "content": response_prompt}])
             except Exception as e:
-                print(f"[Unified Medical] ❌ Knowledge fallback failed: {e}")
+                print(f"[Clinician] ❌ Knowledge fallback failed: {e}")
 
         return "I'm sorry, I encountered an issue processing your medical query. For your safety, please consult with a healthcare professional for any medical concerns."
 
@@ -1091,14 +1144,14 @@ Remember: You are not a substitute for professional medical advice.
 # Global unified medical session
 unified_medical_session = None
 
-def get_unified_medical_session(session_id: str, llm_chat_fn: Callable, llm_chat_simple_fn: Callable = None) -> UnifiedMedicalSession:
+def get_clinician_session(session_id: str, llm_chat_fn: Callable, llm_chat_simple_fn: Callable = None) -> ClinicianSession:
     """Get or create unified medical session"""
     global unified_medical_session
     if unified_medical_session is None or unified_medical_session.session_id != session_id:
-        unified_medical_session = UnifiedMedicalSession(session_id, llm_chat_fn, llm_chat_simple_fn)
+        unified_medical_session = ClinicianSession(session_id, llm_chat_fn, llm_chat_simple_fn)
     return unified_medical_session
 
-def is_unified_medical_trigger(prompt: str) -> bool:
+def is_clinician_trigger(prompt: str) -> bool:
     """
     Determine if a prompt should trigger unified medical mode using intelligent keyword search
 
@@ -1106,6 +1159,7 @@ def is_unified_medical_trigger(prompt: str) -> bool:
     - Medical symptoms ("I have chest pain")
     - Medical knowledge questions ("What is hypertension?")
     - General medical topics ("medicine", "health", etc.")
+    - Casual greetings ("hello", "hi") - now handled by unified medical
 
     Args:
         prompt: User prompt
@@ -1113,7 +1167,29 @@ def is_unified_medical_trigger(prompt: str) -> bool:
     Returns:
         True if should use unified medical mode
     """
-    prompt_lower = prompt.lower()
+    prompt_lower = prompt.lower().strip()
+
+    # Handle casual greetings - now part of unified medical
+    greeting_patterns = [
+        r'^\s*\bhello\b\s*$',
+        r'^\s*\bhi\b\s*$',
+        r'^\s*\bhey\b\s*$',
+        r'^\s*\bgood morning\b\s*$',
+        r'^\s*\bgood afternoon\b\s*$',
+        r'^\s*\bgood evening\b\s*$',
+        r'^\s*\bhow are you\b\s*$',
+        r'^\s*\bhows it going\b\s*$',
+        r'^\s*\bwhats up\b\s*$',
+        # With "aura" suffix
+        r'^\s*\bhello aura\b\s*$',
+        r'^\s*\bhi aura\b\s*$',
+        r'^\s*\bhey aura\b\s*$',
+    ]
+    
+    import re
+    if any(re.search(pattern, prompt_lower) for pattern in greeting_patterns):
+        print(f"[Clinician] 🎯 Casual greeting detected")
+        return True
 
     # Simple, flexible approach: Check for medical keywords
     # Load from medical_terms.json (shared across all containers)
@@ -1122,7 +1198,7 @@ def is_unified_medical_trigger(prompt: str) -> bool:
     # Check for medical keywords (fuzzy/partial match)
     for keyword in medical_keywords:
         if keyword.lower() in prompt_lower:
-            print(f"[Unified Medical] 🎯 Medical keyword: '{keyword}'")
+            print(f"[Clinician] 🎯 Medical keyword: '{keyword}'")
             return True
 
     # Also check built-in common symptom terms (always medical)
@@ -1136,14 +1212,16 @@ def is_unified_medical_trigger(prompt: str) -> bool:
     
     for symptom in common_symptoms:
         if symptom in prompt_lower:
-            print(f"[Unified Medical] 🎯 Common symptom: '{symptom}'")
+            print(f"[Clinician] 🎯 Common symptom: '{symptom}'")
             return True
 
     # General medical context
     if any(term in prompt_lower for term in ["medical", "diagnosis", "treatment", "symptom"]):
         return True
 
-    return False
+    # Default to unified medical for all other queries (knowledge, general conversation)
+    print(f"[Clinician] 🎯 Default to unified medical for: '{prompt[:50]}...'")
+    return True
 
 
 def _get_medical_keywords() -> list:
@@ -1189,18 +1267,18 @@ def _get_medical_keywords() -> list:
                             all_keywords.extend(variants)
                 
                 except Exception as e:
-                    print(f"[Unified Medical] ⚠️ Error loading {synonym_file.name}: {e}")
+                    print(f"[Clinician] ⚠️ Error loading {synonym_file.name}: {e}")
         
         # Remove duplicates
         unique_keywords = list(set([k.lower() for k in all_keywords]))
         
         if unique_keywords:
-            print(f"[Unified Medical] 📚 Loaded {len(unique_keywords)} medical terms from all sources")
+            print(f"[Clinician] 📚 Loaded {len(unique_keywords)} medical terms from all sources")
         
         return unique_keywords
         
     except Exception as e:
-        print(f"[Unified Medical] ⚠️ Error loading medical keywords: {e}")
+        print(f"[Clinician] ⚠️ Error loading medical keywords: {e}")
         return []
 
 
@@ -1258,7 +1336,7 @@ def _is_medical_topic_fast(text: str) -> bool:
     return False
 
 
-def handle_unified_medical_response(prompt: str, session_id: str, llm_chat_fn: Callable, llm_chat_simple_fn: Callable = None):
+def handle_clinician_response(prompt: str, session_id: str, llm_chat_fn: Callable, llm_chat_simple_fn: Callable = None):
     """
     Handle medical queries through unified medical mode
 
@@ -1271,7 +1349,7 @@ def handle_unified_medical_response(prompt: str, session_id: str, llm_chat_fn: C
     Returns:
         Medical response (str or dict with {'question', 'filler'} for adaptive assessment)
     """
-    session = get_unified_medical_session(session_id, llm_chat_fn, llm_chat_simple_fn)
+    session = get_clinician_session(session_id, llm_chat_fn, llm_chat_simple_fn)
     
     # Load persisted assessment state if it exists
     session._load_assessment_state()
@@ -1286,7 +1364,7 @@ def handle_unified_medical_response(prompt: str, session_id: str, llm_chat_fn: C
     return response
 
 
-def get_unified_medical_messages(prompt: str, session_id: str) -> list:
+def get_clinician_messages(prompt: str, session_id: str) -> list:
     """
     Get LLM messages for unified medical mode with RAG augmentation
     
@@ -1300,13 +1378,13 @@ def get_unified_medical_messages(prompt: str, session_id: str) -> list:
     # Try to use Medical RAG for enhanced responses
     if MEDICAL_RAG_AVAILABLE:
         try:
-            print("[Unified Medical] 📚 Using Medical RAG for query")
+            print("[Clinician] 📚 Using Medical RAG for query")
             return get_medical_messages(prompt)
         except Exception as e:
-            print(f"[Unified Medical] ⚠️ Medical RAG failed, using fallback: {e}")
+            print(f"[Clinician] ⚠️ Medical RAG failed, using fallback: {e}")
     
     # Fallback: Build basic medical assistant prompt
-    print("[Unified Medical] ⚠️ Using fallback prompt (no RAG)")
+    print("[Clinician] ⚠️ Using fallback prompt (no RAG)")
     system_prompt = f"""You are a helpful medical assistant. The user asked: "{prompt}"
 
 Provide a helpful response. If this appears to be a medical concern, gently suggest consulting a healthcare professional.
