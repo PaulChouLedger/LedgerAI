@@ -1601,92 +1601,15 @@ Your question:"""
         return float(similarity)
     
     def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str) -> float:
-        """Semantic similarity + keyword similarity boost for location matching"""
-        # Step 1: Get base semantic similarity
+        """Pure semantic similarity for location matching"""
+        # Get semantic similarity
         semantic_similarity = self._compute_similarity(user_answer, oldcarts_section)
         
         # DEBUG: Show semantic similarity calculation
         print(f"[Engine]   🧠 Semantic similarity: '{user_answer}' vs '{oldcarts_section}' = {semantic_similarity:.3f}")
         
-        
-        # Step 2: Calculate keyword similarity boost
-        keyword_boost = self._compute_keyword_similarity_boost(user_answer, oldcarts_section)
-        
-        # Step 3: Combine semantic + keyword boost
-        enhanced_similarity = min(1.0, semantic_similarity + keyword_boost)
-        
-        if keyword_boost > 0:
-            print(f"[Engine]   📈 Enhanced similarity: {semantic_similarity:.3f} + {keyword_boost:.3f} = {enhanced_similarity:.3f}")
-        
-        return enhanced_similarity
+        return semantic_similarity
     
-    def _compute_keyword_similarity_boost(self, user_answer: str, oldcarts_section: str) -> float:
-        """Calculate weighted keyword similarity boost using fuzzy matching"""
-        user_words = user_answer.lower().split()
-        guideline_words = oldcarts_section.lower().split()
-        
-        if not user_words or not guideline_words:
-            return 0.0
-        
-        # Calculate weighted matches
-        total_weight = 0.0
-        matched_words = []
-        
-        for user_word in user_words:
-            best_match_weight = 0.0
-            best_match_word = None
-            
-            for guideline_word in guideline_words:
-                # Calculate fuzzy match score (0.0 to 1.0)
-                fuzzy_score = self._fuzzy_match(user_word, guideline_word)
-                
-                if fuzzy_score > best_match_weight:
-                    best_match_weight = fuzzy_score
-                    best_match_word = guideline_word
-            
-            # Only count matches above threshold
-            if best_match_weight > 0.6:  # 60% similarity threshold
-                total_weight += best_match_weight
-                matched_words.append(f"{user_word}≈{best_match_word}({best_match_weight:.2f})")
-        
-        # Calculate weighted ratio
-        weighted_ratio = total_weight / len(user_words)
-        
-        # Convert to boost (0.0 to 0.5 range) - increased for complex descriptions
-        keyword_boost = weighted_ratio * 0.5
-        
-        if keyword_boost > 0.02:  # Only log significant boosts
-            print(f"[Engine]   🔑 Weighted keyword boost: {total_weight:.2f}/{len(user_words)} words = {weighted_ratio:.3f} → +{keyword_boost:.3f}")
-            print(f"[Engine]   🔑 Matched words: {matched_words}")
-        
-        return keyword_boost
-    
-    def _fuzzy_match(self, word1: str, word2: str) -> float:
-        """Calculate fuzzy match score between two words (0.0 to 1.0)"""
-        # Exact match
-        if word1 == word2:
-            return 1.0
-        
-        # Substring match (one word contains the other)
-        if word1 in word2 or word2 in word1:
-            return 0.8
-        
-        # Character overlap similarity (Jaccard)
-        set1 = set(word1)
-        set2 = set(word2)
-        intersection = set1.intersection(set2)
-        union = set1.union(set2)
-        
-        if not union:
-            return 0.0
-        
-        jaccard_score = len(intersection) / len(union)
-        
-        # Boost for similar length words
-        length_ratio = min(len(word1), len(word2)) / max(len(word1), len(word2))
-        length_boost = length_ratio * 0.2
-        
-        return min(1.0, jaccard_score + length_boost)
     
     
     def _process_clinical_answer(self, answer: str) -> Dict[str, Any]:

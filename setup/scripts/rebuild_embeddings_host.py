@@ -2,6 +2,10 @@
 """
 Rebuild RAG embeddings with current FAISS-GPU setup
 
+IMPORTANT: This script uses all-mpnet-base-v2 (768 dimensions) to match
+the RAG container configuration. Do not change the model without updating
+rag.py to match!
+
 Supports multiple document types:
 - Person bios (team pages, about us sections)
 - Technical documentation (APIs, guides)
@@ -73,23 +77,35 @@ def rebuild_embeddings(data_root="data"):
     # Load sentence transformer
     print("🧠 Loading sentence transformer model...")
     
-    # Use local model directory if available (from rag-container)
+    # Use the same model as RAG container (all-mpnet-base-v2)
     import os
-    local_model_path = "rag-container/models--sentence-transformers--all-MiniLM-L6-v2/snapshots/c9745ed1d9f207416be6d2e6f8de32d1f16199bf"
+    model_name = "all-mpnet-base-v2"  # Must match rag.py model_name
+    
+    # Check for local model directory first
+    local_model_path = f"rag-container/models--sentence-transformers--{model_name.replace('-', '--')}/snapshots"
     if os.path.exists(local_model_path):
-        print(f"📁 Using local model: {local_model_path}")
-        
-        # Set environment to use local cache and avoid downloads
-        os.environ['HF_HOME'] = os.path.abspath('rag-container')
-        os.environ['TRANSFORMERS_CACHE'] = os.path.abspath('rag-container')
-        os.environ['HF_HUB_OFFLINE'] = '1'
-        os.environ['TRANSFORMERS_OFFLINE'] = '1'
-        
-        encoder = SentenceTransformer(local_model_path, device='cuda')
-        print(f"✅ Loaded local model: {local_model_path}")
+        # Find the actual snapshot directory
+        snapshots = [d for d in os.listdir(local_model_path) if os.path.isdir(os.path.join(local_model_path, d))]
+        if snapshots:
+            full_local_path = os.path.join(local_model_path, snapshots[0])
+            print(f"📁 Using local model: {full_local_path}")
+            
+            # Set environment to use local cache and avoid downloads
+            os.environ['HF_HOME'] = os.path.abspath('rag-container')
+            os.environ['TRANSFORMERS_CACHE'] = os.path.abspath('rag-container')
+            os.environ['HF_HUB_OFFLINE'] = '1'
+            os.environ['TRANSFORMERS_OFFLINE'] = '1'
+            
+            encoder = SentenceTransformer(full_local_path, device='cuda')
+            print(f"✅ Loaded local model: {full_local_path}")
+        else:
+            # No snapshots found, download the model
+            print(f"📥 No local snapshots found, downloading {model_name}...")
+            encoder = SentenceTransformer(model_name, device='cuda')
+            print(f"✅ Loaded model: {model_name}")
     else:
-        # Fallback to downloading (requires internet and permissions)
-        model_name = "all-MiniLM-L6-v2"
+        # No local model directory, download the model
+        print(f"📥 No local model found, downloading {model_name}...")
         encoder = SentenceTransformer(model_name, device='cuda')
         print(f"✅ Loaded model: {model_name}")
     
