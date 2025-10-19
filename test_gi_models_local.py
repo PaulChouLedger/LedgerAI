@@ -428,9 +428,21 @@ def test_oldcarts_normalization_flow():
         print(f"   Python path: {sys.path}")
         return False
     
-    # Create an instance
+    # Create an instance with embedding model for semantic matching
     try:
-        engine = AdaptiveDiagnosticEngine()
+        # Try to import and initialize a sentence transformer model
+        embedding_model = None
+        try:
+            from sentence_transformers import SentenceTransformer
+            print("🧠 Loading embedding model for semantic matching...")
+            embedding_model = SentenceTransformer('all-MiniLM-L6-v2')  # Fast, lightweight model
+            print("✅ Successfully loaded embedding model")
+        except ImportError:
+            print("⚠️  sentence-transformers not available - semantic matching will be disabled")
+        except Exception as e:
+            print(f"⚠️  Failed to load embedding model: {e}")
+        
+        engine = AdaptiveDiagnosticEngine(embedding_model=embedding_model)
         print("✅ Successfully created AdaptiveDiagnosticEngine instance")
     except Exception as e:
         print(f"❌ Failed to create AdaptiveDiagnosticEngine instance: {e}")
