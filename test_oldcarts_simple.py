@@ -77,14 +77,35 @@ def test_oldcarts_normalization_simple():
         # Sort by length (longest first) to avoid partial replacements
         all_variations.sort(key=lambda x: x[0], reverse=True)
         
+        # Debug: Show some of the loaded synonyms
+        print(f"   📊 Loaded {len(all_variations)} synonym variations")
+        print(f"   📋 Sample synonyms:")
+        for i, (length, variation, standard_term) in enumerate(all_variations[:10]):
+            print(f"      {i+1}. '{variation}' → '{standard_term}'")
+        if len(all_variations) > 10:
+            print(f"      ... and {len(all_variations) - 10} more")
+        
         for length, variation, standard_term in all_variations:
             pattern = r'\b' + re.escape(variation) + r'\b'
             if re.search(pattern, normalized_text, re.IGNORECASE):
                 normalized_text = re.sub(pattern, standard_term, normalized_text, flags=re.IGNORECASE)
                 print(f"   🔄 '{variation}' → '{standard_term}'")
-                break  # Only replace first match
+                # Don't break - continue to find other matches
         
         return normalized_text
+    
+    # Test specific terms first
+    print(f"\n🔍 Testing specific terms...")
+    test_terms = ["tummy", "belly ache", "queasy", "want to throw up", "upper right"]
+    for term in test_terms:
+        found = False
+        for standard_term, variations in synonyms.items():
+            if term in variations:
+                print(f"   ✅ Found '{term}' → '{standard_term}'")
+                found = True
+                break
+        if not found:
+            print(f"   ❌ '{term}' not found in synonyms")
     
     # Test cases
     test_cases = [
