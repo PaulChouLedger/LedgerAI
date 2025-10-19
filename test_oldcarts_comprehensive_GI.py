@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Comprehensive OLDCARTS Normalization Test for GI System
-Tests 1000+ patient prompts including common UK language variations
+Tests 500 patient prompts with majority focusing on UK language variations
 """
 
 import sys
@@ -12,7 +12,7 @@ import time
 from typing import List, Dict, Tuple
 
 def test_oldcarts_comprehensive_gi():
-    """Comprehensive test of OLDCARTS normalization for GI system with 1000+ patient prompts"""
+    """Comprehensive test of OLDCARTS normalization for GI system with 500 patient prompts (UK language focus)"""
     print("🧪 Comprehensive OLDCARTS Normalization Test - GI System")
     print("=" * 70)
     
@@ -91,7 +91,7 @@ def test_oldcarts_comprehensive_gi():
     
     # Generate comprehensive test cases
     def generate_comprehensive_test_cases():
-        """Generate 1000+ comprehensive test cases including UK language"""
+        """Generate 500 comprehensive test cases with UK language focus"""
         
         # Base templates for different types of complaints
         base_templates = [
@@ -285,10 +285,10 @@ def test_oldcarts_comprehensive_gi():
                 'occasionally', 'sometimes', 'periodically', 'regularly',
                 'in the morning', 'at night', 'during the day', 'in the evening',
                 'when I wake up', 'when I go to bed', 'after meals',
-                'before meals', 'when I'm hungry', 'when I'm full',
-                'when I'm stressed', 'when I'm relaxed', 'when I'm active',
-                'when I'm resting', 'when I'm lying down', 'when I'm sitting',
-                'when I'm standing', 'when I'm walking', 'when I'm driving',
+                'before meals', 'when I\'m hungry', 'when I\'m full',
+                'when I\'m stressed', 'when I\'m relaxed', 'when I\'m active',
+                'when I\'m resting', 'when I\'m lying down', 'when I\'m sitting',
+                'when I\'m standing', 'when I\'m walking', 'when I\'m driving',
             ],
             
             'severity': [
@@ -335,8 +335,8 @@ def test_oldcarts_comprehensive_gi():
         # Generate test cases
         test_cases = []
         
-        # Add simple location-based cases
-        for location in fill_values['location'][:20]:  # Limit to avoid too many
+        # Add reduced simple location-based cases (focus on UK terms)
+        for location in fill_values['location'][:8]:  # Reduced from 20 to focus on UK expressions
             test_cases.extend([
                 f"my {location} hurts",
                 f"I have pain in my {location}",
@@ -345,96 +345,91 @@ def test_oldcarts_comprehensive_gi():
                 f"I've got a pain in my {location}",
             ])
         
-        # Add character + location combinations
-        for character in fill_values['character'][:10]:
-            for location in fill_values['location'][:10]:
+        # Add reduced character + location combinations (focus on UK terms)
+        for character in fill_values['character'][:5]:  # Reduced from 10
+            for location in fill_values['location'][:5]:  # Reduced from 10
                 test_cases.extend([
                     f"I have {character} pain in my {location}",
                     f"there's a {character} ache in my {location}",
-                    f"my {location} has a {character} pain",
                 ])
         
-        # Add onset combinations
-        for onset in fill_values['onset'][:10]:
-            for location in fill_values['location'][:10]:
+        # Add reduced onset combinations
+        for onset in fill_values['onset'][:5]:  # Reduced from 10
+            for location in fill_values['location'][:5]:  # Reduced from 10
                 test_cases.extend([
                     f"my {location} started hurting {onset}",
                     f"I've had pain in my {location} {onset}",
                 ])
         
-        # Add duration combinations
-        for duration in fill_values['duration'][:10]:
-            for location in fill_values['location'][:10]:
+        # Add reduced duration combinations
+        for duration in fill_values['duration'][:5]:  # Reduced from 10
+            for location in fill_values['location'][:5]:  # Reduced from 10
                 test_cases.extend([
                     f"I've had pain in my {location} for {duration}",
                     f"my {location} has been hurting for {duration}",
                 ])
         
-        # Add aggravating factor combinations
-        for aggravating in fill_values['aggravating'][:10]:
-            for location in fill_values['location'][:10]:
+        # Add reduced aggravating factor combinations
+        for aggravating in fill_values['aggravating'][:5]:  # Reduced from 10
+            for location in fill_values['location'][:5]:  # Reduced from 10
                 test_cases.extend([
                     f"my {location} hurts when I {aggravating}",
                     f"the pain in my {location} gets worse when I {aggravating}",
                 ])
         
-        # Add alleviating factor combinations
-        for alleviating in fill_values['alleviating'][:10]:
-            for location in fill_values['location'][:10]:
+        # Add reduced alleviating factor combinations
+        for alleviating in fill_values['alleviating'][:5]:  # Reduced from 10
+            for location in fill_values['location'][:5]:  # Reduced from 10
                 test_cases.extend([
                     f"my {location} feels better when I {alleviating}",
                     f"the pain in my {location} improves with {alleviating}",
                 ])
         
-        # Add radiation combinations
-        for radiation in fill_values['radiation'][:10]:
-            for location in fill_values['location'][:10]:
+        # Add reduced radiation combinations
+        for radiation in fill_values['radiation'][:5]:  # Reduced from 10
+            for location in fill_values['location'][:5]:  # Reduced from 10
                 test_cases.extend([
                     f"the pain in my {location} goes to my {radiation}",
                     f"my {location} hurts and it radiates to my {radiation}",
                 ])
         
-        # Add timing combinations
-        for timing in fill_values['timing'][:10]:
-            for location in fill_values['location'][:10]:
+        # Add reduced timing combinations
+        for timing in fill_values['timing'][:5]:  # Reduced from 10
+            for location in fill_values['location'][:5]:  # Reduced from 10
                 test_cases.extend([
                     f"my {location} pain is {timing}",
                     f"the pain in my {location} comes and goes {timing}",
                 ])
         
-        # Add severity combinations
-        for severity in fill_values['severity'][:10]:
-            for location in fill_values['location'][:10]:
+        # Add reduced severity combinations
+        for severity in fill_values['severity'][:5]:  # Reduced from 10
+            for location in fill_values['location'][:5]:  # Reduced from 10
                 test_cases.extend([
                     f"I have {severity} pain in my {location}",
                     f"my {location} is {severity} painful",
                 ])
         
-        # Add associated symptom combinations
-        for symptom in fill_values['symptom'][:10]:
-            for location in fill_values['location'][:10]:
+        # Add reduced associated symptom combinations
+        for symptom in fill_values['symptom'][:5]:  # Reduced from 10
+            for location in fill_values['location'][:5]:  # Reduced from 10
                 test_cases.extend([
                     f"I have {location} pain and I feel {symptom}",
                     f"my {location} hurts and I'm {symptom}",
                 ])
         
-        # Add complex multi-factor combinations
+        # Add reduced complex multi-factor combinations
         complex_combinations = [
             "I have sharp pain in my upper right that started suddenly after eating",
             "my left lower belly has been cramping for a few days and it radiates to my back",
             "I've got severe pain in my tummy that comes and goes constantly",
             "my stomach hurts when I eat and I feel nauseous",
             "there's a burning pain in my chest that gets worse when I lie down",
-            "I have dull ache in my belly that started gradually and gets better with rest",
-            "my right side hurts when I move and it goes to my shoulder",
-            "I've had intermittent pain in my gut for weeks and I feel bloated",
-            "my tummy is really painful and I feel sick to my stomach",
-            "there's a stabbing pain in my upper belly that radiates through to my back",
         ]
         test_cases.extend(complex_combinations)
         
-        # Add UK-specific expressions
+        # Add extensive UK-specific expressions (majority of test cases)
         uk_expressions = [
+            # Basic UK expressions
             "my tummy is playing up",
             "I've got a dodgy belly",
             "my stomach is giving me gyp",
@@ -455,10 +450,228 @@ def test_oldcarts_comprehensive_gi():
             "my stomach is not brilliant",
             "I've got a horrible pain in my tummy",
             "my belly is pretty rubbish",
+            
+            # More UK expressions with locations
+            "my upper tummy is playing up",
+            "I've got a dodgy lower belly",
+            "my left side tummy is giving me gyp",
+            "my right side belly is bothering me",
+            "my middle tummy is niggling",
+            "I've got a twinge in my upper belly",
+            "my lower tummy is not quite right",
+            "I'm feeling a bit peaky in my left belly",
+            "my right tummy is off colour",
+            "I'm not feeling great in my lower belly area",
+            "my upper belly is feeling rough",
+            "I've got a nasty pain in my right tummy",
+            "my left belly is absolutely terrible",
+            "I feel rubbish in my upper tummy",
+            "my lower gut is bloody awful",
+            "my middle stomach is not brilliant",
+            "I've got a horrible pain in my left tummy",
+            "my right belly is pretty rubbish",
+            
+            # UK expressions with timing
+            "my tummy has been playing up for days",
+            "I've had a dodgy belly since this morning",
+            "my stomach has been giving me gyp all week",
+            "my gut has been bothering me on and off",
+            "my belly has been niggling for hours",
+            "I've had a twinge in my tummy since yesterday",
+            "my stomach has been not quite right for ages",
+            "I've been feeling a bit peaky in my belly lately",
+            "my gut has been off colour since last night",
+            "my tummy has been feeling rough all day",
+            "I've had a nasty pain in my belly for weeks",
+            "my stomach has been absolutely terrible since Monday",
+            "I've been feeling rubbish in my tummy for days",
+            "my gut has been bloody awful since the weekend",
+            "my belly has been not brilliant for a while",
+            "I've had a horrible pain in my tummy since this afternoon",
+            "my stomach has been pretty rubbish for months",
+            
+            # UK expressions with severity
+            "my tummy is a bit dodgy",
+            "I've got a really dodgy belly",
+            "my stomach is quite niggling",
+            "my gut is really bothering me",
+            "my belly is quite painful",
+            "I've got a really nasty pain in my tummy",
+            "my stomach is quite terrible",
+            "my gut is really rubbish",
+            "my belly is quite awful",
+            "my tummy is really not brilliant",
+            "I've got a quite horrible pain in my belly",
+            "my stomach is really pretty rubbish",
+            
+            # UK expressions with character
+            "my tummy is a bit achy",
+            "I've got a sharp pain in my dodgy belly",
+            "my stomach is quite crampy",
+            "my gut is really burning",
+            "my belly is quite stabbing",
+            "I've got a really gnawing pain in my tummy",
+            "my stomach is quite throbbing",
+            "my gut is really shooting",
+            "my belly is quite stinging",
+            "my tummy is really biting",
+            
+            # UK expressions with aggravating factors
+            "my tummy plays up when I eat",
+            "I've got a dodgy belly when I'm stressed",
+            "my stomach gives me gyp after meals",
+            "my gut bothers me when I move",
+            "my belly niggles when I lie down",
+            "I've got a twinge in my tummy when I cough",
+            "my stomach is not quite right when I'm hungry",
+            "my gut is off colour when I'm tired",
+            "my belly feels rough when I'm anxious",
+            "my tummy is terrible when I'm worried",
+            
+            # UK expressions with associated symptoms
+            "my tummy is playing up and I feel sick",
+            "I've got a dodgy belly and I'm queasy",
+            "my stomach is giving me gyp and I want to be sick",
+            "my gut is bothering me and I feel nauseous",
+            "my belly is niggling and I feel dizzy",
+            "I've got a twinge in my tummy and I feel faint",
+            "my stomach is not quite right and I feel weak",
+            "my gut is off colour and I feel tired",
+            "my belly feels rough and I feel unwell",
+            "my tummy is terrible and I feel poorly",
+            
+            # Additional UK expressions with more variations
+            "my tummy's been playing up something rotten",
+            "I've got a right dodgy belly on me",
+            "my stomach's giving me proper gyp",
+            "there's something not right with my gut",
+            "my tummy's been bothering me no end",
+            "I've got a bit of bother with my belly area",
+            "my stomach's been niggling away at me",
+            "I've got a proper twinge in my tummy",
+            "my belly's not quite the ticket",
+            "I'm feeling a bit peaky in my stomach region",
+            "my gut's gone all off colour",
+            "I'm not feeling great in my tummy department",
+            "my belly's been feeling really rough",
+            "I've got a nasty pain in my stomach area",
+            "my tummy's been absolutely terrible lately",
+            "I feel proper rubbish in my belly",
+            "my gut's been bloody awful today",
+            "my stomach's not been brilliant recently",
+            "I've got a horrible pain in my tummy region",
+            "my belly's been pretty rubbish for ages",
+            
+            # UK expressions with more timing variations
+            "my tummy's been playing up for donkey's years",
+            "I've had a dodgy belly since the crack of dawn",
+            "my stomach's been giving me gyp all day long",
+            "my gut's been bothering me on and off for weeks",
+            "my belly's been niggling for what seems like forever",
+            "I've had a twinge in my tummy since yesterday morning",
+            "my stomach's been not quite right for ages now",
+            "I've been feeling a bit peaky in my belly for days",
+            "my gut's been off colour since last weekend",
+            "my tummy's been feeling rough all week long",
+            "I've had a nasty pain in my belly for months",
+            "my stomach's been absolutely terrible since Monday",
+            "I've been feeling rubbish in my tummy for weeks",
+            "my gut's been bloody awful since the weekend",
+            "my belly's been not brilliant for quite a while",
+            "I've had a horrible pain in my tummy since this afternoon",
+            "my stomach's been pretty rubbish for months on end",
+            
+            # UK expressions with more severity variations
+            "my tummy's a bit dodgy today",
+            "I've got a really dodgy belly on me",
+            "my stomach's quite niggling this morning",
+            "my gut's really bothering me something chronic",
+            "my belly's quite painful when I move",
+            "I've got a really nasty pain in my tummy",
+            "my stomach's quite terrible this evening",
+            "my gut's really rubbish today",
+            "my belly's quite awful when I eat",
+            "my tummy's really not brilliant lately",
+            "I've got a quite horrible pain in my belly",
+            "my stomach's really pretty rubbish today",
+            "my tummy's a bit of a nuisance",
+            "I've got a proper dodgy belly",
+            "my stomach's quite a bother",
+            "my gut's really playing up",
+            "my belly's quite a pain",
+            "I've got a right nasty pain in my tummy",
+            "my stomach's quite terrible",
+            "my gut's really not good",
+            
+            # UK expressions with more character variations
+            "my tummy's a bit achy today",
+            "I've got a sharp pain in my dodgy belly",
+            "my stomach's quite crampy this morning",
+            "my gut's really burning when I eat",
+            "my belly's quite stabbing this evening",
+            "I've got a really gnawing pain in my tummy",
+            "my stomach's quite throbbing today",
+            "my gut's really shooting when I move",
+            "my belly's quite stinging this afternoon",
+            "my tummy's really biting when I cough",
+            "my stomach's a bit sore",
+            "I've got a dull ache in my dodgy belly",
+            "my gut's quite tender",
+            "my belly's really sensitive",
+            "my tummy's quite uncomfortable",
+            "I've got a nagging pain in my belly",
+            "my stomach's quite persistent",
+            "my gut's really annoying",
+            "my belly's quite bothersome",
+            "my tummy's really irritating",
+            
+            # UK expressions with more aggravating factors
+            "my tummy plays up when I eat spicy food",
+            "I've got a dodgy belly when I'm stressed out",
+            "my stomach gives me gyp after big meals",
+            "my gut bothers me when I move around",
+            "my belly niggles when I lie down flat",
+            "I've got a twinge in my tummy when I cough hard",
+            "my stomach's not quite right when I'm hungry",
+            "my gut's off colour when I'm tired out",
+            "my belly feels rough when I'm anxious",
+            "my tummy's terrible when I'm worried sick",
+            "my stomach plays up when I drink coffee",
+            "I've got a dodgy belly when I'm nervous",
+            "my gut gives me gyp when I eat too much",
+            "my belly bothers me when I bend over",
+            "my tummy niggles when I'm stressed",
+            "I've got a twinge when I take deep breaths",
+            "my stomach's not right when I'm upset",
+            "my gut's off when I'm run down",
+            "my belly feels rough when I'm tired",
+            "my tummy's awful when I'm worried",
+            
+            # UK expressions with more associated symptoms
+            "my tummy's playing up and I feel sick as a dog",
+            "I've got a dodgy belly and I'm feeling queasy",
+            "my stomach's giving me gyp and I want to be sick",
+            "my gut's bothering me and I feel nauseous",
+            "my belly's niggling and I feel dizzy",
+            "I've got a twinge in my tummy and I feel faint",
+            "my stomach's not quite right and I feel weak",
+            "my gut's off colour and I feel tired out",
+            "my belly feels rough and I feel unwell",
+            "my tummy's terrible and I feel poorly",
+            "my stomach's playing up and I feel sick",
+            "I've got a dodgy belly and I'm feeling off",
+            "my gut's giving me gyp and I feel nauseous",
+            "my belly's bothering me and I feel dizzy",
+            "my tummy's niggling and I feel faint",
+            "I've got a twinge and I feel weak",
+            "my stomach's not right and I feel tired",
+            "my gut's off and I feel unwell",
+            "my belly feels rough and I feel poorly",
+            "my tummy's awful and I feel sick",
         ]
         test_cases.extend(uk_expressions)
         
-        # Add more specific medical scenarios
+        # Add reduced medical scenarios (minority of test cases)
         medical_scenarios = [
             "I have pain in my right upper quadrant that radiates to my right shoulder",
             "my left lower quadrant is tender and I have a fever",
@@ -468,25 +681,15 @@ def test_oldcarts_comprehensive_gi():
             "I have burning pain in my retrosternal area that gets worse when I eat",
             "my suprapubic area is painful and I have urinary symptoms",
             "I have colicky pain in my flank that radiates to my groin",
-            "my epigastric pain is worse when I'm hungry and better when I eat",
+            "my epigastric pain is worse when I\'m hungry and better when I eat",
             "I have diffuse abdominal pain with nausea and vomiting",
-            "my right upper quadrant is tender and I have jaundice",
-            "I have left lower quadrant pain with constipation and bloating",
-            "my epigastric pain is burning and gets worse at night",
-            "I have periumbilical pain that started suddenly and is severe",
-            "my right lower quadrant pain is constant and getting worse",
-            "I have upper abdominal pain that radiates to my back and shoulders",
-            "my left upper quadrant is painful and I feel full quickly",
-            "I have lower abdominal pain with diarrhea and urgency",
-            "my epigastric pain is gnawing and gets better with antacids",
-            "I have right upper quadrant pain with nausea after fatty meals",
         ]
         test_cases.extend(medical_scenarios)
         
-        # Remove duplicates and limit to 1000
+        # Remove duplicates and limit to 500 (UK language focused)
         test_cases = list(set(test_cases))
-        if len(test_cases) > 1000:
-            test_cases = test_cases[:1000]
+        if len(test_cases) > 500:
+            test_cases = test_cases[:500]
         
         return test_cases
     
