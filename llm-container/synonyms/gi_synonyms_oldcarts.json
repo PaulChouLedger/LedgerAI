@@ -7,7 +7,8 @@
       "started suddenly",
       "hit me suddenly",
       "came out of nowhere",
-      "without warning"
+      "without warning",
+      "out of nowhere"
     ],
     "gradual": [
       "slowly",
@@ -45,7 +46,10 @@
       "stomach pain",
       "bellyache",
       "cramps",
-      "stomach cramps"
+      "stomach cramps",
+      "hurts",
+      "pain in my abdomen",
+      "diffuse abdominal pain"
     ],
     "ruq_pain": [
       "right upper quadrant pain",
@@ -57,7 +61,8 @@
       "upper abdomen",
       "upper stomach",
       "pain in upper abdomen",
-      "pain in upper stomach"
+      "pain in upper stomach",
+      "right upper quadrant"
     ],
     "rlq_pain": [
       "right lower quadrant pain",
@@ -189,7 +194,9 @@
       "knife-like",
       "piercing",
       "cutting",
-      "acute pain"
+      "acute pain",
+      "twinge",
+      "shooting"
     ],
     "dull": [
       "dull pain",
@@ -197,7 +204,9 @@
       "aching",
       "sore",
       "tender",
-      "heavy feeling"
+      "heavy feeling",
+      "niggling",
+      "rough"
     ],
     "cramping": [
       "cramps",
@@ -241,7 +250,15 @@
       "after meals",
       "food makes it worse",
       "eating triggers it",
-      "postprandial"
+      "postprandial",
+      "playing up",
+      "giving me gyp"
+    ],
+    "drinking": [
+      "when I drink",
+      "drinking makes it worse",
+      "gets worse when I drink",
+      "after drinking"
     ],
     "movement": [
       "when I move",
@@ -249,7 +266,10 @@
       "walking",
       "bending",
       "twisting",
-      "physical activity"
+      "physical activity",
+      "bothering me",
+      "gets worse when I bend",
+      "gets worse when I walk"
     ],
     "breathing": [
       "when I breathe",
@@ -277,7 +297,9 @@
       "when I rest",
       "lying still",
       "not moving",
-      "staying still"
+      "staying still",
+      "feels better when I lie down",
+      "improves with lie down"
     ],
     "heat": [
       "heat helps",
@@ -304,7 +326,19 @@
       "sitting up",
       "leaning forward",
       "fetal position",
-      "knees to chest"
+      "knees to chest",
+      "improves with sit down",
+      "feels better when I sit down"
+    ],
+    "standing": [
+      "improves with stand up",
+      "feels better when I stand up",
+      "standing helps"
+    ],
+    "walking": [
+      "improves with walk around",
+      "feels better when I walk",
+      "walking helps"
     ]
   },
   "radiation": {
@@ -313,21 +347,27 @@
       "radiates to back",
       "back pain",
       "pain in back",
-      "spreads to back"
+      "spreads to back",
+      "radiates to my back",
+      "goes to my back"
     ],
     "shoulder": [
       "goes to shoulder",
       "radiates to shoulder",
       "shoulder pain",
       "pain in shoulder",
-      "spreads to shoulder"
+      "spreads to shoulder",
+      "radiates to my shoulder",
+      "goes to my shoulder"
     ],
     "chest": [
       "goes to chest",
       "radiates to chest",
       "chest pain",
       "pain in chest",
-      "spreads to chest"
+      "spreads to chest",
+      "radiates to my chest",
+      "goes to my chest"
     ],
     "groin": [
       "goes to groin",
@@ -341,7 +381,18 @@
       "radiates to legs",
       "leg pain",
       "pain in legs",
-      "spreads to legs"
+      "spreads to legs",
+      "radiates to my leg",
+      "goes to my leg"
+    ],
+    "arm": [
+      "goes to arm",
+      "radiates to arm",
+      "arm pain",
+      "pain in arm",
+      "spreads to arm",
+      "radiates to my arm",
+      "goes to my arm"
     ]
   },
   "timing": {
@@ -354,7 +405,8 @@
       "ongoing",
       "stays in one spot",
       "stays in one place",
-      "doesn't move"
+      "doesn't move",
+      "continuously"
     ],
     "intermittent": [
       "comes and goes",
@@ -396,14 +448,18 @@
       "minor pain",
       "not too bad",
       "manageable",
-      "tolerable"
+      "tolerable",
+      "rubbish",
+      "pretty rubbish",
+      "not brilliant"
     ],
     "moderate": [
       "moderate pain",
       "medium pain",
       "somewhat painful",
       "noticeable",
-      "uncomfortable"
+      "uncomfortable",
+      "nasty"
     ],
     "severe": [
       "severe pain",
@@ -411,7 +467,12 @@
       "really painful",
       "excruciating",
       "unbearable",
-      "intense"
+      "intense",
+      "bloody awful",
+      "absolutely terrible",
+      "horrible",
+      "really nasty",
+      "really horrible"
     ],
     "scale_1_3": [
       "1 out of 10",
@@ -442,7 +503,13 @@
       "sick to stomach",
       "want to vomit",
       "feeling nauseous",
-      "upset stomach"
+      "upset stomach",
+      "peaky",
+      "off colour",
+      "dodgy",
+      "not quite right",
+      "feeling rough",
+      "something wrong with"
     ],
     "vomiting": [
       "throwing up",
@@ -450,7 +517,8 @@
       "puking",
       "emesis",
       "projectile vomiting",
-      "vomit"
+      "vomit",
+      "nausea and vomiting"
     ],
     "diarrhea": [
       "loose stools",

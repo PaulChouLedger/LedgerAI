@@ -1,0 +1,3834 @@
+{
+  "total_tests": 500,
+  "normalized_count": 439,
+  "not_normalized_count": 61,
+  "normalization_matches": {
+    "location abdominal pain": 228,
+    "alleviating factors standing": 8,
+    "duration hours": 6,
+    "radiation arm": 7,
+    "aggravating factors drinking": 7,
+    "severity severe": 12,
+    "severity scale 7 10": 11,
+    "associated symptoms vomiting": 1,
+    "character sharp": 15,
+    "character burning": 6,
+    "duration minutes": 12,
+    "alleviating factors rest": 12,
+    "radiation back": 9,
+    "location llq pain": 1,
+    "duration days": 11,
+    "character cramping": 7,
+    "onset sudden": 31,
+    "severity mild": 37,
+    "radiation shoulder": 7,
+    "duration intermittent": 21,
+    "duration constant": 18,
+    "associated symptoms nausea": 42,
+    "alleviating factors walking": 7,
+    "aggravating factors movement": 32,
+    "onset chronic": 2,
+    "aggravating factors eating": 25,
+    "character dull": 22,
+    "radiation chest": 6,
+    "radiation legs": 7,
+    "duration weeks": 9,
+    "associated symptoms fatigue": 7,
+    "severity moderate": 3,
+    "timing constant": 9,
+    "alleviating factors position": 6,
+    "location ruq pain": 5,
+    "character throbbing": 2,
+    "duration months": 1,
+    "severity scale 4 6": 1,
+    "aggravating factors stress": 1,
+    "character colicky": 1
+  },
+  "sample_results": [
+    {
+      "input": "my gut hurts and I'm sick",
+      "normalized": "my gut location abdominal pain and i'm sick",
+      "matches": [
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my gut feels better when I stand up",
+      "normalized": "my gut alleviating factors standing",
+      "matches": [
+        [
+          "feels better when I stand up",
+          "alleviating factors standing"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've had pain in my gut for a few hours",
+      "normalized": "i've had pain in my gut for a duration hours",
+      "matches": [
+        [
+          "few hours",
+          "duration hours"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my stomach goes to my arm",
+      "normalized": "the pain in my stomach radiation arm",
+      "matches": [
+        [
+          "goes to my arm",
+          "radiation arm"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "there's a pain in my belly",
+      "normalized": "there's a pain in my belly",
+      "matches": [],
+      "normalized_count": 0
+    },
+    {
+      "input": "my stomach plays up when I drink coffee",
+      "normalized": "my stomach plays up aggravating factors drinking coffee",
+      "matches": [
+        [
+          "when I drink",
+          "aggravating factors drinking"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I'm not feeling great in my tummy area",
+      "normalized": "i'm not feeling great in my location abdominal pain area",
+      "matches": [
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my tummy's awful when I'm worried",
+      "normalized": "my location abdominal pain's awful when i'm worried",
+      "matches": [
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my tummy hurts when I walk",
+      "normalized": "my location abdominal pain location abdominal pain when i walk",
+      "matches": [
+        [
+          "tummy",
+          "location abdominal pain"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my stomach's been absolutely terrible since Monday",
+      "normalized": "my stomach's been severity severity scale 7 10 since monday",
+      "matches": [
+        [
+          "absolutely terrible",
+          "severity severe"
+        ],
+        [
+          "severe",
+          "severity scale 7 10"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my gut gets worse when I drink",
+      "normalized": "the pain in my gut aggravating factors drinking",
+      "matches": [
+        [
+          "gets worse when I drink",
+          "aggravating factors drinking"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I have diffuse abdominal pain with nausea and vomiting",
+      "normalized": "i have location abdominal pain with associated symptoms vomiting",
+      "matches": [
+        [
+          "diffuse abdominal pain",
+          "location abdominal pain"
+        ],
+        [
+          "nausea and vomiting",
+          "associated symptoms vomiting"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've got a twinge in my tummy when I cough hard",
+      "normalized": "i've got a character sharp in my location abdominal pain when i cough hard",
+      "matches": [
+        [
+          "twinge",
+          "character sharp"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had pain in my tummy quickly",
+      "normalized": "i've had pain in my location abdominal pain quickly",
+      "matches": [
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I have belly pain and I feel lightheaded",
+      "normalized": "i have location abdominal pain and i feel lightheaded",
+      "matches": [
+        [
+          "belly pain",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I have burning pain in my belly",
+      "normalized": "i have character burning in my belly",
+      "matches": [
+        [
+          "burning pain",
+          "character burning"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've had pain in my gut for several minutes",
+      "normalized": "i've had pain in my gut for duration minutes",
+      "matches": [
+        [
+          "several minutes",
+          "duration minutes"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "there's a burning pain in my chest that gets worse when I lie down",
+      "normalized": "there's a character burning in my chest that gets worse when i lie down",
+      "matches": [
+        [
+          "burning pain",
+          "character burning"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my gut improves with lie down",
+      "normalized": "the pain in my gut alleviating factors rest",
+      "matches": [
+        [
+          "improves with lie down",
+          "alleviating factors rest"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my left belly is absolutely terrible",
+      "normalized": "my left belly is severity severity scale 7 10",
+      "matches": [
+        [
+          "absolutely terrible",
+          "severity severe"
+        ],
+        [
+          "severe",
+          "severity scale 7 10"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my left lower belly has been cramping for a few days and it radiates to my back",
+      "normalized": "my location llq pain has been character cramping for a duration days and it radiation back",
+      "matches": [
+        [
+          "radiates to my back",
+          "radiation back"
+        ],
+        [
+          "left lower belly",
+          "location llq pain"
+        ],
+        [
+          "few days",
+          "duration days"
+        ],
+        [
+          "cramping",
+          "character cramping"
+        ]
+      ],
+      "normalized_count": 4
+    },
+    {
+      "input": "my tummy started hurting all of a sudden",
+      "normalized": "my location abdominal pain started hurting onset sudden",
+      "matches": [
+        [
+          "all of a sudden",
+          "onset sudden"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my tummy hurts and it radiates to my arm",
+      "normalized": "my location abdominal pain location abdominal pain and it radiation arm",
+      "matches": [
+        [
+          "radiates to my arm",
+          "radiation arm"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "I have mild pain in my gut",
+      "normalized": "i have severity mild in my gut",
+      "matches": [
+        [
+          "mild pain",
+          "severity mild"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my tummy hurts and it radiates to my shoulder",
+      "normalized": "my location abdominal pain location abdominal pain and it radiation shoulder",
+      "matches": [
+        [
+          "radiates to my shoulder",
+          "radiation shoulder"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "the pain in my stomach comes and goes all the time",
+      "normalized": "the pain in my stomach duration intermittent duration constant",
+      "matches": [
+        [
+          "comes and goes",
+          "duration intermittent"
+        ],
+        [
+          "all the time",
+          "duration constant"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've got a dodgy belly and I'm feeling queasy",
+      "normalized": "i've got a associated symptoms nausea belly and i'm feeling associated symptoms nausea",
+      "matches": [
+        [
+          "queasy",
+          "associated symptoms nausea"
+        ],
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my belly improves with walk around",
+      "normalized": "the pain in my belly alleviating factors aggravating factors movement",
+      "matches": [
+        [
+          "improves with walk around",
+          "alleviating factors walking"
+        ],
+        [
+          "walking",
+          "aggravating factors movement"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my stomach's quite persistent",
+      "normalized": "my stomach's quite onset chronic",
+      "matches": [
+        [
+          "persistent",
+          "onset chronic"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my abdomen goes to my shoulder",
+      "normalized": "the location abdominal pain radiation shoulder",
+      "matches": [
+        [
+          "goes to my shoulder",
+          "radiation shoulder"
+        ],
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my tummy pain is constantly",
+      "normalized": "my location abdominal pain pain is constantly",
+      "matches": [
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I have minor pain in my gut",
+      "normalized": "i have severity mild in my gut",
+      "matches": [
+        [
+          "minor pain",
+          "severity mild"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've had pain in my gut without warning",
+      "normalized": "i've had pain in my gut onset sudden",
+      "matches": [
+        [
+          "without warning",
+          "onset sudden"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my stomach's not been brilliant recently",
+      "normalized": "my stomach's not been brilliant recently",
+      "matches": [],
+      "normalized_count": 0
+    },
+    {
+      "input": "my stomach is giving me gyp",
+      "normalized": "my stomach is aggravating factors eating",
+      "matches": [
+        [
+          "giving me gyp",
+          "aggravating factors eating"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my belly feels rough and I feel poorly",
+      "normalized": "my belly feels character dull and i feel poorly",
+      "matches": [
+        [
+          "rough",
+          "character dull"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my tummy goes to my chest",
+      "normalized": "the pain in my location abdominal pain radiation chest",
+      "matches": [
+        [
+          "goes to my chest",
+          "radiation chest"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my belly area is aching",
+      "normalized": "my belly area is character dull",
+      "matches": [
+        [
+          "aching",
+          "character dull"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've had pain in my stomach all of a sudden",
+      "normalized": "i've had pain in my stomach onset sudden",
+      "matches": [
+        [
+          "all of a sudden",
+          "onset sudden"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I have abdomen pain and I feel sick",
+      "normalized": "i have abdomen pain and i feel sick",
+      "matches": [],
+      "normalized_count": 0
+    },
+    {
+      "input": "my stomach pain is all the time",
+      "normalized": "my location abdominal pain is duration constant",
+      "matches": [
+        [
+          "stomach pain",
+          "location abdominal pain"
+        ],
+        [
+          "all the time",
+          "duration constant"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my gut comes and goes intermittently",
+      "normalized": "the pain in my gut duration intermittent intermittently",
+      "matches": [
+        [
+          "comes and goes",
+          "duration intermittent"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've had pain in my tummy without warning",
+      "normalized": "i've had pain in my location abdominal pain onset sudden",
+      "matches": [
+        [
+          "without warning",
+          "onset sudden"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my stomach has been not quite right for ages",
+      "normalized": "my stomach has been associated symptoms nausea for ages",
+      "matches": [
+        [
+          "not quite right",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "there's a cramping ache in my gut",
+      "normalized": "there's a character cramping ache in my gut",
+      "matches": [
+        [
+          "cramping",
+          "character cramping"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my abdomen goes to my leg",
+      "normalized": "the location abdominal pain radiation legs",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "goes to my leg",
+          "radiation legs"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my tummy started hurting suddenly",
+      "normalized": "my location abdominal pain started hurting onset sudden",
+      "matches": [
+        [
+          "suddenly",
+          "onset sudden"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my tummy started hurting without warning",
+      "normalized": "my location abdominal pain started hurting onset sudden",
+      "matches": [
+        [
+          "without warning",
+          "onset sudden"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my stomach hurts and I'm lightheaded",
+      "normalized": "my stomach location abdominal pain and i'm lightheaded",
+      "matches": [
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my middle tummy is niggling",
+      "normalized": "my middle location abdominal pain is character dull",
+      "matches": [
+        [
+          "niggling",
+          "character dull"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    }
+  ],
+  "uk_expressions_results": [
+    {
+      "input": "I've got a twinge in my tummy when I cough hard",
+      "normalized": "i've got a character sharp in my location abdominal pain when i cough hard",
+      "matches": [
+        [
+          "twinge",
+          "character sharp"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've got a dodgy belly and I'm feeling queasy",
+      "normalized": "i've got a associated symptoms nausea belly and i'm feeling associated symptoms nausea",
+      "matches": [
+        [
+          "queasy",
+          "associated symptoms nausea"
+        ],
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my stomach is giving me gyp",
+      "normalized": "my stomach is aggravating factors eating",
+      "matches": [
+        [
+          "giving me gyp",
+          "aggravating factors eating"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my belly feels rough and I feel poorly",
+      "normalized": "my belly feels character dull and i feel poorly",
+      "matches": [
+        [
+          "rough",
+          "character dull"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my middle tummy is niggling",
+      "normalized": "my middle location abdominal pain is character dull",
+      "matches": [
+        [
+          "niggling",
+          "character dull"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my tummy is a bit dodgy",
+      "normalized": "my location abdominal pain is a bit associated symptoms nausea",
+      "matches": [
+        [
+          "tummy",
+          "location abdominal pain"
+        ],
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've got a twinge and I feel weak",
+      "normalized": "i've got a character sharp and i feel associated symptoms fatigue",
+      "matches": [
+        [
+          "twinge",
+          "character sharp"
+        ],
+        [
+          "weak",
+          "associated symptoms fatigue"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had a dodgy belly since this morning",
+      "normalized": "i've had a associated symptoms nausea belly since this morning",
+      "matches": [
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my stomach's been niggling away at me",
+      "normalized": "my stomach's been character dull away at me",
+      "matches": [
+        [
+          "niggling",
+          "character dull"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've got a dodgy belly when I'm stressed out",
+      "normalized": "i've got a associated symptoms nausea belly when i'm stressed out",
+      "matches": [
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I feel rubbish in my belly",
+      "normalized": "i feel severity mild in my belly",
+      "matches": [
+        [
+          "rubbish",
+          "severity mild"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've got a sharp pain in my dodgy belly",
+      "normalized": "i've got a character sharp in my associated symptoms nausea belly",
+      "matches": [
+        [
+          "sharp pain",
+          "character sharp"
+        ],
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've been feeling rubbish in my tummy for days",
+      "normalized": "i've been feeling severity mild in my location abdominal pain duration days",
+      "matches": [
+        [
+          "for days",
+          "duration days"
+        ],
+        [
+          "rubbish",
+          "severity mild"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "I've got a twinge in my upper belly",
+      "normalized": "i've got a character sharp in my upper belly",
+      "matches": [
+        [
+          "twinge",
+          "character sharp"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my stomach's quite niggling this morning",
+      "normalized": "my stomach's quite character dull this morning",
+      "matches": [
+        [
+          "niggling",
+          "character dull"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my gut is really rubbish",
+      "normalized": "my gut is really severity mild",
+      "matches": [
+        [
+          "rubbish",
+          "severity mild"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my tummy's been playing up for donkey's years",
+      "normalized": "my location abdominal pain's been aggravating factors eating for donkey's years",
+      "matches": [
+        [
+          "playing up",
+          "aggravating factors eating"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my tummy is playing up and I feel sick",
+      "normalized": "my location abdominal pain is aggravating factors eating and i feel sick",
+      "matches": [
+        [
+          "playing up",
+          "aggravating factors eating"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I'm feeling a bit peaky in my stomach",
+      "normalized": "i'm feeling a bit associated symptoms nausea in my stomach",
+      "matches": [
+        [
+          "peaky",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my gut's really rubbish today",
+      "normalized": "my gut's really severity mild today",
+      "matches": [
+        [
+          "rubbish",
+          "severity mild"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my upper belly is feeling rough",
+      "normalized": "my upper belly is associated symptoms nausea",
+      "matches": [
+        [
+          "feeling rough",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my belly has been niggling for hours",
+      "normalized": "my belly has been character dull duration hours",
+      "matches": [
+        [
+          "for hours",
+          "duration hours"
+        ],
+        [
+          "niggling",
+          "character dull"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my tummy's playing up and I feel sick as a dog",
+      "normalized": "my location abdominal pain's aggravating factors eating and i feel sick as a dog",
+      "matches": [
+        [
+          "playing up",
+          "aggravating factors eating"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "there's a sharp pain in my epigastric region that goes through to my back",
+      "normalized": "there's a character sharp in my epigastric region that goes through to my back",
+      "matches": [
+        [
+          "sharp pain",
+          "character sharp"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my stomach gives me gyp after meals",
+      "normalized": "my stomach gives me gyp aggravating factors eating",
+      "matches": [
+        [
+          "after meals",
+          "aggravating factors eating"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my belly feels rough when I'm anxious",
+      "normalized": "my belly feels character dull when i'm anxious",
+      "matches": [
+        [
+          "rough",
+          "character dull"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my tummy has been playing up for days",
+      "normalized": "my location abdominal pain has been aggravating factors eating duration days",
+      "matches": [
+        [
+          "playing up",
+          "aggravating factors eating"
+        ],
+        [
+          "for days",
+          "duration days"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "my right belly is pretty rubbish",
+      "normalized": "my right belly is severity mild",
+      "matches": [
+        [
+          "pretty rubbish",
+          "severity mild"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my stomach is quite niggling",
+      "normalized": "my stomach is quite character dull",
+      "matches": [
+        [
+          "niggling",
+          "character dull"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've got a proper twinge in my tummy",
+      "normalized": "i've got a proper character sharp in my location abdominal pain",
+      "matches": [
+        [
+          "twinge",
+          "character sharp"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had a dodgy belly since the crack of dawn",
+      "normalized": "i've had a associated symptoms nausea belly since the crack of dawn",
+      "matches": [
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my stomach is giving me gyp and I want to be sick",
+      "normalized": "my stomach is aggravating factors eating and i want to be sick",
+      "matches": [
+        [
+          "giving me gyp",
+          "aggravating factors eating"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my belly's been niggling for what seems like forever",
+      "normalized": "my belly's been character dull for what seems like forever",
+      "matches": [
+        [
+          "niggling",
+          "character dull"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've got a dodgy lower belly",
+      "normalized": "i've got a associated symptoms nausea lower belly",
+      "matches": [
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I'm feeling a bit peaky in my left belly",
+      "normalized": "i'm feeling a bit associated symptoms nausea in my left belly",
+      "matches": [
+        [
+          "peaky",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I'm feeling a bit peaky in my stomach region",
+      "normalized": "i'm feeling a bit associated symptoms nausea in my stomach region",
+      "matches": [
+        [
+          "peaky",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've got a twinge in my tummy when I cough",
+      "normalized": "i've got a character sharp in my location abdominal pain when i cough",
+      "matches": [
+        [
+          "twinge",
+          "character sharp"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my gut's really playing up",
+      "normalized": "my gut's really aggravating factors eating",
+      "matches": [
+        [
+          "playing up",
+          "aggravating factors eating"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've had a twinge in my tummy since yesterday",
+      "normalized": "i've had a character sharp in my location abdominal pain since yesterday",
+      "matches": [
+        [
+          "twinge",
+          "character sharp"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my stomach has been pretty rubbish for months",
+      "normalized": "my stomach has been severity mild duration months",
+      "matches": [
+        [
+          "pretty rubbish",
+          "severity mild"
+        ],
+        [
+          "for months",
+          "duration months"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've got a dodgy belly and I'm queasy",
+      "normalized": "i've got a associated symptoms nausea belly and i'm associated symptoms nausea",
+      "matches": [
+        [
+          "queasy",
+          "associated symptoms nausea"
+        ],
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my gut's giving me gyp and I feel nauseous",
+      "normalized": "my gut's aggravating factors eating and i feel nauseous",
+      "matches": [
+        [
+          "giving me gyp",
+          "aggravating factors eating"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my belly's been pretty rubbish for ages",
+      "normalized": "my belly's been severity mild for ages",
+      "matches": [
+        [
+          "pretty rubbish",
+          "severity mild"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I feel proper rubbish in my belly",
+      "normalized": "i feel proper severity mild in my belly",
+      "matches": [
+        [
+          "rubbish",
+          "severity mild"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my gut gives me gyp when I eat too much",
+      "normalized": "my gut gives me gyp aggravating factors eating too much",
+      "matches": [
+        [
+          "when I eat",
+          "aggravating factors eating"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've got a dodgy belly when I'm nervous",
+      "normalized": "i've got a associated symptoms nausea belly when i'm aggravating factors stress",
+      "matches": [
+        [
+          "nervous",
+          "aggravating factors stress"
+        ],
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my stomach gives me gyp after big meals",
+      "normalized": "my stomach gives me gyp after big meals",
+      "matches": [],
+      "normalized_count": 0
+    },
+    {
+      "input": "my belly is feeling rough",
+      "normalized": "my belly is associated symptoms nausea",
+      "matches": [
+        [
+          "feeling rough",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've got a dull ache in my dodgy belly",
+      "normalized": "i've got a dull ache in my associated symptoms nausea belly",
+      "matches": [
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've had a twinge in my tummy since yesterday morning",
+      "normalized": "i've had a character sharp in my location abdominal pain since yesterday morning",
+      "matches": [
+        [
+          "twinge",
+          "character sharp"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my stomach's been giving me gyp all day long",
+      "normalized": "my stomach's been aggravating factors eating all day long",
+      "matches": [
+        [
+          "giving me gyp",
+          "aggravating factors eating"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my tummy is playing up",
+      "normalized": "my location abdominal pain is aggravating factors eating",
+      "matches": [
+        [
+          "playing up",
+          "aggravating factors eating"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've got a proper dodgy belly",
+      "normalized": "i've got a proper associated symptoms nausea belly",
+      "matches": [
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've got a dodgy belly and I'm feeling off",
+      "normalized": "i've got a associated symptoms nausea belly and i'm feeling off",
+      "matches": [
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my belly's been feeling really rough",
+      "normalized": "my belly's been feeling really character dull",
+      "matches": [
+        [
+          "rough",
+          "character dull"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my tummy's been feeling rough all week long",
+      "normalized": "my location abdominal pain's been associated symptoms nausea all week long",
+      "matches": [
+        [
+          "feeling rough",
+          "associated symptoms nausea"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my tummy has been feeling rough all day",
+      "normalized": "my location abdominal pain has been associated symptoms nausea all day",
+      "matches": [
+        [
+          "feeling rough",
+          "associated symptoms nausea"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my upper tummy is playing up",
+      "normalized": "my upper location abdominal pain is aggravating factors eating",
+      "matches": [
+        [
+          "playing up",
+          "aggravating factors eating"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my belly feels rough when I'm tired",
+      "normalized": "my belly feels character dull when i'm associated symptoms fatigue",
+      "matches": [
+        [
+          "rough",
+          "character dull"
+        ],
+        [
+          "tired",
+          "associated symptoms fatigue"
+        ]
+      ],
+      "normalized_count": 2
+    }
+  ],
+  "complex_combinations_results": [
+    {
+      "input": "I've had pain in my gut for a few hours",
+      "normalized": "i've had pain in my gut for a duration hours",
+      "matches": [
+        [
+          "few hours",
+          "duration hours"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my stomach goes to my arm",
+      "normalized": "the pain in my stomach radiation arm",
+      "matches": [
+        [
+          "goes to my arm",
+          "radiation arm"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my gut gets worse when I drink",
+      "normalized": "the pain in my gut aggravating factors drinking",
+      "matches": [
+        [
+          "gets worse when I drink",
+          "aggravating factors drinking"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I have diffuse abdominal pain with nausea and vomiting",
+      "normalized": "i have location abdominal pain with associated symptoms vomiting",
+      "matches": [
+        [
+          "diffuse abdominal pain",
+          "location abdominal pain"
+        ],
+        [
+          "nausea and vomiting",
+          "associated symptoms vomiting"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've got a twinge in my tummy when I cough hard",
+      "normalized": "i've got a character sharp in my location abdominal pain when i cough hard",
+      "matches": [
+        [
+          "twinge",
+          "character sharp"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had pain in my gut for several minutes",
+      "normalized": "i've had pain in my gut for duration minutes",
+      "matches": [
+        [
+          "several minutes",
+          "duration minutes"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "there's a burning pain in my chest that gets worse when I lie down",
+      "normalized": "there's a character burning in my chest that gets worse when i lie down",
+      "matches": [
+        [
+          "burning pain",
+          "character burning"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my gut improves with lie down",
+      "normalized": "the pain in my gut alleviating factors rest",
+      "matches": [
+        [
+          "improves with lie down",
+          "alleviating factors rest"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my left lower belly has been cramping for a few days and it radiates to my back",
+      "normalized": "my location llq pain has been character cramping for a duration days and it radiation back",
+      "matches": [
+        [
+          "radiates to my back",
+          "radiation back"
+        ],
+        [
+          "left lower belly",
+          "location llq pain"
+        ],
+        [
+          "few days",
+          "duration days"
+        ],
+        [
+          "cramping",
+          "character cramping"
+        ]
+      ],
+      "normalized_count": 4
+    },
+    {
+      "input": "my tummy hurts and it radiates to my arm",
+      "normalized": "my location abdominal pain location abdominal pain and it radiation arm",
+      "matches": [
+        [
+          "radiates to my arm",
+          "radiation arm"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "my tummy hurts and it radiates to my shoulder",
+      "normalized": "my location abdominal pain location abdominal pain and it radiation shoulder",
+      "matches": [
+        [
+          "radiates to my shoulder",
+          "radiation shoulder"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "the pain in my stomach comes and goes all the time",
+      "normalized": "the pain in my stomach duration intermittent duration constant",
+      "matches": [
+        [
+          "comes and goes",
+          "duration intermittent"
+        ],
+        [
+          "all the time",
+          "duration constant"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've got a dodgy belly and I'm feeling queasy",
+      "normalized": "i've got a associated symptoms nausea belly and i'm feeling associated symptoms nausea",
+      "matches": [
+        [
+          "queasy",
+          "associated symptoms nausea"
+        ],
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my belly improves with walk around",
+      "normalized": "the pain in my belly alleviating factors aggravating factors movement",
+      "matches": [
+        [
+          "improves with walk around",
+          "alleviating factors walking"
+        ],
+        [
+          "walking",
+          "aggravating factors movement"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my abdomen goes to my shoulder",
+      "normalized": "the location abdominal pain radiation shoulder",
+      "matches": [
+        [
+          "goes to my shoulder",
+          "radiation shoulder"
+        ],
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my tummy goes to my chest",
+      "normalized": "the pain in my location abdominal pain radiation chest",
+      "matches": [
+        [
+          "goes to my chest",
+          "radiation chest"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had pain in my stomach all of a sudden",
+      "normalized": "i've had pain in my stomach onset sudden",
+      "matches": [
+        [
+          "all of a sudden",
+          "onset sudden"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my gut comes and goes intermittently",
+      "normalized": "the pain in my gut duration intermittent intermittently",
+      "matches": [
+        [
+          "comes and goes",
+          "duration intermittent"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my stomach has been not quite right for ages",
+      "normalized": "my stomach has been associated symptoms nausea for ages",
+      "matches": [
+        [
+          "not quite right",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my abdomen goes to my leg",
+      "normalized": "the location abdominal pain radiation legs",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "goes to my leg",
+          "radiation legs"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my abdomen has been hurting for a few weeks",
+      "normalized": "my abdomen has been hurting for a duration weeks",
+      "matches": [
+        [
+          "few weeks",
+          "duration weeks"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my stomach gets worse when I eat",
+      "normalized": "the pain in my stomach gets worse aggravating factors eating",
+      "matches": [
+        [
+          "when I eat",
+          "aggravating factors eating"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've got a right nasty pain in my tummy",
+      "normalized": "i've got a right severity moderate pain in my location abdominal pain",
+      "matches": [
+        [
+          "tummy",
+          "location abdominal pain"
+        ],
+        [
+          "nasty",
+          "severity moderate"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my epigastric pain is worse when I'm hungry and better when I eat",
+      "normalized": "my epigastric pain is worse when i'm hungry and better aggravating factors eating",
+      "matches": [
+        [
+          "when I eat",
+          "aggravating factors eating"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my belly hurts and it radiates to my leg",
+      "normalized": "my belly location abdominal pain and it radiation legs",
+      "matches": [
+        [
+          "radiates to my leg",
+          "radiation legs"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've got a dodgy belly when I'm stressed out",
+      "normalized": "i've got a associated symptoms nausea belly when i'm stressed out",
+      "matches": [
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my belly hurts and it radiates to my shoulder",
+      "normalized": "my belly location abdominal pain and it radiation shoulder",
+      "matches": [
+        [
+          "radiates to my shoulder",
+          "radiation shoulder"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my gut comes and goes continuously",
+      "normalized": "the pain in my gut duration intermittent timing constant",
+      "matches": [
+        [
+          "comes and goes",
+          "duration intermittent"
+        ],
+        [
+          "continuously",
+          "timing constant"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had pain in my belly for a few minutes",
+      "normalized": "i've had pain in my belly for a duration minutes",
+      "matches": [
+        [
+          "few minutes",
+          "duration minutes"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my gut hurts and it radiates to my shoulder",
+      "normalized": "my gut location abdominal pain and it radiation shoulder",
+      "matches": [
+        [
+          "radiates to my shoulder",
+          "radiation shoulder"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've got a sharp pain in my dodgy belly",
+      "normalized": "i've got a character sharp in my associated symptoms nausea belly",
+      "matches": [
+        [
+          "sharp pain",
+          "character sharp"
+        ],
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've been feeling rubbish in my tummy for days",
+      "normalized": "i've been feeling severity mild in my location abdominal pain duration days",
+      "matches": [
+        [
+          "for days",
+          "duration days"
+        ],
+        [
+          "rubbish",
+          "severity mild"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "I've had pain in my stomach out of nowhere",
+      "normalized": "i've had pain in my stomach onset sudden",
+      "matches": [
+        [
+          "out of nowhere",
+          "onset sudden"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my tummy hurts and it radiates to my back",
+      "normalized": "my location abdominal pain location abdominal pain and it radiation back",
+      "matches": [
+        [
+          "radiates to my back",
+          "radiation back"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "the pain in my abdomen improves with lie down",
+      "normalized": "the location abdominal pain alleviating factors rest",
+      "matches": [
+        [
+          "improves with lie down",
+          "alleviating factors rest"
+        ],
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my tummy gets worse when I walk",
+      "normalized": "the pain in my location abdominal pain aggravating factors movement",
+      "matches": [
+        [
+          "gets worse when I walk",
+          "aggravating factors movement"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my stomach comes and goes non-stop",
+      "normalized": "the pain in my stomach duration intermittent duration constant",
+      "matches": [
+        [
+          "comes and goes",
+          "duration intermittent"
+        ],
+        [
+          "non-stop",
+          "duration constant"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had pain in my gut for a few minutes",
+      "normalized": "i've had pain in my gut for a duration minutes",
+      "matches": [
+        [
+          "few minutes",
+          "duration minutes"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my gut improves with sit down",
+      "normalized": "the pain in my gut alleviating factors position",
+      "matches": [
+        [
+          "improves with sit down",
+          "alleviating factors position"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my belly gets worse when I walk",
+      "normalized": "the pain in my belly aggravating factors movement",
+      "matches": [
+        [
+          "gets worse when I walk",
+          "aggravating factors movement"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my abdomen gets worse when I walk",
+      "normalized": "the location abdominal pain aggravating factors movement",
+      "matches": [
+        [
+          "gets worse when I walk",
+          "aggravating factors movement"
+        ],
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my stomach goes to my chest",
+      "normalized": "the pain in my stomach radiation chest",
+      "matches": [
+        [
+          "goes to my chest",
+          "radiation chest"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my abdomen goes to my chest",
+      "normalized": "the location abdominal pain radiation chest",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "goes to my chest",
+          "radiation chest"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had pain in my tummy for a few days",
+      "normalized": "i've had pain in my location abdominal pain for a duration days",
+      "matches": [
+        [
+          "few days",
+          "duration days"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my stomach comes and goes intermittently",
+      "normalized": "the pain in my stomach duration intermittent intermittently",
+      "matches": [
+        [
+          "comes and goes",
+          "duration intermittent"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my gut has been hurting for a few weeks",
+      "normalized": "my gut has been hurting for a duration weeks",
+      "matches": [
+        [
+          "few weeks",
+          "duration weeks"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my gut has been off colour since last night",
+      "normalized": "my gut has been associated symptoms nausea since last night",
+      "matches": [
+        [
+          "off colour",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my left lower quadrant is tender and I have a fever",
+      "normalized": "my left lower quadrant is character dull and i have a fever",
+      "matches": [
+        [
+          "tender",
+          "character dull"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my stomach goes to my back",
+      "normalized": "the pain in my stomach radiation back",
+      "matches": [
+        [
+          "goes to my back",
+          "radiation back"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my tummy is playing up and I feel sick",
+      "normalized": "my location abdominal pain is aggravating factors eating and i feel sick",
+      "matches": [
+        [
+          "playing up",
+          "aggravating factors eating"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my tummy goes to my arm",
+      "normalized": "the pain in my location abdominal pain radiation arm",
+      "matches": [
+        [
+          "goes to my arm",
+          "radiation arm"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had pain in my abdomen for a few hours",
+      "normalized": "i've had location abdominal pain for a duration hours",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "few hours",
+          "duration hours"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my belly goes to my back",
+      "normalized": "the pain in my belly radiation back",
+      "matches": [
+        [
+          "goes to my back",
+          "radiation back"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my abdomen hurts and it radiates to my chest",
+      "normalized": "my abdomen location abdominal pain and it radiation chest",
+      "matches": [
+        [
+          "radiates to my chest",
+          "radiation chest"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my gut has been bothering me on and off",
+      "normalized": "my gut has been aggravating factors movement duration intermittent",
+      "matches": [
+        [
+          "bothering me",
+          "aggravating factors movement"
+        ],
+        [
+          "on and off",
+          "duration intermittent"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my belly's been not brilliant for quite a while",
+      "normalized": "my belly's been severity mild for quite a while",
+      "matches": [
+        [
+          "not brilliant",
+          "severity mild"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my tummy gets worse when I drink",
+      "normalized": "the pain in my location abdominal pain aggravating factors drinking",
+      "matches": [
+        [
+          "gets worse when I drink",
+          "aggravating factors drinking"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my gut goes to my chest",
+      "normalized": "the pain in my gut radiation chest",
+      "matches": [
+        [
+          "goes to my chest",
+          "radiation chest"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my stomach hurts and it radiates to my back",
+      "normalized": "my stomach location abdominal pain and it radiation back",
+      "matches": [
+        [
+          "radiates to my back",
+          "radiation back"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had pain in my abdomen out of nowhere",
+      "normalized": "i've had location abdominal pain onset sudden",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "out of nowhere",
+          "onset sudden"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my gut improves with walk around",
+      "normalized": "the pain in my gut alleviating factors aggravating factors movement",
+      "matches": [
+        [
+          "improves with walk around",
+          "alleviating factors walking"
+        ],
+        [
+          "walking",
+          "aggravating factors movement"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my tummy comes and goes intermittently",
+      "normalized": "the pain in my location abdominal pain duration intermittent intermittently",
+      "matches": [
+        [
+          "comes and goes",
+          "duration intermittent"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had pain in my tummy for a few weeks",
+      "normalized": "i've had pain in my location abdominal pain for a duration weeks",
+      "matches": [
+        [
+          "few weeks",
+          "duration weeks"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my belly hurts and it radiates to my back",
+      "normalized": "my belly location abdominal pain and it radiation back",
+      "matches": [
+        [
+          "radiates to my back",
+          "radiation back"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had pain in my abdomen for a few days",
+      "normalized": "i've had location abdominal pain for a duration days",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "few days",
+          "duration days"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my stomach gets worse when I bend",
+      "normalized": "the pain in my stomach aggravating factors movement",
+      "matches": [
+        [
+          "gets worse when I bend",
+          "aggravating factors movement"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my tummy's playing up and I feel sick as a dog",
+      "normalized": "my location abdominal pain's aggravating factors eating and i feel sick as a dog",
+      "matches": [
+        [
+          "playing up",
+          "aggravating factors eating"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my belly has been hurting for a few minutes",
+      "normalized": "my belly has been hurting for a duration minutes",
+      "matches": [
+        [
+          "few minutes",
+          "duration minutes"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my abdomen comes and goes constantly",
+      "normalized": "the location abdominal pain duration intermittent constantly",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "comes and goes",
+          "duration intermittent"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my abdomen gets worse when I move",
+      "normalized": "the location abdominal pain gets worse aggravating factors movement",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "when I move",
+          "aggravating factors movement"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my gut improves with stand up",
+      "normalized": "the pain in my gut alleviating factors standing",
+      "matches": [
+        [
+          "improves with stand up",
+          "alleviating factors standing"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've had pain in my belly for a few hours",
+      "normalized": "i've had pain in my belly for a duration hours",
+      "matches": [
+        [
+          "few hours",
+          "duration hours"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "there's a sharp pain in my epigastric region that goes through to my back",
+      "normalized": "there's a character sharp in my epigastric region that goes through to my back",
+      "matches": [
+        [
+          "sharp pain",
+          "character sharp"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my gut hurts and it radiates to my arm",
+      "normalized": "my gut location abdominal pain and it radiation arm",
+      "matches": [
+        [
+          "radiates to my arm",
+          "radiation arm"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've got a nasty pain in my stomach area",
+      "normalized": "i've got a severity moderate pain in my stomach area",
+      "matches": [
+        [
+          "nasty",
+          "severity moderate"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my stomach hurts and it radiates to my leg",
+      "normalized": "my stomach location abdominal pain and it radiation legs",
+      "matches": [
+        [
+          "radiates to my leg",
+          "radiation legs"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my stomach has been hurting for a few days",
+      "normalized": "my stomach has been hurting for a duration days",
+      "matches": [
+        [
+          "few days",
+          "duration days"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my belly hurts and it radiates to my arm",
+      "normalized": "my belly location abdominal pain and it radiation arm",
+      "matches": [
+        [
+          "radiates to my arm",
+          "radiation arm"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my stomach is not quite right when I'm hungry",
+      "normalized": "my stomach is associated symptoms nausea when i'm hungry",
+      "matches": [
+        [
+          "not quite right",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my stomach hurts and it radiates to my arm",
+      "normalized": "my stomach location abdominal pain and it radiation arm",
+      "matches": [
+        [
+          "radiates to my arm",
+          "radiation arm"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my tummy gets worse when I bend",
+      "normalized": "the pain in my location abdominal pain aggravating factors movement",
+      "matches": [
+        [
+          "gets worse when I bend",
+          "aggravating factors movement"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my abdomen goes to my arm",
+      "normalized": "the location abdominal pain radiation arm",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "goes to my arm",
+          "radiation arm"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my abdomen gets worse when I bend",
+      "normalized": "the location abdominal pain aggravating factors movement",
+      "matches": [
+        [
+          "gets worse when I bend",
+          "aggravating factors movement"
+        ],
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my gut gets worse when I walk",
+      "normalized": "the pain in my gut aggravating factors movement",
+      "matches": [
+        [
+          "gets worse when I walk",
+          "aggravating factors movement"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my abdomen has been hurting for a few days",
+      "normalized": "my abdomen has been hurting for a duration days",
+      "matches": [
+        [
+          "few days",
+          "duration days"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my gut goes to my back",
+      "normalized": "the pain in my gut radiation back",
+      "matches": [
+        [
+          "goes to my back",
+          "radiation back"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my belly gets worse when I bend",
+      "normalized": "the pain in my belly aggravating factors movement",
+      "matches": [
+        [
+          "gets worse when I bend",
+          "aggravating factors movement"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my stomach is not quite right and I feel weak",
+      "normalized": "my stomach is associated symptoms nausea and i feel associated symptoms fatigue",
+      "matches": [
+        [
+          "not quite right",
+          "associated symptoms nausea"
+        ],
+        [
+          "weak",
+          "associated symptoms fatigue"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my belly comes and goes non-stop",
+      "normalized": "the pain in my belly duration intermittent duration constant",
+      "matches": [
+        [
+          "comes and goes",
+          "duration intermittent"
+        ],
+        [
+          "non-stop",
+          "duration constant"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my tummy hurts and it radiates to my leg",
+      "normalized": "my location abdominal pain location abdominal pain and it radiation legs",
+      "matches": [
+        [
+          "radiates to my leg",
+          "radiation legs"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "I've had a dodgy belly since the crack of dawn",
+      "normalized": "i've had a associated symptoms nausea belly since the crack of dawn",
+      "matches": [
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my stomach is giving me gyp and I want to be sick",
+      "normalized": "my stomach is aggravating factors eating and i want to be sick",
+      "matches": [
+        [
+          "giving me gyp",
+          "aggravating factors eating"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my belly goes to my leg",
+      "normalized": "the pain in my belly radiation legs",
+      "matches": [
+        [
+          "goes to my leg",
+          "radiation legs"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my belly comes and goes intermittently",
+      "normalized": "the pain in my belly duration intermittent intermittently",
+      "matches": [
+        [
+          "comes and goes",
+          "duration intermittent"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've had pain in my stomach for several minutes",
+      "normalized": "i've had pain in my stomach for duration minutes",
+      "matches": [
+        [
+          "several minutes",
+          "duration minutes"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've got a quite horrible pain in my belly",
+      "normalized": "i've got a quite severity severity scale 7 10 pain in my belly",
+      "matches": [
+        [
+          "horrible",
+          "severity severe"
+        ],
+        [
+          "severe",
+          "severity scale 7 10"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my abdomen has been hurting for a few minutes",
+      "normalized": "my abdomen has been hurting for a duration minutes",
+      "matches": [
+        [
+          "few minutes",
+          "duration minutes"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my gut is off colour and I feel tired",
+      "normalized": "my gut is associated symptoms nausea and i feel associated symptoms fatigue",
+      "matches": [
+        [
+          "off colour",
+          "associated symptoms nausea"
+        ],
+        [
+          "tired",
+          "associated symptoms fatigue"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my gut has been hurting for a few days",
+      "normalized": "my gut has been hurting for a duration days",
+      "matches": [
+        [
+          "few days",
+          "duration days"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've had pain in my gut all of a sudden",
+      "normalized": "i've had pain in my gut onset sudden",
+      "matches": [
+        [
+          "all of a sudden",
+          "onset sudden"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my stomach improves with sit down",
+      "normalized": "the pain in my stomach alleviating factors position",
+      "matches": [
+        [
+          "improves with sit down",
+          "alleviating factors position"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my belly's been niggling for what seems like forever",
+      "normalized": "my belly's been character dull for what seems like forever",
+      "matches": [
+        [
+          "niggling",
+          "character dull"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my tummy has been hurting for a few minutes",
+      "normalized": "my location abdominal pain has been hurting for a duration minutes",
+      "matches": [
+        [
+          "few minutes",
+          "duration minutes"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my tummy improves with sit down",
+      "normalized": "the pain in my location abdominal pain alleviating factors position",
+      "matches": [
+        [
+          "improves with sit down",
+          "alleviating factors position"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had pain in my stomach for a few weeks",
+      "normalized": "i've had pain in my stomach for a duration weeks",
+      "matches": [
+        [
+          "few weeks",
+          "duration weeks"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my abdomen gets worse when I eat",
+      "normalized": "the location abdominal pain gets worse aggravating factors eating",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "when I eat",
+          "aggravating factors eating"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my tummy has been hurting for a few weeks",
+      "normalized": "my location abdominal pain has been hurting for a duration weeks",
+      "matches": [
+        [
+          "few weeks",
+          "duration weeks"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had pain in my belly all of a sudden",
+      "normalized": "i've had pain in my belly onset sudden",
+      "matches": [
+        [
+          "all of a sudden",
+          "onset sudden"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my stomach improves with lie down",
+      "normalized": "the pain in my stomach alleviating factors rest",
+      "matches": [
+        [
+          "improves with lie down",
+          "alleviating factors rest"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've had pain in my tummy for several minutes",
+      "normalized": "i've had pain in my location abdominal pain for duration minutes",
+      "matches": [
+        [
+          "several minutes",
+          "duration minutes"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my stomach has been hurting for a few minutes",
+      "normalized": "my stomach has been hurting for a duration minutes",
+      "matches": [
+        [
+          "few minutes",
+          "duration minutes"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my belly comes and goes all the time",
+      "normalized": "the pain in my belly duration intermittent duration constant",
+      "matches": [
+        [
+          "comes and goes",
+          "duration intermittent"
+        ],
+        [
+          "all the time",
+          "duration constant"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I have pain in my right upper quadrant that radiates to my right shoulder",
+      "normalized": "i have pain in my location ruq pain that radiates to my right shoulder",
+      "matches": [
+        [
+          "right upper quadrant",
+          "location ruq pain"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my tummy comes and goes non-stop",
+      "normalized": "the pain in my location abdominal pain duration intermittent duration constant",
+      "matches": [
+        [
+          "comes and goes",
+          "duration intermittent"
+        ],
+        [
+          "non-stop",
+          "duration constant"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "I've had pain in my gut out of nowhere",
+      "normalized": "i've had pain in my gut onset sudden",
+      "matches": [
+        [
+          "out of nowhere",
+          "onset sudden"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my gut's been bothering me on and off for weeks",
+      "normalized": "my gut's been aggravating factors movement duration intermittent duration weeks",
+      "matches": [
+        [
+          "bothering me",
+          "aggravating factors movement"
+        ],
+        [
+          "on and off",
+          "duration intermittent"
+        ],
+        [
+          "for weeks",
+          "duration weeks"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "my stomach's been not quite right for ages now",
+      "normalized": "my stomach's been associated symptoms nausea for ages now",
+      "matches": [
+        [
+          "not quite right",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I'm feeling a bit peaky in my left belly",
+      "normalized": "i'm feeling a bit associated symptoms nausea in my left belly",
+      "matches": [
+        [
+          "peaky",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my abdomen improves with stand up",
+      "normalized": "the location abdominal pain alleviating factors standing",
+      "matches": [
+        [
+          "improves with stand up",
+          "alleviating factors standing"
+        ],
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I'm not feeling great in my lower belly area",
+      "normalized": "i'm not feeling great in my lower belly area",
+      "matches": [],
+      "normalized_count": 0
+    },
+    {
+      "input": "my gut is bothering me and I feel nauseous",
+      "normalized": "my gut is aggravating factors movement and i feel nauseous",
+      "matches": [
+        [
+          "bothering me",
+          "aggravating factors movement"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I'm feeling a bit peaky in my stomach region",
+      "normalized": "i'm feeling a bit associated symptoms nausea in my stomach region",
+      "matches": [
+        [
+          "peaky",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my stomach gets worse when I walk",
+      "normalized": "the pain in my stomach aggravating factors movement",
+      "matches": [
+        [
+          "gets worse when I walk",
+          "aggravating factors movement"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've got a twinge in my tummy when I cough",
+      "normalized": "i've got a character sharp in my location abdominal pain when i cough",
+      "matches": [
+        [
+          "twinge",
+          "character sharp"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my tummy goes to my shoulder",
+      "normalized": "the pain in my location abdominal pain radiation shoulder",
+      "matches": [
+        [
+          "goes to my shoulder",
+          "radiation shoulder"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had a twinge in my tummy since yesterday",
+      "normalized": "i've had a character sharp in my location abdominal pain since yesterday",
+      "matches": [
+        [
+          "twinge",
+          "character sharp"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my tummy improves with stand up",
+      "normalized": "the pain in my location abdominal pain alleviating factors standing",
+      "matches": [
+        [
+          "improves with stand up",
+          "alleviating factors standing"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my abdomen comes and goes non-stop",
+      "normalized": "the location abdominal pain duration intermittent duration constant",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "comes and goes",
+          "duration intermittent"
+        ],
+        [
+          "non-stop",
+          "duration constant"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "the pain in my gut comes and goes non-stop",
+      "normalized": "the pain in my gut duration intermittent duration constant",
+      "matches": [
+        [
+          "comes and goes",
+          "duration intermittent"
+        ],
+        [
+          "non-stop",
+          "duration constant"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my tummy plays up when I eat spicy food",
+      "normalized": "my location abdominal pain plays up aggravating factors eating spicy food",
+      "matches": [
+        [
+          "when I eat",
+          "aggravating factors eating"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've got a really gnawing pain in my tummy",
+      "normalized": "i've got a really gnawing pain in my location abdominal pain",
+      "matches": [
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my stomach comes and goes continuously",
+      "normalized": "the pain in my stomach duration intermittent timing constant",
+      "matches": [
+        [
+          "comes and goes",
+          "duration intermittent"
+        ],
+        [
+          "continuously",
+          "timing constant"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've got a really nasty pain in my tummy",
+      "normalized": "i've got a severity severity severity scale 7 10 in my location abdominal pain",
+      "matches": [
+        [
+          "really nasty",
+          "severity severe"
+        ],
+        [
+          "severe pain",
+          "severity severe"
+        ],
+        [
+          "severe",
+          "severity scale 7 10"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 4
+    },
+    {
+      "input": "the pain in my gut gets worse when I eat",
+      "normalized": "the pain in my gut gets worse aggravating factors eating",
+      "matches": [
+        [
+          "when I eat",
+          "aggravating factors eating"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've had pain in my stomach for a few days",
+      "normalized": "i've had pain in my stomach for a duration days",
+      "matches": [
+        [
+          "few days",
+          "duration days"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I have not too bad pain in my stomach",
+      "normalized": "i have severity severity mild in my stomach",
+      "matches": [
+        [
+          "not too bad",
+          "severity mild"
+        ],
+        [
+          "mild pain",
+          "severity mild"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I have not too bad pain in my tummy",
+      "normalized": "i have severity severity mild in my location abdominal pain",
+      "matches": [
+        [
+          "not too bad",
+          "severity mild"
+        ],
+        [
+          "mild pain",
+          "severity mild"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "the pain in my abdomen comes and goes continuously",
+      "normalized": "the location abdominal pain duration intermittent timing constant",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "comes and goes",
+          "duration intermittent"
+        ],
+        [
+          "continuously",
+          "timing constant"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "I've had pain in my belly for a few weeks",
+      "normalized": "i've had pain in my belly for a duration weeks",
+      "matches": [
+        [
+          "few weeks",
+          "duration weeks"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my gut's giving me gyp and I feel nauseous",
+      "normalized": "my gut's aggravating factors eating and i feel nauseous",
+      "matches": [
+        [
+          "giving me gyp",
+          "aggravating factors eating"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've had pain in my abdomen for a few weeks",
+      "normalized": "i've had location abdominal pain for a duration weeks",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "few weeks",
+          "duration weeks"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my belly improves with lie down",
+      "normalized": "the pain in my belly alleviating factors rest",
+      "matches": [
+        [
+          "improves with lie down",
+          "alleviating factors rest"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my gut gives me gyp when I eat too much",
+      "normalized": "my gut gives me gyp aggravating factors eating too much",
+      "matches": [
+        [
+          "when I eat",
+          "aggravating factors eating"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I have colicky pain in my flank that radiates to my groin",
+      "normalized": "i have character colicky in my flank that radiates to my groin",
+      "matches": [
+        [
+          "colicky pain",
+          "character colicky"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my abdomen hurts and it radiates to my leg",
+      "normalized": "my abdomen location abdominal pain and it radiation legs",
+      "matches": [
+        [
+          "radiates to my leg",
+          "radiation legs"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my abdomen improves with walk around",
+      "normalized": "the location abdominal pain alleviating factors aggravating factors movement",
+      "matches": [
+        [
+          "improves with walk around",
+          "alleviating factors walking"
+        ],
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "walking",
+          "aggravating factors movement"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "my gut has been hurting for a few hours",
+      "normalized": "my gut has been hurting for a duration hours",
+      "matches": [
+        [
+          "few hours",
+          "duration hours"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my stomach gets worse when I drink",
+      "normalized": "the pain in my stomach aggravating factors drinking",
+      "matches": [
+        [
+          "gets worse when I drink",
+          "aggravating factors drinking"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my tummy comes and goes continuously",
+      "normalized": "the pain in my location abdominal pain duration intermittent timing constant",
+      "matches": [
+        [
+          "comes and goes",
+          "duration intermittent"
+        ],
+        [
+          "continuously",
+          "timing constant"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "I've had pain in my abdomen for a few minutes",
+      "normalized": "i've had location abdominal pain for a duration minutes",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "few minutes",
+          "duration minutes"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had pain in my tummy out of nowhere",
+      "normalized": "i've had pain in my location abdominal pain onset sudden",
+      "matches": [
+        [
+          "out of nowhere",
+          "onset sudden"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my gut hurts and it radiates to my back",
+      "normalized": "my gut location abdominal pain and it radiation back",
+      "matches": [
+        [
+          "radiates to my back",
+          "radiation back"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've got a dull ache in my dodgy belly",
+      "normalized": "i've got a dull ache in my associated symptoms nausea belly",
+      "matches": [
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my gut's off colour and I feel tired out",
+      "normalized": "my gut's associated symptoms nausea and i feel associated symptoms fatigue out",
+      "matches": [
+        [
+          "off colour",
+          "associated symptoms nausea"
+        ],
+        [
+          "tired",
+          "associated symptoms fatigue"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "the pain in my stomach goes to my shoulder",
+      "normalized": "the pain in my stomach radiation shoulder",
+      "matches": [
+        [
+          "goes to my shoulder",
+          "radiation shoulder"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've had a horrible pain in my tummy since this afternoon",
+      "normalized": "i've had a severity severity scale 7 10 pain in my location abdominal pain since this afternoon",
+      "matches": [
+        [
+          "horrible",
+          "severity severe"
+        ],
+        [
+          "severe",
+          "severity scale 7 10"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "I have burning pain in my retrosternal area that gets worse when I eat",
+      "normalized": "i have character burning in my retrosternal area that gets worse aggravating factors eating",
+      "matches": [
+        [
+          "burning pain",
+          "character burning"
+        ],
+        [
+          "when I eat",
+          "aggravating factors eating"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had a twinge in my tummy since yesterday morning",
+      "normalized": "i've had a character sharp in my location abdominal pain since yesterday morning",
+      "matches": [
+        [
+          "twinge",
+          "character sharp"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've had pain in my gut for a few weeks",
+      "normalized": "i've had pain in my gut for a duration weeks",
+      "matches": [
+        [
+          "few weeks",
+          "duration weeks"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my stomach's been giving me gyp all day long",
+      "normalized": "my stomach's been aggravating factors eating all day long",
+      "matches": [
+        [
+          "giving me gyp",
+          "aggravating factors eating"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my abdomen goes to my back",
+      "normalized": "the location abdominal pain radiation back",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "goes to my back",
+          "radiation back"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I have cramping pain in my periumbilical area that moves around",
+      "normalized": "i have character cramping pain in my periumbilical area that moves around",
+      "matches": [
+        [
+          "cramping",
+          "character cramping"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've had pain in my abdomen for several minutes",
+      "normalized": "i've had location abdominal pain for duration minutes",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "several minutes",
+          "duration minutes"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my belly has been hurting for a few days",
+      "normalized": "my belly has been hurting for a duration days",
+      "matches": [
+        [
+          "few days",
+          "duration days"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my tummy comes and goes constantly",
+      "normalized": "the pain in my location abdominal pain duration intermittent constantly",
+      "matches": [
+        [
+          "comes and goes",
+          "duration intermittent"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've got a dodgy belly and I'm feeling off",
+      "normalized": "i've got a associated symptoms nausea belly and i'm feeling off",
+      "matches": [
+        [
+          "dodgy",
+          "associated symptoms nausea"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my tummy goes to my leg",
+      "normalized": "the pain in my location abdominal pain radiation legs",
+      "matches": [
+        [
+          "goes to my leg",
+          "radiation legs"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I have not too bad pain in my abdomen",
+      "normalized": "i have severity mild location abdominal pain",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "not too bad",
+          "severity mild"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "my belly has been not brilliant for a while",
+      "normalized": "my belly has been severity mild onset chronic",
+      "matches": [
+        [
+          "not brilliant",
+          "severity mild"
+        ],
+        [
+          "for a while",
+          "onset chronic"
+        ]
+      ],
+      "normalized_count": 2
+    },
+    {
+      "input": "I've got severe pain in my tummy that comes and goes constantly",
+      "normalized": "i've got severity severity scale 7 10 in my location abdominal pain that duration intermittent constantly",
+      "matches": [
+        [
+          "comes and goes",
+          "duration intermittent"
+        ],
+        [
+          "severe pain",
+          "severity severe"
+        ],
+        [
+          "severe",
+          "severity scale 7 10"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 4
+    },
+    {
+      "input": "the pain in my belly gets worse when I move",
+      "normalized": "the pain in my belly gets worse aggravating factors movement",
+      "matches": [
+        [
+          "when I move",
+          "aggravating factors movement"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "I've had pain in my belly for a few days",
+      "normalized": "i've had pain in my belly for a duration days",
+      "matches": [
+        [
+          "few days",
+          "duration days"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my stomach gets worse when I move",
+      "normalized": "the pain in my stomach gets worse aggravating factors movement",
+      "matches": [
+        [
+          "when I move",
+          "aggravating factors movement"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my abdomen comes and goes all the time",
+      "normalized": "the location abdominal pain duration intermittent duration constant",
+      "matches": [
+        [
+          "pain in my abdomen",
+          "location abdominal pain"
+        ],
+        [
+          "comes and goes",
+          "duration intermittent"
+        ],
+        [
+          "all the time",
+          "duration constant"
+        ]
+      ],
+      "normalized_count": 3
+    },
+    {
+      "input": "my belly has been hurting for a few hours",
+      "normalized": "my belly has been hurting for a duration hours",
+      "matches": [
+        [
+          "few hours",
+          "duration hours"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "the pain in my gut goes to my shoulder",
+      "normalized": "the pain in my gut radiation shoulder",
+      "matches": [
+        [
+          "goes to my shoulder",
+          "radiation shoulder"
+        ]
+      ],
+      "normalized_count": 1
+    },
+    {
+      "input": "my tummy hurts and it radiates to my chest",
+      "normalized": "my location abdominal pain location abdominal pain and it radiation chest",
+      "matches": [
+        [
+          "radiates to my chest",
+          "radiation chest"
+        ],
+        [
+          "tummy",
+          "location abdominal pain"
+        ],
+        [
+          "hurts",
+          "location abdominal pain"
+        ]
+      ],
+      "normalized_count": 3
+    }
+  ]
+}

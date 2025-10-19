@@ -1693,20 +1693,27 @@ Your question:"""
         import os
         import re
         
-        # Load OLDCARTS synonyms - try both Docker and local paths
+        # Load OLDCARTS synonyms - try multiple paths for different environments
         synonym_files = [
             "/app/synonyms/gi_synonyms_oldcarts.json",  # Docker container path
-            "/Users/rcabello/Documents/GitHub/LedgerAI/llm-container/synonyms/gi_synonyms_oldcarts.json"  # Local path
+            "/Users/rcabello/Documents/GitHub/LedgerAI/llm-container/synonyms/gi_synonyms_oldcarts.json",  # macOS path
+            "/home/aura/LedgerAI/llm-container/synonyms/gi_synonyms_oldcarts.json",  # Ubuntu path
+            "synonyms/gi_synonyms_oldcarts.json",  # Relative path
+            "./synonyms/gi_synonyms_oldcarts.json"  # Current directory relative path
         ]
         
         synonym_file = None
         for file_path in synonym_files:
             if os.path.exists(file_path):
                 synonym_file = file_path
+                print(f"[Engine] ✅ Found OLDCARTS synonyms file at: {file_path}")
                 break
         
         if not synonym_file:
             print(f"[Engine] ⚠️ OLDCARTS synonyms file not found in any expected location")
+            print(f"[Engine] 🔍 Searched paths:")
+            for path in synonym_files:
+                print(f"[Engine]   - {path}")
             return text
         
         try:
