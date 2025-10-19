@@ -1598,7 +1598,7 @@ Your question:"""
         words1 = set(re.findall(r'\b\w+\b', text1.lower()))
         words2 = set(re.findall(r'\b\w+\b', text2.lower()))
         
-        # Hardcoded directional conflicts for patient language
+        # Hardcoded directional conflicts for medical lateralization
         opposite_pairs = [
             # Lateral (left/right) - common patient terms
             ('left', 'right'),
@@ -1618,20 +1618,120 @@ Your question:"""
             ('both', 'one'),
             ('one', 'both'),
             ('either', 'one'),
-            ('one', 'either')
+            ('one', 'either'),
+            
+            # Medical lateralization pairs - anatomical opposites
+            ('lateral', 'medial'),
+            ('medial', 'lateral'),
+            ('ipsilateral', 'contralateral'),
+            ('contralateral', 'ipsilateral'),
+            ('unilateral', 'bilateral'),
+            ('bilateral', 'unilateral'),
+            
+            # Medical directional terms - superior/inferior
+            ('superior', 'inferior'),
+            ('inferior', 'superior'),
+            ('proximal', 'distal'),
+            ('distal', 'proximal'),
+            ('cranial', 'caudal'),
+            ('caudal', 'cranial'),
+            
+            # Medical directional terms - anterior/posterior
+            ('anterior', 'posterior'),
+            ('posterior', 'anterior'),
+            ('ventral', 'dorsal'),
+            ('dorsal', 'ventral'),
+            ('palmar', 'dorsal'),
+            ('plantar', 'dorsal'),
+            
+            # Quadrant-specific medical terms
+            ('ruq', 'llq'),
+            ('llq', 'ruq'),
+            ('luq', 'rlq'),
+            ('rlq', 'luq'),
+            ('right upper quadrant', 'left lower quadrant'),
+            ('left lower quadrant', 'right upper quadrant'),
+            ('left upper quadrant', 'right lower quadrant'),
+            ('right lower quadrant', 'left upper quadrant'),
+            
+            # Anatomical region opposites
+            ('epigastric', 'hypogastric'),
+            ('hypogastric', 'epigastric'),
+            ('suprapubic', 'retrosternal'),
+            ('retrosternal', 'suprapubic'),
+            ('thoracic', 'lumbar'),
+            ('lumbar', 'thoracic'),
+            ('cervical', 'sacral'),
+            ('sacral', 'cervical'),
+            
+            # Specific organ laterality
+            ('right kidney', 'left kidney'),
+            ('left kidney', 'right kidney'),
+            ('right lung', 'left lung'),
+            ('left lung', 'right lung'),
+            ('right ovary', 'left ovary'),
+            ('left ovary', 'right ovary'),
+            ('right testicle', 'left testicle'),
+            ('left testicle', 'right testicle'),
+            
+            # Pain radiation patterns
+            ('radiates to left', 'radiates to right'),
+            ('radiates to right', 'radiates to left'),
+            ('left arm', 'right arm'),
+            ('right arm', 'left arm'),
+            ('left shoulder', 'right shoulder'),
+            ('right shoulder', 'left shoulder'),
+            ('left flank', 'right flank'),
+            ('right flank', 'left flank'),
+            
+            # Medical procedure laterality
+            ('left side', 'right side'),
+            ('right side', 'left side'),
+            ('left sided', 'right sided'),
+            ('right sided', 'left sided'),
+            ('left sided pain', 'right sided pain'),
+            ('right sided pain', 'left sided pain')
         ]
         
         penalty = 0.0
+        
+        # Check for multi-word phrase conflicts first (higher priority)
+        text1_lower = text1.lower()
+        text2_lower = text2.lower()
+        
+        # Critical medical lateralization conflicts (higher penalty)
+        critical_conflicts = [
+            ('right lower quadrant', 'left lower quadrant'),
+            ('left lower quadrant', 'right lower quadrant'),
+            ('right upper quadrant', 'left upper quadrant'),
+            ('left upper quadrant', 'right upper quadrant'),
+            ('right sided pain', 'left sided pain'),
+            ('left sided pain', 'right sided pain'),
+            ('radiates to right', 'radiates to left'),
+            ('radiates to left', 'radiates to right')
+        ]
+        
+        for dir1, dir2 in critical_conflicts:
+            if dir1 in text1_lower and dir2 in text2_lower:
+                penalty += 0.4  # Higher penalty for critical conflicts
+                print(f"[Engine]   🔍 Critical directional penalty: {dir1} vs {dir2} (-0.4)")
+        
+        # Check single word conflicts
         for dir1, dir2 in opposite_pairs:
             if dir1 in words1 and dir2 in words2:
-                penalty += 0.2  # Penalty for opposite directions
-                print(f"[Engine]   🔍 Directional penalty: {dir1} vs {dir2} (-0.2)")
+                # Skip if already handled by critical conflicts
+                if not any(dir1 in conflict[0] and dir2 in conflict[1] for conflict in critical_conflicts):
+                    penalty += 0.2  # Standard penalty for opposite directions
+                    print(f"[Engine]   🔍 Directional penalty: {dir1} vs {dir2} (-0.2)")
         
         # Apply penalty
         final_similarity = cosine_similarity - penalty
         final_similarity = max(0.0, final_similarity)  # Don't go below 0
         
-        print(f"[Engine]   🔍 Final similarity (cosine - penalty): {final_similarity:.3f}")
+        if penalty > 0:
+            print(f"[Engine]   🔍 Final similarity (cosine - penalty): {final_similarity:.3f}")
+        else:
+            print(f"[Engine]   🔍 Final similarity (no penalty): {final_similarity:.3f}")
         
         return float(final_similarity)
     
