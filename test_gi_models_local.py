@@ -428,17 +428,17 @@ def test_oldcarts_normalization_flow():
         print(f"   Python path: {sys.path}")
         return False
     
-    # Create an instance with embedding model for semantic matching
+    # Create an instance with embedding model for hybrid similarity
     try:
-        # Try to import and initialize a sentence transformer model
+        # Try to import and initialize a sentence transformer model for semantic fallback
         embedding_model = None
         try:
             from sentence_transformers import SentenceTransformer
-            print("🧠 Loading embedding model for semantic matching...")
+            print("🧠 Loading embedding model for semantic similarity fallback...")
             embedding_model = SentenceTransformer('all-MiniLM-L6-v2')  # Fast, lightweight model
             print("✅ Successfully loaded embedding model")
         except ImportError:
-            print("⚠️  sentence-transformers not available - semantic matching will be disabled")
+            print("⚠️  sentence-transformers not available - will use Jaccard similarity only")
         except Exception as e:
             print(f"⚠️  Failed to load embedding model: {e}")
         
@@ -512,9 +512,9 @@ def test_oldcarts_normalization_flow():
             # Test location-specific semantic matching
             print("🎯 Testing location-specific semantic matching...")
             
-            if hasattr(engine, 'test_semantic_matching') and engine.embedding_model:
+            if hasattr(engine, 'test_hybrid_matching'):
                 try:
-                    print(f"🧠 Using engine's test_semantic_matching method for location matching")
+                    print(f"🧠 Using engine's test_hybrid_matching method for location matching")
                     
                     # Extract location data from guidelines for testing
                     location_guidelines = []
@@ -529,20 +529,20 @@ def test_oldcarts_normalization_flow():
                     
                     print(f"📍 Testing against {len(location_guidelines)} guidelines with location data")
                     
-                    # Use the engine's test method for semantic matching
-                    matched_guidelines = engine.test_semantic_matching(test_case['prompt'], location_guidelines)
+                    # Use the engine's test method for hybrid matching
+                    matched_guidelines = engine.test_hybrid_matching(test_case['prompt'], location_guidelines)
                     
-                    print(f"📊 Top 5 matching guidelines (LOCATION-SPECIFIC SEMANTIC MATCHING):")
+                    print(f"📊 Top 5 matching guidelines (LOCATION-SPECIFIC HYBRID MATCHING):")
                     for j, match in enumerate(matched_guidelines[:5], 1):
                         print(f"   {j}. {match['name']}: {match['similarity']:.3f}")
                         print(f"      Location: {match['data']['location'][:80]}...")
                     
                 except Exception as e:
-                    print(f"⚠️  Engine semantic matching failed: {e}")
-                    print(f"✅ Normalized text ready for semantic matching: '{normalized}'")
+                    print(f"⚠️  Engine hybrid matching failed: {e}")
+                    print(f"✅ Normalized text ready for hybrid matching: '{normalized}'")
             else:
-                print(f"✅ Normalized text ready for semantic matching: '{normalized}'")
-                print("ℹ️  Engine semantic matching not available (no embedding model)")
+                print(f"✅ Normalized text ready for hybrid matching: '{normalized}'")
+                print("ℹ️  Engine hybrid matching not available")
             
         except Exception as e:
             print(f"❌ Error during testing: {e}")

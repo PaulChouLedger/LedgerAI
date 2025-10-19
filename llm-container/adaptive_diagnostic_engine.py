@@ -81,6 +81,15 @@ class AdaptiveDiagnosticEngine:
         self.use_faiss = False  # Will be enabled after successful index build
         self.validate_faiss = os.getenv("VALIDATE_FAISS", "false").lower() == "true"  # Compare FAISS vs brute-force
         
+        # Hybrid matching configuration
+        self.hybrid_config = {
+            'jaccard_threshold': 0.3,      # Primary threshold for Jaccard similarity
+            'semantic_threshold': 0.5,     # Threshold for semantic similarity fallback
+            'semantic_boost_threshold': 0.3,  # When semantic is significantly better than Jaccard
+            'semantic_weight': 0.7,        # Weight for semantic similarity when used as fallback
+            'confidence_threshold': 0.1    # Max difference for high confidence
+        }
+        
         # Load guidelines
         self.all_guidelines = {}
         self._load_guidelines()
@@ -1046,22 +1055,20 @@ class AdaptiveDiagnosticEngine:
         
         matched = []
         
-        print(f"\n[Engine] 🔍 PURE SEMANTIC MATCHING...")
+        print(f"\n[Engine] 🔍 HYBRID SIMILARITY MATCHING...")
         print(f"[Engine] 📋 Core symptom extracted: '{core_symptom}'")
-        print(f"[Engine] 🎯 Strategy: OLDCARTS normalization → Jaccard similarity with guideline descriptions")
+        print(f"[Engine] 🎯 Strategy: OLDCARTS normalization → Hybrid similarity (Jaccard + Semantic) with guideline descriptions")
         print(f"[Engine] ---")
         
-        # SEMANTIC THRESHOLD for matching
-        SEMANTIC_THRESHOLD = 0.2  # Lower threshold for pure semantic matching
+        # JACCARD THRESHOLD for matching
+        JACCARD_THRESHOLD = 0.2  # Threshold for Jaccard similarity matching
         
-        if not self.embedding_model:
-            print(f"[Engine] ❌ No embedding model available - cannot perform semantic matching")
-            return []
+        # Hybrid approach: Jaccard similarity (primary) + Semantic similarity (fallback)
         
-        print(f"[Engine] 🧠 Computing semantic similarity against {len(self.all_guidelines)} guidelines...")
+        print(f"[Engine] 🧠 Computing hybrid similarity against {len(self.all_guidelines)} guidelines...")
         
         for name, guideline in self.all_guidelines.items():
-            # Get the guideline's location description for semantic matching
+            # Get the guideline's location description for Jaccard matching
             location_desc = guideline.get('location', '')
             if not location_desc:
                 print(f"[Engine] ⚠️ No location description for {name} - skipping")
@@ -1073,12 +1080,19 @@ class AdaptiveDiagnosticEngine:
                 continue
             
             try:
-                # Compute Jaccard similarity between normalized complaint and guideline location
-                # Jaccard is more appropriate for normalized medical terms
-                similarity = self._compute_jaccard_similarity(core_symptom, location_desc)
-                print(f"[Engine]   {name}: {similarity:.3f} ('{core_symptom}' vs '{location_desc[:50]}...')")
+                # Compute hybrid similarity (Jaccard + Semantic)
+                similarity_result = self._compute_hybrid_similarity(core_symptom, location_desc)
+                final_score = similarity_result['final_score']
+                jaccard_score = similarity_result['jaccard_score']
+                semantic_score = similarity_result['semantic_score']
+                confidence = similarity_result['confidence']
+                method_used = similarity_result['method_used']
                 
-                if similarity > SEMANTIC_THRESHOLD:
+                print(f"[Engine]   {name}: {final_score:.3f} ({method_used}, {confidence} confidence)")
+                print(f"[Engine]     Jaccard: {jaccard_score:.3f}, Semantic: {semantic_score:.3f}")
+                print(f"[Engine]     ('{core_symptom}' vs '{location_desc[:50]}...')")
+                
+                if final_score > JACCARD_THRESHOLD:
                     # Initial score based on PREVALENCE from guideline JSON
                     prevalence = guideline.get('prevalence', 'uncommon')
                     prevalence_scores = {
@@ -1092,21 +1106,25 @@ class AdaptiveDiagnosticEngine:
                     matched.append({
                         'name': name,
                         'score': initial_score,
-                        'similarity': similarity,  # Store the semantic similarity
+                        'similarity': final_score,  # Store the final hybrid similarity
+                        'jaccard_score': jaccard_score,
+                        'semantic_score': semantic_score,
+                        'confidence': confidence,
+                        'method_used': method_used,
                         'data': guideline
                     })
-                    print(f"[Engine]    ✅ ACCEPTED: {name} (similarity: {similarity:.3f}, prevalence: {prevalence})")
+                    print(f"[Engine]    ✅ ACCEPTED: {name} (final: {final_score:.3f}, {method_used}, {confidence} confidence)")
                 else:
-                    print(f"[Engine]    ❌ REJECTED: {name} (similarity: {similarity:.3f} < {SEMANTIC_THRESHOLD})")
+                    print(f"[Engine]    ❌ REJECTED: {name} (final: {final_score:.3f} < {JACCARD_THRESHOLD})")
                     
             except Exception as sim_error:
                 print(f"[Engine] ❌ Similarity computation failed for {name}: {sim_error}")
                 continue
         
-        # Sort by semantic similarity (highest first), then by prevalence
+        # Sort by final hybrid similarity (highest first), then by prevalence
         matched.sort(key=lambda x: (-x['similarity'], -x['score']))
         
-        print(f"\n[Engine] 📊 SEMANTIC MATCHING RESULTS:")
+        print(f"\n[Engine] 📊 HYBRID SIMILARITY MATCHING RESULTS:")
         print(f"[Engine] 📋 Total matched: {len(matched)} conditions")
         for i, m in enumerate(matched, 1):
             urgency = m['data'].get('urgency', 'routine')
@@ -1115,10 +1133,11 @@ class AdaptiveDiagnosticEngine:
         
         # Store matching metadata for debug
         self.matching_metadata = {
-            'mode': 'jaccard_similarity',
-            'strategy': 'OLDCARTS normalization → Jaccard similarity with guideline descriptions',
+            'mode': 'hybrid_similarity',
+            'strategy': 'OLDCARTS normalization → Hybrid similarity (Jaccard + Semantic) with guideline descriptions',
             'thresholds': {
-                'jaccard': SEMANTIC_THRESHOLD
+                'jaccard': JACCARD_THRESHOLD,
+                'semantic': self.hybrid_config['semantic_threshold']
             },
             'matched_count': len(matched),
             'filtered_count': len(self.all_guidelines) - len(matched)
@@ -1126,16 +1145,16 @@ class AdaptiveDiagnosticEngine:
         
         return matched
     
-    def test_semantic_matching(self, complaint: str, guidelines: List[Dict] = None) -> List[Dict]:
+    def test_hybrid_matching(self, complaint: str, guidelines: List[Dict] = None) -> List[Dict]:
         """
-        Test method for semantic matching - used by test scripts
+        Test method for hybrid similarity matching - used by test scripts
         
         Args:
             complaint: Patient complaint text
             guidelines: Optional list of guidelines to test against (if None, uses all_guidelines)
         
         Returns:
-            List of matched guidelines with similarity scores
+            List of matched guidelines with hybrid similarity scores
         """
         if guidelines is None:
             guidelines = list(self.all_guidelines.values())
@@ -1145,7 +1164,7 @@ class AdaptiveDiagnosticEngine:
         self.all_guidelines = {guideline['name']: guideline for guideline in guidelines}
         
         try:
-            # Use the pure semantic matching method
+            # Use the hybrid similarity matching method
             matched = self._match_to_guidelines(complaint)
             return matched
         finally:
@@ -1614,6 +1633,71 @@ Your question:"""
         print(f"[Engine]   🔍 Intersection: {sorted(words1 & words2)}")
         
         return similarity
+    
+    def _compute_hybrid_similarity(self, complaint: str, guideline_location: str) -> Dict[str, float]:
+        """
+        Compute hybrid similarity using both Jaccard and semantic similarity
+        
+        Args:
+            complaint: Normalized patient complaint
+            guideline_location: Guideline location description
+            
+        Returns:
+            Dictionary with similarity scores and confidence metrics
+        """
+        # Primary: Jaccard similarity (fast, reliable for normalized terms)
+        jaccard_score = self._compute_jaccard_similarity(complaint, guideline_location)
+        
+        # Secondary: Semantic similarity (handles edge cases)
+        semantic_score = 0.0
+        if self.embedding_model:
+            try:
+                semantic_score = self._compute_similarity(complaint, guideline_location)
+            except Exception as e:
+                print(f"[Engine]   ⚠️ Semantic similarity failed: {e}")
+                semantic_score = 0.0
+        
+        # Determine final score and confidence
+        final_score = jaccard_score
+        confidence = "high"
+        method_used = "jaccard"
+        
+        # Hybrid logic
+        if jaccard_score > self.hybrid_config['jaccard_threshold']:
+            # High Jaccard confidence - use it as primary
+            final_score = jaccard_score
+            confidence = "high"
+            method_used = "jaccard"
+            
+        elif semantic_score > jaccard_score + self.hybrid_config['semantic_boost_threshold']:
+            # Semantic significantly better - use it with lower weight
+            final_score = semantic_score * self.hybrid_config['semantic_weight']
+            confidence = "medium"
+            method_used = "semantic_fallback"
+            
+        elif semantic_score > self.hybrid_config['semantic_threshold']:
+            # Semantic above threshold but not significantly better
+            final_score = max(jaccard_score, semantic_score * 0.8)
+            confidence = "medium"
+            method_used = "hybrid"
+            
+        else:
+            # Use Jaccard as primary
+            final_score = jaccard_score
+            confidence = "low" if jaccard_score < 0.2 else "medium"
+            method_used = "jaccard"
+        
+        # Check if both methods agree (high confidence)
+        if abs(jaccard_score - semantic_score) < self.hybrid_config['confidence_threshold']:
+            confidence = "high"
+        
+        return {
+            'final_score': final_score,
+            'jaccard_score': jaccard_score,
+            'semantic_score': semantic_score,
+            'confidence': confidence,
+            'method_used': method_used
+        }
     
     def _apply_synonym_expansion(self, text: str) -> str:
         """Apply OLDCARTS-structured synonym expansion to normalize medical terms"""
