@@ -994,7 +994,7 @@ class AdaptiveDiagnosticEngine:
                 similarity = float(distance)  # Cosine similarity (0-1)
                 
                 # Apply threshold
-                if similarity > 0.65:  # Same threshold as brute-force
+                if similarity > 0.70:  # Same threshold as brute-force
                     prevalence = guideline_data.get('prevalence', 'uncommon')
                     prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
                     initial_score = prevalence_scores.get(prevalence, 0.50)
@@ -1004,7 +1004,7 @@ class AdaptiveDiagnosticEngine:
                 else:
                     # Log first few rejections for visibility
                     if i < 5:
-                        print(f"[Engine]   ✗ {guideline_name}: '{trigger}' (similarity={similarity:.2f} < 0.65)")
+                        print(f"[Engine]   ✗ {guideline_name}: '{trigger}' (similarity={similarity:.2f} < 0.70)")
         
         print(f"\n[Engine] 📊 FAISS matching complete: {len(matched)} guidelines matched")
         
@@ -1014,7 +1014,7 @@ class AdaptiveDiagnosticEngine:
             'strategy': 'exact > subset > FAISS semantic',
             'thresholds': {
                 'char_overlap': 0.75,
-                'semantic': 0.65
+                'semantic': 0.70
             },
             'matched_count': len(matched),
             'filtered_count': len(self.all_guidelines) - len(matched)
@@ -1045,12 +1045,12 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine]    1. Exact match (trigger in complaint)")
         print(f"[Engine]    2. Subset match (symptom in trigger)")
         print(f"[Engine]    3. Character overlap (Jaccard > 0.75)")
-        print(f"[Engine]    4. Semantic similarity (cosine > 0.65)")
+        print(f"[Engine]    4. Semantic similarity (cosine > 0.70)")
         print(f"[Engine] ---")
         
         # Thresholds
         CHAR_OVERLAP_THRESHOLD = 0.75  # Increased from 0.65
-        SEMANTIC_THRESHOLD = 0.65  # Lowered from 0.75 based on test results
+        SEMANTIC_THRESHOLD = 0.70  # Optimized based on semantic + keyword test results
         
         # Helper function for character overlap
         def char_overlap(str1: str, str2: str) -> float:
@@ -1243,7 +1243,7 @@ class AdaptiveDiagnosticEngine:
         # Store matching metadata for debug
         self.matching_metadata = {
             'mode': 'brute-force',
-            'strategy': 'exact > subset > char_overlap(>0.75) > semantic(>0.65)',
+            'strategy': 'exact > subset > char_overlap(>0.75) > semantic(>0.70)',
             'thresholds': {
                 'char_overlap': CHAR_OVERLAP_THRESHOLD,
                 'semantic': SEMANTIC_THRESHOLD
@@ -1605,38 +1605,72 @@ Your question:"""
         return enhanced_similarity
     
     def _compute_keyword_similarity_boost(self, user_answer: str, oldcarts_section: str) -> float:
-        """Calculate keyword similarity boost between user answer and guideline section"""
-        user_words = set(user_answer.lower().split())
-        guideline_words = set(oldcarts_section.lower().split())
+        """Calculate weighted keyword similarity boost using fuzzy matching"""
+        user_words = user_answer.lower().split()
+        guideline_words = oldcarts_section.lower().split()
         
-        # Remove common stop words that don't add meaning
-        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'must', 'shall', 'key', 'differentiator', 'from', 'localized', 'constant', 'tenderness'}
-        
-        user_meaningful = user_words - stop_words
-        guideline_meaningful = guideline_words - stop_words
-        
-        if not user_meaningful or not guideline_meaningful:
+        if not user_words or not guideline_words:
             return 0.0
         
-        # Calculate intersection (matching words)
-        intersection = user_meaningful.intersection(guideline_meaningful)
+        # Calculate weighted matches
+        total_weight = 0.0
+        matched_words = []
         
-        if not intersection:
-            return 0.0
+        for user_word in user_words:
+            best_match_weight = 0.0
+            best_match_word = None
+            
+            for guideline_word in guideline_words:
+                # Calculate fuzzy match score (0.0 to 1.0)
+                fuzzy_score = self._fuzzy_match(user_word, guideline_word)
+                
+                if fuzzy_score > best_match_weight:
+                    best_match_weight = fuzzy_score
+                    best_match_word = guideline_word
+            
+            # Only count matches above threshold
+            if best_match_weight > 0.6:  # 60% similarity threshold
+                total_weight += best_match_weight
+                matched_words.append(f"{user_word}≈{best_match_word}({best_match_weight:.2f})")
         
-        # Use a more balanced approach: boost based on match ratio relative to user words
-        # This prevents dilution from long guideline descriptions
-        match_ratio = len(intersection) / len(user_meaningful)
+        # Calculate weighted ratio
+        weighted_ratio = total_weight / len(user_words)
         
-        # Convert to boost (0.0 to 0.15 range)
-        # Higher match ratio gets more boost
-        keyword_boost = match_ratio * 0.15
+        # Convert to boost (0.0 to 0.3 range) - increased for better threshold crossing
+        keyword_boost = weighted_ratio * 0.3
         
         if keyword_boost > 0.02:  # Only log significant boosts
-            print(f"[Engine]   🔑 Keyword boost: {len(intersection)}/{len(user_meaningful)} user words = {match_ratio:.3f} → +{keyword_boost:.3f}")
-            print(f"[Engine]   🔑 Matching words: {intersection}")
+            print(f"[Engine]   🔑 Weighted keyword boost: {total_weight:.2f}/{len(user_words)} words = {weighted_ratio:.3f} → +{keyword_boost:.3f}")
+            print(f"[Engine]   🔑 Matched words: {matched_words}")
         
         return keyword_boost
+    
+    def _fuzzy_match(self, word1: str, word2: str) -> float:
+        """Calculate fuzzy match score between two words (0.0 to 1.0)"""
+        # Exact match
+        if word1 == word2:
+            return 1.0
+        
+        # Substring match (one word contains the other)
+        if word1 in word2 or word2 in word1:
+            return 0.8
+        
+        # Character overlap similarity (Jaccard)
+        set1 = set(word1)
+        set2 = set(word2)
+        intersection = set1.intersection(set2)
+        union = set1.union(set2)
+        
+        if not union:
+            return 0.0
+        
+        jaccard_score = len(intersection) / len(union)
+        
+        # Boost for similar length words
+        length_ratio = min(len(word1), len(word2)) / max(len(word1), len(word2))
+        length_boost = length_ratio * 0.2
+        
+        return min(1.0, jaccard_score + length_boost)
     
     
     def _process_clinical_answer(self, answer: str) -> Dict[str, Any]:
