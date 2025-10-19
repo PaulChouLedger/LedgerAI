@@ -1026,7 +1026,9 @@ class AdaptiveDiagnosticEngine:
     
     def _match_to_guidelines(self, complaint: str) -> List[Dict]:
         """
-        Match chief complaint to guidelines
+        Match chief complaint to guidelines using PURE SEMANTIC SIMILARITY
+        
+        Flow: User input → OLDCARTS normalization → Semantic similarity with guideline descriptions
         
         Returns:
             List of matched guidelines with initial scores, sorted by relevance
@@ -1038,227 +1040,111 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine] 🔄 OLDCARTS normalization: '{complaint_lower}' → '{complaint_expanded}'")
         
         # Extract core symptom by removing common filler words
-        # This allows "I have abdominal pain" to match "lower abdominal pain"
         filler_words = ['i', 'have', 'my', 'the', 'a', 'an', 'is', 'am', 'feel', 'feeling']
         symptom_words = [w for w in complaint_expanded.split() if w not in filler_words]
         core_symptom = ' '.join(symptom_words)
         
         matched = []
         
-        print(f"\n[Engine] 🔍 MATCHING TO GUIDELINES...")
+        print(f"\n[Engine] 🔍 PURE SEMANTIC MATCHING...")
         print(f"[Engine] 📋 Core symptom extracted: '{core_symptom}'")
-        print(f"[Engine] 🎯 Matching strategy:")
-        print(f"[Engine]    1. Exact match (trigger in complaint)")
-        print(f"[Engine]    2. Subset match (symptom in trigger)")
-        print(f"[Engine]    3. Character overlap (Jaccard > 0.75)")
-        print(f"[Engine]    4. Cosine similarity with directional penalty (> 0.5)")
+        print(f"[Engine] 🎯 Strategy: OLDCARTS normalization → Semantic similarity with guideline descriptions")
         print(f"[Engine] ---")
         
-        # Thresholds
-        CHAR_OVERLAP_THRESHOLD = 0.75  # Increased from 0.65
-        SEMANTIC_THRESHOLD = 0.5  # Cosine similarity with directional penalty
+        # SEMANTIC THRESHOLD for matching
+        SEMANTIC_THRESHOLD = 0.3  # Lower threshold for pure semantic matching
         
-        # Helper function for character overlap
-        def char_overlap(str1: str, str2: str) -> float:
-            """Calculate character-level overlap between two strings (Jaccard similarity)"""
-            set1 = set(str1.lower().replace(' ', ''))
-            set2 = set(str2.lower().replace(' ', ''))
-            if not set1 or not set2:
-                return 0.0
-            intersection = len(set1 & set2)
-            union = len(set1 | set2)
-            return intersection / union if union > 0 else 0.0
+        if not self.embedding_model:
+            print(f"[Engine] ❌ No embedding model available - cannot perform semantic matching")
+            return []
         
-        rejected_guidelines = []  # Track filtered guidelines
+        print(f"[Engine] 🧠 Computing semantic similarity against {len(self.all_guidelines)} guidelines...")
         
         for name, guideline in self.all_guidelines.items():
-            triggers = guideline.get('chief_complaint_triggers', [])
+            # Get the guideline's location description for semantic matching
+            location_desc = guideline.get('location', '')
+            if not location_desc:
+                print(f"[Engine] ⚠️ No location description for {name} - skipping")
+                continue
             
-            print(f"\n[Engine] 🔍 Evaluating: {name}")
-            print(f"[Engine]    Triggers: {triggers}")
-            
-            # Check if any trigger matches using HYBRID approach
-            matched_trigger = None
-            match_type = None
-            
-            for trigger in triggers:
-                trigger_lower = trigger.lower()
+            try:
+                # Compute semantic similarity between normalized complaint and guideline location
+                similarity = self._compute_similarity(core_symptom, location_desc)
+                print(f"[Engine]   {name}: {similarity:.3f} ('{core_symptom}' vs '{location_desc[:50]}...')")
                 
-                # FAST PATH: Exact keyword matching
-                # 1. Exact: trigger in complaint (e.g., "chest pain" in "I have chest pain")
-                if trigger_lower in complaint_lower:
-                    print(f"[Engine]    ✅ EXACT MATCH: '{trigger_lower}' found in '{complaint_lower}'")
-                    matched_trigger = trigger
-                    match_type = "exact"
-                    break
-                else:
-                    print(f"[Engine]    ❌ Exact: '{trigger_lower}' not in '{complaint_lower}'")
-                
-                # 2. Subset: core symptom in trigger (e.g., "abdominal pain" in "lower abdominal pain")
-                if core_symptom in trigger_lower:
-                    print(f"[Engine]    ✅ SUBSET MATCH: '{core_symptom}' found in '{trigger_lower}'")
-                    matched_trigger = trigger
-                    match_type = "subset"
-                    break
-                else:
-                    print(f"[Engine]    ❌ Subset: '{core_symptom}' not in '{trigger_lower}'")
-            
-            # Track best scores for this guideline (for final rejection logging)
-            best_overlap = 0.0
-            best_trigger_for_overlap = None
-            best_semantic = 0.0
-            best_trigger_for_semantic = None
-            
-            # CHARACTER OVERLAP: Check if trigger and symptom share significant characters
-            # This filters "chest pain" (~0.3 overlap) from "abdominal pain"
-            if not matched_trigger:
-                print(f"[Engine]    🔤 Checking character overlap (Jaccard similarity)...")
-                for trigger in triggers:
-                    overlap = char_overlap(core_symptom, trigger)
-                    print(f"[Engine]       '{core_symptom}' vs '{trigger}' = {overlap:.2f} (need >{CHAR_OVERLAP_THRESHOLD})")
-                    if overlap > best_overlap:
-                        best_overlap = overlap
-                        best_trigger_for_overlap = trigger
-                    if overlap > CHAR_OVERLAP_THRESHOLD:
-                        print(f"[Engine]    ✅ CHAR OVERLAP MATCH: {overlap:.2f} > {CHAR_OVERLAP_THRESHOLD}")
-                        matched_trigger = trigger
-                        match_type = f"char_overlap ({overlap:.2f})"
-                        break
-                
-                if not matched_trigger and best_overlap > 0.0:
-                    print(f"[Engine]    ❌ Best overlap: {best_overlap:.2f} < {CHAR_OVERLAP_THRESHOLD} (rejected)")
-            
-            # SEMANTIC PATH: Use embeddings for fuzzy/synonym matching
-            # Handles typos ("abdomnal pain"), synonyms ("belly ache" = "abdominal pain")
-            # STRICT threshold to avoid false matches across body regions
-            if not matched_trigger and self.embedding_model:
-                print(f"[Engine]    🧠 Checking semantic similarity (embeddings)...")
-                for trigger in triggers:
-                    try:
-                        similarity = self._compute_similarity(core_symptom, trigger)
-                        print(f"[Engine]       '{core_symptom}' vs '{trigger}' = {similarity:.2f} (need >{SEMANTIC_THRESHOLD})")
-                        if similarity > best_semantic:
-                            best_semantic = similarity
-                            best_trigger_for_semantic = trigger
-                    except Exception as sim_error:
-                        print(f"[Engine] ❌ Initial similarity computation failed for trigger '{trigger}': {sim_error}")
-                        import traceback
-                        traceback.print_exc()
-                        # Continue with next trigger
-                        continue
-                    if similarity > SEMANTIC_THRESHOLD:
-                        print(f"[Engine]    ✅ SEMANTIC MATCH: {similarity:.2f} > {SEMANTIC_THRESHOLD}")
-                        matched_trigger = trigger
-                        match_type = f"semantic ({similarity:.2f})"
-                        break
-                
-                if not matched_trigger and best_semantic > 0.0:
-                    print(f"[Engine]    ❌ Best semantic: {best_semantic:.2f} < {SEMANTIC_THRESHOLD} (rejected)")
-            
-            if matched_trigger:
-                # Initial score based on PREVALENCE from guideline JSON
-                prevalence = guideline.get('prevalence', 'uncommon')
-                
-                prevalence_scores = {
-                    'common': 0.60,    # Frequent conditions
-                    'uncommon': 0.50,  # Moderate frequency
-                    'rare': 0.40       # Low frequency but important
-                }
-                
-                initial_score = prevalence_scores.get(prevalence, 0.50)
-                
-                matched.append({
-                    'name': name,
-                    'score': initial_score,
-                    'data': guideline
-                })
-                print(f"[Engine]    ══════════════════════════════════════")
-                print(f"[Engine]    ✅ ACCEPTED: {name}")
-                print(f"[Engine]       Match: {match_type}")
-                print(f"[Engine]       Trigger: '{matched_trigger}'")
-                print(f"[Engine]       Prevalence: {prevalence}")
-                print(f"[Engine]       Initial score: {initial_score:.0%}")
-            else:
-                # Guideline rejected - log ONCE with best score info
-                print(f"[Engine]    ══════════════════════════════════════")
-                print(f"[Engine]    ❌ REJECTED: {name} (no match found)")
-                
-                # Determine primary rejection reason (semantic takes priority as it's the final check)
-                if best_semantic > 0.0:
-                    rejected_guidelines.append({
+                if similarity > SEMANTIC_THRESHOLD:
+                    # Initial score based on PREVALENCE from guideline JSON
+                    prevalence = guideline.get('prevalence', 'uncommon')
+                    prevalence_scores = {
+                        'common': 0.60,    # Frequent conditions
+                        'uncommon': 0.50,  # Moderate frequency
+                        'rare': 0.40       # Low frequency but important
+                    }
+                    
+                    initial_score = prevalence_scores.get(prevalence, 0.50)
+                    
+                    matched.append({
                         'name': name,
-                        'reason': 'semantic_low',
-                        'trigger': best_trigger_for_semantic,
-                        'score': best_semantic,
-                        'threshold': SEMANTIC_THRESHOLD,
-                        'char_overlap': best_overlap  # Include char overlap for reference
+                        'score': initial_score,
+                        'similarity': similarity,  # Store the semantic similarity
+                        'data': guideline
                     })
-                elif best_overlap > 0.0:
-                    rejected_guidelines.append({
-                        'name': name,
-                        'reason': 'char_overlap_low',
-                        'trigger': best_trigger_for_overlap,
-                        'score': best_overlap,
-                        'threshold': CHAR_OVERLAP_THRESHOLD,
-                        'semantic': None
-                    })
+                    print(f"[Engine]    ✅ ACCEPTED: {name} (similarity: {similarity:.3f}, prevalence: {prevalence})")
+                else:
+                    print(f"[Engine]    ❌ REJECTED: {name} (similarity: {similarity:.3f} < {SEMANTIC_THRESHOLD})")
+                    
+            except Exception as sim_error:
+                print(f"[Engine] ❌ Similarity computation failed for {name}: {sim_error}")
+                continue
         
-        # Print filtered guidelines summary
-        if rejected_guidelines:
-            print(f"\n[Engine] 🚫 FILTERED OUT ({len(rejected_guidelines)} guidelines):")
-            # Group by reason
-            char_filtered = [g for g in rejected_guidelines if g['reason'] == 'char_overlap_low']
-            sem_filtered = [g for g in rejected_guidelines if g['reason'] == 'semantic_low']
-            
-            if char_filtered:
-                print(f"[Engine] 📊 Character overlap < {CHAR_OVERLAP_THRESHOLD}:")
-                for g in sorted(char_filtered, key=lambda x: -x['score'])[:5]:  # Show top 5
-                    print(f"[Engine]    ✗ {g['name']}: '{g['trigger']}' (overlap={g['score']:.2f}, need >{g['threshold']:.2f})")
-            
-            if sem_filtered:
-                print(f"[Engine] 📊 Semantic similarity < {SEMANTIC_THRESHOLD}:")
-                for g in sorted(sem_filtered, key=lambda x: -x['score'])[:5]:  # Show top 5
-                    print(f"[Engine]    ✗ {g['name']}: '{g['trigger']}' (similarity={g['score']:.2f}, need >{g['threshold']:.2f})")
+        # Sort by semantic similarity (highest first), then by prevalence
+        matched.sort(key=lambda x: (-x['similarity'], -x['score']))
         
-        # PREVALENCE-FIRST sorting with urgency boost
-        # NOTE: Gender filtering happens AFTER sex is collected (see _filter_by_gender)
-        # Goal: Common urgent (appendicitis) BEFORE rare emergent (ectopic)
-        # But emergent conditions get a boost to stay competitive
-        
-        urgency_boost = {
-            'emergent': 0.15,  # +15% boost
-            'urgent': 0.00,    # No change
-            'routine': -0.05   # -5% penalty
-        }
-        
-        # Apply urgency boost to scores (prevalence + urgency adjustment)
-        for m in matched:
-            urgency = m['data'].get('urgency', 'routine')
-            m['combined_score'] = m['score'] + urgency_boost.get(urgency, 0)
-        
-        # Sort by combined score (prevalence + urgency boost)
-        matched.sort(key=lambda x: -x['combined_score'])
-        
-        print(f"\n[Engine] 📊 SORTED BY COMBINED SCORE (prevalence + urgency boost):")
+        print(f"\n[Engine] 📊 SEMANTIC MATCHING RESULTS:")
         print(f"[Engine] 📋 Total matched: {len(matched)} conditions")
-        for i, m in enumerate(matched, 1):  # Show ALL
+        for i, m in enumerate(matched, 1):
             urgency = m['data'].get('urgency', 'routine')
             prevalence = m['data'].get('prevalence', 'uncommon')
-            print(f"[Engine]   {i}. {m['name']} ({prevalence}, {urgency}, combined: {m['combined_score']:.0%})")
+            print(f"[Engine]   {i}. {m['name']} (similarity: {m['similarity']:.3f}, prevalence: {prevalence}, urgency: {urgency})")
         
         # Store matching metadata for debug
         self.matching_metadata = {
-            'mode': 'brute-force',
-            'strategy': 'exact > subset > char_overlap(>0.75) > semantic(>0.85)',
+            'mode': 'pure_semantic',
+            'strategy': 'OLDCARTS normalization → Semantic similarity with guideline descriptions',
             'thresholds': {
-                'char_overlap': CHAR_OVERLAP_THRESHOLD,
                 'semantic': SEMANTIC_THRESHOLD
             },
             'matched_count': len(matched),
-            'filtered_count': len(rejected_guidelines)
+            'filtered_count': len(self.all_guidelines) - len(matched)
         }
         
         return matched
+    
+    def test_semantic_matching(self, complaint: str, guidelines: List[Dict] = None) -> List[Dict]:
+        """
+        Test method for semantic matching - used by test scripts
+        
+        Args:
+            complaint: Patient complaint text
+            guidelines: Optional list of guidelines to test against (if None, uses all_guidelines)
+        
+        Returns:
+            List of matched guidelines with similarity scores
+        """
+        if guidelines is None:
+            guidelines = list(self.all_guidelines.values())
+        
+        # Temporarily replace all_guidelines for testing
+        original_guidelines = self.all_guidelines
+        self.all_guidelines = {guideline['name']: guideline for guideline in guidelines}
+        
+        try:
+            # Use the pure semantic matching method
+            matched = self._match_to_guidelines(complaint)
+            return matched
+        finally:
+            # Restore original guidelines
+            self.all_guidelines = original_guidelines
     
     def _ask_next_clinical_question(self) -> Dict[str, Any]:
         """

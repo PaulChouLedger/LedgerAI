@@ -48,83 +48,103 @@ def get_hardcoded_gi_guidelines() -> List[Dict]:
     return [
         {
             'name': 'Acute Appendicitis',
-            'location': 'Pain MIGRATES from periumbilical to right lower quadrant (RLQ) over 12-24 hours - highly specific migration pattern. Localizes to McBurney\'s point in RLQ.'
+            'location': 'Pain MIGRATES from periumbilical to right lower quadrant (RLQ) over 12-24 hours - highly specific migration pattern. Localizes to McBurney\'s point in RLQ.',
+            'chief_complaint_triggers': ['right lower quadrant', 'RLQ', 'appendix', 'appendicitis', 'right lower belly', 'right lower abdomen']
         },
         {
             'name': 'Acute Cholecystitis', 
-            'location': 'Right upper quadrant (RUQ), precisely localized just below right rib cage. RADIATES TO RIGHT SHOULDER OR SCAPULA (phrenic nerve referred pain).'
+            'location': 'Right upper quadrant (RUQ), precisely localized just below right rib cage. RADIATES TO RIGHT SHOULDER OR SCAPULA (phrenic nerve referred pain).',
+            'chief_complaint_triggers': ['right upper quadrant', 'RUQ', 'gallbladder', 'cholecystitis', 'right upper belly', 'right upper abdomen', 'under ribs right']
         },
         {
             'name': 'Acute Pancreatitis',
-            'location': 'Epigastric (upper mid-abdomen) and periumbilical. RADIATES STRAIGHT THROUGH TO THE BACK in \'boring\' pattern.'
+            'location': 'Epigastric (upper mid-abdomen) and periumbilical. RADIATES STRAIGHT THROUGH TO THE BACK in \'boring\' pattern.',
+            'chief_complaint_triggers': ['epigastric', 'upper middle', 'pancreas', 'pancreatitis', 'middle stomach', 'upper mid abdomen']
         },
         {
             'name': 'Acute Gastroenteritis',
-            'location': 'PERIUMBILICAL or DIFFUSE throughout abdomen. NOT localized to one quadrant. Cramping moves around.'
+            'location': 'PERIUMBILICAL or DIFFUSE throughout abdomen. NOT localized to one quadrant. Cramping moves around.',
+            'chief_complaint_triggers': ['periumbilical', 'diffuse', 'all over', 'generalized', 'stomach flu', 'gastroenteritis', 'moves around']
         },
         {
             'name': 'Biliary Colic',
-            'location': 'Right upper quadrant (RUQ) or epigastric. May RADIATE TO RIGHT SHOULDER OR BACK.'
+            'location': 'Right upper quadrant (RUQ) or epigastric. May RADIATE TO RIGHT SHOULDER OR BACK.',
+            'chief_complaint_triggers': ['right upper quadrant', 'RUQ', 'biliary', 'gallbladder', 'right upper belly', 'right shoulder']
         },
         {
             'name': 'Small Bowel Obstruction',
-            'location': 'Periumbilical and diffuse (not localized to one quadrant). Cramping throughout mid-abdomen.'
+            'location': 'Periumbilical and diffuse (not localized to one quadrant). Cramping throughout mid-abdomen.',
+            'chief_complaint_triggers': ['periumbilical', 'diffuse', 'bowel obstruction', 'small bowel', 'cramping', 'mid abdomen']
         },
         {
             'name': 'Acute Diverticulitis',
-            'location': 'LEFT LOWER QUADRANT (LLQ) - key differentiator from appendicitis (RLQ). LOCALIZED and CONSTANT. Sometimes palpable tender mass.'
+            'location': 'LEFT LOWER QUADRANT (LLQ) - key differentiator from appendicitis (RLQ). LOCALIZED and CONSTANT. Sometimes palpable tender mass.',
+            'chief_complaint_triggers': ['left lower quadrant', 'LLQ', 'diverticulitis', 'left lower belly', 'left lower abdomen']
         },
         {
             'name': 'GERD',
-            'location': 'RETROSTERNAL (behind breastbone) and EPIGASTRIC. BURNING rises from stomach toward throat. No radiation.'
+            'location': 'RETROSTERNAL (behind breastbone) and EPIGASTRIC. BURNING rises from stomach toward throat. No radiation.',
+            'chief_complaint_triggers': ['retrosternal', 'behind breastbone', 'heartburn', 'GERD', 'acid reflux', 'burning chest']
         },
         {
             'name': 'Gastric Outlet Obstruction',
-            'location': 'Epigastric (upper mid-abdomen), may radiate to back.'
+            'location': 'Epigastric (upper mid-abdomen), may radiate to back.',
+            'chief_complaint_triggers': ['epigastric', 'upper middle', 'gastric outlet', 'upper mid abdomen', 'middle stomach']
         },
         {
             'name': 'Acute Gastritis',
-            'location': 'EPIGASTRIC (upper mid-abdomen), diffuse. NO radiation.'
+            'location': 'EPIGASTRIC (upper mid-abdomen), diffuse. NO radiation.',
+            'chief_complaint_triggers': ['epigastric', 'upper middle', 'gastritis', 'upper mid abdomen', 'middle stomach']
         },
         {
             'name': 'Acute Hepatitis',
-            'location': 'RIGHT UPPER QUADRANT (liver area) discomfort. RUQ tenderness with hepatomegaly (enlarged liver).'
+            'location': 'RIGHT UPPER QUADRANT (liver area) discomfort. RUQ tenderness with hepatomegaly (enlarged liver).',
+            'chief_complaint_triggers': ['right upper quadrant', 'RUQ', 'liver', 'hepatitis', 'right upper belly', 'liver area']
         },
         {
             'name': 'Inflammatory Bowel Disease Flare',
-            'location': 'Diffuse cramping throughout abdomen, or RLQ if Crohn\'s (terminal ileum involved).'
+            'location': 'Diffuse cramping throughout abdomen, or RLQ if Crohn\'s (terminal ileum involved).',
+            'chief_complaint_triggers': ['diffuse', 'cramping', 'IBD', 'Crohn\'s', 'inflammatory bowel', 'all over abdomen']
         },
         {
             'name': 'Irritable Bowel Syndrome (IBS)',
-            'location': 'LOWER ABDOMEN, diffuse. Cramping migrates, not fixed to one spot.'
+            'location': 'LOWER ABDOMEN, diffuse. Cramping migrates, not fixed to one spot.',
+            'chief_complaint_triggers': ['lower abdomen', 'IBS', 'irritable bowel', 'cramping', 'migrates', 'not fixed']
         },
         {
             'name': 'Incarcerated Inguinal/Femoral Hernia',
-            'location': 'Groin (inguinal or femoral region), may have lower abdominal pain if bowel involved.'
+            'location': 'Groin (inguinal or femoral region), may have lower abdominal pain if bowel involved.',
+            'chief_complaint_triggers': ['groin', 'inguinal', 'femoral', 'hernia', 'lower abdomen', 'pelvic']
         },
         {
             'name': 'Mallory-Weiss Tear',
-            'location': 'Epigastric (upper mid-abdomen) or lower chest discomfort.'
+            'location': 'Epigastric (upper mid-abdomen) or lower chest discomfort.',
+            'chief_complaint_triggers': ['epigastric', 'upper middle', 'Mallory-Weiss', 'upper mid abdomen', 'lower chest']
         },
         {
             'name': 'Acute Mesenteric Ischemia',
-            'location': 'Diffuse, PERIUMBILICAL. Not localized to one quadrant.'
+            'location': 'Diffuse, PERIUMBILICAL. Not localized to one quadrant.',
+            'chief_complaint_triggers': ['diffuse', 'periumbilical', 'mesenteric', 'ischemia', 'all over abdomen']
         },
         {
             'name': 'Peptic Ulcer Disease',
-            'location': 'EPIGASTRIC, midline upper abdomen. No radiation typically.'
+            'location': 'EPIGASTRIC, midline upper abdomen. No radiation typically.',
+            'chief_complaint_triggers': ['epigastric', 'upper middle', 'ulcer', 'peptic ulcer', 'upper mid abdomen']
         },
         {
             'name': 'Perforated Viscus',
-            'location': 'Initially EPIGASTRIC (perforated ulcer) or localized, then becomes DIFFUSE as peritonitis develops.'
+            'location': 'Initially EPIGASTRIC (perforated ulcer) or localized, then becomes DIFFUSE as peritonitis develops.',
+            'chief_complaint_triggers': ['epigastric', 'upper middle', 'perforated', 'peritonitis', 'diffuse', 'upper mid abdomen']
         },
         {
             'name': 'Sigmoid Volvulus',
-            'location': 'Left lower quadrant (LLQ) or diffuse lower abdomen.'
+            'location': 'Left lower quadrant (LLQ) or diffuse lower abdomen.',
+            'chief_complaint_triggers': ['left lower quadrant', 'LLQ', 'sigmoid', 'volvulus', 'left lower belly', 'left lower abdomen']
         },
         {
             'name': 'Kidney Stone',
-            'location': 'Unilateral FLANK PAIN. RADIATES from flank→groin→testicle (males) or labia (females). Follows ureter path.'
+            'location': 'Unilateral FLANK PAIN. RADIATES from flank→groin→testicle (males) or labia (females). Follows ureter path.',
+            'chief_complaint_triggers': ['flank', 'kidney stone', 'renal colic', 'side pain', 'radiates to groin']
         }
     ]
 
@@ -450,6 +470,9 @@ def test_oldcarts_normalization_flow():
     
     all_passed = True
     
+    # Get hardcoded GI guidelines for testing
+    gi_guidelines = get_hardcoded_gi_guidelines()
+    
     for i, test_case in enumerate(test_cases, 1):
         print(f"\nTest {i}: {test_case['description']}")
         print(f"Input: '{test_case['prompt']}'")
@@ -474,36 +497,27 @@ def test_oldcarts_normalization_flow():
             else:
                 print("⚠️  No normalization applied")
             
-            # Test semantic matching with normalized text
+            # Test semantic matching using the engine's test method
             print("🎯 Testing semantic matching...")
             
-            # Get hardcoded GI guidelines for testing
-            gi_guidelines = get_hardcoded_gi_guidelines()
-            
-            # Test semantic matching using the engine's capabilities
-            if hasattr(engine, '_match_to_guidelines'):
+            if hasattr(engine, 'test_semantic_matching') and engine.embedding_model:
                 try:
-                    # Temporarily set the guidelines for testing
-                    original_guidelines = engine.all_guidelines
-                    engine.all_guidelines = {guideline['name']: guideline for guideline in gi_guidelines}
+                    print(f"🧠 Using engine's test_semantic_matching method")
                     
-                    # Use the engine's semantic matching
-                    matched_guidelines = engine._match_to_guidelines(test_case['prompt'])
+                    # Use the engine's test method for semantic matching
+                    matched_guidelines = engine.test_semantic_matching(test_case['prompt'], gi_guidelines)
                     
-                    print(f"📊 Top 5 matching guidelines:")
-                    for i, match in enumerate(matched_guidelines[:5], 1):
-                        print(f"   {i}. {match['name']}: {match['similarity']:.3f}")
-                        print(f"      Location: {match['location'][:80]}...")
-                    
-                    # Restore original guidelines
-                    engine.all_guidelines = original_guidelines
+                    print(f"📊 Top 5 matching guidelines (ENGINE SEMANTIC MATCHING):")
+                    for j, match in enumerate(matched_guidelines[:5], 1):
+                        print(f"   {j}. {match['name']}: {match['similarity']:.3f}")
+                        print(f"      Location: {match['data']['location'][:80]}...")
                     
                 except Exception as e:
-                    print(f"⚠️  Semantic matching failed: {e}")
+                    print(f"⚠️  Engine semantic matching failed: {e}")
                     print(f"✅ Normalized text ready for semantic matching: '{normalized}'")
             else:
                 print(f"✅ Normalized text ready for semantic matching: '{normalized}'")
-                print("ℹ️  Full semantic matching not available in this test mode")
+                print("ℹ️  Engine semantic matching not available (no embedding model)")
             
         except Exception as e:
             print(f"❌ Error during testing: {e}")
