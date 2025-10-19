@@ -2,6 +2,15 @@
 """
 Local test script to benchmark embedding models against GI guideline LOCATION sections.
 Run this locally before testing in Docker container.
+
+PURE SEMANTIC SIMILARITY TESTING:
+- Uses only cosine similarity between embeddings
+- NO hardcoded directional penalties or keyword matching
+- NO fuzzy matching or weighted scoring
+- Tests the raw semantic understanding of embedding models
+
+This provides a baseline to understand model performance before adding
+any hardcoded logic or penalties.
 """
 
 import sys
@@ -139,6 +148,42 @@ def get_patient_gi_prompts() -> List[Dict]:
             'prompt': "left side",
             'expected': ['Acute Diverticulitis', 'Sigmoid Volvulus'],
             'should_reject': ['Acute Appendicitis', 'Acute Cholecystitis', 'Acute Pancreatitis', 'Biliary Colic', 'Acute Hepatitis']
+        },
+        # Additional vague patient language patterns
+        {
+            'prompt': "right side",
+            'expected': ['Acute Appendicitis', 'Acute Cholecystitis', 'Biliary Colic'],
+            'should_reject': ['Acute Diverticulitis', 'Sigmoid Volvulus']
+        },
+        {
+            'prompt': "my left",
+            'expected': ['Acute Diverticulitis', 'Sigmoid Volvulus'],
+            'should_reject': ['Acute Appendicitis', 'Acute Cholecystitis']
+        },
+        {
+            'prompt': "my right",
+            'expected': ['Acute Appendicitis', 'Acute Cholecystitis', 'Biliary Colic'],
+            'should_reject': ['Acute Diverticulitis', 'Sigmoid Volvulus']
+        },
+        {
+            'prompt': "on the left",
+            'expected': ['Acute Diverticulitis', 'Sigmoid Volvulus'],
+            'should_reject': ['Acute Appendicitis', 'Acute Cholecystitis']
+        },
+        {
+            'prompt': "on the right",
+            'expected': ['Acute Appendicitis', 'Acute Cholecystitis', 'Biliary Colic'],
+            'should_reject': ['Acute Diverticulitis', 'Sigmoid Volvulus']
+        },
+        {
+            'prompt': "left part",
+            'expected': ['Acute Diverticulitis', 'Sigmoid Volvulus'],
+            'should_reject': ['Acute Appendicitis', 'Acute Cholecystitis']
+        },
+        {
+            'prompt': "right part",
+            'expected': ['Acute Appendicitis', 'Acute Cholecystitis', 'Biliary Colic'],
+            'should_reject': ['Acute Diverticulitis', 'Sigmoid Volvulus']
         },
         {
             'prompt': "behind my breastbone and upper stomach",
@@ -512,6 +557,250 @@ def analyze_results(all_results: List[Dict]) -> None:
         
         print("\n" + "="*100)
 
+def analyze_guideline_optimization(all_results: List[Dict], guidelines: List[Dict]):
+    """Analyze which guidelines need optimization based on test results."""
+    print(f"\n🔧 GUIDELINE OPTIMIZATION ANALYSIS")
+    print("="*60)
+    
+    best_model = max(all_results, key=lambda x: x['accuracy_metrics']['accuracy_percentage'])
+    model_name = best_model['model_name']
+    
+    # Load the best model for detailed analysis
+    try:
+        model = SentenceTransformer(model_name)
+        print(f"✅ Loaded {model_name} for detailed analysis")
+    except Exception as e:
+        print(f"❌ Failed to load {model_name}: {e}")
+        return
+    
+    # Analyze each guideline's performance
+    guideline_performance = {}
+    
+    for guideline in guidelines:
+        name = guideline['name']
+        location = guideline['location']
+        
+        # Test against all vague prompts
+        vague_prompts = [
+            "left side", "right side", "my left", "my right", 
+            "on the left", "on the right", "left part", "right part"
+        ]
+        
+        similarities = []
+        for prompt in vague_prompts:
+            sim = compute_similarity(model, prompt, location)
+            similarities.append(sim)
+        
+        avg_similarity = np.mean(similarities)
+        max_similarity = np.max(similarities)
+        min_similarity = np.min(similarities)
+        
+        guideline_performance[name] = {
+            'avg_similarity': avg_similarity,
+            'max_similarity': max_similarity,
+            'min_similarity': min_similarity,
+            'location_text': location,
+            'similarities': dict(zip(vague_prompts, similarities))
+        }
+    
+    # Sort by average similarity (higher = more likely to match vague terms)
+    sorted_guidelines = sorted(guideline_performance.items(), 
+                              key=lambda x: x[1]['avg_similarity'], reverse=True)
+    
+    print(f"\n📊 GUIDELINES RANKED BY VAGUE TERM SIMILARITY:")
+    print(f"   (Higher scores = more likely to match vague patient language)")
+    
+    for i, (name, perf) in enumerate(sorted_guidelines, 1):
+        print(f"\n   {i}. {name}")
+        print(f"      Avg Similarity: {perf['avg_similarity']:.3f}")
+        print(f"      Range: {perf['min_similarity']:.3f} - {perf['max_similarity']:.3f}")
+        print(f"      Current Location: {perf['location_text'][:80]}...")
+        
+        # Show which vague terms match best
+        best_matches = sorted(perf['similarities'].items(), 
+                            key=lambda x: x[1], reverse=True)[:3]
+        print(f"      Best vague matches: {best_matches}")
+    
+    # Identify guidelines that need optimization
+    print(f"\n⚠️  GUIDELINES NEEDING OPTIMIZATION:")
+    print(f"   (High similarity to vague terms = needs more specific language)")
+    
+    for name, perf in sorted_guidelines:
+        if perf['avg_similarity'] > 0.4:  # Threshold for "too vague"
+            print(f"\n   🔧 {name} (avg: {perf['avg_similarity']:.3f})")
+            print(f"      Current: {perf['location_text']}")
+            
+            # Suggest improvements
+            suggestions = []
+            if 'left' in perf['location_text'].lower() and perf['similarities']['left side'] > 0.5:
+                suggestions.append("Add more specific anatomical terms (e.g., 'left lower quadrant', 'sigmoid colon')")
+            if 'right' in perf['location_text'].lower() and perf['similarities']['right side'] > 0.5:
+                suggestions.append("Add more specific anatomical terms (e.g., 'right upper quadrant', 'gallbladder fossa')")
+            if 'upper' in perf['location_text'].lower():
+                suggestions.append("Add anatomical landmarks (e.g., 'below rib cage', 'epigastric region')")
+            if 'lower' in perf['location_text'].lower():
+                suggestions.append("Add anatomical landmarks (e.g., 'above pelvis', 'inguinal region')")
+            
+            if suggestions:
+                print(f"      💡 Suggestions:")
+                for suggestion in suggestions:
+                    print(f"         - {suggestion}")
+    
+    return guideline_performance
+
+def analyze_word_patterns(all_results: List[Dict], guidelines: List[Dict]):
+    """Analyze which word patterns work best for semantic similarity to create a framework for future guidelines."""
+    print(f"\n🔍 WORD PATTERN ANALYSIS FOR GUIDELINE OPTIMIZATION")
+    print("="*70)
+    
+    best_model = max(all_results, key=lambda x: x['accuracy_metrics']['accuracy_percentage'])
+    model_name = best_model['model_name']
+    
+    # Load the best model for detailed analysis
+    try:
+        model = SentenceTransformer(model_name)
+        print(f"✅ Using {model_name} for word pattern analysis")
+    except Exception as e:
+        print(f"❌ Failed to load {model_name}: {e}")
+        return
+    
+    # Define test word patterns
+    word_patterns = {
+        'anatomical_terms': [
+            'quadrant', 'epigastric', 'hypogastric', 'periumbilical', 
+            'retrosternal', 'suprapubic', 'thoracic', 'lumbar'
+        ],
+        'directional_terms': [
+            'left', 'right', 'upper', 'lower', 'anterior', 'posterior',
+            'medial', 'lateral', 'proximal', 'distal'
+        ],
+        'anatomical_landmarks': [
+            'rib cage', 'pelvis', 'hip bone', 'breastbone', 'shoulder',
+            'scapula', 'flank', 'groin', 'umbilicus'
+        ],
+        'patient_language': [
+            'side', 'part', 'area', 'belly', 'stomach', 'tummy',
+            'my left', 'my right', 'on the left', 'on the right'
+        ],
+        'medical_specificity': [
+            'migrates', 'localizes', 'radiates', 'constant', 'cramping',
+            'burning', 'sharp', 'dull', 'diffuse', 'localized'
+        ]
+    }
+    
+    # Test each pattern against all guidelines
+    pattern_performance = {}
+    
+    for pattern_type, words in word_patterns.items():
+        print(f"\n📊 Testing {pattern_type.upper()} patterns:")
+        print("-" * 50)
+        
+        pattern_scores = {}
+        
+        for word in words:
+            similarities = []
+            matching_guidelines = []
+            
+            for guideline in guidelines:
+                sim = compute_similarity(model, word, guideline['location'])
+                similarities.append(sim)
+                if sim > 0.3:  # Threshold for "relevant match"
+                    matching_guidelines.append((guideline['name'], sim))
+            
+            avg_similarity = np.mean(similarities)
+            max_similarity = np.max(similarities)
+            relevant_matches = len(matching_guidelines)
+            
+            pattern_scores[word] = {
+                'avg_similarity': avg_similarity,
+                'max_similarity': max_similarity,
+                'relevant_matches': relevant_matches,
+                'top_matches': sorted(matching_guidelines, key=lambda x: x[1], reverse=True)[:3]
+            }
+            
+            print(f"   '{word}': avg={avg_similarity:.3f}, max={max_similarity:.3f}, matches={relevant_matches}")
+            if matching_guidelines:
+                top_match = max(matching_guidelines, key=lambda x: x[1])
+                print(f"      Best match: {top_match[0]} ({top_match[1]:.3f})")
+        
+        pattern_performance[pattern_type] = pattern_scores
+    
+    # Analyze which patterns work best
+    print(f"\n🏆 BEST PERFORMING WORD PATTERNS:")
+    print("="*70)
+    
+    all_words = []
+    for pattern_type, words in pattern_performance.items():
+        for word, scores in words.items():
+            all_words.append((word, scores['avg_similarity'], scores['relevant_matches'], pattern_type))
+    
+    # Sort by average similarity (higher is better for semantic matching)
+    best_words = sorted(all_words, key=lambda x: x[1], reverse=True)[:15]
+    
+    print(f"{'Rank':<5} {'Word':<20} {'Avg Sim':<10} {'Matches':<8} {'Category':<15}")
+    print("-" * 70)
+    for i, (word, avg_sim, matches, category) in enumerate(best_words, 1):
+        print(f"{i:<5} {word:<20} {avg_sim:<10.3f} {matches:<8} {category:<15}")
+    
+    # Framework recommendations
+    print(f"\n💡 FRAMEWORK FOR FUTURE GUIDELINES:")
+    print("="*70)
+    
+    # High-performing anatomical terms
+    high_performing_anatomical = [word for word, avg_sim, matches, cat in best_words 
+                                 if cat == 'anatomical_terms' and avg_sim > 0.2][:5]
+    if high_performing_anatomical:
+        print(f"\n✅ USE THESE ANATOMICAL TERMS (high semantic similarity):")
+        for term in high_performing_anatomical:
+            print(f"   - '{term}'")
+    
+    # High-performing landmarks
+    high_performing_landmarks = [word for word, avg_sim, matches, cat in best_words 
+                                if cat == 'anatomical_landmarks' and avg_sim > 0.2][:5]
+    if high_performing_landmarks:
+        print(f"\n✅ USE THESE ANATOMICAL LANDMARKS (high semantic similarity):")
+        for landmark in high_performing_landmarks:
+            print(f"   - '{landmark}'")
+    
+    # Medical specificity terms
+    high_performing_medical = [word for word, avg_sim, matches, cat in best_words 
+                              if cat == 'medical_specificity' and avg_sim > 0.2][:5]
+    if high_performing_medical:
+        print(f"\n✅ USE THESE MEDICAL SPECIFICITY TERMS (high semantic similarity):")
+        for term in high_performing_medical:
+            print(f"   - '{term}'")
+    
+    # Avoid patient language (too vague)
+    patient_language_scores = [avg_sim for word, avg_sim, matches, cat in all_words 
+                              if cat == 'patient_language']
+    if patient_language_scores:
+        avg_patient_sim = np.mean(patient_language_scores)
+        print(f"\n⚠️  AVOID PATIENT LANGUAGE (avg similarity: {avg_patient_sim:.3f}):")
+        print(f"   - Terms like 'side', 'part', 'area' are too vague")
+        print(f"   - Use specific anatomical terms instead")
+    
+    # Directional terms analysis
+    directional_scores = [(word, avg_sim) for word, avg_sim, matches, cat in all_words 
+                         if cat == 'directional_terms']
+    if directional_scores:
+        print(f"\n📐 DIRECTIONAL TERMS ANALYSIS:")
+        for word, avg_sim in sorted(directional_scores, key=lambda x: x[1], reverse=True):
+            print(f"   '{word}': {avg_sim:.3f}")
+        print(f"   💡 Use specific combinations: 'left lower quadrant' vs just 'left'")
+    
+    # Create sample optimized guideline
+    print(f"\n📝 SAMPLE OPTIMIZED GUIDELINE FORMAT:")
+    print("-" * 70)
+    print(f"❌ AVOID: 'Pain in the left side of the abdomen'")
+    print(f"✅ USE: 'Pain localizes to LEFT LOWER QUADRANT (LLQ), specifically")
+    print(f"        in the sigmoid colon region above the pelvis'")
+    print(f"")
+    print(f"❌ AVOID: 'Right upper area under ribs'") 
+    print(f"✅ USE: 'Pain in RIGHT UPPER QUADRANT (RUQ), precisely localized")
+    print(f"        below the right rib cage in the gallbladder fossa'")
+    
+    return pattern_performance
+
 def main():
     """Main test function."""
     print("🧪 GI LOCATION MODEL BENCHMARKING (LOCAL)")
@@ -526,14 +815,10 @@ def main():
     print(f"🎯 Each prompt has expected matches and should-reject conditions for accuracy analysis")
     print(f"🔬 Comprehensive testing with 40 diverse patient location descriptions")
     
-    # Models to test
+    # Models to test - focusing on the two best performers
     models = [
-        'all-MiniLM-L6-v2',
-        'all-MiniLM-L12-v2', 
-        'paraphrase-MiniLM-L6-v2',
-        'multi-qa-MiniLM-L6-cos-v1',
-        'all-mpnet-base-v2',
-        'all-distilroberta-v1'
+        'all-distilroberta-v1',      # Best overall medical discrimination
+        'paraphrase-MiniLM-L6-v2'    # Good balance of speed and accuracy
     ]
     
     all_results = []
@@ -545,6 +830,12 @@ def main():
     
     # Analyze results
     analyze_results(all_results)
+    
+    # Analyze guideline optimization opportunities
+    analyze_guideline_optimization(all_results, guidelines)
+    
+    # Analyze word patterns for future guideline framework
+    analyze_word_patterns(all_results, guidelines)
     
     # Save detailed results to file
     output_file = "gi_location_benchmark_results.json"
