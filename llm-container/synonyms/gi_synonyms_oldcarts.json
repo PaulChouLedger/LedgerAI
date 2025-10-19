@@ -38,7 +38,9 @@
     "abdominal_pain": [
       "stomach ache",
       "belly pain",
+      "belly ache",
       "gut pain",
+      "tummy",
       "tummy ache",
       "stomach pain",
       "bellyache",
@@ -49,6 +51,7 @@
       "right upper quadrant pain",
       "gallbladder pain",
       "pain under ribs right side",
+      "upper right",
       "upper right abdominal pain",
       "liver pain",
       "upper abdomen",
@@ -438,6 +441,7 @@
     ],
     "vomiting": [
       "throwing up",
+      "want to throw up",
       "puking",
       "emesis",
       "projectile vomiting",
