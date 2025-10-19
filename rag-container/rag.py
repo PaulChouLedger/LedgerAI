@@ -29,7 +29,7 @@ class AuraRAG:
                  vectors_path: str = "data/embeddings/vectors.npy",
                  chunks_path: str = "data/embeddings/doc_chunks.npy",
                  metadata_path: str = "data/embeddings/chunk_metadata.json",
-                 model_name: str = "all-mpnet-base-v2",
+                 model_name: str = "all-distilroberta-v1",
                  relevance_threshold: float = 0.3):
         """
         Initialize Aura RAG system with FAISS

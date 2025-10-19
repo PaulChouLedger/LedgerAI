@@ -77,9 +77,9 @@ def rebuild_embeddings(data_root="data"):
     # Load sentence transformer
     print("🧠 Loading sentence transformer model...")
     
-    # Use the same model as RAG container (all-mpnet-base-v2)
+    # Use the same model as RAG container (all-distilroberta-v1)
     import os
-    model_name = "all-mpnet-base-v2"  # Must match rag.py model_name
+    model_name = "all-distilroberta-v1"  # Must match rag.py model_name
     
     # Check for local model directory first
     local_model_path = f"rag-container/models--sentence-transformers--{model_name.replace('-', '--')}/snapshots"

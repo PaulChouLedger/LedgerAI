@@ -552,7 +552,7 @@ def embed_texts():
         return jsonify({
             'embeddings': embeddings_list,
             'count': len(embeddings_list),
-            'model': 'all-mpnet-base-v2'
+            'model': 'all-distilroberta-v1'
         })
         
     except Exception as e:
