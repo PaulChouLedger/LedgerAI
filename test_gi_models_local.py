@@ -509,17 +509,30 @@ def test_oldcarts_normalization_flow():
             else:
                 print("⚠️  No normalization applied")
             
-            # Test semantic matching using the engine's test method
-            print("🎯 Testing semantic matching...")
+            # Test location-specific semantic matching
+            print("🎯 Testing location-specific semantic matching...")
             
             if hasattr(engine, 'test_semantic_matching') and engine.embedding_model:
                 try:
-                    print(f"🧠 Using engine's test_semantic_matching method")
+                    print(f"🧠 Using engine's test_semantic_matching method for location matching")
+                    
+                    # Extract location data from guidelines for testing
+                    location_guidelines = []
+                    for guideline in gi_guidelines:
+                        location_desc = guideline.get('location', '')
+                        if location_desc:
+                            location_guidelines.append({
+                                'name': guideline['name'],
+                                'location': location_desc,
+                                'data': guideline
+                            })
+                    
+                    print(f"📍 Testing against {len(location_guidelines)} guidelines with location data")
                     
                     # Use the engine's test method for semantic matching
-                    matched_guidelines = engine.test_semantic_matching(test_case['prompt'], gi_guidelines)
+                    matched_guidelines = engine.test_semantic_matching(test_case['prompt'], location_guidelines)
                     
-                    print(f"📊 Top 5 matching guidelines (ENGINE SEMANTIC MATCHING):")
+                    print(f"📊 Top 5 matching guidelines (LOCATION-SPECIFIC SEMANTIC MATCHING):")
                     for j, match in enumerate(matched_guidelines[:5], 1):
                         print(f"   {j}. {match['name']}: {match['similarity']:.3f}")
                         print(f"      Location: {match['data']['location'][:80]}...")

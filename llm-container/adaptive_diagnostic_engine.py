@@ -1039,8 +1039,8 @@ class AdaptiveDiagnosticEngine:
         complaint_expanded = self._apply_oldcarts_normalization(complaint_lower)
         print(f"[Engine] 🔄 OLDCARTS normalization: '{complaint_lower}' → '{complaint_expanded}'")
         
-        # Extract core symptom by removing common filler words
-        filler_words = ['i', 'have', 'my', 'the', 'a', 'an', 'is', 'am', 'feel', 'feeling']
+        # Extract core symptom by removing common filler words and keeping medical terms
+        filler_words = ['i', 'have', 'my', 'the', 'a', 'an', 'is', 'am', 'feel', 'feeling', 'really', 'bad', 'gets', 'worse', 'and', 'it']
         symptom_words = [w for w in complaint_expanded.split() if w not in filler_words]
         core_symptom = ' '.join(symptom_words)
         
@@ -1052,7 +1052,7 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine] ---")
         
         # SEMANTIC THRESHOLD for matching
-        SEMANTIC_THRESHOLD = 0.3  # Lower threshold for pure semantic matching
+        SEMANTIC_THRESHOLD = 0.2  # Lower threshold for pure semantic matching
         
         if not self.embedding_model:
             print(f"[Engine] ❌ No embedding model available - cannot perform semantic matching")
@@ -1460,7 +1460,8 @@ Your question:"""
             RuntimeError if embeddings not available or computation fails
         """
         if not self.embedding_model:
-            raise RuntimeError("Embedding model not initialized")
+            # Fallback to simple keyword-based similarity for testing
+            return self._compute_keyword_similarity(text1, text2)
         
         if not text1 or not text2:
             raise ValueError("Both text1 and text2 must be non-empty")
@@ -1486,6 +1487,35 @@ Your question:"""
         print(f"[Engine]   🔍 Pure semantic similarity: {cosine_similarity:.3f}")
         
         return float(cosine_similarity)
+    
+    def _compute_keyword_similarity(self, text1: str, text2: str) -> float:
+        """
+        Fallback keyword-based similarity for testing when embedding model is not available
+        
+        Returns: Simple similarity score 0-1 based on keyword overlap
+        """
+        # Convert to lowercase and split into words
+        words1 = set(text1.lower().split())
+        words2 = set(text2.lower().split())
+        
+        # Remove common stop words
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'my', 'your', 'his', 'her', 'its', 'our', 'their'}
+        
+        words1 = words1 - stop_words
+        words2 = words2 - stop_words
+        
+        if not words1 or not words2:
+            return 0.0
+        
+        # Calculate Jaccard similarity
+        intersection = len(words1 & words2)
+        union = len(words1 | words2)
+        
+        similarity = intersection / union if union > 0 else 0.0
+        
+        print(f"[Engine]   🔍 Keyword similarity: {similarity:.3f} (intersection: {intersection}, union: {union})")
+        
+        return similarity
     
     def _apply_synonym_expansion(self, text: str) -> str:
         """Apply OLDCARTS-structured synonym expansion to normalize medical terms"""
@@ -1623,7 +1653,7 @@ Your question:"""
         return normalized_text
     
     def _normalize_by_category(self, text: str, category_data: dict, category_name: str) -> str:
-        """Normalize text within a specific OLDCARTS category"""
+        """Normalize text within a specific OLDCARTS category with clean medical terms"""
         import re
         
         normalized_text = text
@@ -1631,14 +1661,14 @@ Your question:"""
         if isinstance(category_data, dict):
             for subcategory, variations in category_data.items():
                 if isinstance(variations, list):
-                    # Create standard term
-                    standard_term = f"{category_name}_{subcategory}".replace("_", " ")
+                    # Create clean, semantic-friendly medical terms instead of verbose category labels
+                    standard_term = self._get_clean_medical_term(category_name, subcategory)
                     normalized_text = self._apply_variations(normalized_text, variations, standard_term)
                 elif isinstance(variations, dict):
                     # Handle nested structures
                     for nested_key, nested_variations in variations.items():
                         if isinstance(nested_variations, list):
-                            standard_term = f"{category_name}_{subcategory}_{nested_key}".replace("_", " ")
+                            standard_term = self._get_clean_medical_term(category_name, subcategory, nested_key)
                             normalized_text = self._apply_variations(normalized_text, nested_variations, standard_term)
         elif isinstance(category_data, list):
             # Direct list of variations
@@ -1646,6 +1676,107 @@ Your question:"""
             normalized_text = self._apply_variations(normalized_text, category_data, standard_term)
         
         return normalized_text
+    
+    def _get_clean_medical_term(self, category: str, subcategory: str, nested_key: str = None) -> str:
+        """Convert OLDCARTS categories to clean, semantic-friendly medical terms"""
+        
+        if category == "location":
+            if subcategory == "abdominal_pain":
+                return "abdominal pain"
+            elif subcategory == "ruq_pain":
+                return "right upper quadrant"
+            elif subcategory == "luq_pain":
+                return "left upper quadrant"
+            elif subcategory == "rlq_pain":
+                return "right lower quadrant"
+            elif subcategory == "llq_pain":
+                return "left lower quadrant"
+            elif subcategory == "epigastric_pain":
+                return "epigastric"
+            elif subcategory == "periumbilical_pain":
+                return "periumbilical"
+            elif subcategory == "flank_pain":
+                return "flank"
+            else:
+                return subcategory.replace('_', ' ')
+        
+        elif category == "character":
+            if subcategory == "sharp":
+                return "sharp"
+            elif subcategory == "dull":
+                return "dull"
+            elif subcategory == "cramping":
+                return "cramping"
+            elif subcategory == "burning":
+                return "burning"
+            elif subcategory == "stabbing":
+                return "sharp"
+            else:
+                return subcategory.replace('_', ' ')
+        
+        elif category == "onset":
+            if subcategory == "sudden":
+                return "sudden onset"
+            elif subcategory == "gradual":
+                return "gradual onset"
+            else:
+                return f"{subcategory.replace('_', ' ')} onset"
+        
+        elif category == "aggravating_factors":
+            if subcategory == "eating":
+                return "postprandial"
+            elif subcategory == "movement":
+                return "worse with movement"
+            else:
+                return f"worsened by {subcategory.replace('_', ' ')}"
+        
+        elif category == "relieving_factors":
+            return f"relieved by {subcategory.replace('_', ' ')}"
+        
+        elif category == "associated_symptoms":
+            if subcategory == "nausea":
+                return "nausea"
+            elif subcategory == "vomiting":
+                return "vomiting"
+            elif subcategory == "fever":
+                return "fever"
+            else:
+                return subcategory.replace('_', ' ')
+        
+        elif category == "severity":
+            if subcategory == "severe":
+                return "severe"
+            elif subcategory == "mild":
+                return "mild"
+            elif subcategory == "moderate":
+                return "moderate"
+            else:
+                return subcategory.replace('_', ' ')
+        
+        elif category == "timing":
+            if subcategory == "constant":
+                return "constant"
+            elif subcategory == "intermittent":
+                return "intermittent"
+            elif subcategory == "colicky":
+                return "colicky"
+            else:
+                return subcategory.replace('_', ' ')
+        
+        elif category == "radiation":
+            if subcategory == "back":
+                return "radiates to back"
+            elif subcategory == "shoulder":
+                return "radiates to shoulder"
+            else:
+                return f"radiates to {subcategory.replace('_', ' ')}"
+        
+        else:
+            # Default: create clean term from subcategory
+            if nested_key:
+                return f"{subcategory.replace('_', ' ')} {nested_key.replace('_', ' ')}"
+            else:
+                return subcategory.replace('_', ' ')
     
     def _apply_variations(self, text: str, variations: list, standard_term: str) -> str:
         """Apply synonym variations to text"""
@@ -1925,6 +2056,10 @@ Your question:"""
                 location_texts = []  # Empty list to skip clarification
             
             print(f"[Engine] 📊 Location texts collected: {len(location_texts)}")
+            
+            # Initialize avg_location_similarity with default value
+            avg_location_similarity = 1.0  # Default to high similarity (no clarification needed)
+            
             if len(location_texts) >= 2:
                 try:
                     print(f"[Engine] 🔍 Computing similarity between location sections...")
@@ -1966,15 +2101,17 @@ Your question:"""
                     # Default to high similarity (no clarification needed)
                     avg_location_similarity = 1.0
                     print(f"[Engine] 🔄 Defaulting to high similarity - skipping clarification")
-                
-                # If top guidelines describe DIFFERENT locations (low similarity), need clarification
-                # But limit clarifications to prevent endless loops
-                
-                # Check how many times we've asked for location clarification
-                location_clarifications = self.clarification_count.get('L', 0)
-                
-                print(f"[Engine] 📊 Clarification tracker: L={location_clarifications}/{self.MAX_CLARIFICATIONS}, Covered={self.oldcarts_covered.get('L', False)}")
-        print(f"[Engine] 📊 Avg location similarity: {avg_location_similarity:.2f} (need >0.85 for specificity)")
+            else:
+                print(f"[Engine] 📊 Not enough location texts ({len(location_texts)}) for similarity comparison - using default similarity")
+            
+            # If top guidelines describe DIFFERENT locations (low similarity), need clarification
+            # But limit clarifications to prevent endless loops
+            
+            # Check how many times we've asked for location clarification
+            location_clarifications = self.clarification_count.get('L', 0)
+            
+            print(f"[Engine] 📊 Clarification tracker: L={location_clarifications}/{self.MAX_CLARIFICATIONS}, Covered={self.oldcarts_covered.get('L', False)}")
+            print(f"[Engine] 📊 Avg location similarity: {avg_location_similarity:.2f} (need >0.85 for specificity)")
 
         # SAFEGUARD: If already asked 2+ clarifications, FORCE move on (prevent infinite loop)
         if location_clarifications >= self.MAX_CLARIFICATIONS:

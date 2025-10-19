@@ -384,7 +384,7 @@ class UnifiedMedicalSession:
                 print(f"[Adaptive] 🔍 Full traceback:")
                 import traceback
                 traceback.print_exc()
-                print(f"[Adaptive] 🔍 Session state: {self.session_state}")
+                print(f"[Adaptive] 🔍 Session state: {getattr(self, 'session_state', 'Not available')}")
                 print(f"[Adaptive] 🔍 Query: {query}")
                 # NO FALLBACKS - re-raise the actual error
                 raise e
