@@ -33,9 +33,8 @@ def test_real_location_similarity():
         test_cases = []
         
         # Test with real guideline data
-        for guideline in engine.all_guidelines:
-            guideline_name = guideline['name']
-            guideline_data = guideline['data']
+        for guideline_name in engine.all_guidelines:
+            guideline_data = engine.all_guidelines[guideline_name]
             
             # Extract LOCATION section from the guideline
             location_section = engine._extract_oldcarts_section(guideline_data, 'LOCATION')
