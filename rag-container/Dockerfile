@@ -25,7 +25,6 @@ COPY container_rest.py /app/
 COPY rag.py /app/
 COPY ingest.py /app/
 COPY benchmark_embedding_models.py /app/
-COPY test_gi_location_models.py /app/
 
 # Expose port
 EXPOSE 11435
