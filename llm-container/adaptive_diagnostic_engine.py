@@ -994,7 +994,7 @@ class AdaptiveDiagnosticEngine:
                 similarity = float(distance)  # Cosine similarity (0-1)
                 
                 # Apply threshold
-                if similarity > 0.70:  # Same threshold as brute-force
+                if similarity > 0.75:  # Same threshold as brute-force
                     prevalence = guideline_data.get('prevalence', 'uncommon')
                     prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
                     initial_score = prevalence_scores.get(prevalence, 0.50)
@@ -1004,7 +1004,7 @@ class AdaptiveDiagnosticEngine:
                 else:
                     # Log first few rejections for visibility
                     if i < 5:
-                        print(f"[Engine]   ✗ {guideline_name}: '{trigger}' (similarity={similarity:.2f} < 0.70)")
+                        print(f"[Engine]   ✗ {guideline_name}: '{trigger}' (similarity={similarity:.2f} < 0.75)")
         
         print(f"\n[Engine] 📊 FAISS matching complete: {len(matched)} guidelines matched")
         
@@ -1014,7 +1014,7 @@ class AdaptiveDiagnosticEngine:
             'strategy': 'exact > subset > FAISS semantic',
             'thresholds': {
                 'char_overlap': 0.75,
-                'semantic': 0.70
+                'semantic': 0.75
             },
             'matched_count': len(matched),
             'filtered_count': len(self.all_guidelines) - len(matched)
@@ -1045,12 +1045,12 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine]    1. Exact match (trigger in complaint)")
         print(f"[Engine]    2. Subset match (symptom in trigger)")
         print(f"[Engine]    3. Character overlap (Jaccard > 0.75)")
-        print(f"[Engine]    4. Semantic similarity (cosine > 0.70)")
+        print(f"[Engine]    4. Semantic similarity (cosine > 0.75)")
         print(f"[Engine] ---")
         
         # Thresholds
         CHAR_OVERLAP_THRESHOLD = 0.75  # Increased from 0.65
-        SEMANTIC_THRESHOLD = 0.70  # Optimized based on semantic + keyword test results
+        SEMANTIC_THRESHOLD = 0.75  # Increased to reject wrong locations and generic descriptions
         
         # Helper function for character overlap
         def char_overlap(str1: str, str2: str) -> float:
@@ -1243,7 +1243,7 @@ class AdaptiveDiagnosticEngine:
         # Store matching metadata for debug
         self.matching_metadata = {
             'mode': 'brute-force',
-            'strategy': 'exact > subset > char_overlap(>0.75) > semantic(>0.70)',
+            'strategy': 'exact > subset > char_overlap(>0.75) > semantic(>0.75)',
             'thresholds': {
                 'char_overlap': CHAR_OVERLAP_THRESHOLD,
                 'semantic': SEMANTIC_THRESHOLD
@@ -1636,8 +1636,8 @@ Your question:"""
         # Calculate weighted ratio
         weighted_ratio = total_weight / len(user_words)
         
-        # Convert to boost (0.0 to 0.3 range) - increased for better threshold crossing
-        keyword_boost = weighted_ratio * 0.3
+        # Convert to boost (0.0 to 0.4 range) - increased for complex descriptions
+        keyword_boost = weighted_ratio * 0.4
         
         if keyword_boost > 0.02:  # Only log significant boosts
             print(f"[Engine]   🔑 Weighted keyword boost: {total_weight:.2f}/{len(user_words)} words = {weighted_ratio:.3f} → +{keyword_boost:.3f}")
