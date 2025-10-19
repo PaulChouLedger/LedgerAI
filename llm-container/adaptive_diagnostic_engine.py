@@ -994,7 +994,7 @@ class AdaptiveDiagnosticEngine:
                 similarity = float(distance)  # Cosine similarity (0-1)
                 
                 # Apply threshold
-                if similarity > 0.80:  # Same threshold as brute-force
+                if similarity > 0.85:  # Same threshold as brute-force
                     prevalence = guideline_data.get('prevalence', 'uncommon')
                     prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
                     initial_score = prevalence_scores.get(prevalence, 0.50)
@@ -1004,7 +1004,7 @@ class AdaptiveDiagnosticEngine:
                 else:
                     # Log first few rejections for visibility
                     if i < 5:
-                        print(f"[Engine]   ✗ {guideline_name}: '{trigger}' (similarity={similarity:.2f} < 0.80)")
+                        print(f"[Engine]   ✗ {guideline_name}: '{trigger}' (similarity={similarity:.2f} < 0.85)")
         
         print(f"\n[Engine] 📊 FAISS matching complete: {len(matched)} guidelines matched")
         
@@ -1014,7 +1014,7 @@ class AdaptiveDiagnosticEngine:
             'strategy': 'exact > subset > FAISS semantic',
             'thresholds': {
                 'char_overlap': 0.75,
-                'semantic': 0.80
+                'semantic': 0.85
             },
             'matched_count': len(matched),
             'filtered_count': len(self.all_guidelines) - len(matched)
@@ -1045,12 +1045,12 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine]    1. Exact match (trigger in complaint)")
         print(f"[Engine]    2. Subset match (symptom in trigger)")
         print(f"[Engine]    3. Character overlap (Jaccard > 0.75)")
-        print(f"[Engine]    4. Semantic similarity (cosine > 0.80)")
+        print(f"[Engine]    4. Semantic similarity (cosine > 0.85)")
         print(f"[Engine] ---")
         
         # Thresholds
         CHAR_OVERLAP_THRESHOLD = 0.75  # Increased from 0.65
-        SEMANTIC_THRESHOLD = 0.80  # Smart contradiction detection handles wrong locations
+        SEMANTIC_THRESHOLD = 0.85  # Increased to handle edge cases with contradiction detection
         
         # Helper function for character overlap
         def char_overlap(str1: str, str2: str) -> float:
@@ -1243,7 +1243,7 @@ class AdaptiveDiagnosticEngine:
         # Store matching metadata for debug
         self.matching_metadata = {
             'mode': 'brute-force',
-            'strategy': 'exact > subset > char_overlap(>0.75) > semantic(>0.80)',
+            'strategy': 'exact > subset > char_overlap(>0.75) > semantic(>0.85)',
             'thresholds': {
                 'char_overlap': CHAR_OVERLAP_THRESHOLD,
                 'semantic': SEMANTIC_THRESHOLD
@@ -1639,40 +1639,11 @@ Your question:"""
         # Convert to boost (0.0 to 0.5 range) - increased for complex descriptions
         keyword_boost = weighted_ratio * 0.5
         
-        # Reduce boost for contradictory locations (left vs right, upper vs lower, chest vs abdomen)
-        if self._has_contradictory_locations(user_answer, oldcarts_section):
-            keyword_boost *= 0.3  # Reduce boost by 70% for contradictions
-            print(f"[Engine]   ⚠️ Contradictory locations detected - reducing boost by 70%")
-        
         if keyword_boost > 0.02:  # Only log significant boosts
             print(f"[Engine]   🔑 Weighted keyword boost: {total_weight:.2f}/{len(user_words)} words = {weighted_ratio:.3f} → +{keyword_boost:.3f}")
             print(f"[Engine]   🔑 Matched words: {matched_words}")
         
         return keyword_boost
-    
-    def _has_contradictory_locations(self, user_answer: str, oldcarts_section: str) -> bool:
-        """Check for contradictory location terms between user answer and guideline"""
-        user_lower = user_answer.lower()
-        guideline_lower = oldcarts_section.lower()
-        
-        # Define contradictory pairs
-        contradictions = [
-            (['left'], ['right']),
-            (['right'], ['left']),
-            (['upper'], ['lower']),
-            (['lower'], ['upper']),
-            (['chest'], ['abdomen', 'abdominal', 'belly']),
-            (['abdomen', 'abdominal', 'belly'], ['chest']),
-        ]
-        
-        for user_terms, guideline_terms in contradictions:
-            user_has_term = any(term in user_lower for term in user_terms)
-            guideline_has_term = any(term in guideline_lower for term in guideline_terms)
-            
-            if user_has_term and guideline_has_term:
-                return True
-        
-        return False
     
     def _fuzzy_match(self, word1: str, word2: str) -> float:
         """Calculate fuzzy match score between two words (0.0 to 1.0)"""
