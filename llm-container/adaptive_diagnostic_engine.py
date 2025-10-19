@@ -1720,18 +1720,23 @@ Your question:"""
                 print(f"[Engine]   🔍 Critical directional penalty: {dir1} vs {dir2} (-0.4)")
         
         # Check single word conflicts
+        print(f"[Engine]   🔍 Checking {len(opposite_pairs)} opposite pairs for conflicts...")
         for dir1, dir2 in opposite_pairs:
             if dir1 in words1 and dir2 in words2:
+                print(f"[Engine]   🔍 Found potential conflict: '{dir1}' in words1, '{dir2}' in words2")
                 # Skip if already handled by critical conflicts (check if both words are in the same critical conflict)
                 already_handled = False
                 for conflict in critical_conflicts:
                     if (dir1 in conflict[0] and dir2 in conflict[1]) or (dir1 in conflict[1] and dir2 in conflict[0]):
                         already_handled = True
+                        print(f"[Engine]   🔍 Conflict already handled by critical conflict: {conflict}")
                         break
                 
                 if not already_handled:
                     penalty += 0.2  # Standard penalty for opposite directions
                     print(f"[Engine]   🔍 Directional penalty: {dir1} vs {dir2} (-0.2)")
+                else:
+                    print(f"[Engine]   🔍 Skipping penalty for {dir1} vs {dir2} (already handled)")
         
         # Apply penalty
         final_similarity = cosine_similarity - penalty
