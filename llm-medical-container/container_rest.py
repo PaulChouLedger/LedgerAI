@@ -1,9 +1,9 @@
-# === container_rest.py — Aura LLM Container (Modular Architecture)
-# Routes requests to appropriate conversation modes:
-# - CASUAL: Simple greetings
-# - THINKER: Knowledge queries with RAG
-# - TRIAGE: Hardcoded diagnostic system (baseline)
-# - CLINICIAN: RAG-powered intelligent diagnosis (future)
+# === container_rest.py — Aura Medical Container (Clinician Mode Architecture)
+# All requests are handled by the clinician mode which provides:
+# - Medical symptom assessment with adaptive diagnostic engine
+# - Medical knowledge queries with RAG integration
+# - Casual greetings and general medical conversation
+# - Comprehensive physician-like medical assistance
 
 from flask import Flask, request, jsonify, stream_with_context, Response
 from llama_cpp import Llama
@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 import os, re, json, string, threading, time
 from datetime import datetime, timedelta
 from glob import glob
-from nlg import rewrite as nlg_rewrite
 import requests
 
 # Import centralized validation utilities

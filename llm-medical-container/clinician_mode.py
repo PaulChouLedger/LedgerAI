@@ -25,14 +25,10 @@ from typing import Dict, List, Any, Optional, Tuple, Callable
 from difflib import SequenceMatcher
 from pathlib import Path
 
-# Import medical RAG for knowledge queries
-try:
-    from medical_rag import MedicalRAG, get_medical_rag, get_medical_messages
-    MEDICAL_RAG_AVAILABLE = True
-    print("[Clinician] ✅ Medical RAG imported successfully")
-except ImportError as e:
-    MEDICAL_RAG_AVAILABLE = False
-    print(f"[Clinician] ⚠️ Medical RAG not available: {e}")
+# Medical RAG functionality moved to separate RAG container
+# All RAG operations now use API calls to the RAG service
+MEDICAL_RAG_AVAILABLE = True  # RAG service available via API
+print("[Clinician] ✅ Medical RAG available via API calls")
 
 # Import adaptive diagnostic engine for guideline-based assessment
 try:
@@ -229,18 +225,10 @@ class ClinicianSession:
             print(f"[Clinician] ✅ Restored: {len(self.dynamic_assessment.questions_asked)} questions asked, {len(self.dynamic_assessment.responses_received)} responses received")
 
     def _initialize_medical_rag(self):
-        """Initialize medical RAG for knowledge queries (legacy - not used by adaptive engine)"""
-        if MEDICAL_RAG_AVAILABLE:
-            try:
-                self.medical_rag = get_medical_rag()
-                # Note: Old RAG is for legacy knowledge queries only
-                # Adaptive engine loads guidelines directly from /app/medical/guidelines
-                print("[Clinician] ℹ️  Legacy RAG loaded (not used for diagnosis - adaptive engine uses /app/medical/guidelines)")
-            except Exception as e:
-                print(f"[Clinician] ⚠️ Legacy RAG initialization failed: {e}")
-                self.medical_rag = None
-        else:
-            print("[Clinician] ℹ️  Legacy RAG not available (not needed - adaptive engine uses direct guideline loading)")
+        """RAG functionality now uses API calls to separate RAG container"""
+        # No local RAG instance needed - all operations via HTTP API
+        self.medical_rag = None  # Not used - all RAG via API
+        print("[Clinician] ℹ️  RAG functionality available via API calls to RAG container")
 
     def process_medical_query(self, user_input: str):
         """
@@ -1017,14 +1005,20 @@ Assessment:"""
         """Handle medical knowledge questions using RAG"""
         print(f"[Clinician] 📚 Handling medical knowledge: {knowledge_query}")
 
-        if self.medical_rag:
-            try:
-                # Use medical RAG for knowledge queries
-                results = self.medical_rag.search_medical_info(knowledge_query, k=3)
-
+        # Use RAG API for medical knowledge queries
+        try:
+            response = requests.post(
+                "http://localhost:11435/rag/search",
+                json={"query": knowledge_query, "k": 3},
+                timeout=10
+            )
+            if response.status_code == 200:
+                rag_data = response.json()
+                results = rag_data.get('results', [])
+                
                 if results:
                     # Generate physician-like response
-                    context = self.medical_rag.get_medical_context(knowledge_query, results)
+                    context = "\n".join([r['text'] for r in results[:3]])
 
                     response_prompt = f"""
 You are a knowledgeable physician providing medical information. A patient has asked: "{knowledge_query}"
@@ -1096,11 +1090,18 @@ IMPORTANT: Always include appropriate medical disclaimers and recommend consulti
         """Fallback response using medical knowledge when assessment fails"""
         print(f"[Clinician] 🔄 Falling back to knowledge response for: {query}")
 
-        if self.medical_rag:
-            try:
-                results = self.medical_rag.search_medical_info(query, k=2)
+        # Use RAG API for fallback knowledge queries
+        try:
+            response = requests.post(
+                "http://localhost:11435/rag/search",
+                json={"query": query, "k": 2},
+                timeout=10
+            )
+            if response.status_code == 200:
+                rag_data = response.json()
+                results = rag_data.get('results', [])
                 if results:
-                    context = self.medical_rag.get_medical_context(query, results)
+                    context = "\n".join([r['text'] for r in results[:2]])
 
                     response_prompt = f"""
 You are a physician providing guidance. The user mentioned: "{query}"
@@ -1378,10 +1379,21 @@ def get_clinician_messages(prompt: str, session_id: str) -> list:
     # Try to use Medical RAG for enhanced responses
     if MEDICAL_RAG_AVAILABLE:
         try:
-            print("[Clinician] 📚 Using Medical RAG for query")
-            return get_medical_messages(prompt)
+            print("[Clinician] 📚 Using RAG API for medical knowledge query")
+            # Use RAG API for medical knowledge queries
+            response = requests.post(
+                "http://localhost:11435/rag/search",
+                json={"query": prompt, "k": 5},
+                timeout=10
+            )
+            if response.status_code == 200:
+                rag_data = response.json()
+                if rag_data.get('results'):
+                    context = "\n".join([r['text'] for r in rag_data['results'][:3]])
+                    return f"Based on medical knowledge: {context}"
+            return "I can help with medical questions. Could you be more specific about what you'd like to know?"
         except Exception as e:
-            print(f"[Clinician] ⚠️ Medical RAG failed, using fallback: {e}")
+            print(f"[Clinician] ⚠️ RAG API failed, using fallback: {e}")
     
     # Fallback: Build basic medical assistant prompt
     print("[Clinician] ⚠️ Using fallback prompt (no RAG)")
