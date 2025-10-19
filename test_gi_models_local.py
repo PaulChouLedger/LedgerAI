@@ -209,9 +209,9 @@ def test_model_performance(model_name: str, guidelines: List[Dict], patient_prom
 
 def analyze_results(all_results: List[Dict]) -> None:
     """Analyze and compare results across all models."""
-    print("\n" + "="*80)
+    print("\n" + "="*100)
     print("📊 MODEL PERFORMANCE ANALYSIS")
-    print("="*80)
+    print("="*100)
     
     # Summary table
     print(f"\n{'Model':<25} {'Load Time':<10} {'Inference Time':<15} {'Avg Similarity':<15}")
@@ -230,27 +230,36 @@ def analyze_results(all_results: List[Dict]) -> None:
             continue
             
         print(f"\n🔍 DETAILED ANALYSIS: {result['model_name']}")
-        print("-" * 60)
+        print("="*100)
         
-        # Show top 5 best matches
-        sorted_matches = sorted(result['best_matches'], key=lambda x: x['similarity'], reverse=True)
-        print("Top 5 matches:")
-        for i, match in enumerate(sorted_matches[:5]):
-            print(f"  {i+1}. {match['similarity']:.3f} - '{match['prompt'][:40]}...' → {match['best_guideline']}")
+        # Show all matches in formatted table
+        print(f"\n{'#':<3} {'User Prompt':<45} {'Guideline Location':<45} {'Score':<8}")
+        print("-" * 100)
         
-        # Show bottom 5 matches
-        print("\nBottom 5 matches:")
-        for i, match in enumerate(sorted_matches[-5:]):
-            print(f"  {i+1}. {match['similarity']:.3f} - '{match['prompt'][:40]}...' → {match['best_guideline']}")
+        for i, similarity_data in enumerate(result['similarities']):
+            prompt = similarity_data['prompt']
+            best_match = similarity_data['best_match']
+            score = best_match['similarity']
+            
+            # Truncate long strings
+            prompt_display = prompt[:42] + "..." if len(prompt) > 45 else prompt
+            location_display = best_match['location'][:42] + "..." if len(best_match['location']) > 45 else best_match['location']
+            
+            print(f"{i+1:<3} {prompt_display:<45} {location_display:<45} {score:<8.3f}")
         
-        # Show specific test case
+        # Show specific test case with top 5 matches
         left_lower_prompt = "left lower part of my abdomen towards my pelvis"
         left_lower_result = next((r for r in result['similarities'] if r['prompt'] == left_lower_prompt), None)
         if left_lower_result:
-            print(f"\n🎯 Specific Test Case: '{left_lower_prompt}'")
-            print("Top 3 matches:")
-            for i, match in enumerate(left_lower_result['all_similarities'][:3]):
-                print(f"  {i+1}. {match['similarity']:.3f} - {match['guideline']}")
+            print(f"\n🎯 SPECIFIC TEST CASE: '{left_lower_prompt}'")
+            print("-" * 100)
+            print(f"{'Rank':<5} {'Guideline':<30} {'Location':<50} {'Score':<8}")
+            print("-" * 100)
+            for i, match in enumerate(left_lower_result['all_similarities'][:5]):
+                location_display = match['location'][:47] + "..." if len(match['location']) > 50 else match['location']
+                print(f"{i+1:<5} {match['guideline']:<30} {location_display:<50} {match['similarity']:<8.3f}")
+        
+        print("\n" + "="*100)
 
 def main():
     """Main test function."""
