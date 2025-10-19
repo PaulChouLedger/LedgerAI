@@ -4,27 +4,24 @@ FROM llama_cpp:r36.4.tegra-aarch64-cu126-22.04
 # Set working directory
 WORKDIR /app
 
-# Copy application logic (modular architecture)
+# === CLINICIAN MODE ARCHITECTURE ===
+# This container provides a focused medical chatbot with:
+# - Clinician mode for all medical interactions (symptoms, knowledge, greetings)
+# - Adaptive diagnostic engine with guideline-based assessment
+# - RAG API integration for semantic similarity and medical knowledge
+# - Dual LLM support (Llama-1B for simple tasks, Mistral-7B for complex reasoning)
+
+# Copy application logic (clinician mode architecture)
 COPY validation.py .
-COPY intent_classifier.py .
-COPY dynamic_triage.py .
-COPY outcome_cache.py .
 COPY container_rest.py .
-COPY nlg.py .
-COPY router.py .
-COPY casual.py .
-COPY thinker.py .
-COPY triage.py .
-COPY unified_medical_mode.py .
-COPY medical_rag.py .
+COPY clinician_mode.py .
 COPY adaptive_diagnostic_engine.py .
 COPY thinking_fillers.py .
-COPY triage_defs/ /app/triage_defs/
 COPY synonyms/ /app/synonyms/
 
 # Copy medical guidelines (JSON files with chief complaint triggers and scoring)
 # These are used by the adaptive diagnostic engine for multi-guideline evaluation
-# Note: guidelines should be in llm-container/medical/guidelines/ (inside build context)
+# Note: guidelines should be in llm-medical-container/medical/guidelines/ (inside build context)
 COPY medical/guidelines/ /app/medical/guidelines/
 
 # Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
