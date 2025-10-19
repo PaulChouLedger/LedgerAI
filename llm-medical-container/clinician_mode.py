@@ -1045,8 +1045,8 @@ IMPORTANT: Always include appropriate medical disclaimers and recommend consulti
 
                     return response
 
-            except Exception as e:
-                print(f"[Clinician] ❌ Medical RAG failed: {e}")
+        except Exception as e:
+            print(f"[Clinician] ❌ Medical RAG failed: {e}")
 
         return self._fallback_to_general_response(knowledge_query)
 
@@ -1113,8 +1113,8 @@ Provide a helpful, professional response that addresses their concern while noti
 """
 
                     return self.llm_chat_fn([{"role": "system", "content": response_prompt}])
-            except Exception as e:
-                print(f"[Clinician] ❌ Knowledge fallback failed: {e}")
+        except Exception as e:
+            print(f"[Clinician] ❌ Knowledge fallback failed: {e}")
 
         return "I'm sorry, I encountered an issue processing your medical query. For your safety, please consult with a healthcare professional for any medical concerns."
 
