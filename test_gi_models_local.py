@@ -477,8 +477,33 @@ def test_oldcarts_normalization_flow():
             # Test semantic matching with normalized text
             print("🎯 Testing semantic matching...")
             
-            # This would normally use the full engine matching, but for testing we'll just show the normalized output
-            print(f"✅ Normalized text ready for semantic matching: '{normalized}'")
+            # Get hardcoded GI guidelines for testing
+            gi_guidelines = get_hardcoded_gi_guidelines()
+            
+            # Test semantic matching using the engine's capabilities
+            if hasattr(engine, '_match_to_guidelines'):
+                try:
+                    # Temporarily set the guidelines for testing
+                    original_guidelines = engine.all_guidelines
+                    engine.all_guidelines = {guideline['name']: guideline for guideline in gi_guidelines}
+                    
+                    # Use the engine's semantic matching
+                    matched_guidelines = engine._match_to_guidelines(test_case['prompt'])
+                    
+                    print(f"📊 Top 5 matching guidelines:")
+                    for i, match in enumerate(matched_guidelines[:5], 1):
+                        print(f"   {i}. {match['name']}: {match['similarity']:.3f}")
+                        print(f"      Location: {match['location'][:80]}...")
+                    
+                    # Restore original guidelines
+                    engine.all_guidelines = original_guidelines
+                    
+                except Exception as e:
+                    print(f"⚠️  Semantic matching failed: {e}")
+                    print(f"✅ Normalized text ready for semantic matching: '{normalized}'")
+            else:
+                print(f"✅ Normalized text ready for semantic matching: '{normalized}'")
+                print("ℹ️  Full semantic matching not available in this test mode")
             
         except Exception as e:
             print(f"❌ Error during testing: {e}")
