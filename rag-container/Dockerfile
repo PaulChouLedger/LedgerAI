@@ -17,32 +17,14 @@ RUN pip install --no-cache-dir --ignore-installed \
     metaphone
 
 # Pre-download all sentence transformer models (makes it WiFi-independent)
-RUN python3 -c "
-from sentence_transformers import SentenceTransformer
-import time
-
-models = [
-    'all-MiniLM-L6-v2',
-    'all-MiniLM-L12-v2', 
-    'paraphrase-MiniLM-L6-v2',
-    'multi-qa-MiniLM-L6-cos-v1',
-    'all-mpnet-base-v2',
-    'all-distilroberta-v1'
-]
-
-print('📥 Pre-downloading all embedding models...')
-for i, model_name in enumerate(models, 1):
-    print(f'[{i}/{len(models)}] Downloading {model_name}...')
-    start_time = time.time()
-    try:
-        SentenceTransformer(model_name)
-        load_time = time.time() - start_time
-        print(f'✅ {model_name} downloaded in {load_time:.1f}s')
-    except Exception as e:
-        print(f'❌ Failed to download {model_name}: {e}')
-
-print('🎉 All models pre-downloaded successfully!')
-" && echo "✅ All sentence transformer models pre-downloaded into image"
+RUN python3 -c "\
+from sentence_transformers import SentenceTransformer; \
+import time; \
+models = ['all-MiniLM-L6-v2', 'all-MiniLM-L12-v2', 'paraphrase-MiniLM-L6-v2', 'multi-qa-MiniLM-L6-cos-v1', 'all-mpnet-base-v2', 'all-distilroberta-v1']; \
+print('📥 Pre-downloading all embedding models...'); \
+[i for i, model_name in enumerate(models, 1) if (print(f'[{i}/{len(models)}] Downloading {model_name}...') or True) and (start_time := time.time()) and (SentenceTransformer(model_name) and print(f'✅ {model_name} downloaded in {time.time() - start_time:.1f}s'))]; \
+print('🎉 All models pre-downloaded successfully!')" && \
+echo "✅ All sentence transformer models pre-downloaded into image"
 
 # Copy RAG service and modules
 COPY container_rest.py /app/
