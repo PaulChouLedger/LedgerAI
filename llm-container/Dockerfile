@@ -19,16 +19,6 @@ COPY unified_medical_mode.py .
 COPY medical_rag.py .
 COPY adaptive_diagnostic_engine.py .
 COPY thinking_fillers.py .
-COPY test_enhanced_location.py .
-COPY test_pure_semantic.py .
-COPY test_semantic_keyword.py .
-COPY test_comprehensive_fuzzy.py .
-COPY test_comprehensive_all_guidelines.py .
-COPY test_real_location_similarity.py .
-COPY test_pure_lateralization.py .
-COPY test_embedding_difference.py .
-COPY test_hybrid_similarity.py .
-COPY test_realistic_thresholds.py .
 COPY triage_defs/ /app/triage_defs/
 COPY synonyms/ /app/synonyms/
 
