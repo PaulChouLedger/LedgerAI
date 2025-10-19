@@ -136,6 +136,11 @@ def get_patient_gi_prompts() -> List[Dict]:
             'should_reject': ['Acute Appendicitis', 'Acute Cholecystitis']
         },
         {
+            'prompt': "left side",
+            'expected': ['Acute Diverticulitis', 'Sigmoid Volvulus'],
+            'should_reject': ['Acute Appendicitis', 'Acute Cholecystitis', 'Acute Pancreatitis', 'Biliary Colic', 'Acute Hepatitis']
+        },
+        {
             'prompt': "behind my breastbone and upper stomach",
             'expected': ['GERD', 'Acute Pancreatitis', 'Peptic Ulcer Disease'],
             'should_reject': ['Acute Diverticulitis', 'Acute Appendicitis']

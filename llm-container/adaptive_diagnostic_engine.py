@@ -2055,65 +2055,65 @@ Your question:"""
                 location_clarifications = self.clarification_count.get('L', 0)
                 
                 print(f"[Engine] 📊 Clarification tracker: L={location_clarifications}/{self.MAX_CLARIFICATIONS}, Covered={self.oldcarts_covered.get('L', False)}")
-                print(f"[Engine] 📊 Avg location similarity: {avg_location_similarity:.2f} (need >0.70 for specificity)")
-                
-                # SAFEGUARD: If already asked 2+ clarifications, FORCE move on (prevent infinite loop)
-                if location_clarifications >= self.MAX_CLARIFICATIONS:
-                    print(f"[Engine] ⚠️ Max location clarifications ALREADY reached ({location_clarifications}/{self.MAX_CLARIFICATIONS}) - forcing Location as covered")
-                    self.oldcarts_covered['L'] = True
-                elif avg_location_similarity < 0.70 and location_clarifications < self.MAX_CLARIFICATIONS:
-                    print(f"[Engine] ⚠️ Top guidelines have diverse locations - need more specific answer (clarification #{location_clarifications + 1}/{self.MAX_CLARIFICATIONS})")
+        print(f"[Engine] 📊 Avg location similarity: {avg_location_similarity:.2f} (need >0.85 for specificity)")
+
+        # SAFEGUARD: If already asked 2+ clarifications, FORCE move on (prevent infinite loop)
+        if location_clarifications >= self.MAX_CLARIFICATIONS:
+            print(f"[Engine] ⚠️ Max location clarifications ALREADY reached ({location_clarifications}/{self.MAX_CLARIFICATIONS}) - forcing Location as covered")
+            self.oldcarts_covered['L'] = True
+        elif avg_location_similarity < 0.85 and location_clarifications < self.MAX_CLARIFICATIONS:
+            print(f"[Engine] ⚠️ Top guidelines have diverse locations - need more specific answer (clarification #{location_clarifications + 1}/{self.MAX_CLARIFICATIONS})")
+            
+            # SAFETY: Find the last question item
+            last_q_item = None
+            for item in reversed(self.conversation_history):
+                if item.get('type') == 'question':
+                    last_q_item = item
+                    break
+            
+            if not last_q_item:
+                print(f"[Engine] ❌ No last question item - cannot generate clarification")
+                self.oldcarts_covered['L'] = True
+            else:
+                try:
+                    # Collect ALL location-related Q&A pairs so far for full context
+                    location_history = []
+                    temp_q = None
+                    for item in self.conversation_history:
+                        if item.get('type') == 'question' and item.get('oldcarts') == 'L':
+                            temp_q = item.get('question', '')
+                        elif item.get('type') == 'answer' and temp_q:
+                            a_text = item.get('answer', '')
+                            if temp_q and a_text:
+                                location_history.append(f"Q: {temp_q}\nA: {a_text}")
+                            temp_q = None  # Reset
                     
-                    # SAFETY: Find the last question item
-                    last_q_item = None
-                    for item in reversed(self.conversation_history):
-                        if item.get('type') == 'question':
-                            last_q_item = item
-                            break
+                    history_text = '\n'.join(location_history) if location_history else "None"
                     
-                    if not last_q_item:
-                        print(f"[Engine] ❌ No last question item - cannot generate clarification")
-                        self.oldcarts_covered['L'] = True
-                    else:
+                    # Use programmatic template-based approach for reliable questions
+                    # This ensures we only ask questions that match guideline structure
+                    
+                    # Filler is now handled at container level for immediate streaming
+                    print(f"[Engine] 💬 Generating location clarification (filler handled by container)...")
+                    
+                    # Use LLM to generate clarification based on guideline LOCATION sections
+                    # This is more elegant than hardcoded logic
+                    
+                    # Collect LOCATION sections from top guidelines
+                    location_sections = []
+                    for g in self.active_guidelines[:3]:
                         try:
-                            # Collect ALL location-related Q&A pairs so far for full context
-                            location_history = []
-                            temp_q = None
-                            for item in self.conversation_history:
-                                if item.get('type') == 'question' and item.get('oldcarts') == 'L':
-                                    temp_q = item.get('question', '')
-                                elif item.get('type') == 'answer' and temp_q:
-                                    a_text = item.get('answer', '')
-                                    if temp_q and a_text:
-                                        location_history.append(f"Q: {temp_q}\nA: {a_text}")
-                                    temp_q = None  # Reset
-                            
-                            history_text = '\n'.join(location_history) if location_history else "None"
-                            
-                            # Use programmatic template-based approach for reliable questions
-                            # This ensures we only ask questions that match guideline structure
-                            
-                            # Filler is now handled at container level for immediate streaming
-                            print(f"[Engine] 💬 Generating location clarification (filler handled by container)...")
-                            
-                            # Use LLM to generate clarification based on guideline LOCATION sections
-                            # This is more elegant than hardcoded logic
-                            
-                            # Collect LOCATION sections from top guidelines
-                            location_sections = []
-                            for g in self.active_guidelines[:3]:
-                                try:
-                                    location_section = self._extract_oldcarts_section(g['data'], 'LOCATION')
-                                    if location_section:
-                                        location_sections.append(f"{g['name']}: {location_section}")
-                                except:
-                                    continue
-                            
-                            if location_sections:
-                                # Use LLM to generate appropriate clarification question
-                                clarify_system = "You are a medical assistant. Output ONLY ONE question. Never combine multiple questions."
-                                
-                                clarify_user = f"""Patient's current answer: "{answer}"
+                            location_section = self._extract_oldcarts_section(g['data'], 'LOCATION')
+                            if location_section:
+                                location_sections.append(f"{g['name']}: {location_section}")
+                        except:
+                            continue
+                    
+                    if location_sections:
+                        # Use LLM to generate appropriate clarification question
+                        clarify_system = "You are a medical assistant. Output ONLY ONE question. Never combine multiple questions."
+                        
+                        clarify_user = f"""Patient's current answer: "{answer}"
 
 Guideline LOCATION sections for reference:
 {chr(10).join(location_sections)}
@@ -2123,56 +2123,56 @@ The patient's answer is still too vague. Ask EXACTLY ONE simple follow-up questi
 Use PLAIN LANGUAGE only (no medical jargon).
 
 Your question:"""
-                                
-                                clarify_response = self.llm_chat_simple_fn(
-                                    [
-                                        {"role": "system", "content": clarify_system},
-                                        {"role": "user", "content": clarify_user}
-                                    ],
-                                    max_tokens=40,
-                                    temperature=0.3
-                                )
-                                
-                                clarify_location = clarify_response.strip().strip('"\'')
-                                if not clarify_location.endswith('?'):
-                                    clarify_location += '?'
-                                
-                                # Simple validation - reject if too complex
-                                if clarify_location.count('?') > 1 or len(clarify_location.split()) > 15:
-                                    clarify_location = "Can you be more specific about the exact location?"
-                            else:
-                                clarify_location = "Can you be more specific about the exact location?"
-                            
-                            print(f"[Engine] 📍 Using template-based clarification: '{clarify_location}'")
-                            
-                            print(f"[Engine] 💬 Clarification: '{clarify_location}'")
-                            print(f"{'='*80}\n")
-                            
-                            # Increment clarification counter
-                            self.clarification_count['L'] = location_clarifications + 1
-                            
-                            # Preserve OLDCARTS element (keep as 'L' so we can ask again)
-                            self.conversation_history.append({
-                                'type': 'question',
-                                'question': clarify_location,
-                                'focus': 'clinical',
-                                'oldcarts': 'L'  # Keep as location
-                            })
-                            
-                            return {
-                                'success': True,
-                                'question': clarify_location,
-                                'status': 'questioning',
-                                # Filler is now handled at container level for immediate streaming
-                                'debug': self._get_debug_info(last_answer=answer)  # For Telegram debug display
-                            }
                         
-                        except Exception as clarify_error:
-                            print(f"[Engine] ❌ Failed to generate location clarification: {clarify_error}")
-                            import traceback
-                            traceback.print_exc()
-                            # Force mark as covered and move on
-                            self.oldcarts_covered['L'] = True
+                        clarify_response = self.llm_chat_simple_fn(
+                            [
+                                {"role": "system", "content": clarify_system},
+                                {"role": "user", "content": clarify_user}
+                            ],
+                            max_tokens=40,
+                            temperature=0.3
+                        )
+                        
+                        clarify_location = clarify_response.strip().strip('"\'')
+                        if not clarify_location.endswith('?'):
+                            clarify_location += '?'
+                        
+                        # Simple validation - reject if too complex
+                        if clarify_location.count('?') > 1 or len(clarify_location.split()) > 15:
+                            clarify_location = "Can you be more specific about the exact location?"
+                    else:
+                        clarify_location = "Can you be more specific about the exact location?"
+                    
+                    print(f"[Engine] 📍 Using template-based clarification: '{clarify_location}'")
+                    
+                    print(f"[Engine] 💬 Clarification: '{clarify_location}'")
+                    print(f"{'='*80}\n")
+                    
+                    # Increment clarification counter
+                    self.clarification_count['L'] = location_clarifications + 1
+                    
+                    # Preserve OLDCARTS element (keep as 'L' so we can ask again)
+                    self.conversation_history.append({
+                        'type': 'question',
+                        'question': clarify_location,
+                        'focus': 'clinical',
+                        'oldcarts': 'L'  # Keep as location
+                    })
+                    
+                    return {
+                        'success': True,
+                        'question': clarify_location,
+                        'status': 'questioning',
+                        # Filler is now handled at container level for immediate streaming
+                        'debug': self._get_debug_info(last_answer=answer)  # For Telegram debug display
+                    }
+                
+                except Exception as clarify_error:
+                    print(f"[Engine] ❌ Failed to generate location clarification: {clarify_error}")
+                    import traceback
+                    traceback.print_exc()
+                    # Force mark as covered and move on
+                    self.oldcarts_covered['L'] = True
                 
                 elif avg_location_similarity < 0.85:
                     # Hit max clarifications - force move on
