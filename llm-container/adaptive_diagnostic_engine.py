@@ -918,9 +918,13 @@ class AdaptiveDiagnosticEngine:
         """
         complaint_lower = complaint.lower()
         
+        # Apply OLDCARTS normalization to normalize patient language
+        complaint_expanded = self._apply_oldcarts_normalization(complaint_lower)
+        print(f"[Engine] 🔄 OLDCARTS normalization: '{complaint_lower}' → '{complaint_expanded}'")
+        
         # Extract core symptom
         filler_words = ['i', 'have', 'my', 'the', 'a', 'an', 'is', 'am', 'feel', 'feeling']
-        symptom_words = [w for w in complaint_lower.split() if w not in filler_words]
+        symptom_words = [w for w in complaint_expanded.split() if w not in filler_words]
         core_symptom = ' '.join(symptom_words)
         
         matched = []
@@ -1029,10 +1033,14 @@ class AdaptiveDiagnosticEngine:
         """
         complaint_lower = complaint.lower()
         
+        # Apply OLDCARTS normalization to normalize patient language
+        complaint_expanded = self._apply_oldcarts_normalization(complaint_lower)
+        print(f"[Engine] 🔄 OLDCARTS normalization: '{complaint_lower}' → '{complaint_expanded}'")
+        
         # Extract core symptom by removing common filler words
         # This allows "I have abdominal pain" to match "lower abdominal pain"
         filler_words = ['i', 'have', 'my', 'the', 'a', 'an', 'is', 'am', 'feel', 'feeling']
-        symptom_words = [w for w in complaint_lower.split() if w not in filler_words]
+        symptom_words = [w for w in complaint_expanded.split() if w not in filler_words]
         core_symptom = ' '.join(symptom_words)
         
         matched = []
@@ -1588,170 +1596,188 @@ Your question:"""
         print(f"[Engine]   🔍 Norm product: {norm_product:.3f}")
         print(f"[Engine]   🔍 Cosine similarity: {cosine_similarity:.3f}")
         
-        # Apply directional penalty for opposite directions
+        # Pure semantic similarity - no directional penalties
+        print(f"[Engine]   🔍 Pure semantic similarity: {cosine_similarity:.3f}")
+        
+        return float(cosine_similarity)
+    
+    def _apply_synonym_expansion(self, text: str) -> str:
+        """Apply OLDCARTS-structured synonym expansion to normalize medical terms"""
+        import json
+        import os
         import re
-        words1 = set(re.findall(r'\b\w+\b', text1.lower()))
-        words2 = set(re.findall(r'\b\w+\b', text2.lower()))
         
-        print(f"[Engine]   🔍 Words1: {words1}")
-        print(f"[Engine]   🔍 Words2: {words2}")
-        
-        # Hardcoded directional conflicts for medical lateralization
-        opposite_pairs = [
-            # Lateral (left/right) - common patient terms
-            ('left', 'right'),
-            ('right', 'left'),
-            
-            # Vertical (upper/lower) - common patient terms
-            ('upper', 'lower'),
-            ('lower', 'upper'),
-            ('top', 'bottom'),
-            ('bottom', 'top'),
-            
-            # Anterior/Posterior (front/back) - common patient terms
-            ('front', 'back'),
-            ('back', 'front'),
-            
-            # Side specific - common patient terms
-            ('both', 'one'),
-            ('one', 'both'),
-            ('either', 'one'),
-            ('one', 'either'),
-            
-            # Medical lateralization pairs - anatomical opposites
-            ('lateral', 'medial'),
-            ('medial', 'lateral'),
-            ('ipsilateral', 'contralateral'),
-            ('contralateral', 'ipsilateral'),
-            ('unilateral', 'bilateral'),
-            ('bilateral', 'unilateral'),
-            
-            # Medical directional terms - superior/inferior
-            ('superior', 'inferior'),
-            ('inferior', 'superior'),
-            ('proximal', 'distal'),
-            ('distal', 'proximal'),
-            ('cranial', 'caudal'),
-            ('caudal', 'cranial'),
-            
-            # Medical directional terms - anterior/posterior
-            ('anterior', 'posterior'),
-            ('posterior', 'anterior'),
-            ('ventral', 'dorsal'),
-            ('dorsal', 'ventral'),
-            ('palmar', 'dorsal'),
-            ('plantar', 'dorsal'),
-            
-            # Quadrant-specific medical terms
-            ('ruq', 'llq'),
-            ('llq', 'ruq'),
-            ('luq', 'rlq'),
-            ('rlq', 'luq'),
-            ('right upper quadrant', 'left lower quadrant'),
-            ('left lower quadrant', 'right upper quadrant'),
-            ('left upper quadrant', 'right lower quadrant'),
-            ('right lower quadrant', 'left upper quadrant'),
-            
-            # Anatomical region opposites
-            ('epigastric', 'hypogastric'),
-            ('hypogastric', 'epigastric'),
-            ('suprapubic', 'retrosternal'),
-            ('retrosternal', 'suprapubic'),
-            ('thoracic', 'lumbar'),
-            ('lumbar', 'thoracic'),
-            ('cervical', 'sacral'),
-            ('sacral', 'cervical'),
-            
-            # Specific organ laterality
-            ('right kidney', 'left kidney'),
-            ('left kidney', 'right kidney'),
-            ('right lung', 'left lung'),
-            ('left lung', 'right lung'),
-            ('right ovary', 'left ovary'),
-            ('left ovary', 'right ovary'),
-            ('right testicle', 'left testicle'),
-            ('left testicle', 'right testicle'),
-            
-            # Pain radiation patterns
-            ('radiates to left', 'radiates to right'),
-            ('radiates to right', 'radiates to left'),
-            ('left arm', 'right arm'),
-            ('right arm', 'left arm'),
-            ('left shoulder', 'right shoulder'),
-            ('right shoulder', 'left shoulder'),
-            ('left flank', 'right flank'),
-            ('right flank', 'left flank'),
-            
-            # Medical procedure laterality
-            ('left side', 'right side'),
-            ('right side', 'left side'),
-            ('left sided', 'right sided'),
-            ('right sided', 'left sided'),
-            ('left sided pain', 'right sided pain'),
-            ('right sided pain', 'left sided pain')
+        # Load OLDCARTS-structured synonyms from the synonyms directory
+        # Try both Docker and local paths
+        base_paths = [
+            "/app/synonyms/",  # Docker container path
+            "/Users/rcabello/Documents/GitHub/LedgerAI/llm-container/synonyms/"  # Local path
         ]
         
-        penalty = 0.0
+        synonym_files = []
+        for base_path in base_paths:
+            if os.path.exists(base_path):
+                synonym_files.extend([
+                    os.path.join(base_path, "gi_synonyms_oldcarts.json"),
+                    os.path.join(base_path, "cardio_synonyms_oldcarts.json"),
+                    os.path.join(base_path, "derm_synonyms_oldcarts.json"),
+                    os.path.join(base_path, "endocrine_synonyms_oldcarts.json"),
+                    os.path.join(base_path, "neuro_synonyms_oldcarts.json"),
+                    os.path.join(base_path, "gu_synonyms_oldcarts.json"),
+                    os.path.join(base_path, "resp_synonyms_oldcarts.json"),
+                    os.path.join(base_path, "renal_synonyms_oldcarts.json")
+                ])
+                break
         
-        # Check for multi-word phrase conflicts first (higher priority)
-        text1_lower = text1.lower()
-        text2_lower = text2.lower()
+        # Load all OLDCARTS synonyms
+        oldcarts_synonyms = {}
+        for file_path in synonym_files:
+            if os.path.exists(file_path):
+                try:
+                    with open(file_path, 'r') as f:
+                        file_synonyms = json.load(f)
+                        oldcarts_synonyms.update(file_synonyms)
+                except Exception as e:
+                    print(f"[Engine] ⚠️ Failed to load OLDCARTS synonyms from {file_path}: {e}")
         
-        # Critical medical lateralization conflicts (higher penalty)
-        critical_conflicts = [
-            ('right lower quadrant', 'left lower quadrant'),
-            ('left lower quadrant', 'right lower quadrant'),
-            ('right upper quadrant', 'left upper quadrant'),
-            ('left upper quadrant', 'right upper quadrant'),
-            ('right sided pain', 'left sided pain'),
-            ('left sided pain', 'right sided pain'),
-            ('radiates to right', 'radiates to left'),
-            ('radiates to left', 'radiates to right')
+        # Flatten OLDCARTS structure into standard_term -> variations mapping
+        synonyms = {}
+        for category, subcategories in oldcarts_synonyms.items():
+            if isinstance(subcategories, dict):
+                for subcategory, variations in subcategories.items():
+                    if isinstance(variations, list):
+                        # Create standard term from category and subcategory
+                        standard_term = f"{category}_{subcategory}".replace("_", " ")
+                        synonyms[standard_term] = variations
+                    elif isinstance(variations, dict):
+                        # Handle nested structures (like stool_characteristics)
+                        for nested_key, nested_variations in variations.items():
+                            if isinstance(nested_variations, list):
+                                standard_term = f"{category}_{subcategory}_{nested_key}".replace("_", " ")
+                                synonyms[standard_term] = nested_variations
+            elif isinstance(subcategories, list):
+                # Direct list of variations
+                standard_term = category.replace("_", " ")
+                synonyms[standard_term] = subcategories
+        
+        expanded_text = text
+        all_variations = []
+        for standard_term, variations in synonyms.items():
+            for variation in variations:
+                all_variations.append((len(variation), variation, standard_term))
+        
+        # Sort by length (longest first) to avoid partial replacements
+        all_variations.sort(key=lambda x: x[0], reverse=True)
+        
+        for length, variation, standard_term in all_variations:
+            pattern = r'\b' + re.escape(variation) + r'\b'
+            if re.search(pattern, expanded_text, re.IGNORECASE):
+                expanded_text = re.sub(pattern, standard_term, expanded_text, flags=re.IGNORECASE)
+                print(f"[Engine] 🔄 Synonym expansion: '{variation}' → '{standard_term}'")
+                break  # Only replace first match to avoid over-replacement
+        
+        return expanded_text
+    
+    def _apply_oldcarts_normalization(self, text: str, target_category: str = None) -> str:
+        """
+        Apply OLDCARTS-specific normalization to patient text
+        
+        Args:
+            text: Patient input text
+            target_category: Specific OLDCARTS category to focus on (onset, location, duration, etc.)
+        
+        Returns:
+            Normalized text with medical terms
+        """
+        import json
+        import os
+        import re
+        
+        # Load OLDCARTS synonyms - try both Docker and local paths
+        synonym_files = [
+            "/app/synonyms/gi_synonyms_oldcarts.json",  # Docker container path
+            "/Users/rcabello/Documents/GitHub/LedgerAI/llm-container/synonyms/gi_synonyms_oldcarts.json"  # Local path
         ]
         
-        print(f"[Engine]   🔍 Checking {len(critical_conflicts)} critical conflicts...")
-        for dir1, dir2 in critical_conflicts:
-            if dir1 in text1_lower and dir2 in text2_lower:
-                penalty += 0.4  # Higher penalty for critical conflicts
-                print(f"[Engine]   🔍 Critical directional penalty: {dir1} vs {dir2} (-0.4)")
-            else:
-                print(f"[Engine]   🔍 No critical conflict: '{dir1}' in text1={dir1 in text1_lower}, '{dir2}' in text2={dir2 in text2_lower}")
+        synonym_file = None
+        for file_path in synonym_files:
+            if os.path.exists(file_path):
+                synonym_file = file_path
+                break
         
-        # Check single word conflicts
-        print(f"[Engine]   🔍 Checking {len(opposite_pairs)} opposite pairs for conflicts...")
-        for dir1, dir2 in opposite_pairs:
-            if dir1 in words1 and dir2 in words2:
-                print(f"[Engine]   🔍 Found potential conflict: '{dir1}' in words1, '{dir2}' in words2")
-                # Skip if already handled by critical conflicts (check if the full critical conflict phrase was already processed)
-                already_handled = False
-                for conflict in critical_conflicts:
-                    # Check if the current text1 and text2 contain the full critical conflict phrase
-                    if (conflict[0] in text1_lower and conflict[1] in text2_lower) or (conflict[1] in text1_lower and conflict[0] in text2_lower):
-                        already_handled = True
-                        print(f"[Engine]   🔍 Conflict already handled by critical conflict phrase: {conflict}")
-                        break
-                
-                if not already_handled:
-                    penalty += 0.2  # Standard penalty for opposite directions
-                    print(f"[Engine]   🔍 Directional penalty: {dir1} vs {dir2} (-0.2)")
-                else:
-                    print(f"[Engine]   🔍 Skipping penalty for {dir1} vs {dir2} (already handled)")
+        if not synonym_file:
+            print(f"[Engine] ⚠️ OLDCARTS synonyms file not found in any expected location")
+            return text
         
-        # Apply penalty
-        final_similarity = cosine_similarity - penalty
-        final_similarity = max(0.0, final_similarity)  # Don't go below 0
+        try:
+            with open(synonym_file, 'r') as f:
+                oldcarts_synonyms = json.load(f)
+        except Exception as e:
+            print(f"[Engine] ⚠️ Failed to load OLDCARTS synonyms: {e}")
+            return text
         
-        if penalty > 0:
-            print(f"[Engine]   🔍 Final similarity (cosine - penalty): {final_similarity:.3f}")
+        normalized_text = text.lower()
+        
+        # If target_category is specified, focus on that category
+        if target_category and target_category in oldcarts_synonyms:
+            category_data = oldcarts_synonyms[target_category]
+            normalized_text = self._normalize_by_category(normalized_text, category_data, target_category)
         else:
-            print(f"[Engine]   🔍 Final similarity (no penalty): {final_similarity:.3f}")
+            # Normalize across all categories
+            for category, category_data in oldcarts_synonyms.items():
+                normalized_text = self._normalize_by_category(normalized_text, category_data, category)
         
-        return float(final_similarity)
+        return normalized_text
+    
+    def _normalize_by_category(self, text: str, category_data: dict, category_name: str) -> str:
+        """Normalize text within a specific OLDCARTS category"""
+        import re
+        
+        normalized_text = text
+        
+        if isinstance(category_data, dict):
+            for subcategory, variations in category_data.items():
+                if isinstance(variations, list):
+                    # Create standard term
+                    standard_term = f"{category_name}_{subcategory}".replace("_", " ")
+                    normalized_text = self._apply_variations(normalized_text, variations, standard_term)
+                elif isinstance(variations, dict):
+                    # Handle nested structures
+                    for nested_key, nested_variations in variations.items():
+                        if isinstance(nested_variations, list):
+                            standard_term = f"{category_name}_{subcategory}_{nested_key}".replace("_", " ")
+                            normalized_text = self._apply_variations(normalized_text, nested_variations, standard_term)
+        elif isinstance(category_data, list):
+            # Direct list of variations
+            standard_term = category_name.replace("_", " ")
+            normalized_text = self._apply_variations(normalized_text, category_data, standard_term)
+        
+        return normalized_text
+    
+    def _apply_variations(self, text: str, variations: list, standard_term: str) -> str:
+        """Apply synonym variations to text"""
+        import re
+        
+        # Sort by length (longest first) to avoid partial replacements
+        sorted_variations = sorted(variations, key=len, reverse=True)
+        
+        for variation in sorted_variations:
+            pattern = r'\b' + re.escape(variation) + r'\b'
+            if re.search(pattern, text, re.IGNORECASE):
+                text = re.sub(pattern, standard_term, text, flags=re.IGNORECASE)
+                print(f"[Engine] 🔄 OLDCARTS normalization: '{variation}' → '{standard_term}'")
+                break  # Only replace first match
+        
+        return text
     
     def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str) -> float:
-        """Pure semantic similarity for location matching"""
-        # Get semantic similarity
-        semantic_similarity = self._compute_similarity(user_answer, oldcarts_section)
+        """Pure semantic similarity for location matching with OLDCARTS normalization"""
+        # Apply OLDCARTS-specific normalization focusing on location
+        user_answer_expanded = self._apply_oldcarts_normalization(user_answer.lower(), target_category="location")
+        print(f"[Engine] 🔄 Location OLDCARTS normalization: '{user_answer}' → '{user_answer_expanded}'")
+        
+        # Get semantic similarity using expanded user answer
+        semantic_similarity = self._compute_similarity(user_answer_expanded, oldcarts_section)
         
         # DEBUG: Show semantic similarity calculation
         print(f"[Engine]   🧠 Semantic similarity: '{user_answer}' vs '{oldcarts_section}' = {semantic_similarity:.3f}")
@@ -2174,18 +2200,19 @@ Your question:"""
                     # Force mark as covered and move on
                     self.oldcarts_covered['L'] = True
                 
-                elif avg_location_similarity < 0.85:
+                # After clarification attempt, check if we should move on
+                if avg_location_similarity < 0.85:
                     # Hit max clarifications - force move on
                     print(f"[Engine] ⚠️ Max location clarifications reached ({location_clarifications}/{self.MAX_CLARIFICATIONS}) - accepting answer and moving on")
                     self.oldcarts_covered['L'] = True  # Force mark as covered
                 else:
                     print(f"[Engine] ✅ Location answer has sufficient anatomical detail")
                     self.oldcarts_covered['L'] = True  # Mark as covered - we have enough detail!
-            else:
-                # No location texts or only one guideline - can't compare
-                # Just mark as covered
-                print(f"[Engine] ℹ️  Not enough guidelines to compare locations - accepting answer")
-                self.oldcarts_covered['L'] = True
+        else:
+            # No location texts or only one guideline - can't compare
+            # Just mark as covered
+            print(f"[Engine] ℹ️  Not enough guidelines to compare locations - accepting answer")
+            self.oldcarts_covered['L'] = True
         
         # SAFETY CHECK: Ensure we have active guidelines
         if len(self.active_guidelines) == 0 and len(self.reserve_pool) == 0:

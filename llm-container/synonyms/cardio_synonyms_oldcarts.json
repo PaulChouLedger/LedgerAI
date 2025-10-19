@@ -1,0 +1,373 @@
+{
+  "onset": {
+    "sudden": [
+      "suddenly",
+      "all of a sudden",
+      "came on suddenly",
+      "started suddenly",
+      "hit me suddenly",
+      "came out of nowhere",
+      "without warning"
+    ],
+    "gradual": [
+      "slowly",
+      "gradually",
+      "over time",
+      "slowly getting worse",
+      "progressively",
+      "step by step",
+      "little by little"
+    ],
+    "acute": [
+      "acute onset",
+      "came on quickly",
+      "rapid onset",
+      "fast onset",
+      "quickly developed"
+    ],
+    "chronic": [
+      "long term",
+      "ongoing",
+      "persistent",
+      "has been going on",
+      "for a while",
+      "for some time"
+    ]
+  },
+  "location": {},
+  "duration": {
+    "minutes": [
+      "few minutes",
+      "couple minutes",
+      "several minutes",
+      "for minutes"
+    ],
+    "hours": [
+      "few hours",
+      "couple hours",
+      "several hours",
+      "for hours",
+      "hourly"
+    ],
+    "days": [
+      "few days",
+      "couple days",
+      "several days",
+      "for days",
+      "daily"
+    ],
+    "weeks": [
+      "few weeks",
+      "couple weeks",
+      "several weeks",
+      "for weeks",
+      "weekly"
+    ],
+    "months": [
+      "few months",
+      "couple months",
+      "several months",
+      "for months",
+      "monthly"
+    ],
+    "years": [
+      "few years",
+      "couple years",
+      "several years",
+      "for years",
+      "yearly"
+    ],
+    "intermittent": [
+      "comes and goes",
+      "on and off",
+      "sporadic",
+      "occasional",
+      "sometimes",
+      "periodic"
+    ],
+    "constant": [
+      "all the time",
+      "continuous",
+      "non-stop",
+      "persistent",
+      "steady",
+      "ongoing"
+    ]
+  },
+  "character": {
+    "sharp": [
+      "sharp pain",
+      "stabbing",
+      "knife-like",
+      "piercing",
+      "cutting",
+      "acute pain"
+    ],
+    "dull": [
+      "dull pain",
+      "achy",
+      "aching",
+      "sore",
+      "tender",
+      "heavy feeling"
+    ],
+    "burning": [
+      "burning pain",
+      "burning sensation",
+      "hot feeling",
+      "fire-like",
+      "scorching"
+    ],
+    "pressure": [
+      "pressure feeling",
+      "squeezing",
+      "tightness",
+      "fullness",
+      "heavy pressure"
+    ],
+    "throbbing": [
+      "throbbing pain",
+      "pulsating",
+      "beating",
+      "rhythmic pain"
+    ]
+  },
+  "aggravating_factors": {
+    "movement": [
+      "when I move",
+      "movement makes it worse",
+      "walking",
+      "bending",
+      "twisting",
+      "physical activity"
+    ],
+    "breathing": [
+      "when I breathe",
+      "breathing makes it worse",
+      "deep breath",
+      "coughing",
+      "sneezing"
+    ],
+    "stress": [
+      "when stressed",
+      "stress makes it worse",
+      "anxiety",
+      "nervous"
+    ]
+  },
+  "alleviating_factors": {
+    "rest": [
+      "resting helps",
+      "when I rest",
+      "lying still",
+      "not moving",
+      "staying still"
+    ],
+    "heat": [
+      "heat helps",
+      "heating pad",
+      "warm compress",
+      "hot water bottle",
+      "warmth"
+    ],
+    "cold": [
+      "cold helps",
+      "ice pack",
+      "cold compress",
+      "cooling"
+    ],
+    "medication": [
+      "pain medicine",
+      "painkillers",
+      "medication helps",
+      "pills help",
+      "drugs help"
+    ]
+  },
+  "radiation": {
+    "back": [
+      "goes to back",
+      "radiates to back",
+      "back pain",
+      "pain in back",
+      "spreads to back"
+    ],
+    "chest": [
+      "goes to chest",
+      "radiates to chest",
+      "chest pain",
+      "pain in chest",
+      "spreads to chest"
+    ],
+    "arms": [
+      "goes to arms",
+      "radiates to arms",
+      "arm pain",
+      "pain in arms",
+      "spreads to arms"
+    ],
+    "legs": [
+      "goes to legs",
+      "radiates to legs",
+      "leg pain",
+      "pain in legs",
+      "spreads to legs"
+    ]
+  },
+  "timing": {
+    "constant": [
+      "all the time",
+      "continuous",
+      "non-stop",
+      "persistent",
+      "steady",
+      "ongoing"
+    ],
+    "intermittent": [
+      "comes and goes",
+      "on and off",
+      "sporadic",
+      "occasional",
+      "sometimes",
+      "periodic"
+    ],
+    "morning": [
+      "in the morning",
+      "when I wake up",
+      "early morning",
+      "morning time"
+    ],
+    "evening": [
+      "in the evening",
+      "at night",
+      "evening time",
+      "night time"
+    ],
+    "night": [
+      "at night",
+      "during sleep",
+      "wakes me up",
+      "night time"
+    ]
+  },
+  "severity": {
+    "mild": [
+      "mild pain",
+      "slight pain",
+      "minor pain",
+      "not too bad",
+      "manageable",
+      "tolerable"
+    ],
+    "moderate": [
+      "moderate pain",
+      "medium pain",
+      "somewhat painful",
+      "noticeable",
+      "uncomfortable"
+    ],
+    "severe": [
+      "severe pain",
+      "bad pain",
+      "really painful",
+      "excruciating",
+      "unbearable",
+      "intense"
+    ],
+    "scale_1_3": [
+      "1 out of 10",
+      "2 out of 10",
+      "3 out of 10",
+      "very mild",
+      "barely noticeable"
+    ],
+    "scale_4_6": [
+      "4 out of 10",
+      "5 out of 10",
+      "6 out of 10",
+      "moderate",
+      "noticeable"
+    ],
+    "scale_7_10": [
+      "7 out of 10",
+      "8 out of 10",
+      "9 out of 10",
+      "10 out of 10",
+      "severe",
+      "worst pain ever"
+    ]
+  },
+  "associated_symptoms": {
+    "fatigue": [
+      "tired",
+      "exhausted",
+      "worn out",
+      "weak",
+      "drained",
+      "lethargic"
+    ]
+  },
+  "specific_conditions": {
+    "sharp": [
+      "stabbing",
+      "knife-like",
+      "piercing",
+      "stinging"
+    ],
+    "heavy": [
+      "weight",
+      "happy",
+      "crushing",
+      "tightness",
+      "pressure",
+      "squeezing",
+      "constricting"
+    ],
+    "shortness_of_breath": [
+      "sob",
+      "short of breath",
+      "difficulty breathing",
+      "can\u2019t breathe",
+      "can't breathe",
+      "hard to breathe",
+      "trouble breathing",
+      "breathless",
+      "dyspnea"
+    ],
+    "palpitations": [
+      "racing heart",
+      "fluttering",
+      "skipped beats",
+      "pounding heart",
+      "heart racing",
+      "fast heartbeat"
+    ],
+    "fainting": [
+      "syncope",
+      "collapse",
+      "passed out",
+      "blackout",
+      "lost consciousness",
+      "knocked out"
+    ],
+    "sweating": [
+      "sweaty",
+      "clammy",
+      "diaphoresis",
+      "perspiration",
+      "drenched"
+    ],
+    "radiation": [
+      "spreads to arm",
+      "spreads to neck",
+      "spreads to jaw",
+      "spreads to back",
+      "spreads to shoulder",
+      "radiates to arm",
+      "radiates to neck",
+      "radiates to jaw",
+      "radiates to back",
+      "radiates to shoulder"
+    ]
+  }
+}
