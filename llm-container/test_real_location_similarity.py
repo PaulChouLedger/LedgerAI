@@ -145,8 +145,8 @@ def test_real_location_similarity():
                 )
                 print(f"Final similarity: {similarity:.3f}")
                 
-                # Test against threshold (matches engine's SEMANTIC_THRESHOLD)
-                threshold = 0.60
+                # Test against threshold (matches engine's SEMANTIC_THRESHOLD for cosine + directional penalty)
+                threshold = 0.5
                 if similarity > threshold:
                     result = "ACCEPT"
                     print(f"✅ ACCEPTED (>{threshold})")
@@ -173,8 +173,8 @@ def test_real_location_similarity():
             if scores:
                 print(f"{category}:")
                 print(f"   Scores: {[f'{s:.3f}' for s in scores]}")
-                accepted = sum(1 for s in scores if s > 0.60)
-                print(f"   Accepted: {accepted}/{len(scores)} (>{0.60})")
+                accepted = sum(1 for s in scores if s > 0.5)
+                print(f"   Accepted: {accepted}/{len(scores)} (>{0.5})")
                 print(f"   Avg: {sum(scores)/len(scores):.3f}")
                 print()
         

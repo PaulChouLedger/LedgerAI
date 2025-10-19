@@ -29,6 +29,7 @@ COPY test_pure_lateralization.py .
 COPY test_embedding_difference.py .
 COPY test_hybrid_similarity.py .
 COPY test_realistic_thresholds.py .
+COPY test_directional_similarity.py .
 COPY triage_defs/ /app/triage_defs/
 COPY synonyms/ /app/synonyms/
 

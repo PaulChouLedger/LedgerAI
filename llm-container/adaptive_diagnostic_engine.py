@@ -1045,12 +1045,12 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine]    1. Exact match (trigger in complaint)")
         print(f"[Engine]    2. Subset match (symptom in trigger)")
         print(f"[Engine]    3. Character overlap (Jaccard > 0.75)")
-        print(f"[Engine]    4. Semantic similarity (cosine > 0.45)")
+        print(f"[Engine]    4. Cosine similarity with directional penalty (> 0.5)")
         print(f"[Engine] ---")
         
         # Thresholds
         CHAR_OVERLAP_THRESHOLD = 0.75  # Increased from 0.65
-        SEMANTIC_THRESHOLD = 0.45  # Optimized based on realistic threshold testing
+        SEMANTIC_THRESHOLD = 0.5  # Cosine similarity with directional penalty
         
         # Helper function for character overlap
         def char_overlap(str1: str, str2: str) -> float:
@@ -1563,9 +1563,9 @@ Your question:"""
     
     def _compute_similarity(self, text1: str, text2: str) -> float:
         """
-        Compute semantic similarity between two texts using embeddings
+        Compute cosine similarity with directional penalty for opposite directions
         
-        Returns: Similarity score 0-1
+        Returns: Cosine similarity score 0-1 with penalty for opposite directions
         
         Raises:
             RuntimeError if embeddings not available or computation fails
@@ -1587,18 +1587,38 @@ Your question:"""
         # Compute cosine similarity
         dot_product = np.dot(emb1, emb2)
         norm_product = np.linalg.norm(emb1) * np.linalg.norm(emb2)
-        raw_similarity = dot_product / norm_product
+        cosine_similarity = dot_product / norm_product
         
         print(f"[Engine]   🔍 Dot product: {dot_product:.3f}")
         print(f"[Engine]   🔍 Norm product: {norm_product:.3f}")
-        print(f"[Engine]   🔍 Raw cosine similarity: {raw_similarity:.3f}")
+        print(f"[Engine]   🔍 Cosine similarity: {cosine_similarity:.3f}")
         
-        # Cosine similarity is already in [0, 1] for normalized vectors
-        similarity = raw_similarity
+        # Apply directional penalty for opposite directions
+        import re
+        words1 = set(re.findall(r'\b\w+\b', text1.lower()))
+        words2 = set(re.findall(r'\b\w+\b', text2.lower()))
         
-        print(f"[Engine]   🔍 Normalized similarity: {similarity:.3f}")
+        # Minimal hardcoding: only opposite directions
+        opposite_pairs = [
+            ('left', 'right'),
+            ('right', 'left'),
+            ('upper', 'lower'),
+            ('lower', 'upper')
+        ]
         
-        return float(similarity)
+        penalty = 0.0
+        for dir1, dir2 in opposite_pairs:
+            if dir1 in words1 and dir2 in words2:
+                penalty += 0.2  # Penalty for opposite directions
+                print(f"[Engine]   🔍 Directional penalty: {dir1} vs {dir2} (-0.2)")
+        
+        # Apply penalty
+        final_similarity = cosine_similarity - penalty
+        final_similarity = max(0.0, final_similarity)  # Don't go below 0
+        
+        print(f"[Engine]   🔍 Final similarity (cosine - penalty): {final_similarity:.3f}")
+        
+        return float(final_similarity)
     
     def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str) -> float:
         """Pure semantic similarity for location matching"""
