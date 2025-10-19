@@ -1714,22 +1714,26 @@ Your question:"""
             ('radiates to left', 'radiates to right')
         ]
         
+        print(f"[Engine]   🔍 Checking {len(critical_conflicts)} critical conflicts...")
         for dir1, dir2 in critical_conflicts:
             if dir1 in text1_lower and dir2 in text2_lower:
                 penalty += 0.4  # Higher penalty for critical conflicts
                 print(f"[Engine]   🔍 Critical directional penalty: {dir1} vs {dir2} (-0.4)")
+            else:
+                print(f"[Engine]   🔍 No critical conflict: '{dir1}' in text1={dir1 in text1_lower}, '{dir2}' in text2={dir2 in text2_lower}")
         
         # Check single word conflicts
         print(f"[Engine]   🔍 Checking {len(opposite_pairs)} opposite pairs for conflicts...")
         for dir1, dir2 in opposite_pairs:
             if dir1 in words1 and dir2 in words2:
                 print(f"[Engine]   🔍 Found potential conflict: '{dir1}' in words1, '{dir2}' in words2")
-                # Skip if already handled by critical conflicts (check if both words are in the same critical conflict)
+                # Skip if already handled by critical conflicts (check if the full critical conflict phrase was already processed)
                 already_handled = False
                 for conflict in critical_conflicts:
-                    if (dir1 in conflict[0] and dir2 in conflict[1]) or (dir1 in conflict[1] and dir2 in conflict[0]):
+                    # Check if the current text1 and text2 contain the full critical conflict phrase
+                    if (conflict[0] in text1_lower and conflict[1] in text2_lower) or (conflict[1] in text1_lower and conflict[0] in text2_lower):
                         already_handled = True
-                        print(f"[Engine]   🔍 Conflict already handled by critical conflict: {conflict}")
+                        print(f"[Engine]   🔍 Conflict already handled by critical conflict phrase: {conflict}")
                         break
                 
                 if not already_handled:
