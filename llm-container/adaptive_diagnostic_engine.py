@@ -1580,11 +1580,23 @@ Your question:"""
         emb1 = self.embedding_model.encode([text1])[0]
         emb2 = self.embedding_model.encode([text2])[0]
         
+        # DEBUG: Show embedding details
+        print(f"[Engine]   🔍 Embedding 1 shape: {emb1.shape}, norm: {np.linalg.norm(emb1):.3f}")
+        print(f"[Engine]   🔍 Embedding 2 shape: {emb2.shape}, norm: {np.linalg.norm(emb2):.3f}")
+        
         # Compute cosine similarity
-        similarity = np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
+        dot_product = np.dot(emb1, emb2)
+        norm_product = np.linalg.norm(emb1) * np.linalg.norm(emb2)
+        raw_similarity = dot_product / norm_product
+        
+        print(f"[Engine]   🔍 Dot product: {dot_product:.3f}")
+        print(f"[Engine]   🔍 Norm product: {norm_product:.3f}")
+        print(f"[Engine]   🔍 Raw cosine similarity: {raw_similarity:.3f}")
         
         # Convert from [-1, 1] to [0, 1]
-        similarity = (similarity + 1) / 2
+        similarity = (raw_similarity + 1) / 2
+        
+        print(f"[Engine]   🔍 Normalized similarity: {similarity:.3f}")
         
         return float(similarity)
     
@@ -1595,6 +1607,16 @@ Your question:"""
         
         # DEBUG: Show semantic similarity calculation
         print(f"[Engine]   🧠 Semantic similarity: '{user_answer}' vs '{oldcarts_section}' = {semantic_similarity:.3f}")
+        
+        # DEBUG: Test basic left vs right if we detect these terms
+        if 'left' in user_answer.lower() and 'right' in oldcarts_section.lower():
+            print(f"[Engine]   🚨 LEFT vs RIGHT detected - testing basic similarity...")
+            basic_left = self._compute_similarity("left", "right")
+            print(f"[Engine]   🚨 Basic 'left' vs 'right' similarity: {basic_left:.3f}")
+        elif 'right' in user_answer.lower() and 'left' in oldcarts_section.lower():
+            print(f"[Engine]   🚨 RIGHT vs LEFT detected - testing basic similarity...")
+            basic_right = self._compute_similarity("right", "left")
+            print(f"[Engine]   🚨 Basic 'right' vs 'left' similarity: {basic_right:.3f}")
         
         # Step 2: Calculate keyword similarity boost
         keyword_boost = self._compute_keyword_similarity_boost(user_answer, oldcarts_section)
