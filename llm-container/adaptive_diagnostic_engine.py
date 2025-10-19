@@ -372,10 +372,8 @@ class AdaptiveDiagnosticEngine:
         self.status = "questioning"
         
         # STEP 1: Get filler immediately (for instant user feedback)
-        filler = get_filler('opening', use_audio=True)
-        print(f"[Engine] 💬 Filler (for immediate response): [{filler['id']}] '{filler['text']}'")
-        if 'audio_path' in filler:
-            print(f"[Engine]    🎵 Audio: {filler['audio_path']}")
+        # Filler is now handled at container level for immediate streaming
+        print(f"[Engine] 💬 Generating opening statement (filler handled by container)...")
         
         # STEP 2: Run RAG and Llama-1B in PARALLEL (major speedup!)
         import threading
@@ -533,7 +531,7 @@ class AdaptiveDiagnosticEngine:
             'success': True,
             'question': combined_message,
             'status': 'questioning',
-            'filler': filler,  # Play/send this immediately while waiting for main response
+            # Filler is now handled at container level for immediate streaming
             'debug': self._get_debug_info()  # For Telegram debug display
         }
     
@@ -1333,9 +1331,8 @@ Example: "{example}"
 
 Generate EXACTLY ONE similar question using SIMPLE, PLAIN LANGUAGE that anyone can understand (open-ended, NOT yes/no). Do NOT combine multiple questions:"""
             
-            # Get thinking filler before LLM call
-            filler = get_filler('question_generation', use_audio=True)
-            print(f"[Engine] 💬 Filler: [{filler['id']}] '{filler['text']}'")
+            # Filler is now handled at container level for immediate streaming
+            print(f"[Engine] 💬 Generating question (filler handled by container)...")
             
             response = self.llm_chat_fn(
                 [
@@ -1395,7 +1392,6 @@ Generate EXACTLY ONE similar question using SIMPLE, PLAIN LANGUAGE that anyone c
                 'success': True,
                 'question': question,
                 'status': 'questioning',
-                'filler': filler,  # Play/send this immediately while waiting
                 'debug': self._get_debug_info()  # For Telegram debug display
             }
         
@@ -1439,9 +1435,8 @@ Example: "Have you had any fever?"
 
 Your question:"""
         
-        # Get thinking filler before LLM call
-        filler = get_filler('question_generation', use_audio=True)
-        print(f"[Engine] 💬 Filler: [{filler['id']}] '{filler['text']}'")
+        # Filler is now handled at container level for immediate streaming
+        print(f"[Engine] 💬 Generating associated symptom question (filler handled by container)...")
         
         response = self.llm_chat_fn(
             [
@@ -1481,7 +1476,7 @@ Your question:"""
             'success': True,
             'question': question,
             'status': 'questioning',
-            'filler': filler,  # Play/send this immediately while waiting
+            # Filler is now handled at container level for immediate streaming
             'debug': self._get_debug_info()  # For Telegram debug display
         }
     
@@ -2098,9 +2093,8 @@ Your question:"""
                             # Use programmatic template-based approach for reliable questions
                             # This ensures we only ask questions that match guideline structure
                             
-                            # Get thinking filler
-                            filler = get_filler('location_clarification', use_audio=True)
-                            print(f"[Engine] 💬 Filler: [{filler['id']}] '{filler['text']}'")
+                            # Filler is now handled at container level for immediate streaming
+                            print(f"[Engine] 💬 Generating location clarification (filler handled by container)...")
                             
                             # Use LLM to generate clarification based on guideline LOCATION sections
                             # This is more elegant than hardcoded logic
@@ -2169,7 +2163,7 @@ Your question:"""
                                 'success': True,
                                 'question': clarify_location,
                                 'status': 'questioning',
-                                'filler': filler,  # Play/send this immediately while waiting
+                                # Filler is now handled at container level for immediate streaming
                                 'debug': self._get_debug_info(last_answer=answer)  # For Telegram debug display
                             }
                         

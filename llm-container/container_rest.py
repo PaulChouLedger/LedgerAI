@@ -249,12 +249,11 @@ def chat_tg():
         
         elif mode == ConversationMode.UNIFIED_MEDICAL:
             try:
+                # For Telegram, we don't need immediate fillers since it's text-based
                 response = handle_unified_medical_response(prompt, session_id, llm_chat, llm_chat_simple)
                 
-                # Check if response includes filler (dict) or is simple text (str)
+                # Check if response includes question (dict) or is simple text (str)
                 if isinstance(response, dict):
-                    if 'filler' in response:
-                        print(f"[Container] 💬 Filler: {response['filler']['text']}")
                     # Return question + debug info for Telegram
                     telegram_response = {
                         "response": response.get('question', response.get('message', '')),
@@ -416,33 +415,39 @@ def chat_tts():
         def generate_unified_medical():
             try:
                 print("[Container] 🔄 Using dynamic medical assessment for UNIFIED_MEDICAL")
-                # Use the unified medical session to process the query
+                
+                # IMMEDIATE FILLER: Stream filler right away while processing happens in background
+                from thinking_fillers import get_filler
+                immediate_filler = get_filler('question_generation', use_audio=True)
+                filler_text = immediate_filler['text']
+                print(f"[Container] 💬 IMMEDIATE filler: '{filler_text}'")
+                
+                # Stream filler immediately
+                yield "<sentence_start>\n"
+                yield f"{filler_text}\n"
+                yield "<sentence_end>\n"
+                
+                # Now process the actual response in the background
                 response = handle_unified_medical_response(prompt, session_id, llm_chat, llm_chat_simple)
                 
                 print(f"[Container] ✅ Got response from unified medical session")
                 
                 # Check if response includes filler (dict) or is simple text (str)
-                if isinstance(response, dict) and 'filler' in response:
-                    # FILLER FIRST (immediate response while LLM generates)
-                    filler_text = response['filler']['text']
-                    print(f"[Container] 💬 Streaming filler first: '{filler_text}'")
-                    yield "<sentence_start>\n"
-                    yield f"{filler_text}\n"
-                    yield "<sentence_end>\n"
-                    
-                    # Small delay to ensure filler is processed separately
-                    import time
-                    time.sleep(0.05)
-                    
-                    # Then yield the actual question as SEPARATE sentence
+                if isinstance(response, dict) and 'question' in response:
+                    # Stream the actual question as SEPARATE sentence
                     question_text = response.get('question', '')
                     yield "<sentence_start>\n"
                     yield f"{question_text}\n"
                     yield "<sentence_end>\n"
-                else:
+                elif isinstance(response, str):
                     # Simple text response (no filler)
                     yield "<sentence_start>\n"
                     yield f"{response}\n"
+                    yield "<sentence_end>\n"
+                else:
+                    # Fallback
+                    yield "<sentence_start>\n"
+                    yield "I'm processing your response...\n"
                     yield "<sentence_end>\n"
             except Exception as e:
                 print(f"[Container] ❌ Error in unified medical mode: {e}")
