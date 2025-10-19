@@ -1045,12 +1045,12 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine]    1. Exact match (trigger in complaint)")
         print(f"[Engine]    2. Subset match (symptom in trigger)")
         print(f"[Engine]    3. Character overlap (Jaccard > 0.75)")
-        print(f"[Engine]    4. Semantic similarity (cosine > 0.70)")
+        print(f"[Engine]    4. Semantic similarity (cosine > 0.60)")
         print(f"[Engine] ---")
         
         # Thresholds
         CHAR_OVERLAP_THRESHOLD = 0.75  # Increased from 0.65
-        SEMANTIC_THRESHOLD = 0.70  # Adjusted for multi-qa-MiniLM-L6-cos-v1 model
+        SEMANTIC_THRESHOLD = 0.60  # Adjusted for all-mpnet-base-v2 model
         
         # Helper function for character overlap
         def char_overlap(str1: str, str2: str) -> float:
