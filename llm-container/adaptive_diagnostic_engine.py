@@ -1598,6 +1598,9 @@ Your question:"""
         words1 = set(re.findall(r'\b\w+\b', text1.lower()))
         words2 = set(re.findall(r'\b\w+\b', text2.lower()))
         
+        print(f"[Engine]   🔍 Words1: {words1}")
+        print(f"[Engine]   🔍 Words2: {words2}")
+        
         # Hardcoded directional conflicts for medical lateralization
         opposite_pairs = [
             # Lateral (left/right) - common patient terms
@@ -1719,8 +1722,14 @@ Your question:"""
         # Check single word conflicts
         for dir1, dir2 in opposite_pairs:
             if dir1 in words1 and dir2 in words2:
-                # Skip if already handled by critical conflicts
-                if not any(dir1 in conflict[0] and dir2 in conflict[1] for conflict in critical_conflicts):
+                # Skip if already handled by critical conflicts (check if both words are in the same critical conflict)
+                already_handled = False
+                for conflict in critical_conflicts:
+                    if (dir1 in conflict[0] and dir2 in conflict[1]) or (dir1 in conflict[1] and dir2 in conflict[0]):
+                        already_handled = True
+                        break
+                
+                if not already_handled:
                     penalty += 0.2  # Standard penalty for opposite directions
                     print(f"[Engine]   🔍 Directional penalty: {dir1} vs {dir2} (-0.2)")
         
@@ -2042,13 +2051,13 @@ Your question:"""
                 location_clarifications = self.clarification_count.get('L', 0)
                 
                 print(f"[Engine] 📊 Clarification tracker: L={location_clarifications}/{self.MAX_CLARIFICATIONS}, Covered={self.oldcarts_covered.get('L', False)}")
-                print(f"[Engine] 📊 Avg location similarity: {avg_location_similarity:.2f} (need >0.85 for specificity)")
+                print(f"[Engine] 📊 Avg location similarity: {avg_location_similarity:.2f} (need >0.70 for specificity)")
                 
                 # SAFEGUARD: If already asked 2+ clarifications, FORCE move on (prevent infinite loop)
                 if location_clarifications >= self.MAX_CLARIFICATIONS:
                     print(f"[Engine] ⚠️ Max location clarifications ALREADY reached ({location_clarifications}/{self.MAX_CLARIFICATIONS}) - forcing Location as covered")
                     self.oldcarts_covered['L'] = True
-                elif avg_location_similarity < 0.85 and location_clarifications < self.MAX_CLARIFICATIONS:
+                elif avg_location_similarity < 0.70 and location_clarifications < self.MAX_CLARIFICATIONS:
                     print(f"[Engine] ⚠️ Top guidelines have diverse locations - need more specific answer (clarification #{location_clarifications + 1}/{self.MAX_CLARIFICATIONS})")
                     
                     # SAFETY: Find the last question item
