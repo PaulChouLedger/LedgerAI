@@ -37,7 +37,12 @@ def test_real_location_similarity():
             guideline_data = engine.all_guidelines[guideline_name]
             
             # Extract LOCATION section from the guideline
-            location_section = engine._extract_oldcarts_section(guideline_data, 'LOCATION')
+            classic_presentation = guideline_data.get('key_features', {}).get('classic_presentation', '')
+            if not classic_presentation:
+                print(f"⚠️ No classic_presentation found in {guideline_name}")
+                continue
+                
+            location_section = engine._extract_oldcarts_section(classic_presentation, 'L')
             if not location_section:
                 print(f"⚠️ No LOCATION section found in {guideline_name}")
                 continue
