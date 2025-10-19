@@ -1608,15 +1608,6 @@ Your question:"""
         # DEBUG: Show semantic similarity calculation
         print(f"[Engine]   🧠 Semantic similarity: '{user_answer}' vs '{oldcarts_section}' = {semantic_similarity:.3f}")
         
-        # DEBUG: Test basic left vs right if we detect these terms
-        if 'left' in user_answer.lower() and 'right' in oldcarts_section.lower():
-            print(f"[Engine]   🚨 LEFT vs RIGHT detected - testing basic similarity...")
-            basic_left = self._compute_similarity("left", "right")
-            print(f"[Engine]   🚨 Basic 'left' vs 'right' similarity: {basic_left:.3f}")
-        elif 'right' in user_answer.lower() and 'left' in oldcarts_section.lower():
-            print(f"[Engine]   🚨 RIGHT vs LEFT detected - testing basic similarity...")
-            basic_right = self._compute_similarity("right", "left")
-            print(f"[Engine]   🚨 Basic 'right' vs 'left' similarity: {basic_right:.3f}")
         
         # Step 2: Calculate keyword similarity boost
         keyword_boost = self._compute_keyword_similarity_boost(user_answer, oldcarts_section)
