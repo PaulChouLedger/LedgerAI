@@ -83,6 +83,8 @@
       "left lower quadrant pain",
       "diverticulitis pain",
       "lower left abdominal pain",
+      "left lower belly",
+      "left lower stomach",
       "pain near left pelvis",
       "left pelvic pain",
       "lower abdomen left side",
@@ -349,7 +351,10 @@
       "non-stop",
       "persistent",
       "steady",
-      "ongoing"
+      "ongoing",
+      "stays in one spot",
+      "stays in one place",
+      "doesn't move"
     ],
     "intermittent": [
       "comes and goes",
