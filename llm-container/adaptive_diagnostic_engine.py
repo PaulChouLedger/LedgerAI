@@ -1593,8 +1593,8 @@ Your question:"""
         print(f"[Engine]   🔍 Norm product: {norm_product:.3f}")
         print(f"[Engine]   🔍 Raw cosine similarity: {raw_similarity:.3f}")
         
-        # Convert from [-1, 1] to [0, 1]
-        similarity = (raw_similarity + 1) / 2
+        # Cosine similarity is already in [0, 1] for normalized vectors
+        similarity = raw_similarity
         
         print(f"[Engine]   🔍 Normalized similarity: {similarity:.3f}")
         
