@@ -26,6 +26,7 @@ COPY test_comprehensive_fuzzy.py .
 COPY test_comprehensive_all_guidelines.py .
 COPY test_real_location_similarity.py .
 COPY test_pure_lateralization.py .
+COPY test_embedding_difference.py .
 COPY triage_defs/ /app/triage_defs/
 COPY synonyms/ /app/synonyms/
 

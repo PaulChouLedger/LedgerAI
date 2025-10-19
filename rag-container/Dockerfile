@@ -16,12 +16,9 @@ RUN pip install --no-cache-dir --ignore-installed \
     watchdog>=3.0.0 \
     metaphone
 
-# Copy model download script
-COPY download_models.py /app/
-
-# Pre-download all sentence transformer models (makes it WiFi-independent)
-RUN python3 /app/download_models.py && \
-    echo "✅ All sentence transformer models pre-downloaded into image"
+# Pre-download all-mpnet-base-v2 model (makes it WiFi-independent)
+RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-mpnet-base-v2')" && \
+    echo "✅ all-mpnet-base-v2 model pre-downloaded into image"
 
 # Copy RAG service and modules
 COPY container_rest.py /app/
