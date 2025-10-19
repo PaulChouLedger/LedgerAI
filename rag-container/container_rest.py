@@ -552,7 +552,7 @@ def embed_texts():
         return jsonify({
             'embeddings': embeddings_list,
             'count': len(embeddings_list),
-            'model': 'multi-qa-MiniLM-L6-cos-v1'
+            'model': 'all-mpnet-base-v2'
         })
         
     except Exception as e:
