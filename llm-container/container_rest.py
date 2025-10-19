@@ -416,25 +416,67 @@ def chat_tts():
             try:
                 print("[Container] 🔄 Using dynamic medical assessment for UNIFIED_MEDICAL")
                 
-                # Process the response first to determine if we need a filler
-                response = handle_unified_medical_response(prompt, session_id, llm_chat, llm_chat_simple)
+                # Check if this will be a simple operation (Llama-1B) or complex operation (Mistral-7B/RAG)
+                def will_use_simple_llm(prompt_text):
+                    """Predict if the operation will use Llama-1B (simple) or Mistral-7B (complex)"""
+                    prompt_lower = prompt_text.lower().strip()
+                    
+                    # Simple operations that use Llama-1B:
+                    # - Age answers: "35", "35 years old", "thirty five"
+                    # - Sex answers: "male", "female", "man", "woman"
+                    # - Simple clarifications
+                    
+                    # Age patterns
+                    age_patterns = [
+                        r'^\d+$',  # Just numbers: "35"
+                        r'^\d+\s*years?\s*old$',  # "35 years old"
+                        r'^(thirty|forty|fifty|sixty|seventy|eighty|ninety)',  # "thirty five"
+                        r'^(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\s+(one|two|three|four|five|six|seven|eight|nine)$'
+                    ]
+                    
+                    # Sex patterns
+                    sex_patterns = [
+                        r'^(male|female|man|woman|m|f)$',
+                        r'^(i am|i\'m)\s+(male|female|a man|a woman)$'
+                    ]
+                    
+                    # Check for age patterns
+                    import re
+                    for pattern in age_patterns:
+                        if re.match(pattern, prompt_lower):
+                            return True
+                    
+                    # Check for sex patterns
+                    for pattern in sex_patterns:
+                        if re.match(pattern, prompt_lower):
+                            return True
+                    
+                    # Default to complex operation (Mistral-7B/RAG)
+                    return False
                 
-                # Use filler only for operations that actually involve RAG (complex operations)
-                # Simple operations like age/sex extraction and clarifications don't need fillers
-                if isinstance(response, dict) and 'question' in response:
-                    # Complex operation that likely involves RAG - use filler
+                # Determine if we need a filler based on predicted LLM usage
+                will_use_simple = will_use_simple_llm(prompt)
+                
+                if will_use_simple:
+                    # Simple operation (Llama-1B) - no filler needed
+                    print(f"[Container] ⚡ Simple operation (Llama-1B) - no filler needed")
+                else:
+                    # Complex operation (Mistral-7B/RAG) - use filler
                     from thinking_fillers import get_filler
                     immediate_filler = get_filler('question_generation', use_audio=True)
                     filler_text = immediate_filler['text']
-                    print(f"[Container] 💬 IMMEDIATE filler for RAG operations: '{filler_text}'")
+                    print(f"[Container] 💬 IMMEDIATE filler for complex operation (Mistral-7B/RAG): '{filler_text}'")
                     
                     # Stream filler immediately
                     yield "<sentence_start>\n"
                     yield f"{filler_text}\n"
                     yield "<sentence_end>\n"
-                else:
-                    # Simple operation - no filler needed
-                    print(f"[Container] ⚡ Simple operation - no filler needed")
+                    
+                    # Add a natural pause between filler and question
+                    yield "<pause>\n"
+                
+                # Now process the actual response in the background
+                response = handle_unified_medical_response(prompt, session_id, llm_chat, llm_chat_simple)
                 
                 print(f"[Container] ✅ Got response from unified medical session")
                 

@@ -527,8 +527,8 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine]    Opening: '{opening_statement}'")
         print(f"[Engine]    Age Q: '{age_question}'")
         
-        # Combine them with proper spacing
-        combined_message = f"{opening_statement} {age_question}"
+        # Combine them with proper spacing and pause
+        combined_message = f"{opening_statement} <pause> {age_question}"
         
         self.conversation_history.append({
             'type': 'question',
@@ -2297,6 +2297,7 @@ Your question:"""
         else:
             # Not enough location texts - initialize variables with defaults
             location_clarifications = self.clarification_count.get('L', 0)
+            avg_location_similarity = 1.0  # Default to high similarity (no clarification needed)
             print(f"[Engine] 📊 Not enough location texts - using default similarity and clarification count")
 
         # SAFEGUARD: If already asked 2+ clarifications, FORCE move on (prevent infinite loop)
