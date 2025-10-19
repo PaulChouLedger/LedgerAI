@@ -29,7 +29,7 @@ class AuraRAG:
                  vectors_path: str = "data/embeddings/vectors.npy",
                  chunks_path: str = "data/embeddings/doc_chunks.npy",
                  metadata_path: str = "data/embeddings/chunk_metadata.json",
-                 model_name: str = "all-MiniLM-L6-v2",
+                 model_name: str = "multi-qa-MiniLM-L6-cos-v1",
                  relevance_threshold: float = 0.3):
         """
         Initialize Aura RAG system with FAISS

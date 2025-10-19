@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir --ignore-installed \
     metaphone
 
 # Pre-download sentence transformer model (makes it WiFi-independent)
-RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')" && \
+RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('multi-qa-MiniLM-L6-cos-v1')" && \
     echo "✅ Sentence transformer model pre-downloaded into image"
 
 # Copy RAG service and modules
