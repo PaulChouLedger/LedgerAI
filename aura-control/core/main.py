@@ -214,6 +214,7 @@ def run_container(name, port, image, timeout=15):
         # Get workspace root (LedgerAI directory)
         workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
         cmd += [
+            "--gpus", "all",  # Add GPU support for RAG container
             "-v", f"{workspace_root}/data:/app/data",  # Mount embeddings data
         ]
 
