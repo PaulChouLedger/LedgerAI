@@ -1,23 +1,14 @@
-FROM dustynv/faiss:lite-r36.4.0
+FROM faiss_lite:r36.4.tegra-aarch64-cu129-22.04
 
 # Set working directory
 WORKDIR /app
 
 
-# Install system dependencies for lxml (required by python-docx)
-RUN apt-get update && apt-get install -y \
-    libxml2-dev \
-    libxslt1-dev \
-    && rm -rf /var/lib/apt/lists/*
-
 # Install only missing dependencies
-RUN pip install --no-cache-dir --ignore-installed --index-url https://pypi.org/simple \
+RUN pip install --no-cache-dir --ignore-installed \
     flask \
     flask-cors \
     requests \
-    torch \
-    torchvision \
-    torchaudio \
     sentence-transformers \
     cuda-python \
     PyPDF2==3.0.1 \
