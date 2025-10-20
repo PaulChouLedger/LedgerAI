@@ -369,8 +369,8 @@ def chat_tts():
             # NO FALLBACKS - re-raise the actual error
             raise e
 
-        # Filter think blocks at container level
-        return Response(stream_with_context(filter_think_blocks(generate_clinician())), mimetype="text/plain")
+    # Filter think blocks at container level
+    return Response(stream_with_context(filter_think_blocks(generate_clinician())), mimetype="text/plain")
 
 
 
