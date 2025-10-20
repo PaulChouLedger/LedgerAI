@@ -7,7 +7,7 @@ Optimized for Jetson Orin NX with GPU acceleration via faiss_lite
 import os
 import numpy as np
 import faiss
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 import time
 import re
 from difflib import SequenceMatcher
@@ -1205,7 +1205,7 @@ Provide a helpful, accurate response based on the information above."""
     
     return augmented_prompt
 
-def smart_search_medical_info(query: str, k: int = 3) -> tuple[bool, str]:
+def smart_search_medical_info(query: str, k: int = 3) -> Tuple[bool, str]:
     """
     Smart search that decides whether to use RAG
     
