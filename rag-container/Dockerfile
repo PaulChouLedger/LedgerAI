@@ -4,6 +4,12 @@ FROM dustynv/faiss:lite-r35.4.1
 WORKDIR /app
 
 
+# Install system dependencies for lxml (required by python-docx)
+RUN apt-get update && apt-get install -y \
+    libxml2-dev \
+    libxslt1-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install only missing dependencies
 RUN pip install --no-cache-dir --ignore-installed \
     flask \
