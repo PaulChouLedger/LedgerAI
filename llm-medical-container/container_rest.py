@@ -78,12 +78,12 @@ simple_model_config = {
 print(f"[LLM] 🚀 Loading COMPLEX model: {MODEL_PATH}")
 print(f"[LLM] ⚙️  Config: n_ctx={N_CTX}, format={CHAT_FORMAT}")
 llm = Llama(**model_config)
-print(f"[LLM] ✅ Complex model (Mistral-7B) loaded")
+print(f"[LLM] ✅ Complex model loaded: {MODEL_PATH}")
 
 print(f"[LLM] 🚀 Loading SIMPLE model: {SIMPLE_MODEL_PATH}")
 print(f"[LLM] ⚙️  Config: n_ctx={SIMPLE_N_CTX}, format={SIMPLE_CHAT_FORMAT}")
 llm_simple = Llama(**simple_model_config)
-print(f"[LLM] ✅ Simple model (Llama-1B) loaded")
+print(f"[LLM] ✅ Simple model loaded: {SIMPLE_MODEL_PATH}")
 
 # Note: TRIAGE_DEFS is loaded automatically by triage.py when imported
 

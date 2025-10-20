@@ -19,6 +19,9 @@ COPY adaptive_diagnostic_engine.py .
 COPY thinking_fillers.py .
 COPY synonyms/ /app/synonyms/
 
+# Copy environment configuration
+COPY .env .
+
 # Copy medical guidelines (JSON files with chief complaint triggers and scoring)
 # These are used by the adaptive diagnostic engine for multi-guideline evaluation
 # Note: guidelines should be in llm-medical-container/medical/guidelines/ (inside build context)
@@ -44,9 +47,9 @@ RUN pip3 install --no-cache-dir --ignore-installed \
 
 
 # === Environment defaults (can be overridden by .env or -e) ===
-ENV MODEL_PATH=/models/Llama-3.2-1B-Instruct-Q4_K_M.gguf
-ENV CHAT_FORMAT=llama-3
-ENV N_CTX=1024
+ENV MODEL_PATH=/models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf
+ENV CHAT_FORMAT=mistral-instruct
+ENV N_CTX=8192
 
 # Expose port for API
 EXPOSE 11434
