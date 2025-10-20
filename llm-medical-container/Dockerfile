@@ -1,5 +1,5 @@
 # Use NVIDIA Jetson-compatible llama.cpp image
-FROM llama_cpp:r36.4.tegra-aarch64-cu126-22.04
+FROM llama_cpp:r36.4.tegra-aarch64-cu129-22.04
 
 # Set working directory
 WORKDIR /app

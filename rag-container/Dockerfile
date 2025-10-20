@@ -5,8 +5,7 @@ WORKDIR /app
 
 
 # Install only missing dependencies
-RUN pip3 install --no-cache-dir --ignore-installed \
-    --index-url https://pypi.org/simple \
+RUN pip install --no-cache-dir --ignore-installed \
     flask \
     flask-cors \
     requests \
