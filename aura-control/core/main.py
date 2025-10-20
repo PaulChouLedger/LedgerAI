@@ -266,7 +266,7 @@ def warm_up_llm():
         
         # First, wait for models to load using health check
         print("[Aura] 🔍 Waiting for models to load...")
-        for attempt in range(10):  # Wait up to 30 seconds for models to load
+        for attempt in range(20):  # Wait up to 60 seconds for models to load
             try:
                 response = requests.get("http://localhost:11434/health", timeout=5)
                 if response.status_code == 200:
@@ -293,7 +293,7 @@ def warm_up_llm():
             try:
                 response = requests.post("http://localhost:11434/chat-tts", 
                                        json={"prompt": "Hello"}, 
-                                       timeout=30)  # Increased timeout for 7B model
+                                       timeout=60)  # Increased timeout for model loading
                 if response.status_code == 200:
                     print("[Aura] ✅ LLM warm-up complete.")
                     return True

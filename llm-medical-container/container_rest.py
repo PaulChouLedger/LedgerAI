@@ -108,7 +108,7 @@ import time
 print(f"[LLM] 🚀 Loading COMPLEX model: {MODEL_PATH}")
 print(f"[LLM] ⚙️  Config: n_ctx={N_CTX}, format={CHAT_FORMAT}")
 
-# Check if model file exists
+# Check if model file exists and get file info
 if not os.path.exists(MODEL_PATH):
     print(f"[LLM] ❌ Model file not found: {MODEL_PATH}")
     print(f"[LLM] 📁 Available files in /models/:")
@@ -118,7 +118,15 @@ if not os.path.exists(MODEL_PATH):
     except:
         print(f"[LLM]   - Could not list /models/ directory")
     exit(1)
+else:
+    # Get file size and modification time
+    file_stat = os.stat(MODEL_PATH)
+    file_size_mb = file_stat.st_size / (1024 * 1024)
+    mod_time = time.ctime(file_stat.st_mtime)
+    print(f"[LLM] 📁 Model file found locally: {file_size_mb:.1f}MB, modified: {mod_time}")
+    print(f"[LLM] 🔍 File path: {MODEL_PATH}")
 
+print(f"[LLM] 🧠 Initializing Llama model (this may take a while for large models)...")
 start_time = time.time()
 llm = Llama(**model_config)
 load_time = time.time() - start_time
@@ -127,11 +135,19 @@ print(f"[LLM] ✅ Complex model loaded: {MODEL_PATH} (took {load_time:.1f}s)")
 print(f"[LLM] 🚀 Loading SIMPLE model: {SIMPLE_MODEL_PATH}")
 print(f"[LLM] ⚙️  Config: n_ctx={SIMPLE_N_CTX}, format={SIMPLE_CHAT_FORMAT}")
 
-# Check if model file exists
+# Check if model file exists and get file info
 if not os.path.exists(SIMPLE_MODEL_PATH):
     print(f"[LLM] ❌ Model file not found: {SIMPLE_MODEL_PATH}")
     exit(1)
+else:
+    # Get file size and modification time
+    file_stat = os.stat(SIMPLE_MODEL_PATH)
+    file_size_mb = file_stat.st_size / (1024 * 1024)
+    mod_time = time.ctime(file_stat.st_mtime)
+    print(f"[LLM] 📁 Model file found locally: {file_size_mb:.1f}MB, modified: {mod_time}")
+    print(f"[LLM] 🔍 File path: {SIMPLE_MODEL_PATH}")
 
+print(f"[LLM] 🧠 Initializing Llama model (this may take a while for large models)...")
 start_time = time.time()
 llm_simple = Llama(**simple_model_config)
 load_time = time.time() - start_time
