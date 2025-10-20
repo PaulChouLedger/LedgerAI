@@ -1,4 +1,4 @@
-FROM dustynv/faiss:lite-r35.4.1
+FROM dustynv/faiss:lite-r36.4.0
 
 # Set working directory
 WORKDIR /app
