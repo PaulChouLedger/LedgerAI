@@ -308,11 +308,11 @@ def chat_tts():
     """
     Main chat endpoint using modular architecture
 
-    Routes requests to appropriate conversation mode:
-    - CASUAL: Simple greetings
-    - THINKER: Knowledge queries with RAG
-    - TRIAGE: Hardcoded diagnostic system (baseline)
-    - CLINICIAN: RAG-powered intelligent diagnosis (future)
+    Routes requests to CLINICIAN mode for all interactions:
+    - Casual greetings and general conversation
+    - Medical knowledge queries with GPU-accelerated RAG
+    - Symptom assessment with adaptive diagnostic engine
+    - OLDCARTS-based questioning with guideline matching
     """
     data = request.get_json()
     prompt = (data.get("prompt") or "").strip()
@@ -639,10 +639,10 @@ def llm_chat_once(messages, **kwargs):
 if __name__ == "__main__":
     print("[Aura-LLM] 🚀 Starting Aura LLM Container (Modular Architecture)")
     print("[Aura-LLM] 📋 Available modes:")
-    print("  - CASUAL: Simple greetings")
-    print("  - THINKER: Knowledge queries with RAG")
-    print("  - TRIAGE: Hardcoded diagnostic system")
-    print("  - CLINICIAN: RAG-powered intelligent diagnosis (framework)")
+    print("  - CLINICIAN: Intelligent medical assistant with adaptive diagnostic engine")
+    print("    • Handles casual greetings, medical knowledge queries, and symptom assessment")
+    print("    • Uses GPU-accelerated RAG for medical knowledge and guideline matching")
+    print("    • Dual LLM support: Llama-1B for simple tasks, Mistral-7B for complex reasoning")
 
     app.run(host='0.0.0.0', port=11434, debug=False)
 

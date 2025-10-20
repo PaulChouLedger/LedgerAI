@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install only missing dependencies
-RUN pip install --no-cache-dir --ignore-installed \
+RUN pip install --no-cache-dir --ignore-installed --index-url https://pypi.org/simple \
     flask \
     flask-cors \
     requests \
