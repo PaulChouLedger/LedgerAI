@@ -1,5 +1,5 @@
-# Use NVIDIA Jetson-compatible llama.cpp image
-FROM llama_cpp:r36.4.tegra-aarch64-cu129-22.04
+# Use pre-built dustynv llama.cpp image
+FROM dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04
 
 # Set working directory
 WORKDIR /app
@@ -42,7 +42,7 @@ RUN pip3 install --no-cache-dir --ignore-installed \
     flask \
     python-dotenv \
     numpy==1.24.4 \
-    faiss-cpu \
+    requests \
     --index-url https://pypi.org/simple
 
 

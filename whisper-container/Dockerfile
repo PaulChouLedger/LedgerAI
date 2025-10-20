@@ -1,5 +1,5 @@
-# Use the jetson-containers built faster-whisper image
-FROM faster-whisper:r36.4.tegra-aarch64-cu126-22.04
+# Use the pre-built dustynv faster-whisper image
+FROM dustynv/faster-whisper:r36.4.0-cu128-24.04
 
 WORKDIR /app
 

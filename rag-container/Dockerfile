@@ -1,4 +1,4 @@
-FROM faiss_lite:r36.4.tegra-aarch64-cu126-22.04
+FROM dustynv/faiss:lite-r35.4.1
 
 # Set working directory
 WORKDIR /app

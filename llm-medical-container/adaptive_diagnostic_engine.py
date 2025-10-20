@@ -40,14 +40,55 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 from thinking_fillers import get_filler
 
-# Try to import FAISS (CPU version for guideline matching)
+# RAG API for GPU-accelerated FAISS operations
+import requests
+import numpy as np
+
+class RAGEmbeddingAPI:
+    """
+    Wrapper for RAG container's embedding service
+    Provides same interface as SentenceTransformer but uses API calls
+    """
+    def __init__(self, rag_url: str = "http://localhost:11435"):
+        self.rag_url = rag_url
+    
+    def encode(self, texts: List[str]) -> List:
+        """
+        Generate embeddings via RAG container API
+        
+        Args:
+            texts: List of texts to embed
+        
+        Returns:
+            List of embedding vectors (numpy arrays)
+        
+        Raises:
+            RuntimeError if embedding service fails
+        """
+        response = requests.post(
+            f"{self.rag_url}/embed",
+            json={"texts": texts},
+            timeout=5
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            embeddings = data.get('embeddings', [])
+            # Convert to numpy arrays
+            return [np.array(emb, dtype=np.float32) for emb in embeddings]
+        else:
+            raise RuntimeError(f"RAG embed API returned status {response.status_code}")
+
+# RAG API availability check
 try:
-    import faiss
-    FAISS_AVAILABLE = True
-    print("[Engine] ✅ FAISS-CPU available - will use for fast semantic matching")
-except ImportError:
-    FAISS_AVAILABLE = False
-    print("[Engine] ⚠️ FAISS not available - using brute-force matching (slower for 500+ guidelines)")
+    rag_api = RAGEmbeddingAPI()
+    # Test the API
+    test_embedding = rag_api.encode(["test"])
+    RAG_API_AVAILABLE = True
+    print("[Engine] ✅ RAG API available - will use GPU-accelerated FAISS")
+except Exception as e:
+    RAG_API_AVAILABLE = False
+    print(f"[Engine] ⚠️ RAG API not available - using brute-force matching: {e}")
 
 
 class AdaptiveDiagnosticEngine:
@@ -75,11 +116,10 @@ class AdaptiveDiagnosticEngine:
         
         print(f"[Engine] 🧠 Using {'dual models (simple + complex)' if llm_chat_simple_fn else 'single model'}")
         
-        # FAISS index for fast semantic matching
-        self.faiss_index = None
-        self.trigger_metadata = []  # Maps FAISS index positions to (guideline_name, trigger) tuples
-        self.use_faiss = False  # Will be enabled after successful index build
-        self.validate_faiss = os.getenv("VALIDATE_FAISS", "false").lower() == "true"  # Compare FAISS vs brute-force
+        # RAG API for GPU-accelerated FAISS operations
+        self.rag_api = RAGEmbeddingAPI() if RAG_API_AVAILABLE else None
+        self.use_rag_api = RAG_API_AVAILABLE
+        self.validate_rag = os.getenv("VALIDATE_RAG", "false").lower() == "true"  # Compare RAG vs brute-force
         
         # Hybrid matching configuration
         self.hybrid_config = {
@@ -93,10 +133,6 @@ class AdaptiveDiagnosticEngine:
         # Load guidelines
         self.all_guidelines = {}
         self._load_guidelines()
-        
-        # Build FAISS index after guidelines are loaded
-        if FAISS_AVAILABLE and self.embedding_model:
-            self._build_faiss_index()
         
         # Current assessment state
         self.reset_assessment()
@@ -138,83 +174,6 @@ class AdaptiveDiagnosticEngine:
             print(f"[Engine]    📋 {system}: {len(conditions)} conditions")
         print(f"{'='*80}\n")
     
-    def _build_faiss_index(self):
-        """
-        Build FAISS index from all guideline triggers for fast semantic search
-        
-        This is a ONE-TIME startup cost that enables fast querying:
-        - Brute-force: O(n) comparisons per query
-        - FAISS: O(log n) comparisons per query
-        """
-        try:
-            print(f"\n{'='*80}")
-            print(f"[Engine] 🏗️  BUILDING FAISS INDEX FOR FAST SEMANTIC MATCHING")
-            print(f"{'='*80}")
-            
-            import time
-            start_time = time.time()
-            
-            # Extract all triggers from all guidelines
-            all_triggers = []
-            trigger_to_guideline = []
-            
-            for guideline_name, guideline in self.all_guidelines.items():
-                triggers = guideline.get('chief_complaint_triggers', [])
-                for trigger in triggers:
-                    all_triggers.append(trigger)
-                    trigger_to_guideline.append({
-                        'guideline_name': guideline_name,
-                        'trigger': trigger,
-                        'guideline_data': guideline
-                    })
-            
-            print(f"[Engine] 📋 Extracted {len(all_triggers)} triggers from {len(self.all_guidelines)} guidelines")
-            
-            if len(all_triggers) == 0:
-                print("[Engine] ⚠️ No triggers found - FAISS index not built")
-                return
-            
-            # Generate embeddings for all triggers
-            print(f"[Engine] 🧠 Generating embeddings for {len(all_triggers)} triggers...")
-            embeddings = self.embedding_model.encode(all_triggers)
-            
-            # Convert to numpy array with float32 (FAISS requirement)
-            embeddings_np = np.array(embeddings, dtype=np.float32)
-            dimension = embeddings_np.shape[1]
-            
-            print(f"[Engine] 📐 Embedding dimension: {dimension}")
-            print(f"[Engine] 📊 Total vectors: {len(embeddings_np)}")
-            
-            # Create FAISS index (CPU version - L2 distance, then convert to cosine)
-            # Use IndexFlatIP (Inner Product) for cosine similarity
-            # First normalize vectors, then IP = cosine similarity
-            faiss.normalize_L2(embeddings_np)
-            self.faiss_index = faiss.IndexFlatIP(dimension)
-            self.faiss_index.add(embeddings_np)
-            
-            # Store metadata
-            self.trigger_metadata = trigger_to_guideline
-            
-            build_time = time.time() - start_time
-            
-            print(f"[Engine] ✅ FAISS index built successfully!")
-            print(f"[Engine]    ⏱️  Build time: {build_time:.2f}s")
-            print(f"[Engine]    📊 Index size: {self.faiss_index.ntotal} vectors")
-            print(f"[Engine]    🎯 Ready for fast semantic search")
-            print(f"{'='*80}\n")
-            
-            # Enable FAISS mode
-            self.use_faiss = True
-            print(f"[Engine] 🚀 FAISS mode ENABLED (brute-force available as fallback)")
-            
-        except Exception as e:
-            print(f"[Engine] ❌ FAISS index build failed: {e}")
-            print(f"[Engine] 🔄 Falling back to brute-force matching")
-            import traceback
-            traceback.print_exc()
-            self.faiss_index = None
-            self.trigger_metadata = []
-            self.use_faiss = False
     
     def _is_valid_chief_complaint(self, complaint: str) -> bool:
         """
@@ -394,18 +353,18 @@ class AdaptiveDiagnosticEngine:
         error_result = [None]
         
         def run_rag():
-            """Match to guidelines (FAISS or brute-force with fallback + optional validation)"""
+            """Match to guidelines (RAG API or brute-force with fallback + optional validation)"""
             try:
-                # VALIDATION MODE: Compare FAISS vs brute-force (set VALIDATE_FAISS=true)
-                if self.validate_faiss and self.use_faiss:
-                    print(f"[Engine] 🧪 VALIDATION MODE: Comparing FAISS vs brute-force...")
+                # VALIDATION MODE: Compare RAG API vs brute-force (set VALIDATE_RAG=true)
+                if self.validate_rag and self.use_rag_api:
+                    print(f"[Engine] 🧪 VALIDATION MODE: Comparing RAG API vs brute-force...")
                     
                     import time
                     
-                    # Run FAISS
-                    start_faiss = time.time()
-                    faiss_matches = self._match_to_guidelines_faiss(chief_complaint)
-                    faiss_time = time.time() - start_faiss
+                    # Run RAG API
+                    start_rag = time.time()
+                    rag_matches = self._match_to_guidelines_rag(chief_complaint)
+                    rag_time = time.time() - start_rag
                     
                     # Run brute-force
                     start_brute = time.time()
@@ -413,41 +372,41 @@ class AdaptiveDiagnosticEngine:
                     brute_time = time.time() - start_brute
                     
                     # Compare results
-                    faiss_names = set([m['name'] for m in faiss_matches])
+                    rag_names = set([m['name'] for m in rag_matches])
                     brute_names = set([m['name'] for m in brute_matches])
                     
                     print(f"\n[Engine] 📊 VALIDATION RESULTS:")
-                    print(f"[Engine]    FAISS: {len(faiss_matches)} matches in {faiss_time:.2f}s")
+                    print(f"[Engine]    RAG API: {len(rag_matches)} matches in {rag_time:.2f}s")
                     print(f"[Engine]    Brute: {len(brute_matches)} matches in {brute_time:.2f}s")
-                    print(f"[Engine]    Speedup: {brute_time/faiss_time:.1f}x faster")
+                    print(f"[Engine]    Speedup: {brute_time/rag_time:.1f}x faster")
                     
-                    if faiss_names == brute_names:
+                    if rag_names == brute_names:
                         print(f"[Engine]    ✅ MATCH: Both methods returned identical results")
                     else:
-                        only_faiss = faiss_names - brute_names
-                        only_brute = brute_names - faiss_names
-                        if only_faiss:
-                            print(f"[Engine]    ⚠️ Only in FAISS: {only_faiss}")
+                        only_rag = rag_names - brute_names
+                        only_brute = brute_names - rag_names
+                        if only_rag:
+                            print(f"[Engine]    ⚠️ Only in RAG API: {only_rag}")
                         if only_brute:
                             print(f"[Engine]    ⚠️ Only in brute-force: {only_brute}")
                     
-                    # Use FAISS results
-                    rag_result[0] = faiss_matches
+                    # Use RAG API results
+                    rag_result[0] = rag_matches
                 
-                # NORMAL MODE: Use FAISS with fallback
-                elif self.use_faiss:
-                    print(f"[Engine] 🚀 Using FAISS mode for matching")
+                # NORMAL MODE: Use RAG API with fallback
+                elif self.use_rag_api:
+                    print(f"[Engine] 🚀 Using RAG API mode for matching")
                     import time
                     start_time = time.time()
                     try:
-                        rag_result[0] = self._match_to_guidelines_faiss(chief_complaint)
+                        rag_result[0] = self._match_to_guidelines_rag(chief_complaint)
                         elapsed = time.time() - start_time
                         if hasattr(self, 'matching_metadata'):
                             self.matching_metadata['timing'] = elapsed
-                    except Exception as faiss_error:
-                        print(f"[Engine] ❌ FAISS matching failed: {faiss_error}")
+                    except Exception as rag_error:
+                        print(f"[Engine] ❌ RAG API matching failed: {rag_error}")
                         print(f"[Engine] 🔄 Falling back to brute-force matching")
-                        self.use_faiss = False  # Disable FAISS for future queries
+                        self.use_rag_api = False  # Disable RAG API for future queries
                         start_time = time.time()
                         rag_result[0] = self._match_to_guidelines(chief_complaint)
                         elapsed = time.time() - start_time
@@ -913,13 +872,13 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine] 🔄 After filtering: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}")
         print(f"{'='*80}\n")
     
-    def _match_to_guidelines_faiss(self, complaint: str) -> List[Dict]:
+    def _match_to_guidelines_rag(self, complaint: str) -> List[Dict]:
         """
-        Match chief complaint to guidelines using FAISS for fast semantic search
+        Match chief complaint to guidelines using RAG API for GPU-accelerated semantic search
         
         Strategy:
         1. Exact/subset matching first (fast string operations)
-        2. FAISS semantic search for remaining candidates (single query)
+        2. RAG API semantic search for remaining candidates (GPU-accelerated)
         3. Character overlap as final filter
         
         Returns:
@@ -939,9 +898,9 @@ class AdaptiveDiagnosticEngine:
         matched = []
         matched_guideline_names = set()  # Track which guidelines already matched
         
-        print(f"\n[Engine] 🔍 MATCHING TO GUIDELINES (FAISS MODE)...")
+        print(f"\n[Engine] 🔍 MATCHING TO GUIDELINES (RAG API MODE)...")
         print(f"[Engine] 📋 Core symptom extracted: '{core_symptom}'")
-        print(f"[Engine] 🎯 Strategy: exact > subset > FAISS semantic > char_overlap")
+        print(f"[Engine] 🎯 Strategy: exact > subset > RAG semantic > char_overlap")
         print(f"[Engine] ---")
         
         # PHASE 1: Fast exact/subset matching
@@ -973,56 +932,76 @@ class AdaptiveDiagnosticEngine:
                         print(f"[Engine]   ✓ {name} (trigger: '{trigger}', match: subset, prevalence: {prevalence})")
                     break
         
-        # PHASE 2: FAISS semantic search for remaining guidelines
-        if self.faiss_index and self.faiss_index.ntotal > 0:
-            print(f"\n[Engine] 🚀 FAISS semantic search (checking {self.faiss_index.ntotal} triggers)...")
+        # PHASE 2: RAG API semantic search for remaining guidelines
+        if self.rag_api:
+            print(f"\n[Engine] 🚀 RAG API semantic search (GPU-accelerated)...")
             
-            # Generate query embedding and normalize
-            query_embedding = self.embedding_model.encode([core_symptom])
-            query_embedding_np = np.array(query_embedding, dtype=np.float32)
-            faiss.normalize_L2(query_embedding_np)
-            
-            # Search for top K most similar triggers
-            k = min(100, self.faiss_index.ntotal)  # Get top 100 candidates
-            distances, indices = self.faiss_index.search(query_embedding_np, k)
-            
-            print(f"[Engine] 📊 FAISS returned {len(indices[0])} candidates")
-            
-            # Process FAISS results (distances are cosine similarities after normalization)
-            for i, (distance, idx) in enumerate(zip(distances[0], indices[0])):
-                if idx == -1:  # FAISS padding for not enough results
-                    break
+            try:
+                # Get all triggers for guidelines not yet matched
+                remaining_triggers = []
+                trigger_to_guideline = []
                 
-                metadata = self.trigger_metadata[idx]
-                guideline_name = metadata['guideline_name']
-                trigger = metadata['trigger']
-                guideline_data = metadata['guideline_data']
+                for name, guideline in self.all_guidelines.items():
+                    if name not in matched_guideline_names:
+                        triggers = guideline.get('chief_complaint_triggers', [])
+                        for trigger in triggers:
+                            remaining_triggers.append(trigger)
+                            trigger_to_guideline.append({
+                                'guideline_name': name,
+                                'trigger': trigger,
+                                'guideline_data': guideline
+                            })
                 
-                # Skip if already matched by exact/subset
-                if guideline_name in matched_guideline_names:
-                    continue
+                if remaining_triggers:
+                    print(f"[Engine] 📊 Searching {len(remaining_triggers)} remaining triggers...")
+                    
+                    # Use RAG API to compute similarities
+                    # Create query + all triggers for batch processing
+                    all_texts = [core_symptom] + remaining_triggers
+                    embeddings = self.rag_api.encode(all_texts)
+                    
+                    # Get query embedding (first one)
+                    query_embedding = embeddings[0]
+                    
+                    # Compute cosine similarities with remaining triggers
+                    for i, trigger_embedding in enumerate(embeddings[1:], 0):
+                        # Compute cosine similarity
+                        similarity = np.dot(query_embedding, trigger_embedding) / (
+                            np.linalg.norm(query_embedding) * np.linalg.norm(trigger_embedding)
+                        )
+                        
+                        metadata = trigger_to_guideline[i]
+                        guideline_name = metadata['guideline_name']
+                        trigger = metadata['trigger']
+                        guideline_data = metadata['guideline_data']
+                        
+                        # Skip if already matched by exact/subset
+                        if guideline_name in matched_guideline_names:
+                            continue
+                        
+                        # Apply threshold
+                        if similarity > 0.85:  # Same threshold as before
+                            prevalence = guideline_data.get('prevalence', 'uncommon')
+                            prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
+                            initial_score = prevalence_scores.get(prevalence, 0.50)
+                            matched.append({'name': guideline_name, 'score': initial_score, 'data': guideline_data})
+                            matched_guideline_names.add(guideline_name)
+                            print(f"[Engine]   ✓ {guideline_name} (trigger: '{trigger}', match: rag_semantic ({similarity:.2f}), prevalence: {prevalence})")
+                        else:
+                            # Log first few rejections for visibility
+                            if i < 5:
+                                print(f"[Engine]   ✗ {guideline_name}: '{trigger}' (similarity={similarity:.2f} < 0.85)")
                 
-                similarity = float(distance)  # Cosine similarity (0-1)
-                
-                # Apply threshold
-                if similarity > 0.85:  # Same threshold as brute-force
-                    prevalence = guideline_data.get('prevalence', 'uncommon')
-                    prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
-                    initial_score = prevalence_scores.get(prevalence, 0.50)
-                    matched.append({'name': guideline_name, 'score': initial_score, 'data': guideline_data})
-                    matched_guideline_names.add(guideline_name)
-                    print(f"[Engine]   ✓ {guideline_name} (trigger: '{trigger}', match: faiss_semantic ({similarity:.2f}), prevalence: {prevalence})")
-                else:
-                    # Log first few rejections for visibility
-                    if i < 5:
-                        print(f"[Engine]   ✗ {guideline_name}: '{trigger}' (similarity={similarity:.2f} < 0.85)")
+            except Exception as e:
+                print(f"[Engine] ❌ RAG API semantic search failed: {e}")
+                print(f"[Engine] 🔄 Falling back to brute-force matching")
         
-        print(f"\n[Engine] 📊 FAISS matching complete: {len(matched)} guidelines matched")
+        print(f"\n[Engine] 📊 RAG API matching complete: {len(matched)} guidelines matched")
         
         # Store matching metadata for debug
         self.matching_metadata = {
-            'mode': 'FAISS',
-            'strategy': 'exact > subset > FAISS semantic',
+            'mode': 'RAG_API',
+            'strategy': 'exact > subset > RAG semantic',
             'thresholds': {
                 'char_overlap': 0.75,
                 'semantic': 0.85
