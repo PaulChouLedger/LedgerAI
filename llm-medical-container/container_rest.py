@@ -424,6 +424,44 @@ def filter_think_blocks(generator):
 
 # === Helper Functions ===
 
+def load_state(session_id: str) -> dict:
+    """Load session state from file"""
+    import json
+    import os
+    
+    if not session_id:
+        return {}
+    
+    state_file = f"/app/data/sessions/{session_id}.json"
+    
+    try:
+        if os.path.exists(state_file):
+            with open(state_file, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"[State] ❌ Error loading state for {session_id}: {e}")
+    
+    return {}
+
+def save_state(state: dict, session_id: str) -> None:
+    """Save session state to file"""
+    import json
+    import os
+    
+    if not session_id:
+        return
+    
+    # Ensure directory exists
+    os.makedirs("/app/data/sessions", exist_ok=True)
+    
+    state_file = f"/app/data/sessions/{session_id}.json"
+    
+    try:
+        with open(state_file, 'w') as f:
+            json.dump(state, f, indent=2)
+    except Exception as e:
+        print(f"[State] ❌ Error saving state for {session_id}: {e}")
+
 def reset_session_state(session_id: str) -> dict:
     """Reset session state while preserving user name"""
     state = load_state(session_id)

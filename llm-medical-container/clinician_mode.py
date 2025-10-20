@@ -198,8 +198,8 @@ class ClinicianSession:
         if not self.dynamic_assessment:
             return
         
-        # Import triage's state management
-        from triage import load_state, save_state
+        # Import state management from container_rest
+        from container_rest import load_state, save_state
         
         state = load_state(self.session_id)
         
@@ -220,7 +220,7 @@ class ClinicianSession:
     
     def _load_assessment_state(self):
         """Restore dynamic assessment state from session file"""
-        from triage import load_state
+        from container_rest import load_state
         
         state = load_state(self.session_id)
         assessment_data = state.get('dynamic_assessment')
@@ -998,7 +998,7 @@ Assessment:"""
         self.dynamic_assessment = None
         
         # Clear from session state to allow mode switching
-        from triage import load_state, save_state
+        from container_rest import load_state, save_state
         session_state = load_state(self.session_id)
         if 'dynamic_assessment' in session_state:
             del session_state['dynamic_assessment']
