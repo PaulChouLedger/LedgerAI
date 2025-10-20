@@ -41,7 +41,7 @@ COPY models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf /models/Mistral-7B-Instruct-v0.
 RUN pip3 install --no-cache-dir --ignore-installed \
     flask \
     python-dotenv \
-    numpy==1.24.4 \
+    numpy>=1.26.0 \
     requests \
     --index-url https://pypi.org/simple
 
