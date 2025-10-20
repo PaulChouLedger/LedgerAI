@@ -172,10 +172,8 @@ class AuraRAG:
                 print(f"[RAG] 🔧 Meta tensor detected - loading via CPU→CUDA")
                 self.encoder = SentenceTransformer(self.model_name, device='cpu')
                 self.encoder = self.encoder.to('cuda')
-            else:
-                raise
         
-        print(f"[RAG] ✅ Loaded on CUDA: {self.model_name}")
+        print(f"[RAG] ✅ Loaded sentence transformer: {self.model_name}")
         print(f"[RAG] 🔍 Device: {self.encoder.device}")
     
     def _prepare_cuda_data(self):

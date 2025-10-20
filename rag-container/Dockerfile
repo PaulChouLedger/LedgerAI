@@ -15,6 +15,9 @@ RUN pip install --no-cache-dir --ignore-installed --index-url https://pypi.org/s
     flask \
     flask-cors \
     requests \
+    torch \
+    torchvision \
+    torchaudio \
     sentence-transformers \
     cuda-python \
     PyPDF2==3.0.1 \
