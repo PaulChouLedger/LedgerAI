@@ -32,6 +32,32 @@ load_dotenv()
 # === Thread Safety ===
 llm_lock = threading.Lock()
 
+# === Health Check Endpoint ===
+@app.route("/health", methods=["GET"])
+def health_check():
+    """Health check endpoint to verify models are loaded"""
+    try:
+        # Check if models are loaded
+        complex_loaded = llm is not None
+        simple_loaded = llm_simple is not None
+        
+        return jsonify({
+            "status": "ok",
+            "service": "aura-llm",
+            "models": {
+                "complex_loaded": complex_loaded,
+                "simple_loaded": simple_loaded,
+                "complex_path": MODEL_PATH,
+                "simple_path": SIMPLE_MODEL_PATH
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "service": "aura-llm",
+            "error": str(e)
+        }), 500
+
 # === Dual Model Config (Optimized for Orin NX) ===
 # Complex model (Mistral-7B) for diagnostic reasoning
 MODEL_PATH = os.getenv("MODEL_PATH", "/models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf")
@@ -75,15 +101,41 @@ simple_model_config = {
     "repeat_penalty": float(os.getenv("LLM_REPEAT_PENALTY", "1.15")),
 }
 
+# Load models synchronously at startup (like before)
+import os
+import time
+
 print(f"[LLM] 🚀 Loading COMPLEX model: {MODEL_PATH}")
 print(f"[LLM] ⚙️  Config: n_ctx={N_CTX}, format={CHAT_FORMAT}")
+
+# Check if model file exists
+if not os.path.exists(MODEL_PATH):
+    print(f"[LLM] ❌ Model file not found: {MODEL_PATH}")
+    print(f"[LLM] 📁 Available files in /models/:")
+    try:
+        for f in os.listdir("/models/"):
+            print(f"[LLM]   - {f}")
+    except:
+        print(f"[LLM]   - Could not list /models/ directory")
+    exit(1)
+
+start_time = time.time()
 llm = Llama(**model_config)
-print(f"[LLM] ✅ Complex model loaded: {MODEL_PATH}")
+load_time = time.time() - start_time
+print(f"[LLM] ✅ Complex model loaded: {MODEL_PATH} (took {load_time:.1f}s)")
 
 print(f"[LLM] 🚀 Loading SIMPLE model: {SIMPLE_MODEL_PATH}")
 print(f"[LLM] ⚙️  Config: n_ctx={SIMPLE_N_CTX}, format={SIMPLE_CHAT_FORMAT}")
+
+# Check if model file exists
+if not os.path.exists(SIMPLE_MODEL_PATH):
+    print(f"[LLM] ❌ Model file not found: {SIMPLE_MODEL_PATH}")
+    exit(1)
+
+start_time = time.time()
 llm_simple = Llama(**simple_model_config)
-print(f"[LLM] ✅ Simple model loaded: {SIMPLE_MODEL_PATH}")
+load_time = time.time() - start_time
+print(f"[LLM] ✅ Simple model loaded: {SIMPLE_MODEL_PATH} (took {load_time:.1f}s)")
 
 # Note: TRIAGE_DEFS is loaded automatically by triage.py when imported
 

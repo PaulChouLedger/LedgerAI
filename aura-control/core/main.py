@@ -263,19 +263,44 @@ def warm_up_tts():
 def warm_up_llm():
     try:
         print("[Aura] 🧠 Warming up LLM...")
-        # Try multiple times with increasing timeout
+        
+        # First, wait for models to load using health check
+        print("[Aura] 🔍 Waiting for models to load...")
+        for attempt in range(10):  # Wait up to 30 seconds for models to load
+            try:
+                response = requests.get("http://localhost:11434/health", timeout=5)
+                if response.status_code == 200:
+                    health_data = response.json()
+                    models = health_data.get("models", {})
+                    if models.get("complex_loaded") and models.get("simple_loaded"):
+                        print("[Aura] ✅ Models loaded successfully")
+                        break
+                    else:
+                        print(f"[Aura] ⏳ Models still loading... (attempt {attempt + 1}/10)")
+                        time.sleep(3)
+                        continue
+            except requests.exceptions.RequestException:
+                print(f"[Aura] ⏳ Container not ready yet... (attempt {attempt + 1}/10)")
+                time.sleep(3)
+                continue
+        else:
+            print("[Aura] ⚠️ Models failed to load within timeout")
+            return False
+        
+        # Now test with actual chat request
+        print("[Aura] 🧪 Testing LLM with warm-up request...")
         for attempt in range(3):
             try:
                 response = requests.post("http://localhost:11434/chat-tts", 
                                        json={"prompt": "Hello"}, 
-                                       timeout=10 + (attempt * 5))
+                                       timeout=30)  # Increased timeout for 7B model
                 if response.status_code == 200:
                     print("[Aura] ✅ LLM warm-up complete.")
                     return True
             except requests.exceptions.RequestException as e:
                 print(f"[Aura] ⚠️ LLM warm-up attempt {attempt + 1} failed: {e}")
                 if attempt < 2:
-                    time.sleep(3)
+                    time.sleep(5)
         print("[Aura] ⚠️ LLM warm-up failed after 3 attempts")
         return False
     except Exception as e:
