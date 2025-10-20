@@ -180,21 +180,26 @@ def run_container(name, port, image, timeout=15):
     ]
 
     if name == "aura-llm":
-        # Read from host .env, fallback to defaults
-        model_path  = HOST_ENV.get("MODEL_PATH", "/models/Llama-3.2-3B-Instruct-Q4_K_M.gguf")
-        chat_format = HOST_ENV.get("CHAT_FORMAT", "llama-3")
-        n_ctx       = HOST_ENV.get("N_CTX", "4096")  # Increased for medical mode with complex reasoning and guidelines
+        # Read from host .env only - let container handle its own defaults
+        model_path  = HOST_ENV.get("MODEL_PATH")
+        chat_format = HOST_ENV.get("CHAT_FORMAT")
+        n_ctx       = HOST_ENV.get("N_CTX")
 
         # Get workspace root (LedgerAI directory)
         workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
         
         cmd += [
-            "-e", f"MODEL_PATH={model_path}",
-            "-e", f"CHAT_FORMAT={chat_format}",
-            "-e", f"N_CTX={n_ctx}",
             "-v", f"{workspace_root}/data:/app/data",  # Mount embeddings data
             "-v", f"{workspace_root}/shared:/shared"   # Mount shared resources (medical_terms.json)
         ]
+        
+        # Only pass environment variables if they're set in host .env
+        if model_path:
+            cmd.extend(["-e", f"MODEL_PATH={model_path}"])
+        if chat_format:
+            cmd.extend(["-e", f"CHAT_FORMAT={chat_format}"])
+        if n_ctx:
+            cmd.extend(["-e", f"N_CTX={n_ctx}"])
     elif name == WHISPER_NAME:
         # faster-whisper model is baked into the image, no cache mounting needed
         # Get workspace root for shared mount
