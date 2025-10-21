@@ -44,6 +44,8 @@ RUN pip3 install --no-cache-dir --ignore-installed \
     python-dotenv \
     numpy>=1.26.0 \
     requests \
+    sentence-transformers \
+    faiss-cpu \
     --index-url https://pypi.org/simple
 
 
