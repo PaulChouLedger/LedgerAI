@@ -2278,7 +2278,7 @@ Your question:"""
                 print(f"[Engine]   Action: Asking clarifying question about same OLDCARTS element")
                 
                 # Generate clarifying question for the SAME OLDCARTS element
-                clarifying_q = self._generate_clarifying_question(oldcarts_element, user_answer)
+                clarifying_q = self._generate_clarifying_question(oldcarts_element, answer)
                 
                 if clarifying_q:
                     # Add clarifying question to history
