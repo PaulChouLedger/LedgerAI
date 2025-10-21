@@ -104,6 +104,26 @@ show_all_settings() {
     fi
     echo ""
     
+    echo -e "${BOLD}💬 TELEGRAM BOT${NC}"
+    local tg_token=$(get_config_value 'TELEGRAM_BOT_TOKEN')
+    if [ -n "$tg_token" ] && [ "$tg_token" != "your_telegram_bot_token" ]; then
+        echo -e "  ${GREEN}✅ Bot token configured${NC}"
+    else
+        echo -e "  ${YELLOW}○${NC} Not configured (optional)"
+    fi
+    echo ""
+    
+    echo -e "${BOLD}🔐 NHS/FHIR CREDENTIALS${NC}"
+    local nhs_client_id=$(get_config_value 'NHS_CLIENT_ID')
+    local nhs_client_secret=$(get_config_value 'NHS_CLIENT_SECRET')
+    if [ -n "$nhs_client_id" ] && [ -n "$nhs_client_secret" ]; then
+        echo -e "  ${GREEN}✅ NHS credentials configured${NC}"
+        echo "  Client ID:     ${nhs_client_id:0:20}..."
+    else
+        echo -e "  ${YELLOW}○${NC} Not configured (needed for production)"
+    fi
+    echo ""
+    
     echo -e "${BOLD}🐛 DEBUGGING${NC}"
     echo "  Debug Mode:    $(get_config_value 'DEBUG_MODE')"
     echo "  Log Level:     $(get_config_value 'LOG_LEVEL')"
@@ -334,6 +354,122 @@ configure_tts() {
     esac
 }
 
+configure_telegram() {
+    print_header "TELEGRAM BOT CONFIGURATION"
+    
+    local tg_token=$(get_config_value 'TELEGRAM_BOT_TOKEN')
+    
+    echo "Current Settings:"
+    echo ""
+    if [ -n "$tg_token" ] && [ "$tg_token" != "your_telegram_bot_token" ]; then
+        echo -e "  Bot Token: ${GREEN}✅ Configured${NC}"
+        echo "  Token:     ${tg_token:0:20}..."
+    else
+        echo -e "  Bot Token: ${RED}❌ Not set${NC}"
+    fi
+    echo ""
+    echo "1) Set Telegram bot token"
+    echo "2) Clear bot token"
+    echo "3) Back to main menu"
+    echo ""
+    read -p "Choice [1-3]: " choice
+    
+    case $choice in
+        1)
+            echo ""
+            echo "How to get a Telegram bot token:"
+            echo "  1. Open Telegram and search for @BotFather"
+            echo "  2. Send /newbot and follow instructions"
+            echo "  3. Copy the token you receive"
+            echo ""
+            read -p "Enter Telegram bot token: " tg_token
+            if [ -n "$tg_token" ]; then
+                set_config_value "TELEGRAM_BOT_TOKEN" "$tg_token"
+                echo ""
+                echo -e "${GREEN}✅ Telegram bot token saved${NC}"
+                echo ""
+                echo "Note: Restart is only needed if running Telegram bot service"
+            fi
+            ;;
+        2)
+            set_config_value "TELEGRAM_BOT_TOKEN" "your_telegram_bot_token"
+            echo ""
+            echo -e "${GREEN}✅ Telegram bot token cleared${NC}"
+            ;;
+        3) return ;;
+    esac
+}
+
+configure_nhs_fhir() {
+    print_header "NHS/FHIR CREDENTIALS CONFIGURATION"
+    
+    local client_id=$(get_config_value 'NHS_CLIENT_ID')
+    local client_secret=$(get_config_value 'NHS_CLIENT_SECRET')
+    local redirect_uri=$(get_config_value 'NHS_REDIRECT_URI')
+    
+    echo "Current Settings:"
+    echo ""
+    if [ -n "$client_id" ] && [ -n "$client_secret" ]; then
+        echo -e "  ${GREEN}✅ NHS credentials configured${NC}"
+        echo "  Client ID:     ${client_id:0:30}..."
+        echo "  Client Secret: ${client_secret:0:10}...***"
+        echo "  Redirect URI:  ${redirect_uri:-Not set}"
+    else
+        echo -e "  ${RED}❌ NHS credentials not set${NC}"
+        echo ""
+        echo "  These are needed for NHS production EHR access"
+        echo "  Get them from: https://digital.nhs.uk/developer"
+    fi
+    echo ""
+    echo "1) Set NHS Client ID"
+    echo "2) Set NHS Client Secret"
+    echo "3) Set NHS Redirect URI"
+    echo "4) Clear all NHS credentials"
+    echo "5) Back to main menu"
+    echo ""
+    read -p "Choice [1-5]: " choice
+    
+    case $choice in
+        1)
+            echo ""
+            read -p "Enter NHS Client ID: " client_id
+            if [ -n "$client_id" ]; then
+                set_config_value "NHS_CLIENT_ID" "$client_id"
+                echo ""
+                echo -e "${GREEN}✅ NHS Client ID saved${NC}"
+            fi
+            ;;
+        2)
+            echo ""
+            read -sp "Enter NHS Client Secret: " client_secret
+            echo ""
+            if [ -n "$client_secret" ]; then
+                set_config_value "NHS_CLIENT_SECRET" "$client_secret"
+                echo ""
+                echo -e "${GREEN}✅ NHS Client Secret saved${NC}"
+            fi
+            ;;
+        3)
+            echo ""
+            echo "Example: https://your-app.nhs.uk/callback"
+            read -p "Enter NHS Redirect URI: " redirect_uri
+            if [ -n "$redirect_uri" ]; then
+                set_config_value "NHS_REDIRECT_URI" "$redirect_uri"
+                echo ""
+                echo -e "${GREEN}✅ NHS Redirect URI saved${NC}"
+            fi
+            ;;
+        4)
+            set_config_value "NHS_CLIENT_ID" ""
+            set_config_value "NHS_CLIENT_SECRET" ""
+            set_config_value "NHS_REDIRECT_URI" ""
+            echo ""
+            echo -e "${GREEN}✅ All NHS credentials cleared${NC}"
+            ;;
+        5) return ;;
+    esac
+}
+
 # ============================================================================
 # Utility Functions
 # ============================================================================
@@ -375,11 +511,13 @@ main_menu() {
         echo "  3) Configure LLM models"
         echo "  4) Configure RAG search"
         echo "  5) Configure TTS (ElevenLabs)"
-        echo "  6) Edit .env file directly"
-        echo "  7) Restart Docker containers"
-        echo "  8) Exit"
+        echo "  6) Configure Telegram bot"
+        echo "  7) Configure NHS/FHIR credentials"
+        echo "  8) Edit .env file directly"
+        echo "  9) Restart Docker containers"
+        echo "  0) Exit"
         echo ""
-        read -p "Enter choice [1-8]: " choice
+        read -p "Enter choice [0-9]: " choice
         
         case $choice in
             1)
@@ -421,9 +559,17 @@ main_menu() {
                 read -p "Press Enter to continue..."
                 ;;
             6)
-                edit_file
+                configure_telegram
+                read -p "Press Enter to continue..."
                 ;;
             7)
+                configure_nhs_fhir
+                read -p "Press Enter to continue..."
+                ;;
+            8)
+                edit_file
+                ;;
+            9)
                 echo ""
                 echo "Restarting Docker containers..."
                 docker-compose restart
@@ -431,7 +577,7 @@ main_menu() {
                 echo -e "${GREEN}✅ Containers restarted${NC}"
                 read -p "Press Enter to continue..."
                 ;;
-            8)
+            0)
                 echo ""
                 echo "Goodbye!"
                 echo ""
