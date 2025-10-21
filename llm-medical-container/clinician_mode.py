@@ -187,14 +187,16 @@ class ClinicianSession:
                 # Use RAG container's embedding service (no local model needed)
                 embedding_api = RAGEmbeddingAPI()
                 
-                # Get or create singleton adaptive engine (reused across sessions)
-                self.adaptive_engine = get_adaptive_engine(
+                # Initialize adaptive engine with BOTH models + embeddings
+                self.adaptive_engine = AdaptiveDiagnosticEngine(
                     llm_chat_fn=self.llm_chat_fn,
                     embedding_model=embedding_api,
                     llm_chat_simple_fn=self.llm_chat_simple_fn
                 )
+                guideline_count = len(self.adaptive_engine.all_guidelines) if hasattr(self.adaptive_engine, 'all_guidelines') else 0
+                print(f"[Clinician] ✅ Adaptive engine initialized: {guideline_count} guidelines, dual LLMs, semantic embeddings")
             except Exception as e:
-                print(f"[Clinician] ⚠️ Failed to get adaptive engine: {e}")
+                print(f"[Clinician] ⚠️ Failed to initialize adaptive engine: {e}")
         
         # Assessment mode selection
         self.use_adaptive_engine = True  # Use new adaptive engine (not rigid triage)
