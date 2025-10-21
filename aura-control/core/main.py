@@ -415,7 +415,7 @@ def start_services():
     
     def start_llm():
         print("[Aura] 🧠 Starting LLM container...")
-        return run_container("aura-llm", 11434, "aura-llm:latest", timeout=TIMEOUT)
+        return run_container("aura-llm", 11434, "aura-llm:latest", timeout=20)
     
     def start_rag():
         if RAG_ENABLED:
