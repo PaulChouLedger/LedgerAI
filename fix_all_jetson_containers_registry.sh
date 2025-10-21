@@ -5,7 +5,7 @@
 
 set -e
 
-JETSON_CONTAINERS_DIR="$HOME/jetson-containers"
+JETSON_CONTAINERS_DIR="/home/aura/jetson-containers"
 BACKUP_DIR="/tmp/jetson_containers_complete_backup_$(date +%Y%m%d_%H%M%S)"
 LOG_FILE="/tmp/jetson_containers_fix_log_$(date +%Y%m%d_%H%M%S).txt"
 
@@ -49,7 +49,7 @@ fix_file() {
     sed -i 's/uv pip cache/python -m pip cache/g' "$file"
     
     # Count remaining uv pip commands (should be 0)
-    local remaining_count=$(grep -c "uv pip" "$file" 2>/dev/null || echo "0")
+    local remaining_count=$(grep -c "uv pip" "$file" 2>/dev/null | head -1 || echo "0")
     
     if [ "$remaining_count" -eq 0 ]; then
         echo "✅ Fixed $original_count uv pip commands in: $relative_path" | tee -a "$LOG_FILE"
