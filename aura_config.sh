@@ -91,8 +91,14 @@ show_all_settings() {
     
     echo -e "${BOLD}🔊 TEXT-TO-SPEECH${NC}"
     local api_key=$(get_config_value 'ELEVENLABS_API_KEY')
+    local voice_id=$(get_config_value 'ELEVENLABS_VOICE_ID')
     if [ -n "$api_key" ] && [ "$api_key" != "your_elevenlabs_api_key_here" ]; then
         echo -e "  ${GREEN}✅ API Key configured${NC}"
+        if [ -n "$voice_id" ] && [ "$voice_id" != "default" ]; then
+            echo "  Voice ID:      $voice_id"
+        else
+            echo "  Voice ID:      default"
+        fi
     else
         echo -e "  ${RED}❌ API Key not set${NC}"
     fi
@@ -267,6 +273,67 @@ configure_rag() {
     esac
 }
 
+configure_tts() {
+    print_header "TEXT-TO-SPEECH CONFIGURATION"
+    
+    local api_key=$(get_config_value 'ELEVENLABS_API_KEY')
+    local voice_id=$(get_config_value 'ELEVENLABS_VOICE_ID')
+    
+    echo "Current Settings:"
+    echo ""
+    if [ -n "$api_key" ] && [ "$api_key" != "your_elevenlabs_api_key_here" ]; then
+        echo -e "  API Key:  ${GREEN}✅ Configured${NC}"
+        echo "  Voice ID: ${voice_id:-default}"
+    else
+        echo -e "  API Key:  ${RED}❌ Not set${NC}"
+        echo "  Voice ID: ${voice_id:-default}"
+    fi
+    echo ""
+    echo "1) Set ElevenLabs API key"
+    echo "2) Set voice ID (optional)"
+    echo "3) Clear API key"
+    echo "4) Back to main menu"
+    echo ""
+    read -p "Choice [1-4]: " choice
+    
+    case $choice in
+        1)
+            echo ""
+            echo "Get your API key from: https://elevenlabs.io/"
+            echo ""
+            read -p "Enter ElevenLabs API key: " api_key
+            if [ -n "$api_key" ]; then
+                set_config_value "ELEVENLABS_API_KEY" "$api_key"
+                echo ""
+                echo -e "${GREEN}✅ API key saved${NC}"
+                echo ""
+                echo "Note: No container restart needed for TTS changes"
+            fi
+            ;;
+        2)
+            echo ""
+            echo "Common voice IDs:"
+            echo "  - Leave blank for default"
+            echo "  - Or enter specific voice ID from ElevenLabs"
+            echo ""
+            read -p "Enter voice ID (or press Enter for default): " voice_id
+            if [ -n "$voice_id" ]; then
+                set_config_value "ELEVENLABS_VOICE_ID" "$voice_id"
+            else
+                set_config_value "ELEVENLABS_VOICE_ID" "default"
+            fi
+            echo ""
+            echo -e "${GREEN}✅ Voice ID saved${NC}"
+            ;;
+        3)
+            set_config_value "ELEVENLABS_API_KEY" "your_elevenlabs_api_key_here"
+            echo ""
+            echo -e "${GREEN}✅ API key cleared${NC}"
+            ;;
+        4) return ;;
+    esac
+}
+
 # ============================================================================
 # Utility Functions
 # ============================================================================
@@ -307,11 +374,12 @@ main_menu() {
         echo "  2) Configure EHR settings"
         echo "  3) Configure LLM models"
         echo "  4) Configure RAG search"
-        echo "  5) Edit .env file directly"
-        echo "  6) Restart Docker containers"
-        echo "  7) Exit"
+        echo "  5) Configure TTS (ElevenLabs)"
+        echo "  6) Edit .env file directly"
+        echo "  7) Restart Docker containers"
+        echo "  8) Exit"
         echo ""
-        read -p "Enter choice [1-7]: " choice
+        read -p "Enter choice [1-8]: " choice
         
         case $choice in
             1)
@@ -349,9 +417,13 @@ main_menu() {
                 read -p "Press Enter to continue..."
                 ;;
             5)
-                edit_file
+                configure_tts
+                read -p "Press Enter to continue..."
                 ;;
             6)
+                edit_file
+                ;;
+            7)
                 echo ""
                 echo "Restarting Docker containers..."
                 docker-compose restart
@@ -359,7 +431,7 @@ main_menu() {
                 echo -e "${GREEN}✅ Containers restarted${NC}"
                 read -p "Press Enter to continue..."
                 ;;
-            7)
+            8)
                 echo ""
                 echo "Goodbye!"
                 echo ""
