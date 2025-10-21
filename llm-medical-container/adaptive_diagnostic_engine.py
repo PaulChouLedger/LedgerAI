@@ -2278,33 +2278,41 @@ Your question:"""
                                      and item.get('is_clarification'))
             
             # If scores are too close (can't differentiate) OR all scores too low
-            # Keep asking progressively targeted questions (no hard limit)
+            # Ask clarification, but move on if we've asked too many times for this element
+            MAX_CLARIFICATIONS_PER_ELEMENT = 2  # Limit to avoid infinite loops
+            
             if (score_spread < 0.10 or top_score < 0.50):
-                print(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
-                print(f"[Engine]   Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
-                print(f"[Engine]   Reason: {'Scores too close' if score_spread < 0.10 else 'All scores too low'}")
-                print(f"[Engine]   Clarifications asked so far: {clarification_count}")
-                print(f"[Engine]   Strategy: {'Open-ended' if clarification_count == 0 else 'Targeted (differential-based)'}")
-                
-                # Generate progressively targeted clarifying question
-                clarifying_q = self._generate_clarifying_question(oldcarts_element, answer, clarification_count)
-                
-                if clarifying_q:
-                    # Add clarifying question to history
-                    self.conversation_history.append({
-                        'type': 'question',
-                        'question': clarifying_q,
-                        'oldcarts': oldcarts_element,  # Same OLDCARTS element
-                        'focus': 'clinical',
-                        'is_clarification': True
-                    })
+                if clarification_count < MAX_CLARIFICATIONS_PER_ELEMENT:
+                    print(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
+                    print(f"[Engine]   Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
+                    print(f"[Engine]   Reason: {'Scores too close' if score_spread < 0.10 else 'All scores too low'}")
+                    print(f"[Engine]   Clarifications asked so far: {clarification_count}/{MAX_CLARIFICATIONS_PER_ELEMENT}")
+                    print(f"[Engine]   Strategy: {'Open-ended' if clarification_count == 0 else 'Targeted (differential-based)'}")
                     
-                    return {
-                        'success': True,
-                        'question': clarifying_q,
-                        'status': 'questioning',
-                        'needs_clarification': True
-                    }
+                    # Generate progressively targeted clarifying question
+                    clarifying_q = self._generate_clarifying_question(oldcarts_element, answer, clarification_count)
+                    
+                    if clarifying_q:
+                        # Add clarifying question to history
+                        self.conversation_history.append({
+                            'type': 'question',
+                            'question': clarifying_q,
+                            'oldcarts': oldcarts_element,  # Same OLDCARTS element
+                            'focus': 'clinical',
+                            'is_clarification': True
+                        })
+                        
+                        return {
+                            'success': True,
+                            'question': clarifying_q,
+                            'status': 'questioning',
+                            'needs_clarification': True
+                        }
+                else:
+                    print(f"\n[Engine] ⚠️  Scores still close (top: {top_score:.0%}, spread: {score_spread:.0%})")
+                    print(f"[Engine]   Already asked {clarification_count} clarifications for '{oldcarts_element}'")
+                    print(f"[Engine]   📋 Can't differentiate further on this element - moving to next OLDCARTS")
+                    # Will fall through and continue to next OLDCARTS element
         
         # Diagnosis criteria: ALL OLDCARTS covered + high confidence, OR max 15 questions
         if oldcarts_complete and top['score'] >= 0.95:
@@ -2614,8 +2622,14 @@ Your question:"""
         
         # Subsequent clarifications: Targeted based on top differentials
         else:
-            # Generate targeted question based on top 2-3 differentials
+            # Try to generate targeted question based on top differentials
             question = self._generate_differential_based_question(oldcarts_element)
+            
+            # If we got the same generic question, it means we can't differentiate further
+            # Add variation or use a different angle
+            if clarification_count >= 1 and oldcarts_element == 'O':
+                # For onset, ask about associated context instead
+                question = "Did anything trigger it? Like eating, physical activity, or did it just happen out of nowhere?"
         
         print(f"[Engine] ✅ Clarifying question #{clarification_count + 1}: '{question}'")
         return question
@@ -2679,13 +2693,25 @@ Your question:"""
         """Generate onset question that discriminates between sudden vs gradual conditions"""
         has_sudden = any('sudden' in g['data'].get('onset', '').lower() for g in top_conditions)
         has_gradual = any('gradual' in g['data'].get('onset', '').lower() for g in top_conditions)
+        has_minutes = any('minutes' in g['data'].get('onset', '').lower() for g in top_conditions)
+        has_hours = any('hours' in g['data'].get('onset', '').lower() for g in top_conditions)
+        has_days = any('days' in g['data'].get('onset', '').lower() for g in top_conditions)
         
-        if has_sudden and has_gradual:
-            return "Did the pain come on suddenly within minutes, or did it build up gradually over hours?"
-        elif has_sudden:
-            return "Was it extremely sudden, like within seconds to minutes, or did it develop over an hour or two?"
+        # If all have sudden onset, ask about TIMING instead (minutes vs hours)
+        if has_sudden and not has_gradual:
+            if has_minutes and has_hours:
+                return "Was it extremely sudden - like within seconds to minutes - or did it build up over an hour or two?"
+            else:
+                return "Exactly how quickly did it start? Within minutes, or over the course of an hour?"
+        elif has_sudden and has_gradual:
+            return "Did the pain come on suddenly within minutes, or did it build up gradually over hours to days?"
+        elif has_gradual:
+            if has_days:
+                return "Did it develop over hours, days, or weeks?"
+            else:
+                return "Did it build up gradually over hours or days?"
         else:
-            return "Did it start suddenly or gradually over time?"
+            return "How quickly did the pain develop?"
     
     def _generate_character_discriminator(self, top_conditions: List[Dict]) -> str:
         """Generate character question that discriminates between pain types"""
