@@ -126,6 +126,25 @@ def _load_medical_terms():
 # Load medical terms on module import
 _load_medical_terms()
 
+# Global adaptive engine singleton (created once, reused for all sessions)
+_global_adaptive_engine = None
+
+def get_adaptive_engine(llm_chat_fn, llm_chat_simple_fn, embedding_api):
+    """Get or create singleton adaptive engine (expensive to create, so reuse!)"""
+    global _global_adaptive_engine
+    
+    if _global_adaptive_engine is None:
+        print("[Clinician] 🔧 Initializing adaptive engine (one-time setup)...")
+        _global_adaptive_engine = AdaptiveDiagnosticEngine(
+            llm_chat_fn=llm_chat_fn,
+            embedding_model=embedding_api,
+            llm_chat_simple_fn=llm_chat_simple_fn
+        )
+        guideline_count = len(_global_adaptive_engine.all_guidelines) if hasattr(_global_adaptive_engine, 'all_guidelines') else 0
+        print(f"[Clinician] ✅ Adaptive engine initialized: {guideline_count} guidelines, dual LLMs, semantic embeddings")
+    
+    return _global_adaptive_engine
+
 class DynamicAssessmentState:
     """State tracking for dynamic RAG-powered medical assessment"""
     def __init__(self, chief_complaint: str):
@@ -160,6 +179,7 @@ class ClinicianSession:
         self.medical_rag = None
         
         # NEW: Adaptive diagnostic engine (with LLM + RAG embeddings for semantic similarity)
+        # Use singleton pattern - create once, reuse for all sessions (loading 65 guidelines is slow!)
         self.adaptive_engine = None
         
         if ADAPTIVE_ENGINE_AVAILABLE:
@@ -167,16 +187,14 @@ class ClinicianSession:
                 # Use RAG container's embedding service (no local model needed)
                 embedding_api = RAGEmbeddingAPI()
                 
-                # Initialize adaptive engine with BOTH models + embeddings
-                self.adaptive_engine = AdaptiveDiagnosticEngine(
+                # Get or create singleton adaptive engine (reused across sessions)
+                self.adaptive_engine = get_adaptive_engine(
                     llm_chat_fn=self.llm_chat_fn,
                     embedding_model=embedding_api,
-                    llm_chat_simple_fn=self.llm_chat_simple_fn  # Pass simple model
+                    llm_chat_simple_fn=self.llm_chat_simple_fn
                 )
-                guideline_count = len(self.adaptive_engine.all_guidelines) if hasattr(self.adaptive_engine, 'all_guidelines') else 0
-                print(f"[Clinician] ✅ Adaptive engine initialized: {guideline_count} guidelines, dual LLMs, semantic embeddings")
             except Exception as e:
-                print(f"[Clinician] ⚠️ Failed to initialize adaptive engine: {e}")
+                print(f"[Clinician] ⚠️ Failed to get adaptive engine: {e}")
         
         # Assessment mode selection
         self.use_adaptive_engine = True  # Use new adaptive engine (not rigid triage)
