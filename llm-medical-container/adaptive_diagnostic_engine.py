@@ -1589,25 +1589,57 @@ Your question:"""
         words1 = set(text1.lower().split())
         words2 = set(text2.lower().split())
         
-        # Remove common stop words that don't add medical meaning
-        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'my', 'your', 'his', 'her', 'its', 'our', 'their', 'really', 'bad', 'gets', 'worse', 'and', 'it'}
+        # Remove common stop words and clean punctuation
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'my', 'your', 'his', 'her', 'its', 'our', 'their', 'really', 'bad', 'gets', 'worse'}
         
-        words1 = words1 - stop_words
-        words2 = words2 - stop_words
+        words1 = {w.strip('.,!?;:') for w in words1} - stop_words
+        words2 = {w.strip('.,!?;:') for w in words2} - stop_words
         
         if not words1 or not words2:
             return 0.0
         
+        # Check for directional conflicts (left vs right)
+        # Only rule out if guideline has OPPOSITE direction and NO mention of user's direction
+        has_left_user = 'left' in words1
+        has_right_user = 'right' in words1
+        has_left_guideline = 'left' in words2
+        has_right_guideline = 'right' in words2
+        
+        # Rule out ONLY if clear directional conflict (opposite direction with no mention of user's side)
+        if has_left_user and has_right_guideline and not has_left_guideline:
+            # User says "left" but guideline only mentions "right" (never "left")
+            print(f"[Engine]   ⛔ Directional conflict: user='left', guideline has 'right' only (no 'left' mentioned)")
+            return 0.0
+        
+        if has_right_user and has_left_guideline and not has_right_guideline:
+            # User says "right" but guideline only mentions "left" (never "right")
+            print(f"[Engine]   ⛔ Directional conflict: user='right', guideline has 'left' only (no 'right' mentioned)")
+            return 0.0
+        
+        # If guideline mentions BOTH left and right (e.g., "RUQ, may radiate to left")
+        # → Do NOT rule out, let Jaccard score naturally handle it
+        
         # Calculate Jaccard similarity: intersection / union
-        intersection = len(words1 & words2)
+        intersection = words1 & words2
         union = len(words1 | words2)
         
-        similarity = intersection / union if union > 0 else 0.0
+        similarity = len(intersection) / union if union > 0 else 0.0
         
-        print(f"[Engine]   🔍 Jaccard similarity: {similarity:.3f} (intersection: {intersection}, union: {union})")
+        # Check if single-word match is meaningful
+        # Directional words (left, right, upper, lower) are meaningful even alone
+        directional_terms = {'left', 'right', 'upper', 'lower', 'epigastric', 'periumbilical', 'ruq', 'luq', 'rlq', 'llq', 'flank', 'groin', 'chest', 'substernal'}
+        meaningful_matches = intersection & directional_terms
+        
+        if len(intersection) == 1 and not meaningful_matches:
+            # Only 1 weak word match (e.g., just "pain", "abdomen") - penalize moderately
+            similarity = similarity * 0.5  # Reduce by 50%
+            print(f"[Engine]   ⚠️  Weak single-word match (reduced by 50%)")
+        # If match is directional (left, right, etc.), keep full score - it's meaningful!
+        
+        print(f"[Engine]   🔍 Jaccard similarity: {similarity:.3f} (intersection: {len(intersection)}, union: {union})")
         print(f"[Engine]   🔍 Words1: {sorted(words1)}")
         print(f"[Engine]   🔍 Words2: {sorted(words2)}")
-        print(f"[Engine]   🔍 Intersection: {sorted(words1 & words2)}")
+        print(f"[Engine]   🔍 Intersection: {sorted(intersection)}")
         
         return similarity
     
@@ -1639,22 +1671,29 @@ Your question:"""
         confidence = "high"
         method_used = "jaccard"
         
-        # Hybrid logic
+        # Hybrid logic with emphasis on Jaccard (70% weight)
         if jaccard_score > self.hybrid_config['jaccard_threshold']:
             # High Jaccard confidence - use it as primary
             final_score = jaccard_score
             confidence = "high"
             method_used = "jaccard"
             
+        elif jaccard_score == 0.0:
+            # Zero Jaccard = clear keyword mismatch (e.g., "left side" vs "right side")
+            # Give very low weight to semantic to emphasize the mismatch
+            final_score = semantic_score * 0.2  # Only 20% of semantic (very low)
+            confidence = "low"
+            method_used = "jaccard_mismatch"
+            
         elif semantic_score > jaccard_score + self.hybrid_config['semantic_boost_threshold']:
-            # Semantic significantly better - use it with lower weight
-            final_score = semantic_score * self.hybrid_config['semantic_weight']
+            # Semantic significantly better - use hybrid with Jaccard emphasis
+            final_score = (0.7 * jaccard_score) + (0.3 * semantic_score)
             confidence = "medium"
-            method_used = "semantic_fallback"
+            method_used = "hybrid_semantic_boost"
             
         elif semantic_score > self.hybrid_config['semantic_threshold']:
-            # Semantic above threshold but not significantly better
-            final_score = max(jaccard_score, semantic_score * 0.8)
+            # Semantic above threshold - use hybrid
+            final_score = (0.7 * jaccard_score) + (0.3 * semantic_score)
             confidence = "medium"
             method_used = "hybrid"
             
@@ -2225,6 +2264,39 @@ Your question:"""
         coverage_str = ''.join([k if v else '_' for k, v in self.oldcarts_covered.items()])
         print(f"[Engine] 📋 OLDCARTS Coverage: {coverage_str} ({covered_count}/8)")
         
+        # CHECK IF CLARIFICATION NEEDED (before moving to next OLDCARTS element)
+        if len(self.active_guidelines) >= 2:
+            top_score = self.active_guidelines[0]['score']
+            second_score = self.active_guidelines[1]['score']
+            score_spread = top_score - second_score
+            
+            # If scores are too close (can't differentiate) OR all scores too low
+            if score_spread < 0.10 or top_score < 0.50:
+                print(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
+                print(f"[Engine]   Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
+                print(f"[Engine]   Reason: {'Scores too close' if score_spread < 0.10 else 'All scores too low'}")
+                print(f"[Engine]   Action: Asking clarifying question about same OLDCARTS element")
+                
+                # Generate clarifying question for the SAME OLDCARTS element
+                clarifying_q = self._generate_clarifying_question(oldcarts_element, user_answer)
+                
+                if clarifying_q:
+                    # Add clarifying question to history
+                    self.conversation_history.append({
+                        'type': 'question',
+                        'question': clarifying_q,
+                        'oldcarts': oldcarts_element,  # Same OLDCARTS element
+                        'focus': 'clinical',
+                        'is_clarification': True
+                    })
+                    
+                    return {
+                        'success': True,
+                        'question': clarifying_q,
+                        'status': 'questioning',
+                        'needs_clarification': True
+                    }
+        
         # Diagnosis criteria: ALL OLDCARTS covered + high confidence, OR max 15 questions
         if oldcarts_complete and top['score'] >= 0.95:
             print(f"[Engine] ✅ DIAGNOSIS REACHED: {top['name']} ({top['score']:.0%} confidence, OLDCARTS complete)")
@@ -2497,6 +2569,38 @@ Your question:"""
             question += '?'
         print(f"[Engine] ✅ Sex question (simple model): '{question}'")
         return question
+    
+    def _generate_clarifying_question(self, oldcarts_element: str, vague_answer: str) -> str:
+        """
+        Generate clarifying question when answer is too vague or scores are too close
+        
+        Args:
+            oldcarts_element: The OLDCARTS element that needs clarification (O, L, D, C, A, R, T, S)
+            vague_answer: The user's vague answer that needs clarification
+            
+        Returns:
+            More specific follow-up question for the same OLDCARTS element
+        """
+        print(f"[Engine] 🧠 Generating clarifying question for OLDCARTS element '{oldcarts_element}'...")
+        
+        # Element-specific clarification templates
+        templates = {
+            'L': "Could you be more specific about the location? For example, is it upper or lower, left or right side of your abdomen?",
+            'O': "Can you be more specific about when it started? For example, was it sudden or gradual?",
+            'D': "How long exactly have you had this pain? Hours, days, or weeks?",
+            'C': "Can you describe the pain more specifically? Is it sharp, dull, cramping, burning, or something else?",
+            'A': "What specifically makes the pain worse?",
+            'R': "What specifically makes the pain better or relieves it?",
+            'T': "Is the pain constant or does it come and go?",
+            'S': "On a scale of 1-10, how severe is the pain?"
+        }
+        
+        # Use template or generate with LLM
+        clarifying_question = templates.get(oldcarts_element, 
+            f"Could you be more specific about your previous answer: '{vague_answer}'?")
+        
+        print(f"[Engine] ✅ Clarifying question: '{clarifying_question}'")
+        return clarifying_question
     
     def _generate_clarification_question(self, topic: str) -> str:
         """
