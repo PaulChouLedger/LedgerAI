@@ -297,14 +297,15 @@ def warm_up_llm():
     """Warm up LLM with a test request - assumes health check already passed"""
     try:
         print("[Aura] 🧪 Testing LLM with warm-up request...")
+        print("[Aura] 💡 First request loads adaptive engine (65 guidelines) - may take 15-20s...")
         
-        # Single test request with generous timeout
+        # Single test request with VERY generous timeout (adaptive engine loads on first request)
         try:
             response = requests.post(
                 "http://localhost:11434/chat-tts",
                 json={"prompt": "Hello", "session_id": "warmup"},
                 stream=True,
-                timeout=45
+                timeout=120  # Increased from 45s - adaptive engine needs time to load
             )
             
             if response.status_code == 200:
