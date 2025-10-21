@@ -1954,18 +1954,20 @@ Your question:"""
         return text
     
     def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str) -> float:
-        """Pure semantic similarity for location matching with OLDCARTS normalization"""
+        """Hybrid similarity (Jaccard + Semantic) for location matching with OLDCARTS normalization"""
         # Apply OLDCARTS-specific normalization focusing on location
         user_answer_expanded = self._apply_oldcarts_normalization(user_answer.lower(), target_category="location")
         print(f"[Engine] 🔄 Location OLDCARTS normalization: '{user_answer}' → '{user_answer_expanded}'")
         
-        # Get semantic similarity using expanded user answer
-        semantic_similarity = self._compute_similarity(user_answer_expanded, oldcarts_section)
+        # Use hybrid similarity (Jaccard + Semantic) with emphasis on Jaccard
+        hybrid_result = self._compute_hybrid_similarity(user_answer_expanded, oldcarts_section)
         
-        # DEBUG: Show semantic similarity calculation
-        print(f"[Engine]   🧠 Semantic similarity: '{user_answer}' vs '{oldcarts_section}' = {semantic_similarity:.3f}")
+        # DEBUG: Show hybrid similarity calculation
+        print(f"[Engine]   🎯 Hybrid similarity: Jaccard={hybrid_result['jaccard_score']:.3f}, Semantic={hybrid_result['semantic_score']:.3f}")
+        print(f"[Engine]   📊 Final score: {hybrid_result['final_score']:.3f} (method: {hybrid_result['method_used']}, confidence: {hybrid_result['confidence']})")
+        print(f"[Engine]   📝 '{user_answer_expanded}' vs '{oldcarts_section[:80]}...'")
         
-        return semantic_similarity
+        return hybrid_result['final_score']
     
     
     
