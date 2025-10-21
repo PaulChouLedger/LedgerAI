@@ -17,6 +17,7 @@ COPY container_rest.py .
 COPY clinician_mode.py .
 COPY adaptive_diagnostic_engine.py .
 COPY thinking_fillers.py .
+COPY rag_client.py .
 COPY synonyms/ /app/synonyms/
 
 # Copy environment configuration
