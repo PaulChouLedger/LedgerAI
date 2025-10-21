@@ -261,6 +261,9 @@ def run_container(name, port, image, timeout=15):
         if name == WHISPER_NAME:
             health_url = f"http://localhost:{port}/health"
             time.sleep(5)   # Standard time for faster-whisper
+        elif name == "aura-llm":
+            health_url = f"http://localhost:{port}/health"  # Use /health for model status
+            time.sleep(2)   # Give container time to start
         else:
             health_url = f"http://localhost:{port}"
         
