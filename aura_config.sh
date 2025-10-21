@@ -76,10 +76,11 @@ show_all_settings() {
     echo ""
     
     echo -e "${BOLD}🧠 LLM MODELS${NC}"
-    echo "  Complex Model: $(get_config_value 'MODEL_PATH' | sed 's|.*/||')"
-    echo "  Simple Model:  $(get_config_value 'SIMPLE_MODEL_PATH' | sed 's|.*/||')"
-    echo "  Context Size:  $(get_config_value 'N_CTX')"
-    echo "  Temperature:   $(get_config_value 'LLM_TEMPERATURE')"
+    echo "  Complex Model:     $(get_config_value 'MODEL_PATH' | sed 's|.*/||')"
+    echo "  Complex Context:   $(get_config_value 'N_CTX')"
+    echo "  Simple Model:      $(get_config_value 'SIMPLE_MODEL_PATH' | sed 's|.*/||')"
+    echo "  Simple Context:    $(get_config_value 'SIMPLE_N_CTX')"
+    echo "  Temperature:       $(get_config_value 'LLM_TEMPERATURE')"
     echo ""
     
     echo -e "${BOLD}📚 RAG SEARCH${NC}"
@@ -178,39 +179,54 @@ configure_ehr() {
 configure_llm() {
     print_header "LLM MODEL CONFIGURATION"
     
-    echo "Complex Model (current): $(get_config_value 'MODEL_PATH' | sed 's|.*/||')"
-    echo "Simple Model (current):  $(get_config_value 'SIMPLE_MODEL_PATH' | sed 's|.*/||')"
+    echo "Complex Model:   $(get_config_value 'MODEL_PATH' | sed 's|.*/||')"
+    echo "Complex Context: $(get_config_value 'N_CTX')"
+    echo ""
+    echo "Simple Model:    $(get_config_value 'SIMPLE_MODEL_PATH' | sed 's|.*/||')"
+    echo "Simple Context:  $(get_config_value 'SIMPLE_N_CTX')"
+    echo ""
+    echo "Temperature:     $(get_config_value 'LLM_TEMPERATURE')"
     echo ""
     echo "1) Change complex model path"
-    echo "2) Change simple model path"
-    echo "3) Adjust temperature (current: $(get_config_value 'LLM_TEMPERATURE'))"
-    echo "4) Adjust context size (current: $(get_config_value 'N_CTX'))"
-    echo "5) Back to main menu"
+    echo "2) Change complex model context size"
+    echo "3) Change simple model path"
+    echo "4) Change simple model context size"
+    echo "5) Adjust temperature"
+    echo "6) Back to main menu"
     echo ""
-    read -p "Choice [1-5]: " choice
+    read -p "Choice [1-6]: " choice
     
     case $choice in
         1)
-            read -p "Enter model path: " model_path
+            read -p "Enter complex model path: " model_path
             set_config_value "MODEL_PATH" "$model_path"
             show_restart_message
             ;;
         2)
+            echo ""
+            echo "Common values: 4096, 8192, 16384, 32768"
+            read -p "Enter complex model context size: " ctx
+            set_config_value "N_CTX" "$ctx"
+            show_restart_message
+            ;;
+        3)
             read -p "Enter simple model path: " model_path
             set_config_value "SIMPLE_MODEL_PATH" "$model_path"
             show_restart_message
             ;;
-        3)
+        4)
+            echo ""
+            echo "Common values: 2048, 4096, 8192"
+            read -p "Enter simple model context size: " ctx
+            set_config_value "SIMPLE_N_CTX" "$ctx"
+            show_restart_message
+            ;;
+        5)
             read -p "Enter temperature (0.0-1.0): " temp
             set_config_value "LLM_TEMPERATURE" "$temp"
             show_restart_message
             ;;
-        4)
-            read -p "Enter context size (e.g., 8192): " ctx
-            set_config_value "N_CTX" "$ctx"
-            show_restart_message
-            ;;
-        5) return ;;
+        6) return ;;
     esac
 }
 
