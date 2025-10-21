@@ -76,13 +76,20 @@ show_all_settings() {
     echo ""
     
     echo -e "${BOLD}🧠 LLM MODELS${NC}"
-    echo "  Complex Model: $(get_config_value 'MODEL_PATH' | sed 's|.*/||')"
-    echo "  Simple Model:  $(get_config_value 'SIMPLE_MODEL_PATH' | sed 's|.*/||')"
-    echo "  Context Size:  $(get_config_value 'N_CTX')"
-    echo "  Temperature:   $(get_config_value 'LLM_TEMPERATURE')"
+    echo "  Complex Model:     $(get_config_value 'MODEL_PATH' | sed 's|.*/||')"
+    echo "  Complex Context:   $(get_config_value 'N_CTX')"
+    echo "  Simple Model:      $(get_config_value 'SIMPLE_MODEL_PATH' | sed 's|.*/||')"
+    echo "  Simple Context:    $(get_config_value 'SIMPLE_N_CTX')"
+    echo "  Temperature:       $(get_config_value 'LLM_TEMPERATURE')"
     echo ""
     
     echo -e "${BOLD}📚 RAG SEARCH${NC}"
+    local rag_enabled=$(get_config_value 'RAG_ENABLED')
+    if [ "$rag_enabled" == "true" ]; then
+        echo -e "  ${GREEN}●${NC} Mode:          GPU FAISS (fast, separate container)"
+    else
+        echo -e "  ${YELLOW}○${NC} Mode:          CPU FAISS (slow, built into LLM)"
+    fi
     echo "  Threshold:     $(get_config_value 'RAG_THRESHOLD')"
     echo "  Top K:         $(get_config_value 'RAG_TOP_K')"
     echo "  Phonetic:      $(get_config_value 'RAG_USE_PHONETIC_MATCHING')"
@@ -90,10 +97,36 @@ show_all_settings() {
     
     echo -e "${BOLD}🔊 TEXT-TO-SPEECH${NC}"
     local api_key=$(get_config_value 'ELEVENLABS_API_KEY')
+    local voice_id=$(get_config_value 'ELEVENLABS_VOICE_ID')
     if [ -n "$api_key" ] && [ "$api_key" != "your_elevenlabs_api_key_here" ]; then
         echo -e "  ${GREEN}✅ API Key configured${NC}"
+        if [ -n "$voice_id" ] && [ "$voice_id" != "default" ]; then
+            echo "  Voice ID:      $voice_id"
+        else
+            echo "  Voice ID:      default"
+        fi
     else
         echo -e "  ${RED}❌ API Key not set${NC}"
+    fi
+    echo ""
+    
+    echo -e "${BOLD}💬 TELEGRAM BOT${NC}"
+    local tg_token=$(get_config_value 'TELEGRAM_BOT_TOKEN')
+    if [ -n "$tg_token" ] && [ "$tg_token" != "your_telegram_bot_token" ]; then
+        echo -e "  ${GREEN}✅ Bot token configured${NC}"
+    else
+        echo -e "  ${YELLOW}○${NC} Not configured (optional)"
+    fi
+    echo ""
+    
+    echo -e "${BOLD}🔐 NHS/FHIR CREDENTIALS${NC}"
+    local nhs_client_id=$(get_config_value 'NHS_CLIENT_ID')
+    local nhs_client_secret=$(get_config_value 'NHS_CLIENT_SECRET')
+    if [ -n "$nhs_client_id" ] && [ -n "$nhs_client_secret" ]; then
+        echo -e "  ${GREEN}✅ NHS credentials configured${NC}"
+        echo "  Client ID:     ${nhs_client_id:0:20}..."
+    else
+        echo -e "  ${YELLOW}○${NC} Not configured (needed for production)"
     fi
     echo ""
     
@@ -178,67 +211,135 @@ configure_ehr() {
 configure_llm() {
     print_header "LLM MODEL CONFIGURATION"
     
-    echo "Complex Model (current): $(get_config_value 'MODEL_PATH' | sed 's|.*/||')"
-    echo "Simple Model (current):  $(get_config_value 'SIMPLE_MODEL_PATH' | sed 's|.*/||')"
+    echo "Complex Model:   $(get_config_value 'MODEL_PATH' | sed 's|.*/||')"
+    echo "Complex Context: $(get_config_value 'N_CTX')"
+    echo ""
+    echo "Simple Model:    $(get_config_value 'SIMPLE_MODEL_PATH' | sed 's|.*/||')"
+    echo "Simple Context:  $(get_config_value 'SIMPLE_N_CTX')"
+    echo ""
+    echo "Temperature:     $(get_config_value 'LLM_TEMPERATURE')"
     echo ""
     echo "1) Change complex model path"
-    echo "2) Change simple model path"
-    echo "3) Adjust temperature (current: $(get_config_value 'LLM_TEMPERATURE'))"
-    echo "4) Adjust context size (current: $(get_config_value 'N_CTX'))"
-    echo "5) Back to main menu"
+    echo "2) Change complex model context size"
+    echo "3) Change simple model path"
+    echo "4) Change simple model context size"
+    echo "5) Adjust temperature"
+    echo "6) Back to main menu"
     echo ""
-    read -p "Choice [1-5]: " choice
+    read -p "Choice [1-6]: " choice
     
     case $choice in
         1)
-            read -p "Enter model path: " model_path
+            read -p "Enter complex model path: " model_path
             set_config_value "MODEL_PATH" "$model_path"
             show_restart_message
             ;;
         2)
+            echo ""
+            echo "Common values: 4096, 8192, 16384, 32768"
+            read -p "Enter complex model context size: " ctx
+            set_config_value "N_CTX" "$ctx"
+            show_restart_message
+            ;;
+        3)
             read -p "Enter simple model path: " model_path
             set_config_value "SIMPLE_MODEL_PATH" "$model_path"
             show_restart_message
             ;;
-        3)
+        4)
+            echo ""
+            echo "Common values: 2048, 4096, 8192"
+            read -p "Enter simple model context size: " ctx
+            set_config_value "SIMPLE_N_CTX" "$ctx"
+            show_restart_message
+            ;;
+        5)
             read -p "Enter temperature (0.0-1.0): " temp
             set_config_value "LLM_TEMPERATURE" "$temp"
             show_restart_message
             ;;
-        4)
-            read -p "Enter context size (e.g., 8192): " ctx
-            set_config_value "N_CTX" "$ctx"
-            show_restart_message
-            ;;
-        5) return ;;
+        6) return ;;
     esac
 }
 
 configure_rag() {
     print_header "RAG SEARCH CONFIGURATION"
     
-    echo "Threshold (current): $(get_config_value 'RAG_THRESHOLD')"
-    echo "Top K (current):     $(get_config_value 'RAG_TOP_K')"
+    local rag_enabled=$(get_config_value 'RAG_ENABLED')
+    
+    echo "Current Settings:"
     echo ""
-    echo "1) Adjust threshold (0.0 = loose, 1.0 = strict)"
-    echo "2) Change Top K (number of results)"
-    echo "3) Toggle phonetic matching"
-    echo "4) Back to main menu"
+    if [ "$rag_enabled" == "true" ]; then
+        echo -e "  RAG Mode:     ${GREEN}GPU FAISS${NC} (fast, separate container)"
+    else
+        echo -e "  RAG Mode:     ${YELLOW}CPU FAISS${NC} (slow, built into LLM)"
+    fi
+    echo "  Threshold:    $(get_config_value 'RAG_THRESHOLD')"
+    echo "  Top K:        $(get_config_value 'RAG_TOP_K')"
+    echo "  Phonetic:     $(get_config_value 'RAG_USE_PHONETIC_MATCHING')"
     echo ""
-    read -p "Choice [1-4]: " choice
+    echo "1) Toggle RAG mode (GPU vs CPU)"
+    echo "2) Adjust threshold (0.0 = loose, 1.0 = strict)"
+    echo "3) Change Top K (number of results)"
+    echo "4) Toggle phonetic matching"
+    echo "5) Back to main menu"
+    echo ""
+    read -p "Choice [1-5]: " choice
     
     case $choice in
         1)
+            echo ""
+            local current=$(get_config_value 'RAG_ENABLED')
+            if [ "$current" == "true" ]; then
+                echo "Currently: GPU FAISS (separate RAG container)"
+                echo ""
+                read -p "Switch to CPU FAISS (built into LLM)? (y/n): " answer
+                if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
+                    set_config_value "RAG_ENABLED" "false"
+                    echo ""
+                    echo -e "${GREEN}✅ Switched to CPU FAISS${NC}"
+                    echo ""
+                    echo "Benefits:"
+                    echo "  • No separate RAG container needed"
+                    echo "  • Simpler setup"
+                    echo ""
+                    echo "Drawbacks:"
+                    echo "  • Slower searches (~500ms vs ~50ms)"
+                    echo "  • Limited scalability"
+                    echo ""
+                    show_restart_message
+                fi
+            else
+                echo "Currently: CPU FAISS (built into LLM container)"
+                echo ""
+                read -p "Switch to GPU FAISS (separate RAG container)? (y/n): " answer
+                if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
+                    set_config_value "RAG_ENABLED" "true"
+                    echo ""
+                    echo -e "${GREEN}✅ Switched to GPU FAISS${NC}"
+                    echo ""
+                    echo "Benefits:"
+                    echo "  • Faster searches (~50ms vs ~500ms)"
+                    echo "  • Better scalability"
+                    echo "  • Optimized for production"
+                    echo ""
+                    echo "Note: Requires GPU and separate RAG container"
+                    echo ""
+                    show_restart_message
+                fi
+            fi
+            ;;
+        2)
             read -p "Enter threshold (0.0-1.0): " threshold
             set_config_value "RAG_THRESHOLD" "$threshold"
             show_restart_message
             ;;
-        2)
+        3)
             read -p "Enter Top K (1-10): " topk
             set_config_value "RAG_TOP_K" "$topk"
             show_restart_message
             ;;
-        3)
+        4)
             local current=$(get_config_value 'RAG_USE_PHONETIC_MATCHING')
             if [ "$current" == "true" ]; then
                 set_config_value "RAG_USE_PHONETIC_MATCHING" "false"
@@ -247,7 +348,184 @@ configure_rag() {
             fi
             show_restart_message
             ;;
+        5) return ;;
+    esac
+}
+
+configure_tts() {
+    print_header "TEXT-TO-SPEECH CONFIGURATION"
+    
+    local api_key=$(get_config_value 'ELEVENLABS_API_KEY')
+    local voice_id=$(get_config_value 'ELEVENLABS_VOICE_ID')
+    
+    echo "Current Settings:"
+    echo ""
+    if [ -n "$api_key" ] && [ "$api_key" != "your_elevenlabs_api_key_here" ]; then
+        echo -e "  API Key:  ${GREEN}✅ Configured${NC}"
+        echo "  Voice ID: ${voice_id:-default}"
+    else
+        echo -e "  API Key:  ${RED}❌ Not set${NC}"
+        echo "  Voice ID: ${voice_id:-default}"
+    fi
+    echo ""
+    echo "1) Set ElevenLabs API key"
+    echo "2) Set voice ID (optional)"
+    echo "3) Clear API key"
+    echo "4) Back to main menu"
+    echo ""
+    read -p "Choice [1-4]: " choice
+    
+    case $choice in
+        1)
+            echo ""
+            echo "Get your API key from: https://elevenlabs.io/"
+            echo ""
+            read -p "Enter ElevenLabs API key: " api_key
+            if [ -n "$api_key" ]; then
+                set_config_value "ELEVENLABS_API_KEY" "$api_key"
+                echo ""
+                echo -e "${GREEN}✅ API key saved${NC}"
+                echo ""
+                echo "Note: No container restart needed for TTS changes"
+            fi
+            ;;
+        2)
+            echo ""
+            echo "Common voice IDs:"
+            echo "  - Leave blank for default"
+            echo "  - Or enter specific voice ID from ElevenLabs"
+            echo ""
+            read -p "Enter voice ID (or press Enter for default): " voice_id
+            if [ -n "$voice_id" ]; then
+                set_config_value "ELEVENLABS_VOICE_ID" "$voice_id"
+            else
+                set_config_value "ELEVENLABS_VOICE_ID" "default"
+            fi
+            echo ""
+            echo -e "${GREEN}✅ Voice ID saved${NC}"
+            ;;
+        3)
+            set_config_value "ELEVENLABS_API_KEY" "your_elevenlabs_api_key_here"
+            echo ""
+            echo -e "${GREEN}✅ API key cleared${NC}"
+            ;;
         4) return ;;
+    esac
+}
+
+configure_telegram() {
+    print_header "TELEGRAM BOT CONFIGURATION"
+    
+    local tg_token=$(get_config_value 'TELEGRAM_BOT_TOKEN')
+    
+    echo "Current Settings:"
+    echo ""
+    if [ -n "$tg_token" ] && [ "$tg_token" != "your_telegram_bot_token" ]; then
+        echo -e "  Bot Token: ${GREEN}✅ Configured${NC}"
+        echo "  Token:     ${tg_token:0:20}..."
+    else
+        echo -e "  Bot Token: ${RED}❌ Not set${NC}"
+    fi
+    echo ""
+    echo "1) Set Telegram bot token"
+    echo "2) Clear bot token"
+    echo "3) Back to main menu"
+    echo ""
+    read -p "Choice [1-3]: " choice
+    
+    case $choice in
+        1)
+            echo ""
+            echo "How to get a Telegram bot token:"
+            echo "  1. Open Telegram and search for @BotFather"
+            echo "  2. Send /newbot and follow instructions"
+            echo "  3. Copy the token you receive"
+            echo ""
+            read -p "Enter Telegram bot token: " tg_token
+            if [ -n "$tg_token" ]; then
+                set_config_value "TELEGRAM_BOT_TOKEN" "$tg_token"
+                echo ""
+                echo -e "${GREEN}✅ Telegram bot token saved${NC}"
+                echo ""
+                echo "Note: Restart is only needed if running Telegram bot service"
+            fi
+            ;;
+        2)
+            set_config_value "TELEGRAM_BOT_TOKEN" "your_telegram_bot_token"
+            echo ""
+            echo -e "${GREEN}✅ Telegram bot token cleared${NC}"
+            ;;
+        3) return ;;
+    esac
+}
+
+configure_nhs_fhir() {
+    print_header "NHS/FHIR CREDENTIALS CONFIGURATION"
+    
+    local client_id=$(get_config_value 'NHS_CLIENT_ID')
+    local client_secret=$(get_config_value 'NHS_CLIENT_SECRET')
+    local redirect_uri=$(get_config_value 'NHS_REDIRECT_URI')
+    
+    echo "Current Settings:"
+    echo ""
+    if [ -n "$client_id" ] && [ -n "$client_secret" ]; then
+        echo -e "  ${GREEN}✅ NHS credentials configured${NC}"
+        echo "  Client ID:     ${client_id:0:30}..."
+        echo "  Client Secret: ${client_secret:0:10}...***"
+        echo "  Redirect URI:  ${redirect_uri:-Not set}"
+    else
+        echo -e "  ${RED}❌ NHS credentials not set${NC}"
+        echo ""
+        echo "  These are needed for NHS production EHR access"
+        echo "  Get them from: https://digital.nhs.uk/developer"
+    fi
+    echo ""
+    echo "1) Set NHS Client ID"
+    echo "2) Set NHS Client Secret"
+    echo "3) Set NHS Redirect URI"
+    echo "4) Clear all NHS credentials"
+    echo "5) Back to main menu"
+    echo ""
+    read -p "Choice [1-5]: " choice
+    
+    case $choice in
+        1)
+            echo ""
+            read -p "Enter NHS Client ID: " client_id
+            if [ -n "$client_id" ]; then
+                set_config_value "NHS_CLIENT_ID" "$client_id"
+                echo ""
+                echo -e "${GREEN}✅ NHS Client ID saved${NC}"
+            fi
+            ;;
+        2)
+            echo ""
+            read -sp "Enter NHS Client Secret: " client_secret
+            echo ""
+            if [ -n "$client_secret" ]; then
+                set_config_value "NHS_CLIENT_SECRET" "$client_secret"
+                echo ""
+                echo -e "${GREEN}✅ NHS Client Secret saved${NC}"
+            fi
+            ;;
+        3)
+            echo ""
+            echo "Example: https://your-app.nhs.uk/callback"
+            read -p "Enter NHS Redirect URI: " redirect_uri
+            if [ -n "$redirect_uri" ]; then
+                set_config_value "NHS_REDIRECT_URI" "$redirect_uri"
+                echo ""
+                echo -e "${GREEN}✅ NHS Redirect URI saved${NC}"
+            fi
+            ;;
+        4)
+            set_config_value "NHS_CLIENT_ID" ""
+            set_config_value "NHS_CLIENT_SECRET" ""
+            set_config_value "NHS_REDIRECT_URI" ""
+            echo ""
+            echo -e "${GREEN}✅ All NHS credentials cleared${NC}"
+            ;;
+        5) return ;;
     esac
 }
 
@@ -291,20 +569,36 @@ main_menu() {
         echo "  2) Configure EHR settings"
         echo "  3) Configure LLM models"
         echo "  4) Configure RAG search"
-        echo "  5) Edit .env file directly"
-        echo "  6) Restart Docker containers"
-        echo "  7) Exit"
+        echo "  5) Configure TTS (ElevenLabs)"
+        echo "  6) Configure Telegram bot"
+        echo "  7) Configure NHS/FHIR credentials"
+        echo "  8) Edit .env file directly"
+        echo "  9) Restart Docker containers"
+        echo "  0) Exit"
         echo ""
-        read -p "Enter choice [1-7]: " choice
+        read -p "Enter choice [0-9]: " choice
         
         case $choice in
             1)
+                # Show current state and ask what to do
                 local current=$(get_config_value 'EHR_INTEGRATION_ENABLED')
+                echo ""
                 if [ "$current" == "true" ]; then
-                    toggle_ehr off
+                    echo "EHR is currently: ENABLED"
+                    echo ""
+                    read -p "Turn it OFF? (y/n): " answer
+                    if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
+                        toggle_ehr off
+                    fi
                 else
-                    toggle_ehr on
+                    echo "EHR is currently: DISABLED"
+                    echo ""
+                    read -p "Turn it ON? (y/n): " answer
+                    if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
+                        toggle_ehr on
+                    fi
                 fi
+                echo ""
                 read -p "Press Enter to continue..."
                 ;;
             2)
@@ -320,9 +614,21 @@ main_menu() {
                 read -p "Press Enter to continue..."
                 ;;
             5)
-                edit_file
+                configure_tts
+                read -p "Press Enter to continue..."
                 ;;
             6)
+                configure_telegram
+                read -p "Press Enter to continue..."
+                ;;
+            7)
+                configure_nhs_fhir
+                read -p "Press Enter to continue..."
+                ;;
+            8)
+                edit_file
+                ;;
+            9)
                 echo ""
                 echo "Restarting Docker containers..."
                 docker-compose restart
@@ -330,7 +636,7 @@ main_menu() {
                 echo -e "${GREEN}✅ Containers restarted${NC}"
                 read -p "Press Enter to continue..."
                 ;;
-            7)
+            0)
                 echo ""
                 echo "Goodbye!"
                 echo ""

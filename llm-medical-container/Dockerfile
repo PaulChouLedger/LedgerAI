@@ -19,10 +19,7 @@ COPY adaptive_diagnostic_engine.py .
 COPY thinking_fillers.py .
 COPY rag_client.py .
 COPY synonyms/ /app/synonyms/
-
-# Copy environment configuration
-COPY .env .
-
+    
 # Copy medical guidelines (JSON files with chief complaint triggers and scoring)
 # These are used by the adaptive diagnostic engine for multi-guideline evaluation
 # Note: guidelines should be in llm-medical-container/medical/guidelines/ (inside build context)

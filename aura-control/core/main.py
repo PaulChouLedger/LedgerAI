@@ -33,8 +33,11 @@ except ImportError as e:
 
 os.environ["DISPLAY"] = ":0"
 
-# Load host .env (adjust path if needed)
-HOST_ENV = dotenv_values(os.path.expanduser("~/LedgerAI/llm-container/.env"))
+# Load unified .env from workspace root
+workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+dotenv_path = os.path.join(workspace_root, '.env')
+HOST_ENV = dotenv_values(dotenv_path)
+print(f"[Aura] 📋 Loading config from: {dotenv_path}")
 
 # === Whisper Container Configuration ===
 # Using faster-whisper with distil-small.en model
@@ -131,12 +134,13 @@ def setup_display():
 
 # === Utility: Stop and remove container if it exists ===
 def remove_existing_container(name):
+    """Remove container if it exists"""
     try:
         subprocess.run(["docker", "rm", "-f", name],
                        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         print(f"[Aura] 🗑️ Removed existing container: {name}")
     except subprocess.CalledProcessError:
-        print(f"[Aura] ℹ️ No existing container to remove: {name}")
+        pass  # Container doesn't exist, that's fine
 
 # === Stream container logs into Aura ===
 def stream_container_logs(name):
@@ -152,7 +156,11 @@ def stream_container_logs(name):
 # === Health check for container via HTTP ===
 def wait_for_container(url, name, timeout=15):
     print(f"[Aura] ⏳ Waiting for {name} to respond (timeout {timeout}s)...")
-    for _ in range(timeout * 10):
+    
+    # For LLM container, provide progress updates
+    is_llm = "llm" in name.lower()
+    
+    for i in range(timeout * 10):
         try:
             response = requests.get(url, timeout=1)
             if response.status_code in (200, 404):
@@ -160,12 +168,21 @@ def wait_for_container(url, name, timeout=15):
                 return True
         except requests.exceptions.RequestException:
             pass
+        
+        # Show progress every 3 seconds for LLM (model loading takes time)
+        if is_llm and i % 30 == 0 and i > 0:
+            elapsed = i / 10
+            print(f"[Aura] ⏳ Still waiting for {name}... ({elapsed:.0f}s - models loading)")
+        
         time.sleep(0.1)
-    print(f"[Aura] ❌ Timeout waiting for {name}.")
+    
+    print(f"[Aura] ❌ Timeout waiting for {name} after {timeout}s.")
     return False
 
 # === Launch container cleanly with retry ===
 def run_container(name, port, image, timeout=15):
+    """Launch container with automatic cleanup and retry"""
+    # Remove existing container (ensures fresh start)
     remove_existing_container(name)
 
     print(f"[Aura] 🚀 Launching {name}...")
@@ -181,9 +198,13 @@ def run_container(name, port, image, timeout=15):
 
     if name == "aura-llm":
         # Read from host .env only - let container handle its own defaults
-        model_path  = HOST_ENV.get("MODEL_PATH")
-        chat_format = HOST_ENV.get("CHAT_FORMAT")
-        n_ctx       = HOST_ENV.get("N_CTX")
+        model_path         = HOST_ENV.get("MODEL_PATH")
+        chat_format        = HOST_ENV.get("CHAT_FORMAT")
+        n_ctx              = HOST_ENV.get("N_CTX")
+        simple_model_path  = HOST_ENV.get("SIMPLE_MODEL_PATH")
+        simple_chat_format = HOST_ENV.get("SIMPLE_CHAT_FORMAT")
+        simple_n_ctx       = HOST_ENV.get("SIMPLE_N_CTX")
+        ehr_enabled        = HOST_ENV.get("EHR_INTEGRATION_ENABLED")
 
         # Get workspace root (LedgerAI directory)
         workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -193,13 +214,21 @@ def run_container(name, port, image, timeout=15):
             "-v", f"{workspace_root}/shared:/shared"   # Mount shared resources (medical_terms.json)
         ]
         
-        # Only pass environment variables if they're set in host .env
+        # Pass environment variables if they're set in host .env
         if model_path:
             cmd.extend(["-e", f"MODEL_PATH={model_path}"])
         if chat_format:
             cmd.extend(["-e", f"CHAT_FORMAT={chat_format}"])
         if n_ctx:
             cmd.extend(["-e", f"N_CTX={n_ctx}"])
+        if simple_model_path:
+            cmd.extend(["-e", f"SIMPLE_MODEL_PATH={simple_model_path}"])
+        if simple_chat_format:
+            cmd.extend(["-e", f"SIMPLE_CHAT_FORMAT={simple_chat_format}"])
+        if simple_n_ctx:
+            cmd.extend(["-e", f"SIMPLE_N_CTX={simple_n_ctx}"])
+        if ehr_enabled:
+            cmd.extend(["-e", f"EHR_INTEGRATION_ENABLED={ehr_enabled}"])
     elif name == WHISPER_NAME:
         # faster-whisper model is baked into the image, no cache mounting needed
         # Get workspace root for shared mount
@@ -232,6 +261,9 @@ def run_container(name, port, image, timeout=15):
         if name == WHISPER_NAME:
             health_url = f"http://localhost:{port}/health"
             time.sleep(5)   # Standard time for faster-whisper
+        elif name == "aura-llm":
+            health_url = f"http://localhost:{port}/health"  # Use /health for model status
+            time.sleep(2)   # Give container time to start
         else:
             health_url = f"http://localhost:{port}"
         
@@ -262,50 +294,37 @@ def warm_up_tts():
 
 # === LLM warm-up ===
 def warm_up_llm():
+    """Warm up LLM with a test request - assumes health check already passed"""
     try:
-        print("[Aura] 🧠 Warming up LLM...")
-        
-        # First, wait for models to load using health check
-        print("[Aura] 🔍 Waiting for models to load...")
-        for attempt in range(20):  # Wait up to 60 seconds for models to load
-            try:
-                response = requests.get("http://localhost:11434/health", timeout=5)
-                if response.status_code == 200:
-                    health_data = response.json()
-                    models = health_data.get("models", {})
-                    if models.get("complex_loaded") and models.get("simple_loaded"):
-                        print("[Aura] ✅ Models loaded successfully")
-                        break
-                    else:
-                        print(f"[Aura] ⏳ Models still loading... (attempt {attempt + 1}/10)")
-                        time.sleep(3)
-                        continue
-            except requests.exceptions.RequestException:
-                print(f"[Aura] ⏳ Container not ready yet... (attempt {attempt + 1}/10)")
-                time.sleep(3)
-                continue
-        else:
-            print("[Aura] ⚠️ Models failed to load within timeout")
-            return False
-        
-        # Now test with actual chat request
         print("[Aura] 🧪 Testing LLM with warm-up request...")
-        for attempt in range(3):
-            try:
-                response = requests.post("http://localhost:11434/chat-tts", 
-                                       json={"prompt": "Hello"}, 
-                                       timeout=60)  # Increased timeout for model loading
-                if response.status_code == 200:
-                    print("[Aura] ✅ LLM warm-up complete.")
-                    return True
-            except requests.exceptions.RequestException as e:
-                print(f"[Aura] ⚠️ LLM warm-up attempt {attempt + 1} failed: {e}")
-                if attempt < 2:
-                    time.sleep(5)
-        print("[Aura] ⚠️ LLM warm-up failed after 3 attempts")
-        return False
+        print("[Aura] 💡 First request loads adaptive engine (65 guidelines) - may take 15-20s...")
+        
+        # Single test request with VERY generous timeout (adaptive engine loads on first request)
+        try:
+            response = requests.post(
+                "http://localhost:11434/chat-tts",
+                json={"prompt": "Hello", "session_id": "warmup"},
+                stream=True,
+                timeout=120  # Increased from 45s - adaptive engine needs time to load
+            )
+            
+            if response.status_code == 200:
+                # Consume the stream to complete the request
+                for _ in response.iter_lines():
+                    pass
+                print("[Aura] ✅ LLM warm-up complete.")
+                return True
+            else:
+                print(f"[Aura] ❌ LLM returned status {response.status_code}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            print(f"[Aura] ❌ LLM warm-up failed: {e}")
+            print(f"[Aura] 💡 Check LLM logs: docker logs aura-llm")
+            return False
+            
     except Exception as e:
-        print(f"[Aura] ⚠️ LLM warm-up failed: {e}")
+        print(f"[Aura] ❌ LLM warm-up exception: {e}")
         return False
 
 # === RAG warm-up ===
@@ -415,7 +434,8 @@ def start_services():
     
     def start_llm():
         print("[Aura] 🧠 Starting LLM container...")
-        return run_container("aura-llm", 11434, "aura-llm:latest", timeout=20)
+        # Increased timeout: both models take ~3-10s to load + Flask startup
+        return run_container("aura-llm", 11434, "aura-llm:latest", timeout=30)
     
     def start_rag():
         if RAG_ENABLED:
@@ -450,9 +470,43 @@ def start_services():
     
     print("[Aura] ✅ All containers started successfully!")
     
-    # Wait a bit for LLM to fully initialize
-    print("[Aura] ⏳ Waiting for LLM to initialize...")
-    time.sleep(5)  # Reduced from 10s since containers started in parallel
+    # Wait for LLM Flask API AND both models to be fully ready
+    print("[Aura] ⏳ Waiting for LLM Flask API and models to load...")
+    print("[Aura] 💡 Loading in background: Mistral-7B (~2s) + Llama-1B (~1s)...")
+    
+    # Wait up to 60 seconds for BOTH models to load
+    models_ready = False
+    for attempt in range(24):  # 24 attempts * 2.5 seconds = 60 seconds max
+        try:
+            response = requests.get("http://localhost:11434/health", timeout=2)
+            if response.status_code == 200:
+                health_data = response.json()
+                models = health_data.get("models", {})
+                
+                # Check if BOTH models are loaded
+                complex_loaded = models.get("complex_loaded", False)
+                simple_loaded = models.get("simple_loaded", False)
+                
+                if complex_loaded and simple_loaded:
+                    models_ready = True
+                    elapsed = (attempt + 1) * 2.5
+                    print(f"[Aura] ✅ Both models loaded after {elapsed:.1f} seconds")
+                    break
+                elif complex_loaded:
+                    print(f"[Aura] ⏳ Mistral-7B loaded, waiting for Llama-1B... ({(attempt + 1) * 2.5:.1f}s)")
+                else:
+                    if attempt % 4 == 0:  # Print every 10 seconds
+                        print(f"[Aura] ⏳ Models still loading... ({(attempt + 1) * 2.5:.1f}s)")
+        except:
+            if attempt % 4 == 0:
+                print(f"[Aura] ⏳ Waiting for API... ({(attempt + 1) * 2.5:.1f}s)")
+        
+        time.sleep(2.5)
+    
+    if not models_ready:
+        print("[Aura] ❌ Models did not load after 60 seconds")
+        print("[Aura] 💡 Check: docker logs aura-llm")
+        return
     
     # Step 4: Warm up LLM (without RAG first)
     if not warm_up_llm():

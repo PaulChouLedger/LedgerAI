@@ -10,10 +10,22 @@ from state import set_playing, is_playing
 import numpy as np
 
 # === Load API credentials ===
-load_dotenv()
-ELEVEN_API_KEY = os.getenv("ELEVEN_API_KEY")
-ELEVEN_VOICE_ID = os.getenv("ELEVEN_VOICE_ID")
-assert ELEVEN_API_KEY and ELEVEN_VOICE_ID, "Missing ElevenLabs credentials"
+# Load .env from workspace root (2 levels up from this file)
+workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+dotenv_path = os.path.join(workspace_root, '.env')
+load_dotenv(dotenv_path)
+
+# Try both old and new variable names for backwards compatibility
+ELEVEN_API_KEY = os.getenv("ELEVENLABS_API_KEY") or os.getenv("ELEVEN_API_KEY")
+ELEVEN_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID") or os.getenv("ELEVEN_VOICE_ID") or "default"
+
+if not ELEVEN_API_KEY or ELEVEN_API_KEY == "your_elevenlabs_api_key_here":
+    raise RuntimeError(
+        "❌ Missing ElevenLabs API key!\n"
+        "   Run: ./aura_config.sh\n"
+        "   Choose option 5 to configure TTS\n"
+        "   Or edit .env and set: ELEVENLABS_API_KEY=your_key_here"
+    )
 client = ElevenLabs(api_key=ELEVEN_API_KEY)
 
 # === Audio settings ===

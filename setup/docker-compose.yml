@@ -4,8 +4,6 @@ services:
     network_mode: host
     volumes:
       - ../shared:/shared
-    env_file:
-      - ../.env  # Load unified config
 
   llm:
     build: ../llm-medical-container
@@ -14,14 +12,6 @@ services:
       - ../shared:/shared
       - ../data:/app/data
     working_dir: /app
-    env_file:
-      - ../.env  # Load unified config
-    environment:
-      # Pass through all EHR configuration
-      - EHR_INTEGRATION_ENABLED=${EHR_INTEGRATION_ENABLED:-false}
-      - SYSTMONE_FHIR_URL=${SYSTMONE_FHIR_URL:-https://hapi.fhir.org/baseR4}
-      - NHS_CLIENT_ID=${NHS_CLIENT_ID:-}
-      - NHS_CLIENT_SECRET=${NHS_CLIENT_SECRET:-}
 
   rag:
     build: ../rag-container
@@ -31,14 +21,6 @@ services:
       - ../data:/app/data  # Mount embeddings data
       - ../rag-container/cache:/app/cache  # Mount RAG model cache
     working_dir: /app
-    env_file:
-      - ../.env  # Load unified config
-    environment:
-      # Pass through RAG configuration
-      - RAG_THRESHOLD=${RAG_THRESHOLD:-0.3}
-      - RAG_TOP_K=${RAG_TOP_K:-3}
-      - RAG_USE_RERANKING=${RAG_USE_RERANKING:-false}
-      - RAG_USE_PHONETIC_MATCHING=${RAG_USE_PHONETIC_MATCHING:-true}
     deploy:
       resources:
         reservations:
