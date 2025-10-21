@@ -475,28 +475,41 @@ def start_services():
     
     print("[Aura] ✅ All containers started successfully!")
     
-    # Wait for LLM Flask API to be fully ready (models need time to load)
-    print("[Aura] ⏳ Waiting for LLM Flask API to be ready...")
-    print("[Aura] 💡 Models are loading in background (Mistral-7B + Llama-1B)...")
+    # Wait for LLM Flask API AND both models to be fully ready
+    print("[Aura] ⏳ Waiting for LLM Flask API and models to load...")
+    print("[Aura] 💡 Loading in background: Mistral-7B (~2s) + Llama-1B (~1s)...")
     
-    # Wait up to 60 seconds for LLM API to respond
-    llm_ready = False
-    for attempt in range(12):  # 12 attempts * 5 seconds = 60 seconds max
+    # Wait up to 60 seconds for BOTH models to load
+    models_ready = False
+    for attempt in range(24):  # 24 attempts * 2.5 seconds = 60 seconds max
         try:
             response = requests.get("http://localhost:11434/health", timeout=2)
             if response.status_code == 200:
-                llm_ready = True
-                print(f"[Aura] ✅ LLM API ready after {(attempt + 1) * 5} seconds")
-                break
+                health_data = response.json()
+                models = health_data.get("models", {})
+                
+                # Check if BOTH models are loaded
+                complex_loaded = models.get("complex_loaded", False)
+                simple_loaded = models.get("simple_loaded", False)
+                
+                if complex_loaded and simple_loaded:
+                    models_ready = True
+                    elapsed = (attempt + 1) * 2.5
+                    print(f"[Aura] ✅ Both models loaded after {elapsed:.1f} seconds")
+                    break
+                elif complex_loaded:
+                    print(f"[Aura] ⏳ Mistral-7B loaded, waiting for Llama-1B... ({(attempt + 1) * 2.5:.1f}s)")
+                else:
+                    if attempt % 4 == 0:  # Print every 10 seconds
+                        print(f"[Aura] ⏳ Models still loading... ({(attempt + 1) * 2.5:.1f}s)")
         except:
-            pass
+            if attempt % 4 == 0:
+                print(f"[Aura] ⏳ Waiting for API... ({(attempt + 1) * 2.5:.1f}s)")
         
-        if attempt < 11:
-            print(f"[Aura] ⏳ Still waiting for LLM API... ({(attempt + 1) * 5}s elapsed)")
-            time.sleep(5)
+        time.sleep(2.5)
     
-    if not llm_ready:
-        print("[Aura] ❌ LLM API did not respond after 60 seconds")
+    if not models_ready:
+        print("[Aura] ❌ Models did not load after 60 seconds")
         print("[Aura] 💡 Check: docker logs aura-llm")
         return
     
