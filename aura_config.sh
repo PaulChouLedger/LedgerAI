@@ -84,6 +84,12 @@ show_all_settings() {
     echo ""
     
     echo -e "${BOLD}📚 RAG SEARCH${NC}"
+    local rag_enabled=$(get_config_value 'RAG_ENABLED')
+    if [ "$rag_enabled" == "true" ]; then
+        echo -e "  ${GREEN}●${NC} Mode:          GPU FAISS (fast, separate container)"
+    else
+        echo -e "  ${YELLOW}○${NC} Mode:          CPU FAISS (slow, built into LLM)"
+    fi
     echo "  Threshold:     $(get_config_value 'RAG_THRESHOLD')"
     echo "  Top K:         $(get_config_value 'RAG_TOP_K')"
     echo "  Phonetic:      $(get_config_value 'RAG_USE_PHONETIC_MATCHING')"
@@ -259,28 +265,81 @@ configure_llm() {
 configure_rag() {
     print_header "RAG SEARCH CONFIGURATION"
     
-    echo "Threshold (current): $(get_config_value 'RAG_THRESHOLD')"
-    echo "Top K (current):     $(get_config_value 'RAG_TOP_K')"
+    local rag_enabled=$(get_config_value 'RAG_ENABLED')
+    
+    echo "Current Settings:"
     echo ""
-    echo "1) Adjust threshold (0.0 = loose, 1.0 = strict)"
-    echo "2) Change Top K (number of results)"
-    echo "3) Toggle phonetic matching"
-    echo "4) Back to main menu"
+    if [ "$rag_enabled" == "true" ]; then
+        echo -e "  RAG Mode:     ${GREEN}GPU FAISS${NC} (fast, separate container)"
+    else
+        echo -e "  RAG Mode:     ${YELLOW}CPU FAISS${NC} (slow, built into LLM)"
+    fi
+    echo "  Threshold:    $(get_config_value 'RAG_THRESHOLD')"
+    echo "  Top K:        $(get_config_value 'RAG_TOP_K')"
+    echo "  Phonetic:     $(get_config_value 'RAG_USE_PHONETIC_MATCHING')"
     echo ""
-    read -p "Choice [1-4]: " choice
+    echo "1) Toggle RAG mode (GPU vs CPU)"
+    echo "2) Adjust threshold (0.0 = loose, 1.0 = strict)"
+    echo "3) Change Top K (number of results)"
+    echo "4) Toggle phonetic matching"
+    echo "5) Back to main menu"
+    echo ""
+    read -p "Choice [1-5]: " choice
     
     case $choice in
         1)
+            echo ""
+            local current=$(get_config_value 'RAG_ENABLED')
+            if [ "$current" == "true" ]; then
+                echo "Currently: GPU FAISS (separate RAG container)"
+                echo ""
+                read -p "Switch to CPU FAISS (built into LLM)? (y/n): " answer
+                if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
+                    set_config_value "RAG_ENABLED" "false"
+                    echo ""
+                    echo -e "${GREEN}✅ Switched to CPU FAISS${NC}"
+                    echo ""
+                    echo "Benefits:"
+                    echo "  • No separate RAG container needed"
+                    echo "  • Simpler setup"
+                    echo ""
+                    echo "Drawbacks:"
+                    echo "  • Slower searches (~500ms vs ~50ms)"
+                    echo "  • Limited scalability"
+                    echo ""
+                    show_restart_message
+                fi
+            else
+                echo "Currently: CPU FAISS (built into LLM container)"
+                echo ""
+                read -p "Switch to GPU FAISS (separate RAG container)? (y/n): " answer
+                if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
+                    set_config_value "RAG_ENABLED" "true"
+                    echo ""
+                    echo -e "${GREEN}✅ Switched to GPU FAISS${NC}"
+                    echo ""
+                    echo "Benefits:"
+                    echo "  • Faster searches (~50ms vs ~500ms)"
+                    echo "  • Better scalability"
+                    echo "  • Optimized for production"
+                    echo ""
+                    echo "Note: Requires GPU and separate RAG container"
+                    echo ""
+                    show_restart_message
+                fi
+            fi
+            ;;
+        2)
             read -p "Enter threshold (0.0-1.0): " threshold
             set_config_value "RAG_THRESHOLD" "$threshold"
             show_restart_message
             ;;
-        2)
+        3)
             read -p "Enter Top K (1-10): " topk
             set_config_value "RAG_TOP_K" "$topk"
             show_restart_message
             ;;
-        3)
+        4)
             local current=$(get_config_value 'RAG_USE_PHONETIC_MATCHING')
             if [ "$current" == "true" ]; then
                 set_config_value "RAG_USE_PHONETIC_MATCHING" "false"
@@ -289,7 +348,7 @@ configure_rag() {
             fi
             show_restart_message
             ;;
-        4) return ;;
+        5) return ;;
     esac
 }
 

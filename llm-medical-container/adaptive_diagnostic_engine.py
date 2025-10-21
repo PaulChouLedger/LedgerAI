@@ -76,17 +76,26 @@ class RAGEmbeddingAPI:
         else:
             raise RuntimeError(f"RAG embedding failed")
 
-# RAG client availability check
-try:
-    rag_api = RAGEmbeddingAPI()
-    # Test the client
-    test_embedding = rag_api.encode(["test"])
-    RAG_API_AVAILABLE = True
-    rag_client = get_rag_client()
-    print(f"[Engine] ✅ RAG client available - using {rag_client.get_mode()}")
-except Exception as e:
-    RAG_API_AVAILABLE = False
-    print(f"[Engine] ⚠️ RAG client not available - using brute-force matching: {e}")
+# RAG client availability check (lazy - don't test at import time!)
+RAG_API_AVAILABLE = False  # Will be set to True on first use
+
+def check_rag_availability():
+    """Check if RAG client is available (lazy check)"""
+    global RAG_API_AVAILABLE
+    if RAG_API_AVAILABLE:
+        return True
+    
+    try:
+        rag_api = RAGEmbeddingAPI()
+        # Quick test (don't generate embeddings, just check connection)
+        rag_client = get_rag_client()
+        RAG_API_AVAILABLE = True
+        print(f"[Engine] ✅ RAG client available - using {rag_client.get_mode()}")
+        return True
+    except Exception as e:
+        RAG_API_AVAILABLE = False
+        print(f"[Engine] ⚠️ RAG client not available - using brute-force matching: {e}")
+        return False
 
 
 class AdaptiveDiagnosticEngine:
@@ -114,9 +123,9 @@ class AdaptiveDiagnosticEngine:
         
         print(f"[Engine] 🧠 Using {'dual models (simple + complex)' if llm_chat_simple_fn else 'single model'}")
         
-        # RAG API for GPU-accelerated FAISS operations
-        self.rag_api = RAGEmbeddingAPI() if RAG_API_AVAILABLE else None
-        self.use_rag_api = RAG_API_AVAILABLE
+        # RAG API for GPU-accelerated FAISS operations (lazy initialization)
+        self.rag_api = None
+        self.use_rag_api = False  # Will check lazily when needed
         self.validate_rag = os.getenv("VALIDATE_RAG", "false").lower() == "true"  # Compare RAG vs brute-force
         
         # Hybrid matching configuration
@@ -954,6 +963,11 @@ class AdaptiveDiagnosticEngine:
                     print(f"[Engine] 📊 Searching {len(remaining_triggers)} remaining triggers...")
                     
                     # Use RAG API to compute similarities
+                    # Lazy initialization of RAG API
+                    if not self.rag_api and check_rag_availability():
+                        self.rag_api = RAGEmbeddingAPI()
+                        self.use_rag_api = True
+                    
                     # Create query + all triggers for batch processing
                     all_texts = [core_symptom] + remaining_triggers
                     embeddings = self.rag_api.encode(all_texts)
