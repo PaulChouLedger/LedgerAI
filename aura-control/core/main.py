@@ -134,24 +134,13 @@ def setup_display():
 
 # === Utility: Stop and remove container if it exists ===
 def remove_existing_container(name):
-    """Remove container if it exists (unless in quick mode)"""
+    """Remove container if it exists"""
     try:
         subprocess.run(["docker", "rm", "-f", name],
                        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         print(f"[Aura] 🗑️ Removed existing container: {name}")
     except subprocess.CalledProcessError:
         pass  # Container doesn't exist, that's fine
-
-def is_container_running(name):
-    """Check if container is already running and healthy"""
-    try:
-        result = subprocess.run(
-            ["docker", "ps", "--filter", f"name={name}", "--format", "{{.Names}}"],
-            capture_output=True, text=True, timeout=5
-        )
-        return name in result.stdout
-    except:
-        return False
 
 # === Stream container logs into Aura ===
 def stream_container_logs(name):
@@ -191,19 +180,9 @@ def wait_for_container(url, name, timeout=15):
     return False
 
 # === Launch container cleanly with retry ===
-def run_container(name, port, image, timeout=15, reuse_if_running=False):
-    """
-    Launch container with optional reuse of existing container
-    
-    Args:
-        reuse_if_running: If True, skip if container already running (fast mode)
-    """
-    # Check if container is already running (quick mode)
-    if reuse_if_running and is_container_running(name):
-        print(f"[Aura] ⚡ {name} already running - reusing (quick mode)")
-        return True
-    
-    # Remove and start fresh (clean mode)
+def run_container(name, port, image, timeout=15):
+    """Launch container with automatic cleanup and retry"""
+    # Remove existing container (ensures fresh start)
     remove_existing_container(name)
 
     print(f"[Aura] 🚀 Launching {name}...")
@@ -447,12 +426,12 @@ def start_services():
     # Start all containers in parallel using threads
     def start_whisper():
         print(f"[Aura] 🎤 Starting Whisper container ({WHISPER_DESCRIPTION})...")
-        return run_container(WHISPER_NAME, 5000, WHISPER_IMAGE, timeout=10, reuse_if_running=QUICK_MODE)
+        return run_container(WHISPER_NAME, 5000, WHISPER_IMAGE, timeout=10)
     
     def start_llm():
         print("[Aura] 🧠 Starting LLM container...")
         # Increased timeout: both models take ~3-10s to load + Flask startup
-        return run_container("aura-llm", 11434, "aura-llm:latest", timeout=30, reuse_if_running=QUICK_MODE)
+        return run_container("aura-llm", 11434, "aura-llm:latest", timeout=30)
     
     def start_rag():
         if RAG_ENABLED:
