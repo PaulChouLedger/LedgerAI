@@ -167,7 +167,11 @@ def stream_container_logs(name):
 # === Health check for container via HTTP ===
 def wait_for_container(url, name, timeout=15):
     print(f"[Aura] ⏳ Waiting for {name} to respond (timeout {timeout}s)...")
-    for _ in range(timeout * 10):
+    
+    # For LLM container, provide progress updates
+    is_llm = "llm" in name.lower()
+    
+    for i in range(timeout * 10):
         try:
             response = requests.get(url, timeout=1)
             if response.status_code in (200, 404):
@@ -175,8 +179,15 @@ def wait_for_container(url, name, timeout=15):
                 return True
         except requests.exceptions.RequestException:
             pass
+        
+        # Show progress every 3 seconds for LLM (model loading takes time)
+        if is_llm and i % 30 == 0 and i > 0:
+            elapsed = i / 10
+            print(f"[Aura] ⏳ Still waiting for {name}... ({elapsed:.0f}s - models loading)")
+        
         time.sleep(0.1)
-    print(f"[Aura] ❌ Timeout waiting for {name}.")
+    
+    print(f"[Aura] ❌ Timeout waiting for {name} after {timeout}s.")
     return False
 
 # === Launch container cleanly with retry ===
@@ -436,11 +447,12 @@ def start_services():
     # Start all containers in parallel using threads
     def start_whisper():
         print(f"[Aura] 🎤 Starting Whisper container ({WHISPER_DESCRIPTION})...")
-        return run_container(WHISPER_NAME, 5000, WHISPER_IMAGE, timeout=10)
+        return run_container(WHISPER_NAME, 5000, WHISPER_IMAGE, timeout=10, reuse_if_running=QUICK_MODE)
     
     def start_llm():
         print("[Aura] 🧠 Starting LLM container...")
-        return run_container("aura-llm", 11434, "aura-llm:latest", timeout=20)
+        # Increased timeout: both models take ~3-10s to load + Flask startup
+        return run_container("aura-llm", 11434, "aura-llm:latest", timeout=30, reuse_if_running=QUICK_MODE)
     
     def start_rag():
         if RAG_ENABLED:
