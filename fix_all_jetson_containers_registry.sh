@@ -47,6 +47,12 @@ fix_file() {
     sed -i 's/uv pip check/python -m pip check/g' "$file"
     sed -i 's/uv pip config/python -m pip config/g' "$file"
     sed -i 's/uv pip cache/python -m pip cache/g' "$file"
+    sed -i 's/uv pip -V/python -m pip --version/g' "$file"
+    sed -i 's/uv pip --version/python -m pip --version/g' "$file"
+    sed -i 's/uv pip --help/python -m pip --help/g' "$file"
+    sed -i 's/\/usr\/bin\/uv pip/\/usr\/bin\/python -m pip/g' "$file"
+    sed -i 's/\[.uv pip./[python -m pip/g' "$file"
+    sed -i 's/uv pip,/python -m pip,/g' "$file"
     
     # Count remaining uv pip commands (should be 0)
     local remaining_count=$(grep -c "uv pip" "$file" 2>/dev/null | head -1 || echo "0")
