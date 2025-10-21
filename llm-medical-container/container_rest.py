@@ -101,63 +101,12 @@ simple_model_config = {
     "repeat_penalty": float(os.getenv("LLM_REPEAT_PENALTY", "1.15")),
 }
 
-# Load models synchronously at startup (like before)
+# Models will be loaded in __main__ block to prevent double loading
 import os
 import time
 
-print(f"[LLM] 🚀 Loading COMPLEX model: {MODEL_PATH}")
-print(f"[LLM] ⚙️  Config: n_ctx={N_CTX}, format={CHAT_FORMAT}")
-
-# DEBUG: Print stack trace to see where this is being called from
-import traceback
-print("[LLM] 🔍 DEBUG: Model loading called from:")
-for line in traceback.format_stack()[:-1]:
-    print(line.strip())
-
-# Check if model file exists and get file info
-if not os.path.exists(MODEL_PATH):
-    print(f"[LLM] ❌ Model file not found: {MODEL_PATH}")
-    print(f"[LLM] 📁 Available files in /models/:")
-    try:
-        for f in os.listdir("/models/"):
-            print(f"[LLM]   - {f}")
-    except:
-        print(f"[LLM]   - Could not list /models/ directory")
-    exit(1)
-else:
-    # Get file size and modification time
-    file_stat = os.stat(MODEL_PATH)
-    file_size_mb = file_stat.st_size / (1024 * 1024)
-    mod_time = time.ctime(file_stat.st_mtime)
-    print(f"[LLM] 📁 Model file found locally: {file_size_mb:.1f}MB, modified: {mod_time}")
-    print(f"[LLM] 🔍 File path: {MODEL_PATH}")
-
-print(f"[LLM] 🧠 Initializing Llama model (this may take a while for large models)...")
-start_time = time.time()
-llm = Llama(**model_config)
-load_time = time.time() - start_time
-print(f"[LLM] ✅ Complex model loaded: {MODEL_PATH} (took {load_time:.1f}s)")
-
-print(f"[LLM] 🚀 Loading SIMPLE model: {SIMPLE_MODEL_PATH}")
-print(f"[LLM] ⚙️  Config: n_ctx={SIMPLE_N_CTX}, format={SIMPLE_CHAT_FORMAT}")
-
-# Check if model file exists and get file info
-if not os.path.exists(SIMPLE_MODEL_PATH):
-    print(f"[LLM] ❌ Model file not found: {SIMPLE_MODEL_PATH}")
-    exit(1)
-else:
-    # Get file size and modification time
-    file_stat = os.stat(SIMPLE_MODEL_PATH)
-    file_size_mb = file_stat.st_size / (1024 * 1024)
-    mod_time = time.ctime(file_stat.st_mtime)
-    print(f"[LLM] 📁 Model file found locally: {file_size_mb:.1f}MB, modified: {mod_time}")
-    print(f"[LLM] 🔍 File path: {SIMPLE_MODEL_PATH}")
-
-print(f"[LLM] 🧠 Initializing Llama model (this may take a while for large models)...")
-start_time = time.time()
-llm_simple = Llama(**simple_model_config)
-load_time = time.time() - start_time
-print(f"[LLM] ✅ Simple model loaded: {SIMPLE_MODEL_PATH} (took {load_time:.1f}s)")
+llm = None
+llm_simple = None
 
 # Note: TRIAGE_DEFS is loaded automatically by triage.py when imported
 
@@ -643,6 +592,57 @@ def llm_chat_once(messages, **kwargs):
 # === Server Startup ===
 
 if __name__ == "__main__":
+    # Load models ONLY when running as main script (prevents double loading on import)
+    global llm, llm_simple
+    
+    print(f"[LLM] 🚀 Loading COMPLEX model: {MODEL_PATH}")
+    print(f"[LLM] ⚙️  Config: n_ctx={N_CTX}, format={CHAT_FORMAT}")
+    
+    # Check if model file exists and get file info
+    if not os.path.exists(MODEL_PATH):
+        print(f"[LLM] ❌ Model file not found: {MODEL_PATH}")
+        print(f"[LLM] 📁 Available files in /models/:")
+        try:
+            for f in os.listdir("/models/"):
+                print(f"[LLM]   - {f}")
+        except:
+            print(f"[LLM]   - Could not list /models/ directory")
+        exit(1)
+    else:
+        # Get file size and modification time
+        file_stat = os.stat(MODEL_PATH)
+        file_size_mb = file_stat.st_size / (1024 * 1024)
+        mod_time = time.ctime(file_stat.st_mtime)
+        print(f"[LLM] 📁 Model file found locally: {file_size_mb:.1f}MB, modified: {mod_time}")
+        print(f"[LLM] 🔍 File path: {MODEL_PATH}")
+    
+    print(f"[LLM] 🧠 Initializing Llama model (this may take a while for large models)...")
+    start_time = time.time()
+    llm = Llama(**model_config)
+    load_time = time.time() - start_time
+    print(f"[LLM] ✅ Complex model loaded: {MODEL_PATH} (took {load_time:.1f}s)")
+    
+    print(f"[LLM] 🚀 Loading SIMPLE model: {SIMPLE_MODEL_PATH}")
+    print(f"[LLM] ⚙️  Config: n_ctx={SIMPLE_N_CTX}, format={SIMPLE_CHAT_FORMAT}")
+    
+    # Check if model file exists and get file info
+    if not os.path.exists(SIMPLE_MODEL_PATH):
+        print(f"[LLM] ❌ Model file not found: {SIMPLE_MODEL_PATH}")
+        exit(1)
+    else:
+        # Get file size and modification time
+        file_stat = os.stat(SIMPLE_MODEL_PATH)
+        file_size_mb = file_stat.st_size / (1024 * 1024)
+        mod_time = time.ctime(file_stat.st_mtime)
+        print(f"[LLM] 📁 Model file found locally: {file_size_mb:.1f}MB, modified: {mod_time}")
+        print(f"[LLM] 🔍 File path: {SIMPLE_MODEL_PATH}")
+    
+    print(f"[LLM] 🧠 Initializing Llama model (this may take a while for large models)...")
+    start_time = time.time()
+    llm_simple = Llama(**simple_model_config)
+    load_time = time.time() - start_time
+    print(f"[LLM] ✅ Simple model loaded: {SIMPLE_MODEL_PATH} (took {load_time:.1f}s)")
+    
     print("[Aura-LLM] 🚀 Starting Aura LLM Container (Modular Architecture)")
     print("[Aura-LLM] 📋 Available modes:")
     print("  - CLINICIAN: Intelligent medical assistant with adaptive diagnostic engine")
