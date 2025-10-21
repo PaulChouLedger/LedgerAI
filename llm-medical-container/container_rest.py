@@ -593,7 +593,6 @@ def llm_chat_once(messages, **kwargs):
 
 if __name__ == "__main__":
     # Load models ONLY when running as main script (prevents double loading on import)
-    global llm, llm_simple
     
     print(f"[LLM] 🚀 Loading COMPLEX model: {MODEL_PATH}")
     print(f"[LLM] ⚙️  Config: n_ctx={N_CTX}, format={CHAT_FORMAT}")
