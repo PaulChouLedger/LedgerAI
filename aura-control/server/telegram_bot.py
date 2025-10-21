@@ -5,14 +5,24 @@ from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 
-# === Load token ===
-load_dotenv()
+# === Load token from workspace root .env ===
+# Load .env from workspace root (2 levels up from this file)
+workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+dotenv_path = os.path.join(workspace_root, '.env')
+load_dotenv(dotenv_path)
+
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 AURA_CHAT_URL = os.getenv("AURA_CHAT_URL", "http://127.0.0.1:11434/chat-tg")
 # Debug info is now always shown in terminal logs (not in Telegram messages)
 
-if not TELEGRAM_BOT_TOKEN:
-    raise RuntimeError("⚠️ TELEGRAM_BOT_TOKEN not found in environment")
+if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN == "your_telegram_bot_token":
+    raise RuntimeError(
+        "❌ Missing Telegram bot token!\n"
+        "   Run: ./aura_config.sh\n"
+        "   Choose option 6 to configure Telegram bot\n"
+        "   Or edit .env and set: TELEGRAM_BOT_TOKEN=your_token_here\n"
+        "   Get a token from @BotFather on Telegram"
+    )
 
 # === Session state ===
 sessions = {}  # { chat_id: {"active": bool, "history": []} }
