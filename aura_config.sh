@@ -299,12 +299,25 @@ main_menu() {
         
         case $choice in
             1)
+                # Show current state and ask what to do
                 local current=$(get_config_value 'EHR_INTEGRATION_ENABLED')
+                echo ""
                 if [ "$current" == "true" ]; then
-                    toggle_ehr off
+                    echo "EHR is currently: ENABLED"
+                    echo ""
+                    read -p "Turn it OFF? (y/n): " answer
+                    if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
+                        toggle_ehr off
+                    fi
                 else
-                    toggle_ehr on
+                    echo "EHR is currently: DISABLED"
+                    echo ""
+                    read -p "Turn it ON? (y/n): " answer
+                    if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
+                        toggle_ehr on
+                    fi
                 fi
+                echo ""
                 read -p "Press Enter to continue..."
                 ;;
             2)
