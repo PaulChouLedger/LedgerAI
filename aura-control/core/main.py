@@ -400,7 +400,13 @@ def warm_up_rag():
 def start_services():
     TIMEOUT = 10  # Reduced timeout for faster startup
     
-    print("[Aura] 🚀 Starting all containers in parallel...")
+    # Check if RAG container should be started
+    RAG_ENABLED = os.environ.get('RAG_ENABLED', 'false').lower() == 'true'
+    
+    if RAG_ENABLED:
+        print("[Aura] 🚀 Starting all containers in parallel (including RAG)...")
+    else:
+        print("[Aura] 🚀 Starting containers (RAG disabled - using CPU mode)...")
     
     # Start all containers in parallel using threads
     def start_whisper():
@@ -412,11 +418,15 @@ def start_services():
         return run_container("aura-llm", 11434, "aura-llm:latest", timeout=TIMEOUT)
     
     def start_rag():
-        print("[Aura] 🔍 Starting RAG container...")
-        # RAG needs longer timeout due to CUDA model pre-loading (30-60s on first boot)
-        return run_container("aura-rag", 11435, "aura-rag:latest", timeout=90)
+        if RAG_ENABLED:
+            print("[Aura] 🔍 Starting RAG container...")
+            # RAG needs longer timeout due to CUDA model pre-loading (30-60s on first boot)
+            return run_container("aura-rag", 11435, "aura-rag:latest", timeout=90)
+        else:
+            print("[Aura] ⏭️  Skipping RAG container (using CPU mode)")
+            return True  # Return True so we don't fail the startup
     
-    # Start all containers simultaneously
+    # Start containers simultaneously
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
         whisper_future = executor.submit(start_whisper)
         llm_future = executor.submit(start_llm)
@@ -434,7 +444,7 @@ def start_services():
     if not llm_ok:
         print("[Aura] ❌ LLM container failed. Aborting.")
         return
-    if not rag_ok:
+    if RAG_ENABLED and not rag_ok:
         print("[Aura] ❌ RAG container failed. Aborting.")
         return
     
@@ -449,9 +459,12 @@ def start_services():
         print("[Aura] ❌ LLM warm-up failed. Aborting.")
         return
     
-    # Step 5: Initialize RAG immediately after LLM warm-up
-    print("[Aura] 🔍 Initializing RAG system...")
-    initialize_rag_delayed()  # Run synchronously, not in thread
+    # Step 5: Initialize RAG immediately after LLM warm-up (if enabled)
+    if RAG_ENABLED:
+        print("[Aura] 🔍 Initializing RAG system...")
+        initialize_rag_delayed()  # Run synchronously, not in thread
+    else:
+        print("[Aura] ⏭️  Skipping RAG initialization (using CPU mode in LLM container)")
     
     # Step 6: Start file upload server (if available)
     if UPLOAD_SERVER_AVAILABLE:
@@ -466,22 +479,25 @@ def start_services():
     print("[Aura] ℹ️ Data ingestion: Handled by background process if new files detected")
     print("[Aura] ℹ️ Auto-ingest: Triggered by file uploads via web server")
     
-    # Step 8: Final RAG ready check before starting listener
-    print("[Aura] 🔍 Final RAG ready check before starting listener...")
-    try:
-        final_check = requests.post(
-            "http://localhost:11435/rag/search",
-            json={"query": "system check", "k": 1},
-            timeout=10
-        )
-        if final_check.status_code == 200 and final_check.json().get('results'):
-            print("[Aura] ✅ RAG confirmed ready - starting listener")
-        else:
-            print("[Aura] ⚠️ RAG may not be fully ready, but starting listener anyway")
-    except Exception as e:
-        print(f"[Aura] ⚠️ RAG final check failed: {e}, starting listener anyway")
+    # Step 8: Final RAG ready check before starting listener (if enabled)
+    if RAG_ENABLED:
+        print("[Aura] 🔍 Final RAG ready check before starting listener...")
+        try:
+            final_check = requests.post(
+                "http://localhost:11435/rag/search",
+                json={"query": "system check", "k": 1},
+                timeout=10
+            )
+            if final_check.status_code == 200 and final_check.json().get('results'):
+                print("[Aura] ✅ RAG confirmed ready - starting listener")
+            else:
+                print("[Aura] ⚠️ RAG may not be fully ready, but starting listener anyway")
+        except Exception as e:
+            print(f"[Aura] ⚠️ RAG final check failed: {e}, starting listener anyway")
+    else:
+        print("[Aura] ✅ Using CPU mode - ready to start listener")
     
-    # Step 9: Start listener (after RAG is confirmed ready)
+    # Step 9: Start listener
     print("[Aura] 🎙️ Starting listener...")
     threading.Thread(target=listen, daemon=True).start()
     

@@ -23,8 +23,8 @@ from validation import (
 # Import clinician mode for comprehensive medical assistance
 from clinician_mode import ClinicianSession, is_clinician_trigger, get_clinician_session, handle_clinician_response
 
-# RAG functionality moved to separate RAG container (port 11435)
-RAG_SERVICE_URL = "http://localhost:11435"
+# Import modular RAG client (supports both GPU and CPU modes)
+from rag_client import get_rag_client
 
 app = Flask(__name__)
 load_dotenv()

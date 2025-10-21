@@ -40,21 +40,24 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 from thinking_fillers import get_filler
 
-# RAG API for GPU-accelerated FAISS operations
-import requests
+# Import modular RAG client (supports both GPU and CPU modes)
+from rag_client import get_rag_client
 import numpy as np
 
 class RAGEmbeddingAPI:
     """
-    Wrapper for RAG container's embedding service
-    Provides same interface as SentenceTransformer but uses API calls
+    Wrapper for RAG client's embedding service
+    Provides same interface as SentenceTransformer but uses modular RAG client
+    Supports both GPU (RAG container) and CPU (local) modes
     """
     def __init__(self, rag_url: str = "http://localhost:11435"):
-        self.rag_url = rag_url
+        # rag_url parameter kept for backwards compatibility but not used
+        # RAGClient handles URL configuration internally
+        self.rag_client = get_rag_client()
     
     def encode(self, texts: List[str]) -> List:
         """
-        Generate embeddings via RAG container API
+        Generate embeddings via modular RAG client
         
         Args:
             texts: List of texts to embed
@@ -65,30 +68,25 @@ class RAGEmbeddingAPI:
         Raises:
             RuntimeError if embedding service fails
         """
-        response = requests.post(
-            f"{self.rag_url}/embed",
-            json={"texts": texts},
-            timeout=5
-        )
+        embeddings = self.rag_client.embed(texts)
         
-        if response.status_code == 200:
-            data = response.json()
-            embeddings = data.get('embeddings', [])
+        if embeddings:
             # Convert to numpy arrays
             return [np.array(emb, dtype=np.float32) for emb in embeddings]
         else:
-            raise RuntimeError(f"RAG embed API returned status {response.status_code}")
+            raise RuntimeError(f"RAG embedding failed")
 
-# RAG API availability check
+# RAG client availability check
 try:
     rag_api = RAGEmbeddingAPI()
-    # Test the API
+    # Test the client
     test_embedding = rag_api.encode(["test"])
     RAG_API_AVAILABLE = True
-    print("[Engine] ✅ RAG API available - will use GPU-accelerated FAISS")
+    rag_client = get_rag_client()
+    print(f"[Engine] ✅ RAG client available - using {rag_client.get_mode()}")
 except Exception as e:
     RAG_API_AVAILABLE = False
-    print(f"[Engine] ⚠️ RAG API not available - using brute-force matching: {e}")
+    print(f"[Engine] ⚠️ RAG client not available - using brute-force matching: {e}")
 
 
 class AdaptiveDiagnosticEngine:

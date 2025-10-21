@@ -1,5 +1,10 @@
 flask
 numpy
 requests
-requests  # For RAG API calls to GPU-accelerated FAISS container
-sentence-transformers  # For semantic similarity fallback in hybrid matching
+
+# RAG dependencies (supports both GPU and CPU modes)
+sentence-transformers  # For embeddings (both GPU and CPU modes)
+faiss-cpu  # For local FAISS operations when RAG container is disabled (CPU mode)
+
+# Note: When RAG_ENABLED=true, uses external RAG container with FAISS GPU
+# When RAG_ENABLED=false, uses local faiss-cpu for in-process operations

@@ -25,10 +25,11 @@ from typing import Dict, List, Any, Optional, Tuple, Callable
 from difflib import SequenceMatcher
 from pathlib import Path
 
-# Medical RAG functionality moved to separate RAG container
-# All RAG operations now use API calls to the RAG service
-MEDICAL_RAG_AVAILABLE = True  # RAG service available via API
-print("[Clinician] ✅ Medical RAG available via API calls")
+# Import modular RAG client (supports both GPU and CPU modes)
+from rag_client import get_rag_client
+
+MEDICAL_RAG_AVAILABLE = True  # RAG available via modular client
+print("[Clinician] ✅ Medical RAG available via modular client")
 
 # Import adaptive diagnostic engine for guideline-based assessment
 try:
@@ -42,15 +43,18 @@ except ImportError as e:
 
 class RAGEmbeddingAPI:
     """
-    Wrapper for RAG container's embedding service
-    Provides same interface as SentenceTransformer but uses API calls
+    Wrapper for RAG client's embedding service
+    Provides same interface as SentenceTransformer but uses modular RAG client
+    Supports both GPU (RAG container) and CPU (local) modes
     """
     def __init__(self, rag_url: str = "http://localhost:11435"):
-        self.rag_url = rag_url
+        # rag_url parameter kept for backwards compatibility but not used
+        # RAGClient handles URL configuration internally
+        self.rag_client = get_rag_client()
     
     def encode(self, texts: List[str]) -> List:
         """
-        Generate embeddings via RAG container API
+        Generate embeddings via modular RAG client
         
         Args:
             texts: List of texts to embed
@@ -62,21 +66,14 @@ class RAGEmbeddingAPI:
             RuntimeError if embedding service fails
         """
         import numpy as np
-        import requests
         
-        response = requests.post(
-            f"{self.rag_url}/embed",
-            json={"texts": texts},
-            timeout=5
-        )
+        embeddings = self.rag_client.embed(texts)
         
-        if response.status_code == 200:
-            data = response.json()
-            embeddings = data.get('embeddings', [])
+        if embeddings:
             # Convert to numpy arrays
             return [np.array(emb, dtype=np.float32) for emb in embeddings]
         else:
-            raise RuntimeError(f"RAG embed API returned status {response.status_code}")
+            raise RuntimeError(f"RAG embedding failed")
 
 # Load shared medical terms from centralized file (used by both Whisper and LLM)
 MEDICAL_TERMS = {}
@@ -571,22 +568,17 @@ class ClinicianSession:
             
             print(f"[Dynamic] 🔍 Searching RAG with query: '{search_query}'")
             
-            response = requests.post(
-                "http://localhost:11435/rag/search",
-                json={
-                    "query": search_query, 
-                    "top_k": 50,  # Get many chunks to cover multiple guidelines
-                    "disable_keyword_filter": True,  # MUST disable to get all guideline chunks
-                    "min_score": 0.0
-                },
-                timeout=10
+            # Use modular RAG client
+            rag_client = get_rag_client()
+            all_results = rag_client.search(
+                query=search_query,
+                k=50,  # Get many chunks to cover multiple guidelines
+                threshold=0.0  # min_score
             )
             
-            if response.status_code != 200:
-                print(f"[Dynamic] ⚠️ RAG search failed: HTTP {response.status_code}")
+            if not all_results:
+                print(f"[Dynamic] ⚠️ RAG search returned no results")
                 return []
-            
-            all_results = response.json().get('results', [])
             print(f"[Dynamic] 📚 Stage 1: Retrieved {len(all_results)} chunks for initial guideline identification")
             
             # STAGE 2: Extract guideline names from results and fetch complete guidelines
@@ -617,22 +609,21 @@ class ClinicianSession:
             # STAGE 3: Retrieve ALL chunks from these guidelines using metadata
             all_guideline_chunks = []
             
+            # Use modular RAG client
+            rag_client = get_rag_client()
+            
             for guideline_name in top_differentials:
                 try:
-                    # Use new metadata-based endpoint to get ALL chunks
-                    response2 = requests.get(
-                        f"http://localhost:11435/rag/guideline/{guideline_name}",
-                        timeout=10
-                    )
+                    # Use modular RAG client to get ALL chunks for guideline
+                    guideline_data = rag_client.get_guideline(guideline_name)
                     
-                    if response2.status_code == 200:
-                        guideline_data = response2.json()
-                        chunks_from_guideline = guideline_data.get('results', [])
+                    if guideline_data:
+                        chunks_from_guideline = guideline_data.get('chunks', guideline_data.get('results', []))
                         
                         print(f"[Dynamic] 📋 Retrieved {len(chunks_from_guideline)} chunks from {guideline_name}")
                         all_guideline_chunks.extend(chunks_from_guideline)
                     else:
-                        print(f"[Dynamic] ⚠️ Failed to get chunks for {guideline_name}: HTTP {response2.status_code}")
+                        print(f"[Dynamic] ⚠️ Failed to get chunks for {guideline_name}")
                 except Exception as e:
                     print(f"[Dynamic] ⚠️ Error fetching chunks for {guideline_name}: {e}")
             
@@ -1024,18 +1015,12 @@ Assessment:"""
         """Handle medical knowledge questions using RAG"""
         print(f"[Clinician] 📚 Handling medical knowledge: {knowledge_query}")
 
-        # Use RAG API for medical knowledge queries
+        # Use RAG client for medical knowledge queries
         try:
-            response = requests.post(
-                "http://localhost:11435/rag/search",
-                json={"query": knowledge_query, "k": 3},
-                timeout=10
-            )
-            if response.status_code == 200:
-                rag_data = response.json()
-                results = rag_data.get('results', [])
-                
-                if results:
+            rag_client = get_rag_client()
+            results = rag_client.search(query=knowledge_query, k=3)
+            
+            if results:
                     # Generate physician-like response
                     context = "\n".join([r['text'] for r in results[:3]])
 
@@ -1109,17 +1094,12 @@ IMPORTANT: Always include appropriate medical disclaimers and recommend consulti
         """Fallback response using medical knowledge when assessment fails"""
         print(f"[Clinician] 🔄 Falling back to knowledge response for: {query}")
 
-        # Use RAG API for fallback knowledge queries
+        # Use RAG client for fallback knowledge queries
         try:
-            response = requests.post(
-                "http://localhost:11435/rag/search",
-                json={"query": query, "k": 2},
-                timeout=10
-            )
-            if response.status_code == 200:
-                rag_data = response.json()
-                results = rag_data.get('results', [])
-                if results:
+            rag_client = get_rag_client()
+            results = rag_client.search(query=query, k=2)
+            
+            if results:
                     context = "\n".join([r['text'] for r in results[:2]])
 
                     response_prompt = f"""
@@ -1398,21 +1378,17 @@ def get_clinician_messages(prompt: str, session_id: str) -> list:
     # Try to use Medical RAG for enhanced responses
     if MEDICAL_RAG_AVAILABLE:
         try:
-            print("[Clinician] 📚 Using RAG API for medical knowledge query")
-            # Use RAG API for medical knowledge queries
-            response = requests.post(
-                "http://localhost:11435/rag/search",
-                json={"query": prompt, "k": 5},
-                timeout=10
-            )
-            if response.status_code == 200:
-                rag_data = response.json()
-                if rag_data.get('results'):
-                    context = "\n".join([r['text'] for r in rag_data['results'][:3]])
-                    return f"Based on medical knowledge: {context}"
+            print("[Clinician] 📚 Using RAG client for medical knowledge query")
+            # Use RAG client for medical knowledge queries
+            rag_client = get_rag_client()
+            results = rag_client.search(query=prompt, k=5)
+            
+            if results:
+                context = "\n".join([r['text'] for r in results[:3]])
+                return f"Based on medical knowledge: {context}"
             return "I can help with medical questions. Could you be more specific about what you'd like to know?"
         except Exception as e:
-            print(f"[Clinician] ⚠️ RAG API failed, using fallback: {e}")
+            print(f"[Clinician] ⚠️ RAG client failed, using fallback: {e}")
     
     # Fallback: Build basic medical assistant prompt
     print("[Clinician] ⚠️ Using fallback prompt (no RAG)")
