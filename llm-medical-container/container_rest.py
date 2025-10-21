@@ -108,6 +108,12 @@ import time
 print(f"[LLM] 🚀 Loading COMPLEX model: {MODEL_PATH}")
 print(f"[LLM] ⚙️  Config: n_ctx={N_CTX}, format={CHAT_FORMAT}")
 
+# DEBUG: Print stack trace to see where this is being called from
+import traceback
+print("[LLM] 🔍 DEBUG: Model loading called from:")
+for line in traceback.format_stack()[:-1]:
+    print(line.strip())
+
 # Check if model file exists and get file info
 if not os.path.exists(MODEL_PATH):
     print(f"[LLM] ❌ Model file not found: {MODEL_PATH}")
