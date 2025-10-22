@@ -1513,8 +1513,17 @@ Your question:"""
         # Use Jaccard similarity as secondary check
         jaccard_score = self._compute_jaccard_similarity(patient_location, guideline_location)
         
-        # If both semantic and Jaccard similarities are very low, it's likely an anatomical mismatch
-        if semantic_score < 0.15 and jaccard_score < 0.1:
+        # Check for anatomical mismatch using multiple criteria
+        # The embedding model is unreliable for anatomical opposites, so we need strict rules
+        
+        # 1. If Jaccard similarity is 0 (no word overlap), it's likely an anatomical mismatch
+        # regardless of what the unreliable semantic similarity says
+        if jaccard_score == 0.0:
+            self._capture_debug(f"[Engine]   ⛔ ANATOMICAL EXCLUSION: {condition_name} (semantic={semantic_score:.3f}, jaccard={jaccard_score:.3f}) - no word overlap indicates anatomical mismatch")
+            return True
+        
+        # 2. If both similarities are very low, it's a mismatch
+        elif semantic_score < 0.15 and jaccard_score < 0.1:
             self._capture_debug(f"[Engine]   ⛔ ANATOMICAL EXCLUSION: {condition_name} (semantic={semantic_score:.3f}, jaccard={jaccard_score:.3f})")
             return True
         
