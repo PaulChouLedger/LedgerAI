@@ -83,10 +83,10 @@ try:
     test_embedding = rag_api.encode(["test"])
     RAG_API_AVAILABLE = True
     rag_client = get_rag_client()
-    print(f"[Engine] ✅ RAG client available - using {rag_client.get_mode()}")
+    self._capture_debug(f"[Engine] ✅ RAG client available - using {rag_client.get_mode()}")
 except Exception as e:
     RAG_API_AVAILABLE = False
-    print(f"[Engine] ⚠️ RAG client not available - using brute-force matching: {e}")
+    self._capture_debug(f"[Engine] ⚠️ RAG client not available - using brute-force matching: {e}")
 
 
 class AdaptiveDiagnosticEngine:
@@ -112,7 +112,7 @@ class AdaptiveDiagnosticEngine:
         self.llm_chat_simple_fn = llm_chat_simple_fn or llm_chat_fn  # Llama-1B for templates/validation
         self.embedding_model = embedding_model
         
-        print(f"[Engine] 🧠 Using {'dual models (simple + complex)' if llm_chat_simple_fn else 'single model'}")
+        self._capture_debug(f"[Engine] 🧠 Using {'dual models (simple + complex)' if llm_chat_simple_fn else 'single model'}")
         
         # ============================================================================
         # 🔧 CONFIGURATION TOGGLES (Easy to modify)
@@ -162,13 +162,13 @@ class AdaptiveDiagnosticEngine:
     
     def _load_guidelines(self):
         """Load all JSON guideline files from subdirectories"""
-        print(f"\n{'='*80}")
-        print(f"[Engine] 📚 LOADING MEDICAL GUIDELINES")
-        print(f"{'='*80}")
-        print(f"[Engine] 📁 Source directory: {self.guidelines_dir}")
+        self._capture_debug(f"\n{'='*80}")
+        self._capture_debug(f"[Engine] 📚 LOADING MEDICAL GUIDELINES")
+        self._capture_debug(f"{'='*80}")
+        self._capture_debug(f"[Engine] 📁 Source directory: {self.guidelines_dir}")
         
         if not self.guidelines_dir.exists():
-            print(f"[Engine] ❌ Directory not found: {self.guidelines_dir}")
+            self._capture_debug(f"[Engine] ❌ Directory not found: {self.guidelines_dir}")
             return
         
         # Track by organ system
@@ -188,14 +188,14 @@ class AdaptiveDiagnosticEngine:
                         organ_systems[organ_system] = []
                     organ_systems[organ_system].append(name)
                     
-                    print(f"[Engine]   ✓ {organ_system}/{name}")
+                    self._capture_debug(f"[Engine]   ✓ {organ_system}/{name}")
             except Exception as e:
-                print(f"[Engine] ⚠️ Failed to load {json_file.name}: {e}")
+                self._capture_debug(f"[Engine] ⚠️ Failed to load {json_file.name}: {e}")
         
-        print(f"\n[Engine] ✅ LOADED {len(self.all_guidelines)} GUIDELINES:")
+        self._capture_debug(f"\n[Engine] ✅ LOADED {len(self.all_guidelines)} GUIDELINES:")
         for system, conditions in sorted(organ_systems.items()):
-            print(f"[Engine]    📋 {system}: {len(conditions)} conditions")
-        print(f"{'='*80}\n")
+            self._capture_debug(f"[Engine]    📋 {system}: {len(conditions)} conditions")
+        self._capture_debug(f"{'='*80}\n")
     
     
     # REMOVED: _is_valid_chief_complaint - hardcoded validation not needed
@@ -218,7 +218,11 @@ class AdaptiveDiagnosticEngine:
         
         # Debug: Check if captured debug output exists
         captured_output = getattr(self, '_captured_debug_output', [])
-        print(f"[Engine] 🔍 Debug capture status: {len(captured_output)} lines captured")
+        self._capture_debug(f"[Engine] 🔍 Debug capture status: {len(captured_output)} lines captured")
+        if captured_output:
+            self._capture_debug(f"[Engine] 🔍 First few debug lines: {captured_output[:3]}")
+        else:
+            self._capture_debug(f"[Engine] ⚠️ No debug output captured")
         
         debug_info = {
             'demographics': self.demographics,
@@ -303,10 +307,10 @@ class AdaptiveDiagnosticEngine:
         Returns:
             Response with first question
         """
-        print(f"\n{'='*80}")
-        print(f"[Engine] 🚀 NEW ASSESSMENT")
-        print(f"{'='*80}")
-        print(f"[Engine] Chief Complaint: '{chief_complaint}'")
+        self._capture_debug(f"\n{'='*80}")
+        self._capture_debug(f"[Engine] 🚀 NEW ASSESSMENT")
+        self._capture_debug(f"{'='*80}")
+        self._capture_debug(f"[Engine] Chief Complaint: '{chief_complaint}'")
         
         # No hardcoded validation - let the natural flow handle it
         # If complaint doesn't normalize or match, clarification will be asked
@@ -317,7 +321,7 @@ class AdaptiveDiagnosticEngine:
         
         # STEP 1: Get filler immediately (for instant user feedback)
         # Filler is now handled at container level for immediate streaming
-        print(f"[Engine] 💬 Generating opening statement (filler handled by container)...")
+        self._capture_debug(f"[Engine] 💬 Generating opening statement (filler handled by container)...")
         
         # STEP 2: Run RAG and Llama-1B in PARALLEL (major speedup!)
         import threading
@@ -333,7 +337,7 @@ class AdaptiveDiagnosticEngine:
             try:
                 # VALIDATION MODE: Compare RAG API vs brute-force (set VALIDATE_RAG=true)
                 if self.validate_rag and self.use_rag_api:
-                    print(f"[Engine] 🧪 VALIDATION MODE: Comparing RAG API vs brute-force...")
+                    self._capture_debug(f"[Engine] 🧪 VALIDATION MODE: Comparing RAG API vs brute-force...")
                     
                     import time
                     
@@ -351,27 +355,27 @@ class AdaptiveDiagnosticEngine:
                     rag_names = set([m['name'] for m in rag_matches])
                     brute_names = set([m['name'] for m in brute_matches])
                     
-                    print(f"\n[Engine] 📊 VALIDATION RESULTS:")
-                    print(f"[Engine]    RAG API: {len(rag_matches)} matches in {rag_time:.2f}s")
-                    print(f"[Engine]    Brute: {len(brute_matches)} matches in {brute_time:.2f}s")
-                    print(f"[Engine]    Speedup: {brute_time/rag_time:.1f}x faster")
+                    self._capture_debug(f"\n[Engine] 📊 VALIDATION RESULTS:")
+                    self._capture_debug(f"[Engine]    RAG API: {len(rag_matches)} matches in {rag_time:.2f}s")
+                    self._capture_debug(f"[Engine]    Brute: {len(brute_matches)} matches in {brute_time:.2f}s")
+                    self._capture_debug(f"[Engine]    Speedup: {brute_time/rag_time:.1f}x faster")
                     
                     if rag_names == brute_names:
-                        print(f"[Engine]    ✅ MATCH: Both methods returned identical results")
+                        self._capture_debug(f"[Engine]    ✅ MATCH: Both methods returned identical results")
                     else:
                         only_rag = rag_names - brute_names
                         only_brute = brute_names - rag_names
                         if only_rag:
-                            print(f"[Engine]    ⚠️ Only in RAG API: {only_rag}")
+                            self._capture_debug(f"[Engine]    ⚠️ Only in RAG API: {only_rag}")
                         if only_brute:
-                            print(f"[Engine]    ⚠️ Only in brute-force: {only_brute}")
+                            self._capture_debug(f"[Engine]    ⚠️ Only in brute-force: {only_brute}")
                     
                     # Use RAG API results
                     rag_result[0] = rag_matches
                 
                 # NORMAL MODE: Use RAG API with fallback
                 elif self.use_rag_api:
-                    print(f"[Engine] 🚀 Using RAG API mode for matching")
+                    self._capture_debug(f"[Engine] 🚀 Using RAG API mode for matching")
                     import time
                     start_time = time.time()
                     try:
@@ -380,8 +384,8 @@ class AdaptiveDiagnosticEngine:
                         if hasattr(self, 'matching_metadata'):
                             self.matching_metadata['timing'] = elapsed
                     except Exception as rag_error:
-                        print(f"[Engine] ❌ RAG API matching failed: {rag_error}")
-                        print(f"[Engine] 🔄 Falling back to brute-force matching")
+                        self._capture_debug(f"[Engine] ❌ RAG API matching failed: {rag_error}")
+                        self._capture_debug(f"[Engine] 🔄 Falling back to brute-force matching")
                         self.use_rag_api = False  # Disable RAG API for future queries
                         start_time = time.time()
                         rag_result[0] = self._match_to_guidelines_rag(chief_complaint)
@@ -389,7 +393,7 @@ class AdaptiveDiagnosticEngine:
                         if hasattr(self, 'matching_metadata'):
                             self.matching_metadata['timing'] = elapsed
                 else:
-                    print(f"[Engine] 🐢 Using brute-force mode for matching")
+                    self._capture_debug(f"[Engine] 🐢 Using brute-force mode for matching")
                     import time
                     start_time = time.time()
                     rag_result[0] = self._match_to_guidelines_rag(chief_complaint)
@@ -408,7 +412,7 @@ class AdaptiveDiagnosticEngine:
                 error_result[0] = f"LLM error: {e}"
         
         # Launch both in parallel
-        print(f"[Engine] ⚡ Starting parallel execution (RAG + Llama-1B)...")
+        self._capture_debug(f"[Engine] ⚡ Starting parallel execution (RAG + Llama-1B)...")
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
             rag_future = executor.submit(run_rag)
             llm_future = executor.submit(run_simple_llm)
@@ -418,7 +422,7 @@ class AdaptiveDiagnosticEngine:
         
         # Check for errors
         if error_result[0]:
-            print(f"[Engine] ❌ Parallel execution error: {error_result[0]}")
+            self._capture_debug(f"[Engine] ❌ Parallel execution error: {error_result[0]}")
             return {
                 'success': False,
                 'message': "I'm having trouble processing your request. Please try again."
@@ -436,31 +440,31 @@ class AdaptiveDiagnosticEngine:
         self.active_guidelines = matched[:self.MAX_ACTIVE]
         self.reserve_pool = matched[self.MAX_ACTIVE:]
         
-        print(f"\n[Engine] 📋 ACTIVE DIFFERENTIALS (Top {len(self.active_guidelines)}):")
+        self._capture_debug(f"\n[Engine] 📋 ACTIVE DIFFERENTIALS (Top {len(self.active_guidelines)}):")
         for i, g in enumerate(self.active_guidelines, 1):
             urgency_emoji = "🚨" if g['data'].get('urgency') == 'emergent' else "⚠️" if g['data'].get('urgency') == 'urgent' else "📋"
             prevalence = g['data'].get('prevalence', 'uncommon')
-            print(f"[Engine]   {i}. {g['name']} ({prevalence}, {g['score']:.0%}) {urgency_emoji}")
+            self._capture_debug(f"[Engine]   {i}. {g['name']} ({prevalence}, {g['score']:.0%}) {urgency_emoji}")
         
         if self.reserve_pool:
-            print(f"\n[Engine] 💾 RESERVE POOL ({len(self.reserve_pool)} conditions, prioritized by prevalence):")
+            self._capture_debug(f"\n[Engine] 💾 RESERVE POOL ({len(self.reserve_pool)} conditions, prioritized by prevalence):")
             for i, g in enumerate(self.reserve_pool[:5], 1):  # Show first 5
                 prevalence = g['data'].get('prevalence', 'uncommon')
                 urgency = g['data'].get('urgency', 'routine')
-                print(f"[Engine]   {i}. {g['name']} ({prevalence}, {urgency}, {g['score']:.0%})")
+                self._capture_debug(f"[Engine]   {i}. {g['name']} ({prevalence}, {urgency}, {g['score']:.0%})")
             if len(self.reserve_pool) > 5:
-                print(f"[Engine]   ... and {len(self.reserve_pool) - 5} more")
+                self._capture_debug(f"[Engine]   ... and {len(self.reserve_pool) - 5} more")
         
-        print(f"\n[Engine] 🔄 Initial pool status: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
-        print(f"{'='*80}\n")
+        self._capture_debug(f"\n[Engine] 🔄 Initial pool status: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
+        self._capture_debug(f"{'='*80}\n")
         
         # STEP 3: Use results from parallel execution
         opening_statement = opening_result[0]
         age_question = age_result[0]
         
-        print(f"[Engine] ⚡ Parallel execution complete!")
-        print(f"[Engine]    Opening: '{opening_statement}'")
-        print(f"[Engine]    Age Q: '{age_question}'")
+        self._capture_debug(f"[Engine] ⚡ Parallel execution complete!")
+        self._capture_debug(f"[Engine]    Opening: '{opening_statement}'")
+        self._capture_debug(f"[Engine]    Age Q: '{age_question}'")
         
         # Combine them with proper spacing and pause
         combined_message = f"{opening_statement} <pause> {age_question}"
@@ -502,13 +506,13 @@ class AdaptiveDiagnosticEngine:
             ])
             
             if is_complaint:
-                print(f"[Engine] 🔄 No active guidelines - treating as NEW chief complaint")
+                self._capture_debug(f"[Engine] 🔄 No active guidelines - treating as NEW chief complaint")
                 return self.start_assessment(user_answer)
         
-        print(f"\n{'='*80}")
-        print(f"[Engine] 💬 PROCESSING ANSWER")
-        print(f"{'='*80}")
-        print(f"[Engine] User: '{user_answer}'")
+        self._capture_debug(f"\n{'='*80}")
+        self._capture_debug(f"[Engine] 💬 PROCESSING ANSWER")
+        self._capture_debug(f"{'='*80}")
+        self._capture_debug(f"[Engine] User: '{user_answer}'")
         
         # Store answer
         last_q = self.conversation_history[-1] if self.conversation_history else {}
@@ -528,7 +532,7 @@ class AdaptiveDiagnosticEngine:
             
             # If unclear answer, re-ask
             if not is_yes and not is_no and len(answer_lower.split()) < 3:
-                print(f"[Engine] ⚠️ Unclear red flag answer: '{user_answer}' - re-asking")
+                self._capture_debug(f"[Engine] ⚠️ Unclear red flag answer: '{user_answer}' - re-asking")
                 # Re-ask the same red flag question
                 red_flag_text = last_q.get('red_flag_text', '')
                 question = self._red_flag_to_question(red_flag_text)
@@ -551,9 +555,9 @@ class AdaptiveDiagnosticEngine:
             if is_yes:
                 red_flag_text = last_q.get('red_flag_text', 'Warning sign')
                 self.red_flags_present.append(red_flag_text)
-                print(f"[Engine] ⚠️  RED FLAG PRESENT: {red_flag_text}")
+                self._capture_debug(f"[Engine] ⚠️  RED FLAG PRESENT: {red_flag_text}")
             else:
-                print(f"[Engine] ✓ Red flag not present")
+                self._capture_debug(f"[Engine] ✓ Red flag not present")
             
             # Move to next red flag
             self.red_flag_index += 1
@@ -564,7 +568,8 @@ class AdaptiveDiagnosticEngine:
         # Handle demographics
         if last_q.get('focus') == 'age':
             # Extract age using LLM
-            print(f"[Engine] 🔍 Extracting age from answer: '{user_answer}'")
+            self._capture_debug(f"[Engine] 🔍 Extracting age from answer: '{user_answer}'")
+            self._capture_debug(f"[Engine] 🔍 Extracting age from answer: '{user_answer}'")
             
             # Use regex to extract numbers (simple and reliable)
             import re
@@ -575,16 +580,19 @@ class AdaptiveDiagnosticEngine:
                 age_num = int(numbers[0])
                 if 1 <= age_num <= 120:  # Sanity check
                     self.demographics['age'] = age_num
-                    print(f"[Engine] 👤 Age: {age_num}")
+                    self._capture_debug(f"[Engine] 👤 Age: {age_num}")
+                    self._capture_debug(f"[Engine] 👤 Age: {age_num}")
                 else:
-                    print(f"[Engine] 👤 Age: Invalid ({age_num} out of range 1-120)")
+                    self._capture_debug(f"[Engine] 👤 Age: Invalid ({age_num} out of range 1-120)")
+                    self._capture_debug(f"[Engine] 👤 Age: Invalid ({age_num} out of range 1-120)")
             else:
-                print(f"[Engine] 👤 Age: No number found in answer")
+                self._capture_debug(f"[Engine] 👤 Age: No number found in answer")
+                self._capture_debug(f"[Engine] 👤 Age: No number found in answer")
             
             # VALIDATION: If no age found, re-ask using LLM
             if 'age' not in self.demographics:
-                print(f"[Engine] ⚠️ Invalid answer - re-asking for age")
-                print(f"{'='*80}\n")
+                self._capture_debug(f"[Engine] ⚠️ Invalid answer - re-asking for age")
+                self._capture_debug(f"{'='*80}\n")
                 
                 age_question = self._generate_clarification_question("age")
                 self.conversation_history.append({
@@ -607,7 +615,7 @@ class AdaptiveDiagnosticEngine:
                 'question': sex_question,
                 'focus': 'sex'
             })
-            print(f"{'='*80}\n")
+            self._capture_debug(f"{'='*80}\n")
             
             return {
                 'success': True,
@@ -618,7 +626,8 @@ class AdaptiveDiagnosticEngine:
         
         elif last_q.get('focus') == 'sex':
             # Extract sex - use keyword matching with fuzzy tolerance for typos
-            print(f"[Engine] 🔍 Extracting sex from answer: '{user_answer}'")
+            self._capture_debug(f"[Engine] 🔍 Extracting sex from answer: '{user_answer}'")
+            self._capture_debug(f"[Engine] 🔍 Extracting sex from answer: '{user_answer}'")
             
             answer_lower = user_answer.lower()
             # Strip punctuation and split into words
@@ -633,8 +642,10 @@ class AdaptiveDiagnosticEngine:
             # Fast exact keyword check first
             if any(word in male_words for word in words):
                 self.demographics['sex'] = 'male'
+                self._capture_debug(f"[Engine] 👤 Sex: male")
             elif any(word in female_words for word in words):
                 self.demographics['sex'] = 'female'
+                self._capture_debug(f"[Engine] 👤 Sex: female")
             else:
                 # Fuzzy match for typos (e.g., "femal", "mal", "womann")
                 def char_similarity(word, target):
@@ -653,28 +664,33 @@ class AdaptiveDiagnosticEngine:
                         for male_word in male_words:
                             if char_similarity(word, male_word) > 0.80:
                                 self.demographics['sex'] = 'male'
-                                print(f"[Engine] 🔍 Fuzzy match: '{word}' → '{male_word}' ({char_similarity(word, male_word):.2f})")
+                                self._capture_debug(f"[Engine] 🔍 Fuzzy match: '{word}' → '{male_word}' ({char_similarity(word, male_word):.2f})")
+                                self._capture_debug(f"[Engine] 🔍 Fuzzy match: '{word}' → '{male_word}' ({char_similarity(word, male_word):.2f})")
                                 break
                         
                         for female_word in female_words:
                             if char_similarity(word, female_word) > 0.80:
                                 self.demographics['sex'] = 'female'
-                                print(f"[Engine] 🔍 Fuzzy match: '{word}' → '{female_word}' ({char_similarity(word, female_word):.2f})")
+                                self._capture_debug(f"[Engine] 🔍 Fuzzy match: '{word}' → '{female_word}' ({char_similarity(word, female_word):.2f})")
+                                self._capture_debug(f"[Engine] 🔍 Fuzzy match: '{word}' → '{female_word}' ({char_similarity(word, female_word):.2f})")
                                 break
                         
                         if 'sex' in self.demographics:
                             break
             
-            print(f"[Engine] 👤 Sex: {self.demographics.get('sex', 'unknown')}")
+            sex_result = self.demographics.get('sex', 'unknown')
+            self._capture_debug(f"[Engine] 👤 Sex: {sex_result}")
+            self._capture_debug(f"[Engine] 👤 Sex: {sex_result}")
             
             # FILTER guidelines by sex NOW that we know it
             if 'sex' in self.demographics:
+                self._capture_debug(f"[Engine] 🔍 Filtering guidelines by gender: {self.demographics['sex']}")
                 self._filter_by_gender()
             
             # VALIDATION: If sex is still unknown, re-ask using LLM
             if 'sex' not in self.demographics:
-                print(f"[Engine] ⚠️ Invalid answer - re-asking for sex")
-                print(f"{'='*80}\n")
+                self._capture_debug(f"[Engine] ⚠️ Invalid answer - re-asking for sex")
+                self._capture_debug(f"{'='*80}\n")
                 
                 sex_question = self._generate_clarification_question("sex")
                 self.conversation_history.append({
@@ -690,7 +706,7 @@ class AdaptiveDiagnosticEngine:
                     'debug': self._get_debug_info()
                 }
             
-            print(f"{'='*80}\n")
+            self._capture_debug(f"{'='*80}\n")
             
             # FIRST CLINICAL QUESTION: Ask about CHRONICITY (new vs recurrent/chronic)
             # This helps differentiate new acute problems from chronic/recurrent issues
@@ -711,16 +727,18 @@ class AdaptiveDiagnosticEngine:
         
         elif last_q.get('focus') == 'chronicity':
             # Use LLM to intelligently classify chronicity
-            print(f"[Engine] 🔍 LLM analyzing chronicity from answer: '{user_answer}'")
+            self._capture_debug(f"[Engine] 🔍 LLM analyzing chronicity from answer: '{user_answer}'")
             
             chronicity = self._classify_chronicity_with_llm(user_answer)
             self.demographics['chronicity'] = chronicity
+            self._capture_debug(f"[Engine] 📋 Chronicity: {chronicity}")
             
-            print(f"[Engine] 📋 Chronicity: {chronicity}")
+            self._capture_debug(f"[Engine] 📋 Chronicity: {chronicity}")
             if chronicity == 'recurring':
-                print(f"[Engine] 💡 Consider: Follow-up vs new evaluation")
+                self._capture_debug(f"[Engine] 💡 Consider: Follow-up vs new evaluation")
+                self._capture_debug(f"[Engine] 💡 Consider: Follow-up vs new evaluation")
             
-            print(f"{'='*80}\n")
+            self._capture_debug(f"{'='*80}\n")
             
             # NOW ask ONSET first (original OLDCARTS order)
             onset_question = self._ask_next_clinical_question()
@@ -738,7 +756,7 @@ class AdaptiveDiagnosticEngine:
             
             # VALIDATE answer first
             if not self._is_acceptable_clinical_answer(user_answer):
-                print(f"[Engine] ⚠️ Answer too vague or unclear - asking for clarification")
+                self._capture_debug(f"[Engine] ⚠️ Answer too vague or unclear - asking for clarification")
                 
                 last_q = last_q_item.get('question', 'the question') if last_q_item else 'the question'
                 
@@ -790,9 +808,9 @@ class AdaptiveDiagnosticEngine:
         if not last_question:
             return True  # No question to validate against
         
-        print(f"[Engine] 🔍 Validating answer with LLM...")
-        print(f"[Engine]   Q: '{last_question}'")
-        print(f"[Engine]   A: '{answer}'")
+        self._capture_debug(f"[Engine] 🔍 Validating answer with LLM...")
+        self._capture_debug(f"[Engine]   Q: '{last_question}'")
+        self._capture_debug(f"[Engine]   A: '{answer}'")
         
         # Simple validation: reject pure filler words or fragments
         # Semantic scoring will determine if answer is specific enough
@@ -804,11 +822,11 @@ class AdaptiveDiagnosticEngine:
         answer_stripped = answer.strip().lower()
         
         if answer_stripped in pure_filler or answer_stripped in fragments:
-            print(f"[Engine] 📊 Validation: REJECT ❌ (pure filler or fragment)")
+            self._capture_debug(f"[Engine] 📊 Validation: REJECT ❌ (pure filler or fragment)")
             return False
         
         # Accept any substantive answer - semantic scoring will handle specificity
-        print(f"[Engine] 📊 Validation: ACCEPT ✅ (substantive answer)")
+        self._capture_debug(f"[Engine] 📊 Validation: ACCEPT ✅ (substantive answer)")
         return True
     
     def _filter_by_gender(self):
@@ -821,7 +839,7 @@ class AdaptiveDiagnosticEngine:
         if not patient_sex:
             return
         
-        print(f"\n[Engine] 🚺🚹 GENDER FILTERING (patient is {patient_sex})...")
+        self._capture_debug(f"\n[Engine] 🚺🚹 GENDER FILTERING (patient is {patient_sex})...")
         
         excluded_count = 0
         
@@ -832,7 +850,7 @@ class AdaptiveDiagnosticEngine:
             
             # Skip if guideline is sex-specific and doesn't match patient
             if guideline_sex != 'both' and guideline_sex != patient_sex:
-                print(f"[Engine]   ⛔ Excluding {g['name']} from active (requires {guideline_sex}, patient is {patient_sex})")
+                self._capture_debug(f"[Engine]   ⛔ Excluding {g['name']} from active (requires {guideline_sex}, patient is {patient_sex})")
                 excluded_count += 1
                 continue
             
@@ -845,7 +863,7 @@ class AdaptiveDiagnosticEngine:
             
             # Skip if guideline is sex-specific and doesn't match patient
             if guideline_sex != 'both' and guideline_sex != patient_sex:
-                print(f"[Engine]   ⛔ Excluding {g['name']} from reserve (requires {guideline_sex}, patient is {patient_sex})")
+                self._capture_debug(f"[Engine]   ⛔ Excluding {g['name']} from reserve (requires {guideline_sex}, patient is {patient_sex})")
                 excluded_count += 1
                 continue
             
@@ -859,13 +877,13 @@ class AdaptiveDiagnosticEngine:
             self.reserve_pool.sort(key=lambda x: x['score'], reverse=True)
             next_condition = self.reserve_pool.pop(0)
             self.active_guidelines.append(next_condition)
-            print(f"[Engine]   🔼 PROMOTING: {next_condition['name']} to active after filtering")
+            self._capture_debug(f"[Engine]   🔼 PROMOTING: {next_condition['name']} to active after filtering")
         
         self.active_guidelines.sort(key=lambda x: x['score'], reverse=True)
         
-        print(f"[Engine] ✅ Excluded {excluded_count} sex-specific conditions")
-        print(f"[Engine] 🔄 After filtering: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}")
-        print(f"{'='*80}\n")
+        self._capture_debug(f"[Engine] ✅ Excluded {excluded_count} sex-specific conditions")
+        self._capture_debug(f"[Engine] 🔄 After filtering: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}")
+        self._capture_debug(f"{'='*80}\n")
     
     def _match_to_guidelines_rag(self, complaint: str) -> List[Dict]:
         """
@@ -883,18 +901,18 @@ class AdaptiveDiagnosticEngine:
         
         # Apply smart normalization (LLM or synonyms) to normalize patient language
         complaint_expanded = self._smart_oldcarts_normalization(complaint_lower)
-        print(f"[Engine] 🔄 Smart normalization: '{complaint_lower}' → '{complaint_expanded}'")
+        self._capture_debug(f"[Engine] 🔄 Smart normalization: '{complaint_lower}' → '{complaint_expanded}'")
         
         # Use normalized complaint directly for both phases
         core_symptom = complaint_expanded
-        print(f"[Engine] 📋 Using normalized complaint: '{core_symptom}'")
+        self._capture_debug(f"[Engine] 📋 Using normalized complaint: '{core_symptom}'")
         
         matched = []
         matched_guideline_names = set()  # Track which guidelines already matched
         
-        print(f"\n[Engine] 🔍 MATCHING TO GUIDELINES (RAG API MODE)...")
-        print(f"[Engine] 🎯 Strategy: exact > subset > RAG semantic > char_overlap")
-        print(f"[Engine] ---")
+        self._capture_debug(f"\n[Engine] 🔍 MATCHING TO GUIDELINES (RAG API MODE)...")
+        self._capture_debug(f"[Engine] 🎯 Strategy: exact > subset > RAG semantic > char_overlap")
+        self._capture_debug(f"[Engine] ---")
         
         # PHASE 1: Fast exact/subset matching
         for name, guideline in self.all_guidelines.items():
@@ -911,7 +929,7 @@ class AdaptiveDiagnosticEngine:
                         initial_score = prevalence_scores.get(prevalence, 0.50)
                         matched.append({'name': name, 'score': initial_score, 'data': guideline})
                         matched_guideline_names.add(name)
-                        print(f"[Engine]   ✓ {name} (trigger: '{trigger}', match: exact, prevalence: {prevalence})")
+                        self._capture_debug(f"[Engine]   ✓ {name} (trigger: '{trigger}', match: exact, prevalence: {prevalence})")
                     break
                 
                 # Subset match
@@ -922,15 +940,15 @@ class AdaptiveDiagnosticEngine:
                         initial_score = prevalence_scores.get(prevalence, 0.50)
                         matched.append({'name': name, 'score': initial_score, 'data': guideline})
                         matched_guideline_names.add(name)
-                        print(f"[Engine]   ✓ {name} (trigger: '{trigger}', match: subset, prevalence: {prevalence})")
+                        self._capture_debug(f"[Engine]   ✓ {name} (trigger: '{trigger}', match: subset, prevalence: {prevalence})")
                     break
         
         # PHASE 2: Semantic search for remaining guidelines (RAG API or local embedding)
         if self.rag_api or self.embedding_model:
             if self.rag_api:
-                print(f"\n[Engine] 🚀 RAG API semantic search (GPU-accelerated)...")
+                self._capture_debug(f"\n[Engine] 🚀 RAG API semantic search (GPU-accelerated)...")
             else:
-                print(f"\n[Engine] 🧠 Local embedding semantic search (CPU)...")
+                self._capture_debug(f"\n[Engine] 🧠 Local embedding semantic search (CPU)...")
             
             try:
                 # Get all triggers for guidelines not yet matched
@@ -949,7 +967,7 @@ class AdaptiveDiagnosticEngine:
                             })
                 
                 if remaining_triggers:
-                    print(f"[Engine] 📊 Searching {len(remaining_triggers)} remaining triggers...")
+                    self._capture_debug(f"[Engine] 📊 Searching {len(remaining_triggers)} remaining triggers...")
                     
                     # Use RAG API or local embedding model
                     if self.rag_api:
@@ -987,17 +1005,17 @@ class AdaptiveDiagnosticEngine:
                             initial_score = prevalence_scores.get(prevalence, 0.50)
                             matched.append({'name': guideline_name, 'score': initial_score, 'data': guideline_data})
                             matched_guideline_names.add(guideline_name)
-                            print(f"[Engine]   ✓ {guideline_name} (trigger: '{trigger}', match: rag_semantic ({similarity:.2f}), prevalence: {prevalence})")
+                            self._capture_debug(f"[Engine]   ✓ {guideline_name} (trigger: '{trigger}', match: rag_semantic ({similarity:.2f}), prevalence: {prevalence})")
                         else:
                             # Log first few rejections for visibility
                             if i < 5:
-                                print(f"[Engine]   ✗ {guideline_name}: '{trigger}' (similarity={similarity:.2f} < 0.85)")
+                                self._capture_debug(f"[Engine]   ✗ {guideline_name}: '{trigger}' (similarity={similarity:.2f} < 0.85)")
                 
             except Exception as e:
-                print(f"[Engine] ❌ RAG API semantic search failed: {e}")
-                print(f"[Engine] 🔄 Falling back to brute-force matching")
+                self._capture_debug(f"[Engine] ❌ RAG API semantic search failed: {e}")
+                self._capture_debug(f"[Engine] 🔄 Falling back to brute-force matching")
         
-        print(f"\n[Engine] 📊 RAG API matching complete: {len(matched)} guidelines matched")
+        self._capture_debug(f"\n[Engine] 📊 RAG API matching complete: {len(matched)} guidelines matched")
         
         # Store matching metadata for debug
         self.matching_metadata = {
@@ -1045,9 +1063,9 @@ class AdaptiveDiagnosticEngine:
         
         This is the CORE intelligence of the system.
         """
-        print(f"\n{'='*80}")
-        print(f"[Engine] 🧠 LLM QUESTION GENERATION")
-        print(f"{'='*80}")
+        self._capture_debug(f"\n{'='*80}")
+        self._capture_debug(f"[Engine] 🧠 LLM QUESTION GENERATION")
+        self._capture_debug(f"{'='*80}")
         
         # Build context for LLM (MINIMAL - no guidelines, just OLDCARTS template)
         patient_info = f"{self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')} with {self.chief_complaint}"
@@ -1058,8 +1076,8 @@ class AdaptiveDiagnosticEngine:
             if item['type'] == 'question' and item.get('focus') not in ['age', 'sex']:
                 asked.append(item['question'])
         
-        print(f"[Engine] 📋 Patient: {patient_info}")
-        print(f"[Engine] 📋 Questions asked: {len(asked)}")
+        self._capture_debug(f"[Engine] 📋 Patient: {patient_info}")
+        self._capture_debug(f"[Engine] 📋 Questions asked: {len(asked)}")
         
         # LLM PROMPT: Generate next question using ONLY generic OLDCARTS template
         system_msg = "Generate question. Follow the format exactly. Output ONLY the question text, no other words."
@@ -1074,7 +1092,7 @@ class AdaptiveDiagnosticEngine:
         
         # LLM-generated OLDCARTS questions
         if next_element:
-            print(f"[Engine] 🧠 Generating question for OLDCARTS element: {next_element}")
+            self._capture_debug(f"[Engine] 🧠 Generating question for OLDCARTS element: {next_element}")
             
             # Define what each OLDCARTS element asks about
             oldcarts_descriptions = {
@@ -1119,7 +1137,7 @@ Example: "{example}"
 Generate EXACTLY ONE similar question using SIMPLE, PLAIN LANGUAGE that anyone can understand (open-ended, NOT yes/no). Do NOT combine multiple questions:"""
             
             # Filler is now handled at container level for immediate streaming
-            print(f"[Engine] 💬 Generating question (filler handled by container)...")
+            self._capture_debug(f"[Engine] 💬 Generating question (filler handled by container)...")
             
             response = self.llm_chat_fn(
                 [
@@ -1151,21 +1169,21 @@ Generate EXACTLY ONE similar question using SIMPLE, PLAIN LANGUAGE that anyone c
             
             if question_mark_count > 1 or has_sentence_before_question or has_jargon:
                 if has_jargon:
-                    print(f"[Engine] ⚠️ LLM used medical jargon - using plain language template")
+                    self._capture_debug(f"[Engine] ⚠️ LLM used medical jargon - using plain language template")
                 else:
-                    print(f"[Engine] ⚠️ LLM combined multiple questions - using template fallback")
-                print(f"[Engine]    Generated: '{question}'")
-                print(f"[Engine]    Using template: '{example}'")
+                    self._capture_debug(f"[Engine] ⚠️ LLM combined multiple questions - using template fallback")
+                self._capture_debug(f"[Engine]    Generated: '{question}'")
+                self._capture_debug(f"[Engine]    Using template: '{example}'")
                 # Use simple template fallback
                 question = example
             
             oldcarts_element = next_element
             
-            print(f"[Engine] ✅ OLDCARTS Question ({next_element}): '{question}'")
+            self._capture_debug(f"[Engine] ✅ OLDCARTS Question ({next_element}): '{question}'")
             
             # Mark as covered
             self.oldcarts_covered[oldcarts_element] = True
-            print(f"{'='*80}\n")
+            self._capture_debug(f"{'='*80}\n")
             
             # Store question
             self.conversation_history.append({
@@ -1183,15 +1201,15 @@ Generate EXACTLY ONE similar question using SIMPLE, PLAIN LANGUAGE that anyone c
             }
         
         # After OLDCARTS: Ask about associated symptoms using LLM
-        print(f"[Engine] ℹ️  OLDCARTS complete - now asking about associated symptoms to reach 95% confidence")
-        print(f"[Engine] 🧠 Generating associated symptom question...")
+        self._capture_debug(f"[Engine] ℹ️  OLDCARTS complete - now asking about associated symptoms to reach 95% confidence")
+        self._capture_debug(f"[Engine] 🧠 Generating associated symptom question...")
         
         # SAFETY: Check if we have active guidelines
         if not self.active_guidelines:
-            print(f"[Engine] ❌ No active guidelines remaining - cannot generate question")
-            print(f"[Engine] 📊 Debug: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
-            print(f"[Engine] 📋 OLDCARTS covered: {self.oldcarts_covered}")
-            print(f"[Engine] 📋 Demographics: {self.demographics}")
+            self._capture_debug(f"[Engine] ❌ No active guidelines remaining - cannot generate question")
+            self._capture_debug(f"[Engine] 📊 Debug: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
+            self._capture_debug(f"[Engine] 📋 OLDCARTS covered: {self.oldcarts_covered}")
+            self._capture_debug(f"[Engine] 📋 Demographics: {self.demographics}")
             return {
                 'success': False,
                 'message': "I couldn't match your symptoms to a specific condition. Please seek medical evaluation.",
@@ -1212,7 +1230,7 @@ Generate EXACTLY ONE similar question using SIMPLE, PLAIN LANGUAGE that anyone c
                         key_pos = parts[1].split('KEY NEGATIVES:')[0] if 'KEY NEGATIVES:' in parts[1] else parts[1]
                         key_symptoms.append(f"{g['name']}: {key_pos[:100]}")
         except Exception as e:
-            print(f"[Engine] ⚠️ Error extracting key symptoms: {e}")
+            self._capture_debug(f"[Engine] ⚠️ Error extracting key symptoms: {e}")
         
         symptoms_context = ', '.join([s.split(':')[0] for s in key_symptoms[:3]]) if key_symptoms else "common symptoms"
         
@@ -1227,7 +1245,7 @@ Example: "Have you had any fever?"
 Your question:"""
         
         # Filler is now handled at container level for immediate streaming
-        print(f"[Engine] 💬 Generating associated symptom question (filler handled by container)...")
+        self._capture_debug(f"[Engine] 💬 Generating associated symptom question (filler handled by container)...")
         
         response = self.llm_chat_fn(
             [
@@ -1247,13 +1265,13 @@ Your question:"""
         has_sentence_before_question = '. ' in question and question.index('. ') < question.rfind('?')
         
         if question_mark_count > 1 or has_sentence_before_question:
-            print(f"[Engine] ⚠️ LLM combined multiple questions - using template")
-            print(f"[Engine]    Generated: '{question}'")
+            self._capture_debug(f"[Engine] ⚠️ LLM combined multiple questions - using template")
+            self._capture_debug(f"[Engine]    Generated: '{question}'")
             # Use simple template fallback
             question = "Have you had any fever?"
         
-        print(f"[Engine] ✅ Associated symptom question: '{question}'")
-        print(f"{'='*80}\n")
+        self._capture_debug(f"[Engine] ✅ Associated symptom question: '{question}'")
+        self._capture_debug(f"{'='*80}\n")
         
         # Store question
         self.conversation_history.append({
@@ -1368,20 +1386,20 @@ Your question:"""
         emb2 = self.embedding_model.encode([text2])[0]
         
         # DEBUG: Show embedding details
-        print(f"[Engine]   🔍 Embedding 1 shape: {emb1.shape}, norm: {np.linalg.norm(emb1):.3f}")
-        print(f"[Engine]   🔍 Embedding 2 shape: {emb2.shape}, norm: {np.linalg.norm(emb2):.3f}")
+        self._capture_debug(f"[Engine]   🔍 Embedding 1 shape: {emb1.shape}, norm: {np.linalg.norm(emb1):.3f}")
+        self._capture_debug(f"[Engine]   🔍 Embedding 2 shape: {emb2.shape}, norm: {np.linalg.norm(emb2):.3f}")
         
         # Compute cosine similarity
         dot_product = np.dot(emb1, emb2)
         norm_product = np.linalg.norm(emb1) * np.linalg.norm(emb2)
         cosine_similarity = dot_product / norm_product
         
-        print(f"[Engine]   🔍 Dot product: {dot_product:.3f}")
-        print(f"[Engine]   🔍 Norm product: {norm_product:.3f}")
-        print(f"[Engine]   🔍 Cosine similarity: {cosine_similarity:.3f}")
+        self._capture_debug(f"[Engine]   🔍 Dot product: {dot_product:.3f}")
+        self._capture_debug(f"[Engine]   🔍 Norm product: {norm_product:.3f}")
+        self._capture_debug(f"[Engine]   🔍 Cosine similarity: {cosine_similarity:.3f}")
         
         # Pure semantic similarity - no directional penalties
-        print(f"[Engine]   🔍 Pure semantic similarity: {cosine_similarity:.3f}")
+        self._capture_debug(f"[Engine]   🔍 Pure semantic similarity: {cosine_similarity:.3f}")
         
         return float(cosine_similarity)
     
@@ -1410,7 +1428,7 @@ Your question:"""
         
         similarity = intersection / union if union > 0 else 0.0
         
-        print(f"[Engine]   🔍 Keyword similarity: {similarity:.3f} (intersection: {intersection}, union: {union})")
+        self._capture_debug(f"[Engine]   🔍 Keyword similarity: {similarity:.3f} (intersection: {intersection}, union: {union})")
         
         return similarity
     
@@ -1464,7 +1482,7 @@ Your question:"""
                 
                 for loc1, loc2 in quadrant_conflicts:
                     if loc1 in complaint_locations and loc2 in guideline_locations:
-                        print(f"[Engine]   🚫 ANATOMICAL CONFLICT: {loc1.upper()} vs {loc2.upper()}")
+                        self._capture_debug(f"[Engine]   🚫 ANATOMICAL CONFLICT: {loc1.upper()} vs {loc2.upper()}")
                         return True
         
         return False
@@ -1503,12 +1521,12 @@ Your question:"""
         # Rule out ONLY if clear directional conflict (opposite direction with no mention of user's side)
         if has_left_user and has_right_guideline and not has_left_guideline:
             # User says "left" but guideline only mentions "right" (never "left")
-            print(f"[Engine]   ⛔ Directional conflict: user='left', guideline has 'right' only (no 'left' mentioned)")
+            self._capture_debug(f"[Engine]   ⛔ Directional conflict: user='left', guideline has 'right' only (no 'left' mentioned)")
             return 0.0
         
         if has_right_user and has_left_guideline and not has_right_guideline:
             # User says "right" but guideline only mentions "left" (never "right")
-            print(f"[Engine]   ⛔ Directional conflict: user='right', guideline has 'left' only (no 'right' mentioned)")
+            self._capture_debug(f"[Engine]   ⛔ Directional conflict: user='right', guideline has 'left' only (no 'right' mentioned)")
             return 0.0
         
         # If guideline mentions BOTH left and right (e.g., "RUQ, may radiate to left")
@@ -1528,13 +1546,13 @@ Your question:"""
         if len(intersection) == 1 and not meaningful_matches:
             # Only 1 weak word match (e.g., just "pain", "abdomen") - penalize moderately
             similarity = similarity * 0.5  # Reduce by 50%
-            print(f"[Engine]   ⚠️  Weak single-word match (reduced by 50%)")
+            self._capture_debug(f"[Engine]   ⚠️  Weak single-word match (reduced by 50%)")
         # If match is directional (left, right, etc.), keep full score - it's meaningful!
         
-        print(f"[Engine]   🔍 Jaccard similarity: {similarity:.3f} (intersection: {len(intersection)}, union: {union})")
-        print(f"[Engine]   🔍 Words1: {sorted(words1)}")
-        print(f"[Engine]   🔍 Words2: {sorted(words2)}")
-        print(f"[Engine]   🔍 Intersection: {sorted(intersection)}")
+        self._capture_debug(f"[Engine]   🔍 Jaccard similarity: {similarity:.3f} (intersection: {len(intersection)}, union: {union})")
+        self._capture_debug(f"[Engine]   🔍 Words1: {sorted(words1)}")
+        self._capture_debug(f"[Engine]   🔍 Words2: {sorted(words2)}")
+        self._capture_debug(f"[Engine]   🔍 Intersection: {sorted(intersection)}")
         
         return similarity
     
@@ -1558,7 +1576,7 @@ Your question:"""
             try:
                 semantic_score = self._compute_similarity(complaint, guideline_location)
             except Exception as e:
-                print(f"[Engine]   ⚠️ Semantic similarity failed: {e}")
+                self._capture_debug(f"[Engine]   ⚠️ Semantic similarity failed: {e}")
                 semantic_score = 0.0
         
         # Determine final score and confidence
@@ -1647,7 +1665,7 @@ Your question:"""
                         file_synonyms = json.load(f)
                         oldcarts_synonyms.update(file_synonyms)
                 except Exception as e:
-                    print(f"[Engine] ⚠️ Failed to load OLDCARTS synonyms from {file_path}: {e}")
+                    self._capture_debug(f"[Engine] ⚠️ Failed to load OLDCARTS synonyms from {file_path}: {e}")
         
         # Flatten OLDCARTS structure into standard_term -> variations mapping
         synonyms = {}
@@ -1682,7 +1700,7 @@ Your question:"""
             pattern = r'\b' + re.escape(variation) + r'\b'
             if re.search(pattern, expanded_text, re.IGNORECASE):
                 expanded_text = re.sub(pattern, standard_term, expanded_text, flags=re.IGNORECASE)
-                print(f"[Engine] 🔄 Synonym expansion: '{variation}' → '{standard_term}'")
+                self._capture_debug(f"[Engine] 🔄 Synonym expansion: '{variation}' → '{standard_term}'")
                 break  # Only replace first match to avoid over-replacement
         
         return expanded_text
@@ -1715,21 +1733,21 @@ Your question:"""
         for file_path in synonym_files:
             if os.path.exists(file_path):
                 synonym_file = file_path
-                print(f"[Engine] ✅ Found OLDCARTS synonyms file at: {file_path}")
+                self._capture_debug(f"[Engine] ✅ Found OLDCARTS synonyms file at: {file_path}")
                 break
         
         if not synonym_file:
-            print(f"[Engine] ⚠️ OLDCARTS synonyms file not found in any expected location")
-            print(f"[Engine] 🔍 Searched paths:")
+            self._capture_debug(f"[Engine] ⚠️ OLDCARTS synonyms file not found in any expected location")
+            self._capture_debug(f"[Engine] 🔍 Searched paths:")
             for path in synonym_files:
-                print(f"[Engine]   - {path}")
+                self._capture_debug(f"[Engine]   - {path}")
             return text
         
         try:
             with open(synonym_file, 'r') as f:
                 oldcarts_synonyms = json.load(f)
         except Exception as e:
-            print(f"[Engine] ⚠️ Failed to load OLDCARTS synonyms: {e}")
+            self._capture_debug(f"[Engine] ⚠️ Failed to load OLDCARTS synonyms: {e}")
             return text
         
         normalized_text = text.lower()
@@ -1882,7 +1900,7 @@ Your question:"""
             pattern = r'\b' + re.escape(variation) + r'\b'
             if re.search(pattern, text, re.IGNORECASE):
                 text = re.sub(pattern, standard_term, text, flags=re.IGNORECASE)
-                print(f"[Engine] 🔄 OLDCARTS normalization: '{variation}' → '{standard_term}'")
+                self._capture_debug(f"[Engine] 🔄 OLDCARTS normalization: '{variation}' → '{standard_term}'")
                 break  # Only replace first match
         
         return text
@@ -1898,7 +1916,7 @@ Your question:"""
         Returns:
             Normalized medical text
         """
-        print(f"[Engine] 🧠 LLM normalizing: '{text}' (context: {context})")
+        self._capture_debug(f"[Engine] 🧠 LLM normalizing: '{text}' (context: {context})")
         
         system_msg = "You are a medical assistant. Normalize patient language into standard medical terms. Output ONLY the normalized text, nothing else."
         
@@ -1927,11 +1945,11 @@ Normalized text:"""
             )
             
             normalized = response.strip().strip('"\'')
-            print(f"[Engine] ✅ LLM normalization: '{text}' → '{normalized}'")
+            self._capture_debug(f"[Engine] ✅ LLM normalization: '{text}' → '{normalized}'")
             return normalized
             
         except Exception as e:
-            print(f"[Engine] ⚠️ LLM normalization failed: {e}")
+            self._capture_debug(f"[Engine] ⚠️ LLM normalization failed: {e}")
             return text
     
     def _smart_oldcarts_normalization(self, text: str, target_category: str = None) -> str:
@@ -1947,26 +1965,26 @@ Normalized text:"""
         """
         if self.smart_normalization:
             # Use LLM normalization
-            print(f"[Engine] 🧠 Using LLM normalization")
+            self._capture_debug(f"[Engine] 🧠 Using LLM normalization")
             return self._llm_normalize_medical_text(text, target_category or "general")
         else:
             # Use synonym normalization
-            print(f"[Engine] 📚 Using synonym normalization")
+            self._capture_debug(f"[Engine] 📚 Using synonym normalization")
             return self._apply_oldcarts_normalization(text, target_category)
     
     def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str) -> float:
         """Hybrid similarity (Jaccard + Semantic) for location matching with smart normalization"""
         # Apply smart normalization (LLM or synonyms) focusing on location
         user_answer_expanded = self._smart_oldcarts_normalization(user_answer.lower(), target_category="location")
-        print(f"[Engine] 🔄 Smart location normalization: '{user_answer}' → '{user_answer_expanded}'")
+        self._capture_debug(f"[Engine] 🔄 Smart location normalization: '{user_answer}' → '{user_answer_expanded}'")
         
         # Use hybrid similarity (Jaccard + Semantic) with emphasis on Jaccard
         hybrid_result = self._compute_hybrid_similarity(user_answer_expanded, oldcarts_section)
         
         # DEBUG: Show hybrid similarity calculation
-        print(f"[Engine]   🎯 Hybrid similarity: Jaccard={hybrid_result['jaccard_score']:.3f}, Semantic={hybrid_result['semantic_score']:.3f}")
-        print(f"[Engine]   📊 Final score: {hybrid_result['final_score']:.3f} (method: {hybrid_result['method_used']}, confidence: {hybrid_result['confidence']})")
-        print(f"[Engine]   📝 '{user_answer_expanded}' vs '{oldcarts_section[:80]}...'")
+        self._capture_debug(f"[Engine]   🎯 Hybrid similarity: Jaccard={hybrid_result['jaccard_score']:.3f}, Semantic={hybrid_result['semantic_score']:.3f}")
+        self._capture_debug(f"[Engine]   📊 Final score: {hybrid_result['final_score']:.3f} (method: {hybrid_result['method_used']}, confidence: {hybrid_result['confidence']})")
+        self._capture_debug(f"[Engine]   📝 '{user_answer_expanded}' vs '{oldcarts_section[:80]}...'")
         
         return hybrid_result['final_score']
     
@@ -1978,9 +1996,9 @@ Normalized text:"""
         
         This is the CORE diagnostic reasoning - using vector similarity instead of LLM.
         """
-        print(f"\n{'='*80}")
-        print(f"[Engine] 🔢 LLM SCORING PHASE")
-        print(f"{'='*80}")
+        self._capture_debug(f"\n{'='*80}")
+        self._capture_debug(f"[Engine] 🔢 LLM SCORING PHASE")
+        self._capture_debug(f"{'='*80}")
         
         # Get the last question
         last_q = None
@@ -2001,9 +2019,9 @@ Normalized text:"""
         
         history_text = "\n\n".join(qa_pairs) if qa_pairs else "None"
         
-        print(f"[Engine] 📋 Last Question: '{last_q}'")
-        print(f"[Engine] 📋 Answer: '{answer}'")
-        print(f"[Engine] 📋 History: {len(qa_pairs)} Q&A pairs")
+        self._capture_debug(f"[Engine] 📋 Last Question: '{last_q}'")
+        self._capture_debug(f"[Engine] 📋 Answer: '{answer}'")
+        self._capture_debug(f"[Engine] 📋 History: {len(qa_pairs)} Q&A pairs")
         
         # Determine which OLDCARTS element was just asked
         last_question_item = None
@@ -2016,8 +2034,8 @@ Normalized text:"""
         
         # ASSOCIATED SYMPTOMS: Score using KEY POSITIVES/NEGATIVES sections
         if not oldcarts_element:
-            print(f"\n[Engine] 🎯 ASSOCIATED SYMPTOM SCORING:\n")
-            print(f"[Engine] 📋 Matching '{answer}' to KEY POSITIVES/NEGATIVES sections\n")
+            self._capture_debug(f"\n[Engine] 🎯 ASSOCIATED SYMPTOM SCORING:\n")
+            self._capture_debug(f"[Engine] 📋 Matching '{answer}' to KEY POSITIVES/NEGATIVES sections\n")
             
             # Combine active + reserve for scoring
             all_guidelines = self.active_guidelines + self.reserve_pool
@@ -2048,7 +2066,7 @@ Normalized text:"""
                     try:
                         similarity = self._compute_similarity(answer, combined_key_features)
                     except Exception as sim_error:
-                        print(f"[Engine] ❌ Associated symptoms similarity computation failed for {g['name']}: {sim_error}")
+                        self._capture_debug(f"[Engine] ❌ Associated symptoms similarity computation failed for {g['name']}: {sim_error}")
                         import traceback
                         traceback.print_exc()
                         # Skip this guideline and continue with the next one
@@ -2060,31 +2078,31 @@ Normalized text:"""
                     g['score'] = new_score
                     
                     change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
-                    print(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (similarity: {similarity:.2f})")
+                    self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (similarity: {similarity:.2f})")
             
             # Re-rank after associated symptom scoring
             all_guidelines.sort(key=lambda x: x['score'], reverse=True)
             self.active_guidelines = all_guidelines[:self.MAX_ACTIVE]
             self.reserve_pool = all_guidelines[self.MAX_ACTIVE:]
             
-            print(f"\n[Engine] 📊 UPDATED RANKINGS after associated symptom:")
+            self._capture_debug(f"\n[Engine] 📊 UPDATED RANKINGS after associated symptom:")
             for i, g in enumerate(self.active_guidelines, 1):
-                print(f"[Engine]   {i}. {g['name']}: {g['score']:.0%}")
+                self._capture_debug(f"[Engine]   {i}. {g['name']}: {g['score']:.0%}")
             
-            print(f"\n")
+            self._capture_debug(f"\n")
             
             # Continue to next question
             return self._ask_next_clinical_question()
         
         # FOR EACH GUIDELINE: Score using VECTOR SIMILARITY
         # IMPORTANT: Score ALL guidelines (active + reserve) so we can re-rank dynamically
-        print(f"\n[Engine] 🎯 SEMANTIC SIMILARITY SCORING:\n")
+        self._capture_debug(f"\n[Engine] 🎯 SEMANTIC SIMILARITY SCORING:\n")
         
         if not self.embedding_model:
             raise RuntimeError("Embedding model not initialized - cannot compute similarity")
         
-        print(f"[Engine] 📊 Matching answer to OLDCARTS element: {oldcarts_element}")
-        print(f"[Engine] 📋 Scoring ALL {len(self.active_guidelines) + len(self.reserve_pool)} guidelines (active + reserve)")
+        self._capture_debug(f"[Engine] 📊 Matching answer to OLDCARTS element: {oldcarts_element}")
+        self._capture_debug(f"[Engine] 📋 Scoring ALL {len(self.active_guidelines) + len(self.reserve_pool)} guidelines (active + reserve)")
         self._capture_debug(f"[Engine] 🧠 LLM NORMALIZATION: '{answer}' → Semantic understanding via vector similarity")
         self._capture_debug(f"[Engine] 📝 Patient language: '{answer}'")
         self._capture_debug(f"[Engine] 🔍 LLM will normalize to medical terms through semantic similarity\n")
@@ -2099,7 +2117,7 @@ Normalized text:"""
             oldcarts_section = self._extract_oldcarts_section(classic, oldcarts_element)
             
             if not oldcarts_section:
-                print(f"[Engine] ⚠️ Warning: Could not extract {oldcarts_element} section from {g['name']} - skipping this guideline")
+                self._capture_debug(f"[Engine] ⚠️ Warning: Could not extract {oldcarts_element} section from {g['name']} - skipping this guideline")
                 continue  # Skip this guideline instead of crashing
             
             # KEYWORD FILTER: For location questions, skip opposite-sided conditions
@@ -2112,9 +2130,9 @@ Normalized text:"""
                 # This will handle "left lower belly pain towards my pelvis" vs "LEFT LOWER QUADRANT (LLQ)"
                 try:
                     similarity = self._compute_enhanced_location_similarity(answer, oldcarts_section)
-                    print(f"[Engine]   {g['name']}: Enhanced location similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
+                    self._capture_debug(f"[Engine]   {g['name']}: Enhanced location similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
                 except Exception as sim_error:
-                    print(f"[Engine] ❌ Enhanced similarity computation failed for {g['name']}: {sim_error}")
+                    self._capture_debug(f"[Engine] ❌ Enhanced similarity computation failed for {g['name']}: {sim_error}")
                     import traceback
                     traceback.print_exc()
                     # Skip this guideline and continue with the next one
@@ -2124,7 +2142,7 @@ Normalized text:"""
                 try:
                     similarity = self._compute_similarity(answer, oldcarts_section)
                 except Exception as sim_error:
-                    print(f"[Engine] ❌ Similarity computation failed for {g['name']}: {sim_error}")
+                    self._capture_debug(f"[Engine] ❌ Similarity computation failed for {g['name']}: {sim_error}")
                     import traceback
                     traceback.print_exc()
                     # Skip this guideline and continue with the next one
@@ -2143,7 +2161,7 @@ Normalized text:"""
                 new_score = old_score * (1 - element_weight)
                 g['score'] = new_score
                 change = "❌"
-                print(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (keyword mismatch, weight={element_weight:.1f})")
+                self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (keyword mismatch, weight={element_weight:.1f})")
             else:
                 # Normal weighted average using element-specific weight
                 # Location (weight=1.0): new_score = similarity (replaces old score)
@@ -2182,14 +2200,14 @@ Normalized text:"""
         demoted_this_round = [g for g in self.reserve_pool if g in [item for item in all_guidelines[:self.MAX_ACTIVE]]]
         
         if promoted_this_round:
-            print(f"\n[Engine] 🔼 PROMOTED to active:")
+            self._capture_debug(f"\n[Engine] 🔼 PROMOTED to active:")
             for g in promoted_this_round:
-                print(f"[Engine]   ↑ {g['name']} (score: {g['score']:.0%})")
+                self._capture_debug(f"[Engine]   ↑ {g['name']} (score: {g['score']:.0%})")
         
         if demoted_this_round:
-            print(f"\n[Engine] 🔽 DEMOTED to reserve:")
+            self._capture_debug(f"\n[Engine] 🔽 DEMOTED to reserve:")
             for g in demoted_this_round:
-                print(f"[Engine]   ↓ {g['name']} (score: {g['score']:.0%})")
+                self._capture_debug(f"[Engine]   ↓ {g['name']} (score: {g['score']:.0%})")
         
         self._capture_debug(f"\n[Engine] 📊 UPDATED RANKINGS:")
         for i, g in enumerate(self.active_guidelines, 1):
@@ -2199,20 +2217,20 @@ Normalized text:"""
         # Always show pool statistics
         self._capture_debug(f"\n[Engine] 🔄 Pool status: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
         
-        print(f"{'='*80}\n")
+        self._capture_debug(f"{'='*80}\n")
         
         # Mark the OLDCARTS element as covered after processing the answer
         if oldcarts_element:
-            print(f"[Engine] ✅ Marking OLDCARTS element '{oldcarts_element}' as covered")
+            self._capture_debug(f"[Engine] ✅ Marking OLDCARTS element '{oldcarts_element}' as covered")
             self.oldcarts_covered[oldcarts_element] = True
         
         # SAFETY CHECK: Ensure we have active guidelines
         if len(self.active_guidelines) == 0 and len(self.reserve_pool) == 0:
-            print(f"[Engine] ❌ All guidelines exhausted - no diagnosis possible")
-            print(f"[Engine] 📋 Ruled out {len(self.ruled_out)} conditions")
-            print(f"[Engine] 📊 Debug: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
-            print(f"[Engine] 📋 OLDCARTS covered: {self.oldcarts_covered}")
-            print(f"[Engine] 📋 Demographics: {self.demographics}")
+            self._capture_debug(f"[Engine] ❌ All guidelines exhausted - no diagnosis possible")
+            self._capture_debug(f"[Engine] 📋 Ruled out {len(self.ruled_out)} conditions")
+            self._capture_debug(f"[Engine] 📊 Debug: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
+            self._capture_debug(f"[Engine] 📋 OLDCARTS covered: {self.oldcarts_covered}")
+            self._capture_debug(f"[Engine] 📋 Demographics: {self.demographics}")
             return {
                 'success': False,
                 'message': "I couldn't match your symptoms to a specific condition. Please seek medical evaluation.",
@@ -2221,7 +2239,7 @@ Normalized text:"""
         
         # If active is empty but reserve exists, this shouldn't happen (rolling replacement should have filled it)
         if len(self.active_guidelines) == 0:
-            print(f"[Engine] ⚠️ Active list empty but reserve has {len(self.reserve_pool)} - this is a bug")
+            self._capture_debug(f"[Engine] ⚠️ Active list empty but reserve has {len(self.reserve_pool)} - this is a bug")
             return {
                 'success': False,
                 'message': "I encountered an error. Please seek medical attention."
@@ -2238,7 +2256,7 @@ Normalized text:"""
         
         # Show OLDCARTS coverage status
         coverage_str = ''.join([k if v else '_' for k, v in self.oldcarts_covered.items()])
-        print(f"[Engine] 📋 OLDCARTS Coverage: {coverage_str} ({covered_count}/8)")
+        self._capture_debug(f"[Engine] 📋 OLDCARTS Coverage: {coverage_str} ({covered_count}/8)")
         
         # CHECK IF CLARIFICATION NEEDED (before moving to next OLDCARTS element)
         # But LIMIT clarifications to avoid infinite loops
@@ -2269,11 +2287,11 @@ Normalized text:"""
             
             if (score_spread < 0.05 or top_score < 0.20):
                 if clarification_count < MAX_CLARIFICATIONS_PER_ELEMENT:
-                    print(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
-                    print(f"[Engine]   Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
-                    print(f"[Engine]   Reason: {'Scores too close' if score_spread < 0.05 else 'All scores too low'}")
-                    print(f"[Engine]   Clarifications asked so far: {clarification_count}/{MAX_CLARIFICATIONS_PER_ELEMENT}")
-                    print(f"[Engine]   Strategy: {'Open-ended' if clarification_count == 0 else 'Targeted (differential-based)'}")
+                    self._capture_debug(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
+                    self._capture_debug(f"[Engine]   Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
+                    self._capture_debug(f"[Engine]   Reason: {'Scores too close' if score_spread < 0.05 else 'All scores too low'}")
+                    self._capture_debug(f"[Engine]   Clarifications asked so far: {clarification_count}/{MAX_CLARIFICATIONS_PER_ELEMENT}")
+                    self._capture_debug(f"[Engine]   Strategy: {'Open-ended' if clarification_count == 0 else 'Targeted (differential-based)'}")
                     
                     # Generate progressively targeted clarifying question
                     clarifying_q = self._generate_clarifying_question(oldcarts_element, answer, clarification_count)
@@ -2295,9 +2313,9 @@ Normalized text:"""
                             'needs_clarification': True
                         }
                 else:
-                    print(f"\n[Engine] ⚠️  Scores still close (top: {top_score:.0%}, spread: {score_spread:.0%})")
-                    print(f"[Engine]   Already asked {clarification_count} clarifications for '{oldcarts_element}'")
-                    print(f"[Engine]   📋 Can't differentiate further on this element - moving to next OLDCARTS")
+                    self._capture_debug(f"\n[Engine] ⚠️  Scores still close (top: {top_score:.0%}, spread: {score_spread:.0%})")
+                    self._capture_debug(f"[Engine]   Already asked {clarification_count} clarifications for '{oldcarts_element}'")
+                    self._capture_debug(f"[Engine]   📋 Can't differentiate further on this element - moving to next OLDCARTS")
                     # Will fall through and continue to next OLDCARTS element
             else:
                 self._capture_debug(f"[Engine] ✅ LLM NORMALIZATION SUCCESS: Accepting '{answer}' without clarification")
@@ -2306,18 +2324,18 @@ Normalized text:"""
         
         # Diagnosis criteria: ALL OLDCARTS covered + high confidence, OR max 15 questions
         if oldcarts_complete and top['score'] >= 0.95:
-            print(f"[Engine] ✅ DIAGNOSIS REACHED: {top['name']} ({top['score']:.0%} confidence, OLDCARTS complete)")
-            print(f"[Engine] 🚩 Starting RED FLAG screening...")
+            self._capture_debug(f"[Engine] ✅ DIAGNOSIS REACHED: {top['name']} ({top['score']:.0%} confidence, OLDCARTS complete)")
+            self._capture_debug(f"[Engine] 🚩 Starting RED FLAG screening...")
             return self._screen_red_flags(top)
         elif num_questions >= 15:
-            print(f"[Engine] ⚠️  DIAGNOSIS BY QUESTIONS LIMIT: {top['name']} ({top['score']:.0%}, OLDCARTS: {coverage_str})")
-            print(f"[Engine] 🚩 Starting RED FLAG screening...")
+            self._capture_debug(f"[Engine] ⚠️  DIAGNOSIS BY QUESTIONS LIMIT: {top['name']} ({top['score']:.0%}, OLDCARTS: {coverage_str})")
+            self._capture_debug(f"[Engine] 🚩 Starting RED FLAG screening...")
             return self._screen_red_flags(top)
         else:
             if not oldcarts_complete:
-                print(f"[Engine] 🔄 Continuing (OLDCARTS incomplete: missing {', '.join(uncovered)}, Q{num_questions}, score: {top['score']:.0%})")
+                self._capture_debug(f"[Engine] 🔄 Continuing (OLDCARTS incomplete: missing {', '.join(uncovered)}, Q{num_questions}, score: {top['score']:.0%})")
             else:
-                print(f"[Engine] 🔄 Continuing (OLDCARTS complete, need 95% confidence: current {top['score']:.0%}, Q{num_questions})")
+                self._capture_debug(f"[Engine] 🔄 Continuing (OLDCARTS complete, need 95% confidence: current {top['score']:.0%}, Q{num_questions})")
             # Ask next question
             return self._ask_next_clinical_question()
     
@@ -2330,7 +2348,7 @@ Normalized text:"""
         
         # If no red flags, skip screening
         if not red_flags:
-            print(f"[Engine] ℹ️  No red flags to screen - proceeding to finalize")
+            self._capture_debug(f"[Engine] ℹ️  No red flags to screen - proceeding to finalize")
             return self._finalize_diagnosis(diagnosis_obj)
         
         # If just starting screening, set status and reset index
@@ -2338,11 +2356,11 @@ Normalized text:"""
             self.status = 'red_flag_screening'
             self.red_flag_index = 0
             self.red_flags_present = []
-            print(f"[Engine] 🚩 Screening {len(red_flags)} red flags for {diagnosis_obj['name']}")
+            self._capture_debug(f"[Engine] 🚩 Screening {len(red_flags)} red flags for {diagnosis_obj['name']}")
         
         # If we've asked about all red flags, finalize
         if self.red_flag_index >= len(red_flags):
-            print(f"[Engine] ✅ Red flag screening complete ({len(self.red_flags_present)} flags present)")
+            self._capture_debug(f"[Engine] ✅ Red flag screening complete ({len(self.red_flags_present)} flags present)")
             return self._finalize_diagnosis(diagnosis_obj)
         
         # Ask about next red flag
@@ -2352,7 +2370,7 @@ Normalized text:"""
         # Extract the core symptom from the red flag text
         question = self._red_flag_to_question(current_red_flag)
         
-        print(f"[Engine] 🚩 Red flag {self.red_flag_index + 1}/{len(red_flags)}: {current_red_flag}")
+        self._capture_debug(f"[Engine] 🚩 Red flag {self.red_flag_index + 1}/{len(red_flags)}: {current_red_flag}")
         
         self.conversation_history.append({
             'type': 'question',
@@ -2400,7 +2418,7 @@ Normalized text:"""
             # Generic
             question = f"Have you experienced {red_flag.split('-')[0].strip().lower()}?"
         
-        print(f"[Engine] ✅ Red flag question: '{question}'")
+        self._capture_debug(f"[Engine] ✅ Red flag question: '{question}'")
         return question
     
     def _finalize_diagnosis(self, diagnosis_obj: Dict) -> Dict[str, Any]:
@@ -2420,7 +2438,7 @@ Normalized text:"""
                 urgency = 'urgent'
             elif urgency == 'urgent':
                 urgency = 'emergent'
-            print(f"[Engine] ⚠️  RED FLAGS DETECTED - Urgency escalated to: {urgency}")
+            self._capture_debug(f"[Engine] ⚠️  RED FLAGS DETECTED - Urgency escalated to: {urgency}")
         
         urgency_messages = {
             'emergent': '🚨 This is a medical emergency. Call 911 or go to the ER immediately.',
@@ -2446,17 +2464,17 @@ Normalized text:"""
             for rf in all_red_flags[:3]:  # Show top 3 red flags
                 message += f"• {rf}\n"
         
-        print(f"\n{'='*80}")
-        print(f"[Engine] 🎯 FINAL DIAGNOSIS")
-        print(f"{'='*80}")
-        print(f"[Engine] Condition: {name}")
-        print(f"[Engine] Confidence: {score:.0%}")
-        print(f"[Engine] Urgency: {urgency}")
+        self._capture_debug(f"\n{'='*80}")
+        self._capture_debug(f"[Engine] 🎯 FINAL DIAGNOSIS")
+        self._capture_debug(f"{'='*80}")
+        self._capture_debug(f"[Engine] Condition: {name}")
+        self._capture_debug(f"[Engine] Confidence: {score:.0%}")
+        self._capture_debug(f"[Engine] Urgency: {urgency}")
         if len(self.red_flags_present) > 0:
-            print(f"[Engine] 🚨 Red Flags Detected: {len(self.red_flags_present)}")
+            self._capture_debug(f"[Engine] 🚨 Red Flags Detected: {len(self.red_flags_present)}")
             for rf in self.red_flags_present:
-                print(f"[Engine]   - {rf}")
-        print(f"{'='*80}\n")
+                self._capture_debug(f"[Engine]   - {rf}")
+        self._capture_debug(f"{'='*80}\n")
         
         return {
             'success': True,
@@ -2473,7 +2491,7 @@ Normalized text:"""
         """
         LLM-generated empathetic opening statement
         """
-        print(f"[Engine] 🧠 Generating opening statement...")
+        self._capture_debug(f"[Engine] 🧠 Generating opening statement...")
         
         system_msg = "Output ONLY the exact statement requested. No extra words."
         
@@ -2509,18 +2527,18 @@ Your statement:"""
         # Allow more natural variation in opening statements
         word_count = len(statement.split())
         if word_count > 50:  # Only reject if extremely long
-            print(f"[Engine] ⚠️ Opening too long ({word_count} words) - using simple template")
-            print(f"[Engine]    Generated: '{statement}'")
+            self._capture_debug(f"[Engine] ⚠️ Opening too long ({word_count} words) - using simple template")
+            self._capture_debug(f"[Engine]    Generated: '{statement}'")
             statement = "I understand. I'll ask some questions to help."
         
-        print(f"[Engine] ✅ Opening (simple model): '{statement}'")
+        self._capture_debug(f"[Engine] ✅ Opening (simple model): '{statement}'")
         return statement
     
     def _generate_chronicity_question(self) -> str:
         """
         LLM-generated chronicity question to differentiate new vs chronic problems
         """
-        print(f"[Engine] 🧠 Generating chronicity question...")
+        self._capture_debug(f"[Engine] 🧠 Generating chronicity question...")
         
         system_msg = "You are a medical assistant. Output ONLY the question requested, nothing else. Do NOT ask questions requiring visual inspection (no 'point to', 'show me', 'look at', 'appearance', 'color', 'swelling')."
         
@@ -2545,14 +2563,14 @@ Your question:"""
         question = response.strip().strip('"\'')
         if not question.endswith('?'):
             question += '?'
-        print(f"[Engine] ✅ Chronicity question (simple model): '{question}'")
+        self._capture_debug(f"[Engine] ✅ Chronicity question (simple model): '{question}'")
         return question
     
     def _classify_chronicity_with_llm(self, answer: str) -> str:
         """
         Use LLM to intelligently classify if this is a new or recurring problem
         """
-        print(f"[Engine] 🧠 LLM classifying chronicity...")
+        self._capture_debug(f"[Engine] 🧠 LLM classifying chronicity...")
         
         system_msg = "You are a medical assistant. Classify if this is a NEW problem or RECURRING/CHRONIC problem. Respond with only: 'new', 'recurring', or 'unclear'"
         
@@ -2584,17 +2602,17 @@ Classification:"""
         
         # Validate response
         if classification in ['new', 'recurring', 'unclear']:
-            print(f"[Engine] ✅ LLM chronicity classification: '{classification}'")
+            self._capture_debug(f"[Engine] ✅ LLM chronicity classification: '{classification}'")
             return classification
         else:
-            print(f"[Engine] ⚠️ Invalid LLM response '{classification}', defaulting to 'unclear'")
+            self._capture_debug(f"[Engine] ⚠️ Invalid LLM response '{classification}', defaulting to 'unclear'")
             return 'unclear'
     
     def _generate_age_question(self) -> str:
         """
         LLM-generated age question
         """
-        print(f"[Engine] 🧠 Generating age question...")
+        self._capture_debug(f"[Engine] 🧠 Generating age question...")
         
         system_msg = "You are a medical assistant. Output ONLY the question requested, nothing else."
         
@@ -2619,14 +2637,14 @@ Your question:"""
         question = response.strip().strip('"\'')
         if not question.endswith('?'):
             question += '?'
-        print(f"[Engine] ✅ Age question (simple model): '{question}'")
+        self._capture_debug(f"[Engine] ✅ Age question (simple model): '{question}'")
         return question
     
     def _generate_sex_question(self) -> str:
         """
         LLM-generated biological sex question
         """
-        print(f"[Engine] 🧠 Generating sex question...")
+        self._capture_debug(f"[Engine] 🧠 Generating sex question...")
         
         system_msg = "You are a medical assistant. Output ONLY the question requested, nothing else."
         
@@ -2651,7 +2669,7 @@ Your question:"""
         question = response.strip().strip('"\'')
         if not question.endswith('?'):
             question += '?'
-        print(f"[Engine] ✅ Sex question (simple model): '{question}'")
+        self._capture_debug(f"[Engine] ✅ Sex question (simple model): '{question}'")
         return question
     
     def _generate_clarifying_question(self, oldcarts_element: str, vague_answer: str, clarification_count: int = 0) -> str:
@@ -2670,7 +2688,7 @@ Your question:"""
         Returns:
             Progressively more targeted question for the same OLDCARTS element
         """
-        print(f"[Engine] 🧠 Generating clarifying question #{clarification_count + 1} for OLDCARTS '{oldcarts_element}'...")
+        self._capture_debug(f"[Engine] 🧠 Generating clarifying question #{clarification_count + 1} for OLDCARTS '{oldcarts_element}'...")
         
         # First clarification: Use LLM to generate intelligent open-ended question
         if clarification_count == 0:
@@ -2687,7 +2705,7 @@ Your question:"""
                 # For onset, ask about associated context instead
                 question = "Did anything trigger it? Like eating, physical activity, or did it just happen out of nowhere?"
         
-        print(f"[Engine] ✅ Clarifying question #{clarification_count + 1}: '{question}'")
+        self._capture_debug(f"[Engine] ✅ Clarifying question #{clarification_count + 1}: '{question}'")
         return question
     
     def _llm_generate_clarification_question(self, oldcarts_element: str, vague_answer: str) -> str:
@@ -2695,7 +2713,7 @@ Your question:"""
         Use LLM to generate intelligent clarification questions
         Analyzes the vague answer and generates a targeted follow-up
         """
-        print(f"[Engine] 🧠 LLM generating clarification for '{oldcarts_element}': '{vague_answer}'")
+        self._capture_debug(f"[Engine] 🧠 LLM generating clarification for '{oldcarts_element}': '{vague_answer}'")
         
         # OLDCARTS element descriptions
         element_descriptions = {
@@ -2736,11 +2754,11 @@ Question:"""
             if not question.endswith('?'):
                 question += '?'
             
-            print(f"[Engine] ✅ LLM clarification question: '{question}'")
+            self._capture_debug(f"[Engine] ✅ LLM clarification question: '{question}'")
             return question
             
         except Exception as e:
-            print(f"[Engine] ⚠️ LLM clarification question failed: {e}")
+            self._capture_debug(f"[Engine] ⚠️ LLM clarification question failed: {e}")
             # Fallback to simple template
             return f"Can you tell me more about '{vague_answer}'?"
     
@@ -2758,9 +2776,9 @@ Question:"""
         # Extract key distinguishing features from guidelines
         condition_names = [g['name'] for g in top_conditions]
         
-        print(f"[Engine] 🎯 Generating targeted question to differentiate between:")
+        self._capture_debug(f"[Engine] 🎯 Generating targeted question to differentiate between:")
         for g in top_conditions:
-            print(f"[Engine]   - {g['name']} ({g['score']:.0%})")
+            self._capture_debug(f"[Engine]   - {g['name']} ({g['score']:.0%})")
         
         # Use LLM to generate targeted question based on differentials
         return self._llm_generate_differential_question(oldcarts_element, top_conditions)
@@ -2770,7 +2788,7 @@ Question:"""
         Use LLM to generate targeted question that discriminates between top differentials
         Generic approach that works for any medical condition
         """
-        print(f"[Engine] 🧠 LLM generating differential question for {oldcarts_element}")
+        self._capture_debug(f"[Engine] 🧠 LLM generating differential question for {oldcarts_element}")
         
         # Build context with top conditions
         condition_info = []
@@ -2816,11 +2834,11 @@ Question:"""
             if not question.endswith('?'):
                 question += '?'
             
-            print(f"[Engine] ✅ LLM differential question: '{question}'")
+            self._capture_debug(f"[Engine] ✅ LLM differential question: '{question}'")
             return question
             
         except Exception as e:
-            print(f"[Engine] ⚠️ LLM differential question failed: {e}")
+            self._capture_debug(f"[Engine] ⚠️ LLM differential question failed: {e}")
             return "Could you provide more details?"
     
     
@@ -2828,7 +2846,7 @@ Question:"""
         """
         LLM-generated clarification question for invalid answers
         """
-        print(f"[Engine] 🧠 Generating clarification for: {topic}")
+        self._capture_debug(f"[Engine] 🧠 Generating clarification for: {topic}")
         
         examples = {
             "age": "I didn't catch that. How old are you?",
@@ -2859,7 +2877,7 @@ Your question:"""
         question = response.strip().strip('"\'')
         if not question.endswith('?'):
             question += '?'
-        print(f"[Engine] ✅ Clarification (simple model): '{question}'")
+        self._capture_debug(f"[Engine] ✅ Clarification (simple model): '{question}'")
         return question
 
 

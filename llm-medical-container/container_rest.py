@@ -226,6 +226,13 @@ def chat_tg():
             print(f"[Container] 🔍 Telegram request: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}'")
             response = handle_clinician_response(prompt, session_id, llm_chat, llm_chat_simple)
             print(f"[Container] ✅ Telegram response processed")
+            print(f"[Container] 🔍 Response type: {type(response)}")
+            if isinstance(response, dict):
+                print(f"[Container] 🔍 Response keys: {list(response.keys())}")
+                if 'debug' in response:
+                    print(f"[Container] 🔍 Debug info present: {response['debug'] is not None}")
+                else:
+                    print(f"[Container] ⚠️ No debug key in response")
             
             # Check if response includes question (dict) or is simple text (str)
             if isinstance(response, dict):
@@ -236,6 +243,12 @@ def chat_tg():
                     print(f"[Container] 🔍 Debug info keys: {list(debug_info.keys())}")
                     if 'engine_debug_output' in debug_info:
                         print(f"[Container] 🔍 Engine debug output: {len(debug_info['engine_debug_output'])} lines")
+                        if debug_info['engine_debug_output']:
+                            print(f"[Container] 🔍 First few debug lines: {debug_info['engine_debug_output'][:3]}")
+                        else:
+                            print(f"[Container] ⚠️ Engine debug output is empty")
+                    else:
+                        print(f"[Container] ⚠️ No engine_debug_output key in debug info")
                 
                 telegram_response = {
                     "response": response.get('question', response.get('message', '')),
