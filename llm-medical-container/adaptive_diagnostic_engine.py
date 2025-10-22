@@ -1927,17 +1927,22 @@ Your question:"""
         
         system_msg = "You are a medical assistant. Normalize patient language into standard medical terms. Output ONLY the normalized text, nothing else."
         
-        user_msg = f"""Normalize this patient response into standard medical terminology:
+        user_msg = f"""Normalize this patient response into standard medical terminology for the {context} component ONLY:
 
 Patient: "{text}"
-Context: {context}
+OLDCARTS Component: {context}
 
-Examples:
-- "left side" → "left side of abdomen" 
+Examples for {context}:
+- "left side" → "left side" 
+- "right side" → "right side"
+- "upper right" → "right upper quadrant"
+- "lower left" → "left lower quadrant"
+- "middle" → "midline"
 - "hurts bad" → "severe pain"
 - "came on fast" → "sudden onset"
 - "feels like stabbing" → "sharp pain"
-- "under my ribs" → "upper abdomen"
+
+CRITICAL: Only normalize the {context} component. Do not add information from other symptoms or previous questions.
 
 Normalized text:"""
         
