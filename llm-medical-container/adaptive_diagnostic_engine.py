@@ -1129,7 +1129,7 @@ class AdaptiveDiagnosticEngine:
             
             example = oldcarts_examples.get(next_element, "Tell me about the symptom")
             
-            system_msg = "You are a medical assistant. Output ONLY ONE question. Use PLAIN LANGUAGE (no medical jargon). Never combine multiple questions. Do NOT ask questions requiring visual inspection (no 'point to', 'show me', 'look at', 'appearance', 'color', 'swelling')."
+            system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do NOT ask questions requiring visual inspection (no 'point to', 'show me', 'look at', 'appearance', 'color', 'swelling'). Do NOT ask about duration/time - that will be covered later."
             
             user_msg = f"""Patient: {patient_info} with {symptom}
 
@@ -1137,7 +1137,7 @@ Ask about: {element_desc}
 
 Example: "{example}"
 
-Generate EXACTLY ONE similar question using SIMPLE, PLAIN LANGUAGE that anyone can understand (open-ended, NOT yes/no). Do NOT combine multiple questions:"""
+Generate EXACTLY ONE question using SIMPLE, PLAIN LANGUAGE. Do NOT combine multiple questions. Do NOT ask about duration/time. Output only the question:"""
             
             # Filler is now handled at container level for immediate streaming
             self._capture_debug(f"[Engine] 💬 Generating question (filler handled by container)...")
@@ -1162,6 +1162,12 @@ Generate EXACTLY ONE similar question using SIMPLE, PLAIN LANGUAGE that anyone c
             # Check for pattern: "Statement. Question?" which indicates combined questions
             has_sentence_before_question = '. ' in question and question.index('. ') < question.rfind('?')
             
+            # Check for combined questions with "and" or "also"
+            has_combined_indicators = any(phrase in question.lower() for phrase in [
+                ' and ', ' also ', ' how long ', ' how old ', ' what is your age ',
+                ' when did ', ' how long have ', ' how old are you '
+            ])
+            
             # Check for medical jargon that patients won't understand
             medical_jargon = [
                 'epigastric', 'periumbilical', 'flank', 'costovertebral', 'cva', 'quadrant',
@@ -1170,9 +1176,11 @@ Generate EXACTLY ONE similar question using SIMPLE, PLAIN LANGUAGE that anyone c
             ]
             has_jargon = any(term in question.lower() for term in medical_jargon)
             
-            if question_mark_count > 1 or has_sentence_before_question or has_jargon:
+            if question_mark_count > 1 or has_sentence_before_question or has_jargon or has_combined_indicators:
                 if has_jargon:
                     self._capture_debug(f"[Engine] ⚠️ LLM used medical jargon - using plain language template")
+                elif has_combined_indicators:
+                    self._capture_debug(f"[Engine] ⚠️ LLM combined multiple questions (detected: {[phrase for phrase in [' and ', ' also ', ' how long ', ' how old ', ' what is your age ', ' when did ', ' how long have ', ' how old are you '] if phrase in question.lower()]}) - using template fallback")
                 else:
                     self._capture_debug(f"[Engine] ⚠️ LLM combined multiple questions - using template fallback")
                 self._capture_debug(f"[Engine]    Generated: '{question}'")
