@@ -1129,7 +1129,7 @@ class AdaptiveDiagnosticEngine:
                 
                 print(f"[Engine]   {name}: {final_score:.3f} ({method_used}, {confidence} confidence)")
                 print(f"[Engine]     Jaccard: {jaccard_score:.3f}, Semantic: {semantic_score:.3f}")
-                print(f"[Engine]     ('{core_symptom}' vs '{location_desc[:50]}...')")
+                print(f"[Engine]     ('{core_symptom}' vs '{trigger_text[:80]}...')")
                 
                 if final_score > JACCARD_THRESHOLD:
                     # Initial score based on PREVALENCE from guideline JSON
