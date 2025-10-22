@@ -145,15 +145,16 @@ class AdaptiveDiagnosticEngine:
         self.use_rag_api = RAG_API_AVAILABLE
         
         # OLDCARTS element weights (how much impact each element has on scoring)
+        # More balanced weights that don't completely override previous scores
         self.oldcarts_weights = {
-            'L': 1.0,  # Location - full weight (definitive - left vs right rules out immediately)
-            'C': 0.9,  # Character - high weight (sharp vs dull matters)
-            'A': 0.8,  # Aggravating - high weight (post-meal, exertion diagnostic)
-            'R': 0.8,  # Relieving - high weight (what helps is important)
-            'S': 0.7,  # Severity - moderate weight (subjective but useful)
-            'D': 0.5,  # Duration - supportive only (varies widely)
-            'O': 0.3,  # Onset - weakest (sudden vs gradual overlaps for many conditions)
-            'T': 0.4,  # Timing - weak to moderate (constant vs intermittent)
+            'L': 0.6,  # Location - high weight but not overwhelming
+            'C': 0.5,  # Character - moderate-high weight
+            'A': 0.5,  # Aggravating - moderate-high weight
+            'R': 0.5,  # Relieving - moderate-high weight
+            'S': 0.4,  # Severity - moderate weight
+            'D': 0.3,  # Duration - moderate weight
+            'O': 0.2,  # Onset - low weight
+            'T': 0.3,  # Timing - moderate weight
         }
         
         # Load guidelines
@@ -296,7 +297,7 @@ class AdaptiveDiagnosticEngine:
         self._captured_debug_output = []  # Capture debug output for Telegram display
         
         # Thresholds - Clinical scoring: only rule out with definitive proof
-        self.RULE_OUT_THRESHOLD = 0.03  # Below 3% → rule out (only clear mismatches)
+        self.RULE_OUT_THRESHOLD = 0.15  # Below 15% → rule out (realistic threshold for improved scoring)
         self.MINIMUM_SCORE_FOR_RANKING = 0.05  # Minimum score to be considered for ranking
         self.MAX_ACTIVE = 5  # Keep 5 active differentials
         self.MAX_CLARIFICATIONS = 2  # Max times to ask for clarification before moving on
@@ -1448,60 +1449,6 @@ Your question:"""
         
         return similarity
     
-    def _has_anatomical_mismatch(self, complaint: str, guideline_location: str) -> bool:
-        """
-        Check for anatomical location mismatches (e.g., RUQ vs RLQ)
-        
-        Args:
-            complaint: Normalized patient complaint
-            guideline_location: Guideline location description
-            
-        Returns:
-            True if there's an anatomical mismatch that should rule out the condition
-        """
-        complaint_lower = complaint.lower()
-        guideline_lower = guideline_location.lower()
-        
-        # Define anatomical location mappings
-        anatomical_locations = {
-            'ruq': ['right upper quadrant', 'ruq', 'upper right'],
-            'luq': ['left upper quadrant', 'luq', 'upper left'],
-            'rlq': ['right lower quadrant', 'rlq', 'lower right'],
-            'llq': ['left lower quadrant', 'llq', 'lower left'],
-            'epigastric': ['epigastric', 'upper mid', 'upper middle'],
-            'periumbilical': ['periumbilical', 'around belly button', 'around navel'],
-            'flank': ['flank', 'side']
-        }
-        
-        # Extract locations from complaint and guideline
-        complaint_locations = set()
-        guideline_locations = set()
-        
-        for location_type, variations in anatomical_locations.items():
-            for variation in variations:
-                if variation in complaint_lower:
-                    complaint_locations.add(location_type)
-                if variation in guideline_lower:
-                    guideline_locations.add(location_type)
-        
-        # Check for direct conflicts
-        if complaint_locations and guideline_locations:
-            # If complaint mentions specific quadrant and guideline mentions different quadrant
-            if complaint_locations.isdisjoint(guideline_locations):
-                # Check for specific quadrant conflicts
-                quadrant_conflicts = [
-                    ('ruq', 'rlq'), ('ruq', 'llq'), ('ruq', 'luq'),
-                    ('luq', 'rlq'), ('luq', 'llq'), ('luq', 'ruq'),
-                    ('rlq', 'ruq'), ('rlq', 'llq'), ('rlq', 'luq'),
-                    ('llq', 'ruq'), ('llq', 'rlq'), ('llq', 'luq')
-                ]
-                
-                for loc1, loc2 in quadrant_conflicts:
-                    if loc1 in complaint_locations and loc2 in guideline_locations:
-                        self._capture_debug(f"[Engine]   🚫 ANATOMICAL CONFLICT: {loc1.upper()} vs {loc2.upper()}")
-                        return True
-        
-        return False
     
     def _compute_jaccard_similarity(self, text1: str, text2: str) -> float:
         """
@@ -1527,26 +1474,7 @@ Your question:"""
         if not words1 or not words2:
             return 0.0
         
-        # Check for directional conflicts (left vs right)
-        # Only rule out if guideline has OPPOSITE direction and NO mention of user's direction
-        has_left_user = 'left' in words1
-        has_right_user = 'right' in words1
-        has_left_guideline = 'left' in words2
-        has_right_guideline = 'right' in words2
-        
-        # Rule out ONLY if clear directional conflict (opposite direction with no mention of user's side)
-        if has_left_user and has_right_guideline and not has_left_guideline:
-            # User says "left" but guideline only mentions "right" (never "left")
-            self._capture_debug(f"[Engine]   ⛔ Directional conflict: user='left', guideline has 'right' only (no 'left' mentioned)")
-            return 0.0
-        
-        if has_right_user and has_left_guideline and not has_right_guideline:
-            # User says "right" but guideline only mentions "left" (never "right")
-            self._capture_debug(f"[Engine]   ⛔ Directional conflict: user='right', guideline has 'left' only (no 'right' mentioned)")
-            return 0.0
-        
-        # If guideline mentions BOTH left and right (e.g., "RUQ, may radiate to left")
-        # → Do NOT rule out, let Jaccard score naturally handle it
+        # Let semantic similarity handle directional conflicts - no hardcoded logic
         
         # Calculate Jaccard similarity: intersection / union
         intersection = words1 & words2
@@ -1554,16 +1482,7 @@ Your question:"""
         
         similarity = len(intersection) / union if union > 0 else 0.0
         
-        # Check if single-word match is meaningful
-        # Directional words (left, right, upper, lower) are meaningful even alone
-        directional_terms = {'left', 'right', 'upper', 'lower', 'epigastric', 'periumbilical', 'ruq', 'luq', 'rlq', 'llq', 'flank', 'groin', 'chest', 'substernal'}
-        meaningful_matches = intersection & directional_terms
-        
-        if len(intersection) == 1 and not meaningful_matches:
-            # Only 1 weak word match (e.g., just "pain", "abdomen") - penalize moderately
-            similarity = similarity * 0.5  # Reduce by 50%
-            self._capture_debug(f"[Engine]   ⚠️  Weak single-word match (reduced by 50%)")
-        # If match is directional (left, right, etc.), keep full score - it's meaningful!
+        # Let semantic similarity handle meaningful matches - no hardcoded medical terms
         
         self._capture_debug(f"[Engine]   🔍 Jaccard similarity: {similarity:.3f} (intersection: {len(intersection)}, union: {union})")
         self._capture_debug(f"[Engine]   🔍 Words1: {sorted(words1)}")
@@ -1572,6 +1491,37 @@ Your question:"""
         
         return similarity
     
+    def _check_anatomical_exclusion(self, patient_location: str, guideline_location: str, condition_name: str) -> bool:
+        """
+        Check for anatomical mismatches using LLM normalization and semantic similarity
+        
+        Args:
+            patient_location: Patient's reported location (LLM normalized)
+            guideline_location: Guideline location description
+            condition_name: Name of the condition
+            
+        Returns:
+            True if anatomically impossible, False otherwise
+        """
+        # Use semantic similarity to determine if there's a fundamental mismatch
+        try:
+            semantic_score = self._compute_similarity(patient_location, guideline_location)
+        except Exception as e:
+            self._capture_debug(f"[Engine]   ⚠️ Semantic similarity failed for anatomical check: {e}")
+            semantic_score = 0.0
+        
+        # Use Jaccard similarity as secondary check
+        jaccard_score = self._compute_jaccard_similarity(patient_location, guideline_location)
+        
+        # If both semantic and Jaccard similarities are very low, it's likely an anatomical mismatch
+        if semantic_score < 0.15 and jaccard_score < 0.1:
+            self._capture_debug(f"[Engine]   ⛔ ANATOMICAL EXCLUSION: {condition_name} (semantic={semantic_score:.3f}, jaccard={jaccard_score:.3f})")
+            return True
+        
+        # If similarities are reasonable, no anatomical exclusion
+        self._capture_debug(f"[Engine]   ✅ NO ANATOMICAL EXCLUSION: {condition_name} (semantic={semantic_score:.3f}, jaccard={jaccard_score:.3f})")
+        return False
+
     def _compute_hybrid_similarity(self, complaint: str, guideline_location: str) -> Dict[str, float]:
         """
         Compute hybrid similarity using both Jaccard and semantic similarity
@@ -1600,59 +1550,31 @@ Your question:"""
         confidence = "high"
         method_used = "jaccard"
         
-        # Hybrid logic with emphasis on Jaccard (70% weight)
-        if jaccard_score == 0.0:
-            # Zero Jaccard = clear keyword mismatch (e.g., "left side" vs "right side")
-            # Only rule out if truly incompatible - preserve diffuse/vague conditions
-            if semantic_score > 0.15:  # If reasonable semantic similarity exists
-                final_score = semantic_score * 0.5  # 50% penalty but preserve for ranking
-                confidence = "medium"
-                method_used = "directional_mismatch_with_semantic"
-            elif semantic_score > 0.08:  # If any semantic similarity exists
-                final_score = semantic_score * 0.3  # 70% penalty but preserve for ranking
-                confidence = "low"
-                method_used = "directional_mismatch_with_semantic"
+        # Simplified hybrid logic that produces realistic scores
+        if jaccard_score > 0:
+            # If we have Jaccard similarity, use it as primary with semantic boost
+            if semantic_score > 0:
+                # Combine both: 60% Jaccard + 40% Semantic
+                final_score = (0.6 * jaccard_score) + (0.4 * semantic_score)
+                confidence = "high"
+                method_used = "hybrid_balanced"
             else:
-                final_score = 0.03  # Minimal base score for diffuse conditions
+                # Use Jaccard alone
+                final_score = jaccard_score
+                confidence = "medium"
+                method_used = "jaccard_only"
+        else:
+            # No Jaccard similarity - rely on semantic similarity
+            if semantic_score > 0:
+                # Use semantic similarity with slight boost for medical context
+                final_score = min(semantic_score * 1.2, 0.8)  # Boost but cap at 0.8
+                confidence = "medium"
+                method_used = "semantic_boosted"
+            else:
+                # No similarity at all - minimal score for diffuse conditions
+                final_score = 0.05
                 confidence = "low"
                 method_used = "minimal_preservation"
-            
-        elif jaccard_score > 0 and jaccard_score < 0.15:
-            # Small Jaccard (>0 but small due to 1-2 word matches) - use hybrid approach
-            # More generous scoring for diffuse/vague conditions
-            hybrid_score = (0.3 * jaccard_score) + (0.7 * semantic_score)
-            if hybrid_score > 0.03:  # Lower threshold for hybrid
-                final_score = hybrid_score
-                confidence = "medium"
-                method_used = "hybrid_small_jaccard"
-            else:
-                final_score = max(jaccard_score, 0.05)  # Ensure minimum score
-                confidence = "low"
-                method_used = "jaccard_fallback"
-                
-        elif jaccard_score >= 0.15:
-            # High Jaccard confidence - use it as primary
-            final_score = jaccard_score
-            confidence = "high"
-            method_used = "jaccard"
-            
-        elif semantic_score > jaccard_score + self.hybrid_config['semantic_boost_threshold']:
-            # Semantic significantly better - use hybrid with Jaccard emphasis
-            final_score = (0.7 * jaccard_score) + (0.3 * semantic_score)
-            confidence = "medium"
-            method_used = "hybrid_semantic_boost"
-            
-        elif semantic_score > self.hybrid_config['semantic_threshold']:
-            # Semantic above threshold - use hybrid
-            final_score = (0.7 * jaccard_score) + (0.3 * semantic_score)
-            confidence = "medium"
-            method_used = "hybrid"
-            
-        else:
-            # Use Jaccard as primary
-            final_score = jaccard_score
-            confidence = "low" if jaccard_score < 0.2 else "medium"
-            method_used = "jaccard"
         
         # Check if both methods agree (high confidence)
         if abs(jaccard_score - semantic_score) < self.hybrid_config['confidence_threshold']:
@@ -2015,14 +1937,26 @@ Normalized text:"""
             self._capture_debug(f"[Engine] 📚 Using synonym normalization")
             return self._apply_oldcarts_normalization(text, target_category)
     
-    def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str) -> float:
+    def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str, condition_name: str = "") -> float:
         """Hybrid similarity (Jaccard + Semantic) for location matching with smart normalization"""
         # Apply smart normalization (LLM or synonyms) focusing on location
         user_answer_expanded = self._smart_oldcarts_normalization(user_answer.lower(), target_category="location")
         self._capture_debug(f"[Engine] 🔄 Smart location normalization: '{user_answer}' → '{user_answer_expanded}'")
         
+        # Check for anatomical exclusions first
+        if self._check_anatomical_exclusion(user_answer_expanded, oldcarts_section, condition_name):
+            self._capture_debug(f"[Engine]   ⛔ ANATOMICAL EXCLUSION: Returning 0.0 for {condition_name}")
+            return 0.0  # Complete exclusion for anatomical mismatches
+        
         # Use hybrid similarity (Jaccard + Semantic) with emphasis on Jaccard
         hybrid_result = self._compute_hybrid_similarity(user_answer_expanded, oldcarts_section)
+        
+        # Boost diffuse conditions to prevent early ruling out
+        diffuse_conditions = ['constipation', 'gastritis', 'ibs', 'gastroenteritis', 'mesenteric', 'diffuse']
+        if any(condition in condition_name.lower() for condition in diffuse_conditions):
+            if hybrid_result['final_score'] < 0.05:  # If score is very low
+                hybrid_result['final_score'] = max(0.05, hybrid_result['final_score'] + 0.02)  # Minimum 5% score
+                self._capture_debug(f"[Engine]   📈 DIFFUSE BOOST: {condition_name} score boosted to {hybrid_result['final_score']:.3f}")
         
         # DEBUG: Show hybrid similarity calculation
         self._capture_debug(f"[Engine]   🎯 Hybrid similarity: Jaccard={hybrid_result['jaccard_score']:.3f}, Semantic={hybrid_result['semantic_score']:.3f}")
@@ -2182,7 +2116,7 @@ Normalized text:"""
                 # Use enhanced location similarity with multi-stage filtering
                 # This will handle "left lower belly pain towards my pelvis" vs "LEFT LOWER QUADRANT (LLQ)"
                 try:
-                    similarity = self._compute_enhanced_location_similarity(answer, oldcarts_section)
+                    similarity = self._compute_enhanced_location_similarity(answer, oldcarts_section, g['name'])
                     self._capture_debug(f"[Engine]   {g['name']}: Enhanced location similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
                 except Exception as sim_error:
                     self._capture_debug(f"[Engine] ❌ Enhanced similarity computation failed for {g['name']}: {sim_error}")
@@ -2208,21 +2142,30 @@ Normalized text:"""
             element_weight = self.oldcarts_weights.get(oldcarts_element, 0.5)
             
             if similarity == 0.0:
-                # Hard mismatch (e.g., left vs right) - apply full weight of element
-                # Location mismatch (weight=1.0) rules out completely
-                # Onset mismatch (weight=0.3) has minimal impact
-                new_score = old_score * (1 - element_weight)
+                # Hard mismatch - apply moderate penalty
+                # For location mismatches, apply 60% penalty (keep 40% of original score)
+                # For other elements, apply 40% penalty (keep 60% of original score)
+                penalty_factor = 0.6 if oldcarts_element == 'L' else 0.4
+                new_score = old_score * (1 - penalty_factor)
                 g['score'] = new_score
                 change = "❌"
-                self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (keyword mismatch, weight={element_weight:.1f})")
+                self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (hard mismatch, penalty={penalty_factor:.1f})")
             else:
-                # Normal weighted average using element-specific weight
-                # Location (weight=1.0): new_score = similarity (replaces old score)
-                # Onset (weight=0.3): new_score = 70% old + 30% similarity (mostly preserves old score)
-                new_score = (old_score * (1 - element_weight)) + (similarity * element_weight)
+                # More aggressive scoring that properly reflects similarity
+                # Use similarity as primary factor with old score as baseline
+                if oldcarts_element == 'L':
+                    # For location: 40% old score + 60% similarity (location is very important)
+                    new_score = (old_score * 0.4) + (similarity * 0.6)
+                elif oldcarts_element in ['C', 'A', 'R']:
+                    # For character/aggravating/relieving: 50% old + 50% similarity
+                    new_score = (old_score * 0.5) + (similarity * 0.5)
+                else:
+                    # For other elements: 60% old + 40% similarity
+                    new_score = (old_score * 0.6) + (similarity * 0.4)
+                
                 g['score'] = new_score
                 change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
-                self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (weight={element_weight:.1f})")
+                self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (similarity-weighted)")
                 self._capture_debug(f"[Engine]     🧠 LLM Semantic Match: {similarity:.2f} ('{answer}' ↔ '{oldcarts_section[:50]}...')")
                 self._capture_debug(f"[Engine]     📝 Patient: '{answer}' → Medical: '{oldcarts_section[:80]}...'")
         
