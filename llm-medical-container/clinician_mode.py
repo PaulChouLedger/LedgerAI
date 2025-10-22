@@ -428,7 +428,7 @@ class ClinicianSession:
                             print(f"[Clinician] 💬 Response includes filler: {response['filler']['text']}")
                             return response  # Return dict with question + filler
                         else:
-                            return response.get('question', 'Can you tell me more?')
+                            return response  # Return full response dict with debug info
                 else:
                     # Error or no match
                     return response.get('message', 'I need more information to help you.')
