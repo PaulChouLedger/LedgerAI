@@ -14,7 +14,7 @@ DIAGNOSTIC FLOW:
 4. Feed all 3 guidelines' classical presentations to LLM
 5. LLM follows OLDCARTS roadmap to generate systematic questions
 6. Ask question → LLM scores all 3 → Re-rank by score
-7. Rule out <30% → Promote from reserve (prioritize COMMON conditions)
+7. Rule out <10% → Promote from reserve (prioritize COMMON conditions)
 8. Repeat until 95% confidence + 12 questions (or 15 max)
 9. Screen ALL red flags after diagnosis
 10. Finalize with disposition + red flag warnings
@@ -296,7 +296,7 @@ class AdaptiveDiagnosticEngine:
         self._captured_debug_output = []  # Capture debug output for Telegram display
         
         # Thresholds
-        self.RULE_OUT_THRESHOLD = 0.30  # Below 30% → rule out and replace
+        self.RULE_OUT_THRESHOLD = 0.10  # Below 10% → rule out and replace (adjusted for new scoring)
         self.MAX_ACTIVE = 5  # Keep 5 active differentials
         self.MAX_CLARIFICATIONS = 2  # Max times to ask for clarification before moving on
     
