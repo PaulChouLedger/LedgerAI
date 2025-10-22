@@ -1140,7 +1140,14 @@ Ask about: {element_desc}
 Example: "{example}"
 
 Generate EXACTLY ONE question using SIMPLE, PLAIN LANGUAGE. Do NOT combine multiple questions. Do NOT ask about duration/time. 
-Make the question specific to the patient's chief complaint. For LOCATION questions, ask about the relevant body area for their specific symptom.
+Make the question specific to the patient's chief complaint. For LOCATION questions, ask only about the relevant relevant body area for the chief complaint.
+For example, if the chief complaint is "abdominal pain", ask about the abdomen area, not the shoulders, arms, chest, or other body parts.
+For example, if the chief complaint is "headache", ask about the head area, not the shoulders, arms, chest, or other body parts.
+For example, if the chief complaint is "back pain", ask about the back area, not the shoulders, arms, chest, or other body parts.
+For example, if the chief complaint is "leg pain", ask about the leg area, not the shoulders, arms, chest, or other body parts.
+For example, if the chief complaint is "foot pain", ask about the foot area, not the shoulders, arms, chest, or other body parts.
+For example, if the chief complaint is "hand pain", ask about the hand area, not the shoulders, arms, chest, or other body parts.
+For example, if the chief complaint is "finger pain", ask about the finger area, not the shoulders, arms, chest, or other body parts.
 Output only the question:"""
             
             # Filler is now handled at container level for immediate streaming
