@@ -112,6 +112,9 @@ class AdaptiveDiagnosticEngine:
         self.llm_chat_simple_fn = llm_chat_simple_fn or llm_chat_fn  # Llama-1B for templates/validation
         self.embedding_model = embedding_model
         
+        # Initialize debug capture
+        self._captured_debug_output = []
+        
         self._capture_debug(f"[Engine] 🧠 Using {'dual models (simple + complex)' if llm_chat_simple_fn else 'single model'}")
         
         # ============================================================================
