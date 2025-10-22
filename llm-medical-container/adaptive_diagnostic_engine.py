@@ -216,6 +216,10 @@ class AdaptiveDiagnosticEngine:
         covered_count = sum(self.oldcarts_covered.values())
         coverage_str = ''.join([k if v else '_' for k, v in self.oldcarts_covered.items()])
         
+        # Debug: Check if captured debug output exists
+        captured_output = getattr(self, '_captured_debug_output', [])
+        print(f"[Engine] 🔍 Debug capture status: {len(captured_output)} lines captured")
+        
         debug_info = {
             'demographics': self.demographics,
             'question_number': num_questions,
@@ -239,7 +243,7 @@ class AdaptiveDiagnosticEngine:
             },
             'last_answer': last_answer,
             'last_answer_scores': getattr(self, '_last_answer_scores', None),  # Set during scoring
-            'engine_debug_output': getattr(self, '_captured_debug_output', [])  # Captured debug output
+            'engine_debug_output': captured_output  # Captured debug output
         }
         
         # Add matching algorithm info if available

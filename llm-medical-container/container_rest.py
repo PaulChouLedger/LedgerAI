@@ -230,9 +230,16 @@ def chat_tg():
             # Check if response includes question (dict) or is simple text (str)
             if isinstance(response, dict):
                 # Return question + debug info for Telegram
+                debug_info = response.get('debug')
+                print(f"[Container] 🔍 Debug info in response: {debug_info is not None}")
+                if debug_info:
+                    print(f"[Container] 🔍 Debug info keys: {list(debug_info.keys())}")
+                    if 'engine_debug_output' in debug_info:
+                        print(f"[Container] 🔍 Engine debug output: {len(debug_info['engine_debug_output'])} lines")
+                
                 telegram_response = {
                     "response": response.get('question', response.get('message', '')),
-                    "debug": response.get('debug')  # Include debug info if available
+                    "debug": debug_info  # Include debug info if available
                 }
                 return jsonify(telegram_response)
             else:
