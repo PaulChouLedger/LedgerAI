@@ -1065,15 +1065,13 @@ class AdaptiveDiagnosticEngine:
                 print(f"[Engine] ⚠️ No chief complaint triggers for {name} - skipping")
                 continue
             
-            # FAST KEYWORD PRE-FILTER: Check if any trigger matches
-            core_words = set(core_symptom.lower().split())
+            # FAST KEYWORD PRE-FILTER: Simple substring matching
             trigger_match_found = False
             
             for trigger in triggers:
-                trigger_words = set(trigger.lower().split())
-                # Check for word overlap (e.g., "abdominal" AND "pain")
-                overlap = core_words & trigger_words
-                if len(overlap) >= min(2, len(core_words)):  # At least 2 words or all core words
+                trigger_lower = trigger.lower()
+                # Simple substring match (fast, handles punctuation)
+                if trigger_lower in complaint_lower or core_symptom.lower() in trigger_lower:
                     trigger_match_found = True
                     break
             
