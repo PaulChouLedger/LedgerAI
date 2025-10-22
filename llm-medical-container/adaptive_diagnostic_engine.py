@@ -1098,20 +1098,29 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine] 🧠 Computing hybrid similarity against {len(self.all_guidelines)} guidelines...")
         
         for name, guideline in self.all_guidelines.items():
-            # Get the guideline's location description for Jaccard matching
-            location_desc = guideline.get('location', '')
-            if not location_desc:
-                print(f"[Engine] ⚠️ No location description for {name} - skipping")
+            # Get the guideline's chief complaint triggers for matching
+            triggers = guideline.get('chief_complaint_triggers', [])
+            if not triggers:
                 continue
             
-            # ANATOMICAL LOCATION FILTER: Check for quadrant mismatches
-            if self._has_anatomical_mismatch(core_symptom, location_desc):
-                print(f"[Engine]   {name}: ❌ ANATOMICAL MISMATCH - skipping")
+            # FAST PRE-FILTER: Simple substring matching
+            trigger_match_found = False
+            for trigger in triggers:
+                trigger_lower = trigger.lower()
+                if trigger_lower in complaint_lower or core_symptom.lower() in trigger_lower:
+                    trigger_match_found = True
+                    break
+            
+            # Skip if no keyword match (saves computation)
+            if not trigger_match_found:
                 continue
+            
+            # Combine triggers for similarity computation
+            trigger_text = ' | '.join(triggers)
             
             try:
-                # Compute hybrid similarity (Jaccard + Semantic)
-                similarity_result = self._compute_hybrid_similarity(core_symptom, location_desc)
+                # Compute hybrid similarity against trigger phrases
+                similarity_result = self._compute_hybrid_similarity(core_symptom, trigger_text)
                 final_score = similarity_result['final_score']
                 jaccard_score = similarity_result['jaccard_score']
                 semantic_score = similarity_result['semantic_score']
