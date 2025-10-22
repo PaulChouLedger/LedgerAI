@@ -2055,20 +2055,67 @@ Your question:"""
         return text
     
     def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str) -> float:
-        """Hybrid similarity (Jaccard + Semantic) for location matching with OLDCARTS normalization"""
-        # Apply OLDCARTS-specific normalization focusing on location
+        """
+        Smart location matching with directional awareness
+        
+        Logic:
+        1. DIRECTIONAL AGREEMENT (both "left" or both "right") → HIGH score (0.8-1.0)
+        2. DIRECTIONAL CONFLICT (left vs right) → ZERO (rule out)
+        3. NO DIRECTIONAL TERMS → Semantic similarity with threshold (0.3+)
+        """
+        # Apply OLDCARTS-specific normalization
         user_answer_expanded = self._apply_oldcarts_normalization(user_answer.lower(), target_category="location")
         print(f"[Engine] 🔄 Location OLDCARTS normalization: '{user_answer}' → '{user_answer_expanded}'")
         
-        # Use hybrid similarity (Jaccard + Semantic) with emphasis on Jaccard
+        user_lower = user_answer_expanded.lower()
+        section_lower = oldcarts_section.lower()
+        
+        # Directional keywords
+        left_words = ['left', 'llq', 'luq']
+        right_words = ['right', 'rlq', 'ruq']
+        upper_words = ['upper', 'epigastric', 'ruq', 'luq']
+        lower_words = ['lower', 'rlq', 'llq', 'pelvic', 'suprapubic']
+        
+        # Check what user said
+        user_has_left = any(w in user_lower for w in left_words)
+        user_has_right = any(w in user_lower for w in right_words)
+        user_has_upper = any(w in user_lower for w in upper_words)
+        user_has_lower = any(w in user_lower for w in lower_words)
+        
+        # Check what guideline says
+        guide_has_left = any(w in section_lower for w in left_words)
+        guide_has_right = any(w in section_lower for w in right_words)
+        guide_has_upper = any(w in section_lower for w in upper_words)
+        guide_has_lower = any(w in section_lower for w in lower_words)
+        
+        # CASE 1: DIRECTIONAL CONFLICT (opposite sides)
+        if (user_has_left and guide_has_right and not guide_has_left) or \
+           (user_has_right and guide_has_left and not guide_has_right):
+            print(f"[Engine]   ⛔ DIRECTIONAL CONFLICT: Left vs Right - RULING OUT")
+            return 0.0
+        
+        # CASE 2: DIRECTIONAL AGREEMENT (same side)
+        if (user_has_left and guide_has_left) or (user_has_right and guide_has_right):
+            # Also check vertical agreement for bonus
+            vertical_match = (user_has_upper and guide_has_upper) or (user_has_lower and guide_has_lower)
+            if vertical_match:
+                print(f"[Engine]   ✅ DIRECTIONAL AGREEMENT: Same quadrant - STRONG MATCH")
+                return 0.9  # Strong match (same quadrant)
+            else:
+                print(f"[Engine]   ✅ DIRECTIONAL AGREEMENT: Same side - GOOD MATCH")
+                return 0.7  # Good match (same side, different vertical)
+        
+        # CASE 3: NO DIRECTIONAL TERMS - Use semantic similarity
         hybrid_result = self._compute_hybrid_similarity(user_answer_expanded, oldcarts_section)
+        semantic_score = hybrid_result['semantic_score']
         
-        # DEBUG: Show hybrid similarity calculation
-        print(f"[Engine]   🎯 Hybrid similarity: Jaccard={hybrid_result['jaccard_score']:.3f}, Semantic={hybrid_result['semantic_score']:.3f}")
-        print(f"[Engine]   📊 Final score: {hybrid_result['final_score']:.3f} (method: {hybrid_result['method_used']}, confidence: {hybrid_result['confidence']})")
-        print(f"[Engine]   📝 '{user_answer_expanded}' vs '{oldcarts_section[:80]}...'")
-        
-        return hybrid_result['final_score']
+        # Threshold for non-directional matching (lowered to 0.25 to keep broader differential early)
+        if semantic_score >= 0.25:
+            print(f"[Engine]   ✅ SEMANTIC MATCH: {semantic_score:.3f} (no directional terms)")
+            return semantic_score
+        else:
+            print(f"[Engine]   ❌ LOW SEMANTIC: {semantic_score:.3f} (threshold: 0.25)")
+            return semantic_score * 0.2  # Low score but not complete rule-out
     
     
     
@@ -2257,13 +2304,22 @@ Your question:"""
         print(f"\n[Engine] 🔄 RE-RANKING all guidelines by updated scores...")
         
         # Rule out any with score < threshold
+        # SAFETY: Never rule out emergent conditions - keep in reserve pool
         ruled_out_this_round = []
         remaining = []
         for g in all_guidelines:
             if g['score'] < self.RULE_OUT_THRESHOLD:
-                print(f"[Engine] ❌ RULING OUT: {g['name']} (score {g['score']:.0%} < {self.RULE_OUT_THRESHOLD:.0%})")
-                self.ruled_out.append(g)
-                ruled_out_this_round.append(g)
+                urgency = g['data'].get('urgency', 'routine')
+                
+                if urgency == 'emergent':
+                    # NEVER rule out emergent conditions (mesenteric ischemia, perforation, ectopic, etc.)
+                    # Keep in pool ranked low - a red flag answer could boost it back up
+                    print(f"[Engine] ⚠️  LOW SCORE but EMERGENT: {g['name']} (score {g['score']:.0%}, keeping in reserve)")
+                    remaining.append(g)
+                else:
+                    print(f"[Engine] ❌ RULING OUT: {g['name']} (score {g['score']:.0%} < {self.RULE_OUT_THRESHOLD:.0%})")
+                    self.ruled_out.append(g)
+                    ruled_out_this_round.append(g)
             else:
                 remaining.append(g)
         
