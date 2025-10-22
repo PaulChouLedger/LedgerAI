@@ -1592,18 +1592,31 @@ Your question:"""
         method_used = "jaccard"
         
         # Hybrid logic with emphasis on Jaccard (70% weight)
-        if jaccard_score > self.hybrid_config['jaccard_threshold']:
+        if jaccard_score == 0.0:
+            # Zero Jaccard = clear keyword mismatch (e.g., "left side" vs "right side")
+            # Rule out completely - directional conflict
+            final_score = 0.0
+            confidence = "low"
+            method_used = "jaccard_mismatch"
+            
+        elif jaccard_score > 0 and jaccard_score < 0.15:
+            # Small Jaccard (>0 but small due to 1-2 word matches) - use hybrid approach
+            # Combine jaccard + semantic with threshold > 0.1 (more permissive)
+            hybrid_score = (0.7 * jaccard_score) + (0.3 * semantic_score)
+            if hybrid_score > 0.1:
+                final_score = hybrid_score
+                confidence = "medium"
+                method_used = "hybrid_small_jaccard"
+            else:
+                final_score = jaccard_score  # Fall back to jaccard if hybrid too low
+                confidence = "low"
+                method_used = "jaccard_fallback"
+                
+        elif jaccard_score >= 0.15:
             # High Jaccard confidence - use it as primary
             final_score = jaccard_score
             confidence = "high"
             method_used = "jaccard"
-            
-        elif jaccard_score == 0.0:
-            # Zero Jaccard = clear keyword mismatch (e.g., "left side" vs "right side")
-            # Give very low weight to semantic to emphasize the mismatch
-            final_score = semantic_score * 0.2  # Only 20% of semantic (very low)
-            confidence = "low"
-            method_used = "jaccard_mismatch"
             
         elif semantic_score > jaccard_score + self.hybrid_config['semantic_boost_threshold']:
             # Semantic significantly better - use hybrid with Jaccard emphasis
