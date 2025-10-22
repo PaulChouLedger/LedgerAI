@@ -1065,11 +1065,27 @@ class AdaptiveDiagnosticEngine:
                 print(f"[Engine] ⚠️ No chief complaint triggers for {name} - skipping")
                 continue
             
-            # Combine triggers into a single text for matching
+            # FAST KEYWORD PRE-FILTER: Check if any trigger matches
+            core_words = set(core_symptom.lower().split())
+            trigger_match_found = False
+            
+            for trigger in triggers:
+                trigger_words = set(trigger.lower().split())
+                # Check for word overlap (e.g., "abdominal" AND "pain")
+                overlap = core_words & trigger_words
+                if len(overlap) >= min(2, len(core_words)):  # At least 2 words or all core words
+                    trigger_match_found = True
+                    break
+            
+            # Skip if no keyword match found (saves semantic embedding computation)
+            if not trigger_match_found:
+                continue
+            
+            # Combine triggers into a single text for similarity scoring
             trigger_text = ' | '.join(triggers)
             
             try:
-                # Compute hybrid similarity against trigger phrases
+                # Compute hybrid similarity against trigger phrases (only for keyword matches)
                 similarity_result = self._compute_hybrid_similarity(core_symptom, trigger_text)
                 final_score = similarity_result['final_score']
                 jaccard_score = similarity_result['jaccard_score']
@@ -1077,9 +1093,9 @@ class AdaptiveDiagnosticEngine:
                 confidence = similarity_result['confidence']
                 method_used = similarity_result['method_used']
                 
-                print(f"[Engine]   {name}: {final_score:.3f} ({method_used}, {confidence} confidence)")
-                print(f"[Engine]     Jaccard: {jaccard_score:.3f}, Semantic: {semantic_score:.3f}")
-                print(f"[Engine]     ('{core_symptom}' vs '{trigger_text[:80]}...')")
+                if final_score > JACCARD_THRESHOLD:
+                    print(f"[Engine]   ✅ {name}: {final_score:.3f} ({method_used}, {confidence})")
+                    print(f"[Engine]      Jaccard: {jaccard_score:.3f}, Semantic: {semantic_score:.3f}")
                 
                 if final_score > JACCARD_THRESHOLD:
                     # Initial score based on PREVALENCE from guideline JSON
