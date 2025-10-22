@@ -111,7 +111,7 @@ def ssml_wrap(text):
 
 def preprocess_for_tts(text):
     # Remove control tags for clean TTS output
-    text = re.sub(r"<sentence_start>|<sentence_end>", "", text)
+    text = re.sub(r"<sentence_start>|<sentence_end>|<pause>", "", text)
     return text.strip()
 
 def enqueue_tts_chunk(text):

@@ -51,6 +51,22 @@
       "pain in my abdomen",
       "diffuse abdominal pain"
     ],
+    "left_side": [
+      "left side",
+      "on my left side",
+      "left",
+      "left side of abdomen",
+      "left side of stomach",
+      "left side of belly"
+    ],
+    "right_side": [
+      "right side", 
+      "on my right side",
+      "right",
+      "right side of abdomen",
+      "right side of stomach", 
+      "right side of belly"
+    ],
     "ruq_pain": [
       "right upper quadrant pain",
       "gallbladder pain",

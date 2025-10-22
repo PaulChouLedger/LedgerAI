@@ -114,9 +114,14 @@ class AdaptiveDiagnosticEngine:
         
         print(f"[Engine] 🧠 Using {'dual models (simple + complex)' if llm_chat_simple_fn else 'single model'}")
         
-        # RAG API for GPU-accelerated FAISS operations
-        self.rag_api = RAGEmbeddingAPI() if RAG_API_AVAILABLE else None
-        self.use_rag_api = RAG_API_AVAILABLE
+        # ============================================================================
+        # 🔧 CONFIGURATION TOGGLES (Easy to modify)
+        # ============================================================================
+        
+        # Smart normalization configuration
+        self.smart_normalization = True  # True=LLM normalization, False=synonym normalization
+        
+        # RAG validation toggle
         self.validate_rag = os.getenv("VALIDATE_RAG", "false").lower() == "true"  # Compare RAG vs brute-force
         
         # Hybrid matching configuration
@@ -127,6 +132,14 @@ class AdaptiveDiagnosticEngine:
             'semantic_weight': 0.7,        # Weight for semantic similarity when used as fallback
             'confidence_threshold': 0.1    # Max difference for high confidence
         }
+        
+        # ============================================================================
+        # 🔧 END CONFIGURATION TOGGLES
+        # ============================================================================
+        
+        # RAG API for GPU-accelerated FAISS operations
+        self.rag_api = RAGEmbeddingAPI() if RAG_API_AVAILABLE else None
+        self.use_rag_api = RAG_API_AVAILABLE
         
         # OLDCARTS element weights (how much impact each element has on scoring)
         self.oldcarts_weights = {
@@ -518,7 +531,8 @@ class AdaptiveDiagnosticEngine:
                 return {
                     'success': True,
                     'question': f"Please answer yes or no: {question}",
-                    'status': 'red_flag_screening'
+                    'status': 'red_flag_screening',
+                    'debug': self._get_debug_info()
                 }
             
             if is_yes:
@@ -569,7 +583,8 @@ class AdaptiveDiagnosticEngine:
                 return {
                     'success': True,
                     'question': age_question,
-                    'status': 'questioning'
+                    'status': 'questioning',
+                    'debug': self._get_debug_info()
                 }
             
             # Ask sex using LLM
@@ -584,7 +599,8 @@ class AdaptiveDiagnosticEngine:
             return {
                 'success': True,
                 'question': sex_question,
-                'status': 'questioning'
+                'status': 'questioning',
+                'debug': self._get_debug_info()
             }
         
         elif last_q.get('focus') == 'sex':
@@ -657,7 +673,8 @@ class AdaptiveDiagnosticEngine:
                 return {
                     'success': True,
                     'question': sex_question,
-                    'status': 'questioning'
+                    'status': 'questioning',
+                    'debug': self._get_debug_info()
                 }
             
             print(f"{'='*80}\n")
@@ -675,7 +692,8 @@ class AdaptiveDiagnosticEngine:
             return {
                 'success': True,
                 'question': chronicity_question,
-                'status': 'questioning'
+                'status': 'questioning',
+                'debug': self._get_debug_info()
             }
         
         elif last_q.get('focus') == 'chronicity':
@@ -734,7 +752,8 @@ class AdaptiveDiagnosticEngine:
                 return {
                     'success': True,
                     'question': clarify,
-                    'status': 'questioning'
+                    'status': 'questioning',
+                    'debug': self._get_debug_info()
                 }
             
             # Answer is acceptable - score it first, THEN check if needs clarification
@@ -849,9 +868,9 @@ class AdaptiveDiagnosticEngine:
         """
         complaint_lower = complaint.lower()
         
-        # Apply OLDCARTS normalization to normalize patient language using synonyms
-        complaint_expanded = self._apply_oldcarts_normalization(complaint_lower)
-        print(f"[Engine] 🔄 OLDCARTS normalization: '{complaint_lower}' → '{complaint_expanded}'")
+        # Apply smart normalization (LLM or synonyms) to normalize patient language
+        complaint_expanded = self._smart_oldcarts_normalization(complaint_lower)
+        print(f"[Engine] 🔄 Smart normalization: '{complaint_lower}' → '{complaint_expanded}'")
         
         # Use normalized complaint directly for both phases
         core_symptom = complaint_expanded
@@ -1076,7 +1095,7 @@ class AdaptiveDiagnosticEngine:
             
             example = oldcarts_examples.get(next_element, "Tell me about the symptom")
             
-            system_msg = "You are a medical assistant. Output ONLY ONE question. Use PLAIN LANGUAGE (no medical jargon). Never combine multiple questions."
+            system_msg = "You are a medical assistant. Output ONLY ONE question. Use PLAIN LANGUAGE (no medical jargon). Never combine multiple questions. Do NOT ask questions requiring visual inspection (no 'point to', 'show me', 'look at', 'appearance', 'color', 'swelling')."
             
             user_msg = f"""Patient: {patient_info} with {symptom}
 
@@ -1157,9 +1176,13 @@ Generate EXACTLY ONE similar question using SIMPLE, PLAIN LANGUAGE that anyone c
         # SAFETY: Check if we have active guidelines
         if not self.active_guidelines:
             print(f"[Engine] ❌ No active guidelines remaining - cannot generate question")
+            print(f"[Engine] 📊 Debug: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
+            print(f"[Engine] 📋 OLDCARTS covered: {self.oldcarts_covered}")
+            print(f"[Engine] 📋 Demographics: {self.demographics}")
             return {
                 'success': False,
-                'message': "I couldn't match your symptoms to a specific condition. Please seek medical evaluation."
+                'message': "I couldn't match your symptoms to a specific condition. Please seek medical evaluation.",
+                'debug': self._get_debug_info()
             }
         
         # Build context of what's been asked
@@ -1851,11 +1874,78 @@ Your question:"""
         
         return text
     
+    def _llm_normalize_medical_text(self, text: str, context: str = "general") -> str:
+        """
+        Use LLM to intelligently normalize medical text instead of rigid synonym matching
+        
+        Args:
+            text: Patient input text
+            context: Medical context (location, onset, duration, etc.)
+        
+        Returns:
+            Normalized medical text
+        """
+        print(f"[Engine] 🧠 LLM normalizing: '{text}' (context: {context})")
+        
+        system_msg = "You are a medical assistant. Normalize patient language into standard medical terms. Output ONLY the normalized text, nothing else."
+        
+        user_msg = f"""Normalize this patient response into standard medical terminology:
+
+Patient: "{text}"
+Context: {context}
+
+Examples:
+- "left side" → "left side of abdomen" 
+- "hurts bad" → "severe pain"
+- "came on fast" → "sudden onset"
+- "feels like stabbing" → "sharp pain"
+- "under my ribs" → "upper abdomen"
+
+Normalized text:"""
+        
+        try:
+            response = self.llm_chat_simple_fn(
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=50,
+                temperature=0.1
+            )
+            
+            normalized = response.strip().strip('"\'')
+            print(f"[Engine] ✅ LLM normalization: '{text}' → '{normalized}'")
+            return normalized
+            
+        except Exception as e:
+            print(f"[Engine] ⚠️ LLM normalization failed: {e}")
+            return text
+    
+    def _smart_oldcarts_normalization(self, text: str, target_category: str = None) -> str:
+        """
+        Smart OLDCARTS normalization - LLM or synonyms (no fallback)
+        
+        Args:
+            text: Patient input text
+            target_category: Specific OLDCARTS category to focus on
+        
+        Returns:
+            Normalized text with medical terms
+        """
+        if self.smart_normalization:
+            # Use LLM normalization
+            print(f"[Engine] 🧠 Using LLM normalization")
+            return self._llm_normalize_medical_text(text, target_category or "general")
+        else:
+            # Use synonym normalization
+            print(f"[Engine] 📚 Using synonym normalization")
+            return self._apply_oldcarts_normalization(text, target_category)
+    
     def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str) -> float:
-        """Hybrid similarity (Jaccard + Semantic) for location matching with OLDCARTS normalization"""
-        # Apply OLDCARTS-specific normalization focusing on location
-        user_answer_expanded = self._apply_oldcarts_normalization(user_answer.lower(), target_category="location")
-        print(f"[Engine] 🔄 Location OLDCARTS normalization: '{user_answer}' → '{user_answer_expanded}'")
+        """Hybrid similarity (Jaccard + Semantic) for location matching with smart normalization"""
+        # Apply smart normalization (LLM or synonyms) focusing on location
+        user_answer_expanded = self._smart_oldcarts_normalization(user_answer.lower(), target_category="location")
+        print(f"[Engine] 🔄 Smart location normalization: '{user_answer}' → '{user_answer_expanded}'")
         
         # Use hybrid similarity (Jaccard + Semantic) with emphasis on Jaccard
         hybrid_result = self._compute_hybrid_similarity(user_answer_expanded, oldcarts_section)
@@ -2104,9 +2194,13 @@ Your question:"""
         if len(self.active_guidelines) == 0 and len(self.reserve_pool) == 0:
             print(f"[Engine] ❌ All guidelines exhausted - no diagnosis possible")
             print(f"[Engine] 📋 Ruled out {len(self.ruled_out)} conditions")
+            print(f"[Engine] 📊 Debug: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
+            print(f"[Engine] 📋 OLDCARTS covered: {self.oldcarts_covered}")
+            print(f"[Engine] 📋 Demographics: {self.demographics}")
             return {
                 'success': False,
-                'message': "I couldn't match your symptoms to a specific condition. Please seek medical evaluation."
+                'message': "I couldn't match your symptoms to a specific condition. Please seek medical evaluation.",
+                'debug': self._get_debug_info()
             }
         
         # If active is empty but reserve exists, this shouldn't happen (rolling replacement should have filled it)
@@ -2241,7 +2335,8 @@ Your question:"""
         return {
             'success': True,
             'question': question,
-            'status': 'red_flag_screening'
+            'status': 'red_flag_screening',
+            'debug': self._get_debug_info()
         }
     
     def _red_flag_to_question(self, red_flag: str) -> str:
@@ -2270,7 +2365,7 @@ Your question:"""
         elif 'blood' in lower and 'vomit' in lower:
             question = "Have you vomited blood?"
         elif 'jaundice' in lower or 'yellow' in lower:
-            question = "Have your eyes or skin turned yellow?"
+            question = "Have you noticed any yellowing of your skin or eyes?"
         else:
             # Generic
             question = f"Have you experienced {red_flag.split('-')[0].strip().lower()}?"
@@ -2339,6 +2434,7 @@ Your question:"""
             'diagnosis': name,
             'confidence': score,
             'urgency': urgency,
+            'debug': self._get_debug_info(),
             'red_flags_detected': self.red_flags_present,
             'message': message
         }
@@ -2353,12 +2449,13 @@ Your question:"""
         
         user_msg = f"""Patient: "{chief_complaint}"
 
-Write a brief, natural empathetic statement to show you care:
+Write a brief, natural empathetic medical statement:
 
 Examples: 
 - "I'm sorry to hear you're experiencing that."
-- "That sounds uncomfortable, I'm here to help."
+- "That sounds uncomfortable, let me ask some questions to help."
 - "I understand that must be concerning."
+- "I'll ask some questions to better understand your symptoms."
 
 Your statement:"""
         
@@ -2395,7 +2492,7 @@ Your statement:"""
         """
         print(f"[Engine] 🧠 Generating chronicity question...")
         
-        system_msg = "You are a medical assistant. Output ONLY the question requested, nothing else."
+        system_msg = "You are a medical assistant. Output ONLY the question requested, nothing else. Do NOT ask questions requiring visual inspection (no 'point to', 'show me', 'look at', 'appearance', 'color', 'swelling')."
         
         user_msg = """Generate a natural question asking if this is a new problem or ongoing/recurrent issue.
 
@@ -2545,20 +2642,9 @@ Your question:"""
         """
         print(f"[Engine] 🧠 Generating clarifying question #{clarification_count + 1} for OLDCARTS '{oldcarts_element}'...")
         
-        # First clarification: Open-ended to gather more information
+        # First clarification: Use LLM to generate intelligent open-ended question
         if clarification_count == 0:
-            open_ended_templates = {
-                'L': "Can you tell me more about where exactly the pain is located?",
-                'O': "Can you describe how the pain started? Was it sudden or did it come on gradually?",
-                'D': "Tell me more about how long you've been experiencing this pain.",
-                'C': "Can you describe what the pain feels like?",
-                'A': "What makes the pain worse? Any specific activities or foods?",
-                'R': "Does anything help make the pain better?",
-                'T': "Tell me about the pattern of the pain. Is it constant or does it come and go?",
-                'S': "How would you describe the severity of the pain?"
-            }
-            question = open_ended_templates.get(oldcarts_element, 
-                f"Can you tell me more about '{vague_answer}'?")
+            question = self._llm_generate_clarification_question(oldcarts_element, vague_answer)
         
         # Subsequent clarifications: Targeted based on top differentials
         else:
@@ -2574,16 +2660,64 @@ Your question:"""
         print(f"[Engine] ✅ Clarifying question #{clarification_count + 1}: '{question}'")
         return question
     
+    def _llm_generate_clarification_question(self, oldcarts_element: str, vague_answer: str) -> str:
+        """
+        Use LLM to generate intelligent clarification questions
+        Analyzes the vague answer and generates a targeted follow-up
+        """
+        print(f"[Engine] 🧠 LLM generating clarification for '{oldcarts_element}': '{vague_answer}'")
+        
+        # OLDCARTS element descriptions
+        element_descriptions = {
+            'L': "LOCATION - where the symptom is located",
+            'O': "ONSET - when the symptom started", 
+            'D': "DURATION - how long the symptom lasts",
+            'C': "CHARACTER - what the symptom feels like",
+            'A': "AGGRAVATING factors - what makes it worse",
+            'R': "RELIEVING factors - what makes it better", 
+            'T': "TIMING - pattern of the symptom",
+            'S': "SEVERITY - how bad the symptom is"
+        }
+        
+        element_desc = element_descriptions.get(oldcarts_element, "the symptom")
+        
+        system_msg = "You are a medical assistant. Generate ONE intelligent clarification question. Use PLAIN LANGUAGE. Do NOT ask questions requiring visual inspection."
+        
+        user_msg = f"""The patient gave a vague answer about {element_desc}:
+
+Patient's answer: "{vague_answer}"
+
+Generate ONE intelligent follow-up question to get more specific information about {element_desc}. 
+Make it natural and conversational, not clinical.
+
+Question:"""
+        
+        try:
+            response = self.llm_chat_fn(
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=80,
+                temperature=0.4
+            )
+            
+            question = response.strip().strip('"\'')
+            if not question.endswith('?'):
+                question += '?'
+            
+            print(f"[Engine] ✅ LLM clarification question: '{question}'")
+            return question
+            
+        except Exception as e:
+            print(f"[Engine] ⚠️ LLM clarification question failed: {e}")
+            # Fallback to simple template
+            return f"Can you tell me more about '{vague_answer}'?"
+    
     def _generate_differential_based_question(self, oldcarts_element: str) -> str:
         """
         Generate targeted question based on top differentials to discriminate between them
-        
-        For example, if top 3 are:
-        - Cholecystitis (RUQ, after fatty meals)
-        - Pancreatitis (epigastric, radiates to back)
-        - Appendicitis (RLQ, migrates from umbilicus)
-        
-        Ask: "Is it more in the upper right, upper center, or lower right area?"
+        Uses LLM to generate generic questions for any medical condition
         """
         if len(self.active_guidelines) < 2:
             return "Could you be more specific?"
@@ -2598,79 +2732,67 @@ Your question:"""
         for g in top_conditions:
             print(f"[Engine]   - {g['name']} ({g['score']:.0%})")
         
-        # Element-specific targeted questions based on common differentials
-        targeted_questions = {
-            'L': self._generate_location_discriminator(top_conditions),
-            'O': self._generate_onset_discriminator(top_conditions),
-            'C': self._generate_character_discriminator(top_conditions),
-            'R': self._generate_radiation_discriminator(top_conditions),
+        # Use LLM to generate targeted question based on differentials
+        return self._llm_generate_differential_question(oldcarts_element, top_conditions)
+    
+    def _llm_generate_differential_question(self, oldcarts_element: str, top_conditions: List[Dict]) -> str:
+        """
+        Use LLM to generate targeted question that discriminates between top differentials
+        Generic approach that works for any medical condition
+        """
+        print(f"[Engine] 🧠 LLM generating differential question for {oldcarts_element}")
+        
+        # Build context with top conditions
+        condition_info = []
+        for g in top_conditions:
+            condition_info.append(f"- {g['name']}: {g['data'].get('description', 'No description')}")
+        
+        # OLDCARTS element descriptions
+        element_descriptions = {
+            'L': "LOCATION - where the symptom is located",
+            'O': "ONSET - when the symptom started", 
+            'D': "DURATION - how long the symptom lasts",
+            'C': "CHARACTER - what the symptom feels like",
+            'A': "AGGRAVATING factors - what makes it worse",
+            'R': "RELIEVING factors - what makes it better", 
+            'T': "TIMING - pattern of the symptom",
+            'S': "SEVERITY - how bad the symptom is"
         }
         
-        question = targeted_questions.get(oldcarts_element, "Could you provide more details?")
-        return question
-    
-    def _generate_location_discriminator(self, top_conditions: List[Dict]) -> str:
-        """Generate location question that discriminates between top differentials"""
-        # Check if top conditions span different quadrants
-        has_ruq = any('right upper' in g['data'].get('location', '').lower() or 'ruq' in g['data'].get('location', '').lower() for g in top_conditions)
-        has_llq = any('left lower' in g['data'].get('location', '').lower() or 'llq' in g['data'].get('location', '').lower() for g in top_conditions)
-        has_epigastric = any('epigastric' in g['data'].get('location', '').lower() for g in top_conditions)
-        has_rlq = any('right lower' in g['data'].get('location', '').lower() or 'rlq' in g['data'].get('location', '').lower() for g in top_conditions)
+        element_desc = element_descriptions.get(oldcarts_element, "the symptom")
         
-        # Build targeted question based on which quadrants are in play
-        if has_ruq and has_llq:
-            return "Is the pain more in the upper right area under your ribs, or in the lower left area near your pelvis?"
-        elif has_ruq and has_epigastric:
-            return "Is the pain more on the right side under your ribs, or in the center of your upper abdomen?"
-        elif has_epigastric and has_rlq:
-            return "Is the pain more in the center upper abdomen, or has it moved to the lower right area?"
-        elif has_rlq and has_llq:
-            return "Is the pain more on the right side or left side of your lower abdomen?"
-        else:
-            return "Can you point to exactly where it hurts? Is it upper or lower, and which side?"
-    
-    def _generate_onset_discriminator(self, top_conditions: List[Dict]) -> str:
-        """Generate onset question that discriminates between sudden vs gradual conditions"""
-        has_sudden = any('sudden' in g['data'].get('onset', '').lower() for g in top_conditions)
-        has_gradual = any('gradual' in g['data'].get('onset', '').lower() for g in top_conditions)
-        has_minutes = any('minutes' in g['data'].get('onset', '').lower() for g in top_conditions)
-        has_hours = any('hours' in g['data'].get('onset', '').lower() for g in top_conditions)
-        has_days = any('days' in g['data'].get('onset', '').lower() for g in top_conditions)
+        system_msg = "You are a medical assistant. Generate ONE targeted question to help differentiate between these conditions. Use PLAIN LANGUAGE. Do NOT ask questions requiring visual inspection."
         
-        # If all have sudden onset, ask about TIMING instead (minutes vs hours)
-        if has_sudden and not has_gradual:
-            if has_minutes and has_hours:
-                return "Was it extremely sudden - like within seconds to minutes - or did it build up over an hour or two?"
-            else:
-                return "Exactly how quickly did it start? Within minutes, or over the course of an hour?"
-        elif has_sudden and has_gradual:
-            return "Did the pain come on suddenly within minutes, or did it build up gradually over hours to days?"
-        elif has_gradual:
-            if has_days:
-                return "Did it develop over hours, days, or weeks?"
-            else:
-                return "Did it build up gradually over hours or days?"
-        else:
-            return "How quickly did the pain develop?"
-    
-    def _generate_character_discriminator(self, top_conditions: List[Dict]) -> str:
-        """Generate character question that discriminates between pain types"""
-        return "What does the pain feel like? Sharp and stabbing, dull and achy, cramping and squeezing, or burning?"
-    
-    def _generate_radiation_discriminator(self, top_conditions: List[Dict]) -> str:
-        """Generate radiation question based on top differentials"""
-        # Check radiation patterns in top conditions
-        has_back_radiation = any('back' in g['data'].get('location', '').lower() for g in top_conditions)
-        has_shoulder_radiation = any('shoulder' in g['data'].get('location', '').lower() for g in top_conditions)
+        user_msg = f"""Generate a targeted question about {element_desc} to help differentiate between these conditions:
+
+Conditions:
+{chr(10).join(condition_info)}
+
+Generate ONE question that will help distinguish between these conditions. Focus on {element_desc}.
+
+Question:"""
         
-        if has_back_radiation and has_shoulder_radiation:
-            return "Does the pain spread anywhere? Like to your back, shoulder, or somewhere else?"
-        elif has_back_radiation:
-            return "Does the pain go through to your back?"
-        elif has_shoulder_radiation:
-            return "Does the pain spread to your shoulder?"
-        else:
-            return "Does the pain stay in one place or does it spread anywhere?"
+        try:
+            response = self.llm_chat_fn(
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=100,
+                temperature=0.3
+            )
+            
+            question = response.strip().strip('"\'')
+            if not question.endswith('?'):
+                question += '?'
+            
+            print(f"[Engine] ✅ LLM differential question: '{question}'")
+            return question
+            
+        except Exception as e:
+            print(f"[Engine] ⚠️ LLM differential question failed: {e}")
+            return "Could you provide more details?"
+    
     
     def _generate_clarification_question(self, topic: str) -> str:
         """

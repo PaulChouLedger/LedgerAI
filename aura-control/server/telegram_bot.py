@@ -80,9 +80,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 response_text = ' '.join(response_parts) if response_parts else "Session reset. Start again with your symptoms."
                 
-                # Remove sentence tags for Telegram display
+                # Remove control tags for Telegram display
                 import re
-                response_text = re.sub(r'<sentence_start>|<sentence_end>', '', response_text)
+                response_text = re.sub(r'<sentence_start>|<sentence_end>|<pause>', '', response_text)
                 response_text = re.sub(r'\s+', ' ', response_text).strip()  # Normalize spaces
                 
                 await update.message.reply_text(response_text)
@@ -211,10 +211,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 scores = debug_data['last_answer_scores']
                 print(f"[Telegram] 🎯 Answer Scores: {scores}")
             
+            # Enhanced debugging for failure cases
+            if 'active_guidelines' in debug_data:
+                print(f"[Telegram] 📊 Active Guidelines: {debug_data['active_guidelines']}")
+            if 'reserve_pool' in debug_data:
+                print(f"[Telegram] 📊 Reserve Pool: {debug_data['reserve_pool']}")
+            if 'ruled_out' in debug_data:
+                print(f"[Telegram] 📊 Ruled Out: {debug_data['ruled_out']}")
+            if 'oldcarts_covered' in debug_data:
+                print(f"[Telegram] 📋 OLDCARTS Coverage: {debug_data['oldcarts_covered']}")
+            if 'demographics' in debug_data:
+                print(f"[Telegram] 👤 Demographics: {debug_data['demographics']}")
+            
             print(f"{'='*80}\n")
         
+        # Remove control tags for Telegram display
+        import re
+        clean_response = re.sub(r'<sentence_start>|<sentence_end>|<pause>', '', response_text)
+        clean_response = re.sub(r'\s+', ' ', clean_response).strip()  # Normalize spaces
+        
         # Send the main response
-        await update.message.reply_text(response_text)
+        await update.message.reply_text(clean_response)
         
         # Debug info is now ONLY in terminal logs (not sent to Telegram)
         # This keeps the chat clean while still providing visibility for monitoring
