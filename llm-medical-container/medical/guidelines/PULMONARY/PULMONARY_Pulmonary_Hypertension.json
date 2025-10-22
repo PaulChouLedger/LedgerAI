@@ -1,0 +1,28 @@
+{
+  "condition": "Pulmonary Hypertension",
+  "icd10": "I27.0",
+  "snomed": "233604007",
+  "sex": "both",
+  "prevalence": "rare",
+  "chief_complaint_triggers": [
+    "pulmonary hypertension",
+    "high blood pressure in lungs",
+    "shortness of breath",
+    "chest pain",
+    "fatigue"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual over months to years. LOCATION: Diffuse chest. DURATION: Chronic, progressive. CHARACTER: Progressive dyspnea, chest pain. AGGRAVATING: Exertion, lying flat. RELIEVING: Oxygen, vasodilators. TIMING: Chronic, progressive. SEVERITY: Moderate to severe (5-8/10). ASSOCIATED SYMPTOMS: Progressive dyspnea, chest pain, fatigue, syncope, leg swelling. KEY POSITIVES: Progressive dyspnea, chest pain, fatigue. KEY NEGATIVES: No fever, no wheezing (unless reactive airway disease)."
+  },
+  "red_flags": [
+    "Severe dyspnea or respiratory distress",
+    "Cyanosis or oxygen saturation <90%",
+    "Syncope or near-syncope",
+    "Signs of right heart failure",
+    "Altered mental status",
+    "Signs of respiratory failure",
+    "Severe chest pain",
+    "Signs of shock"
+  ]
+}

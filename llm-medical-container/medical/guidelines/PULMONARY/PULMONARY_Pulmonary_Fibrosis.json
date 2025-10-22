@@ -1,0 +1,28 @@
+{
+  "condition": "Pulmonary Fibrosis",
+  "icd10": "J84.10",
+  "snomed": "233604007",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "chief_complaint_triggers": [
+    "pulmonary fibrosis",
+    "lung scarring",
+    "shortness of breath",
+    "chronic lung disease",
+    "interstitial lung disease"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual over months to years. LOCATION: Bilateral, diffuse. DURATION: Chronic, progressive. CHARACTER: Progressive dyspnea, dry cough. AGGRAVATING: Exertion, infections. RELIEVING: Oxygen, steroids, antifibrotics. TIMING: Chronic, progressive. SEVERITY: Moderate to severe (5-8/10). ASSOCIATED SYMPTOMS: Progressive dyspnea, dry cough, fatigue, weight loss, clubbing. KEY POSITIVES: Progressive dyspnea, dry cough, clubbing. KEY NEGATIVES: No chest pain (unless secondary), no wheezing (unless reactive airway disease)."
+  },
+  "red_flags": [
+    "Severe dyspnea or respiratory distress",
+    "Cyanosis or oxygen saturation <90%",
+    "Signs of respiratory failure",
+    "Altered mental status",
+    "Severe fatigue or weakness",
+    "Signs of infection",
+    "Weight loss or cachexia",
+    "Clubbing of fingers"
+  ]
+}

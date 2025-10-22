@@ -1,0 +1,29 @@
+{
+  "condition": "Anaphylaxis",
+  "icd10": "T78.40XA",
+  "snomed": "39579001",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "chief_complaint_triggers": [
+    "allergic reaction",
+    "anaphylaxis",
+    "severe allergy",
+    "throat closing",
+    "can't breathe",
+    "swelling"
+  ],
+  "urgency": "emergent",
+  "key_features": {
+    "classic_presentation": "ONSET: RAPID onset within minutes of exposure to allergen. LOCATION: Systemic, affecting multiple organ systems. DURATION: Minutes to hours, can be life-threatening. CHARACTER: Severe, rapidly progressive. AGGRAVATING: Continued allergen exposure. RELIEVING: Epinephrine, antihistamines, steroids. TIMING: Acute, rapid progression. SEVERITY: Severe to life-threatening (8-10/10). ASSOCIATED SYMPTOMS: Respiratory: stridor, wheezing, dyspnea, throat tightness. Cutaneous: urticaria, angioedema, pruritus. Cardiovascular: hypotension, tachycardia, shock. GI: nausea, vomiting, diarrhea. Neurological: altered mental status, dizziness. KEY POSITIVES: Multi-system involvement, rapid onset, known allergen exposure. KEY NEGATIVES: No fever, no chest pain (unless secondary to respiratory distress)."
+  },
+  "red_flags": [
+    "Stridor or hoarse voice",
+    "Swelling of face, lips, tongue",
+    "Difficulty swallowing or speaking",
+    "Severe dyspnea or wheezing",
+    "Hypotension or shock",
+    "Altered mental status",
+    "Nausea, vomiting, diarrhea",
+    "Generalized urticaria or rash"
+  ]
+}

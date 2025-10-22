@@ -1,0 +1,28 @@
+{
+  "condition": "Aspiration Pneumonia",
+  "icd10": "J69.0",
+  "snomed": "233604007",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "chief_complaint_triggers": [
+    "aspiration",
+    "choking",
+    "vomiting and breathing problems",
+    "food in lungs",
+    "aspiration pneumonia"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: Sudden during or shortly after aspiration event. LOCATION: Dependent lung regions (right lower lobe most common). DURATION: Acute onset, can persist for days to weeks. CHARACTER: Dyspnea, cough, chest discomfort. AGGRAVATING: Lying flat, continued aspiration risk. RELIEVING: Upright positioning, suctioning, antibiotics. TIMING: Acute, often during eating or vomiting. SEVERITY: Moderate to severe (6-8/10). ASSOCIATED SYMPTOMS: Fever, productive cough (may be foul-smelling), dyspnea, chest pain, altered mental status (if hypoxic). KEY POSITIVES: Recent aspiration event, fever, productive cough, dyspnea. KEY NEGATIVES: No chest pain (unless severe), no wheezing (unless reactive airway disease)."
+  },
+  "red_flags": [
+    "Severe dyspnea or respiratory distress",
+    "High fever >101.5°F",
+    "Altered mental status",
+    "Cyanosis or oxygen saturation <90%",
+    "Hemoptysis or blood in sputum",
+    "Shock or hypotension",
+    "Inability to protect airway",
+    "Recurrent aspiration events"
+  ]
+}

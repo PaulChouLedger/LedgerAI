@@ -1,0 +1,28 @@
+{
+  "condition": "Sleep Apnea",
+  "icd10": "G47.33",
+  "snomed": "233604007",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "sleep apnea",
+    "snoring",
+    "sleep problems",
+    "fatigue",
+    "daytime sleepiness"
+  ],
+  "urgency": "routine",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual over months to years. LOCATION: Upper airway. DURATION: Chronic, persistent. CHARACTER: Episodic breathing cessation during sleep. AGGRAVATING: Supine position, alcohol, sedatives. RELIEVING: CPAP, weight loss, positioning. TIMING: Nocturnal, episodic. SEVERITY: Mild to moderate (3-6/10). ASSOCIATED SYMPTOMS: Loud snoring, witnessed apneas, daytime sleepiness, fatigue, morning headaches. KEY POSITIVES: Loud snoring, witnessed apneas, daytime sleepiness. KEY NEGATIVES: No chest pain, no wheezing."
+  },
+  "red_flags": [
+    "Severe daytime sleepiness",
+    "Signs of respiratory failure",
+    "Altered mental status",
+    "Severe fatigue",
+    "Signs of cardiac complications",
+    "Severe snoring with witnessed apneas",
+    "Signs of hypoxemia",
+    "Signs of pulmonary hypertension"
+  ]
+}

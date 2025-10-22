@@ -14,7 +14,7 @@ DIAGNOSTIC FLOW:
 4. Feed all 3 guidelines' classical presentations to LLM
 5. LLM follows OLDCARTS roadmap to generate systematic questions
 6. Ask question → LLM scores all 3 → Re-rank by score
-7. Rule out <10% → Promote from reserve (prioritize COMMON conditions)
+7. Rule out <3% → Promote from reserve (only clear mismatches, preserve diffuse conditions)
 8. Repeat until 95% confidence + 12 questions (or 15 max)
 9. Screen ALL red flags after diagnosis
 10. Finalize with disposition + red flag warnings
@@ -295,8 +295,9 @@ class AdaptiveDiagnosticEngine:
         # Debug output capture for Telegram display
         self._captured_debug_output = []  # Capture debug output for Telegram display
         
-        # Thresholds
-        self.RULE_OUT_THRESHOLD = 0.10  # Below 10% → rule out and replace (adjusted for new scoring)
+        # Thresholds - Clinical scoring: only rule out with definitive proof
+        self.RULE_OUT_THRESHOLD = 0.03  # Below 3% → rule out (only clear mismatches)
+        self.MINIMUM_SCORE_FOR_RANKING = 0.05  # Minimum score to be considered for ranking
         self.MAX_ACTIVE = 5  # Keep 5 active differentials
         self.MAX_CLARIFICATIONS = 2  # Max times to ask for clarification before moving on
     
@@ -1396,7 +1397,7 @@ Your question:"""
         if not text1 or not text2:
             raise ValueError("Both text1 and text2 must be non-empty")
         
-        # Generate embeddings
+        # Generate embeddings directly (rely on LLM normalization for text preprocessing)
         emb1 = self.embedding_model.encode([text1])[0]
         emb2 = self.embedding_model.encode([text2])[0]
         
@@ -1602,21 +1603,30 @@ Your question:"""
         # Hybrid logic with emphasis on Jaccard (70% weight)
         if jaccard_score == 0.0:
             # Zero Jaccard = clear keyword mismatch (e.g., "left side" vs "right side")
-            # Rule out completely - directional conflict
-            final_score = 0.0
-            confidence = "low"
-            method_used = "jaccard_mismatch"
+            # Only rule out if truly incompatible - preserve diffuse/vague conditions
+            if semantic_score > 0.15:  # If reasonable semantic similarity exists
+                final_score = semantic_score * 0.5  # 50% penalty but preserve for ranking
+                confidence = "medium"
+                method_used = "directional_mismatch_with_semantic"
+            elif semantic_score > 0.08:  # If any semantic similarity exists
+                final_score = semantic_score * 0.3  # 70% penalty but preserve for ranking
+                confidence = "low"
+                method_used = "directional_mismatch_with_semantic"
+            else:
+                final_score = 0.03  # Minimal base score for diffuse conditions
+                confidence = "low"
+                method_used = "minimal_preservation"
             
         elif jaccard_score > 0 and jaccard_score < 0.15:
             # Small Jaccard (>0 but small due to 1-2 word matches) - use hybrid approach
-            # Combine jaccard + semantic with threshold > 0.1 (more permissive)
-            hybrid_score = (0.7 * jaccard_score) + (0.3 * semantic_score)
-            if hybrid_score > 0.1:
+            # More generous scoring for diffuse/vague conditions
+            hybrid_score = (0.3 * jaccard_score) + (0.7 * semantic_score)
+            if hybrid_score > 0.03:  # Lower threshold for hybrid
                 final_score = hybrid_score
                 confidence = "medium"
                 method_used = "hybrid_small_jaccard"
             else:
-                final_score = jaccard_score  # Fall back to jaccard if hybrid too low
+                final_score = max(jaccard_score, 0.05)  # Ensure minimum score
                 confidence = "low"
                 method_used = "jaccard_fallback"
                 

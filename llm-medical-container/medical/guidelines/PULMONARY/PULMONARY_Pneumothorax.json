@@ -1,0 +1,28 @@
+{
+  "condition": "Pneumothorax",
+  "icd10": "J93.9",
+  "snomed": "233604007",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "chief_complaint_triggers": [
+    "pneumothorax",
+    "collapsed lung",
+    "chest pain",
+    "shortness of breath",
+    "lung collapse"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: Sudden onset. LOCATION: Unilateral chest. DURATION: Acute, persistent until treated. CHARACTER: Sudden chest pain, dyspnea. AGGRAVATING: Exertion, lying flat. RELIEVING: Sitting upright, chest tube. TIMING: Acute, sudden. SEVERITY: Moderate to severe (6-8/10). ASSOCIATED SYMPTOMS: Sudden chest pain, dyspnea, cough, anxiety. KEY POSITIVES: Sudden onset, chest pain, dyspnea. KEY NEGATIVES: No fever, no wheezing."
+  },
+  "red_flags": [
+    "Severe dyspnea or respiratory distress",
+    "Cyanosis or oxygen saturation <90%",
+    "Signs of tension pneumothorax",
+    "Altered mental status",
+    "Signs of respiratory failure",
+    "Severe chest pain",
+    "Signs of shock",
+    "Mediastinal shift"
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "condition": "Pulmonary Embolism",
+  "icd10": "I26.90",
+  "snomed": "233604007",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "chief_complaint_triggers": [
+    "pulmonary embolism",
+    "PE",
+    "blood clot in lung",
+    "chest pain",
+    "shortness of breath"
+  ],
+  "urgency": "emergent",
+  "key_features": {
+    "classic_presentation": "ONSET: Sudden onset. LOCATION: Chest, often pleuritic. DURATION: Acute, persistent. CHARACTER: Sudden chest pain, dyspnea. AGGRAVATING: Deep breathing, exertion. RELIEVING: Anticoagulants, oxygen. TIMING: Acute, sudden. SEVERITY: Moderate to severe (6-8/10). ASSOCIATED SYMPTOMS: Sudden dyspnea, chest pain, hemoptysis, syncope, leg swelling. KEY POSITIVES: Sudden onset, dyspnea, chest pain, hemoptysis. KEY NEGATIVES: No fever, no wheezing."
+  },
+  "red_flags": [
+    "Severe dyspnea or respiratory distress",
+    "Cyanosis or oxygen saturation <90%",
+    "Hemoptysis",
+    "Syncope or near-syncope",
+    "Signs of respiratory failure",
+    "Altered mental status",
+    "Signs of shock",
+    "Severe chest pain"
+  ]
+}

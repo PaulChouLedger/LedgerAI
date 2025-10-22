@@ -45,7 +45,7 @@ RUN pip3 install --no-cache-dir --ignore-installed \
     faiss-cpu \
     --index-url https://pypi.org/simple
 
-# Pre-download all-distilroberta-v1 model (makes it WiFi-independent for CPU mode)
+# Pre-download all-distilroberta-v1 model (benchmarked as best, makes it WiFi-independent for CPU mode)
 RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-distilroberta-v1')" && \
     echo "✅ all-distilroberta-v1 model pre-downloaded into image"
 

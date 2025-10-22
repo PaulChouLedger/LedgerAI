@@ -77,7 +77,7 @@ class RAGClient:
             
             logger.info("[RAG Client] 🔧 Initializing CPU RAG system...")
             
-            # Use the same model as the GPU version for consistency
+            # Use all-distilroberta-v1 (benchmarked as best performing model)
             self._embedding_model = SentenceTransformer('all-distilroberta-v1')
             self._embedding_dim = 768
             

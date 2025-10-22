@@ -1,0 +1,28 @@
+{
+  "condition": "Sarcoidosis",
+  "icd10": "D86.9",
+  "snomed": "233604007",
+  "sex": "both",
+  "prevalence": "rare",
+  "chief_complaint_triggers": [
+    "sarcoidosis",
+    "chest pain",
+    "shortness of breath",
+    "lung disease",
+    "fatigue"
+  ],
+  "urgency": "routine",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual over months to years. LOCATION: Bilateral, diffuse. DURATION: Chronic, persistent. CHARACTER: Progressive dyspnea, chest pain. AGGRAVATING: Exertion, infections. RELIEVING: Steroids, immunosuppressants. TIMING: Chronic, progressive. SEVERITY: Moderate to severe (5-8/10). ASSOCIATED SYMPTOMS: Progressive dyspnea, chest pain, fatigue, weight loss, skin lesions. KEY POSITIVES: Progressive dyspnea, chest pain, fatigue. KEY NEGATIVES: No fever (unless infection), no wheezing (unless reactive airway disease)."
+  },
+  "red_flags": [
+    "Severe dyspnea or respiratory distress",
+    "Cyanosis or oxygen saturation <90%",
+    "Signs of respiratory failure",
+    "Altered mental status",
+    "Severe fatigue or weakness",
+    "Signs of infection",
+    "Weight loss or cachexia",
+    "Signs of cardiac involvement"
+  ]
+}

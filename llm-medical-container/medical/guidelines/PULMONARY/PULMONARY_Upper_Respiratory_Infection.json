@@ -1,0 +1,28 @@
+{
+  "condition": "Upper Respiratory Infection (URI)",
+  "icd10": "J06.9",
+  "snomed": "233604007",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "cold",
+    "upper respiratory infection",
+    "URI",
+    "nasal congestion",
+    "sore throat"
+  ],
+  "urgency": "routine",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual over hours to days. LOCATION: Upper respiratory tract. DURATION: 3-7 days. CHARACTER: Nasal congestion, sore throat, cough. AGGRAVATING: Cold air, talking. RELIEVING: Rest, fluids, humidified air. TIMING: Acute, self-limiting. SEVERITY: Mild to moderate (3-6/10). ASSOCIATED SYMPTOMS: Nasal congestion, sore throat, cough, sneezing, fatigue, low-grade fever. KEY POSITIVES: Nasal congestion, sore throat, cough. KEY NEGATIVES: No chest pain, no wheezing (unless reactive airway disease)."
+  },
+  "red_flags": [
+    "High fever >101.5°F",
+    "Severe dyspnea or respiratory distress",
+    "Signs of respiratory failure",
+    "Altered mental status",
+    "Cyanosis or oxygen saturation <90%",
+    "Severe chest pain",
+    "Signs of secondary bacterial infection",
+    "Severe fatigue or weakness"
+  ]
+}

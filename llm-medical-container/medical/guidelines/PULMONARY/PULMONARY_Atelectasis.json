@@ -1,0 +1,28 @@
+{
+  "condition": "Atelectasis",
+  "icd10": "J98.11",
+  "snomed": "19450001",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "shortness of breath",
+    "chest pain",
+    "collapsed lung",
+    "atelectasis",
+    "breathing problems after surgery"
+  ],
+  "urgency": "routine",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual or sudden, often post-operative or bedridden. LOCATION: Focal or segmental lung areas. DURATION: Hours to days, can be persistent. CHARACTER: Mild dyspnea, chest discomfort. AGGRAVATING: Lying flat, shallow breathing. RELIEVING: Deep breathing, coughing, incentive spirometry, positioning. TIMING: Often worse in morning, improves with activity. SEVERITY: Mild to moderate (3-6/10). ASSOCIATED SYMPTOMS: Mild dyspnea, dry cough, chest discomfort, low-grade fever (if infection develops). KEY POSITIVES: Recent surgery, immobility, shallow breathing. KEY NEGATIVES: No severe dyspnea, no chest pain (unless severe), no wheezing."
+  },
+  "red_flags": [
+    "Severe dyspnea or respiratory distress",
+    "High fever >101.5°F",
+    "Chest pain with breathing",
+    "Cyanosis or oxygen saturation <90%",
+    "Hemoptysis",
+    "Signs of infection",
+    "Progressive respiratory failure",
+    "Altered mental status"
+  ]
+}
