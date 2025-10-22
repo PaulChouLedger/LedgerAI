@@ -222,7 +222,10 @@ def chat_tg():
         # Dispatch to unified medical mode
         try:
             # For Telegram, we don't need immediate fillers since it's text-based
+            # Engine debug output will flow through naturally (no duplication needed)
+            print(f"[Container] 🔍 Telegram request: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}'")
             response = handle_clinician_response(prompt, session_id, llm_chat, llm_chat_simple)
+            print(f"[Container] ✅ Telegram response processed")
             
             # Check if response includes question (dict) or is simple text (str)
             if isinstance(response, dict):

@@ -238,7 +238,8 @@ class AdaptiveDiagnosticEngine:
                 'ruled_out': len(self.ruled_out)
             },
             'last_answer': last_answer,
-            'last_answer_scores': getattr(self, '_last_answer_scores', None)  # Set during scoring
+            'last_answer_scores': getattr(self, '_last_answer_scores', None),  # Set during scoring
+            'engine_debug_output': getattr(self, '_captured_debug_output', [])  # Captured debug output
         }
         
         # Add matching algorithm info if available
@@ -246,6 +247,11 @@ class AdaptiveDiagnosticEngine:
             debug_info['matching'] = self.matching_metadata
         
         return debug_info
+    
+    def _capture_debug(self, message: str):
+        """Capture debug output for Telegram display"""
+        self._captured_debug_output.append(message)
+        print(message)  # Still print to stdout for container logs
     
     def reset_assessment(self):
         """Reset for new patient"""
@@ -274,6 +280,9 @@ class AdaptiveDiagnosticEngine:
         
         # Clarification tracking
         self.clarification_count = {}  # Track how many times we've asked for clarification per OLDCARTS element
+        
+        # Debug output capture for Telegram display
+        self._captured_debug_output = []  # Capture debug output for Telegram display
         
         # Thresholds
         self.RULE_OUT_THRESHOLD = 0.30  # Below 30% → rule out and replace
@@ -2071,7 +2080,10 @@ Normalized text:"""
             raise RuntimeError("Embedding model not initialized - cannot compute similarity")
         
         print(f"[Engine] 📊 Matching answer to OLDCARTS element: {oldcarts_element}")
-        print(f"[Engine] 📋 Scoring ALL {len(self.active_guidelines) + len(self.reserve_pool)} guidelines (active + reserve)\n")
+        print(f"[Engine] 📋 Scoring ALL {len(self.active_guidelines) + len(self.reserve_pool)} guidelines (active + reserve)")
+        self._capture_debug(f"[Engine] 🧠 LLM NORMALIZATION: '{answer}' → Semantic understanding via vector similarity")
+        self._capture_debug(f"[Engine] 📝 Patient language: '{answer}'")
+        self._capture_debug(f"[Engine] 🔍 LLM will normalize to medical terms through semantic similarity\n")
         
         # Combine active + reserve for scoring
         all_guidelines = self.active_guidelines + self.reserve_pool
@@ -2135,20 +2147,20 @@ Normalized text:"""
                 new_score = (old_score * (1 - element_weight)) + (similarity * element_weight)
                 g['score'] = new_score
                 change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
-                print(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (weight={element_weight:.1f})")
-                print(f"[Engine]     Similarity: {similarity:.2f} to {oldcarts_element} section")
-                print(f"[Engine]     Section: {oldcarts_section[:80]}...")
+                self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (weight={element_weight:.1f})")
+                self._capture_debug(f"[Engine]     🧠 LLM Semantic Match: {similarity:.2f} ('{answer}' ↔ '{oldcarts_section[:50]}...')")
+                self._capture_debug(f"[Engine]     📝 Patient: '{answer}' → Medical: '{oldcarts_section[:80]}...'")
         
         # DYNAMIC RE-RANKING: Sort ALL guidelines by updated scores
         # This ensures conditions like Diverticulitis (LLQ) jump to top when "left side" is mentioned
-        print(f"\n[Engine] 🔄 RE-RANKING all guidelines by updated scores...")
+        self._capture_debug(f"\n[Engine] 🔄 RE-RANKING all guidelines by updated scores...")
         
         # Rule out any with score < threshold
         ruled_out_this_round = []
         remaining = []
         for g in all_guidelines:
             if g['score'] < self.RULE_OUT_THRESHOLD:
-                print(f"[Engine] ❌ RULING OUT: {g['name']} (score {g['score']:.0%} < {self.RULE_OUT_THRESHOLD:.0%})")
+                self._capture_debug(f"[Engine] ❌ RULING OUT: {g['name']} (score {g['score']:.0%} < {self.RULE_OUT_THRESHOLD:.0%})")
                 self.ruled_out.append(g)
                 ruled_out_this_round.append(g)
             else:
@@ -2175,13 +2187,13 @@ Normalized text:"""
             for g in demoted_this_round:
                 print(f"[Engine]   ↓ {g['name']} (score: {g['score']:.0%})")
         
-        print(f"\n[Engine] 📊 UPDATED RANKINGS:")
+        self._capture_debug(f"\n[Engine] 📊 UPDATED RANKINGS:")
         for i, g in enumerate(self.active_guidelines, 1):
             urgency_emoji = "🚨" if g['data'].get('urgency') == 'emergent' else "⚠️" if g['data'].get('urgency') == 'urgent' else "📋"
-            print(f"[Engine]   {i}. {g['name']}: {g['score']:.0%} {urgency_emoji}")
+            self._capture_debug(f"[Engine]   {i}. {g['name']}: {g['score']:.0%} {urgency_emoji}")
         
         # Always show pool statistics
-        print(f"\n[Engine] 🔄 Pool status: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
+        self._capture_debug(f"\n[Engine] 🔄 Pool status: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
         
         print(f"{'='*80}\n")
         
@@ -2241,11 +2253,21 @@ Normalized text:"""
             # Ask clarification, but move on if we've asked too many times for this element
             MAX_CLARIFICATIONS_PER_ELEMENT = 2  # Limit to avoid infinite loops
             
-            if (score_spread < 0.10 or top_score < 0.50):
+            # MUCH MORE LENIENT: Only clarify when absolutely necessary
+            # Normal patient answers like "yesterday", "random", "sudden" should be accepted
+            # LLM semantic similarity should handle normalization (e.g., "yesterday" → "24 hours ago")
+            
+            # Show LLM normalization decision
+            self._capture_debug(f"\n[Engine] 🧠 LLM NORMALIZATION DECISION:")
+            self._capture_debug(f"[Engine]   📝 Patient answer: '{answer}'")
+            self._capture_debug(f"[Engine]   📊 Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
+            self._capture_debug(f"[Engine]   🎯 Thresholds: spread < 0.05, top_score < 0.20")
+            
+            if (score_spread < 0.05 or top_score < 0.20):
                 if clarification_count < MAX_CLARIFICATIONS_PER_ELEMENT:
                     print(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
                     print(f"[Engine]   Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
-                    print(f"[Engine]   Reason: {'Scores too close' if score_spread < 0.10 else 'All scores too low'}")
+                    print(f"[Engine]   Reason: {'Scores too close' if score_spread < 0.05 else 'All scores too low'}")
                     print(f"[Engine]   Clarifications asked so far: {clarification_count}/{MAX_CLARIFICATIONS_PER_ELEMENT}")
                     print(f"[Engine]   Strategy: {'Open-ended' if clarification_count == 0 else 'Targeted (differential-based)'}")
                     
@@ -2273,6 +2295,10 @@ Normalized text:"""
                     print(f"[Engine]   Already asked {clarification_count} clarifications for '{oldcarts_element}'")
                     print(f"[Engine]   📋 Can't differentiate further on this element - moving to next OLDCARTS")
                     # Will fall through and continue to next OLDCARTS element
+            else:
+                self._capture_debug(f"[Engine] ✅ LLM NORMALIZATION SUCCESS: Accepting '{answer}' without clarification")
+                self._capture_debug(f"[Engine]   🧠 LLM semantic understanding sufficient (top: {top_score:.0%}, spread: {score_spread:.0%})")
+                self._capture_debug(f"[Engine]   📝 Patient language normalized via semantic similarity")
         
         # Diagnosis criteria: ALL OLDCARTS covered + high confidence, OR max 15 questions
         if oldcarts_complete and top['score'] >= 0.95:

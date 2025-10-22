@@ -126,6 +126,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         # Forward to Aura's /chat-tg endpoint (returns JSON, not streaming)
+        print(f"[Telegram] 🔍 Sending to LLM container: '{user_message[:50]}{'...' if len(user_message) > 50 else ''}'")
         resp = requests.post(
             AURA_CHAT_URL,
             json={
@@ -134,6 +135,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             },
             timeout=30
         )
+        print(f"[Telegram] ✅ LLM container responded with status: {resp.status_code}")
 
         if resp.status_code != 200:
             await update.message.reply_text("⚠️ Error talking to Aura.")
@@ -145,6 +147,36 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             response_data = resp.json()
             response_text = response_data.get("response", "I'm sorry, I didn't understand that.")
             debug_data = response_data.get("debug")  # Optional debug info from adaptive engine
+            
+            print(f"[Telegram] 📊 Response data keys: {list(response_data.keys())}")
+            print(f"[Telegram] 📝 Response text: '{response_text[:100]}{'...' if len(response_text) > 100 else ''}'")
+            if debug_data:
+                print(f"[Telegram] 🔍 Debug data available: {len(str(debug_data))} chars")
+                
+                # Display engine debug output if available
+                if 'engine_debug_output' in debug_data and debug_data['engine_debug_output']:
+                    print(f"\n{'='*80}")
+                    print(f"[Telegram] 🧠 ENGINE DEBUG OUTPUT (Session: {chat_id})")
+                    print(f"{'='*80}")
+                    for debug_line in debug_data['engine_debug_output']:
+                        print(debug_line)
+                    print(f"{'='*80}\n")
+                
+                # Display rankings and pool status
+                if 'active_differentials' in debug_data:
+                    print(f"[Telegram] 📊 ACTIVE DIFFERENTIALS:")
+                    for diff in debug_data['active_differentials']:
+                        print(f"[Telegram]   {diff['rank']}. {diff['name']}: {diff['score']} ({diff['urgency']})")
+                
+                if 'pool_status' in debug_data:
+                    pool = debug_data['pool_status']
+                    print(f"[Telegram] 🔄 Pool: Active={pool['active']}, Reserve={pool['reserve']}, Ruled out={pool['ruled_out']}")
+                
+                if 'oldcarts_coverage' in debug_data:
+                    print(f"[Telegram] 📋 OLDCARTS: {debug_data['oldcarts_coverage']} ({debug_data.get('oldcarts_count', 'N/A')})")
+            else:
+                print(f"[Telegram] ⚠️ No debug data in response")
+                
         except json.JSONDecodeError:
             print(f"[Telegram] ❌ Failed to parse JSON: {resp.text}")
             response_text = "I'm sorry, there was an error processing your request."
