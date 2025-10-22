@@ -1153,13 +1153,13 @@ Output only the question:"""
             # Filler is now handled at container level for immediate streaming
             self._capture_debug(f"[Engine] 💬 Generating question (filler handled by container)...")
             
-            response = self.llm_chat_fn(
+            response = self.llm_chat_simple_fn(
                 [
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=40,
-                temperature=0.2
+                max_tokens=30,
+                temperature=0.1
             )
             
             question = response.strip().strip('"\'')
@@ -1179,6 +1179,13 @@ Output only the question:"""
                 ' when did ', ' how long have ', ' how old are you '
             ])
             
+            # Check for inappropriate body part combinations (like shoulder, arm, chest)
+            inappropriate_combinations = [
+                'shoulder, arm', 'arm, chest', 'shoulder, arm, chest', 'chest, shoulder',
+                'discomfort is more specifically', 'help me understand better'
+            ]
+            has_inappropriate_combinations = any(combo in question.lower() for combo in inappropriate_combinations)
+            
             # Check for medical jargon that patients won't understand
             medical_jargon = [
                 'epigastric', 'periumbilical', 'flank', 'costovertebral', 'cva', 'quadrant',
@@ -1187,11 +1194,13 @@ Output only the question:"""
             ]
             has_jargon = any(term in question.lower() for term in medical_jargon)
             
-            if question_mark_count > 1 or has_sentence_before_question or has_jargon or has_combined_indicators:
+            if question_mark_count > 1 or has_sentence_before_question or has_jargon or has_combined_indicators or has_inappropriate_combinations:
                 if has_jargon:
                     self._capture_debug(f"[Engine] ⚠️ LLM used medical jargon - using plain language template")
                 elif has_combined_indicators:
                     self._capture_debug(f"[Engine] ⚠️ LLM combined multiple questions (detected: {[phrase for phrase in [' and ', ' also ', ' how long ', ' how old ', ' what is your age ', ' when did ', ' how long have ', ' how old are you '] if phrase in question.lower()]}) - using template fallback")
+                elif has_inappropriate_combinations:
+                    self._capture_debug(f"[Engine] ⚠️ LLM used inappropriate body part combinations (detected: {[combo for combo in inappropriate_combinations if combo in question.lower()]}) - using template fallback")
                 else:
                     self._capture_debug(f"[Engine] ⚠️ LLM combined multiple questions - using template fallback")
                 self._capture_debug(f"[Engine]    Generated: '{question}'")
