@@ -1301,6 +1301,10 @@ Your question:"""
         # Simple keyword-based detection (reliable, fast)
         q_lower = question.lower()
         
+        # O - ONSET
+        if any(phrase in q_lower for phrase in ['when did', 'how did', 'started', 'began', 'onset', 'when exactly']):
+            return 'O'
+        
         # L - LOCATION
         if any(word in q_lower for word in ['where', 'location', 'which part', 'what area', 'which side']):
             return 'L'
@@ -2034,6 +2038,16 @@ Normalized text:"""
                 break
         
         oldcarts_element = last_question_item.get('oldcarts') if last_question_item else None
+        
+        # ONSET: Documentation only - no scoring needed
+        if oldcarts_element == 'O':
+            self._capture_debug(f"[Engine] 📝 ONSET: Documentation only - no scoring needed")
+            self._capture_debug(f"[Engine] ✅ Marking OLDCARTS element 'O' as covered")
+            self.oldcarts_covered['O'] = True
+            self._capture_debug(f"[Engine] 📋 OLDCARTS Coverage: {''.join([k if v else '_' for k, v in self.oldcarts_covered.items()])} ({sum(self.oldcarts_covered.values())}/8)")
+            
+            # Move to next question
+            return self._ask_next_clinical_question()
         
         # ASSOCIATED SYMPTOMS: Score using KEY POSITIVES/NEGATIVES sections
         if not oldcarts_element:

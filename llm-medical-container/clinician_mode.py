@@ -264,7 +264,16 @@ class ClinicianSession:
         """RAG functionality now uses API calls to separate RAG container"""
         # No local RAG instance needed - all operations via HTTP API
         self.medical_rag = None  # Not used - all RAG via API
-        print("[Clinician] ℹ️  RAG functionality available via API calls to RAG container")
+        
+        # Check actual RAG state
+        if hasattr(self, 'adaptive_engine') and self.adaptive_engine:
+            # Check if RAG client is available
+            if hasattr(self.adaptive_engine, 'embedding_model') and self.adaptive_engine.embedding_model:
+                print("[Clinician] ℹ️  RAG functionality available via local CPU FAISS")
+            else:
+                print("[Clinician] ℹ️  RAG functionality available via API calls to RAG container")
+        else:
+            print("[Clinician] ℹ️  RAG functionality available via API calls to RAG container")
 
     def process_medical_query(self, user_input: str):
         """
