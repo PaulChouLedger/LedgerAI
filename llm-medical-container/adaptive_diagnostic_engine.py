@@ -1131,7 +1131,7 @@ class AdaptiveDiagnosticEngine:
             
             example = oldcarts_examples.get(next_element, "Tell me about the symptom")
             
-            system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do NOT ask questions requiring visual inspection (no 'point to', 'show me', 'look at', 'appearance', 'color', 'swelling'). Do NOT ask about duration/time - that will be covered later."
+            system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do not include medical terminology from guidelines. Do NOT ask questions requiring visual inspection (no 'point to', 'show me', 'look at', 'appearance', 'color', 'swelling'). Do NOT ask about duration/time - that will be covered later."
             
             user_msg = f"""Patient: {patient_info} with {symptom}
 
@@ -1139,7 +1139,9 @@ Ask about: {element_desc}
 
 Example: "{example}"
 
-Generate EXACTLY ONE question using SIMPLE, PLAIN LANGUAGE. Do NOT combine multiple questions. Do NOT ask about duration/time. Output only the question:"""
+Generate EXACTLY ONE question using SIMPLE, PLAIN LANGUAGE. Do NOT combine multiple questions. Do NOT ask about duration/time. 
+Make the question specific to the patient's chief complaint. For LOCATION questions, ask about the relevant body area for their specific symptom.
+Output only the question:"""
             
             # Filler is now handled at container level for immediate streaming
             self._capture_debug(f"[Engine] 💬 Generating question (filler handled by container)...")
