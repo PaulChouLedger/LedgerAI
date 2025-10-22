@@ -83,10 +83,10 @@ try:
     test_embedding = rag_api.encode(["test"])
     RAG_API_AVAILABLE = True
     rag_client = get_rag_client()
-    self._capture_debug(f"[Engine] ✅ RAG client available - using {rag_client.get_mode()}")
+    print(f"[Engine] ✅ RAG client available - using {rag_client.get_mode()}")
 except Exception as e:
     RAG_API_AVAILABLE = False
-    self._capture_debug(f"[Engine] ⚠️ RAG client not available - using brute-force matching: {e}")
+    print(f"[Engine] ⚠️ RAG client not available - using brute-force matching: {e}")
 
 
 class AdaptiveDiagnosticEngine:
