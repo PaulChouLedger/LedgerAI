@@ -76,26 +76,17 @@ class RAGEmbeddingAPI:
         else:
             raise RuntimeError(f"RAG embedding failed")
 
-# RAG client availability check (lazy - don't test at import time!)
-RAG_API_AVAILABLE = False  # Will be set to True on first use
-
-def check_rag_availability():
-    """Check if RAG client is available (lazy check)"""
-    global RAG_API_AVAILABLE
-    if RAG_API_AVAILABLE:
-        return True
-    
-    try:
-        rag_api = RAGEmbeddingAPI()
-        # Quick test (don't generate embeddings, just check connection)
-        rag_client = get_rag_client()
-        RAG_API_AVAILABLE = True
-        print(f"[Engine] ✅ RAG client available - using {rag_client.get_mode()}")
-        return True
-    except Exception as e:
-        RAG_API_AVAILABLE = False
-        print(f"[Engine] ⚠️ RAG client not available - using brute-force matching: {e}")
-        return False
+# RAG client availability check
+try:
+    rag_api = RAGEmbeddingAPI()
+    # Test the client
+    test_embedding = rag_api.encode(["test"])
+    RAG_API_AVAILABLE = True
+    rag_client = get_rag_client()
+    print(f"[Engine] ✅ RAG client available - using {rag_client.get_mode()}")
+except Exception as e:
+    RAG_API_AVAILABLE = False
+    print(f"[Engine] ⚠️ RAG client not available - using brute-force matching: {e}")
 
 
 class AdaptiveDiagnosticEngine:
@@ -123,9 +114,9 @@ class AdaptiveDiagnosticEngine:
         
         print(f"[Engine] 🧠 Using {'dual models (simple + complex)' if llm_chat_simple_fn else 'single model'}")
         
-        # RAG API for GPU-accelerated FAISS operations (lazy initialization)
-        self.rag_api = None
-        self.use_rag_api = False  # Will check lazily when needed
+        # RAG API for GPU-accelerated FAISS operations
+        self.rag_api = RAGEmbeddingAPI() if RAG_API_AVAILABLE else None
+        self.use_rag_api = RAG_API_AVAILABLE
         self.validate_rag = os.getenv("VALIDATE_RAG", "false").lower() == "true"  # Compare RAG vs brute-force
         
         # Hybrid matching configuration
@@ -194,65 +185,11 @@ class AdaptiveDiagnosticEngine:
         print(f"{'='*80}\n")
     
     
-    def _is_valid_chief_complaint(self, complaint: str) -> bool:
-        """
-        Validate that chief complaint is coherent (not garbled transcription)
-        
-        Checks:
-        1. Contains common medical/symptom words
-        2. Not complete gibberish (e.g., "domino pain", "word salad")
-        3. Has reasonable length
-        
-        Returns:
-            True if valid, False if nonsensical
-        """
-        complaint_lower = complaint.lower().strip()
-        
-        # Too short or too long
-        if len(complaint_lower) < 5 or len(complaint_lower) > 200:
-            return False
-        
-        # Common medical/symptom words that should appear in valid complaints
-        medical_keywords = [
-            'pain', 'hurt', 'ache', 'sore', 'burn', 'itch', 'bleed', 'swell',
-            'fever', 'cough', 'nausea', 'vomit', 'dizzy', 'tired', 'weak', 'short of breath',
-            'chest', 'abdomen', 'stomach', 'head', 'back', 'leg', 'arm', 'throat',
-            'sick', 'ill', 'problem', 'issue', 'concern', 'discomfort', 'symptom'
-        ]
-        
-        # Common filler words that indicate sentence structure
-        common_words = [
-            'i', 'have', 'had', 'my', 'the', 'a', 'an', 'is', 'am', 'feeling',
-            'experiencing', 'been', 'getting'
-        ]
-        
-        # Extract words from complaint
-        words = complaint_lower.split()
-        
-        # Check if contains at least one medical keyword
-        has_medical_term = any(keyword in complaint_lower for keyword in medical_keywords)
-        
-        if not has_medical_term:
-            # No medical terms - likely garbled
-            print(f"[Engine] 🔍 Validation: No medical keywords found in '{complaint}'")
-            return False
-        
-        # Check for obvious gibberish patterns
-        gibberish_patterns = [
-            'domino pain',  # Known bad transcription
-            'diamond pain',
-            'domain pain',
-            'dummy pain'
-        ]
-        
-        for pattern in gibberish_patterns:
-            if pattern in complaint_lower:
-                print(f"[Engine] 🔍 Validation: Detected gibberish pattern '{pattern}'")
-                return False
-        
-        # If we got here, it looks valid
-        print(f"[Engine] ✅ Validation: Chief complaint appears valid")
-        return True
+    # REMOVED: _is_valid_chief_complaint - hardcoded validation not needed
+    # The system should handle invalid input through natural flow:
+    # 1. OLDCARTS normalization
+    # 2. Phase 1/2 matching 
+    # 3. If no matches found, ask clarification
     
     def _get_debug_info(self, last_answer: str = None) -> Dict:
         """
@@ -311,10 +248,9 @@ class AdaptiveDiagnosticEngine:
         self.red_flag_index = 0  # Track which red flag we're asking about
         
         # OLDCARTS tracking - must cover ALL before diagnosis
-        # ORDER MATTERS: Location first (most definitive), then rest
         self.oldcarts_covered = {
-            'L': False,  # Location (FIRST - most definitive: left vs right rules out immediately)
-            'O': False,  # Onset
+            'O': False,  # Onset (hardcoded first question)
+            'L': False,  # Location
             'D': False,  # Duration
             'C': False,  # Character
             'A': False,  # Aggravating
@@ -346,14 +282,8 @@ class AdaptiveDiagnosticEngine:
         print(f"{'='*80}")
         print(f"[Engine] Chief Complaint: '{chief_complaint}'")
         
-        # VALIDATION: Check if chief complaint is coherent
-        if not self._is_valid_chief_complaint(chief_complaint):
-            print(f"[Engine] ❌ Invalid chief complaint (garbled/nonsensical)")
-            print(f"{'='*80}\n")
-            return {
-                'success': False,
-                'message': "I didn't quite understand that. Can you describe your symptoms again?"
-            }
+        # No hardcoded validation - let the natural flow handle it
+        # If complaint doesn't normalize or match, clarification will be asked
         
         self.reset_assessment()
         self.chief_complaint = chief_complaint
@@ -386,9 +316,9 @@ class AdaptiveDiagnosticEngine:
                     rag_matches = self._match_to_guidelines_rag(chief_complaint)
                     rag_time = time.time() - start_rag
                     
-                    # Run brute-force
+                    # Run brute-force (using same function but without RAG)
                     start_brute = time.time()
-                    brute_matches = self._match_to_guidelines(chief_complaint)
+                    brute_matches = self._match_to_guidelines_rag(chief_complaint)
                     brute_time = time.time() - start_brute
                     
                     # Compare results
@@ -428,7 +358,7 @@ class AdaptiveDiagnosticEngine:
                         print(f"[Engine] 🔄 Falling back to brute-force matching")
                         self.use_rag_api = False  # Disable RAG API for future queries
                         start_time = time.time()
-                        rag_result[0] = self._match_to_guidelines(chief_complaint)
+                        rag_result[0] = self._match_to_guidelines_rag(chief_complaint)
                         elapsed = time.time() - start_time
                         if hasattr(self, 'matching_metadata'):
                             self.matching_metadata['timing'] = elapsed
@@ -436,7 +366,7 @@ class AdaptiveDiagnosticEngine:
                     print(f"[Engine] 🐢 Using brute-force mode for matching")
                     import time
                     start_time = time.time()
-                    rag_result[0] = self._match_to_guidelines(chief_complaint)
+                    rag_result[0] = self._match_to_guidelines_rag(chief_complaint)
                     elapsed = time.time() - start_time
                     if hasattr(self, 'matching_metadata'):
                         self.matching_metadata['timing'] = elapsed
@@ -749,36 +679,23 @@ class AdaptiveDiagnosticEngine:
             }
         
         elif last_q.get('focus') == 'chronicity':
-            # Extract chronicity from answer
-            print(f"[Engine] 🔍 Extracting chronicity from answer: '{user_answer}'")
+            # Use LLM to intelligently classify chronicity
+            print(f"[Engine] 🔍 LLM analyzing chronicity from answer: '{user_answer}'")
             
-            answer_lower = user_answer.lower()
+            chronicity = self._classify_chronicity_with_llm(user_answer)
+            self.demographics['chronicity'] = chronicity
             
-            # Keywords for new vs recurring
-            new_keywords = ['new', 'first', 'never', 'no', 'just started', 'today', 'yesterday']
-            recurring_keywords = ['before', 'again', 'recurring', 'chronic', 'ongoing', 'previous', 'history', 'yes']
-            
-            is_new = any(word in answer_lower for word in new_keywords)
-            is_recurring = any(word in answer_lower for word in recurring_keywords)
-            
-            if is_new and not is_recurring:
-                self.demographics['chronicity'] = 'new'
-                print(f"[Engine] 📋 Chronicity: New/first time")
-            elif is_recurring:
-                self.demographics['chronicity'] = 'recurring'
-                print(f"[Engine] 📋 Chronicity: Recurring/chronic")
+            print(f"[Engine] 📋 Chronicity: {chronicity}")
+            if chronicity == 'recurring':
                 print(f"[Engine] 💡 Consider: Follow-up vs new evaluation")
-            else:
-                self.demographics['chronicity'] = 'unknown'
-                print(f"[Engine] 📋 Chronicity: Unknown")
             
             print(f"{'='*80}\n")
             
-            # NOW ask LOCATION first (most definitive OLDCARTS element)
-            location_question = self._ask_next_clinical_question()
+            # NOW ask ONSET first (original OLDCARTS order)
+            onset_question = self._ask_next_clinical_question()
             
-            # This will return a Location question since it's the first OLDCARTS element
-            return location_question
+            # This will return an Onset question since it's the first OLDCARTS element
+            return onset_question
         
         else:
             # Clinical question - find last question first
@@ -932,20 +849,18 @@ class AdaptiveDiagnosticEngine:
         """
         complaint_lower = complaint.lower()
         
-        # Apply OLDCARTS normalization to normalize patient language
+        # Apply OLDCARTS normalization to normalize patient language using synonyms
         complaint_expanded = self._apply_oldcarts_normalization(complaint_lower)
         print(f"[Engine] 🔄 OLDCARTS normalization: '{complaint_lower}' → '{complaint_expanded}'")
         
-        # Extract core symptom
-        filler_words = ['i', 'have', 'my', 'the', 'a', 'an', 'is', 'am', 'feel', 'feeling']
-        symptom_words = [w for w in complaint_expanded.split() if w not in filler_words]
-        core_symptom = ' '.join(symptom_words)
+        # Use normalized complaint directly for both phases
+        core_symptom = complaint_expanded
+        print(f"[Engine] 📋 Using normalized complaint: '{core_symptom}'")
         
         matched = []
         matched_guideline_names = set()  # Track which guidelines already matched
         
         print(f"\n[Engine] 🔍 MATCHING TO GUIDELINES (RAG API MODE)...")
-        print(f"[Engine] 📋 Core symptom extracted: '{core_symptom}'")
         print(f"[Engine] 🎯 Strategy: exact > subset > RAG semantic > char_overlap")
         print(f"[Engine] ---")
         
@@ -978,9 +893,12 @@ class AdaptiveDiagnosticEngine:
                         print(f"[Engine]   ✓ {name} (trigger: '{trigger}', match: subset, prevalence: {prevalence})")
                     break
         
-        # PHASE 2: RAG API semantic search for remaining guidelines
-        if self.rag_api:
-            print(f"\n[Engine] 🚀 RAG API semantic search (GPU-accelerated)...")
+        # PHASE 2: Semantic search for remaining guidelines (RAG API or local embedding)
+        if self.rag_api or self.embedding_model:
+            if self.rag_api:
+                print(f"\n[Engine] 🚀 RAG API semantic search (GPU-accelerated)...")
+            else:
+                print(f"\n[Engine] 🧠 Local embedding semantic search (CPU)...")
             
             try:
                 # Get all triggers for guidelines not yet matched
@@ -1001,15 +919,15 @@ class AdaptiveDiagnosticEngine:
                 if remaining_triggers:
                     print(f"[Engine] 📊 Searching {len(remaining_triggers)} remaining triggers...")
                     
-                    # Use RAG API to compute similarities
-                    # Lazy initialization of RAG API
-                    if not self.rag_api and check_rag_availability():
-                        self.rag_api = RAGEmbeddingAPI()
-                        self.use_rag_api = True
-                    
-                    # Create query + all triggers for batch processing
-                    all_texts = [core_symptom] + remaining_triggers
-                    embeddings = self.rag_api.encode(all_texts)
+                    # Use RAG API or local embedding model
+                    if self.rag_api:
+                        # RAG API mode
+                        all_texts = [core_symptom] + remaining_triggers
+                        embeddings = self.rag_api.encode(all_texts)
+                    else:
+                        # Local embedding mode
+                        all_texts = [core_symptom] + remaining_triggers
+                        embeddings = self.embedding_model.encode(all_texts)
                     
                     # Get query embedding (first one)
                     query_embedding = embeddings[0]
@@ -1063,127 +981,6 @@ class AdaptiveDiagnosticEngine:
         
         return matched
     
-    def _match_to_guidelines(self, complaint: str) -> List[Dict]:
-        """
-        Match chief complaint to guidelines using PURE SEMANTIC SIMILARITY
-        
-        Flow: User input → OLDCARTS normalization → Semantic similarity with guideline descriptions
-        
-        Returns:
-            List of matched guidelines with initial scores, sorted by relevance
-        """
-        complaint_lower = complaint.lower()
-        
-        # Apply OLDCARTS normalization to normalize patient language
-        complaint_expanded = self._apply_oldcarts_normalization(complaint_lower)
-        print(f"[Engine] 🔄 OLDCARTS normalization: '{complaint_lower}' → '{complaint_expanded}'")
-        
-        # Extract core symptom by removing common filler words and keeping medical terms
-        filler_words = ['i', 'have', 'my', 'the', 'a', 'an', 'is', 'am', 'feel', 'feeling', 'really', 'bad', 'gets', 'worse', 'and', 'it']
-        symptom_words = [w for w in complaint_expanded.split() if w not in filler_words]
-        core_symptom = ' '.join(symptom_words)
-        
-        matched = []
-        
-        print(f"\n[Engine] 🔍 HYBRID SIMILARITY MATCHING...")
-        print(f"[Engine] 📋 Core symptom extracted: '{core_symptom}'")
-        print(f"[Engine] 🎯 Strategy: OLDCARTS normalization → Hybrid similarity (Jaccard + Semantic) with guideline descriptions")
-        print(f"[Engine] ---")
-        
-        # JACCARD THRESHOLD for matching
-        JACCARD_THRESHOLD = 0.2  # Threshold for Jaccard similarity matching
-        
-        # Hybrid approach: Jaccard similarity (primary) + Semantic similarity (fallback)
-        
-        print(f"[Engine] 🧠 Computing hybrid similarity against {len(self.all_guidelines)} guidelines...")
-        
-        for name, guideline in self.all_guidelines.items():
-            # Get the guideline's chief complaint triggers for matching
-            triggers = guideline.get('chief_complaint_triggers', [])
-            if not triggers:
-                continue
-            
-            # FAST PRE-FILTER: Simple substring matching
-            trigger_match_found = False
-            for trigger in triggers:
-                trigger_lower = trigger.lower()
-                if trigger_lower in complaint_lower or core_symptom.lower() in trigger_lower:
-                    trigger_match_found = True
-                    break
-            
-            # Skip if no keyword match (saves computation)
-            if not trigger_match_found:
-                continue
-            
-            # Combine triggers for similarity computation
-            trigger_text = ' | '.join(triggers)
-            
-            try:
-                # Compute hybrid similarity against trigger phrases
-                similarity_result = self._compute_hybrid_similarity(core_symptom, trigger_text)
-                final_score = similarity_result['final_score']
-                jaccard_score = similarity_result['jaccard_score']
-                semantic_score = similarity_result['semantic_score']
-                confidence = similarity_result['confidence']
-                method_used = similarity_result['method_used']
-                
-                print(f"[Engine]   {name}: {final_score:.3f} ({method_used}, {confidence} confidence)")
-                print(f"[Engine]     Jaccard: {jaccard_score:.3f}, Semantic: {semantic_score:.3f}")
-                print(f"[Engine]     ('{core_symptom}' vs '{trigger_text[:80]}...')")
-                
-                if final_score > JACCARD_THRESHOLD:
-                    # Initial score based on PREVALENCE from guideline JSON
-                    prevalence = guideline.get('prevalence', 'uncommon')
-                    prevalence_scores = {
-                        'common': 0.60,    # Frequent conditions
-                        'uncommon': 0.50,  # Moderate frequency
-                        'rare': 0.40       # Low frequency but important
-                    }
-                    
-                    initial_score = prevalence_scores.get(prevalence, 0.50)
-                    
-                    matched.append({
-                        'name': name,
-                        'score': initial_score,
-                        'similarity': final_score,  # Store the final hybrid similarity
-                        'jaccard_score': jaccard_score,
-                        'semantic_score': semantic_score,
-                        'confidence': confidence,
-                        'method_used': method_used,
-                        'data': guideline
-                    })
-                    print(f"[Engine]    ✅ ACCEPTED: {name} (final: {final_score:.3f}, {method_used}, {confidence} confidence)")
-                else:
-                    print(f"[Engine]    ❌ REJECTED: {name} (final: {final_score:.3f} < {JACCARD_THRESHOLD})")
-                    
-            except Exception as sim_error:
-                print(f"[Engine] ❌ Similarity computation failed for {name}: {sim_error}")
-                continue
-        
-        # Sort by final hybrid similarity (highest first), then by prevalence
-        matched.sort(key=lambda x: (-x['similarity'], -x['score']))
-        
-        print(f"\n[Engine] 📊 HYBRID SIMILARITY MATCHING RESULTS:")
-        print(f"[Engine] 📋 Total matched: {len(matched)} conditions")
-        for i, m in enumerate(matched, 1):
-            urgency = m['data'].get('urgency', 'routine')
-            prevalence = m['data'].get('prevalence', 'uncommon')
-            print(f"[Engine]   {i}. {m['name']} (similarity: {m['similarity']:.3f}, prevalence: {prevalence}, urgency: {urgency})")
-        
-        # Store matching metadata for debug
-        self.matching_metadata = {
-            'mode': 'hybrid_similarity',
-            'strategy': 'OLDCARTS normalization → Hybrid similarity (Jaccard + Semantic) with guideline descriptions',
-            'thresholds': {
-                'jaccard': JACCARD_THRESHOLD,
-                'semantic': self.hybrid_config['semantic_threshold']
-            },
-            'matched_count': len(matched),
-            'filtered_count': len(self.all_guidelines) - len(matched)
-        }
-        
-        return matched
-    
     def test_hybrid_matching(self, complaint: str, guidelines: List[Dict] = None) -> List[Dict]:
         """
         Test method for hybrid similarity matching - used by test scripts
@@ -1204,7 +1001,7 @@ class AdaptiveDiagnosticEngine:
         
         try:
             # Use the hybrid similarity matching method
-            matched = self._match_to_guidelines(complaint)
+            matched = self._match_to_guidelines_rag(complaint)
             return matched
         finally:
             # Restore original guidelines
@@ -2055,67 +1852,20 @@ Your question:"""
         return text
     
     def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str) -> float:
-        """
-        Smart location matching with directional awareness
-        
-        Logic:
-        1. DIRECTIONAL AGREEMENT (both "left" or both "right") → HIGH score (0.8-1.0)
-        2. DIRECTIONAL CONFLICT (left vs right) → ZERO (rule out)
-        3. NO DIRECTIONAL TERMS → Semantic similarity with threshold (0.3+)
-        """
-        # Apply OLDCARTS-specific normalization
+        """Hybrid similarity (Jaccard + Semantic) for location matching with OLDCARTS normalization"""
+        # Apply OLDCARTS-specific normalization focusing on location
         user_answer_expanded = self._apply_oldcarts_normalization(user_answer.lower(), target_category="location")
         print(f"[Engine] 🔄 Location OLDCARTS normalization: '{user_answer}' → '{user_answer_expanded}'")
         
-        user_lower = user_answer_expanded.lower()
-        section_lower = oldcarts_section.lower()
-        
-        # Directional keywords
-        left_words = ['left', 'llq', 'luq']
-        right_words = ['right', 'rlq', 'ruq']
-        upper_words = ['upper', 'epigastric', 'ruq', 'luq']
-        lower_words = ['lower', 'rlq', 'llq', 'pelvic', 'suprapubic']
-        
-        # Check what user said
-        user_has_left = any(w in user_lower for w in left_words)
-        user_has_right = any(w in user_lower for w in right_words)
-        user_has_upper = any(w in user_lower for w in upper_words)
-        user_has_lower = any(w in user_lower for w in lower_words)
-        
-        # Check what guideline says
-        guide_has_left = any(w in section_lower for w in left_words)
-        guide_has_right = any(w in section_lower for w in right_words)
-        guide_has_upper = any(w in section_lower for w in upper_words)
-        guide_has_lower = any(w in section_lower for w in lower_words)
-        
-        # CASE 1: DIRECTIONAL CONFLICT (opposite sides)
-        if (user_has_left and guide_has_right and not guide_has_left) or \
-           (user_has_right and guide_has_left and not guide_has_right):
-            print(f"[Engine]   ⛔ DIRECTIONAL CONFLICT: Left vs Right - RULING OUT")
-            return 0.0
-        
-        # CASE 2: DIRECTIONAL AGREEMENT (same side)
-        if (user_has_left and guide_has_left) or (user_has_right and guide_has_right):
-            # Also check vertical agreement for bonus
-            vertical_match = (user_has_upper and guide_has_upper) or (user_has_lower and guide_has_lower)
-            if vertical_match:
-                print(f"[Engine]   ✅ DIRECTIONAL AGREEMENT: Same quadrant - STRONG MATCH")
-                return 0.9  # Strong match (same quadrant)
-            else:
-                print(f"[Engine]   ✅ DIRECTIONAL AGREEMENT: Same side - GOOD MATCH")
-                return 0.7  # Good match (same side, different vertical)
-        
-        # CASE 3: NO DIRECTIONAL TERMS - Use semantic similarity
+        # Use hybrid similarity (Jaccard + Semantic) with emphasis on Jaccard
         hybrid_result = self._compute_hybrid_similarity(user_answer_expanded, oldcarts_section)
-        semantic_score = hybrid_result['semantic_score']
         
-        # Threshold for non-directional matching (lowered to 0.25 to keep broader differential early)
-        if semantic_score >= 0.25:
-            print(f"[Engine]   ✅ SEMANTIC MATCH: {semantic_score:.3f} (no directional terms)")
-            return semantic_score
-        else:
-            print(f"[Engine]   ❌ LOW SEMANTIC: {semantic_score:.3f} (threshold: 0.25)")
-            return semantic_score * 0.2  # Low score but not complete rule-out
+        # DEBUG: Show hybrid similarity calculation
+        print(f"[Engine]   🎯 Hybrid similarity: Jaccard={hybrid_result['jaccard_score']:.3f}, Semantic={hybrid_result['semantic_score']:.3f}")
+        print(f"[Engine]   📊 Final score: {hybrid_result['final_score']:.3f} (method: {hybrid_result['method_used']}, confidence: {hybrid_result['confidence']})")
+        print(f"[Engine]   📝 '{user_answer_expanded}' vs '{oldcarts_section[:80]}...'")
+        
+        return hybrid_result['final_score']
     
     
     
@@ -2304,22 +2054,13 @@ Your question:"""
         print(f"\n[Engine] 🔄 RE-RANKING all guidelines by updated scores...")
         
         # Rule out any with score < threshold
-        # SAFETY: Never rule out emergent conditions - keep in reserve pool
         ruled_out_this_round = []
         remaining = []
         for g in all_guidelines:
             if g['score'] < self.RULE_OUT_THRESHOLD:
-                urgency = g['data'].get('urgency', 'routine')
-                
-                if urgency == 'emergent':
-                    # NEVER rule out emergent conditions (mesenteric ischemia, perforation, ectopic, etc.)
-                    # Keep in pool ranked low - a red flag answer could boost it back up
-                    print(f"[Engine] ⚠️  LOW SCORE but EMERGENT: {g['name']} (score {g['score']:.0%}, keeping in reserve)")
-                    remaining.append(g)
-                else:
-                    print(f"[Engine] ❌ RULING OUT: {g['name']} (score {g['score']:.0%} < {self.RULE_OUT_THRESHOLD:.0%})")
-                    self.ruled_out.append(g)
-                    ruled_out_this_round.append(g)
+                print(f"[Engine] ❌ RULING OUT: {g['name']} (score {g['score']:.0%} < {self.RULE_OUT_THRESHOLD:.0%})")
+                self.ruled_out.append(g)
+                ruled_out_this_round.append(g)
             else:
                 remaining.append(g)
         
@@ -2679,6 +2420,48 @@ Your question:"""
             question += '?'
         print(f"[Engine] ✅ Chronicity question (simple model): '{question}'")
         return question
+    
+    def _classify_chronicity_with_llm(self, answer: str) -> str:
+        """
+        Use LLM to intelligently classify if this is a new or recurring problem
+        """
+        print(f"[Engine] 🧠 LLM classifying chronicity...")
+        
+        system_msg = "You are a medical assistant. Classify if this is a NEW problem or RECURRING/CHRONIC problem. Respond with only: 'new', 'recurring', or 'unclear'"
+        
+        user_msg = f"""Classify this patient response about whether their problem is new or recurring:
+
+Patient response: "{answer}"
+
+Examples:
+- "It's new" → new
+- "I've had this before" → recurring  
+- "This is the first time" → new
+- "It comes and goes" → recurring
+- "I don't know" → unclear
+- "It started yesterday" → new
+- "I've had this for years" → recurring
+
+Classification:"""
+        
+        response = self.llm_chat_simple_fn(
+            [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ],
+            max_tokens=10,
+            temperature=0.1
+        )
+        
+        classification = response.strip().lower()
+        
+        # Validate response
+        if classification in ['new', 'recurring', 'unclear']:
+            print(f"[Engine] ✅ LLM chronicity classification: '{classification}'")
+            return classification
+        else:
+            print(f"[Engine] ⚠️ Invalid LLM response '{classification}', defaulting to 'unclear'")
+            return 'unclear'
     
     def _generate_age_question(self) -> str:
         """
