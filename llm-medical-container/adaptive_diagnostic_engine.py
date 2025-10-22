@@ -76,17 +76,26 @@ class RAGEmbeddingAPI:
         else:
             raise RuntimeError(f"RAG embedding failed")
 
-# RAG client availability check
-try:
-    rag_api = RAGEmbeddingAPI()
-    # Test the client
-    test_embedding = rag_api.encode(["test"])
-    RAG_API_AVAILABLE = True
-    rag_client = get_rag_client()
-    print(f"[Engine] ✅ RAG client available - using {rag_client.get_mode()}")
-except Exception as e:
-    RAG_API_AVAILABLE = False
-    print(f"[Engine] ⚠️ RAG client not available - using brute-force matching: {e}")
+# RAG client availability check (lazy - don't test at import time!)
+RAG_API_AVAILABLE = False  # Will be set to True on first use
+
+def check_rag_availability():
+    """Check if RAG client is available (lazy check)"""
+    global RAG_API_AVAILABLE
+    if RAG_API_AVAILABLE:
+        return True
+    
+    try:
+        rag_api = RAGEmbeddingAPI()
+        # Quick test (don't generate embeddings, just check connection)
+        rag_client = get_rag_client()
+        RAG_API_AVAILABLE = True
+        print(f"[Engine] ✅ RAG client available - using {rag_client.get_mode()}")
+        return True
+    except Exception as e:
+        RAG_API_AVAILABLE = False
+        print(f"[Engine] ⚠️ RAG client not available - using brute-force matching: {e}")
+        return False
 
 
 class AdaptiveDiagnosticEngine:
@@ -114,9 +123,9 @@ class AdaptiveDiagnosticEngine:
         
         print(f"[Engine] 🧠 Using {'dual models (simple + complex)' if llm_chat_simple_fn else 'single model'}")
         
-        # RAG API for GPU-accelerated FAISS operations
-        self.rag_api = RAGEmbeddingAPI() if RAG_API_AVAILABLE else None
-        self.use_rag_api = RAG_API_AVAILABLE
+        # RAG API for GPU-accelerated FAISS operations (lazy initialization)
+        self.rag_api = None
+        self.use_rag_api = False  # Will check lazily when needed
         self.validate_rag = os.getenv("VALIDATE_RAG", "false").lower() == "true"  # Compare RAG vs brute-force
         
         # Hybrid matching configuration
@@ -126,6 +135,18 @@ class AdaptiveDiagnosticEngine:
             'semantic_boost_threshold': 0.3,  # When semantic is significantly better than Jaccard
             'semantic_weight': 0.7,        # Weight for semantic similarity when used as fallback
             'confidence_threshold': 0.1    # Max difference for high confidence
+        }
+        
+        # OLDCARTS element weights (how much impact each element has on scoring)
+        self.oldcarts_weights = {
+            'L': 1.0,  # Location - full weight (definitive - left vs right rules out immediately)
+            'C': 0.9,  # Character - high weight (sharp vs dull matters)
+            'A': 0.8,  # Aggravating - high weight (post-meal, exertion diagnostic)
+            'R': 0.8,  # Relieving - high weight (what helps is important)
+            'S': 0.7,  # Severity - moderate weight (subjective but useful)
+            'D': 0.5,  # Duration - supportive only (varies widely)
+            'O': 0.3,  # Onset - weakest (sudden vs gradual overlaps for many conditions)
+            'T': 0.4,  # Timing - weak to moderate (constant vs intermittent)
         }
         
         # Load guidelines
@@ -290,9 +311,10 @@ class AdaptiveDiagnosticEngine:
         self.red_flag_index = 0  # Track which red flag we're asking about
         
         # OLDCARTS tracking - must cover ALL before diagnosis
+        # ORDER MATTERS: Location first (most definitive), then rest
         self.oldcarts_covered = {
-            'O': False,  # Onset (hardcoded first question)
-            'L': False,  # Location
+            'L': False,  # Location (FIRST - most definitive: left vs right rules out immediately)
+            'O': False,  # Onset
             'D': False,  # Duration
             'C': False,  # Character
             'A': False,  # Aggravating
@@ -710,27 +732,53 @@ class AdaptiveDiagnosticEngine:
             
             print(f"{'='*80}\n")
             
-            # FIRST CLINICAL QUESTION: Always ask about CHRONICITY (when started)
-            # This is the most important differentiator (acute vs chronic)
-            timing_question = "When did the pain start?"
-            
-            # Mark ONSET as covered
-            self.oldcarts_covered['O'] = True
-            
-            print(f"[Engine] 💬 First question: ONSET (O in OLDCARTS)")
+            # FIRST CLINICAL QUESTION: Ask about CHRONICITY (new vs recurrent/chronic)
+            # This helps differentiate new acute problems from chronic/recurrent issues
+            chronicity_question = self._generate_chronicity_question()
             
             self.conversation_history.append({
                 'type': 'question',
-                'question': timing_question,
-                'focus': 'clinical',
-                'oldcarts': 'O'
+                'question': chronicity_question,
+                'focus': 'chronicity'
             })
             
             return {
                 'success': True,
-                'question': timing_question,
+                'question': chronicity_question,
                 'status': 'questioning'
             }
+        
+        elif last_q.get('focus') == 'chronicity':
+            # Extract chronicity from answer
+            print(f"[Engine] 🔍 Extracting chronicity from answer: '{user_answer}'")
+            
+            answer_lower = user_answer.lower()
+            
+            # Keywords for new vs recurring
+            new_keywords = ['new', 'first', 'never', 'no', 'just started', 'today', 'yesterday']
+            recurring_keywords = ['before', 'again', 'recurring', 'chronic', 'ongoing', 'previous', 'history', 'yes']
+            
+            is_new = any(word in answer_lower for word in new_keywords)
+            is_recurring = any(word in answer_lower for word in recurring_keywords)
+            
+            if is_new and not is_recurring:
+                self.demographics['chronicity'] = 'new'
+                print(f"[Engine] 📋 Chronicity: New/first time")
+            elif is_recurring:
+                self.demographics['chronicity'] = 'recurring'
+                print(f"[Engine] 📋 Chronicity: Recurring/chronic")
+                print(f"[Engine] 💡 Consider: Follow-up vs new evaluation")
+            else:
+                self.demographics['chronicity'] = 'unknown'
+                print(f"[Engine] 📋 Chronicity: Unknown")
+            
+            print(f"{'='*80}\n")
+            
+            # NOW ask LOCATION first (most definitive OLDCARTS element)
+            location_question = self._ask_next_clinical_question()
+            
+            # This will return a Location question since it's the first OLDCARTS element
+            return location_question
         
         else:
             # Clinical question - find last question first
@@ -954,6 +1002,11 @@ class AdaptiveDiagnosticEngine:
                     print(f"[Engine] 📊 Searching {len(remaining_triggers)} remaining triggers...")
                     
                     # Use RAG API to compute similarities
+                    # Lazy initialization of RAG API
+                    if not self.rag_api and check_rag_availability():
+                        self.rag_api = RAGEmbeddingAPI()
+                        self.use_rag_api = True
+                    
                     # Create query + all triggers for batch processing
                     all_texts = [core_symptom] + remaining_triggers
                     embeddings = self.rag_api.encode(all_texts)
@@ -2165,21 +2218,28 @@ Your question:"""
                     # Skip this guideline and continue with the next one
                     continue
             
-            # Update score
+            # Update score using OLDCARTS element weight
             old_score = g['score']
+            
+            # Get element-specific weight (Location=1.0, Onset=0.3, etc.)
+            element_weight = self.oldcarts_weights.get(oldcarts_element, 0.5)
+            
             if similarity == 0.0:
-                # Hard mismatch (e.g., left vs right) - rule out immediately
-                new_score = 0.0
+                # Hard mismatch (e.g., left vs right) - apply full weight of element
+                # Location mismatch (weight=1.0) rules out completely
+                # Onset mismatch (weight=0.3) has minimal impact
+                new_score = old_score * (1 - element_weight)
                 g['score'] = new_score
                 change = "❌"
-                print(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (keyword mismatch)")
+                print(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (keyword mismatch, weight={element_weight:.1f})")
             else:
-                # Normal weighted average (70% old score + 30% new similarity)
-                # This prevents wild swings while incorporating new information
-                new_score = (old_score * 0.7) + (similarity * 0.3)
+                # Normal weighted average using element-specific weight
+                # Location (weight=1.0): new_score = similarity (replaces old score)
+                # Onset (weight=0.3): new_score = 70% old + 30% similarity (mostly preserves old score)
+                new_score = (old_score * (1 - element_weight)) + (similarity * element_weight)
                 g['score'] = new_score
                 change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
-                print(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change}")
+                print(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (weight={element_weight:.1f})")
                 print(f"[Engine]     Similarity: {similarity:.2f} to {oldcarts_element} section")
                 print(f"[Engine]     Section: {oldcarts_section[:80]}...")
         
@@ -2265,37 +2325,54 @@ Your question:"""
         print(f"[Engine] 📋 OLDCARTS Coverage: {coverage_str} ({covered_count}/8)")
         
         # CHECK IF CLARIFICATION NEEDED (before moving to next OLDCARTS element)
+        # But LIMIT clarifications to avoid infinite loops
         if len(self.active_guidelines) >= 2:
             top_score = self.active_guidelines[0]['score']
             second_score = self.active_guidelines[1]['score']
             score_spread = top_score - second_score
             
+            # Count how many clarifications we've already asked for this OLDCARTS element
+            clarification_count = sum(1 for item in self.conversation_history 
+                                     if item.get('type') == 'question' 
+                                     and item.get('oldcarts') == oldcarts_element 
+                                     and item.get('is_clarification'))
+            
             # If scores are too close (can't differentiate) OR all scores too low
-            if score_spread < 0.10 or top_score < 0.50:
-                print(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
-                print(f"[Engine]   Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
-                print(f"[Engine]   Reason: {'Scores too close' if score_spread < 0.10 else 'All scores too low'}")
-                print(f"[Engine]   Action: Asking clarifying question about same OLDCARTS element")
-                
-                # Generate clarifying question for the SAME OLDCARTS element
-                clarifying_q = self._generate_clarifying_question(oldcarts_element, answer)
-                
-                if clarifying_q:
-                    # Add clarifying question to history
-                    self.conversation_history.append({
-                        'type': 'question',
-                        'question': clarifying_q,
-                        'oldcarts': oldcarts_element,  # Same OLDCARTS element
-                        'focus': 'clinical',
-                        'is_clarification': True
-                    })
+            # Ask clarification, but move on if we've asked too many times for this element
+            MAX_CLARIFICATIONS_PER_ELEMENT = 2  # Limit to avoid infinite loops
+            
+            if (score_spread < 0.10 or top_score < 0.50):
+                if clarification_count < MAX_CLARIFICATIONS_PER_ELEMENT:
+                    print(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
+                    print(f"[Engine]   Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
+                    print(f"[Engine]   Reason: {'Scores too close' if score_spread < 0.10 else 'All scores too low'}")
+                    print(f"[Engine]   Clarifications asked so far: {clarification_count}/{MAX_CLARIFICATIONS_PER_ELEMENT}")
+                    print(f"[Engine]   Strategy: {'Open-ended' if clarification_count == 0 else 'Targeted (differential-based)'}")
                     
-                    return {
-                        'success': True,
-                        'question': clarifying_q,
-                        'status': 'questioning',
-                        'needs_clarification': True
-                    }
+                    # Generate progressively targeted clarifying question
+                    clarifying_q = self._generate_clarifying_question(oldcarts_element, answer, clarification_count)
+                    
+                    if clarifying_q:
+                        # Add clarifying question to history
+                        self.conversation_history.append({
+                            'type': 'question',
+                            'question': clarifying_q,
+                            'oldcarts': oldcarts_element,  # Same OLDCARTS element
+                            'focus': 'clinical',
+                            'is_clarification': True
+                        })
+                        
+                        return {
+                            'success': True,
+                            'question': clarifying_q,
+                            'status': 'questioning',
+                            'needs_clarification': True
+                        }
+                else:
+                    print(f"\n[Engine] ⚠️  Scores still close (top: {top_score:.0%}, spread: {score_spread:.0%})")
+                    print(f"[Engine]   Already asked {clarification_count} clarifications for '{oldcarts_element}'")
+                    print(f"[Engine]   📋 Can't differentiate further on this element - moving to next OLDCARTS")
+                    # Will fall through and continue to next OLDCARTS element
         
         # Diagnosis criteria: ALL OLDCARTS covered + high confidence, OR max 15 questions
         if oldcarts_complete and top['score'] >= 0.95:
@@ -2506,6 +2583,38 @@ Your statement:"""
         print(f"[Engine] ✅ Opening (simple model): '{statement}'")
         return statement
     
+    def _generate_chronicity_question(self) -> str:
+        """
+        LLM-generated chronicity question to differentiate new vs chronic problems
+        """
+        print(f"[Engine] 🧠 Generating chronicity question...")
+        
+        system_msg = "You are a medical assistant. Output ONLY the question requested, nothing else."
+        
+        user_msg = """Generate a natural question asking if this is a new problem or ongoing/recurrent issue.
+
+Examples: 
+- "Is this a new problem or something you've experienced before?"
+- "Is this the first time you've had this symptom?"
+- "Have you had this issue before, or is this new?"
+
+Your question:"""
+        
+        response = self.llm_chat_simple_fn(
+            [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ],
+            max_tokens=30,
+            temperature=0.6
+        )
+        
+        question = response.strip().strip('"\'')
+        if not question.endswith('?'):
+            question += '?'
+        print(f"[Engine] ✅ Chronicity question (simple model): '{question}'")
+        return question
+    
     def _generate_age_question(self) -> str:
         """
         LLM-generated age question
@@ -2570,37 +2679,150 @@ Your question:"""
         print(f"[Engine] ✅ Sex question (simple model): '{question}'")
         return question
     
-    def _generate_clarifying_question(self, oldcarts_element: str, vague_answer: str) -> str:
+    def _generate_clarifying_question(self, oldcarts_element: str, vague_answer: str, clarification_count: int = 0) -> str:
         """
-        Generate clarifying question when answer is too vague or scores are too close
+        Generate progressively targeted clarifying questions based on top differentials
+        
+        Strategy:
+        - 1st clarification: Open-ended (gather more info)
+        - 2nd+ clarifications: Targeted based on top differentials (discriminate between conditions)
         
         Args:
             oldcarts_element: The OLDCARTS element that needs clarification (O, L, D, C, A, R, T, S)
             vague_answer: The user's vague answer that needs clarification
+            clarification_count: How many clarifications already asked for this element
             
         Returns:
-            More specific follow-up question for the same OLDCARTS element
+            Progressively more targeted question for the same OLDCARTS element
         """
-        print(f"[Engine] 🧠 Generating clarifying question for OLDCARTS element '{oldcarts_element}'...")
+        print(f"[Engine] 🧠 Generating clarifying question #{clarification_count + 1} for OLDCARTS '{oldcarts_element}'...")
         
-        # Element-specific clarification templates
-        templates = {
-            'L': "Could you be more specific about the location? For example, is it upper or lower, left or right side of your abdomen?",
-            'O': "Can you be more specific about when it started? For example, was it sudden or gradual?",
-            'D': "How long exactly have you had this pain? Hours, days, or weeks?",
-            'C': "Can you describe the pain more specifically? Is it sharp, dull, cramping, burning, or something else?",
-            'A': "What specifically makes the pain worse?",
-            'R': "What specifically makes the pain better or relieves it?",
-            'T': "Is the pain constant or does it come and go?",
-            'S': "On a scale of 1-10, how severe is the pain?"
+        # First clarification: Open-ended to gather more information
+        if clarification_count == 0:
+            open_ended_templates = {
+                'L': "Can you tell me more about where exactly the pain is located?",
+                'O': "Can you describe how the pain started? Was it sudden or did it come on gradually?",
+                'D': "Tell me more about how long you've been experiencing this pain.",
+                'C': "Can you describe what the pain feels like?",
+                'A': "What makes the pain worse? Any specific activities or foods?",
+                'R': "Does anything help make the pain better?",
+                'T': "Tell me about the pattern of the pain. Is it constant or does it come and go?",
+                'S': "How would you describe the severity of the pain?"
+            }
+            question = open_ended_templates.get(oldcarts_element, 
+                f"Can you tell me more about '{vague_answer}'?")
+        
+        # Subsequent clarifications: Targeted based on top differentials
+        else:
+            # Try to generate targeted question based on top differentials
+            question = self._generate_differential_based_question(oldcarts_element)
+            
+            # If we got the same generic question, it means we can't differentiate further
+            # Add variation or use a different angle
+            if clarification_count >= 1 and oldcarts_element == 'O':
+                # For onset, ask about associated context instead
+                question = "Did anything trigger it? Like eating, physical activity, or did it just happen out of nowhere?"
+        
+        print(f"[Engine] ✅ Clarifying question #{clarification_count + 1}: '{question}'")
+        return question
+    
+    def _generate_differential_based_question(self, oldcarts_element: str) -> str:
+        """
+        Generate targeted question based on top differentials to discriminate between them
+        
+        For example, if top 3 are:
+        - Cholecystitis (RUQ, after fatty meals)
+        - Pancreatitis (epigastric, radiates to back)
+        - Appendicitis (RLQ, migrates from umbilicus)
+        
+        Ask: "Is it more in the upper right, upper center, or lower right area?"
+        """
+        if len(self.active_guidelines) < 2:
+            return "Could you be more specific?"
+        
+        # Get top 3 differentials
+        top_conditions = self.active_guidelines[:min(3, len(self.active_guidelines))]
+        
+        # Extract key distinguishing features from guidelines
+        condition_names = [g['name'] for g in top_conditions]
+        
+        print(f"[Engine] 🎯 Generating targeted question to differentiate between:")
+        for g in top_conditions:
+            print(f"[Engine]   - {g['name']} ({g['score']:.0%})")
+        
+        # Element-specific targeted questions based on common differentials
+        targeted_questions = {
+            'L': self._generate_location_discriminator(top_conditions),
+            'O': self._generate_onset_discriminator(top_conditions),
+            'C': self._generate_character_discriminator(top_conditions),
+            'R': self._generate_radiation_discriminator(top_conditions),
         }
         
-        # Use template or generate with LLM
-        clarifying_question = templates.get(oldcarts_element, 
-            f"Could you be more specific about your previous answer: '{vague_answer}'?")
+        question = targeted_questions.get(oldcarts_element, "Could you provide more details?")
+        return question
+    
+    def _generate_location_discriminator(self, top_conditions: List[Dict]) -> str:
+        """Generate location question that discriminates between top differentials"""
+        # Check if top conditions span different quadrants
+        has_ruq = any('right upper' in g['data'].get('location', '').lower() or 'ruq' in g['data'].get('location', '').lower() for g in top_conditions)
+        has_llq = any('left lower' in g['data'].get('location', '').lower() or 'llq' in g['data'].get('location', '').lower() for g in top_conditions)
+        has_epigastric = any('epigastric' in g['data'].get('location', '').lower() for g in top_conditions)
+        has_rlq = any('right lower' in g['data'].get('location', '').lower() or 'rlq' in g['data'].get('location', '').lower() for g in top_conditions)
         
-        print(f"[Engine] ✅ Clarifying question: '{clarifying_question}'")
-        return clarifying_question
+        # Build targeted question based on which quadrants are in play
+        if has_ruq and has_llq:
+            return "Is the pain more in the upper right area under your ribs, or in the lower left area near your pelvis?"
+        elif has_ruq and has_epigastric:
+            return "Is the pain more on the right side under your ribs, or in the center of your upper abdomen?"
+        elif has_epigastric and has_rlq:
+            return "Is the pain more in the center upper abdomen, or has it moved to the lower right area?"
+        elif has_rlq and has_llq:
+            return "Is the pain more on the right side or left side of your lower abdomen?"
+        else:
+            return "Can you point to exactly where it hurts? Is it upper or lower, and which side?"
+    
+    def _generate_onset_discriminator(self, top_conditions: List[Dict]) -> str:
+        """Generate onset question that discriminates between sudden vs gradual conditions"""
+        has_sudden = any('sudden' in g['data'].get('onset', '').lower() for g in top_conditions)
+        has_gradual = any('gradual' in g['data'].get('onset', '').lower() for g in top_conditions)
+        has_minutes = any('minutes' in g['data'].get('onset', '').lower() for g in top_conditions)
+        has_hours = any('hours' in g['data'].get('onset', '').lower() for g in top_conditions)
+        has_days = any('days' in g['data'].get('onset', '').lower() for g in top_conditions)
+        
+        # If all have sudden onset, ask about TIMING instead (minutes vs hours)
+        if has_sudden and not has_gradual:
+            if has_minutes and has_hours:
+                return "Was it extremely sudden - like within seconds to minutes - or did it build up over an hour or two?"
+            else:
+                return "Exactly how quickly did it start? Within minutes, or over the course of an hour?"
+        elif has_sudden and has_gradual:
+            return "Did the pain come on suddenly within minutes, or did it build up gradually over hours to days?"
+        elif has_gradual:
+            if has_days:
+                return "Did it develop over hours, days, or weeks?"
+            else:
+                return "Did it build up gradually over hours or days?"
+        else:
+            return "How quickly did the pain develop?"
+    
+    def _generate_character_discriminator(self, top_conditions: List[Dict]) -> str:
+        """Generate character question that discriminates between pain types"""
+        return "What does the pain feel like? Sharp and stabbing, dull and achy, cramping and squeezing, or burning?"
+    
+    def _generate_radiation_discriminator(self, top_conditions: List[Dict]) -> str:
+        """Generate radiation question based on top differentials"""
+        # Check radiation patterns in top conditions
+        has_back_radiation = any('back' in g['data'].get('location', '').lower() for g in top_conditions)
+        has_shoulder_radiation = any('shoulder' in g['data'].get('location', '').lower() for g in top_conditions)
+        
+        if has_back_radiation and has_shoulder_radiation:
+            return "Does the pain spread anywhere? Like to your back, shoulder, or somewhere else?"
+        elif has_back_radiation:
+            return "Does the pain go through to your back?"
+        elif has_shoulder_radiation:
+            return "Does the pain spread to your shoulder?"
+        else:
+            return "Does the pain stay in one place or does it spread anywhere?"
     
     def _generate_clarification_question(self, topic: str) -> str:
         """
