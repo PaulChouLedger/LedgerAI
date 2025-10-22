@@ -1059,20 +1059,18 @@ class AdaptiveDiagnosticEngine:
         print(f"[Engine] 🧠 Computing hybrid similarity against {len(self.all_guidelines)} guidelines...")
         
         for name, guideline in self.all_guidelines.items():
-            # Get the guideline's location description for Jaccard matching
-            location_desc = guideline.get('location', '')
-            if not location_desc:
-                print(f"[Engine] ⚠️ No location description for {name} - skipping")
+            # Get the guideline's chief complaint triggers for initial matching
+            triggers = guideline.get('chief_complaint_triggers', [])
+            if not triggers:
+                print(f"[Engine] ⚠️ No chief complaint triggers for {name} - skipping")
                 continue
             
-            # ANATOMICAL LOCATION FILTER: Check for quadrant mismatches
-            if self._has_anatomical_mismatch(core_symptom, location_desc):
-                print(f"[Engine]   {name}: ❌ ANATOMICAL MISMATCH - skipping")
-                continue
+            # Combine triggers into a single text for matching
+            trigger_text = ' | '.join(triggers)
             
             try:
-                # Compute hybrid similarity (Jaccard + Semantic)
-                similarity_result = self._compute_hybrid_similarity(core_symptom, location_desc)
+                # Compute hybrid similarity against trigger phrases
+                similarity_result = self._compute_hybrid_similarity(core_symptom, trigger_text)
                 final_score = similarity_result['final_score']
                 jaccard_score = similarity_result['jaccard_score']
                 semantic_score = similarity_result['semantic_score']
@@ -1081,7 +1079,7 @@ class AdaptiveDiagnosticEngine:
                 
                 print(f"[Engine]   {name}: {final_score:.3f} ({method_used}, {confidence} confidence)")
                 print(f"[Engine]     Jaccard: {jaccard_score:.3f}, Semantic: {semantic_score:.3f}")
-                print(f"[Engine]     ('{core_symptom}' vs '{location_desc[:50]}...')")
+                print(f"[Engine]     ('{core_symptom}' vs '{trigger_text[:80]}...')")
                 
                 if final_score > JACCARD_THRESHOLD:
                     # Initial score based on PREVALENCE from guideline JSON
