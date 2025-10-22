@@ -112,10 +112,18 @@ class AdaptiveDiagnosticEngine:
         self.llm_chat_simple_fn = llm_chat_simple_fn or llm_chat_fn  # Llama-1B for templates/validation
         self.embedding_model = embedding_model
         
+        # Temperature configuration from environment variables
+        self.temperature_simple = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.1'))
+        self.temperature_complex = float(os.environ.get('LLM_TEMPERATURE_COMPLEX', '0.1'))
+        self.temperature_normalization = float(os.environ.get('LLM_TEMPERATURE_NORMALIZATION', '0.1'))
+        self.temperature_creative = float(os.environ.get('LLM_TEMPERATURE_CREATIVE', '0.6'))
+        self.temperature_analysis = float(os.environ.get('LLM_TEMPERATURE_ANALYSIS', '0.3'))
+        
         # Initialize debug capture
         self._captured_debug_output = []
         
         self._capture_debug(f"[Engine] 🧠 Using {'dual models (simple + complex)' if llm_chat_simple_fn else 'single model'}")
+        self._capture_debug(f"[Engine] 🌡️ Temperature settings: Simple={self.temperature_simple}, Complex={self.temperature_complex}, Normalization={self.temperature_normalization}, Creative={self.temperature_creative}, Analysis={self.temperature_analysis}")
         
         # ============================================================================
         # 🔧 CONFIGURATION TOGGLES (Easy to modify)
@@ -1153,14 +1161,31 @@ Output only the question:"""
             # Filler is now handled at container level for immediate streaming
             self._capture_debug(f"[Engine] 💬 Generating question (filler handled by container)...")
             
-            response = self.llm_chat_simple_fn(
-                [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg}
-                ],
-                max_tokens=30,
-                temperature=0.1
-            )
+            # HYBRID STRATEGY: Use simple model for basic questions, complex model for critical differentiating questions
+            # - Simple model (Llama-1B): L, C, T, S, O, D (basic questions that don't need sophisticated reasoning)
+            # - Complex model (Mistral-7B): A, R (aggravating/relieving factors - requires understanding of medical context and guidelines)
+            if next_element in ['A', 'R']:
+                # Use complex model for aggravating/relieving factors (requires medical reasoning and guideline understanding)
+                self._capture_debug(f"[Engine] 🧠 Using COMPLEX model (Mistral-7B) for {next_element} - requires medical reasoning and guideline understanding")
+                response = self.llm_chat_fn(
+                    [
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_msg}
+                    ],
+                    max_tokens=60,
+                    temperature=self.temperature_complex
+                )
+            else:
+                # Use simple model for basic questions (L, C, T, S, O, D) - straightforward questions
+                self._capture_debug(f"[Engine] 🔧 Using SIMPLE model (Llama-1B) for {next_element} - straightforward question")
+                response = self.llm_chat_simple_fn(
+                    [
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_msg}
+                    ],
+                    max_tokens=30,
+                    temperature=self.temperature_simple
+                )
             
             question = response.strip().strip('"\'')
             if not question.endswith('?'):
@@ -1284,7 +1309,7 @@ Your question:"""
                 {"role": "user", "content": user_msg}
             ],
             max_tokens=30,
-            temperature=0.3
+            temperature=self.temperature_analysis
         )
         
         question = response.strip().strip('"\'')
