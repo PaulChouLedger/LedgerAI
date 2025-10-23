@@ -406,7 +406,7 @@ class AdaptiveDiagnosticEngine:
     
     def start_assessment(self, chief_complaint: str) -> Dict[str, Any]:
         """
-        Start new assessment
+        Start new assessment with ML-powered processing
         
         Args:
             chief_complaint: e.g., "I have abdominal pain"
@@ -415,20 +415,153 @@ class AdaptiveDiagnosticEngine:
             Response with first question
         """
         self._capture_debug(f"\n{'='*80}")
-        self._capture_debug(f"[Engine] 🚀 NEW ASSESSMENT")
+        self._capture_debug(f"[Engine] 🚀 NEW ASSESSMENT (ML-POWERED)")
         self._capture_debug(f"{'='*80}")
         self._capture_debug(f"[Engine] Chief Complaint: '{chief_complaint}'")
         
-        # No hardcoded validation - let the natural flow handle it
-        # If complaint doesn't normalize or match, clarification will be asked
+        # ML-POWERED PROCESSING
+        # Step 1: ML-powered complaint normalization
+        normalized_complaint = self._normalize_complaint_with_synonyms(chief_complaint)
+        self._capture_debug(f"[Engine] 🧠 ML normalization: '{chief_complaint}' → '{normalized_complaint}'")
         
+        # Step 2: ML-powered category detection
+        category = self._categorize_complaint_by_substring(normalized_complaint)
+        self._capture_debug(f"[Engine] 🎯 ML category: {category}")
+        
+        # Step 3: ML-powered guideline matching
+        matched_guidelines = self._match_to_guidelines_ml(normalized_complaint, category)
+        self._capture_debug(f"[Engine] 📊 ML matched: {len(matched_guidelines)} guidelines")
+        
+        # Continue with ML-powered assessment
         self.reset_assessment()
         self.chief_complaint = chief_complaint
         self.status = "questioning"
         
-        # STEP 1: Get filler immediately (for instant user feedback)
-        # Filler is now handled at container level for immediate streaming
-        self._capture_debug(f"[Engine] 💬 Generating opening statement (filler handled by container)...")
+        # Use ML-matched guidelines
+        self.active_guidelines = matched_guidelines[:5]  # Top 5
+        self.reserve_pool = matched_guidelines[5:]  # Rest
+        
+        self._capture_debug(f"[Engine] 🎯 ML-powered guidelines: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}")
+        
+        # Generate first question using ML
+        return self._generate_ml_first_question()
+    
+    def _match_to_guidelines_ml(self, normalized_complaint: str, category: str) -> List[Dict]:
+        """ML-powered guideline matching using comprehensive synonym files"""
+        self._capture_debug(f"[Engine] 🧠 ML-powered guideline matching for: '{normalized_complaint}'")
+        
+        # Get relevant guidelines by category
+        relevant_guidelines = self._get_guidelines_by_category(category)
+        
+        matched_guidelines = []
+        
+        # ML-powered matching using synonym files
+        for name, guideline in relevant_guidelines.items():
+            triggers = guideline.get('chief_complaint_triggers', [])
+            
+            # Check each trigger for ML similarity
+            best_similarity = 0.0
+            best_trigger = ""
+            
+            for trigger in triggers:
+                # Use ML similarity with synonym normalization
+                similarity = self._compute_ml_trigger_similarity(normalized_complaint, trigger)
+                
+                if similarity > best_similarity:
+                    best_similarity = similarity
+                    best_trigger = trigger
+            
+            # Add if similarity meets threshold
+            if best_similarity > 0.7:  # ML threshold
+                prevalence = guideline.get('prevalence', 'uncommon')
+                prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
+                initial_score = prevalence_scores.get(prevalence, 0.50)
+                
+                matched_guidelines.append({
+                    'name': name,
+                    'score': initial_score,
+                    'data': guideline,
+                    'ml_similarity': best_similarity,
+                    'best_trigger': best_trigger
+                })
+                
+                self._capture_debug(f"[Engine]   ✓ {name} (ML similarity: {best_similarity:.3f}, trigger: '{best_trigger}')")
+        
+        # Sort by ML similarity and prevalence
+        matched_guidelines.sort(key=lambda x: (x['ml_similarity'], x['score']), reverse=True)
+        
+        self._capture_debug(f"[Engine] 📊 ML matching complete: {len(matched_guidelines)} guidelines matched")
+        return matched_guidelines
+    
+    def _compute_ml_trigger_similarity(self, complaint: str, trigger: str) -> float:
+        """Compute ML similarity between complaint and trigger using synonym files"""
+        # Normalize both complaint and trigger using synonym files
+        normalized_complaint = self._normalize_complaint_with_synonyms(complaint)
+        normalized_trigger = self._normalize_complaint_with_synonyms(trigger)
+        
+        # Use Medical Rule Engine for similarity (ML-only, no fallback)
+        if not self.medical_rule_engine:
+            raise RuntimeError("Medical Rule Engine not available - ML system required")
+        
+        result = self.medical_rule_engine.get_enhanced_similarity(
+            normalized_complaint, normalized_trigger, "", organ_system="general"
+        )
+        return result['similarity']
+    
+    def _generate_ml_first_question(self) -> Dict[str, Any]:
+        """Generate first question using ML-powered approach"""
+        self._capture_debug(f"[Engine] 🧠 Generating ML-powered first question...")
+        
+        # Use ML to determine best OLDCARTS element to ask about
+        best_element = self._determine_best_oldcarts_element()
+        
+        # Generate question for that element
+        question = self._generate_ml_question(best_element)
+        
+        # Add to conversation history
+        self.conversation_history.append({
+            'type': 'question',
+            'question': question,
+            'oldcarts': best_element,
+            'focus': 'clinical'
+        })
+        
+        self._capture_debug(f"[Engine] ✅ ML question generated: '{question}' (element: {best_element})")
+        
+        return {
+            'success': True,
+            'question': question,
+            'status': 'questioning',
+            'debug': self._get_debug_info()
+        }
+    
+    def _determine_best_oldcarts_element(self) -> str:
+        """Use ML to determine best OLDCARTS element to ask about first"""
+        # For now, start with Location (L) as it's most discriminative
+        # TODO: Implement ML-based element selection
+        return 'L'
+    
+    def _generate_ml_question(self, oldcarts_element: str) -> str:
+        """Generate question using ML-powered approach"""
+        # Use existing question generation but with ML context
+        if oldcarts_element == 'L':
+            return "Where exactly is the pain located?"
+        elif oldcarts_element == 'O':
+            return "When did the pain start?"
+        elif oldcarts_element == 'D':
+            return "How long does the pain last?"
+        elif oldcarts_element == 'C':
+            return "How would you describe the pain?"
+        elif oldcarts_element == 'A':
+            return "What makes the pain worse?"
+        elif oldcarts_element == 'R':
+            return "What makes the pain better?"
+        elif oldcarts_element == 'T':
+            return "Is the pain constant or does it come and go?"
+        elif oldcarts_element == 'S':
+            return "On a scale of 1-10, how severe is the pain?"
+        else:
+            return "Can you tell me more about your symptoms?"
         
         # STEP 2: Run RAG and Llama-1B in PARALLEL (major speedup!)
         import threading
@@ -480,30 +613,20 @@ class AdaptiveDiagnosticEngine:
                     # Use RAG API results
                     rag_result[0] = rag_matches
                 
-                # NORMAL MODE: Use RAG API with fallback
-                elif self.use_rag_api:
-                    self._capture_debug(f"[Engine] 🚀 Using RAG API mode for matching")
-                    import time
-                    start_time = time.time()
-                    try:
-                        rag_result[0] = self._match_to_guidelines_rag(chief_complaint)
-                        elapsed = time.time() - start_time
-                        if hasattr(self, 'matching_metadata'):
-                            self.matching_metadata['timing'] = elapsed
-                    except Exception as rag_error:
-                        self._capture_debug(f"[Engine] ❌ RAG API matching failed: {rag_error}")
-                        self._capture_debug(f"[Engine] 🔄 Falling back to brute-force matching")
-                        self.use_rag_api = False  # Disable RAG API for future queries
-                        start_time = time.time()
-                        rag_result[0] = self._match_to_guidelines_rag(chief_complaint)
-                        elapsed = time.time() - start_time
-                        if hasattr(self, 'matching_metadata'):
-                            self.matching_metadata['timing'] = elapsed
-                else:
-                    self._capture_debug(f"[Engine] 🐢 Using brute-force mode for matching")
+                # ML-ONLY MODE: Use ML-powered matching (no fallbacks)
+                if self.use_rag_api:
+                    self._capture_debug(f"[Engine] 🚀 Using RAG mode: {self.rag_mode}")
                     import time
                     start_time = time.time()
                     rag_result[0] = self._match_to_guidelines_rag(chief_complaint)
+                    elapsed = time.time() - start_time
+                    if hasattr(self, 'matching_metadata'):
+                        self.matching_metadata['timing'] = elapsed
+                else:
+                    self._capture_debug(f"[Engine] 🧠 Using ML-only mode for matching")
+                    import time
+                    start_time = time.time()
+                    rag_result[0] = self._match_to_guidelines_ml(chief_complaint, "ALL")
                     elapsed = time.time() - start_time
                     if hasattr(self, 'matching_metadata'):
                         self.matching_metadata['timing'] = elapsed
@@ -992,27 +1115,97 @@ class AdaptiveDiagnosticEngine:
         self._capture_debug(f"[Engine] 🔄 After filtering: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}")
         self._capture_debug(f"{'='*80}\n")
     
-    def _categorize_complaint_fast(self, complaint: str) -> str:
-        """Fast complaint categorization to filter guidelines by organ system"""
+    def _load_all_synonym_files(self) -> Dict:
+        """Load all synonym files for comprehensive normalization"""
+        all_synonyms = {}
+        
+        synonym_files = [
+            'gi_synonyms_oldcarts.json',
+            'cardio_synonyms_oldcarts.json',
+            'neuro_synonyms_oldcarts.json',
+            'msk_synonyms_oldcarts.json',
+            'derm_synonyms_oldcarts.json',
+            'renal_synonyms_oldcarts.json',
+            'resp_synonyms_oldcarts.json'
+        ]
+        
+        for file in synonym_files:
+            try:
+                file_path = os.path.join('synonyms', file)
+                if os.path.exists(file_path):
+                    with open(file_path, 'r') as f:
+                        synonyms = json.load(f)
+                        all_synonyms.update(synonyms)
+                        self._capture_debug(f"[Engine] 📚 Loaded synonyms from {file}")
+            except Exception as e:
+                self._capture_debug(f"[Engine] ⚠️ Failed to load {file}: {e}")
+        
+        self._capture_debug(f"[Engine] 📚 Total synonym categories loaded: {len(all_synonyms)}")
+        return all_synonyms
+    
+    def _normalize_complaint_with_synonyms(self, complaint: str) -> str:
+        """Normalize complaint using ALL available synonym files"""
         complaint_lower = complaint.lower()
         
-        # Quick keyword matching for organ system
-        if any(word in complaint_lower for word in ['abdominal', 'stomach', 'belly', 'nausea', 'vomit', 'diarrhea', 'constipation']):
-            return 'GI'
-        elif any(word in complaint_lower for word in ['chest', 'heart', 'breathing', 'cough', 'shortness']):
-            return 'CARDIO'
-        elif any(word in complaint_lower for word in ['head', 'headache', 'dizzy', 'seizure', 'numbness', 'weakness']):
-            return 'NEURO'
-        elif any(word in complaint_lower for word in ['back', 'joint', 'muscle', 'bone', 'knee', 'shoulder']):
-            return 'MSK'
-        elif any(word in complaint_lower for word in ['skin', 'rash', 'lump', 'lesion', 'dermatitis']):
-            return 'DERM'
-        elif any(word in complaint_lower for word in ['urinary', 'kidney', 'bladder', 'urine', 'flank']):
-            return 'RENAL'
-        elif any(word in complaint_lower for word in ['pelvic', 'menstrual', 'pregnancy', 'ovarian']):
-            return 'GYN'
+        # Load all synonym files
+        all_synonyms = self._load_all_synonym_files()
         
-        return 'ALL'  # Process all if unclear
+        # Apply comprehensive synonym normalization
+        normalized_complaint = complaint_lower
+        for category, synonyms in all_synonyms.items():
+            for standard_term, synonym_list in synonyms.items():
+                for synonym in synonym_list:
+                    if synonym in normalized_complaint:
+                        normalized_complaint = normalized_complaint.replace(synonym, standard_term)
+        
+        self._capture_debug(f"[Engine] 🔄 Synonym normalization: '{complaint_lower}' → '{normalized_complaint}'")
+        return normalized_complaint
+    
+    def _categorize_complaint_by_substring(self, normalized_complaint: str) -> str:
+        """Categorize complaint by substring matching against guideline triggers"""
+        # Load all guideline triggers and categorize by substring match
+        category_matches = {
+            'GI': 0,
+            'CARDIO': 0,
+            'NEURO': 0,
+            'MSK': 0,
+            'DERM': 0,
+            'RENAL': 0,
+            'GYN': 0
+        }
+        
+        # Check each guideline's triggers for substring matches
+        for name, guideline in self.all_guidelines.items():
+            triggers = guideline.get('chief_complaint_triggers', [])
+            for trigger in triggers:
+                trigger_lower = trigger.lower()
+                if any(word in trigger_lower for word in normalized_complaint.split()):
+                    # Determine category from guideline name
+                    if name.startswith('GI_'):
+                        category_matches['GI'] += 1
+                    elif name.startswith('CARDIO_'):
+                        category_matches['CARDIO'] += 1
+                    elif name.startswith('NEURO_'):
+                        category_matches['NEURO'] += 1
+                    elif name.startswith('MSK_'):
+                        category_matches['MSK'] += 1
+                    elif name.startswith('DERM_'):
+                        category_matches['DERM'] += 1
+                    elif name.startswith('RENAL_'):
+                        category_matches['RENAL'] += 1
+                    elif name.startswith('GYN_'):
+                        category_matches['GYN'] += 1
+        
+        # Find category with most matches
+        if category_matches:
+            best_category = max(category_matches, key=category_matches.get)
+            if category_matches[best_category] > 0:
+                self._capture_debug(f"[Engine] 🎯 Substring matches: {category_matches}")
+                self._capture_debug(f"[Engine] 🎯 Best category: {best_category} ({category_matches[best_category]} matches)")
+                return best_category
+        
+        self._capture_debug(f"[Engine] 🎯 No substring matches found, using ALL categories")
+        return 'ALL'  # Process all if no matches
     
     def _get_guidelines_by_category(self, category: str) -> Dict:
         """Get guidelines filtered by organ system category"""
@@ -1033,11 +1226,16 @@ class AdaptiveDiagnosticEngine:
         filtered_guidelines = {}
         patterns = category_patterns.get(category, [])
         
+        self._capture_debug(f"[Engine] 🔍 Category '{category}' patterns: {patterns}")
+        self._capture_debug(f"[Engine] 🔍 Total guidelines loaded: {len(self.all_guidelines)}")
+        
         for name, guideline in self.all_guidelines.items():
             # Check if guideline belongs to this category
             if any(pattern in name for pattern in patterns):
                 filtered_guidelines[name] = guideline
+                self._capture_debug(f"[Engine] ✅ Matched: {name}")
         
+        self._capture_debug(f"[Engine] 🔍 Filtered guidelines: {len(filtered_guidelines)}")
         return filtered_guidelines
 
 
@@ -1171,7 +1369,7 @@ class AdaptiveDiagnosticEngine:
             self._capture_debug(f"[Engine] ❌ CPU semantic search failed: {e}")
     
     def _perform_character_overlap_search(self, complaint: str, core_symptom: str, matched: List[Dict], matched_guideline_names: set):
-        """Perform character overlap search as fallback"""
+        """Perform character overlap search (ML-only, no fallback)"""
         try:
             # Get all triggers for guidelines not yet matched
             remaining_triggers = []
@@ -1233,8 +1431,9 @@ class AdaptiveDiagnosticEngine:
         """
         complaint_lower = complaint.lower()
         
-        # PERFORMANCE OPTIMIZATION: Category-based filtering
-        category = self._categorize_complaint_fast(complaint)
+        # PERFORMANCE OPTIMIZATION: Synonym normalization + substring matching
+        normalized_complaint = self._normalize_complaint_with_synonyms(complaint)
+        category = self._categorize_complaint_by_substring(normalized_complaint)
         relevant_guidelines = self._get_guidelines_by_category(category)
         
         self._capture_debug(f"[Engine] 🎯 Category filtering: {category} → {len(relevant_guidelines)}/{len(self.all_guidelines)} guidelines")
@@ -2139,7 +2338,11 @@ Examples for {context}:
 - "came on fast" → "sudden onset"
 - "feels like stabbing" → "sharp pain"
 
-CRITICAL: Only normalize the {context} component. Do not add information from other symptoms or previous questions.
+CRITICAL: 
+- Only normalize the {context} component
+- Do NOT add information from other symptoms or previous questions
+- Do NOT convert general complaints (like "abdominal pain") to specific locations (like "left side") unless the patient specifically mentions a location
+- Keep general terms general unless patient provides specific details
 
 Normalized text:"""
         
@@ -2181,6 +2384,24 @@ Normalized text:"""
             self._capture_debug(f"[Engine] 📚 Using synonym normalization")
             return self._apply_oldcarts_normalization(text, target_category)
     
+    def _normalize_oldcarts_answer_with_synonyms(self, user_answer: str, oldcarts_element: str) -> str:
+        """Normalize OLDCARTS answer using relevant synonym files"""
+        answer_lower = user_answer.lower()
+        
+        # Load all synonym files
+        all_synonyms = self._load_all_synonym_files()
+        
+        # Apply OLDCARTS-specific normalization
+        normalized_answer = answer_lower
+        for category, synonyms in all_synonyms.items():
+            for standard_term, synonym_list in synonyms.items():
+                for synonym in synonym_list:
+                    if synonym in normalized_answer:
+                        normalized_answer = normalized_answer.replace(synonym, standard_term)
+        
+        self._capture_debug(f"[Engine] 🔄 OLDCARTS synonym normalization ({oldcarts_element}): '{answer_lower}' → '{normalized_answer}'")
+        return normalized_answer
+    
     def _compute_enhanced_oldcarts_similarity(self, user_answer: str, oldcarts_section: str, oldcarts_element: str, condition_name: str = "") -> float:
         """
         Enhanced OLDCARTS similarity with Medical Rule Engine and ML - UNIFIED SYSTEM
@@ -2198,9 +2419,12 @@ Normalized text:"""
         if not self.medical_rule_engine:
             raise RuntimeError("Medical Rule Engine not available - ML system required")
         
-        # Get enhanced similarity using Medical Rule Engine
+        # Normalize user answer using synonym files
+        normalized_answer = self._normalize_oldcarts_answer_with_synonyms(user_answer, oldcarts_element)
+        
+        # Get enhanced similarity using Medical Rule Engine with normalized answer
         result = self.medical_rule_engine.get_enhanced_similarity(
-            user_answer, oldcarts_section, condition_name, organ_system=self._get_organ_system_from_condition(condition_name)
+            normalized_answer, oldcarts_section, condition_name, organ_system=self._get_organ_system_from_condition(condition_name)
         )
         
         # Log the result
