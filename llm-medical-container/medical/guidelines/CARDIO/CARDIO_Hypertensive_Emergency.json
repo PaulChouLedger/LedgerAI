@@ -13,7 +13,7 @@
   "prevalence": "uncommon",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Acute, over hours. LOCATION: Headache (occipital or diffuse), chest (if cardiac involvement), generalized symptoms. DURATION: Continuous. CHARACTER: Severe headache, dyspnea, chest pain, vision changes, confusion. AGGRAVATING: Medication non-compliance, stress. RELIEVING: Blood pressure reduction. TIMING: Progressive. SEVERITY: 8-10/10 for headache or symptoms. KEY POSITIVES: Severe hypertension (BP >180/120), end-organ damage (altered mental status, chest pain, dyspnea, vision changes, seizures), headache, nausea, vomiting. KEY NEGATIVES: NOT isolated elevated BP without symptoms (that's hypertensive urgency)."
+    "classic_presentation": "ONSET: Acute, over hours. LOCATION: Headache (occipital or diffuse), chest (if cardiac involvement), generalized symptoms. DURATION: Continuous. CHARACTER: Severe headache, dyspnea, chest pain, vision changes, confusion. AGGRAVATING: Medication non-compliance, stress. RELIEVING: Blood pressure reduction. TIMING: Progressive. SEVERITY: 8-10/10 for headache or symptoms. KEY POSITIVES: Severe hypertension (blood pressure (BP) >180/120), end-organ damage (altered mental status, chest pain, dyspnea, vision changes, seizures), headache, nausea, vomiting. KEY NEGATIVES: NOT isolated elevated blood pressure (BP) without symptoms (that's hypertensive urgency)."
   },
   "red_flags": [
     "Severe blood pressure elevation (>180/120)",

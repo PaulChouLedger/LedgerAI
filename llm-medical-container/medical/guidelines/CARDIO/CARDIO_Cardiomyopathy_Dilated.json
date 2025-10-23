@@ -12,7 +12,7 @@
   "prevalence": "uncommon",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Progressive over weeks to months, acute decompensation possible. LOCATION: Generalized dyspnea, bilateral lower extremity edema. DURATION: Progressive, chronic with acute worsening. CHARACTER: Dyspnea on exertion progressing to dyspnea at rest, orthopnea, paroxysmal nocturnal dyspnea, fatigue. AGGRAVATING: Exertion, lying flat, salt intake. RELIEVING: Diuretics, sitting upright. TIMING: Progressive worsening. SEVERITY: Severe dyspnea. KEY POSITIVES: Bilateral leg edema, weight gain, orthopnea, PND, S3 gallop, cardiomegaly on CXR, history of alcohol abuse or chemotherapy or viral illness. KEY NEGATIVES: NOT acute MI presentation, NOT pleuritic."
+    "classic_presentation": "ONSET: Progressive over weeks to months, acute decompensation possible. LOCATION: Generalized dyspnea, bilateral lower extremity edema. DURATION: Progressive, chronic with acute worsening. CHARACTER: Dyspnea on exertion progressing to dyspnea at rest, orthopnea, paroxysmal nocturnal dyspnea, fatigue. AGGRAVATING: Exertion, lying flat, salt intake. RELIEVING: Diuretics, sitting upright. TIMING: Progressive worsening. SEVERITY: Severe dyspnea. KEY POSITIVES: Bilateral leg edema, weight gain, orthopnea, PND, S3 gallop, cardiomegaly on chest X-ray (CXR), history of alcohol abuse or chemotherapy or viral illness. KEY NEGATIVES: NOT acute myocardial infarction (MI) presentation, NOT pleuritic."
   },
   "red_flags": [
     "Severe dyspnea at rest",
@@ -20,7 +20,7 @@
     "Altered mental status",
     "Cold extremities",
     "Severe edema or anasarca",
-    "Arrhythmias (AFib, VT)",
+    "Arrhythmias (AFib, ventricular tachycardia )",
     "Syncope",
     "Chest pain (suggests ischemia)"
   ]

@@ -12,7 +12,7 @@
   "prevalence": "common",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: New onset OR change in pattern (more frequent, longer, lower threshold). LOCATION: RETROSTERNAL, left chest, or diffuse. RADIATES to left arm, jaw, neck, shoulder. DURATION: Usually <20 minutes but may be prolonged. CHARACTER: Pressure, tightness, squeezing, heaviness. AGGRAVATING: Occurs at REST (unlike stable angina) or with MINIMAL exertion. RELIEVING: May or may NOT respond to nitroglycerin. Rest may help. TIMING: Crescendo pattern (increasing frequency/severity). SEVERITY: 5-8/10, worsening over days. KEY POSITIVES: Dyspnea, diaphoresis, nausea. KEY NEGATIVES: NO ST elevation on ECG (differentiates from STEMI)."
+    "classic_presentation": "ONSET: New onset OR change in pattern (more frequent, longer, lower threshold). LOCATION: RETROSTERNAL, left chest, or diffuse. RADIATES to left arm, jaw, neck, shoulder. DURATION: Usually <20 minutes but may be prolonged. CHARACTER: Pressure, tightness, squeezing, heaviness. AGGRAVATING: Occurs at REST (unlike stable angina) or with MINIMAL exertion. RELIEVING: May or may NOT respond to nitroglycerin. Rest may help. TIMING: Crescendo pattern (increasing frequency/severity). SEVERITY: 5-8/10, worsening over days. KEY POSITIVES: Dyspnea, diaphoresis, nausea. KEY NEGATIVES: NO ST elevation on electrocardiogram (ECG) (differentiates from ST-elevation myocardial infarction )."
   },
   "red_flags": [
     "Occurs at rest or minimal exertion",

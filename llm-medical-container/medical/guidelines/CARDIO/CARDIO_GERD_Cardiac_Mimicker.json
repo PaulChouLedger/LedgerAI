@@ -1,5 +1,5 @@
 {
-  "condition": "GERD (Cardiac Chest Pain Mimicker)",
+  "condition": "gastroesophageal reflux disease (GERD) (Cardiac Chest Pain Mimicker)",
   "icd10": "K21.9",
   "snomed": "235595009",
   "chief_complaint_triggers": [
@@ -16,7 +16,7 @@
   },
   "red_flags": [
     "New onset in older patient (rule out cardiac)",
-    "Radiation to arm or jaw (atypical for GERD)",
+    "Radiation to arm or jaw (atypical for gastroesophageal reflux disease )",
     "Exertional pattern (suggests cardiac)",
     "Diaphoresis or dyspnea",
     "No relief with antacids",

@@ -113,14 +113,73 @@ class AdaptiveDiagnosticEngine:
         self.embedding_model = embedding_model
         
         # Temperature configuration from environment variables
-        self.temperature_simple = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.1'))
-        self.temperature_complex = float(os.environ.get('LLM_TEMPERATURE_COMPLEX', '0.1'))
-        self.temperature_normalization = float(os.environ.get('LLM_TEMPERATURE_NORMALIZATION', '0.1'))
-        self.temperature_creative = float(os.environ.get('LLM_TEMPERATURE_CREATIVE', '0.6'))
-        self.temperature_analysis = float(os.environ.get('LLM_TEMPERATURE_ANALYSIS', '0.3'))
+        # Import temperature settings from aura_config
+        try:
+            from aura_config import (
+                LLM_TEMPERATURE_SIMPLE, LLM_TEMPERATURE_COMPLEX, 
+                LLM_TEMPERATURE_NORMALIZATION, LLM_TEMPERATURE_CREATIVE, 
+                LLM_TEMPERATURE_ANALYSIS
+            )
+            self.temperature_simple = LLM_TEMPERATURE_SIMPLE
+            self.temperature_complex = LLM_TEMPERATURE_COMPLEX
+            self.temperature_normalization = LLM_TEMPERATURE_NORMALIZATION
+            self.temperature_creative = LLM_TEMPERATURE_CREATIVE
+            self.temperature_analysis = LLM_TEMPERATURE_ANALYSIS
+        except ImportError:
+            # Fallback to environment variables if aura_config not available
+            self.temperature_simple = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.1'))
+            self.temperature_complex = float(os.environ.get('LLM_TEMPERATURE_COMPLEX', '0.1'))
+            self.temperature_normalization = float(os.environ.get('LLM_TEMPERATURE_NORMALIZATION', '0.1'))
+            self.temperature_creative = float(os.environ.get('LLM_TEMPERATURE_CREATIVE', '0.6'))
+            self.temperature_analysis = float(os.environ.get('LLM_TEMPERATURE_ANALYSIS', '0.3'))
         
         # Initialize debug capture
         self._captured_debug_output = []
+        
+        # Initialize Medical Rule Engine for enhanced location scoring
+        try:
+            from medical_rule_engine import MedicalRuleEngine
+            self.medical_rule_engine = MedicalRuleEngine()
+            self._capture_debug(f"[Engine] 🎯 Medical Rule Engine initialized")
+        except ImportError:
+            self.medical_rule_engine = None
+            self._capture_debug(f"[Engine] ⚠️ Medical Rule Engine not available")
+        
+        # Initialize Learning Data Collector for continuous improvement
+        try:
+            from learning_data_collector import LearningDataCollector
+            self.learning_collector = LearningDataCollector()
+            self._capture_debug(f"[Engine] 📊 Learning Data Collector initialized")
+        except ImportError:
+            self.learning_collector = None
+            self._capture_debug(f"[Engine] ⚠️ Learning Data Collector not available")
+        
+        # Initialize Continuous Learning System
+        try:
+            from continuous_learning import ContinuousLearning
+            self.continuous_learning = ContinuousLearning()
+            self._capture_debug(f"[Engine] 🧠 Continuous Learning initialized")
+        except ImportError:
+            self.continuous_learning = None
+            self._capture_debug(f"[Engine] ⚠️ Continuous Learning not available")
+        
+        # Initialize Performance Monitor
+        try:
+            from performance_monitor import PerformanceMonitor
+            self.performance_monitor = PerformanceMonitor()
+            self._capture_debug(f"[Engine] 📈 Performance Monitor initialized")
+        except ImportError:
+            self.performance_monitor = None
+            self._capture_debug(f"[Engine] ⚠️ Performance Monitor not available")
+        
+        # Initialize User Feedback Interface
+        try:
+            from user_feedback_interface import UserFeedbackInterface
+            self.user_feedback = UserFeedbackInterface()
+            self._capture_debug(f"[Engine] 💬 User Feedback Interface initialized")
+        except ImportError:
+            self.user_feedback = None
+            self._capture_debug(f"[Engine] ⚠️ User Feedback Interface not available")
         
         self._capture_debug(f"[Engine] 🧠 Using {'dual models (simple + complex)' if llm_chat_simple_fn else 'single model'}")
         self._capture_debug(f"[Engine] 🌡️ Temperature settings: Simple={self.temperature_simple}, Complex={self.temperature_complex}, Normalization={self.temperature_normalization}, Creative={self.temperature_creative}, Analysis={self.temperature_analysis}")
@@ -1990,32 +2049,173 @@ Normalized text:"""
             return self._apply_oldcarts_normalization(text, target_category)
     
     def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str, condition_name: str = "") -> float:
-        """Hybrid similarity (Jaccard + Semantic) for location matching with smart normalization"""
-        # Apply smart normalization (LLM or synonyms) focusing on location
-        user_answer_expanded = self._smart_oldcarts_normalization(user_answer.lower(), target_category="location")
-        self._capture_debug(f"[Engine] 🔄 Smart location normalization: '{user_answer}' → '{user_answer_expanded}'")
+        """Enhanced location similarity with Medical Rule Engine and ML"""
         
-        # Check for anatomical exclusions first
-        if self._check_anatomical_exclusion(user_answer_expanded, oldcarts_section, condition_name):
-            self._capture_debug(f"[Engine]   ⛔ ANATOMICAL EXCLUSION: Returning 0.0 for {condition_name}")
-            return 0.0  # Complete exclusion for anatomical mismatches
+        # Use Medical Rule Engine if available
+        if self.medical_rule_engine:
+            # Get enhanced similarity using Medical Rule Engine
+            result = self.medical_rule_engine.get_enhanced_similarity(
+                user_answer, oldcarts_section, condition_name
+            )
+            
+            # Log the result
+            self._capture_debug(f"[Engine]   🎯 Enhanced similarity: {result['similarity']:.3f} (method: {result['method']})")
+            self._capture_debug(f"[Engine]   📝 Reasoning: {result['reasoning']}")
+            self._capture_debug(f"[Engine]   🏥 Anatomical Type: {result['anatomical_type']}")
+            
+            # Collect learning data if available
+            if self.learning_collector:
+                self.learning_collector.collect_prediction(
+                    patient_text=user_answer,
+                    guideline_text=oldcarts_section,
+                    condition_name=condition_name,
+                    similarity=result['similarity'],
+                    method=result['method'],
+                    confidence=result['confidence'],
+                    anatomical_type=result['anatomical_type']
+                )
+            
+            # Track performance metrics if available
+            if self.performance_monitor:
+                self.performance_monitor.track_prediction(
+                    prediction=result['similarity'],
+                    confidence=result['confidence'],
+                    method=result['method'],
+                    condition_name=condition_name,
+                    organ_system=self._get_organ_system_from_condition(condition_name)
+                )
+            
+            return result['similarity']
         
-        # Use hybrid similarity (Jaccard + Semantic) with emphasis on Jaccard
-        hybrid_result = self._compute_hybrid_similarity(user_answer_expanded, oldcarts_section)
+        # Fallback to original method if Medical Rule Engine not available
+        else:
+            self._capture_debug(f"[Engine]   ⚠️ Using fallback location similarity")
+            
+            # Apply smart normalization (LLM or synonyms) focusing on location
+            user_answer_expanded = self._smart_oldcarts_normalization(user_answer.lower(), target_category="location")
+            self._capture_debug(f"[Engine] 🔄 Smart location normalization: '{user_answer}' → '{user_answer_expanded}'")
+            
+            # Check for anatomical exclusions first
+            if self._check_anatomical_exclusion(user_answer_expanded, oldcarts_section, condition_name):
+                self._capture_debug(f"[Engine]   ⛔ ANATOMICAL EXCLUSION: Returning 0.0 for {condition_name}")
+                return 0.0  # Complete exclusion for anatomical mismatches
+            
+            # Use hybrid similarity (Jaccard + Semantic) with emphasis on Jaccard
+            hybrid_result = self._compute_hybrid_similarity(user_answer_expanded, oldcarts_section)
+            
+            # Boost diffuse conditions to prevent early ruling out
+            diffuse_conditions = ['constipation', 'gastritis', 'ibs', 'gastroenteritis', 'mesenteric', 'diffuse']
+            if any(condition in condition_name.lower() for condition in diffuse_conditions):
+                if hybrid_result['final_score'] < 0.05:  # If score is very low
+                    hybrid_result['final_score'] = max(0.05, hybrid_result['final_score'] + 0.02)  # Minimum 5% score
+                    self._capture_debug(f"[Engine]   📈 DIFFUSE BOOST: {condition_name} score boosted to {hybrid_result['final_score']:.3f}")
+            
+            # DEBUG: Show hybrid similarity calculation
+            self._capture_debug(f"[Engine]   🎯 Hybrid similarity: Jaccard={hybrid_result['jaccard_score']:.3f}, Semantic={hybrid_result['semantic_score']:.3f}")
+            self._capture_debug(f"[Engine]   📊 Final score: {hybrid_result['final_score']:.3f} (method: {hybrid_result['method_used']}, confidence: {hybrid_result['confidence']})")
+            self._capture_debug(f"[Engine]   📝 '{user_answer_expanded}' vs '{oldcarts_section[:80]}...'")
+            
+            return hybrid_result['final_score']
+    
+    def _get_organ_system_from_condition(self, condition_name: str) -> str:
+        """Get organ system from condition name"""
+        # Simple mapping - could be enhanced with more sophisticated logic
+        condition_lower = condition_name.lower()
         
-        # Boost diffuse conditions to prevent early ruling out
-        diffuse_conditions = ['constipation', 'gastritis', 'ibs', 'gastroenteritis', 'mesenteric', 'diffuse']
-        if any(condition in condition_name.lower() for condition in diffuse_conditions):
-            if hybrid_result['final_score'] < 0.05:  # If score is very low
-                hybrid_result['final_score'] = max(0.05, hybrid_result['final_score'] + 0.02)  # Minimum 5% score
-                self._capture_debug(f"[Engine]   📈 DIFFUSE BOOST: {condition_name} score boosted to {hybrid_result['final_score']:.3f}")
+        if any(term in condition_lower for term in ['appendicitis', 'cholecystitis', 'pancreatitis', 'gastritis', 'ulcer', 'diverticulitis']):
+            return 'GI'
+        elif any(term in condition_lower for term in ['mi', 'angina', 'heart', 'cardiac', 'aortic']):
+            return 'CARDIO'
+        elif any(term in condition_lower for term in ['pneumonia', 'pneumothorax', 'pleural', 'lung']):
+            return 'PULMONARY'
+        elif any(term in condition_lower for term in ['kidney', 'uti', 'stone', 'prostatitis']):
+            return 'GU'
+        elif any(term in condition_lower for term in ['pregnancy', 'ovarian', 'pelvic', 'gynecologic']):
+            return 'GYN'
+        else:
+            return 'UNKNOWN'
+    
+    def collect_user_feedback(self, 
+                               prediction_id: str,
+                               prediction: Dict[str, Any],
+                               user_rating: int,
+                               user_comment: str = "",
+                               condition_name: str = "") -> bool:
+        """
+        Collect user feedback on ML prediction
         
-        # DEBUG: Show hybrid similarity calculation
-        self._capture_debug(f"[Engine]   🎯 Hybrid similarity: Jaccard={hybrid_result['jaccard_score']:.3f}, Semantic={hybrid_result['semantic_score']:.3f}")
-        self._capture_debug(f"[Engine]   📊 Final score: {hybrid_result['final_score']:.3f} (method: {hybrid_result['method_used']}, confidence: {hybrid_result['confidence']})")
-        self._capture_debug(f"[Engine]   📝 '{user_answer_expanded}' vs '{oldcarts_section[:80]}...'")
+        Args:
+            prediction_id: Unique identifier for prediction
+            prediction: ML prediction result
+            user_rating: User rating (1-5 stars)
+            user_comment: Optional user comment
+            condition_name: Medical condition name
+            
+        Returns:
+            bool: True if feedback collected successfully
+        """
+        if self.user_feedback:
+            return self.user_feedback.collect_prediction_rating(
+                prediction_id=prediction_id,
+                prediction=prediction,
+                user_rating=user_rating,
+                user_comment=user_comment,
+                condition_name=condition_name,
+                organ_system=self._get_organ_system_from_condition(condition_name)
+            )
+        return False
+    
+    def collect_accuracy_feedback(self, 
+                                 prediction_id: str,
+                                 predicted_accuracy: float,
+                                 actual_accuracy: float,
+                                 user_comment: str = "",
+                                 condition_name: str = "") -> bool:
+        """
+        Collect accuracy feedback for ML prediction
         
-        return hybrid_result['final_score']
+        Args:
+            prediction_id: Unique identifier for prediction
+            predicted_accuracy: Predicted accuracy score
+            actual_accuracy: Actual accuracy score
+            user_comment: Optional user comment
+            condition_name: Medical condition name
+            
+        Returns:
+            bool: True if feedback collected successfully
+        """
+        if self.user_feedback:
+            return self.user_feedback.collect_accuracy_feedback(
+                prediction_id=prediction_id,
+                predicted_accuracy=predicted_accuracy,
+                actual_accuracy=actual_accuracy,
+                user_comment=user_comment,
+                condition_name=condition_name,
+                organ_system=self._get_organ_system_from_condition(condition_name)
+            )
+        return False
+    
+    def get_learning_status(self) -> Dict[str, Any]:
+        """Get learning system status"""
+        status = {
+            'medical_rule_engine': self.medical_rule_engine is not None,
+            'learning_collector': self.learning_collector is not None,
+            'continuous_learning': self.continuous_learning is not None,
+            'performance_monitor': self.performance_monitor is not None,
+            'user_feedback': self.user_feedback is not None
+        }
+        
+        # Get detailed status from components
+        if self.continuous_learning:
+            status['continuous_learning_status'] = self.continuous_learning.get_learning_status()
+        
+        if self.performance_monitor:
+            status['performance_summary'] = self.performance_monitor.get_performance_summary()
+        
+        if self.user_feedback:
+            status['feedback_summary'] = self.user_feedback.get_feedback_summary()
+        
+        return status
     
     
     
@@ -2619,31 +2819,36 @@ Your question:"""
         Use LLM to intelligently classify if this is a new or recurring problem
         """
         self._capture_debug(f"[Engine] 🧠 LLM classifying chronicity...")
+        self._capture_debug(f"[Engine] 🧠 Using COMPLEX model (Mistral-7B) for chronicity classification")
         
-        system_msg = "You are a medical assistant. Classify if this is a NEW problem or RECURRING/CHRONIC problem. Respond with only: 'new', 'recurring', or 'unclear'"
+        system_msg = "You are a medical assistant. Classify if this is a NEW problem or RECURRING/CHRONIC problem. Respond with ONLY one word: 'new', 'recurring', or 'unclear'. Be precise and accurate."
         
         user_msg = f"""Classify this patient response about whether their problem is new or recurring:
 
 Patient response: "{answer}"
 
+CRITICAL: If the patient says "new", "first time", "started today/yesterday", or similar - classify as "new".
+If they say "before", "had this", "comes and goes", "chronic" - classify as "recurring".
+
 Examples:
+- "new" → new
 - "It's new" → new
-- "I've had this before" → recurring  
 - "This is the first time" → new
+- "It started yesterday" → new
+- "I've had this before" → recurring  
 - "It comes and goes" → recurring
 - "I don't know" → unclear
-- "It started yesterday" → new
 - "I've had this for years" → recurring
 
 Classification:"""
         
-        response = self.llm_chat_simple_fn(
+        response = self.llm_chat_fn(
             [
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
             max_tokens=10,
-            temperature=0.1
+            temperature=0.1  # Use very low temperature for this critical classification
         )
         
         classification = response.strip().lower()

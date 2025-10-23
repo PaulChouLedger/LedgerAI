@@ -1,5 +1,5 @@
 {
-  "condition": "Ventricular Tachycardia (VT / V-Tach)",
+  "condition": "Ventricular Tachycardia (ventricular tachycardia (VT) / V-Tach)",
   "icd10": "I47.2",
   "snomed": "25569003",
   "chief_complaint_triggers": [
@@ -13,7 +13,7 @@
   "prevalence": "rare",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Sudden, abrupt start. LOCATION: Chest (palpitations), generalized symptoms. DURATION: Sustained (>30 seconds) or non-sustained bursts. CHARACTER: Rapid, regular or slightly irregular palpitations. AGGRAVATING: Exertion, electrolyte abnormalities. RELIEVING: Cardioversion, antiarrhythmics. TIMING: Can be episodic or sustained. SEVERITY: Variable, can be asymptomatic to severe symptoms. KEY POSITIVES: Heart rate 120-250 bpm, wide QRS on ECG, history of MI or cardiomyopathy, syncope, chest pain, dyspnea, altered mental status. KEY NEGATIVES: NOT narrow complex tachycardia (SVT)."
+    "classic_presentation": "ONSET: Sudden, abrupt start. LOCATION: Chest (palpitations), generalized symptoms. DURATION: Sustained (>30 seconds) or non-sustained bursts. CHARACTER: Rapid, regular or slightly irregular palpitations. AGGRAVATING: Exertion, electrolyte abnormalities. RELIEVING: Cardioversion, antiarrhythmics. TIMING: Can be episodic or sustained. SEVERITY: Variable, can be asymptomatic to severe symptoms. KEY POSITIVES: Heart rate 120-250 bpm, wide QRS on electrocardiogram (ECG), history of myocardial infarction (MI) or cardiomyopathy, syncope, chest pain, dyspnea, altered mental status. KEY NEGATIVES: NOT narrow complex tachycardia (SVT)."
   },
   "red_flags": [
     "Syncope or loss of consciousness",
@@ -21,9 +21,9 @@
     "Chest pain",
     "Severe dyspnea",
     "Altered mental status",
-    "History of MI or cardiomyopathy",
+    "History of myocardial infarction (MI) or cardiomyopathy",
     "History of sudden cardiac death in family",
-    "Pulselessness (V-Tach with no pulse = VF)"
+    "Pulselessness (V-Tach with no pulse = ventricular fibrillation )"
   ]
 }
 

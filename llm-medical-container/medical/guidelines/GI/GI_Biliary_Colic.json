@@ -7,12 +7,12 @@
   "chief_complaint_triggers": [
     "abdominal pain",
     "right upper abdominal pain",
-    "RUQ pain",
+    "right upper quadrant (RUQ) pain",
     "pain after eating"
   ],
   "urgency": "routine",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset 30 minutes to 2 hours AFTER EATING fatty or greasy meals. RECURRENT pattern - patient usually has had similar prior episodes. LOCATION: Right upper quadrant (RUQ) or epigastric. May RADIATE TO RIGHT SHOULDER OR BACK. DURATION: Each episode lasts 30 minutes to 6 hours (shorter than cholecystitis >6 hours), then COMPLETELY RESOLVES. EPISODIC (not constant). CHARACTER: STEADY, SEVERE pain (NOT crampy). Described as intense pressure or aching. AGGRAVATING: Triggered by FATTY OR GREASY MEALS (fried foods, fatty meats, dairy). Eating worsens or precipitates attacks. RELIEVING: Pain SPONTANEOUSLY RESOLVES after 30min-6 hours. Patient is PAIN-FREE between episodes. Rest may help during episode. TIMING: EPISODIC attacks with complete resolution between. Comes and goes. Pattern repeats over weeks to months. SEVERITY: 7-10/10 during episodes, 0/10 between episodes. ASSOCIATED SYMPTOMS: Nausea (minimal or no vomiting), bloating, belching. NO FEVER (fever indicates cholecystitis). KEY POSITIVES: Food triggers, episodic pattern, pain-free intervals, RUQ location. KEY NEGATIVES: CONSTANT pain suggests cholecystitis not colic. Fever rules out simple colic. Jaundice suggests bile duct stone."
+    "classic_presentation": "ONSET: SUDDEN onset 30 minutes to 2 hours AFTER EATING fatty or greasy meals. RECURRENT pattern - patient usually has had similar prior episodes. LOCATION: Right upper quadrant (RUQ) or epigastric. May RADIATE TO RIGHT SHOULDER OR BACK. DURATION: Each episode lasts 30 minutes to 6 hours (shorter than cholecystitis >6 hours), then COMPLETELY RESOLVES. EPISODIC (not constant). CHARACTER: STEADY, SEVERE pain (NOT crampy). Described as intense pressure or aching. AGGRAVATING: Triggered by FATTY OR GREASY MEALS (fried foods, fatty meats, dairy). Eating worsens or precipitates attacks. RELIEVING: Pain SPONTANEOUSLY RESOLVES after 30min-6 hours. Patient is PAIN-FREE between episodes. Rest may help during episode. TIMING: EPISODIC attacks with complete resolution between. Comes and goes. Pattern repeats over weeks to months. SEVERITY: 7-10/10 during episodes, 0/10 between episodes. ASSOCIATED SYMPTOMS: Nausea (minimal or no vomiting), bloating, belching. NO FEVER (fever indicates cholecystitis). KEY POSITIVES: Food triggers, episodic pattern, pain-free intervals, right upper quadrant (RUQ) location. KEY NEGATIVES: CONSTANT pain suggests cholecystitis not colic. Fever rules out simple colic. Jaundice suggests bile duct stone."
   },
   "red_flags": [
     "Pain lasting >6 hours with fever - suggests acute cholecystitis, needs urgent evaluation",

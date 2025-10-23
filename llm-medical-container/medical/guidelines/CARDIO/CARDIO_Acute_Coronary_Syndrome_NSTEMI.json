@@ -1,5 +1,5 @@
 {
-  "condition": "NSTEMI (Non-ST Elevation Myocardial Infarction)",
+  "condition": "non-ST-elevation myocardial infarction (NSTEMI) (Non-ST Elevation Myocardial Infarction)",
   "icd10": "I21.4",
   "snomed": "401314000",
   "chief_complaint_triggers": [
@@ -11,10 +11,10 @@
   "prevalence": "common",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Acute, over minutes to hours. LOCATION: RETROSTERNAL or left chest. RADIATES to left arm, jaw, neck, back. DURATION: Prolonged >10-20 minutes. CHARACTER: Pressure, squeezing, heaviness. AGGRAVATING: Can occur at rest or with exertion. RELIEVING: Partial relief with nitroglycerin possible. TIMING: Persistent or crescendo pattern. SEVERITY: 6-9/10. KEY POSITIVES: Troponin elevation (positive cardiac enzymes), dyspnea, diaphoresis, nausea, elderly or diabetic patient, cardiac risk factors. KEY NEGATIVES: NO ST elevation on ECG (differentiates from STEMI but still MI)."
+    "classic_presentation": "ONSET: Acute, over minutes to hours. LOCATION: RETROSTERNAL or left chest. RADIATES to left arm, jaw, neck, back. DURATION: Prolonged >10-20 minutes. CHARACTER: Pressure, squeezing, heaviness. AGGRAVATING: Can occur at rest or with exertion. RELIEVING: Partial relief with nitroglycerin possible. TIMING: Persistent or crescendo pattern. SEVERITY: 6-9/10. KEY POSITIVES: Troponin elevation (positive cardiac enzymes), dyspnea, diaphoresis, nausea, elderly or diabetic patient, cardiac risk factors. KEY NEGATIVES: NO ST elevation on electrocardiogram (ECG) (differentiates from ST-elevation myocardial infarction (STEMI) but still myocardial infarction (MI))."
   },
   "red_flags": [
-    "Elevated troponin (confirms MI)",
+    "Elevated troponin (confirms myocardial infarction )",
     "Persistent chest pain >20 minutes",
     "Diaphoresis",
     "Dyspnea",

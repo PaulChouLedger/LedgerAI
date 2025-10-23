@@ -12,7 +12,7 @@
   "prevalence": "uncommon",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Can be sudden or gradual. LOCATION: Chest (palpitations). DURATION: Minutes to persistent. CHARACTER: Regular RAPID palpitations, \"flutter\" sensation. AGGRAVATING: Exertion, stress. RELIEVING: Cardioversion, rate control medications. TIMING: Paroxysmal or persistent. SEVERITY: Discomfort, not severe pain. KEY POSITIVES: Regular rapid heart rate (often 150 bpm with 2:1 block), dyspnea, lightheadedness, sawtooth pattern on ECG, history of AFib or structural heart disease. KEY NEGATIVES: NOT irregularly irregular (AFib), NOT sudden start/stop (SVT typically)."
+    "classic_presentation": "ONSET: Can be sudden or gradual. LOCATION: Chest (palpitations). DURATION: Minutes to persistent. CHARACTER: Regular RAPID palpitations, \"flutter\" sensation. AGGRAVATING: Exertion, stress. RELIEVING: Cardioversion, rate control medications. TIMING: Paroxysmal or persistent. SEVERITY: Discomfort, not severe pain. KEY POSITIVES: Regular rapid heart rate (often 150 bpm with 2:1 block), dyspnea, lightheadedness, sawtooth pattern on electrocardiogram (ECG), history of AFib or structural heart disease. KEY NEGATIVES: NOT irregularly irregular (AFib), NOT sudden start/stop (supraventricular tachycardia (SVT) typically)."
   },
   "red_flags": [
     "Hemodynamic instability",

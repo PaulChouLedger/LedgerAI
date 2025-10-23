@@ -1,0 +1,52 @@
+{
+  "export_timestamp": "2025-10-22T19:35:07.502969",
+  "total_feedback": 4,
+  "feedback_data": [
+    {
+      "prediction_id": "pred_123",
+      "timestamp": "2025-10-22T19:35:07.502914",
+      "prediction": {
+        "similarity": 0.8,
+        "method": "ml_prediction"
+      },
+      "user_rating": 4,
+      "user_comment": "The prediction was accurate",
+      "condition_name": "Acute Appendicitis",
+      "organ_system": "GI",
+      "session_id": "unknown",
+      "feedback_type": "prediction_rating"
+    },
+    {
+      "prediction_id": "pred_123",
+      "timestamp": "2025-10-22T19:35:07.502928",
+      "predicted_accuracy": 0.8,
+      "actual_accuracy": 0.85,
+      "accuracy_difference": 0.04999999999999993,
+      "user_comment": "Close prediction",
+      "condition_name": "Acute Appendicitis",
+      "organ_system": "GI",
+      "session_id": "unknown",
+      "feedback_type": "accuracy_feedback"
+    },
+    {
+      "timestamp": "2025-10-22T19:35:07.502935",
+      "feedback_type": "suggestion",
+      "user_comment": "The system could be faster",
+      "rating": 3,
+      "condition_name": "Acute Appendicitis",
+      "organ_system": "GI",
+      "session_id": "unknown",
+      "feedback_category": "general_feedback"
+    },
+    {
+      "timestamp": "2025-10-22T19:35:07.502938",
+      "system_component": "diagnostic_engine",
+      "performance_rating": 4,
+      "user_comment": "Good performance overall",
+      "condition_name": "Acute Appendicitis",
+      "organ_system": "GI",
+      "session_id": "unknown",
+      "feedback_type": "system_feedback"
+    }
+  ]
+}

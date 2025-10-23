@@ -11,7 +11,7 @@
   "prevalence": "common",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Gradual, discovered incidentally or with mild symptoms. LOCATION: Headache if present (frontal or occipital). DURATION: Ongoing, chronic. CHARACTER: Asymptomatic or mild headache. AGGRAVATING: Medication non-compliance, stress, salt intake. RELIEVING: Blood pressure reduction. TIMING: Chronic, stable. SEVERITY: Minimal symptoms despite elevated BP. KEY POSITIVES: Elevated BP (>180/120) WITHOUT end-organ damage, asymptomatic or mild headache only, chronic hypertension history. KEY NEGATIVES: NO chest pain, NO altered mental status, NO vision changes, NO dyspnea (those are hypertensive EMERGENCY)."
+    "classic_presentation": "ONSET: Gradual, discovered incidentally or with mild symptoms. LOCATION: Headache if present (frontal or occipital). DURATION: Ongoing, chronic. CHARACTER: Asymptomatic or mild headache. AGGRAVATING: Medication non-compliance, stress, salt intake. RELIEVING: Blood pressure reduction. TIMING: Chronic, stable. SEVERITY: Minimal symptoms despite elevated blood pressure (BP). KEY POSITIVES: Elevated blood pressure (BP) (>180/120) WITHOUT end-organ damage, asymptomatic or mild headache only, chronic hypertension history. KEY NEGATIVES: NO chest pain, NO altered mental status, NO vision changes, NO dyspnea (those are hypertensive EMERGENCY)."
   },
   "red_flags": [
     "Severe headache (suggests emergency)",
