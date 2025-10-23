@@ -1,0 +1,20 @@
+[
+  {
+    "timestamp": "2025-10-22T20:00:00Z",
+    "prediction": 0.95,
+    "confidence": 0.88,
+    "method": "ml_prediction",
+    "condition_name": "Acute Appendicitis",
+    "organ_system": "GI",
+    "accuracy": 0.92
+  },
+  {
+    "timestamp": "2025-10-22T20:05:00Z",
+    "prediction": 0.0,
+    "confidence": 0.95,
+    "method": "hardcoded_rules",
+    "condition_name": "Acute Cholecystitis",
+    "organ_system": "GI",
+    "accuracy": 0.98
+  }
+]

@@ -1,0 +1,143 @@
+{
+  "export_timestamp": "2025-10-22T20:26:09.073718",
+  "summary": {
+    "timestamp": "2025-10-22T20:26:09.073720",
+    "data_files": {
+      "feedback": {
+        "exists": true,
+        "count": 2,
+        "last_updated": "2025-10-22T20:26:06.240715"
+      },
+      "predictions": {
+        "exists": true,
+        "count": 2,
+        "last_updated": "2025-10-22T20:26:06.240577"
+      },
+      "performance": {
+        "exists": true,
+        "count": 2,
+        "last_updated": "2025-10-22T20:26:06.240808"
+      },
+      "user_feedback": {
+        "exists": false,
+        "count": 0
+      }
+    },
+    "learning_metrics": {
+      "total_predictions": 2,
+      "total_feedback": 2,
+      "accuracy_scores": [],
+      "similarity_scores": [
+        0.95,
+        0.0
+      ],
+      "methods_used": {
+        "ml_prediction": 1,
+        "hardcoded_rules": 1
+      },
+      "organ_systems": {
+        "GI": 2
+      },
+      "conditions": {
+        "Acute Appendicitis": 1,
+        "Acute Cholecystitis": 1
+      },
+      "avg_accuracy": 0.0,
+      "avg_similarity": 0.475
+    },
+    "performance_metrics": {
+      "total_performance_measurements": 2,
+      "performance_scores": [],
+      "metric_types": {
+        "unknown": 2
+      },
+      "organ_system_performance": {
+        "GI": []
+      },
+      "condition_performance": {
+        "Acute Appendicitis": [],
+        "Acute Cholecystitis": []
+      },
+      "avg_performance": 0.0
+    },
+    "user_feedback_metrics": {
+      "total_user_feedback": 0,
+      "ratings": [],
+      "feedback_types": {},
+      "average_rating": 0.0,
+      "comments": []
+    }
+  },
+  "recent_activity": {
+    "timeframe_hours": 24,
+    "recent_predictions": 2,
+    "recent_feedback": 2,
+    "recent_performance": 2,
+    "recent_user_feedback": 0
+  },
+  "data_files": {
+    "feedback": [
+      {
+        "timestamp": "2025-10-22T20:10:00Z",
+        "prediction_id": "pred_001",
+        "user_rating": 5,
+        "user_comment": "Excellent prediction",
+        "condition_name": "Acute Appendicitis",
+        "organ_system": "GI"
+      },
+      {
+        "timestamp": "2025-10-22T20:15:00Z",
+        "prediction_id": "pred_002",
+        "user_rating": 4,
+        "user_comment": "Good anatomical exclusion",
+        "condition_name": "Acute Cholecystitis",
+        "organ_system": "GI"
+      }
+    ],
+    "predictions": [
+      {
+        "timestamp": "2025-10-22T20:00:00Z",
+        "patient_text": "right lower quadrant pain",
+        "guideline_text": "right lower quadrant pain",
+        "condition_name": "Acute Appendicitis",
+        "similarity": 0.95,
+        "method": "ml_prediction",
+        "confidence": 0.88,
+        "anatomical_type": "right_only",
+        "organ_system": "GI"
+      },
+      {
+        "timestamp": "2025-10-22T20:05:00Z",
+        "patient_text": "left sided pain",
+        "guideline_text": "right upper quadrant pain",
+        "condition_name": "Acute Cholecystitis",
+        "similarity": 0.0,
+        "method": "hardcoded_rules",
+        "confidence": 0.95,
+        "anatomical_type": "right_only",
+        "organ_system": "GI"
+      }
+    ],
+    "performance": [
+      {
+        "timestamp": "2025-10-22T20:00:00Z",
+        "prediction": 0.95,
+        "confidence": 0.88,
+        "method": "ml_prediction",
+        "condition_name": "Acute Appendicitis",
+        "organ_system": "GI",
+        "accuracy": 0.92
+      },
+      {
+        "timestamp": "2025-10-22T20:05:00Z",
+        "prediction": 0.0,
+        "confidence": 0.95,
+        "method": "hardcoded_rules",
+        "condition_name": "Acute Cholecystitis",
+        "organ_system": "GI",
+        "accuracy": 0.98
+      }
+    ],
+    "user_feedback": []
+  }
+}

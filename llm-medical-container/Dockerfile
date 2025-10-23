@@ -19,11 +19,28 @@ COPY adaptive_diagnostic_engine.py .
 COPY thinking_fillers.py .
 COPY rag_client.py .
 COPY synonyms/ /app/synonyms/
+
+# Copy learning system components
+COPY learning_data_collector.py .
+COPY continuous_learning.py .
+COPY performance_monitor.py .
+COPY user_feedback_interface.py .
+COPY medical_rule_engine.py .
+COPY location_ml_trainer.py .
+COPY location_ml_data_extractor.py .
+COPY learning_tracker.py .
+COPY performance_dashboard.py .
+COPY feedback_guide.py .
     
 # Copy medical guidelines (JSON files with chief complaint triggers and scoring)
 # These are used by the adaptive diagnostic engine for multi-guideline evaluation
 # Note: guidelines should be in llm-medical-container/medical/guidelines/ (inside build context)
 COPY medical/guidelines/ /app/medical/guidelines/
+
+# Copy ML models and data
+COPY location_ml_model.pkl .
+COPY location_ml_data.csv .
+COPY medical_rules.json .
 
 # Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
 
@@ -35,7 +52,7 @@ COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K
 #COPY models/Llama-3.2-8B-Instruct-Q4_K_M.gguf /models/Llama-3.2-8B-Instruct-Q4_K_M.gguf
 COPY models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf /models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf
 
-# Install Python dependencies (LLM only)
+# Install Python dependencies (LLM + Learning System)
 RUN pip3 install --no-cache-dir --ignore-installed \
     flask \
     python-dotenv \
@@ -43,6 +60,8 @@ RUN pip3 install --no-cache-dir --ignore-installed \
     requests \
     sentence-transformers \
     faiss-cpu \
+    scikit-learn \
+    joblib \
     --index-url https://pypi.org/simple
 
 # Pre-download all-distilroberta-v1 model (benchmarked as best, makes it WiFi-independent for CPU mode)
