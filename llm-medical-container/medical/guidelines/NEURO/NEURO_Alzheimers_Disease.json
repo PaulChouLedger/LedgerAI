@@ -1,0 +1,27 @@
+{
+  "condition": "Alzheimer's Disease",
+  "icd10": "G30.9",
+  "snomed": "125636006",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "alzheimers",
+    "dementia",
+    "memory problems",
+    "confusion",
+    "cognitive decline",
+    "behavioral changes",
+    "wandering"
+  ],
+  "urgency": "non-urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: GRADUAL onset over months to years. LOCATION: GENERALIZED cognitive decline. DURATION: Chronic progressive condition. CHARACTER: MEMORY LOSS, confusion, cognitive decline. AGGRAVATING: STRESS, fatigue, medication changes. RELIEVING: CHOLINESTERASE inhibitors, supportive care. TIMING: Chronic progressive, symptoms worsen over time. SEVERITY: 3-7/10, mild to moderate. ASSOCIATED SYMPTOMS: MEMORY LOSS, confusion, cognitive decline, behavioral changes, may have wandering. KEY POSITIVES: Memory loss, confusion, cognitive decline, behavioral changes. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+  },
+  "red_flags": [
+    "Severe neurological deficits with altered mental status - possible severe Alzheimer's flare, call 911",
+    "Signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911",
+    "Severe hypertension with neurological deficits - possible hypertensive crisis, call 911",
+    "Signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911",
+    "Signs of respiratory failure - difficulty breathing, cyanosis, altered mental status - call 911"
+  ]
+}

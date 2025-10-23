@@ -1,0 +1,27 @@
+{
+  "condition": "Guillain-Barré Syndrome",
+  "icd10": "G61.0",
+  "snomed": "125633003",
+  "sex": "both",
+  "prevalence": "rare",
+  "chief_complaint_triggers": [
+    "guillain barre",
+    "paralysis",
+    "muscle weakness",
+    "numbness",
+    "tingling",
+    "difficulty walking",
+    "breathing problems"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: GRADUAL onset over days to weeks. LOCATION: BILATERAL weakness, usually starting in legs. DURATION: Progressive over days to weeks. CHARACTER: PROGRESSIVE weakness, numbness, tingling. AGGRAVATING: MOVEMENT, breathing. RELIEVING: IMMUNOGLOBULIN, plasmapheresis. TIMING: Progressive over days to weeks. SEVERITY: 6-10/10, severe and progressive. ASSOCIATED SYMPTOMS: PROGRESSIVE WEAKNESS, numbness, tingling, difficulty walking, breathing problems, may have facial weakness. KEY POSITIVES: Progressive weakness, numbness, tingling, difficulty walking, breathing problems. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+  },
+  "red_flags": [
+    "Severe respiratory distress - possible respiratory failure, call 911",
+    "Signs of respiratory failure - difficulty breathing, cyanosis, altered mental status - call 911",
+    "Severe hypertension with neurological deficits - possible hypertensive crisis, call 911",
+    "Signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911",
+    "Signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911"
+  ]
+}

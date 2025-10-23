@@ -1,0 +1,27 @@
+{
+  "condition": "Elbow Fracture",
+  "icd10": "S52.0",
+  "snomed": "125613003",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "elbow pain",
+    "elbow injury",
+    "broken elbow",
+    "elbow swelling",
+    "can't move elbow",
+    "elbow deformity",
+    "fell on elbow"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset during trauma - fall on outstretched hand (FOOSH), direct blow, or crush injury. LOCATION: Distal humerus, radial head, or olecranon. DURATION: Immediate severe pain that persists. CHARACTER: SEVERE, SHARP, CONSTANT pain. AGGRAVATING: ANY elbow movement, gripping, weight bearing. RELIEVING: IMMOBILIZATION, ice, elevation, NSAIDs. TIMING: Immediate severe pain that persists until immobilization. SEVERITY: 7-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SWELLING within hours, BRUISING develops over 24-48 hours, DEFORMITY, inability to move elbow, numbness/tingling in fingers (ulnar nerve compression). May have audible 'snap' or 'crack' at injury. KEY POSITIVES: Bony tenderness over fracture site, deformity, swelling, limited range of motion, positive compression test. KEY NEGATIVES: No open wound (rules out open fracture), no crepitus unless severe."
+  },
+  "red_flags": [
+    "Open wound with bone visible - open fracture, call 911",
+    "Severe deformity with neurovascular compromise - cold, pale, pulseless hand, call 911",
+    "Severe pain with numbness/tingling - possible compartment syndrome or nerve injury",
+    "Elderly patients with minimal trauma - possible pathological fracture, needs urgent evaluation",
+    "High-energy trauma - possible associated injuries, needs urgent evaluation"
+  ]
+}

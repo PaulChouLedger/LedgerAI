@@ -1,0 +1,27 @@
+{
+  "condition": "Seizure",
+  "icd10": "G40.9",
+  "snomed": "125628008",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "seizure",
+    "convulsion",
+    "epilepsy",
+    "shaking",
+    "unconscious",
+    "jerking",
+    "fainting"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset within seconds. LOCATION: GENERALIZED or focal. DURATION: Lasts seconds to minutes. CHARACTER: INVOLUNTARY movements, jerking, convulsions. AGGRAVATING: STRESS, sleep deprivation, alcohol withdrawal. RELIEVING: ANTICONVULSANTS, supportive care. TIMING: Sudden onset, lasts seconds to minutes. SEVERITY: 8-10/10 during episode, then resolves. ASSOCIATED SYMPTOMS: LOSS OF CONSCIOUSNESS, jerking movements, tongue biting, incontinence, postictal confusion. KEY POSITIVES: Involuntary movements, loss of consciousness, postictal confusion, tongue biting. KEY NEGATIVES: No fever, no neck stiffness, no photophobia."
+  },
+  "red_flags": [
+    "Seizure lasting >5 minutes - status epilepticus, call 911",
+    "Multiple seizures without regaining consciousness - status epilepticus, call 911",
+    "Seizure with severe head injury - possible traumatic brain injury, call 911",
+    "Seizure with signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911",
+    "Seizure with severe hypertension - possible hypertensive crisis, call 911"
+  ]
+}

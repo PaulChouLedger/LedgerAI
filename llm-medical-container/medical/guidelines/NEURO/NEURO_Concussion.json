@@ -1,0 +1,27 @@
+{
+  "condition": "Concussion",
+  "icd10": "S06.0",
+  "snomed": "125631001",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "concussion",
+    "head injury",
+    "head trauma",
+    "brain injury",
+    "headache after fall",
+    "dizziness after injury",
+    "memory problems"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset after head trauma. LOCATION: GENERALIZED symptoms. DURATION: Symptoms may persist for days to weeks. CHARACTER: HEADACHE, dizziness, confusion. AGGRAVATING: LIGHT, sound, movement, cognitive tasks. RELIEVING: REST, avoiding triggers. TIMING: Immediate onset after trauma, may persist for days to weeks. SEVERITY: 4-8/10, moderate to severe. ASSOCIATED SYMPTOMS: HEADACHE, dizziness, confusion, memory problems, nausea, vomiting, sensitivity to light and sound. KEY POSITIVES: Headache, dizziness, confusion, memory problems, sensitivity to light and sound. KEY NEGATIVES: No focal neurological deficits, no signs of increased intracranial pressure."
+  },
+  "red_flags": [
+    "Severe headache with vomiting - possible intracranial hemorrhage, call 911",
+    "Altered mental status with focal neurological deficits - possible traumatic brain injury, call 911",
+    "Signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911",
+    "Severe hypertension with neurological deficits - possible hypertensive crisis, call 911",
+    "Signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911"
+  ]
+}

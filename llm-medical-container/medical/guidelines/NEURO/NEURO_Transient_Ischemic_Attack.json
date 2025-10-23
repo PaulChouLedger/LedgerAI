@@ -1,0 +1,27 @@
+{
+  "condition": "Transient Ischemic Attack",
+  "icd10": "G45.9",
+  "snomed": "125627007",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "mini stroke",
+    "TIA",
+    "transient weakness",
+    "temporary numbness",
+    "speech difficulty",
+    "vision problems",
+    "dizziness"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset within minutes. LOCATION: UNILATERAL weakness, numbness, or paralysis. DURATION: SYMPTOMS RESOLVE within 24 hours (usually within minutes to hours). CHARACTER: SUDDEN, SEVERE weakness, numbness, or paralysis that RESOLVES. AGGRAVATING: MOVEMENT, speaking, swallowing. RELIEVING: SYMPTOMS RESOLVE spontaneously. TIMING: Sudden onset, symptoms resolve within 24 hours. SEVERITY: 6-8/10 during episode, then resolves. ASSOCIATED SYMPTOMS: FACIAL DROOP, arm weakness, speech difficulty, vision problems, dizziness, confusion, headache. KEY POSITIVES: Positive FAST test (Face, Arm, Speech, Time), unilateral weakness, facial droop, speech difficulty. KEY NEGATIVES: No fever, no neck stiffness, no photophobia."
+  },
+  "red_flags": [
+    "Symptoms lasting >24 hours - possible stroke, call 911",
+    "Severe neurological deficits with altered mental status - possible stroke, call 911",
+    "Signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911",
+    "Severe hypertension with neurological deficits - possible hypertensive crisis, call 911",
+    "Signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911"
+  ]
+}

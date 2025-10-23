@@ -1,0 +1,27 @@
+{
+  "condition": "Headache",
+  "icd10": "R51",
+  "snomed": "125630000",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "headache",
+    "head pain",
+    "head ache",
+    "tension headache",
+    "stress headache",
+    "head pressure",
+    "head discomfort"
+  ],
+  "urgency": "non-urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: GRADUAL onset over minutes to hours. LOCATION: BILATERAL or unilateral. DURATION: Lasts minutes to hours. CHARACTER: DULL, ACHING, PRESSURE-like pain. AGGRAVATING: STRESS, tension, poor posture. RELIEVING: REST, relaxation, medications. TIMING: Gradual onset, lasts minutes to hours. SEVERITY: 3-6/10, mild to moderate. ASSOCIATED SYMPTOMS: MILD nausea, may have neck tension, may have stress. KEY POSITIVES: Dull pain, bilateral distribution, stress triggers. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+  },
+  "red_flags": [
+    "Sudden severe headache - possible subarachnoid hemorrhage, call 911",
+    "Headache with neck stiffness and fever - possible meningitis, call 911",
+    "Headache with focal neurological deficits - possible stroke, call 911",
+    "Headache with signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911",
+    "Headache with severe hypertension - possible hypertensive crisis, call 911"
+  ]
+}

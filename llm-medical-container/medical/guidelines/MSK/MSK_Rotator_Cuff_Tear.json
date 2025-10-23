@@ -1,0 +1,27 @@
+{
+  "condition": "Rotator Cuff Tear",
+  "icd10": "M75.1",
+  "snomed": "125611001",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "shoulder pain",
+    "rotator cuff injury",
+    "shoulder tear",
+    "can't lift arm",
+    "shoulder weakness",
+    "shoulder impingement",
+    "shoulder bursitis"
+  ],
+  "urgency": "non-urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: GRADUAL onset over weeks to months (chronic) or SUDDEN onset during trauma (acute). Chronic from repetitive overhead activities, acute from fall or direct blow. LOCATION: Anterior shoulder, may radiate to upper arm. DURATION: Chronic pain lasting weeks to months, or acute pain lasting days to weeks. CHARACTER: DULL, ACHING pain with sharp episodes. AGGRAVATING: OVERHEAD activities, reaching behind back, sleeping on affected side, lifting, pushing, pulling. RELIEVING: REST, ice, NSAIDs, physical therapy. TIMING: Pain worse at night, especially when sleeping on affected side. SEVERITY: 4-7/10, moderate to severe with activity. ASSOCIATED SYMPTOMS: WEAKNESS with overhead activities, difficulty reaching behind back, night pain, stiffness, may have 'catching' or 'locking' sensation. KEY POSITIVES: Positive impingement signs, weakness with external rotation, positive drop arm test, positive empty can test. KEY NEGATIVES: No obvious deformity, no neurological deficits, no fever."
+  },
+  "red_flags": [
+    "Severe pain with sudden weakness - possible acute rotator cuff tear, needs urgent evaluation",
+    "Severe pain with fever - possible infection, needs urgent evaluation",
+    "Severe pain with neurological deficits - possible nerve injury, needs urgent evaluation",
+    "Severe pain with night pain - possible malignancy, needs urgent evaluation",
+    "Severe pain with weight loss - possible malignancy, needs urgent evaluation"
+  ]
+}

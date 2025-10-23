@@ -1,0 +1,27 @@
+{
+  "condition": "Impetigo",
+  "icd10": "L01.0",
+  "snomed": "125622002",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "skin infection",
+    "impetigo",
+    "honey crusted rash",
+    "skin sores",
+    "contagious rash",
+    "skin blisters",
+    "school sores"
+  ],
+  "urgency": "non-urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: GRADUAL onset over 2-3 days, often following minor skin trauma or insect bite. LOCATION: FACE (around nose, mouth), hands, or anywhere on body. DURATION: Develops over 2-3 days, may persist for 1-2 weeks without treatment. CHARACTER: VESICULAR (blistering) lesions that rupture and form HONEY-COLORED CRUSTS. AGGRAVATING: SCRATCHING, heat, sweating. RELIEVING: ANTIBIOTICS, keeping lesions clean and dry. TIMING: Develops over 2-3 days, peaks at 3-5 days. SEVERITY: 2-4/10 pain, mild to moderate. ASSOCIATED SYMPTOMS: MILD ITCHING (pruritus), honey-colored crusts, may have regional lymphadenopathy (swollen lymph nodes), may have fever (low-grade). KEY POSITIVES: Vesicular lesions, honey-colored crusts, positive bacterial culture. KEY NEGATIVES: No fever >102°F, no systemic symptoms, no deep tissue involvement."
+  },
+  "red_flags": [
+    "Rash with fever >102°F - possible systemic infection, needs urgent evaluation",
+    "Rash with severe systemic symptoms - possible sepsis, call 911",
+    "Rash with signs of deep tissue involvement - cellulitis, needs urgent evaluation",
+    "Rash with signs of secondary infection - fever, pus, increasing pain - needs urgent evaluation",
+    "Rash involving >30% of body surface - severe infection, needs urgent evaluation"
+  ]
+}

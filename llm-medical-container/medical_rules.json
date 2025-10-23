@@ -60,5 +60,92 @@
       "Pneumothorax",
       "Pleural Effusion"
     ]
+  },
+  "MSK": {
+    "bilateral": [
+      "Acute Back Strain",
+      "Rotator Cuff Tear"
+    ],
+    "midline": [
+      "Hip Fracture",
+      "ACL Tear"
+    ],
+    "right_only": [
+      "Acute Ankle Sprain",
+      "Acute Knee Injury",
+      "Shoulder Dislocation"
+    ],
+    "left_only": [
+      "Wrist Fracture",
+      "Elbow Fracture",
+      "Ankle Fracture"
+    ]
+  },
+  "DERM": {
+    "bilateral": [
+      "Acute Urticaria",
+      "Contact Dermatitis",
+      "Atopic Dermatitis Flare",
+      "Psoriasis Flare",
+      "Seborrheic Dermatitis",
+      "Drug Rash"
+    ],
+    "midline": [
+      "Cellulitis",
+      "Impetigo",
+      "Suspicious Skin Lesion"
+    ],
+    "right_only": [
+      "Shingles"
+    ],
+    "left_only": [
+      "Stevens-Johnson Syndrome"
+    ]
+  },
+  "NEURO": {
+    "bilateral": [
+      "Acute Stroke",
+      "Transient Ischemic Attack",
+      "Seizure",
+      "Migraine",
+      "Headache",
+      "Concussion",
+      "Bell Palsy",
+      "Guillain-Barré Syndrome",
+      "Multiple Sclerosis Flare",
+      "Parkinson's Disease",
+      "Alzheimer's Disease",
+      "Epilepsy",
+      "Trigeminal Neuralgia",
+      "Myasthenia Gravis",
+      "ALS",
+      "Huntington's Disease",
+      "Spinal Cord Injury",
+      "Brain Tumor",
+      "Meningitis",
+      "Encephalitis"
+    ],
+    "midline": [],
+    "right_only": [],
+    "left_only": []
+  },
+  "RENAL": {
+    "bilateral": [
+      "Acute Kidney Injury",
+      "Chronic Kidney Disease",
+      "Glomerulonephritis",
+      "Renal Failure",
+      "Dialysis Complications"
+    ],
+    "midline": [
+      "UTI",
+      "Pyelonephritis"
+    ],
+    "right_only": [
+      "Kidney Stone",
+      "Hydronephrosis",
+      "Renal Colic"
+    ],
+    "left_only": []
   }
 }

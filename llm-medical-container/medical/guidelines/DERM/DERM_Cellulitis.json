@@ -1,0 +1,27 @@
+{
+  "condition": "Cellulitis",
+  "icd10": "L03.9",
+  "snomed": "125616001",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "skin infection",
+    "cellulitis",
+    "red swollen skin",
+    "hot skin",
+    "skin abscess",
+    "infected wound",
+    "skin redness"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: GRADUAL onset over 24-48 hours, often following skin break (cut, scrape, insect bite). LOCATION: Lower extremities most common, but can occur anywhere. DURATION: Progressive over 24-48 hours, may worsen rapidly. CHARACTER: ERYTHEMATOUS (red), WARM, TENDER, EDEMATOUS (swollen) skin. AGGRAVATING: TOUCH, pressure, movement. RELIEVING: ELEVATION, cool compresses, antibiotics. TIMING: Progressive over 24-48 hours, may spread rapidly. SEVERITY: 5-9/10 pain, moderate to severe. ASSOCIATED SYMPTOMS: FEVER (100-102°F), chills, malaise, lymphangitis (red streaks), lymphadenopathy (swollen lymph nodes), may have purulent drainage. KEY POSITIVES: Erythema, warmth, tenderness, edema, fever, lymphangitis. KEY NEGATIVES: No crepitus (rules out necrotizing fasciitis), no bullae or skin necrosis, no systemic shock."
+  },
+  "red_flags": [
+    "High fever >102°F with rigors - possible sepsis, call 911",
+    "Rapidly spreading redness with severe pain - possible necrotizing fasciitis, call 911",
+    "Bullae, skin necrosis, or crepitus - necrotizing fasciitis, call 911",
+    "Severe systemic symptoms - hypotension, tachycardia, altered mental status - sepsis, call 911",
+    "Red streaks extending from infection site - lymphangitis, needs urgent evaluation"
+  ]
+}

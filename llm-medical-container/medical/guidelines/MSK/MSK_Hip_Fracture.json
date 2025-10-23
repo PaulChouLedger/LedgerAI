@@ -1,0 +1,27 @@
+{
+  "condition": "Hip Fracture",
+  "icd10": "S72.0",
+  "snomed": "125610000",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "hip pain",
+    "hip injury",
+    "broken hip",
+    "hip fracture",
+    "can't walk",
+    "hip deformity",
+    "fell on hip"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset during trauma - fall, direct blow, or high-energy impact. Common in elderly with osteoporosis. LOCATION: Femoral neck, intertrochanteric, or subtrochanteric region. DURATION: Immediate severe pain that persists. CHARACTER: SEVERE, SHARP, CONSTANT pain. AGGRAVATING: ANY weight bearing, hip movement, leg movement. RELIEVING: NOTHING relieves pain until immobilization. Patient cannot bear weight. TIMING: Immediate severe pain that persists until surgical fixation. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: UNABLE TO BEAR WEIGHT, leg appears shortened and externally rotated, severe pain with any movement, may have audible 'snap' or 'crack' at injury. KEY POSITIVES: Bony tenderness over hip, deformity, inability to bear weight, positive log roll test, positive heel strike test. KEY NEGATIVES: No open wound (rules out open fracture), no crepitus unless severe."
+  },
+  "red_flags": [
+    "Open wound with bone visible - open fracture, call 911",
+    "Severe pain with neurovascular compromise - cold, pale, pulseless leg, call 911",
+    "Elderly patients with minimal trauma - possible pathological fracture, needs urgent evaluation",
+    "High-energy trauma - possible associated injuries, needs urgent evaluation",
+    "Severe pain with inability to move leg - possible nerve injury or compartment syndrome"
+  ]
+}

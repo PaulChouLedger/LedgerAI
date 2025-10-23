@@ -1,0 +1,27 @@
+{
+  "condition": "Dialysis Complications",
+  "icd10": "N99.0",
+  "snomed": "125655005",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "dialysis complications",
+    "dialysis problems",
+    "dialysis access",
+    "dialysis infection",
+    "dialysis bleeding",
+    "dialysis clotting",
+    "dialysis issues"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset within minutes to hours. LOCATION: DIALYSIS access site or systemic. DURATION: Develops over minutes to hours, may persist for days to weeks. CHARACTER: ACCESS site problems, bleeding, clotting, infection. AGGRAVATING: DIALYSIS, movement. RELIEVING: ACCESS care, medications. TIMING: Sudden onset, develops over minutes to hours. SEVERITY: 6-9/10, moderate to severe. ASSOCIATED SYMPTOMS: ACCESS SITE PROBLEMS, bleeding, clotting, infection, may have fever, may have swelling. KEY POSITIVES: Access site problems, bleeding, clotting, infection, fever. KEY NEGATIVES: No neck stiffness, no focal neurological deficits."
+  },
+  "red_flags": [
+    "Severe bleeding from access site - possible arterial bleeding, call 911",
+    "Signs of severe infection - fever, chills, rigors - call 911",
+    "Severe hypertension with neurological deficits - possible hypertensive crisis, call 911",
+    "Signs of severe metabolic acidosis - deep breathing, confusion, coma - call 911",
+    "Signs of severe electrolyte imbalances - confusion, seizures, cardiac arrhythmias - call 911"
+  ]
+}

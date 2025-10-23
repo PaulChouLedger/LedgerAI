@@ -1,0 +1,27 @@
+{
+  "condition": "Contact Dermatitis",
+  "icd10": "L25.9",
+  "snomed": "125617002",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "skin rash",
+    "contact dermatitis",
+    "allergic skin reaction",
+    "skin irritation",
+    "poison ivy",
+    "skin allergy",
+    "itchy rash"
+  ],
+  "urgency": "non-urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: GRADUAL onset 24-48 hours after exposure to allergen/irritant. LOCATION: AREAS OF CONTACT with offending substance - hands, face, arms, legs. DURATION: Develops over 24-48 hours, may persist for days to weeks. CHARACTER: ERYTHEMATOUS (red), PRURITIC (itchy), may have VESICLES (small blisters). AGGRAVATING: SCRATCHING, heat, sweating. RELIEVING: AVOIDING trigger, cool compresses, topical steroids, antihistamines. TIMING: Develops 24-48 hours after exposure, peaks at 48-72 hours. SEVERITY: 4-7/10 itching, moderate to severe. ASSOCIATED SYMPTOMS: SEVERE ITCHING (pruritus), erythema, edema, may have vesicles or bullae, may have secondary infection from scratching. KEY POSITIVES: Erythema, pruritus, vesicles, linear pattern (poison ivy), contact history. KEY NEGATIVES: No fever, no systemic symptoms, no scaling or crusting (unless chronic)."
+  },
+  "red_flags": [
+    "Rash involving >30% of body surface - severe allergic reaction, needs urgent evaluation",
+    "Rash with fever and systemic symptoms - possible serious allergic reaction, call 911",
+    "Rash involving face, eyes, or genitals - severe allergic reaction, needs urgent evaluation",
+    "Rash with difficulty breathing - possible anaphylaxis, call 911",
+    "Rash with signs of secondary infection - fever, pus, increasing pain - needs urgent evaluation"
+  ]
+}

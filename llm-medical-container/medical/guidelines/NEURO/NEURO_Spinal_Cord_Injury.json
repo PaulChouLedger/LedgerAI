@@ -1,0 +1,27 @@
+{
+  "condition": "Spinal Cord Injury",
+  "icd10": "S14.9",
+  "snomed": "125642002",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "spinal cord injury",
+    "paralysis",
+    "numbness",
+    "weakness",
+    "back injury",
+    "neck injury",
+    "trauma"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset after trauma. LOCATION: BELOW level of injury. DURATION: Immediate onset, symptoms persist. CHARACTER: PARALYSIS, numbness, weakness. AGGRAVATING: MOVEMENT, pressure. RELIEVING: IMMEDIATE medical intervention, supportive care. TIMING: Immediate onset, symptoms persist. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: PARALYSIS, numbness, weakness, may have bowel/bladder dysfunction, may have respiratory problems. KEY POSITIVES: Paralysis, numbness, weakness, bowel/bladder dysfunction. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+  },
+  "red_flags": [
+    "Severe respiratory distress - possible respiratory failure, call 911",
+    "Signs of respiratory failure - difficulty breathing, cyanosis, altered mental status - call 911",
+    "Severe hypertension with neurological deficits - possible hypertensive crisis, call 911",
+    "Signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911",
+    "Signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911"
+  ]
+}

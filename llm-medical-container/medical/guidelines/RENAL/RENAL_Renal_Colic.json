@@ -1,0 +1,27 @@
+{
+  "condition": "Renal Colic",
+  "icd10": "N23",
+  "snomed": "125654004",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "renal colic",
+    "kidney colic",
+    "stone colic",
+    "flank pain",
+    "back pain",
+    "urinary pain",
+    "stone pain"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset within minutes to hours. LOCATION: UNILATERAL flank pain, may radiate to groin. DURATION: Lasts hours to days. CHARACTER: SEVERE, SHARP, COLIC pain. AGGRAVATING: MOVEMENT, urination. RELIEVING: PAIN medications, hydration. TIMING: Sudden onset, lasts hours to days. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE FLANK PAIN, may have nausea, vomiting, hematuria, may have fever if infected. KEY POSITIVES: Severe flank pain, hematuria, positive imaging. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+  },
+  "red_flags": [
+    "Severe pain with fever - possible infected stone, call 911",
+    "Signs of severe infection - fever, chills, rigors - call 911",
+    "Severe hypertension with neurological deficits - possible hypertensive crisis, call 911",
+    "Signs of severe metabolic acidosis - deep breathing, confusion, coma - call 911",
+    "Signs of severe electrolyte imbalances - confusion, seizures, cardiac arrhythmias - call 911"
+  ]
+}

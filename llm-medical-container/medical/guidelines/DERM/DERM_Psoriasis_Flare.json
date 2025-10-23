@@ -1,0 +1,27 @@
+{
+  "condition": "Psoriasis Flare",
+  "icd10": "L40.9",
+  "snomed": "125621001",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "psoriasis",
+    "skin flare",
+    "scaly rash",
+    "silver scales",
+    "thick skin",
+    "skin plaques",
+    "psoriatic rash"
+  ],
+  "urgency": "non-urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: GRADUAL onset over days to weeks, often triggered by stress, weather, or medications. LOCATION: EXTENSOR surfaces (elbows, knees), scalp, lower back, or generalized. DURATION: Chronic condition with acute flares lasting weeks to months. CHARACTER: ERYTHEMATOUS (red) plaques with SILVER SCALES. AGGRAVATING: SCRATCHING, stress, certain medications, alcohol. RELIEVING: TOPICAL steroids, moisturizers, avoiding triggers. TIMING: Chronic with acute flares, worse in winter. SEVERITY: 3-6/10 itching, mild to moderate. ASSOCIATED SYMPTOMS: MILD ITCHING (pruritus), dry skin, scaling, may have nail changes (pitting, thickening), may have joint pain (psoriatic arthritis). KEY POSITIVES: Erythematous plaques, silver scales, extensor distribution, nail changes. KEY NEGATIVES: No fever, no systemic symptoms, no vesicles or bullae."
+  },
+  "red_flags": [
+    "Rash with fever and systemic symptoms - possible secondary infection, needs urgent evaluation",
+    "Rash with pus or increasing pain - secondary bacterial infection, needs urgent evaluation",
+    "Rash involving >30% of body surface - severe flare, needs urgent evaluation",
+    "Rash with signs of secondary infection - fever, pus, increasing pain - needs urgent evaluation",
+    "Rash with joint pain and swelling - psoriatic arthritis, needs urgent evaluation"
+  ]
+}

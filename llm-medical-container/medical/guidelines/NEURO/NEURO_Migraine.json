@@ -1,0 +1,27 @@
+{
+  "condition": "Migraine",
+  "icd10": "G43.9",
+  "snomed": "125629009",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "migraine",
+    "severe headache",
+    "head pain",
+    "throbbing headache",
+    "headache with nausea",
+    "visual disturbances",
+    "aura"
+  ],
+  "urgency": "non-urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: GRADUAL onset over minutes to hours. LOCATION: UNILATERAL or bilateral. DURATION: Lasts 4-72 hours. CHARACTER: THROBBING, PULSATING pain. AGGRAVATING: LIGHT, sound, movement, stress. RELIEVING: DARK, quiet room, sleep, medications. TIMING: Gradual onset, lasts 4-72 hours. SEVERITY: 6-9/10, moderate to severe. ASSOCIATED SYMPTOMS: NAUSEA, vomiting, photophobia, phonophobia, may have aura (visual, sensory, motor). KEY POSITIVES: Throbbing pain, nausea, photophobia, phonophobia, aura. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+  },
+  "red_flags": [
+    "Sudden severe headache - possible subarachnoid hemorrhage, call 911",
+    "Headache with neck stiffness and fever - possible meningitis, call 911",
+    "Headache with focal neurological deficits - possible stroke, call 911",
+    "Headache with signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911",
+    "Headache with severe hypertension - possible hypertensive crisis, call 911"
+  ]
+}

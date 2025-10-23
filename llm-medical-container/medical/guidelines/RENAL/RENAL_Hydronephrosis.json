@@ -1,0 +1,27 @@
+{
+  "condition": "Hydronephrosis",
+  "icd10": "N13.3",
+  "snomed": "125653003",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "hydronephrosis",
+    "kidney swelling",
+    "renal swelling",
+    "kidney obstruction",
+    "urinary obstruction",
+    "flank pain",
+    "back pain"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: GRADUAL onset over hours to days. LOCATION: UNILATERAL or bilateral kidney involvement. DURATION: Develops over hours to days, may persist for days to weeks. CHARACTER: FLANK pain, may have decreased urine output. AGGRAVATING: MOVEMENT, urination. RELIEVING: OBSTRUCTION relief, pain medications. TIMING: Gradual onset, develops over hours to days. SEVERITY: 5-8/10, moderate to severe. ASSOCIATED SYMPTOMS: FLANK PAIN, may have decreased urine output, may have fever if infected. KEY POSITIVES: Flank pain, positive imaging, may have decreased urine output. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+  },
+  "red_flags": [
+    "Severe pain with fever - possible infected hydronephrosis, call 911",
+    "Signs of severe infection - fever, chills, rigors - call 911",
+    "Severe hypertension with neurological deficits - possible hypertensive crisis, call 911",
+    "Signs of severe metabolic acidosis - deep breathing, confusion, coma - call 911",
+    "Signs of severe electrolyte imbalances - confusion, seizures, cardiac arrhythmias - call 911"
+  ]
+}

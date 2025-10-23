@@ -1,0 +1,27 @@
+{
+  "condition": "Atopic Dermatitis Flare",
+  "icd10": "L20.9",
+  "snomed": "125618003",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "eczema",
+    "atopic dermatitis",
+    "skin flare",
+    "itchy skin",
+    "dry skin rash",
+    "skin inflammation",
+    "dermatitis flare"
+  ],
+  "urgency": "non-urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: GRADUAL onset over days to weeks, often triggered by stress, weather, or irritants. LOCATION: FLEXURAL areas (elbows, knees, neck), face, hands, or generalized. DURATION: Chronic condition with acute flares lasting days to weeks. CHARACTER: ERYTHEMATOUS (red), PRURITIC (itchy), DRY, SCALY skin. AGGRAVATING: SCRATCHING, heat, stress, certain fabrics, soaps. RELIEVING: MOISTURIZERS, topical steroids, antihistamines, avoiding triggers. TIMING: Chronic with acute flares, worse at night. SEVERITY: 4-8/10 itching, moderate to severe. ASSOCIATED SYMPTOMS: SEVERE ITCHING (pruritus), dry skin, scaling, may have lichenification (thickened skin), may have secondary infection from scratching. KEY POSITIVES: Erythema, pruritus, scaling, lichenification, flexural distribution. KEY NEGATIVES: No fever, no systemic symptoms, no vesicles or bullae (unless secondary infection)."
+  },
+  "red_flags": [
+    "Rash with fever and systemic symptoms - possible secondary infection, needs urgent evaluation",
+    "Rash with pus or increasing pain - secondary bacterial infection, needs urgent evaluation",
+    "Rash involving >30% of body surface - severe flare, needs urgent evaluation",
+    "Rash with signs of secondary infection - fever, pus, increasing pain - needs urgent evaluation",
+    "Rash with difficulty sleeping due to severe itching - severe flare, needs urgent evaluation"
+  ]
+}

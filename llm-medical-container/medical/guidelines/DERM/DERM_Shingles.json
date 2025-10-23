@@ -1,0 +1,27 @@
+{
+  "condition": "Shingles",
+  "icd10": "B02.9",
+  "snomed": "125619004",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "shingles",
+    "herpes zoster",
+    "painful rash",
+    "blistering rash",
+    "nerve pain",
+    "skin blisters",
+    "viral rash"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: GRADUAL onset over 2-3 days, often preceded by prodromal symptoms (fatigue, headache, fever). LOCATION: UNILATERAL dermatomal distribution - most commonly thoracic, trigeminal, or lumbar. DURATION: Prodrome 2-3 days, rash 2-4 weeks, pain may persist for months. CHARACTER: VESICULAR (blistering) rash with SEVERE BURNING/STINGING pain. AGGRAVATING: TOUCH, clothing, heat. RELIEVING: ANTIVIRALS (if started within 72 hours), pain medications, cool compresses. TIMING: Prodrome 2-3 days, rash develops over 2-4 weeks. SEVERITY: 6-10/10 pain, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE BURNING/STINGING pain, vesicular rash in dermatomal distribution, may have fever, malaise, headache. KEY POSITIVES: Unilateral dermatomal distribution, vesicles, severe pain, positive Tzanck smear. KEY NEGATIVES: No crossing midline, no systemic symptoms (unless disseminated), no fever >102°F."
+  },
+  "red_flags": [
+    "Rash involving face, especially eye - ophthalmic zoster, needs urgent evaluation",
+    "Rash involving ear - Ramsay Hunt syndrome, needs urgent evaluation",
+    "Rash with severe systemic symptoms - disseminated zoster, call 911",
+    "Rash with signs of secondary infection - fever, pus, increasing pain - needs urgent evaluation",
+    "Rash with neurological deficits - possible postherpetic neuralgia, needs urgent evaluation"
+  ]
+}

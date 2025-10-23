@@ -1,0 +1,27 @@
+{
+  "condition": "Brain Tumor",
+  "icd10": "D43.2",
+  "snomed": "125643003",
+  "sex": "both",
+  "prevalence": "rare",
+  "chief_complaint_triggers": [
+    "brain tumor",
+    "brain cancer",
+    "headache",
+    "seizures",
+    "vision problems",
+    "cognitive changes",
+    "neurological symptoms"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: GRADUAL onset over weeks to months. LOCATION: VARIABLE depending on tumor location. DURATION: Progressive over weeks to months. CHARACTER: VARIABLE symptoms. AGGRAVATING: ACTIVITY, stress, fatigue. RELIEVING: SUPPORTIVE care, medications. TIMING: Progressive over weeks to months. SEVERITY: 4-8/10, moderate to severe. ASSOCIATED SYMPTOMS: VARIABLE - headache, seizures, vision problems, cognitive changes, may have focal neurological deficits. KEY POSITIVES: Variable symptoms, may have MRI changes, may have focal neurological deficits. KEY NEGATIVES: No fever, no neck stiffness, no photophobia."
+  },
+  "red_flags": [
+    "Severe neurological deficits with altered mental status - possible severe brain tumor, call 911",
+    "Signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911",
+    "Severe hypertension with neurological deficits - possible hypertensive crisis, call 911",
+    "Signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911",
+    "Signs of respiratory failure - difficulty breathing, cyanosis, altered mental status - call 911"
+  ]
+}

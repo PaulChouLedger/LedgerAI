@@ -1,0 +1,27 @@
+{
+  "condition": "Amyotrophic Lateral Sclerosis",
+  "icd10": "G12.2",
+  "snomed": "125640000",
+  "sex": "both",
+  "prevalence": "rare",
+  "chief_complaint_triggers": [
+    "ALS",
+    "amyotrophic lateral sclerosis",
+    "muscle weakness",
+    "muscle atrophy",
+    "difficulty speaking",
+    "breathing problems",
+    "progressive weakness"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: GRADUAL onset over months to years. LOCATION: BILATERAL weakness, usually starting in hands or feet. DURATION: Chronic progressive condition. CHARACTER: PROGRESSIVE weakness, muscle atrophy. AGGRAVATING: ACTIVITY, stress, fatigue. RELIEVING: SUPPORTIVE care, medications. TIMING: Chronic progressive, symptoms worsen over time. SEVERITY: 4-8/10, moderate to severe. ASSOCIATED SYMPTOMS: PROGRESSIVE WEAKNESS, muscle atrophy, difficulty speaking, breathing problems, may have cognitive changes. KEY POSITIVES: Progressive weakness, muscle atrophy, difficulty speaking, breathing problems. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+  },
+  "red_flags": [
+    "Severe respiratory distress - possible respiratory failure, call 911",
+    "Signs of respiratory failure - difficulty breathing, cyanosis, altered mental status - call 911",
+    "Severe hypertension with neurological deficits - possible hypertensive crisis, call 911",
+    "Signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911",
+    "Signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911"
+  ]
+}

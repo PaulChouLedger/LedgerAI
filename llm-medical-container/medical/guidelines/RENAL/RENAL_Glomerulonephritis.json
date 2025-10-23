@@ -1,0 +1,27 @@
+{
+  "condition": "Glomerulonephritis",
+  "icd10": "N05.9",
+  "snomed": "125651001",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "glomerulonephritis",
+    "kidney inflammation",
+    "renal inflammation",
+    "kidney disease",
+    "hematuria",
+    "proteinuria",
+    "kidney problems"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: GRADUAL onset over days to weeks. LOCATION: BILATERAL kidney involvement. DURATION: Develops over days to weeks, may persist for weeks to months. CHARACTER: HEMATURIA, proteinuria, swelling. AGGRAVATING: DEHYDRATION, medications. RELIEVING: IMMUNOSUPPRESSANTS, supportive care. TIMING: Gradual onset, develops over days to weeks. SEVERITY: 5-8/10, moderate to severe. ASSOCIATED SYMPTOMS: HEMATURIA, proteinuria, swelling, may have hypertension, may have decreased urine output. KEY POSITIVES: Hematuria, proteinuria, swelling, elevated creatinine, elevated BUN. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+  },
+  "red_flags": [
+    "Severe fluid overload with respiratory distress - possible pulmonary edema, call 911",
+    "Signs of severe electrolyte imbalances - confusion, seizures, cardiac arrhythmias - call 911",
+    "Severe hypertension with neurological deficits - possible hypertensive crisis, call 911",
+    "Signs of uremia - confusion, seizures, coma - call 911",
+    "Signs of severe metabolic acidosis - deep breathing, confusion, coma - call 911"
+  ]
+}
