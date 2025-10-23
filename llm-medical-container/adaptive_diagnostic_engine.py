@@ -1220,7 +1220,7 @@ class AdaptiveDiagnosticEngine:
             
             example = oldcarts_examples.get(next_element, "Tell me about the symptom")
             
-            system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do not include medical terminology from guidelines. Do NOT ask questions requiring visual inspection (no 'point to', 'show me', 'look at', 'appearance', 'color', 'swelling'). Do NOT ask about duration/time - that will be covered later."
+            system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do not include medical terminology from guidelines. Do NOT ask questions requiring visual inspection (no 'point to', 'show me', 'look at', 'appearance', 'color', 'swelling'). Do NOT ask about duration/time - that will be covered later. No one prompt should include multiple questions, in other words do not include multiple phrases ending with a question mark."
             
             user_msg = f"""Patient: {patient_info} with {symptom}
 
@@ -1371,7 +1371,7 @@ Output only the question:"""
         
         symptoms_context = ', '.join([s.split(':')[0] for s in key_symptoms[:3]]) if key_symptoms else "common symptoms"
         
-        system_msg = "You are a medical assistant. Output ONLY ONE question. Use PLAIN LANGUAGE (no medical jargon). Never combine multiple questions."
+        system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do not include multiple phrases ending with question marks."
         
         user_msg = f"""Patient: {patient_info}
 
@@ -2735,7 +2735,7 @@ Your statement:"""
         """
         self._capture_debug(f"[Engine] 🧠 Generating chronicity question...")
         
-        system_msg = "You are a medical assistant. Output ONLY the question requested, nothing else. Do NOT ask questions requiring visual inspection (no 'point to', 'show me', 'look at', 'appearance', 'color', 'swelling')."
+        system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Do NOT ask questions requiring visual inspection (no 'point to', 'show me', 'look at', 'appearance', 'color', 'swelling')."
         
         user_msg = """Generate a natural question asking if this is a new problem or ongoing/recurrent issue.
 
@@ -2814,7 +2814,7 @@ Classification:"""
         """
         self._capture_debug(f"[Engine] 🧠 Generating age question...")
         
-        system_msg = "You are a medical assistant. Output ONLY the question requested, nothing else."
+        system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions."
         
         user_msg = """Generate a natural question asking for the patient's age.
 
@@ -2846,7 +2846,7 @@ Your question:"""
         """
         self._capture_debug(f"[Engine] 🧠 Generating sex question...")
         
-        system_msg = "You are a medical assistant. Output ONLY the question requested, nothing else."
+        system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions."
         
         user_msg = """Generate a natural question asking for biological sex (male or female).
 
