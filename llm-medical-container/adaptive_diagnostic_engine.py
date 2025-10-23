@@ -208,12 +208,11 @@ class AdaptiveDiagnosticEngine:
         self.validate_rag = os.getenv("VALIDATE_RAG", "false").lower() == "true"  # Compare RAG vs brute-force
         
         # Hybrid matching configuration
-        self.hybrid_config = {
-            'jaccard_threshold': 0.3,      # Primary threshold for Jaccard similarity
-            'semantic_threshold': 0.5,     # Threshold for semantic similarity fallback
-            'semantic_boost_threshold': 0.3,  # When semantic is significantly better than Jaccard
-            'semantic_weight': 0.7,        # Weight for semantic similarity when used as fallback
-            'confidence_threshold': 0.1    # Max difference for high confidence
+        # ML-only configuration (no hybrid scoring)
+        self.ml_config = {
+            'similarity_threshold': 0.5,    # ML similarity threshold
+            'active_guidelines': 5,         # Number of active guidelines
+            'reserve_guidelines': 5         # Number of reserve guidelines
         }
         
         # ============================================================================
@@ -443,8 +442,8 @@ class AdaptiveDiagnosticEngine:
         
         self._capture_debug(f"[Engine] 🎯 ML-powered guidelines: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}")
         
-        # Generate first question using ML
-        return self._generate_ml_first_question()
+        # Generate first question using ML (with age/sex first)
+        return self._generate_ml_first_question_with_demographics()
     
     def _match_to_guidelines_ml(self, normalized_complaint: str, category: str) -> List[Dict]:
         """ML-powered guideline matching using comprehensive synonym files"""
@@ -471,8 +470,8 @@ class AdaptiveDiagnosticEngine:
                     best_similarity = similarity
                     best_trigger = trigger
             
-            # Add if similarity meets threshold
-            if best_similarity > 0.7:  # ML threshold
+        # Add if similarity meets threshold (lowered for better matching)
+        if best_similarity > 0.5:  # ML threshold (lowered from 0.7)
                 prevalence = guideline.get('prevalence', 'uncommon')
                 prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
                 initial_score = prevalence_scores.get(prevalence, 0.50)
@@ -507,6 +506,30 @@ class AdaptiveDiagnosticEngine:
             normalized_complaint, normalized_trigger, "", organ_system="general"
         )
         return result['similarity']
+    
+    def _generate_ml_first_question_with_demographics(self) -> Dict[str, Any]:
+        """Generate first question using ML-powered approach with demographics"""
+        self._capture_debug(f"[Engine] 🧠 Generating ML-powered first question with demographics...")
+        
+        # Start with age question (demographics first)
+        question = "How old are you?"
+        
+        # Add to conversation history
+        self.conversation_history.append({
+            'type': 'question',
+            'question': question,
+            'oldcarts': 'demographics',
+            'focus': 'demographics'
+        })
+        
+        self._capture_debug(f"[Engine] ✅ ML demographics question generated: '{question}'")
+        
+        return {
+            'success': True,
+            'question': question,
+            'status': 'questioning',
+            'debug': self._get_debug_info()
+        }
     
     def _generate_ml_first_question(self) -> Dict[str, Any]:
         """Generate first question using ML-powered approach"""
@@ -573,7 +596,7 @@ class AdaptiveDiagnosticEngine:
         error_result = [None]
         
         def run_rag():
-            """Match to guidelines (RAG API or brute-force with fallback + optional validation)"""
+            """Match to guidelines (ML-only, no fallbacks)"""
             try:
                 # VALIDATION MODE: Compare RAG API vs brute-force (set VALIDATE_RAG=true)
                 if self.validate_rag and self.use_rag_api:
@@ -1116,32 +1139,36 @@ class AdaptiveDiagnosticEngine:
         self._capture_debug(f"{'='*80}\n")
     
     def _load_all_synonym_files(self) -> Dict:
-        """Load all synonym files for comprehensive normalization"""
-        all_synonyms = {}
+        """Load all synonym files for comprehensive normalization (cached)"""
+        # Cache synonym files to avoid reloading
+        if not hasattr(self, '_cached_synonyms'):
+            all_synonyms = {}
+            
+            synonym_files = [
+                'gi_synonyms_oldcarts.json',
+                'cardio_synonyms_oldcarts.json',
+                'neuro_synonyms_oldcarts.json',
+                'msk_synonyms_oldcarts.json',
+                'derm_synonyms_oldcarts.json',
+                'renal_synonyms_oldcarts.json',
+                'resp_synonyms_oldcarts.json'
+            ]
+            
+            for file in synonym_files:
+                try:
+                    file_path = os.path.join('synonyms', file)
+                    if os.path.exists(file_path):
+                        with open(file_path, 'r') as f:
+                            synonyms = json.load(f)
+                            all_synonyms.update(synonyms)
+                            self._capture_debug(f"[Engine] 📚 Loaded synonyms from {file}")
+                except Exception as e:
+                    self._capture_debug(f"[Engine] ⚠️ Failed to load {file}: {e}")
+            
+            self._cached_synonyms = all_synonyms
+            self._capture_debug(f"[Engine] 📚 Total synonym categories loaded: {len(all_synonyms)}")
         
-        synonym_files = [
-            'gi_synonyms_oldcarts.json',
-            'cardio_synonyms_oldcarts.json',
-            'neuro_synonyms_oldcarts.json',
-            'msk_synonyms_oldcarts.json',
-            'derm_synonyms_oldcarts.json',
-            'renal_synonyms_oldcarts.json',
-            'resp_synonyms_oldcarts.json'
-        ]
-        
-        for file in synonym_files:
-            try:
-                file_path = os.path.join('synonyms', file)
-                if os.path.exists(file_path):
-                    with open(file_path, 'r') as f:
-                        synonyms = json.load(f)
-                        all_synonyms.update(synonyms)
-                        self._capture_debug(f"[Engine] 📚 Loaded synonyms from {file}")
-            except Exception as e:
-                self._capture_debug(f"[Engine] ⚠️ Failed to load {file}: {e}")
-        
-        self._capture_debug(f"[Engine] 📚 Total synonym categories loaded: {len(all_synonyms)}")
-        return all_synonyms
+        return self._cached_synonyms
     
     def _normalize_complaint_with_synonyms(self, complaint: str) -> str:
         """Normalize complaint using ALL available synonym files"""
@@ -1196,7 +1223,7 @@ class AdaptiveDiagnosticEngine:
                     elif name.startswith('GYN_'):
                         category_matches['GYN'] += 1
         
-        # Find category with most matches
+        # Find category with most matches (ML-only, no fallbacks)
         if category_matches:
             best_category = max(category_matches, key=category_matches.get)
             if category_matches[best_category] > 0:
@@ -1204,6 +1231,7 @@ class AdaptiveDiagnosticEngine:
                 self._capture_debug(f"[Engine] 🎯 Best category: {best_category} ({category_matches[best_category]} matches)")
                 return best_category
         
+        # No fallbacks - use ALL categories if no matches
         self._capture_debug(f"[Engine] 🎯 No substring matches found, using ALL categories")
         return 'ALL'  # Process all if no matches
     
@@ -1763,7 +1791,7 @@ Output only the question:"""
                     self._capture_debug(f"[Engine] ⚠️ LLM combined multiple questions - using template fallback")
                 self._capture_debug(f"[Engine]    Generated: '{question}'")
                 self._capture_debug(f"[Engine]    Using template: '{example}'")
-                # Use simple template fallback
+                # Use simple template (ML-only, no fallback)
                 question = example
             
             oldcarts_element = next_element
@@ -1856,7 +1884,7 @@ Your question:"""
         if question_mark_count > 1 or has_sentence_before_question:
             self._capture_debug(f"[Engine] ⚠️ LLM combined multiple questions - using template")
             self._capture_debug(f"[Engine]    Generated: '{question}'")
-            # Use simple template fallback
+            # Use simple template (ML-only, no fallback)
             question = "Have you had any fever?"
         
         self._capture_debug(f"[Engine] ✅ Associated symptom question: '{question}'")
@@ -2285,11 +2313,11 @@ Your question:"""
         # Get mapping for category
         category_mappings = self._medical_term_mappings.get(category, {})
         
-        # Return mapped term or fallback to formatted subcategory
+        # Return mapped term or formatted subcategory (ML-only, no fallback)
         if subcategory in category_mappings:
             return category_mappings[subcategory]
         else:
-            # Fallback: format subcategory (replace underscores with spaces)
+            # Format subcategory (replace underscores with spaces)
             return subcategory.replace('_', ' ')
     
     def _apply_variations(self, text: str, variations: list, standard_term: str) -> str:
