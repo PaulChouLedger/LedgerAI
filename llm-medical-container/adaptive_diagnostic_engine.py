@@ -345,6 +345,9 @@ class AdaptiveDiagnosticEngine:
         self.red_flags_present = []  # Track which red flags are present
         self.red_flag_index = 0  # Track which red flag we're asking about
         
+        # Clear any LLM model state/cache to prevent cross-session contamination
+        self._capture_debug(f"[Engine] 🔄 Clearing LLM model state for fresh session")
+        
         # OLDCARTS tracking - must cover ALL before diagnosis
         self.oldcarts_covered = {
             'O': False,  # Onset (hardcoded first question)
