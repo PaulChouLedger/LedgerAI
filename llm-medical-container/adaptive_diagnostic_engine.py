@@ -2311,22 +2311,13 @@ Normalized text:"""
                 change = "❌"
                 self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (hard mismatch, penalty={penalty_factor:.1f})")
             else:
-                # More aggressive scoring that properly reflects similarity
-                # Use similarity as primary factor with old score as baseline
-                if oldcarts_element == 'L':
-                    # For location: 40% old score + 60% similarity (location is very important)
-                    new_score = (old_score * 0.4) + (similarity * 0.6)
-                elif oldcarts_element in ['C', 'A', 'R']:
-                    # For character/aggravating/relieving: 50% old + 50% similarity
-                    new_score = (old_score * 0.5) + (similarity * 0.5)
-                else:
-                    # For other elements: 60% old + 40% similarity
-                    new_score = (old_score * 0.6) + (similarity * 0.4)
-                
+                # ML-ONLY SCORING: Use enhanced similarity directly as the score
+                # No more hybrid scoring - ML system provides the final score
+                new_score = similarity
                 g['score'] = new_score
                 change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
-                self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (similarity-weighted)")
-                self._capture_debug(f"[Engine]     🧠 LLM Semantic Match: {similarity:.2f} ('{answer}' ↔ '{oldcarts_section[:50]}...')")
+                self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (ml-only)")
+                self._capture_debug(f"[Engine]     🧠 ML Score: {similarity:.2f} ('{answer}' ↔ '{oldcarts_section[:50]}...')")
                 self._capture_debug(f"[Engine]     📝 Patient: '{answer}' → Medical: '{oldcarts_section[:80]}...'")
         
         # DYNAMIC RE-RANKING: Sort ALL guidelines by updated scores

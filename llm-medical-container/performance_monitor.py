@@ -251,9 +251,15 @@ class PerformanceMonitor:
     def _calculate_summary_metrics(self) -> Dict[str, Any]:
         """Calculate summary performance metrics"""
         try:
-            # Calculate accuracy metrics
+            # Calculate accuracy metrics from similarity scores and confidence
             accuracy_scores = [m['accuracy'] for m in self.metrics['accuracy']]
             avg_accuracy = np.mean(accuracy_scores) if accuracy_scores else 0.0
+            
+            # If no explicit accuracy measurements, calculate from similarity and confidence
+            if not accuracy_scores and self.metrics['similarity_scores']:
+                # Use similarity scores as proxy for accuracy
+                similarity_scores = [s['prediction'] for s in self.metrics['similarity_scores']]
+                avg_accuracy = np.mean(similarity_scores) if similarity_scores else 0.0
             
             # Calculate similarity metrics
             similarity_scores = [s['prediction'] for s in self.metrics['similarity_scores']]
