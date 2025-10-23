@@ -41,6 +41,7 @@ COPY medical/guidelines/ /app/medical/guidelines/
 COPY location_ml_model.pkl .
 COPY location_ml_data.csv .
 COPY medical_rules.json .
+COPY medical_term_mappings.json .
 
 # Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
 

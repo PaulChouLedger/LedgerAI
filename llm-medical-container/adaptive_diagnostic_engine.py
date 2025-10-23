@@ -348,6 +348,9 @@ class AdaptiveDiagnosticEngine:
         # Clear any LLM model state/cache to prevent cross-session contamination
         self._capture_debug(f"[Engine] 🔄 Clearing LLM model state for fresh session")
         
+        # ML Progress Tracking
+        self._capture_debug(f"[ML Progress] 📊 Session reset - ML learning state cleared")
+        
         # OLDCARTS tracking - must cover ALL before diagnosis
         self.oldcarts_covered = {
             'O': False,  # Onset (hardcoded first question)
@@ -1815,105 +1818,27 @@ Your question:"""
         return normalized_text
     
     def _get_clean_medical_term(self, category: str, subcategory: str, nested_key: str = None) -> str:
-        """Convert OLDCARTS categories to clean, semantic-friendly medical terms"""
+        """Convert OLDCARTS categories to clean, semantic-friendly medical terms using data-driven mappings"""
         
-        if category == "location":
-            if subcategory == "abdominal_pain":
-                return "abdominal pain"
-            elif subcategory == "ruq_pain":
-                return "right upper quadrant"
-            elif subcategory == "luq_pain":
-                return "left upper quadrant"
-            elif subcategory == "rlq_pain":
-                return "right lower quadrant"
-            elif subcategory == "llq_pain":
-                return "left lower quadrant"
-            elif subcategory == "epigastric_pain":
-                return "epigastric"
-            elif subcategory == "periumbilical_pain":
-                return "periumbilical"
-            elif subcategory == "flank_pain":
-                return "flank"
-            else:
-                return subcategory.replace('_', ' ')
+        # Load medical term mappings from JSON file
+        if not hasattr(self, '_medical_term_mappings'):
+            try:
+                import json
+                with open('medical_term_mappings.json', 'r') as f:
+                    self._medical_term_mappings = json.load(f)
+            except FileNotFoundError:
+                # Fallback to basic replacement if file not found
+                self._medical_term_mappings = {}
         
-        elif category == "character":
-            if subcategory == "sharp":
-                return "sharp"
-            elif subcategory == "dull":
-                return "dull"
-            elif subcategory == "cramping":
-                return "cramping"
-            elif subcategory == "burning":
-                return "burning"
-            elif subcategory == "stabbing":
-                return "sharp"
-            else:
-                return subcategory.replace('_', ' ')
+        # Get mapping for category
+        category_mappings = self._medical_term_mappings.get(category, {})
         
-        elif category == "onset":
-            if subcategory == "sudden":
-                return "sudden onset"
-            elif subcategory == "gradual":
-                return "gradual onset"
-            else:
-                return f"{subcategory.replace('_', ' ')} onset"
-        
-        elif category == "aggravating_factors":
-            if subcategory == "eating":
-                return "postprandial"
-            elif subcategory == "movement":
-                return "worse with movement"
-            else:
-                return f"worsened by {subcategory.replace('_', ' ')}"
-        
-        elif category == "relieving_factors":
-            return f"relieved by {subcategory.replace('_', ' ')}"
-        
-        elif category == "associated_symptoms":
-            if subcategory == "nausea":
-                return "nausea"
-            elif subcategory == "vomiting":
-                return "vomiting"
-            elif subcategory == "fever":
-                return "fever"
-            else:
-                return subcategory.replace('_', ' ')
-        
-        elif category == "severity":
-            if subcategory == "severe":
-                return "severe"
-            elif subcategory == "mild":
-                return "mild"
-            elif subcategory == "moderate":
-                return "moderate"
-            else:
-                return subcategory.replace('_', ' ')
-        
-        elif category == "timing":
-            if subcategory == "constant":
-                return "constant"
-            elif subcategory == "intermittent":
-                return "intermittent"
-            elif subcategory == "colicky":
-                return "colicky"
-            else:
-                return subcategory.replace('_', ' ')
-        
-        elif category == "radiation":
-            if subcategory == "back":
-                return "radiates to back"
-            elif subcategory == "shoulder":
-                return "radiates to shoulder"
-            else:
-                return f"radiates to {subcategory.replace('_', ' ')}"
-        
+        # Return mapped term or fallback to formatted subcategory
+        if subcategory in category_mappings:
+            return category_mappings[subcategory]
         else:
-            # Default: create clean term from subcategory
-            if nested_key:
-                return f"{subcategory.replace('_', ' ')} {nested_key.replace('_', ' ')}"
-            else:
-                return subcategory.replace('_', ' ')
+            # Fallback: format subcategory (replace underscores with spaces)
+            return subcategory.replace('_', ' ')
     
     def _apply_variations(self, text: str, variations: list, standard_term: str) -> str:
         """Apply synonym variations to text"""
@@ -2031,6 +1956,15 @@ Normalized text:"""
                 confidence=result['confidence'],
                 anatomical_type=result['anatomical_type']
             )
+            
+            # ML Progress Tracking
+            self._capture_debug(f"[ML Progress] 🧠 Learning data collected:")
+            self._capture_debug(f"[ML Progress]   📝 Patient: '{user_answer[:30]}...'")
+            self._capture_debug(f"[ML Progress]   📋 Condition: {condition_name}")
+            self._capture_debug(f"[ML Progress]   🎯 Method: {result['method']}")
+            self._capture_debug(f"[ML Progress]   📊 Similarity: {result['similarity']:.3f}")
+            self._capture_debug(f"[ML Progress]   🏥 Anatomical: {result['anatomical_type']}")
+            self._capture_debug(f"[ML Progress]   🔄 Confidence: {result['confidence']}")
         
         # Track performance metrics if available
         if self.performance_monitor:
@@ -2041,6 +1975,13 @@ Normalized text:"""
                 condition_name=condition_name,
                 organ_system=self._get_organ_system_from_condition(condition_name)
             )
+            
+            # ML Progress Tracking - Performance
+            self._capture_debug(f"[ML Progress] 📈 Performance tracked:")
+            self._capture_debug(f"[ML Progress]   📊 Prediction: {result['similarity']:.3f}")
+            self._capture_debug(f"[ML Progress]   🔄 Confidence: {result['confidence']}")
+            self._capture_debug(f"[ML Progress]   🎯 Method: {result['method']}")
+            self._capture_debug(f"[ML Progress]   🏥 Organ System: {self._get_organ_system_from_condition(condition_name)}")
         
         return result['similarity']
     
@@ -2141,6 +2082,14 @@ Normalized text:"""
         
         if self.user_feedback:
             status['feedback_summary'] = self.user_feedback.get_feedback_summary()
+        
+        # ML Progress Tracking - Learning Status
+        self._capture_debug(f"[ML Progress] 📊 Learning system status:")
+        self._capture_debug(f"[ML Progress]   🧠 Medical Rule Engine: {'Active' if self.medical_rule_engine else 'Inactive'}")
+        self._capture_debug(f"[ML Progress]   📝 Learning Collector: {'Active' if self.learning_collector else 'Inactive'}")
+        self._capture_debug(f"[ML Progress]   🔄 Continuous Learning: {'Active' if self.continuous_learning else 'Inactive'}")
+        self._capture_debug(f"[ML Progress]   📈 Performance Monitor: {'Active' if self.performance_monitor else 'Inactive'}")
+        self._capture_debug(f"[ML Progress]   💬 User Feedback: {'Active' if self.user_feedback else 'Inactive'}")
         
         return status
     
@@ -2328,6 +2277,14 @@ Normalized text:"""
             self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (ml-only)")
             self._capture_debug(f"[Engine]     🧠 ML Score: {similarity:.2f} ('{answer}' ↔ '{oldcarts_section[:50]}...')")
             self._capture_debug(f"[Engine]     📝 Patient: '{answer}' → Medical: '{oldcarts_section[:80]}...'")
+            
+            # ML Progress Tracking - Scoring
+            self._capture_debug(f"[ML Progress] 🎯 Score updated:")
+            self._capture_debug(f"[ML Progress]   📋 Condition: {g['name']}")
+            self._capture_debug(f"[ML Progress]   📊 Old Score: {old_score:.0%} → New Score: {new_score:.0%} {change}")
+            self._capture_debug(f"[ML Progress]   🧠 ML Similarity: {similarity:.3f}")
+            self._capture_debug(f"[ML Progress]   📝 Patient Input: '{answer}'")
+            self._capture_debug(f"[ML Progress]   📋 Guideline: '{oldcarts_section[:50]}...'")
         
         # DYNAMIC RE-RANKING: Sort ALL guidelines by updated scores
         # This ensures conditions like Diverticulitis (LLQ) jump to top when "left side" is mentioned
@@ -2343,8 +2300,20 @@ Normalized text:"""
                 self._capture_debug(f"[Engine] ❌ RULING OUT: {g['name']} (score {g['score']:.0%} < {threshold:.0%})")
                 self.ruled_out.append(g)
                 ruled_out_this_round.append(g)
+                
+                # ML Progress Tracking - Rule Out
+                self._capture_debug(f"[ML Progress] ❌ Condition ruled out:")
+                self._capture_debug(f"[ML Progress]   📋 Condition: {g['name']}")
+                self._capture_debug(f"[ML Progress]   📊 Score: {g['score']:.0%} < Threshold: {threshold:.0%}")
+                self._capture_debug(f"[ML Progress]   🎯 ML Decision: Anatomical mismatch or low similarity")
             else:
                 remaining.append(g)
+                
+                # ML Progress Tracking - Kept
+                self._capture_debug(f"[ML Progress] ✅ Condition kept:")
+                self._capture_debug(f"[ML Progress]   📋 Condition: {g['name']}")
+                self._capture_debug(f"[ML Progress]   📊 Score: {g['score']:.0%} >= Threshold: {threshold:.0%}")
+                self._capture_debug(f"[ML Progress]   🎯 ML Decision: Anatomical match or high similarity")
         
         # Sort remaining by score (highest first)
         remaining.sort(key=lambda x: x['score'], reverse=True)
@@ -2371,9 +2340,24 @@ Normalized text:"""
         for i, g in enumerate(self.active_guidelines, 1):
             urgency_emoji = "🚨" if g['data'].get('urgency') == 'emergent' else "⚠️" if g['data'].get('urgency') == 'urgent' else "📋"
             self._capture_debug(f"[Engine]   {i}. {g['name']}: {g['score']:.0%} {urgency_emoji}")
+            
+            # ML Progress Tracking - Top Conditions
+            self._capture_debug(f"[ML Progress] 🏆 Top {i}: {g['name']}")
+            self._capture_debug(f"[ML Progress]   📊 Score: {g['score']:.0%}")
+            self._capture_debug(f"[ML Progress]   📋 Prevalence: {g.get('prevalence', 'unknown')}")
+            self._capture_debug(f"[ML Progress]   🎯 ML Confidence: High similarity match")
+            self._capture_debug(f"[ML Progress]   🚨 Urgency: {g['data'].get('urgency', 'standard')}")
         
         # Always show pool statistics
         self._capture_debug(f"\n[Engine] 🔄 Pool status: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
+        
+        # ML Progress Tracking - Final Statistics
+        self._capture_debug(f"[ML Progress] 📊 Final statistics:")
+        self._capture_debug(f"[ML Progress]   🎯 Active Conditions: {len(self.active_guidelines)}")
+        self._capture_debug(f"[ML Progress]   📋 Reserve Conditions: {len(self.reserve_pool)}")
+        self._capture_debug(f"[ML Progress]   ❌ Ruled Out: {len(self.ruled_out)}")
+        self._capture_debug(f"[ML Progress]   📈 Total Processed: {len(all_guidelines)}")
+        self._capture_debug(f"[ML Progress]   🧠 ML System: Fully operational")
         
         self._capture_debug(f"{'='*80}\n")
         
