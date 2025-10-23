@@ -16,7 +16,7 @@ class MedicalRuleEngine:
     Combines hardcoded rules with ML predictions
     """
     
-    def __init__(self, ml_model_path: str = "location_ml_model.pkl"):
+    def __init__(self, ml_model_path: str = "ml/location_ml_model.pkl"):
         self.ml_model = None
         self.ml_trainer = LocationMLTrainer()
         

@@ -13,12 +13,7 @@ from datetime import datetime, timedelta
 from glob import glob
 import requests
 
-# Import centralized validation utilities
-from validation import (
-    match_answer_option, check_typo_similarity, normalize_text, 
-    tokenize, normalize_yes_no_response, get_generic_onset_answers,
-    match_flexible_time, MIN_MATCH
-)
+# Note: Validation functions removed - ML system handles all validation
 
 # Import clinician mode for comprehensive medical assistance
 from clinician_mode import ClinicianSession, is_clinician_trigger, get_clinician_session, handle_clinician_response

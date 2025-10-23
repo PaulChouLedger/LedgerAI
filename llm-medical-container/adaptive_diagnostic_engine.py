@@ -138,7 +138,7 @@ class AdaptiveDiagnosticEngine:
         
         # Initialize Medical Rule Engine for enhanced location scoring
         try:
-            from medical_rule_engine import MedicalRuleEngine
+            from ml.medical_rule_engine import MedicalRuleEngine
             self.medical_rule_engine = MedicalRuleEngine()
             self._capture_debug(f"[Engine] 🎯 Medical Rule Engine initialized")
         except ImportError:
@@ -147,7 +147,7 @@ class AdaptiveDiagnosticEngine:
         
         # Initialize Learning Data Collector for continuous improvement
         try:
-            from learning_data_collector import LearningDataCollector
+            from ml.learning_data_collector import LearningDataCollector
             self.learning_collector = LearningDataCollector()
             self._capture_debug(f"[Engine] 📊 Learning Data Collector initialized")
         except ImportError:
@@ -156,7 +156,7 @@ class AdaptiveDiagnosticEngine:
         
         # Initialize Continuous Learning System
         try:
-            from continuous_learning import ContinuousLearning
+            from ml.continuous_learning import ContinuousLearning
             self.continuous_learning = ContinuousLearning()
             self._capture_debug(f"[Engine] 🧠 Continuous Learning initialized")
         except ImportError:
@@ -165,7 +165,7 @@ class AdaptiveDiagnosticEngine:
         
         # Initialize Performance Monitor
         try:
-            from performance_monitor import PerformanceMonitor
+            from ml.performance_monitor import PerformanceMonitor
             self.performance_monitor = PerformanceMonitor()
             self._capture_debug(f"[Engine] 📈 Performance Monitor initialized")
         except ImportError:
@@ -174,7 +174,7 @@ class AdaptiveDiagnosticEngine:
         
         # Initialize User Feedback Interface
         try:
-            from user_feedback_interface import UserFeedbackInterface
+            from ml.user_feedback_interface import UserFeedbackInterface
             self.user_feedback = UserFeedbackInterface()
             self._capture_debug(f"[Engine] 💬 User Feedback Interface initialized")
         except ImportError:
@@ -1824,7 +1824,7 @@ Your question:"""
         if not hasattr(self, '_medical_term_mappings'):
             try:
                 import json
-                with open('medical_term_mappings.json', 'r') as f:
+                with open('config/medical_term_mappings.json', 'r') as f:
                     self._medical_term_mappings = json.load(f)
             except FileNotFoundError:
                 # Fallback to basic replacement if file not found
@@ -1927,6 +1927,74 @@ Normalized text:"""
             # Use synonym normalization
             self._capture_debug(f"[Engine] 📚 Using synonym normalization")
             return self._apply_oldcarts_normalization(text, target_category)
+    
+    def _compute_enhanced_oldcarts_similarity(self, user_answer: str, oldcarts_section: str, oldcarts_element: str, condition_name: str = "") -> float:
+        """
+        Enhanced OLDCARTS similarity with Medical Rule Engine and ML - UNIFIED SYSTEM
+        
+        Args:
+            user_answer: Patient's answer
+            oldcarts_section: Guideline text for this OLDCARTS element
+            oldcarts_element: OLDCARTS element (L, O, D, C, A, R, T, S)
+            condition_name: Name of the condition being evaluated
+            
+        Returns:
+            float: Similarity score 0-1
+        """
+        # Ensure Medical Rule Engine is available
+        if not self.medical_rule_engine:
+            raise RuntimeError("Medical Rule Engine not available - ML system required")
+        
+        # Get enhanced similarity using Medical Rule Engine
+        result = self.medical_rule_engine.get_enhanced_similarity(
+            user_answer, oldcarts_section, condition_name, organ_system=self._get_organ_system_from_condition(condition_name)
+        )
+        
+        # Log the result
+        self._capture_debug(f"[Engine]   🎯 Enhanced {oldcarts_element} similarity: {result['similarity']:.3f} (method: {result['method']})")
+        self._capture_debug(f"[Engine]   📝 Reasoning: {result['reasoning']}")
+        self._capture_debug(f"[Engine]   🏥 Anatomical Type: {result['anatomical_type']}")
+        
+        # Collect learning data if available
+        if self.learning_collector:
+            self.learning_collector.collect_prediction(
+                patient_text=user_answer,
+                guideline_text=oldcarts_section,
+                condition_name=condition_name,
+                similarity=result['similarity'],
+                method=result['method'],
+                confidence=result['confidence'],
+                anatomical_type=result['anatomical_type']
+            )
+            
+            # ML Progress Tracking
+            self._capture_debug(f"[ML Progress] 🧠 Learning data collected:")
+            self._capture_debug(f"[ML Progress]   📝 Patient: '{user_answer[:30]}...'")
+            self._capture_debug(f"[ML Progress]   📋 Condition: {condition_name}")
+            self._capture_debug(f"[ML Progress]   🎯 OLDCARTS: {oldcarts_element}")
+            self._capture_debug(f"[ML Progress]   🎯 Method: {result['method']}")
+            self._capture_debug(f"[ML Progress]   📊 Similarity: {result['similarity']:.3f}")
+            self._capture_debug(f"[ML Progress]   🏥 Anatomical: {result['anatomical_type']}")
+            self._capture_debug(f"[ML Progress]   🔄 Confidence: {result['confidence']}")
+        
+        # Track performance metrics if available
+        if self.performance_monitor:
+            self.performance_monitor.track_prediction(
+                prediction=result['similarity'],
+                confidence=result['confidence'],
+                method=result['method'],
+                condition_name=condition_name,
+                organ_system=self._get_organ_system_from_condition(condition_name)
+            )
+            
+            # ML Progress Tracking - Performance
+            self._capture_debug(f"[ML Progress] 📈 Performance tracked:")
+            self._capture_debug(f"[ML Progress]   📊 Prediction: {result['similarity']:.3f}")
+            self._capture_debug(f"[ML Progress]   🔄 Confidence: {result['confidence']}")
+            self._capture_debug(f"[ML Progress]   🎯 Method: {result['method']}")
+            self._capture_debug(f"[ML Progress]   🏥 Organ System: {self._get_organ_system_from_condition(condition_name)}")
+        
+        return result['similarity']
     
     def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str, condition_name: str = "") -> float:
         """Enhanced location similarity with Medical Rule Engine and ML - ML ONLY"""
@@ -2235,33 +2303,17 @@ Normalized text:"""
                 self._capture_debug(f"[Engine] ⚠️ Warning: Could not extract {oldcarts_element} section from {g['name']} - skipping this guideline")
                 continue  # Skip this guideline instead of crashing
             
-            # KEYWORD FILTER: For location questions, skip opposite-sided conditions
-            # This is faster and more accurate than semantic similarity for directional terms
-            if oldcarts_element == 'L':
-                answer_lower = answer.lower()
-                section_upper = oldcarts_section.upper()
-                
-                # Use enhanced location similarity with multi-stage filtering
-                # This will handle "left lower belly pain towards my pelvis" vs "LEFT LOWER QUADRANT (LLQ)"
-                try:
-                    similarity = self._compute_enhanced_location_similarity(answer, oldcarts_section, g['name'])
-                    self._capture_debug(f"[Engine]   {g['name']}: Enhanced location similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
-                except Exception as sim_error:
-                    self._capture_debug(f"[Engine] ❌ Enhanced similarity computation failed for {g['name']}: {sim_error}")
-                    import traceback
-                    traceback.print_exc()
-                    # Skip this guideline and continue with the next one
-                    continue
-            else:
-                # Compute semantic similarity normally for non-location questions
-                try:
-                    similarity = self._compute_similarity(answer, oldcarts_section)
-                except Exception as sim_error:
-                    self._capture_debug(f"[Engine] ❌ Similarity computation failed for {g['name']}: {sim_error}")
-                    import traceback
-                    traceback.print_exc()
-                    # Skip this guideline and continue with the next one
-                    continue
+            # UNIFIED ML SYSTEM: Use enhanced similarity for ALL OLDCARTS components
+            # This provides consistent ML-powered similarity across all components
+            try:
+                similarity = self._compute_enhanced_oldcarts_similarity(answer, oldcarts_section, oldcarts_element, g['name'])
+                self._capture_debug(f"[Engine]   {g['name']}: Enhanced {oldcarts_element} similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
+            except Exception as sim_error:
+                self._capture_debug(f"[Engine] ❌ Enhanced {oldcarts_element} similarity computation failed for {g['name']}: {sim_error}")
+                import traceback
+                traceback.print_exc()
+                # Skip this guideline and continue with the next one
+                continue
             
             # Update score using OLDCARTS element weight
             old_score = g['score']
@@ -2269,18 +2321,19 @@ Normalized text:"""
             # Get element-specific weight (Location=1.0, Onset=0.3, etc.)
             element_weight = self.oldcarts_weights.get(oldcarts_element, 0.5)
             
-            # ML-ONLY SCORING: Use enhanced similarity directly as the score
-            # No more hybrid scoring or penalties - ML system provides the final score
+            # UNIFIED ML-ONLY SCORING: Use enhanced similarity directly as the score
+            # No more hybrid scoring or penalties - ML system provides the final score for ALL OLDCARTS
             new_score = similarity
             g['score'] = new_score
             change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
-            self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (ml-only)")
-            self._capture_debug(f"[Engine]     🧠 ML Score: {similarity:.2f} ('{answer}' ↔ '{oldcarts_section[:50]}...')")
+            self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (unified-ml)")
+            self._capture_debug(f"[Engine]     🧠 ML {oldcarts_element} Score: {similarity:.2f} ('{answer}' ↔ '{oldcarts_section[:50]}...')")
             self._capture_debug(f"[Engine]     📝 Patient: '{answer}' → Medical: '{oldcarts_section[:80]}...'")
             
             # ML Progress Tracking - Scoring
             self._capture_debug(f"[ML Progress] 🎯 Score updated:")
             self._capture_debug(f"[ML Progress]   📋 Condition: {g['name']}")
+            self._capture_debug(f"[ML Progress]   🎯 OLDCARTS: {oldcarts_element}")
             self._capture_debug(f"[ML Progress]   📊 Old Score: {old_score:.0%} → New Score: {new_score:.0%} {change}")
             self._capture_debug(f"[ML Progress]   🧠 ML Similarity: {similarity:.3f}")
             self._capture_debug(f"[ML Progress]   📝 Patient Input: '{answer}'")

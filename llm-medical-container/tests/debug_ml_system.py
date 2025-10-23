@@ -37,7 +37,7 @@ def debug_ml_system():
         else:
             print("❌ Medical Rule Engine not available - checking imports...")
             try:
-                from medical_rule_engine import MedicalRuleEngine
+                from ml.medical_rule_engine import MedicalRuleEngine
                 print("✅ Medical Rule Engine import successful")
                 print("❌ But not initialized in Adaptive Diagnostic Engine")
             except Exception as e:

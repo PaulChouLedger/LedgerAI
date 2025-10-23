@@ -12,7 +12,7 @@ WORKDIR /app
 # - Dual LLM support (Llama-1B for simple tasks, Mistral-7B for complex reasoning)
 
 # Copy application logic (clinician mode architecture)
-COPY validation.py .
+# validation.py removed - ML system handles all validation
 COPY container_rest.py .
 COPY clinician_mode.py .
 COPY adaptive_diagnostic_engine.py .
@@ -20,16 +20,8 @@ COPY thinking_fillers.py .
 COPY rag_client.py .
 COPY synonyms/ /app/synonyms/
 
-# Copy learning system components
-COPY learning_data_collector.py .
-COPY continuous_learning.py .
-COPY performance_monitor.py .
-COPY user_feedback_interface.py .
-COPY medical_rule_engine.py .
-COPY location_ml_trainer.py .
-COPY location_ml_data_extractor.py .
-COPY learning_tracker.py .
-COPY performance_dashboard.py .
+# Copy ML system components
+COPY ml/ /app/ml/
 COPY feedback_guide.py .
     
 # Copy medical guidelines (JSON files with chief complaint triggers and scoring)
@@ -38,10 +30,10 @@ COPY feedback_guide.py .
 COPY medical/guidelines/ /app/medical/guidelines/
 
 # Copy ML models and data
-COPY location_ml_model.pkl .
-COPY location_ml_data.csv .
-COPY medical_rules.json .
-COPY medical_term_mappings.json .
+COPY ml/location_ml_model.pkl .
+COPY ml/location_ml_data.csv .
+COPY config/medical_rules.json .
+COPY config/medical_term_mappings.json .
 
 # Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
 
