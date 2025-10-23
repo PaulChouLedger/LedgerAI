@@ -145,22 +145,20 @@ class MedicalRuleEngine:
         # 2. Use ML prediction if available
         if self.ml_model:
             ml_result = self._get_ml_prediction(patient_text, guideline_text, condition_name, organ_system)
-            if ml_result['confidence'] > 0.7:
-                return {
-                    'similarity': ml_result['similarity'],
-                    'method': 'ml_prediction',
-                    'confidence': 'medium',
-                    'reasoning': f"ML prediction: {ml_result['predicted_type']}",
-                    'anatomical_type': ml_result['predicted_type']
-                }
+            return {
+                'similarity': ml_result['similarity'],
+                'method': 'ml_prediction',
+                'confidence': 'medium',
+                'reasoning': f"ML prediction: {ml_result['predicted_type']}",
+                'anatomical_type': ml_result['predicted_type']
+            }
         
-        # 3. Fallback to semantic similarity
-        semantic_score = self._compute_semantic_similarity(patient_text, guideline_text)
+        # 3. No ML model available - use default unknown type
         return {
-            'similarity': semantic_score,
-            'method': 'semantic_fallback',
+            'similarity': 0.2,
+            'method': 'unknown_type',
             'confidence': 'low',
-            'reasoning': 'Using semantic similarity fallback',
+            'reasoning': 'No ML model available - unknown anatomical type',
             'anatomical_type': 'unknown'
         }
     
@@ -242,21 +240,7 @@ class MedicalRuleEngine:
             'spatial_term_count': len(re.findall(r'quadrant|side|flank|epigastric|midline|chest|back', text_lower))
         }
     
-    def _compute_semantic_similarity(self, text1: str, text2: str) -> float:
-        """
-        Compute semantic similarity (placeholder - would use embeddings)
-        """
-        # Simple word overlap for now
-        words1 = set(text1.lower().split())
-        words2 = set(text2.lower().split())
-        
-        if not words1 or not words2:
-            return 0.0
-        
-        intersection = words1.intersection(words2)
-        union = words1.union(words2)
-        
-        return len(intersection) / len(union) if union else 0.0
+    # Old semantic similarity method removed - now using ML-only approach
 
 # Example usage
 if __name__ == "__main__":

@@ -1633,71 +1633,7 @@ Your question:"""
         self._capture_debug(f"[Engine]   ✅ NO ANATOMICAL EXCLUSION: {condition_name} (semantic={semantic_score:.3f}, jaccard={jaccard_score:.3f})")
         return False
 
-    def _compute_hybrid_similarity(self, complaint: str, guideline_location: str) -> Dict[str, float]:
-        """
-        Compute hybrid similarity using both Jaccard and semantic similarity
-        
-        Args:
-            complaint: Normalized patient complaint
-            guideline_location: Guideline location description
-            
-        Returns:
-            Dictionary with similarity scores and confidence metrics
-        """
-        # Primary: Jaccard similarity (fast, reliable for normalized terms)
-        jaccard_score = self._compute_jaccard_similarity(complaint, guideline_location)
-        
-        # Secondary: Semantic similarity (handles edge cases)
-        semantic_score = 0.0
-        if self.embedding_model:
-            try:
-                semantic_score = self._compute_similarity(complaint, guideline_location)
-            except Exception as e:
-                self._capture_debug(f"[Engine]   ⚠️ Semantic similarity failed: {e}")
-                semantic_score = 0.0
-        
-        # Determine final score and confidence
-        final_score = jaccard_score
-        confidence = "high"
-        method_used = "jaccard"
-        
-        # Simplified hybrid logic that produces realistic scores
-        if jaccard_score > 0:
-            # If we have Jaccard similarity, use it as primary with semantic boost
-            if semantic_score > 0:
-                # Combine both: 60% Jaccard + 40% Semantic
-                final_score = (0.6 * jaccard_score) + (0.4 * semantic_score)
-                confidence = "high"
-                method_used = "hybrid_balanced"
-            else:
-                # Use Jaccard alone
-                final_score = jaccard_score
-                confidence = "medium"
-                method_used = "jaccard_only"
-        else:
-            # No Jaccard similarity - rely on semantic similarity
-            if semantic_score > 0:
-                # Use semantic similarity with slight boost for medical context
-                final_score = min(semantic_score * 1.2, 0.8)  # Boost but cap at 0.8
-                confidence = "medium"
-                method_used = "semantic_boosted"
-            else:
-                # No similarity at all - minimal score for diffuse conditions
-                final_score = 0.05
-                confidence = "low"
-                method_used = "minimal_preservation"
-        
-        # Check if both methods agree (high confidence)
-        if abs(jaccard_score - semantic_score) < self.hybrid_config['confidence_threshold']:
-            confidence = "high"
-        
-        return {
-            'final_score': final_score,
-            'jaccard_score': jaccard_score,
-            'semantic_score': semantic_score,
-            'confidence': confidence,
-            'method_used': method_used
-        }
+    # Old hybrid similarity method removed - now using ML-based Medical Rule Engine
     
     def _apply_synonym_expansion(self, text: str) -> str:
         """Apply OLDCARTS-structured synonym expansion to normalize medical terms"""
@@ -2049,73 +1985,45 @@ Normalized text:"""
             return self._apply_oldcarts_normalization(text, target_category)
     
     def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str, condition_name: str = "") -> float:
-        """Enhanced location similarity with Medical Rule Engine and ML"""
+        """Enhanced location similarity with Medical Rule Engine and ML - ML ONLY"""
         
-        # Use Medical Rule Engine if available
-        if self.medical_rule_engine:
-            # Get enhanced similarity using Medical Rule Engine
-            result = self.medical_rule_engine.get_enhanced_similarity(
-                user_answer, oldcarts_section, condition_name
+        # Ensure Medical Rule Engine is available
+        if not self.medical_rule_engine:
+            raise RuntimeError("Medical Rule Engine not available - ML system required")
+        
+        # Get enhanced similarity using Medical Rule Engine
+        result = self.medical_rule_engine.get_enhanced_similarity(
+            user_answer, oldcarts_section, condition_name
+        )
+        
+        # Log the result
+        self._capture_debug(f"[Engine]   🎯 Enhanced similarity: {result['similarity']:.3f} (method: {result['method']})")
+        self._capture_debug(f"[Engine]   📝 Reasoning: {result['reasoning']}")
+        self._capture_debug(f"[Engine]   🏥 Anatomical Type: {result['anatomical_type']}")
+        
+        # Collect learning data if available
+        if self.learning_collector:
+            self.learning_collector.collect_prediction(
+                patient_text=user_answer,
+                guideline_text=oldcarts_section,
+                condition_name=condition_name,
+                similarity=result['similarity'],
+                method=result['method'],
+                confidence=result['confidence'],
+                anatomical_type=result['anatomical_type']
             )
-            
-            # Log the result
-            self._capture_debug(f"[Engine]   🎯 Enhanced similarity: {result['similarity']:.3f} (method: {result['method']})")
-            self._capture_debug(f"[Engine]   📝 Reasoning: {result['reasoning']}")
-            self._capture_debug(f"[Engine]   🏥 Anatomical Type: {result['anatomical_type']}")
-            
-            # Collect learning data if available
-            if self.learning_collector:
-                self.learning_collector.collect_prediction(
-                    patient_text=user_answer,
-                    guideline_text=oldcarts_section,
-                    condition_name=condition_name,
-                    similarity=result['similarity'],
-                    method=result['method'],
-                    confidence=result['confidence'],
-                    anatomical_type=result['anatomical_type']
-                )
-            
-            # Track performance metrics if available
-            if self.performance_monitor:
-                self.performance_monitor.track_prediction(
-                    prediction=result['similarity'],
-                    confidence=result['confidence'],
-                    method=result['method'],
-                    condition_name=condition_name,
-                    organ_system=self._get_organ_system_from_condition(condition_name)
-                )
-            
-            return result['similarity']
         
-        # Fallback to original method if Medical Rule Engine not available
-        else:
-            self._capture_debug(f"[Engine]   ⚠️ Using fallback location similarity")
-            
-            # Apply smart normalization (LLM or synonyms) focusing on location
-            user_answer_expanded = self._smart_oldcarts_normalization(user_answer.lower(), target_category="location")
-            self._capture_debug(f"[Engine] 🔄 Smart location normalization: '{user_answer}' → '{user_answer_expanded}'")
-            
-            # Check for anatomical exclusions first
-            if self._check_anatomical_exclusion(user_answer_expanded, oldcarts_section, condition_name):
-                self._capture_debug(f"[Engine]   ⛔ ANATOMICAL EXCLUSION: Returning 0.0 for {condition_name}")
-                return 0.0  # Complete exclusion for anatomical mismatches
-            
-            # Use hybrid similarity (Jaccard + Semantic) with emphasis on Jaccard
-            hybrid_result = self._compute_hybrid_similarity(user_answer_expanded, oldcarts_section)
-            
-            # Boost diffuse conditions to prevent early ruling out
-            diffuse_conditions = ['constipation', 'gastritis', 'ibs', 'gastroenteritis', 'mesenteric', 'diffuse']
-            if any(condition in condition_name.lower() for condition in diffuse_conditions):
-                if hybrid_result['final_score'] < 0.05:  # If score is very low
-                    hybrid_result['final_score'] = max(0.05, hybrid_result['final_score'] + 0.02)  # Minimum 5% score
-                    self._capture_debug(f"[Engine]   📈 DIFFUSE BOOST: {condition_name} score boosted to {hybrid_result['final_score']:.3f}")
-            
-            # DEBUG: Show hybrid similarity calculation
-            self._capture_debug(f"[Engine]   🎯 Hybrid similarity: Jaccard={hybrid_result['jaccard_score']:.3f}, Semantic={hybrid_result['semantic_score']:.3f}")
-            self._capture_debug(f"[Engine]   📊 Final score: {hybrid_result['final_score']:.3f} (method: {hybrid_result['method_used']}, confidence: {hybrid_result['confidence']})")
-            self._capture_debug(f"[Engine]   📝 '{user_answer_expanded}' vs '{oldcarts_section[:80]}...'")
-            
-            return hybrid_result['final_score']
+        # Track performance metrics if available
+        if self.performance_monitor:
+            self.performance_monitor.track_prediction(
+                prediction=result['similarity'],
+                confidence=result['confidence'],
+                method=result['method'],
+                condition_name=condition_name,
+                organ_system=self._get_organ_system_from_condition(condition_name)
+            )
+        
+        return result['similarity']
     
     def _get_organ_system_from_condition(self, condition_name: str) -> str:
         """Get organ system from condition name"""

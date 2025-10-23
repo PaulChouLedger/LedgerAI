@@ -1,0 +1,14 @@
+{
+  "timestamp": "2025-10-22T20:46:47.550570",
+  "summary": {
+    "avg_accuracy": 0.0,
+    "avg_similarity": 0.0,
+    "avg_confidence": 0.0,
+    "total_predictions": 0,
+    "total_accuracy_measurements": 0
+  },
+  "method_usage": {},
+  "organ_system_performance": {},
+  "condition_performance": {},
+  "trends": {}
+}
