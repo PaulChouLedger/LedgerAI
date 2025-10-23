@@ -141,9 +141,18 @@ class AdaptiveDiagnosticEngine:
             from ml.medical_rule_engine import MedicalRuleEngine
             self.medical_rule_engine = MedicalRuleEngine()
             self._capture_debug(f"[Engine] 🎯 Medical Rule Engine initialized")
-        except ImportError:
+        except ImportError as e:
             self.medical_rule_engine = None
-            self._capture_debug(f"[Engine] ⚠️ Medical Rule Engine not available")
+            self._capture_debug(f"[Engine] ⚠️ Medical Rule Engine not available: {e}")
+            # Try alternative import path
+            try:
+                import sys
+                sys.path.append('/app/ml')
+                from medical_rule_engine import MedicalRuleEngine
+                self.medical_rule_engine = MedicalRuleEngine()
+                self._capture_debug(f"[Engine] 🎯 Medical Rule Engine initialized (alternative path)")
+            except ImportError as e2:
+                self._capture_debug(f"[Engine] ❌ Medical Rule Engine failed both paths: {e2}")
         
         # Initialize Learning Data Collector for continuous improvement
         try:
@@ -2929,7 +2938,7 @@ Your question:"""
         
         element_desc = element_descriptions.get(oldcarts_element, "the symptom")
         
-        system_msg = "You are a medical assistant. Generate ONE intelligent clarification question. Use PLAIN LANGUAGE. Do NOT ask questions requiring visual inspection."
+        system_msg = "You are a medical assistant. Generate ONE intelligent clarification question. Use PLAIN LANGUAGE. Do NOT ask questions requiring visual inspection. Do NOT use medical terms. Focus on the patient's chief complaint area only."
         
         user_msg = f"""The patient gave a vague answer about {element_desc}:
 
@@ -3009,7 +3018,7 @@ Question:"""
         
         element_desc = element_descriptions.get(oldcarts_element, "the symptom")
         
-        system_msg = "You are a medical assistant. Generate ONE targeted question to help differentiate between these conditions. Use PLAIN LANGUAGE. Do NOT ask questions requiring visual inspection."
+        system_msg = "You are a medical assistant. Generate ONE targeted question to help differentiate between these conditions. Use PLAIN LANGUAGE. Do NOT ask questions requiring visual inspection. Do NOT use medical terms. Focus on the patient's chief complaint area only."
         
         user_msg = f"""Generate a targeted question about {element_desc} to help differentiate between these conditions:
 
