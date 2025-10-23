@@ -447,31 +447,48 @@ class AdaptiveDiagnosticEngine:
     
     def _match_to_guidelines_ml(self, normalized_complaint: str, category: str) -> List[Dict]:
         """ML-powered guideline matching using comprehensive synonym files"""
-        self._capture_debug(f"[Engine] 🧠 ML-powered guideline matching for: '{normalized_complaint}'")
+        self._capture_debug(f"[Engine] 🧠 ML-POWERED GUIDELINE MATCHING DEBUG:")
+        self._capture_debug(f"[Engine] 🧠 Input: '{normalized_complaint}'")
+        self._capture_debug(f"[Engine] 🧠 Category: {category}")
         
         # Get relevant guidelines by category
         relevant_guidelines = self._get_guidelines_by_category(category)
+        self._capture_debug(f"[Engine] 🧠 Relevant guidelines: {len(relevant_guidelines)}")
         
         matched_guidelines = []
+        total_guidelines_checked = 0
+        total_triggers_checked = 0
+        total_similarities_computed = 0
         
         # ML-powered matching using synonym files
         for name, guideline in relevant_guidelines.items():
+            total_guidelines_checked += 1
             triggers = guideline.get('chief_complaint_triggers', [])
+            self._capture_debug(f"[Engine] 🧠 Checking guideline: {name} ({len(triggers)} triggers)")
             
             # Check each trigger for ML similarity
             best_similarity = 0.0
             best_trigger = ""
             
             for trigger in triggers:
+                total_triggers_checked += 1
+                self._capture_debug(f"[Engine] 🧠   Trigger: '{trigger}'")
+                
                 # Use ML similarity with synonym normalization
                 similarity = self._compute_ml_trigger_similarity(normalized_complaint, trigger)
+                total_similarities_computed += 1
+                
+                self._capture_debug(f"[Engine] 🧠   ML similarity: {similarity:.3f}")
                 
                 if similarity > best_similarity:
                     best_similarity = similarity
                     best_trigger = trigger
+                    self._capture_debug(f"[Engine] 🧠   New best similarity: {similarity:.3f}")
             
-        # Add if similarity meets threshold (lowered for better matching)
-        if best_similarity > 0.5:  # ML threshold (lowered from 0.7)
+            self._capture_debug(f"[Engine] 🧠   Best similarity: {best_similarity:.3f} (trigger: '{best_trigger}')")
+            
+            # Add if similarity meets threshold (lowered for better matching)
+            if best_similarity > 0.3:  # ML threshold (lowered from 0.5)
                 prevalence = guideline.get('prevalence', 'uncommon')
                 prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
                 initial_score = prevalence_scores.get(prevalence, 0.50)
@@ -484,28 +501,46 @@ class AdaptiveDiagnosticEngine:
                     'best_trigger': best_trigger
                 })
                 
-                self._capture_debug(f"[Engine]   ✓ {name} (ML similarity: {best_similarity:.3f}, trigger: '{best_trigger}')")
+                self._capture_debug(f"[Engine] 🧠   ✓ MATCHED: {name} (ML similarity: {best_similarity:.3f}, trigger: '{best_trigger}')")
+            else:
+                self._capture_debug(f"[Engine] 🧠   ✗ REJECTED: {name} (similarity: {best_similarity:.3f} < 0.3)")
         
         # Sort by ML similarity and prevalence
         matched_guidelines.sort(key=lambda x: (x['ml_similarity'], x['score']), reverse=True)
         
-        self._capture_debug(f"[Engine] 📊 ML matching complete: {len(matched_guidelines)} guidelines matched")
+        self._capture_debug(f"[Engine] 🧠 ML MATCHING SUMMARY:")
+        self._capture_debug(f"[Engine] 🧠 Total guidelines checked: {total_guidelines_checked}")
+        self._capture_debug(f"[Engine] 🧠 Total triggers checked: {total_triggers_checked}")
+        self._capture_debug(f"[Engine] 🧠 Total similarities computed: {total_similarities_computed}")
+        self._capture_debug(f"[Engine] 🧠 Guidelines matched: {len(matched_guidelines)}")
+        self._capture_debug(f"[Engine] 🧠 ML matching complete: {len(matched_guidelines)} guidelines matched")
         return matched_guidelines
     
     def _compute_ml_trigger_similarity(self, complaint: str, trigger: str) -> float:
         """Compute ML similarity between complaint and trigger using synonym files"""
+        self._capture_debug(f"[Engine] 🧠 ML SIMILARITY COMPUTATION DEBUG:")
+        self._capture_debug(f"[Engine] 🧠   Complaint: '{complaint}'")
+        self._capture_debug(f"[Engine] 🧠   Trigger: '{trigger}'")
+        
         # Normalize both complaint and trigger using synonym files
         normalized_complaint = self._normalize_complaint_with_synonyms(complaint)
         normalized_trigger = self._normalize_complaint_with_synonyms(trigger)
+        
+        self._capture_debug(f"[Engine] 🧠   Normalized complaint: '{normalized_complaint}'")
+        self._capture_debug(f"[Engine] 🧠   Normalized trigger: '{normalized_trigger}'")
         
         # Use Medical Rule Engine for similarity (ML-only, no fallback)
         if not self.medical_rule_engine:
             raise RuntimeError("Medical Rule Engine not available - ML system required")
         
+        self._capture_debug(f"[Engine] 🧠   Computing ML similarity...")
         result = self.medical_rule_engine.get_enhanced_similarity(
             normalized_complaint, normalized_trigger, "", organ_system="general"
         )
-        return result['similarity']
+        
+        similarity = result['similarity']
+        self._capture_debug(f"[Engine] 🧠   ML similarity result: {similarity:.3f}")
+        return similarity
     
     def _generate_ml_first_question_with_demographics(self) -> Dict[str, Any]:
         """Generate first question using ML-powered approach with demographics"""
@@ -1190,6 +1225,10 @@ class AdaptiveDiagnosticEngine:
     
     def _categorize_complaint_by_substring(self, normalized_complaint: str) -> str:
         """Categorize complaint by substring matching against guideline triggers"""
+        self._capture_debug(f"[Engine] 🔍 CATEGORY DETECTION DEBUG:")
+        self._capture_debug(f"[Engine] 🔍 Input: '{normalized_complaint}'")
+        self._capture_debug(f"[Engine] 🔍 Complaint words: {set(normalized_complaint.split())}")
+        
         # Load all guideline triggers and categorize by substring match
         category_matches = {
             'GI': 0,
@@ -1201,27 +1240,60 @@ class AdaptiveDiagnosticEngine:
             'GYN': 0
         }
         
+        total_guidelines_checked = 0
+        total_triggers_checked = 0
+        matches_found = 0
+        
         # Check each guideline's triggers for substring matches
         for name, guideline in self.all_guidelines.items():
+            total_guidelines_checked += 1
             triggers = guideline.get('chief_complaint_triggers', [])
+            self._capture_debug(f"[Engine] 🔍 Checking guideline: {name} ({len(triggers)} triggers)")
+            
             for trigger in triggers:
+                total_triggers_checked += 1
                 trigger_lower = trigger.lower()
-                if any(word in trigger_lower for word in normalized_complaint.split()):
+                # Check for word overlap between complaint and trigger
+                complaint_words = set(normalized_complaint.split())
+                trigger_words = set(trigger_lower.split())
+                overlap = len(complaint_words.intersection(trigger_words))
+                
+                self._capture_debug(f"[Engine] 🔍   Trigger: '{trigger}' → '{trigger_lower}'")
+                self._capture_debug(f"[Engine] 🔍   Trigger words: {trigger_words}")
+                self._capture_debug(f"[Engine] 🔍   Overlap: {overlap} words")
+                
+                if overlap > 0:  # Any word overlap
+                    matches_found += 1
                     # Determine category from guideline name
                     if name.startswith('GI_'):
                         category_matches['GI'] += 1
+                        self._capture_debug(f"[Engine] 🔍   ✓ GI match: {name} (overlap: {overlap})")
                     elif name.startswith('CARDIO_'):
                         category_matches['CARDIO'] += 1
+                        self._capture_debug(f"[Engine] 🔍   ✓ CARDIO match: {name} (overlap: {overlap})")
                     elif name.startswith('NEURO_'):
                         category_matches['NEURO'] += 1
+                        self._capture_debug(f"[Engine] 🔍   ✓ NEURO match: {name} (overlap: {overlap})")
                     elif name.startswith('MSK_'):
                         category_matches['MSK'] += 1
+                        self._capture_debug(f"[Engine] 🔍   ✓ MSK match: {name} (overlap: {overlap})")
                     elif name.startswith('DERM_'):
                         category_matches['DERM'] += 1
+                        self._capture_debug(f"[Engine] 🔍   ✓ DERM match: {name} (overlap: {overlap})")
                     elif name.startswith('RENAL_'):
                         category_matches['RENAL'] += 1
+                        self._capture_debug(f"[Engine] 🔍   ✓ RENAL match: {name} (overlap: {overlap})")
                     elif name.startswith('GYN_'):
                         category_matches['GYN'] += 1
+                        self._capture_debug(f"[Engine] 🔍   ✓ GYN match: {name} (overlap: {overlap})")
+                else:
+                    self._capture_debug(f"[Engine] 🔍   ✗ No overlap: {name}")
+        
+        self._capture_debug(f"[Engine] 🔍 CATEGORY DETECTION SUMMARY:")
+        self._capture_debug(f"[Engine] 🔍 Total guidelines checked: {total_guidelines_checked}")
+        self._capture_debug(f"[Engine] 🔍 Total triggers checked: {total_triggers_checked}")
+        self._capture_debug(f"[Engine] 🔍 Total matches found: {matches_found}")
+        self._capture_debug(f"[Engine] 🔍 Category matches: {category_matches}")
         
         # Find category with most matches (ML-only, no fallbacks)
         if category_matches:
