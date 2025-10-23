@@ -91,11 +91,11 @@ show_all_settings() {
     echo ""
     
     echo -e "${BOLD}📚 RAG SEARCH${NC}"
-    local rag_enabled=$(get_config_value 'RAG_ENABLED')
-    if [ "$rag_enabled" == "true" ]; then
+    local rag_mode=$(get_config_value 'RAG_MODE')
+    if [ "$rag_mode" == "GPU" ]; then
         echo -e "  ${GREEN}●${NC} Mode:          GPU FAISS (fast, separate container)"
     else
-        echo -e "  ${YELLOW}○${NC} Mode:          CPU FAISS (slow, built into LLM)"
+        echo -e "  ${YELLOW}○${NC} Mode:          CPU FAISS (local processing)"
     fi
     echo "  Threshold:     $(get_config_value 'RAG_THRESHOLD')"
     echo "  Top K:         $(get_config_value 'RAG_TOP_K')"
@@ -366,14 +366,14 @@ configure_temperature() {
 configure_rag() {
     print_header "RAG SEARCH CONFIGURATION"
     
-    local rag_enabled=$(get_config_value 'RAG_ENABLED')
+    local rag_mode=$(get_config_value 'RAG_MODE')
     
     echo "Current Settings:"
     echo ""
-    if [ "$rag_enabled" == "true" ]; then
+    if [ "$rag_mode" == "GPU" ]; then
         echo -e "  RAG Mode:     ${GREEN}GPU FAISS${NC} (fast, separate container)"
     else
-        echo -e "  RAG Mode:     ${YELLOW}CPU FAISS${NC} (slow, built into LLM)"
+        echo -e "  RAG Mode:     ${YELLOW}CPU FAISS${NC} (local processing)"
     fi
     echo "  Threshold:    $(get_config_value 'RAG_THRESHOLD')"
     echo "  Top K:        $(get_config_value 'RAG_TOP_K')"
@@ -390,39 +390,40 @@ configure_rag() {
     case $choice in
         1)
             echo ""
-            local current=$(get_config_value 'RAG_ENABLED')
-            if [ "$current" == "true" ]; then
+            local current=$(get_config_value 'RAG_MODE')
+            if [ "$current" == "GPU" ]; then
                 echo "Currently: GPU FAISS (separate RAG container)"
                 echo ""
-                read -p "Switch to CPU FAISS (built into LLM)? (y/n): " answer
+                read -p "Switch to CPU FAISS (local processing)? (y/n): " answer
                 if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
-                    set_config_value "RAG_ENABLED" "false"
+                    set_config_value "RAG_MODE" "CPU"
                     echo ""
                     echo -e "${GREEN}✅ Switched to CPU FAISS${NC}"
                     echo ""
                     echo "Benefits:"
                     echo "  • No separate RAG container needed"
                     echo "  • Simpler setup"
+                    echo "  • No network calls"
                     echo ""
                     echo "Drawbacks:"
-                    echo "  • Slower searches (~500ms vs ~50ms)"
+                    echo "  • Slower for large batches"
                     echo "  • Limited scalability"
                     echo ""
                     show_restart_message
                 fi
             else
-                echo "Currently: CPU FAISS (built into LLM container)"
+                echo "Currently: CPU FAISS (local processing)"
                 echo ""
                 read -p "Switch to GPU FAISS (separate RAG container)? (y/n): " answer
                 if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
-                    set_config_value "RAG_ENABLED" "true"
+                    set_config_value "RAG_MODE" "GPU"
                     echo ""
                     echo -e "${GREEN}✅ Switched to GPU FAISS${NC}"
                     echo ""
                     echo "Benefits:"
-                    echo "  • Faster searches (~50ms vs ~500ms)"
+                    echo "  • Faster for large batches"
                     echo "  • Better scalability"
-                    echo "  • Optimized for production"
+                    echo "  • GPU acceleration"
                     echo ""
                     echo "Note: Requires GPU and separate RAG container"
                     echo ""
