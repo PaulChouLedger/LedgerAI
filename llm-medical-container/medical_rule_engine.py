@@ -164,12 +164,12 @@ class MedicalRuleEngine:
     
     def _is_anatomical_opposite(self, patient_text: str, guideline_text: str) -> bool:
         """
-        Check for anatomical opposites
+        Check for anatomical opposites - only true opposites, not same-side matches
         """
         patient_lower = patient_text.lower()
         guideline_lower = guideline_text.lower()
         
-        # Check for hard opposites
+        # Check for true opposites only
         opposites = [
             ('left', 'right'), ('right', 'left'),
             ('upper', 'lower'), ('lower', 'upper'),
@@ -179,6 +179,17 @@ class MedicalRuleEngine:
         for patient_term, guideline_term in opposites:
             if patient_term in patient_lower and guideline_term in guideline_lower:
                 return True
+        
+        # Check for same-side matches (should NOT be opposites)
+        same_side_matches = [
+            ('left', 'left'), ('right', 'right'),
+            ('upper', 'upper'), ('lower', 'lower'),
+            ('anterior', 'anterior'), ('posterior', 'posterior')
+        ]
+        
+        for patient_term, guideline_term in same_side_matches:
+            if patient_term in patient_lower and guideline_term in guideline_lower:
+                return False  # Same side = NOT opposite
         
         return False
     

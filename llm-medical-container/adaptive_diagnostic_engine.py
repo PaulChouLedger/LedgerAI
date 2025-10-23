@@ -364,10 +364,26 @@ class AdaptiveDiagnosticEngine:
         self._captured_debug_output = []  # Capture debug output for Telegram display
         
         # Thresholds - Clinical scoring: only rule out with definitive proof
-        self.RULE_OUT_THRESHOLD = 0.15  # Below 15% → rule out (realistic threshold for improved scoring)
+        self.RULE_OUT_THRESHOLD = 0.05  # Below 5% → rule out (ML-only system threshold)
         self.MINIMUM_SCORE_FOR_RANKING = 0.05  # Minimum score to be considered for ranking
         self.MAX_ACTIVE = 5  # Keep 5 active differentials
         self.MAX_CLARIFICATIONS = 2  # Max times to ask for clarification before moving on
+    
+    def _get_dynamic_threshold(self, score: float) -> float:
+        """
+        Get dynamic threshold based on score type for ML-only system
+        """
+        # ML-only system thresholds based on anatomical rules
+        if score >= 0.5:  # Bilateral conditions (0.5)
+            return 0.4  # Keep bilateral conditions unless very low
+        elif score >= 0.4:  # Midline conditions (0.4)
+            return 0.3  # Keep midline conditions unless very low
+        elif score >= 0.3:  # Same side conditions (0.3)
+            return 0.2  # Keep same side conditions unless very low
+        elif score >= 0.2:  # ML predictions (0.2)
+            return 0.1  # Keep ML predictions unless very low
+        else:  # Anatomical opposites (0.0)
+            return 0.05  # Rule out anatomical opposites
     
     def start_assessment(self, chief_complaint: str) -> Dict[str, Any]:
         """
@@ -2314,12 +2330,14 @@ Normalized text:"""
         # This ensures conditions like Diverticulitis (LLQ) jump to top when "left side" is mentioned
         self._capture_debug(f"\n[Engine] 🔄 RE-RANKING all guidelines by updated scores...")
         
-        # Rule out any with score < threshold
+        # Rule out any with score < threshold (ML-only system)
         ruled_out_this_round = []
         remaining = []
         for g in all_guidelines:
-            if g['score'] < self.RULE_OUT_THRESHOLD:
-                self._capture_debug(f"[Engine] ❌ RULING OUT: {g['name']} (score {g['score']:.0%} < {self.RULE_OUT_THRESHOLD:.0%})")
+            # Use dynamic threshold based on score type
+            threshold = self._get_dynamic_threshold(g['score'])
+            if g['score'] < threshold:
+                self._capture_debug(f"[Engine] ❌ RULING OUT: {g['name']} (score {g['score']:.0%} < {threshold:.0%})")
                 self.ruled_out.append(g)
                 ruled_out_this_round.append(g)
             else:
