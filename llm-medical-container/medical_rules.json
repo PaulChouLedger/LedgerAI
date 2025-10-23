@@ -1,0 +1,64 @@
+{
+  "GI": {
+    "bilateral": [
+      "Acute Gastroenteritis",
+      "Severe Constipation", 
+      "IBD Flare",
+      "IBS"
+    ],
+    "midline": [
+      "Peptic Ulcer Disease",
+      "Acute Gastritis", 
+      "Acute Pancreatitis"
+    ],
+    "right_only": [
+      "Acute Appendicitis",
+      "Acute Cholecystitis",
+      "Biliary Colic"
+    ],
+    "left_only": [
+      "Acute Diverticulitis",
+      "Sigmoid Volvulus"
+    ]
+  },
+  "GU": {
+    "bilateral": [
+      "Kidney Stone",
+      "UTI/Pyelonephritis"
+    ],
+    "midline": [
+      "Bladder Infection",
+      "Urethritis"
+    ]
+  },
+  "GYN": {
+    "bilateral": [
+      "Ovarian Cyst",
+      "Pelvic Inflammatory Disease"
+    ],
+    "midline": [
+      "Uterine Fibroids",
+      "Endometriosis"
+    ]
+  },
+  "CARDIO": {
+    "bilateral": [
+      "Heart Failure",
+      "Atrial Fibrillation"
+    ],
+    "midline": [
+      "Myocardial Infarction",
+      "Aortic Stenosis"
+    ]
+  },
+  "PULMONARY": {
+    "bilateral": [
+      "Pneumonia",
+      "COPD Exacerbation"
+    ],
+    "midline": [
+      "Pneumothorax",
+      "Pleural Effusion"
+    ]
+  }
+}
