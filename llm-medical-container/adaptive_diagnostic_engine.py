@@ -2301,24 +2301,14 @@ Normalized text:"""
             # Get element-specific weight (Location=1.0, Onset=0.3, etc.)
             element_weight = self.oldcarts_weights.get(oldcarts_element, 0.5)
             
-            if similarity == 0.0:
-                # Hard mismatch - apply moderate penalty
-                # For location mismatches, apply 60% penalty (keep 40% of original score)
-                # For other elements, apply 40% penalty (keep 60% of original score)
-                penalty_factor = 0.6 if oldcarts_element == 'L' else 0.4
-                new_score = old_score * (1 - penalty_factor)
-                g['score'] = new_score
-                change = "❌"
-                self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (hard mismatch, penalty={penalty_factor:.1f})")
-            else:
-                # ML-ONLY SCORING: Use enhanced similarity directly as the score
-                # No more hybrid scoring - ML system provides the final score
-                new_score = similarity
-                g['score'] = new_score
-                change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
-                self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (ml-only)")
-                self._capture_debug(f"[Engine]     🧠 ML Score: {similarity:.2f} ('{answer}' ↔ '{oldcarts_section[:50]}...')")
-                self._capture_debug(f"[Engine]     📝 Patient: '{answer}' → Medical: '{oldcarts_section[:80]}...'")
+            # ML-ONLY SCORING: Use enhanced similarity directly as the score
+            # No more hybrid scoring or penalties - ML system provides the final score
+            new_score = similarity
+            g['score'] = new_score
+            change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
+            self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (ml-only)")
+            self._capture_debug(f"[Engine]     🧠 ML Score: {similarity:.2f} ('{answer}' ↔ '{oldcarts_section[:50]}...')")
+            self._capture_debug(f"[Engine]     📝 Patient: '{answer}' → Medical: '{oldcarts_section[:80]}...'")
         
         # DYNAMIC RE-RANKING: Sort ALL guidelines by updated scores
         # This ensures conditions like Diverticulitis (LLQ) jump to top when "left side" is mentioned
