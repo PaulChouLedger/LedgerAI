@@ -11,6 +11,7 @@ services:
     volumes:
       - ../shared:/shared
       - ../data:/app/data
+      - ../.env:/app/.env
     working_dir: /app
     env_file: ../.env
 
