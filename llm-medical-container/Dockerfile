@@ -48,26 +48,35 @@ COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K
 #COPY models/Llama-3.2-8B-Instruct-Q4_K_M.gguf /models/Llama-3.2-8B-Instruct-Q4_K_M.gguf
 COPY models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf /models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf
 
-# Check what's already installed and install only missing packages
+# Check what's already available and install only what's actually missing
 RUN python3 -c "\
-import sys; \
+import importlib; \
 import subprocess; \
-import pkg_resources; \
-installed = {pkg.project_name.lower() for pkg in pkg_resources.working_set}; \
-print(f'Already installed: {len(installed)} packages'); \
-required = ['flask', 'python-dotenv', 'numpy', 'requests', 'sentence-transformers', 'faiss-cpu', 'scikit-learn', 'joblib']; \
-missing = [pkg for pkg in required if pkg.lower() not in installed]; \
-print(f'Missing packages: {missing}') if missing else print('All required packages already installed!'); \
-subprocess.run(['pip3', 'install'] + missing + ['--index-url', 'https://pypi.org/simple'], check=False) if missing else None"
+required = ['flask', 'dotenv', 'numpy', 'requests', 'sentence_transformers', 'faiss', 'sklearn', 'joblib']; \
+missing = []; \
+for pkg in required: \
+    try: \
+        importlib.import_module(pkg); \
+        print(f'✅ {pkg} already available'); \
+    except ImportError: \
+        missing.append(pkg); \
+        print(f'❌ {pkg} missing'); \
+print(f'Missing packages: {missing}') if missing else print('All required packages already available!'); \
+if missing: \
+    subprocess.run(['pip3', 'install'] + missing + ['--index-url', 'https://pypi.org/simple'], check=False); \
+    print('✅ Missing packages installed'); \
+else: \
+    print('✅ No installation needed')"
 
 # Verify critical packages are available
 RUN python3 -c "\
+import sys; \
 try: \
     import flask, numpy, requests, sklearn; \
     print('✅ Core packages verified'); \
 except ImportError as e: \
     print(f'❌ Missing package: {e}'); \
-    exit(1)"
+    sys.exit(1)"
 
 # Check if sentence transformer model is already available and download only if needed
 RUN python3 -c "\
