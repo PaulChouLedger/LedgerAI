@@ -3761,6 +3761,10 @@ Your question:"""
         """
         self._capture_debug(f"[Engine] 🧠 LLM generating clarification for '{oldcarts_element}': '{vague_answer}'")
         
+        # Special handling for location questions
+        if oldcarts_element == 'L' and self._is_vague_location_answer(vague_answer):
+            return self._generate_location_follow_up_question(vague_answer)
+        
         # OLDCARTS element descriptions
         element_descriptions = {
             'L': "LOCATION - where the symptom is located",
@@ -3925,6 +3929,327 @@ Your question:"""
             question += '?'
         self._capture_debug(f"[Engine] ✅ Clarification (simple model): '{question}'")
         return question
+    
+    def _is_vague_location_answer(self, answer: str) -> bool:
+        """
+        Check if location answer is too vague and needs follow-up
+        Uses dynamic scoring to compare user response to precise locations in guidelines
+        """
+        answer_lower = answer.lower().strip()
+        
+        # Get specific locations from medical guidelines, filtered by chief complaint context
+        specific_locations = self._extract_specific_locations_from_guidelines()
+        
+        if not specific_locations:
+            self._capture_debug(f"[Engine] ⚠️ No specific locations found in guidelines")
+            return False
+        
+        # Filter locations based on chief complaint context
+        if hasattr(self, 'chief_complaint') and self.chief_complaint:
+            specific_locations = self._filter_locations_by_context(specific_locations, self.chief_complaint)
+            self._capture_debug(f"[Engine] 🧠 Filtered to {len(specific_locations)} context-relevant locations")
+        
+        if not specific_locations:
+            self._capture_debug(f"[Engine] ⚠️ No context-relevant locations found")
+            return False
+        
+        try:
+            # Calculate similarity scores with all specific locations
+            similarity_scores = []
+            for specific_loc in specific_locations:
+                score = self._calculate_semantic_similarity(answer, specific_loc)
+                similarity_scores.append((specific_loc, score))
+            
+            # Sort by similarity score
+            similarity_scores.sort(key=lambda x: x[1], reverse=True)
+            
+            # Get the best match
+            best_match = similarity_scores[0] if similarity_scores else (None, 0.0)
+            best_location, best_score = best_match
+            
+            # Determine if answer is vague based on similarity threshold
+            # If the best match is below threshold, the answer is too vague
+            SIMILARITY_THRESHOLD = 0.6  # Adjust this threshold as needed
+            
+            is_vague = best_score < SIMILARITY_THRESHOLD
+            
+            self._capture_debug(f"[Engine] 🧠 Location vagueness check: '{answer}'")
+            self._capture_debug(f"[Engine] 🧠 Best match: '{best_location}' (score: {best_score:.3f})")
+            self._capture_debug(f"[Engine] 🧠 Threshold: {SIMILARITY_THRESHOLD}, Is vague: {is_vague}")
+            
+            return is_vague
+            
+        except Exception as e:
+            self._capture_debug(f"[Engine] ⚠️ Error in dynamic location scoring: {e}")
+            return False
+    
+    def _generate_location_follow_up_question(self, vague_answer: str) -> str:
+        """
+        Generate intelligent follow-up question by analyzing missing information
+        Compares user response to precise locations in guidelines to identify gaps
+        """
+        answer_lower = vague_answer.lower().strip()
+        
+        # Get specific locations from guidelines, filtered by context
+        specific_locations = self._extract_specific_locations_from_guidelines()
+        
+        if not specific_locations:
+            return "Can you be more specific about the exact location?"
+        
+        # Filter locations based on chief complaint context
+        if hasattr(self, 'chief_complaint') and self.chief_complaint:
+            specific_locations = self._filter_locations_by_context(specific_locations, self.chief_complaint)
+        
+        if not specific_locations:
+            return "Can you be more specific about the exact location?"
+        
+        try:
+            # Find the best matching specific location
+            best_match = None
+            best_score = 0.0
+            
+            for specific_loc in specific_locations:
+                score = self._calculate_semantic_similarity(answer_lower, specific_loc)
+                if score > best_score:
+                    best_score = score
+                    best_match = specific_loc
+            
+            if best_match:
+                # Analyze what information is missing by comparing to the best match
+                missing_info = self._analyze_missing_location_info(answer_lower, best_match)
+                
+                if missing_info:
+                    return f"Can you be more specific about {missing_info}?"
+                else:
+                    return f"Can you be more specific about the exact location?"
+            else:
+                return "Can you be more specific about the exact location?"
+                
+        except Exception as e:
+            self._capture_debug(f"[Engine] ⚠️ Error generating location follow-up: {e}")
+            return "Can you be more specific about the exact location?"
+    
+    def _calculate_semantic_similarity(self, text1: str, text2: str) -> float:
+        """
+        Calculate semantic similarity between two texts using the RAG client
+        """
+        try:
+            if hasattr(self, 'rag_client') and self.rag_client:
+                # Use RAG client for semantic similarity
+                similarity = self.rag_client.calculate_similarity(text1, text2)
+                return similarity
+            else:
+                # Fallback to simple text similarity
+                return self._simple_text_similarity(text1, text2)
+        except Exception as e:
+            self._capture_debug(f"[Engine] ⚠️ Error calculating semantic similarity: {e}")
+            return self._simple_text_similarity(text1, text2)
+    
+    def _simple_text_similarity(self, text1: str, text2: str) -> float:
+        """
+        Simple text similarity as fallback
+        """
+        text1_lower = text1.lower()
+        text2_lower = text2.lower()
+        
+        # Simple word overlap similarity
+        words1 = set(text1_lower.split())
+        words2 = set(text2_lower.split())
+        
+        if not words1 or not words2:
+            return 0.0
+        
+        intersection = words1.intersection(words2)
+        union = words1.union(words2)
+        
+        return len(intersection) / len(union) if union else 0.0
+    
+    def _filter_locations_by_context(self, locations: list, chief_complaint: str) -> list:
+        """
+        Filter locations based on chief complaint context
+        """
+        complaint_lower = chief_complaint.lower()
+        
+        # Define context-specific location filters
+        if any(word in complaint_lower for word in ['abdominal', 'belly', 'stomach', 'abdomen']):
+            # GI context - filter for abdominal/trunk locations
+            relevant_terms = ['abdomen', 'quadrant', 'epigastric', 'periumbilical', 'suprapubic', 'flank', 'groin', 'chest']
+            return [loc for loc in locations if any(term in loc for term in relevant_terms)]
+        
+        elif any(word in complaint_lower for word in ['chest', 'heart', 'breast']):
+            # Cardiac/chest context
+            relevant_terms = ['chest', 'heart', 'breast', 'anterior', 'lateral', 'upper']
+            return [loc for loc in locations if any(term in loc for term in relevant_terms)]
+        
+        elif any(word in complaint_lower for word in ['head', 'headache', 'migraine']):
+            # Neurological/head context
+            relevant_terms = ['head', 'brain', 'anterior', 'posterior', 'lateral', 'upper']
+            return [loc for loc in locations if any(term in loc for term in relevant_terms)]
+        
+        elif any(word in complaint_lower for word in ['back', 'spine']):
+            # Back/spine context
+            relevant_terms = ['back', 'spine', 'upper', 'lower', 'lateral', 'anterior', 'posterior']
+            return [loc for loc in locations if any(term in loc for term in relevant_terms)]
+        
+        elif any(word in complaint_lower for word in ['arm', 'shoulder', 'elbow', 'wrist']):
+            # Upper extremity context
+            relevant_terms = ['arm', 'shoulder', 'elbow', 'wrist', 'upper', 'lateral', 'anterior']
+            return [loc for loc in locations if any(term in loc for term in relevant_terms)]
+        
+        elif any(word in complaint_lower for word in ['leg', 'knee', 'ankle', 'foot']):
+            # Lower extremity context
+            relevant_terms = ['leg', 'knee', 'ankle', 'foot', 'lower', 'lateral', 'anterior']
+            return [loc for loc in locations if any(term in loc for term in relevant_terms)]
+        
+        else:
+            # No specific context - return all locations
+            return locations
+    
+    def _analyze_missing_location_info(self, user_answer: str, best_match: str) -> str:
+        """
+        Analyze what specific information is missing from user's answer
+        by comparing it to the best matching precise location
+        """
+        user_words = set(user_answer.lower().split())
+        match_words = set(best_match.lower().split())
+        
+        # Common anatomical descriptors that might be missing
+        missing_descriptors = []
+        
+        # Check for missing directional information
+        if 'left' in match_words and 'left' not in user_words:
+            missing_descriptors.append('left or right side')
+        elif 'right' in match_words and 'right' not in user_words:
+            missing_descriptors.append('left or right side')
+        
+        # Check for missing positional information
+        if 'upper' in match_words and 'upper' not in user_words:
+            missing_descriptors.append('upper or lower part')
+        elif 'lower' in match_words and 'lower' not in user_words:
+            missing_descriptors.append('upper or lower part')
+        
+        # Check for missing quadrant information
+        if 'quadrant' in match_words and 'quadrant' not in user_words:
+            missing_descriptors.append('which quadrant')
+        
+        # Check for missing specific anatomical terms
+        anatomical_terms = ['epigastric', 'periumbilical', 'suprapubic', 'flank', 'groin']
+        for term in anatomical_terms:
+            if term in match_words and term not in user_words:
+                missing_descriptors.append(f'the {term} area')
+        
+        # Check for missing body part specificity
+        body_parts = ['chest', 'head', 'back', 'abdomen', 'shoulder', 'arm', 'leg', 'knee', 'ankle', 'foot']
+        for part in body_parts:
+            if part in match_words and part not in user_words:
+                missing_descriptors.append(f'which part of your {part}')
+        
+        # Return the most relevant missing information
+        if missing_descriptors:
+            return missing_descriptors[0]  # Return the first missing descriptor
+        else:
+            return "the exact location"
+    
+    def _extract_specific_locations_from_guidelines(self) -> list:
+        """
+        Extract specific anatomical locations from medical guidelines
+        This creates a dynamic database of precise locations for comparison
+        Uses session-matched guidelines if available, otherwise all guidelines
+        """
+        specific_locations = set()
+        
+        try:
+            # Use session-matched guidelines if available, otherwise all guidelines
+            if hasattr(self, 'active_guidelines') and self.active_guidelines:
+                # Use only the active guidelines from the current session
+                guidelines_to_use = self.active_guidelines + self.reserve_pool
+                self._capture_debug(f"[Engine] 🧠 Using session-matched guidelines: {len(guidelines_to_use)} guidelines")
+            else:
+                # Fallback to all guidelines (for initial matching)
+                guidelines_to_use = [(name, guideline) for name, guideline in self.all_guidelines.items()]
+                self._capture_debug(f"[Engine] 🧠 Using all guidelines: {len(guidelines_to_use)} guidelines")
+            
+            # Extract locations from the selected guidelines
+            for guideline_info in guidelines_to_use:
+                if isinstance(guideline_info, tuple):
+                    # Format: (name, guideline)
+                    condition_name, guideline = guideline_info
+                else:
+                    # Format: {'name': name, 'data': guideline}
+                    condition_name = guideline_info['name']
+                    guideline = guideline_info['data']
+                # Get content from key_features field
+                content = ""
+                if 'key_features' in guideline and 'classic_presentation' in guideline['key_features']:
+                    content = guideline['key_features']['classic_presentation']
+                elif 'key_features' in guideline:
+                    content = str(guideline['key_features'])
+                
+                if content:
+                    
+                    # Look for capitalized anatomical terms (likely specific locations)
+                    import re
+                    
+                    # Pattern to find anatomical terms (both capitalized and lowercase)
+                    anatomical_patterns = [
+                        # Quadrant patterns
+                        r'\b(?:left|right|upper|lower)\s+(?:left|right|upper|lower)?\s*quadrant\b',
+                        r'\b(?:RLQ|LLQ|RUQ|LUQ)\b',  # Abbreviations
+                        # Specific anatomical regions
+                        r'\b(?:epigastric|periumbilical|suprapubic|flank|groin|chest|head|back|shoulder|arm|leg|knee|ankle|foot)\b',
+                        # Directional + body part combinations
+                        r'\b(?:left|right|upper|lower|anterior|posterior|lateral|medial)\s+(?:chest|abdomen|back|head|arm|leg|knee|ankle|foot)\b',
+                        # Specific anatomical points
+                        r'\b(?:McBurney\'s|Murphy\'s|Kehr\'s)\s+point\b',
+                        # Body part + side combinations
+                        r'\b(?:left|right)\s+(?:side|chest|abdomen|back|head|arm|leg|knee|ankle|foot)\b',
+                        # Pain location patterns
+                        r'\b(?:left|right|upper|lower)\s+(?:abdominal|chest|back|head)\s+pain\b'
+                    ]
+                    
+                    for pattern in anatomical_patterns:
+                        matches = re.findall(pattern, content, re.IGNORECASE)
+                        for match in matches:
+                            # Clean up the match and add to set
+                            clean_match = match.strip().lower()
+                            if len(clean_match) > 3:  # Avoid very short matches
+                                specific_locations.add(clean_match)
+                    
+                    # Also look for common specific anatomical terms
+                    common_anatomical_terms = [
+                        'left lower quadrant', 'right lower quadrant', 'left upper quadrant', 'right upper quadrant',
+                        'epigastric region', 'periumbilical area', 'suprapubic region', 'flank area',
+                        'left chest', 'right chest', 'center chest', 'upper chest', 'lower chest',
+                        'left side of head', 'right side of head', 'front of head', 'back of head',
+                        'left shoulder', 'right shoulder', 'left arm', 'right arm',
+                        'left leg', 'right leg', 'left knee', 'right knee',
+                        'left ankle', 'right ankle', 'left foot', 'right foot'
+                    ]
+                    
+                    for term in common_anatomical_terms:
+                        if term in content.lower():
+                            specific_locations.add(term)
+            
+            # Convert to list and sort
+            specific_locations = list(specific_locations)
+            specific_locations.sort()
+            
+            self._capture_debug(f"[Engine] 🧠 Extracted {len(specific_locations)} specific locations from guidelines")
+            
+            return specific_locations
+            
+        except Exception as e:
+            self._capture_debug(f"[Engine] ⚠️ Error extracting locations from guidelines: {e}")
+            # Fallback to basic anatomical terms
+            return [
+                'left lower quadrant', 'right lower quadrant', 'left upper quadrant', 'right upper quadrant',
+                'epigastric', 'periumbilical', 'suprapubic', 'flank', 'groin',
+                'left chest', 'right chest', 'center chest', 'upper chest', 'lower chest',
+                'left side of head', 'right side of head', 'front of head', 'back of head',
+                'left shoulder', 'right shoulder', 'left arm', 'right arm',
+                'left leg', 'right leg', 'left knee', 'right knee',
+                'left ankle', 'right ankle', 'left foot', 'right foot'
+            ]
 
 
 # Test
