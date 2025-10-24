@@ -870,7 +870,7 @@ class AdaptiveDiagnosticEngine:
                 # Store age
                 try:
                     age = int(user_answer.strip())
-                    self.patient_age = age
+                    self.demographics['age'] = age
                     self._capture_debug(f"[Engine] 📊 Stored patient age: {age}")
                 except ValueError:
                     self._capture_debug(f"[Engine] ⚠️ Invalid age format: '{user_answer}'")
@@ -878,12 +878,60 @@ class AdaptiveDiagnosticEngine:
                 # Store sex
                 sex_lower = user_answer.lower().strip()
                 if any(word in sex_lower for word in ['male', 'man', 'm']):
-                    self.patient_sex = 'male'
+                    self.demographics['sex'] = 'male'
                 elif any(word in sex_lower for word in ['female', 'woman', 'f']):
-                    self.patient_sex = 'female'
+                    self.demographics['sex'] = 'female'
                 else:
                     self._capture_debug(f"[Engine] ⚠️ Unclear sex format: '{user_answer}'")
-                self._capture_debug(f"[Engine] 📊 Stored patient sex: {getattr(self, 'patient_sex', 'unknown')}")
+                self._capture_debug(f"[Engine] 📊 Stored patient sex: {self.demographics.get('sex', 'unknown')}")
+            elif 'new problem' in last_q.get('question', '').lower() or 'ongoing' in last_q.get('question', '').lower():
+                # Store chronicity
+                chronicity_lower = user_answer.lower().strip()
+                if any(word in chronicity_lower for word in ['new', 'recent', 'just started', 'today', 'yesterday']):
+                    self.demographics['chronicity'] = 'acute'
+                elif any(word in chronicity_lower for word in ['ongoing', 'chronic', 'long time', 'months', 'years']):
+                    self.demographics['chronicity'] = 'chronic'
+                else:
+                    self.demographics['chronicity'] = 'unknown'
+                self._capture_debug(f"[Engine] 📊 Stored patient chronicity: {self.demographics.get('chronicity', 'unknown')}")
+            
+            # Continue with next demographics question if not all collected
+            if not self.demographics.get('sex'):
+                # Ask sex after age
+                question = "What is your biological sex?"
+                self._capture_debug(f"[Engine] ✅ ML demographics question generated: '{question}'")
+                self.conversation_history.append({
+                    'type': 'question',
+                    'question': question,
+                    'oldcarts': 'demographics',
+                    'focus': 'demographics'
+                })
+                return {
+                    'success': True,
+                    'question': question,
+                    'status': 'questioning',
+                    'debug': self._get_debug_info()
+                }
+            elif not self.demographics.get('chronicity'):
+                # Ask chronicity after sex
+                question = self._generate_chronicity_question()
+                self._capture_debug(f"[Engine] ✅ ML chronicity question generated: '{question}'")
+                self.conversation_history.append({
+                    'type': 'question',
+                    'question': question,
+                    'oldcarts': 'demographics',
+                    'focus': 'demographics'
+                })
+                return {
+                    'success': True,
+                    'question': question,
+                    'status': 'questioning',
+                    'debug': self._get_debug_info()
+                }
+            else:
+                # All demographics collected, start OLDCARTS
+                self._capture_debug(f"[Engine] ✅ All demographics collected, starting OLDCARTS")
+                # Continue to OLDCARTS logic below
         
         # SPECIAL HANDLING: Red flag screening
         if self.status == 'red_flag_screening' and last_q.get('focus') == 'red_flag':
@@ -2988,11 +3036,19 @@ Normalized text:"""
         # Determine which OLDCARTS element was just asked
         last_question_item = None
         for item in reversed(self.conversation_history):
-            if item.get('type') == 'question' and item.get('focus') == 'clinical':
+            if item.get('type') == 'question':
                 last_question_item = item
                 break
         
         oldcarts_element = last_question_item.get('oldcarts') if last_question_item else None
+        
+        # DEMOGRAPHICS: No scoring needed - just documentation
+        if last_question_item and last_question_item.get('focus') == 'demographics':
+            self._capture_debug(f"[Engine] 📝 DEMOGRAPHICS: Documentation only - no scoring needed")
+            self._capture_debug(f"[Engine] ✅ Demographics collected, continuing to next question")
+            
+            # Continue with next demographics question or start OLDCARTS
+            return self._generate_ml_first_question_with_demographics()
         
         # ONSET: Documentation only - no scoring needed
         if oldcarts_element == 'O':
