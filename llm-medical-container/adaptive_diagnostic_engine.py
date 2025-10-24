@@ -567,11 +567,11 @@ class AdaptiveDiagnosticEngine:
             # Ask age first
             question = "How old are you?"
             self._capture_debug(f"[Engine] ✅ ML demographics question generated: '{question}'")
-        elif not self.demographics.get('sex'):
+        elif 'sex' not in self.demographics:
             # Ask sex after age
             question = "What is your biological sex?"
             self._capture_debug(f"[Engine] ✅ ML demographics question generated: '{question}'")
-        elif not self.demographics.get('chronicity'):
+        elif 'chronicity' not in self.demographics:
             # Ask chronicity after sex
             question = self._generate_chronicity_question()
             self._capture_debug(f"[Engine] ✅ ML chronicity question generated: '{question}'")
@@ -2975,7 +2975,7 @@ Normalized text:"""
             self._capture_debug(f"[Engine] ✅ Demographics collected, continuing to next question")
             
             # Check if all demographics are collected
-            if not self.demographics.get('sex'):
+            if 'sex' not in self.demographics:
                 # Ask sex after age
                 question = "What is your biological sex?"
                 self._capture_debug(f"[Engine] ✅ ML demographics question generated: '{question}'")
@@ -2991,7 +2991,7 @@ Normalized text:"""
                     'status': 'questioning',
                     'debug': self._get_debug_info()
                 }
-            elif not self.demographics.get('chronicity'):
+            elif 'chronicity' not in self.demographics:
                 # Ask chronicity after sex
                 question = self._generate_chronicity_question()
                 self._capture_debug(f"[Engine] ✅ ML chronicity question generated: '{question}'")
