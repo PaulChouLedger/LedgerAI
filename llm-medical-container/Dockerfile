@@ -35,20 +35,8 @@ COPY ml/location_ml_data.csv .
 COPY config/medical_rules.json .
 COPY config/medical_term_mappings.json .
 
-# Copy OLDCARTS keywords file
-COPY oldcarts_keywords.json .
-
-# Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
-
-
-# Copy example models (others can be mounted at runtime)
-#COPY models/qwen2.5-1.5b-instruct-q4_0.gguf /models/qwen2.5-1.5b-instruct-q4_0.gguf
-#COPY models/Llama-3.2-3B-Instruct-Q4_K_M.gguf /models/Llama-3.2-3B-Instruct-Q4_K_M.gguf
-COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K_M.gguf
-#COPY models/Llama-3.2-8B-Instruct-Q4_K_M.gguf /models/Llama-3.2-8B-Instruct-Q4_K_M.gguf
-COPY models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf /models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf
-
-# Install required packages (simplified approach)
+# Install required packages FIRST (this layer will be cached)
+# This ensures packages are only installed once and cached for future builds
 RUN pip3 install --no-cache-dir \
     flask \
     python-dotenv \
@@ -59,6 +47,18 @@ RUN pip3 install --no-cache-dir \
     scikit-learn \
     joblib \
     --index-url https://pypi.org/simple
+
+# Copy OLDCARTS keywords file
+COPY oldcarts_keywords.json .
+
+# Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
+
+# Copy example models (others can be mounted at runtime)
+#COPY models/qwen2.5-1.5b-instruct-q4_0.gguf /models/qwen2.5-1.5b-instruct-q4_0.gguf
+#COPY models/Llama-3.2-3B-Instruct-Q4_K_M.gguf /models/Llama-3.2-3B-Instruct-Q4_K_M.gguf
+COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K_M.gguf
+#COPY models/Llama-3.2-8B-Instruct-Q4_K_M.gguf /models/Llama-3.2-8B-Instruct-Q4_K_M.gguf
+COPY models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf /models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf
 
 # Verify critical packages are available
 RUN python3 -c "\
