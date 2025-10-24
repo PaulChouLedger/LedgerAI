@@ -1976,15 +1976,15 @@ Output only the question:"""
             # - Simple model (Llama-1B): L, C, T, S, O, D (basic questions that don't need sophisticated reasoning)
             # - Complex model (Mistral-7B): A, R (aggravating/relieving factors - requires understanding of medical context and guidelines)
             if next_element in ['A', 'R']:
-                # Use complex model for aggravating/relieving factors (requires medical reasoning and guideline understanding)
-                self._capture_debug(f"[Engine] 🧠 Using COMPLEX model (Mistral-7B) for {next_element} - requires medical reasoning and guideline understanding")
-                response = self.llm_chat_fn(
+                # Use simple model for aggravating/relieving factors (now has specific OLDCARTS components)
+                self._capture_debug(f"[Engine] 🧠 Using SIMPLE model (Llama-1B) for {next_element} - now has specific OLDCARTS components")
+                response = self.llm_chat_simple_fn(
                     [
                         {"role": "system", "content": system_msg},
                         {"role": "user", "content": user_msg}
                     ],
-                    max_tokens=self.max_tokens_question,
-                    temperature=self.temperature_complex
+                    max_tokens=self.max_tokens_simple,
+                    temperature=self.temperature_simple
                 )
             else:
                 # Use simple model for basic questions (L, C, T, S, O, D) - straightforward questions
@@ -2113,13 +2113,13 @@ Your question:"""
         # Filler is now handled at container level for immediate streaming
         self._capture_debug(f"[Engine] 💬 Generating associated symptom question (filler handled by container)...")
         
-        response = self.llm_chat_fn(
+        response = self.llm_chat_simple_fn(
             [
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
             max_tokens=self.max_tokens_simple,
-            temperature=self.temperature_complex
+            temperature=self.temperature_simple
         )
         
         question = response.strip().strip('"\'')
@@ -3596,7 +3596,7 @@ Examples:
 
 Classification:"""
         
-        response = self.llm_chat_fn(
+        response = self.llm_chat_simple_fn(
             [
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
@@ -3726,49 +3726,81 @@ Your question:"""
         if oldcarts_element == 'L' and self._is_vague_location_answer(vague_answer):
             return self._generate_location_follow_up_question(vague_answer)
         
-        # OLDCARTS element descriptions
-        element_descriptions = {
-            'L': "LOCATION - where the symptom is located",
-            'O': "ONSET - when the symptom started", 
-            'D': "DURATION - how long the symptom lasts",
-            'C': "CHARACTER - what the symptom feels like",
-            'A': "AGGRAVATING factors - what makes it worse",
-            'R': "RELIEVING factors - what makes it better", 
-            'T': "TIMING - pattern of the symptom",
-            'S': "SEVERITY - how bad the symptom is"
+        # Get top conditions for context
+        top_conditions = self.active_guidelines[:3] if self.active_guidelines else []
+        
+        # Map OLDCARTS elements to their section names in guidelines
+        oldcarts_sections = {
+            'L': 'LOCATION:',
+            'O': 'ONSET:',
+            'D': 'DURATION:',
+            'C': 'CHARACTER:',
+            'A': 'AGGRAVATING:',
+            'R': 'RELIEVING:',
+            'T': 'TIMING:',
+            'S': 'SEVERITY:'
         }
         
-        element_desc = element_descriptions.get(oldcarts_element, "the symptom")
+        section_name = oldcarts_sections.get(oldcarts_element, 'LOCATION:')
+        
+        # Build context with specific OLDCARTS component from guidelines
+        condition_info = []
+        for g in top_conditions:
+            # Extract specific OLDCARTS component from classic_presentation
+            classic_presentation = g['data'].get('key_features', {}).get('classic_presentation', '')
+            component_info = ""
+            
+            if section_name in classic_presentation:
+                # Extract the specific OLDCARTS section
+                section_start = classic_presentation.find(section_name)
+                section_end = classic_presentation.find('.', section_start)
+                if section_end == -1:
+                    # Look for next OLDCARTS section
+                    next_sections = [s for s in oldcarts_sections.values() if s != section_name]
+                    next_positions = [classic_presentation.find(s, section_start) for s in next_sections]
+                    next_positions = [pos for pos in next_positions if pos != -1]
+                    section_end = min(next_positions) if next_positions else len(classic_presentation)
+                else:
+                    section_end += 1  # Include the period
+                
+                component_info = classic_presentation[section_start:section_end].strip()
+            
+            condition_info.append(f"- {g['name']}: {component_info if component_info else g['data'].get('description', 'No description')}")
         
         # Get chief complaint context for the LLM
         chief_complaint_context = ""
         if hasattr(self, 'chief_complaint') and self.chief_complaint:
             chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}. "
         
-        system_msg = f"You are a medical assistant. Generate ONE intelligent clarification question. Use PLAIN LANGUAGE. Do NOT ask questions requiring visual inspection. Do NOT use medical terms. {chief_complaint_context}CRITICAL: The patient's chief complaint is {self.chief_complaint}. You MUST ONLY ask about the {self.chief_complaint} area. DO NOT ask about shoulder, chest, head, arm, leg, or any other body parts. ONLY ask about the {self.chief_complaint} area."
+        system_msg = f"You are a medical assistant. Generate ONE intelligent clarification question. Use PLAIN LANGUAGE. Do NOT ask questions requiring visual inspection. Do NOT use medical terms. {chief_complaint_context}CRITICAL: The patient's chief complaint is {self.chief_complaint}. You MUST ONLY ask about the {self.chief_complaint} area. DO NOT ask about shoulder, chest, head, arm, leg, or any other body parts. ONLY ask about the {self.chief_complaint} area. FORBIDDEN WORDS: shoulder, chest, head, arm, leg, back, neck. DO NOT USE THESE WORDS."
+        
+        # Add specific examples for abdominal pain
+        if 'abdominal' in self.chief_complaint.lower() or 'belly' in self.chief_complaint.lower() or 'stomach' in self.chief_complaint.lower():
+            system_msg += " EXAMPLE: For abdominal pain, ask 'Can you be more specific about upper or lower part?' NOT 'shoulder, chest, or abdomen'."
         
         # Debug: Log what's being sent to LLM
         self._capture_debug(f"[Engine] 🧠 LLM System Message: {system_msg}")
         self._capture_debug(f"[Engine] 🧠 Chief Complaint Context: '{chief_complaint_context}'")
         
-        user_msg = f"""The patient gave a vague answer about {element_desc}:
+        user_msg = f"""The patient gave a vague answer about {oldcarts_element}:
 
 Patient's answer: "{vague_answer}"
 
-Generate ONE intelligent follow-up question to get more specific information about {element_desc}. 
-Make it natural and conversational, not clinical.
-Focus ONLY on the chief complaint area - do NOT ask about unrelated body parts.
+Generate ONE simple clarification question to get more specific information. Use the specific details from these conditions to guide your question:
 
-Question:"""
+Conditions:
+{chr(10).join(condition_info)}
+
+Generate ONE question only. Focus on getting specific {oldcarts_element} information. Use simple language. Focus ONLY on the chief complaint area - do NOT ask about unrelated body parts. For location questions, use the specific location details from the conditions above. Output only the question:"""
         
         try:
-            response = self.llm_chat_fn(
+            response = self.llm_chat_simple_fn(
                 [
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
                 max_tokens=self.max_tokens_red_flag,
-                temperature=self.temperature_complex
+                temperature=self.temperature_simple
             )
             
             question = response.strip().strip('"\'')
@@ -3812,10 +3844,44 @@ Question:"""
         """
         self._capture_debug(f"[Engine] 🧠 LLM generating differential question for {oldcarts_element}")
         
-        # Build context with top conditions
+        # Build context with top conditions - extract specific OLDCARTS component
         condition_info = []
+        
+        # Map OLDCARTS elements to their section names in guidelines
+        oldcarts_sections = {
+            'L': 'LOCATION:',
+            'O': 'ONSET:',
+            'D': 'DURATION:',
+            'C': 'CHARACTER:',
+            'A': 'AGGRAVATING:',
+            'R': 'RELIEVING:',
+            'T': 'TIMING:',
+            'S': 'SEVERITY:'
+        }
+        
+        section_name = oldcarts_sections.get(oldcarts_element, 'LOCATION:')
+        
         for g in top_conditions:
-            condition_info.append(f"- {g['name']}: {g['data'].get('description', 'No description')}")
+            # Extract specific OLDCARTS component from classic_presentation
+            classic_presentation = g['data'].get('key_features', {}).get('classic_presentation', '')
+            component_info = ""
+            
+            if section_name in classic_presentation:
+                # Extract the specific OLDCARTS section
+                section_start = classic_presentation.find(section_name)
+                section_end = classic_presentation.find('.', section_start)
+                if section_end == -1:
+                    # Look for next OLDCARTS section
+                    next_sections = [s for s in oldcarts_sections.values() if s != section_name]
+                    next_positions = [classic_presentation.find(s, section_start) for s in next_sections]
+                    next_positions = [pos for pos in next_positions if pos != -1]
+                    section_end = min(next_positions) if next_positions else len(classic_presentation)
+                else:
+                    section_end += 1  # Include the period
+                
+                component_info = classic_presentation[section_start:section_end].strip()
+            
+            condition_info.append(f"- {g['name']}: {component_info if component_info else g['data'].get('description', 'No description')}")
         
         # OLDCARTS element descriptions
         element_descriptions = {
@@ -3836,7 +3902,11 @@ Question:"""
         if hasattr(self, 'chief_complaint') and self.chief_complaint:
             chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}. "
         
-        system_msg = f"You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do NOT ask questions requiring visual inspection. Do NOT use medical terminology from guidelines. Do NOT include internal reasoning or explanations. {chief_complaint_context}CRITICAL: The patient's chief complaint is {self.chief_complaint}. You MUST ONLY ask about the {self.chief_complaint} area. DO NOT ask about shoulder, chest, head, arm, leg, or any other body parts. ONLY ask about the {self.chief_complaint} area. Output only the question:"
+        system_msg = f"You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do NOT ask questions requiring visual inspection. Do NOT use medical terminology from guidelines. Do NOT include internal reasoning or explanations. {chief_complaint_context}CRITICAL: The patient's chief complaint is {self.chief_complaint}. You MUST ONLY ask about the {self.chief_complaint} area. DO NOT ask about shoulder, chest, head, arm, leg, or any other body parts. ONLY ask about the {self.chief_complaint} area. FORBIDDEN WORDS: shoulder, chest, head, arm, leg, back, neck. DO NOT USE THESE WORDS. Output only the question:"
+        
+        # Add specific examples for abdominal pain
+        if 'abdominal' in self.chief_complaint.lower() or 'belly' in self.chief_complaint.lower() or 'stomach' in self.chief_complaint.lower():
+            system_msg += " EXAMPLE: For abdominal pain, ask 'Can you be more specific about upper or lower part?' NOT 'shoulder, chest, or abdomen'."
         
         # Debug: Log what's being sent to LLM
         self._capture_debug(f"[Engine] 🧠 LLM System Message: {system_msg}")
@@ -3847,16 +3917,16 @@ Question:"""
 Conditions:
 {chr(10).join(condition_info)}
 
-Generate ONE question only. Focus on {element_desc}. Use simple language. Focus ONLY on the chief complaint area - do NOT ask about unrelated body parts. Output only the question:"""
+Generate ONE question only. Focus on {element_desc}. Use simple language. Focus ONLY on the chief complaint area - do NOT ask about unrelated body parts. For location questions, use the specific location details from the conditions above. Output only the question:"""
         
         try:
-            response = self.llm_chat_fn(
+            response = self.llm_chat_simple_fn(
                 [
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=self.max_tokens_follow_up,
-                temperature=self.temperature_complex
+                max_tokens=self.max_tokens_simple,
+                temperature=self.temperature_simple
             )
             
             question = response.strip().strip('"\'')
