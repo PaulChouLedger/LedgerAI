@@ -79,9 +79,33 @@ except ImportError as e:
     exit(1)
 "
 
-# Pre-download all-distilroberta-v1 model (benchmarked as best, makes it WiFi-independent for CPU mode)
-RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-distilroberta-v1')" && \
-    echo "✅ all-distilroberta-v1 model pre-downloaded into image"
+# Check if sentence transformer model is already available and download only if needed
+RUN python3 -c "
+import os
+from sentence_transformers import SentenceTransformer
+from pathlib import Path
+
+# Check if model is already cached
+cache_dir = Path.home() / '.cache' / 'huggingface' / 'hub'
+model_name = 'all-distilroberta-v1'
+model_path = cache_dir / f'models--sentence-transformers--{model_name}'
+
+if model_path.exists():
+    print(f'✅ Model {model_name} already cached at {model_path}')
+    try:
+        # Test if model loads correctly
+        model = SentenceTransformer(model_name)
+        print(f'✅ Model {model_name} verified and working')
+    except Exception as e:
+        print(f'⚠️ Model cached but failed to load: {e}')
+        print('Downloading fresh model...')
+        SentenceTransformer(model_name)
+        print(f'✅ Model {model_name} downloaded successfully')
+else:
+    print(f'📥 Model {model_name} not found, downloading...')
+    SentenceTransformer(model_name)
+    print(f'✅ Model {model_name} downloaded successfully')
+"
 
 
 # === Environment defaults (can be overridden by .env or -e) ===
