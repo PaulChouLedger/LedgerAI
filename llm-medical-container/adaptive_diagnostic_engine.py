@@ -112,9 +112,9 @@ class AdaptiveDiagnosticEngine:
         self.llm_chat_simple_fn = llm_chat_simple_fn or llm_chat_fn  # Llama-1B for templates/validation
         self.embedding_model = embedding_model
         
-        # Temperature configuration from environment variables
-        self.temperature_simple = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.05'))
-        self.temperature_complex = float(os.environ.get('LLM_TEMPERATURE_COMPLEX', '0.05'))
+        # Temperature configuration from environment variables (no fallbacks)
+        self.temperature_simple = float(os.environ['LLM_TEMPERATURE_SIMPLE'])
+        self.temperature_complex = float(os.environ['LLM_TEMPERATURE_COMPLEX'])
         
         # Token limits for different question types
         self.max_tokens_question = 60      # For complex clinical questions
@@ -187,6 +187,7 @@ class AdaptiveDiagnosticEngine:
         
         self._capture_debug(f"[Engine] 🧠 Using {'dual models (simple + complex)' if llm_chat_simple_fn else 'single model'}")
         self._capture_debug(f"[Engine] 🌡️ Temperature settings: Simple={self.temperature_simple}, Complex={self.temperature_complex}")
+        self._capture_debug(f"[Engine] 🔍 Environment check: LLM_TEMPERATURE_SIMPLE={os.environ.get('LLM_TEMPERATURE_SIMPLE', 'NOT SET')}, LLM_TEMPERATURE_COMPLEX={os.environ.get('LLM_TEMPERATURE_COMPLEX', 'NOT SET')}")
         
         # ============================================================================
         # 🔧 CONFIGURATION TOGGLES (Easy to modify)
@@ -3895,18 +3896,26 @@ IMPORTANT: Use the patient's previous answers to make your question more specifi
 Output only the question:"""
         
         try:
-            response = self.llm_chat_simple_fn(
+            # Use complex model for clarification questions (better reasoning)
+            response = self.llm_chat_fn(
                 [
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=self.max_tokens_red_flag,
-                temperature=self.temperature_simple
+                max_tokens=self.max_tokens_question,
+                temperature=self.temperature_complex
             )
             
             question = response.strip().strip('"\'')
             if not question.endswith('?'):
                 question += '?'
+            
+            # Check for duplicate questions
+            recent_questions = [item['question'] for item in self.conversation_history[-10:] if item.get('type') == 'question']
+            if question in recent_questions:
+                self._capture_debug(f"[Engine] ⚠️ Duplicate question detected: '{question}'")
+                # Generate alternative question
+                question = f"Can you be more specific about the {oldcarts_element.lower()} of your {self.chief_complaint}?"
             
             # Debug: Log LLM response
             self._capture_debug(f"[Engine] 🧠 LLM Raw Response: '{response}'")

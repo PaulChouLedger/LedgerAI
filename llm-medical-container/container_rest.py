@@ -74,7 +74,7 @@ model_config = {
     "use_mlock": True,
     "use_mmap": True,
     "verbose": False,
-    "temperature": float(os.getenv("LLM_TEMPERATURE", "0.6")),
+    "temperature": float(os.environ["LLM_TEMPERATURE_COMPLEX"]),
     "top_p": float(os.getenv("LLM_TOP_P", "0.85")),
     "top_k": int(os.getenv("LLM_TOP_K", "30")),
     "repeat_penalty": float(os.getenv("LLM_REPEAT_PENALTY", "1.15")),
@@ -90,7 +90,7 @@ simple_model_config = {
     "use_mlock": True,
     "use_mmap": True,
     "verbose": False,
-    "temperature": float(os.getenv("LLM_TEMPERATURE", "0.6")),
+    "temperature": float(os.environ["LLM_TEMPERATURE_SIMPLE"]),
     "top_p": float(os.getenv("LLM_TOP_P", "0.85")),
     "top_k": int(os.getenv("LLM_TOP_K", "30")),
     "repeat_penalty": float(os.getenv("LLM_REPEAT_PENALTY", "1.15")),
@@ -534,7 +534,7 @@ def llm_chat(messages, max_tokens=100, temperature=None, stream=False, **kwargs)
     """
     # Apply centralized speed optimizations
     if temperature is None:
-        temperature = model_config.get("temperature", 0.6)
+        temperature = model_config.get("temperature")
     
     generation_params = {
         "messages": messages,
@@ -576,7 +576,7 @@ def llm_chat_simple(messages, max_tokens=100, temperature=None, stream=False, **
         **kwargs: Additional LLM parameters
     """
     if temperature is None:
-        temperature = simple_model_config.get("temperature", 0.6)
+        temperature = simple_model_config.get("temperature")
     
     generation_params = {
         "messages": messages,
