@@ -48,25 +48,17 @@ COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K
 #COPY models/Llama-3.2-8B-Instruct-Q4_K_M.gguf /models/Llama-3.2-8B-Instruct-Q4_K_M.gguf
 COPY models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf /models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf
 
-# Check what's already available and install only what's actually missing
-RUN python3 -c "\
-import importlib; \
-import subprocess; \
-required = ['flask', 'dotenv', 'numpy', 'requests', 'sentence_transformers', 'faiss', 'sklearn', 'joblib']; \
-missing = []; \
-for pkg in required: \
-    try: \
-        importlib.import_module(pkg); \
-        print(f'✅ {pkg} already available'); \
-    except ImportError: \
-        missing.append(pkg); \
-        print(f'❌ {pkg} missing'); \
-print(f'Missing packages: {missing}') if missing else print('All required packages already available!'); \
-if missing: \
-    subprocess.run(['pip3', 'install'] + missing + ['--index-url', 'https://pypi.org/simple'], check=False); \
-    print('✅ Missing packages installed'); \
-else: \
-    print('✅ No installation needed')"
+# Install required packages (simplified approach)
+RUN pip3 install --no-cache-dir \
+    flask \
+    python-dotenv \
+    numpy>=1.26.0 \
+    requests \
+    sentence-transformers \
+    faiss-cpu \
+    scikit-learn \
+    joblib \
+    --index-url https://pypi.org/simple
 
 # Verify critical packages are available
 RUN python3 -c "\
