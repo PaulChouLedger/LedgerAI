@@ -12,6 +12,7 @@ services:
       - ../shared:/shared
       - ../data:/app/data
     working_dir: /app
+    env_file: ../.env
 
   rag:
     build: ../rag-container
