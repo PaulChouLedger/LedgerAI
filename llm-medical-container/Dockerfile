@@ -49,63 +49,43 @@ COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K
 COPY models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf /models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf
 
 # Check what's already installed and install only missing packages
-RUN python3 -c "
-import sys
-import subprocess
-import pkg_resources
-
-# Get list of installed packages
-installed = {pkg.project_name.lower() for pkg in pkg_resources.working_set}
-print(f'Already installed: {len(installed)} packages')
-
-# Required packages
-required = ['flask', 'python-dotenv', 'numpy', 'requests', 'sentence-transformers', 'faiss-cpu', 'scikit-learn', 'joblib']
-missing = [pkg for pkg in required if pkg.lower() not in installed]
-
-if missing:
-    print(f'Missing packages: {missing}')
-    subprocess.run(['pip3', 'install'] + missing + ['--index-url', 'https://pypi.org/simple'], check=False)
-else:
-    print('All required packages already installed!')
-"
+RUN python3 -c "\
+import sys; \
+import subprocess; \
+import pkg_resources; \
+installed = {pkg.project_name.lower() for pkg in pkg_resources.working_set}; \
+print(f'Already installed: {len(installed)} packages'); \
+required = ['flask', 'python-dotenv', 'numpy', 'requests', 'sentence-transformers', 'faiss-cpu', 'scikit-learn', 'joblib']; \
+missing = [pkg for pkg in required if pkg.lower() not in installed]; \
+print(f'Missing packages: {missing}') if missing else print('All required packages already installed!'); \
+subprocess.run(['pip3', 'install'] + missing + ['--index-url', 'https://pypi.org/simple'], check=False) if missing else None"
 
 # Verify critical packages are available
-RUN python3 -c "
-try:
-    import flask, numpy, requests, sklearn
-    print('✅ Core packages verified')
-except ImportError as e:
-    print(f'❌ Missing package: {e}')
-    exit(1)
-"
+RUN python3 -c "\
+try: \
+    import flask, numpy, requests, sklearn; \
+    print('✅ Core packages verified'); \
+except ImportError as e: \
+    print(f'❌ Missing package: {e}'); \
+    exit(1)"
 
 # Check if sentence transformer model is already available and download only if needed
-RUN python3 -c "
-import os
-from sentence_transformers import SentenceTransformer
-from pathlib import Path
-
-# Check if model is already cached
-cache_dir = Path.home() / '.cache' / 'huggingface' / 'hub'
-model_name = 'all-distilroberta-v1'
-model_path = cache_dir / f'models--sentence-transformers--{model_name}'
-
-if model_path.exists():
-    print(f'✅ Model {model_name} already cached at {model_path}')
-    try:
-        # Test if model loads correctly
-        model = SentenceTransformer(model_name)
-        print(f'✅ Model {model_name} verified and working')
-    except Exception as e:
-        print(f'⚠️ Model cached but failed to load: {e}')
-        print('Downloading fresh model...')
-        SentenceTransformer(model_name)
-        print(f'✅ Model {model_name} downloaded successfully')
-else:
-    print(f'📥 Model {model_name} not found, downloading...')
-    SentenceTransformer(model_name)
-    print(f'✅ Model {model_name} downloaded successfully')
-"
+RUN python3 -c "\
+import os; \
+from sentence_transformers import SentenceTransformer; \
+from pathlib import Path; \
+cache_dir = Path.home() / '.cache' / 'huggingface' / 'hub'; \
+model_name = 'all-distilroberta-v1'; \
+model_path = cache_dir / f'models--sentence-transformers--{model_name}'; \
+print(f'✅ Model {model_name} already cached at {model_path}') if model_path.exists() else print(f'📥 Model {model_name} not found, downloading...'); \
+try: \
+    model = SentenceTransformer(model_name) if not model_path.exists() else SentenceTransformer(model_name); \
+    print(f'✅ Model {model_name} verified and working'); \
+except Exception as e: \
+    print(f'⚠️ Model cached but failed to load: {e}'); \
+    print('Downloading fresh model...'); \
+    SentenceTransformer(model_name); \
+    print(f'✅ Model {model_name} downloaded successfully')"
 
 
 # === Environment defaults (can be overridden by .env or -e) ===
