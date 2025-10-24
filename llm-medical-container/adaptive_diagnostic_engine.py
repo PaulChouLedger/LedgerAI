@@ -3321,7 +3321,22 @@ Normalized text:"""
             self._capture_debug(f"[Engine]   📊 Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
             self._capture_debug(f"[Engine]   🎯 Thresholds: spread < 0.05, top_score < 0.20")
             
-            if (score_spread < 0.05 or top_score < 0.20):
+            # Skip clarification for clear, specific answers
+            is_clear_answer = False
+            if oldcarts_element == 'D':  # Duration
+                # Clear duration answers (specific time periods)
+                clear_duration_patterns = [
+                    r'\d+\s*(minutes?|mins?|hours?|hrs?|days?|weeks?|months?)',
+                    r'(few|several|many)\s*(minutes?|hours?|days?)',
+                    r'(just|about|around|approximately)\s*\d+\s*(minutes?|hours?|days?)'
+                ]
+                import re
+                for pattern in clear_duration_patterns:
+                    if re.search(pattern, answer.lower()):
+                        is_clear_answer = True
+                        break
+            
+            if not is_clear_answer and (score_spread < 0.05 or top_score < 0.20):
                 if clarification_count < MAX_CLARIFICATIONS_PER_ELEMENT:
                     self._capture_debug(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
                     self._capture_debug(f"[Engine]   Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
@@ -3853,16 +3868,14 @@ Question:"""
         
         element_desc = element_descriptions.get(oldcarts_element, "the symptom")
         
-        system_msg = "You are a medical assistant. Generate ONE targeted question to help differentiate between these conditions. Use PLAIN LANGUAGE. Do NOT ask questions requiring visual inspection. Do NOT use medical terms. Focus on the patient's chief complaint area only."
+        system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do NOT ask questions requiring visual inspection. Do NOT use medical terminology from guidelines. Do NOT include internal reasoning or explanations. Focus on the patient's chief complaint area only. Output only the question:"
         
-        user_msg = f"""Generate a targeted question about {element_desc} to help differentiate between these conditions:
+        user_msg = f"""Generate ONE simple question about {element_desc} to help differentiate between these conditions:
 
 Conditions:
 {chr(10).join(condition_info)}
 
-Generate ONE question that will help distinguish between these conditions. Focus on {element_desc}.
-
-Question:"""
+Generate ONE question only. Focus on {element_desc}. Use simple language. Output only the question:"""
         
         try:
             response = self.llm_chat_fn(
@@ -4065,8 +4078,8 @@ Your question:"""
         
         # Define context-specific location filters
         if any(word in complaint_lower for word in ['abdominal', 'belly', 'stomach', 'abdomen']):
-            # GI context - filter for abdominal/trunk locations
-            relevant_terms = ['abdomen', 'quadrant', 'epigastric', 'periumbilical', 'suprapubic', 'flank', 'groin', 'chest']
+            # GI context - filter for abdominal/trunk locations only
+            relevant_terms = ['abdomen', 'quadrant', 'epigastric', 'periumbilical', 'suprapubic', 'flank', 'groin']
             return [loc for loc in locations if any(term in loc for term in relevant_terms)]
         
         elif any(word in complaint_lower for word in ['chest', 'heart', 'breast']):
