@@ -1953,9 +1953,19 @@ class AdaptiveDiagnosticEngine:
             
             example = oldcarts_examples.get(next_element, "Tell me about the symptom")
             
-            system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do not include medical terminology from guidelines. Do NOT ask questions requiring visual inspection (no 'point to', 'show me', 'look at', 'appearance', 'color', 'swelling'). Do NOT ask about duration/time - that will be covered later. No one prompt should include multiple questions, in other words do not include multiple phrases ending with a question mark. Be SPECIFIC and CLINICALLY FOCUSED. Ask about ONE specific aspect only."
+            system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do not include medical terminology from guidelines. Do NOT ask questions requiring visual inspection (no 'point to', 'show me', 'look at', 'appearance', 'color', 'swelling'). Do NOT ask about duration/time - that will be covered later. No one prompt should include multiple questions, in other words do not include multiple phrases ending with a question mark. Be SPECIFIC and CLINICALLY FOCUSED. Ask about ONE specific aspect only. CRITICAL: Always use 'your' when asking the patient directly - NEVER use 'her', 'his', 'their' or third person pronouns."
             
-            user_msg = f"""Patient: {patient_info} with {symptom}
+            # Build conversation history for context
+            conversation_context = ""
+            if len(self.conversation_history) > 0:
+                conversation_context = "\n\nPrevious conversation:\n"
+                for item in self.conversation_history[-6:]:  # Last 6 items
+                    if item['type'] == 'question':
+                        conversation_context += f"Q: {item['question']}\n"
+                    elif item['type'] == 'answer':
+                        conversation_context += f"A: {item['answer']}\n"
+            
+            user_msg = f"""Patient: {patient_info} with {symptom}{conversation_context}
 
 Ask about: {element_desc}
 
@@ -1967,6 +1977,8 @@ For abdominal pain, ask about the abdomen area only.
 For headache, ask about the head area only.
 For back pain, ask about the back area only.
 Be SPECIFIC and CLINICALLY FOCUSED. Ask about ONE specific aspect only.
+CRITICAL: Always address the patient directly using 'your' - NEVER use 'her', 'his', 'their' or third person pronouns.
+IMPORTANT: Use the patient's previous answers to make your question more specific and avoid repeating information they already provided.
 Output only the question:"""
             
             # Filler is now handled at container level for immediate streaming
@@ -3499,13 +3511,13 @@ Normalized text:"""
         
         user_msg = f"""Patient: "{chief_complaint}"
 
-Write a brief, natural empathetic medical statement:
+Write a brief, natural empathetic medical statement that acknowledges their pain and shows you care:
 
 Examples: 
-- "I'm sorry to hear you're experiencing that."
-- "That sounds uncomfortable, let me ask some questions to help."
-- "I understand that must be concerning."
-- "I'll ask some questions to better understand your symptoms."
+- "I'm sorry to hear you're experiencing abdominal pain. That can be really uncomfortable."
+- "I understand that abdominal pain can be concerning. Let me help you figure out what's going on."
+- "That sounds painful. I'm here to help you understand what might be causing this."
+- "I'm sorry you're dealing with this. Let's work together to understand your symptoms better."
 
 Your statement:"""
         
@@ -3544,12 +3556,13 @@ Your statement:"""
         
         system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Do NOT ask questions requiring visual inspection (no 'point to', 'show me', 'look at', 'appearance', 'color', 'swelling')."
         
-        user_msg = """Generate a natural question asking if this is a new problem or ongoing/recurrent issue.
+        user_msg = """Generate a natural, conversational question asking if this is a new problem or ongoing/recurrent issue.
 
 Examples: 
 - "Is this a new problem or something you've experienced before?"
 - "Is this the first time you've had this symptom?"
 - "Have you had this issue before, or is this new?"
+- "Is this something new for you, or have you dealt with this before?"
 
 Your question:"""
         
@@ -3623,12 +3636,13 @@ Classification:"""
         
         system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions."
         
-        user_msg = """Generate a natural question asking for the patient's age.
+        user_msg = """Generate a natural, conversational question asking for the patient's age.
 
 Examples: 
 - "How old are you?"
 - "What's your age?"
 - "Can you tell me your age?"
+- "How old are you, if you don't mind me asking?"
 
 Your question:"""
         
@@ -3655,12 +3669,13 @@ Your question:"""
         
         system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions."
         
-        user_msg = """Generate a natural question asking for biological sex (male or female).
+        user_msg = """Generate a natural, conversational question asking for biological sex (male or female).
 
 Examples: 
 - "Are you male or female?"
 - "What's your biological sex?"
 - "Are you a man or woman?"
+- "Are you male or female, if you don't mind me asking?"
 
 Your question:"""
         
@@ -3772,7 +3787,7 @@ Your question:"""
         if hasattr(self, 'chief_complaint') and self.chief_complaint:
             chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}. "
         
-        system_msg = f"You are a medical assistant. Generate ONE intelligent clarification question. Use PLAIN LANGUAGE. Do NOT ask questions requiring visual inspection. Do NOT use medical terms. {chief_complaint_context}CRITICAL: The patient's chief complaint is {self.chief_complaint}. You MUST ONLY ask about the {self.chief_complaint} area. DO NOT ask about shoulder, chest, head, arm, leg, or any other body parts. ONLY ask about the {self.chief_complaint} area. FORBIDDEN WORDS: shoulder, chest, head, arm, leg, back, neck. DO NOT USE THESE WORDS."
+        system_msg = f"You are a medical assistant. Generate ONE intelligent clarification question. Use PLAIN LANGUAGE. Do NOT ask questions requiring visual inspection. Do NOT use medical terms. {chief_complaint_context}CRITICAL: The patient's chief complaint is {self.chief_complaint}. You MUST ONLY ask about the {self.chief_complaint} area. DO NOT ask about shoulder, chest, head, arm, leg, or any other body parts. ONLY ask about the {self.chief_complaint} area. FORBIDDEN WORDS: shoulder, chest, head, arm, leg, back, neck. DO NOT USE THESE WORDS. CRITICAL: Always use 'your' when asking the patient directly - NEVER use 'her', 'his', 'their' or third person pronouns."
         
         # Add specific examples for abdominal pain
         if 'abdominal' in self.chief_complaint.lower() or 'belly' in self.chief_complaint.lower() or 'stomach' in self.chief_complaint.lower():
@@ -3782,16 +3797,28 @@ Your question:"""
         self._capture_debug(f"[Engine] 🧠 LLM System Message: {system_msg}")
         self._capture_debug(f"[Engine] 🧠 Chief Complaint Context: '{chief_complaint_context}'")
         
+        # Build conversation history for context
+        conversation_context = ""
+        if len(self.conversation_history) > 0:
+            conversation_context = "\n\nPrevious conversation:\n"
+            for item in self.conversation_history[-6:]:  # Last 6 items
+                if item['type'] == 'question':
+                    conversation_context += f"Q: {item['question']}\n"
+                elif item['type'] == 'answer':
+                    conversation_context += f"A: {item['answer']}\n"
+        
         user_msg = f"""The patient gave a vague answer about {oldcarts_element}:
 
-Patient's answer: "{vague_answer}"
+Patient's answer: "{vague_answer}"{conversation_context}
 
 Generate ONE simple clarification question to get more specific information. Use the specific details from these conditions to guide your question:
 
 Conditions:
 {chr(10).join(condition_info)}
 
-Generate ONE question only. Focus on getting specific {oldcarts_element} information. Use simple language. Focus ONLY on the chief complaint area - do NOT ask about unrelated body parts. For location questions, use the specific location details from the conditions above. Output only the question:"""
+Generate ONE question only. Focus on getting specific {oldcarts_element} information. Use simple language. Focus ONLY on the chief complaint area - do NOT ask about unrelated body parts. For location questions, use the specific location details from the conditions above. 
+IMPORTANT: Use the patient's previous answers to make your question more specific and avoid repeating information they already provided.
+Output only the question:"""
         
         try:
             response = self.llm_chat_simple_fn(
@@ -3902,7 +3929,7 @@ Generate ONE question only. Focus on getting specific {oldcarts_element} informa
         if hasattr(self, 'chief_complaint') and self.chief_complaint:
             chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}. "
         
-        system_msg = f"You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do NOT ask questions requiring visual inspection. Do NOT use medical terminology from guidelines. Do NOT include internal reasoning or explanations. {chief_complaint_context}CRITICAL: The patient's chief complaint is {self.chief_complaint}. You MUST ONLY ask about the {self.chief_complaint} area. DO NOT ask about shoulder, chest, head, arm, leg, or any other body parts. ONLY ask about the {self.chief_complaint} area. FORBIDDEN WORDS: shoulder, chest, head, arm, leg, back, neck. DO NOT USE THESE WORDS. Output only the question:"
+        system_msg = f"You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do NOT ask questions requiring visual inspection. Do NOT use medical terminology from guidelines. Do NOT include internal reasoning or explanations. {chief_complaint_context}CRITICAL: The patient's chief complaint is {self.chief_complaint}. You MUST ONLY ask about the {self.chief_complaint} area. DO NOT ask about shoulder, chest, head, arm, leg, or any other body parts. ONLY ask about the {self.chief_complaint} area. FORBIDDEN WORDS: shoulder, chest, head, arm, leg, back, neck. DO NOT USE THESE WORDS. CRITICAL: Always use 'your' when asking the patient directly - NEVER use 'her', 'his', 'their' or third person pronouns. Output only the question:"
         
         # Add specific examples for abdominal pain
         if 'abdominal' in self.chief_complaint.lower() or 'belly' in self.chief_complaint.lower() or 'stomach' in self.chief_complaint.lower():
@@ -3912,12 +3939,25 @@ Generate ONE question only. Focus on getting specific {oldcarts_element} informa
         self._capture_debug(f"[Engine] 🧠 LLM System Message: {system_msg}")
         self._capture_debug(f"[Engine] 🧠 Chief Complaint Context: '{chief_complaint_context}'")
         
-        user_msg = f"""Generate ONE simple question about {element_desc} to help differentiate between these conditions:
+        # Build conversation history for context
+        conversation_context = ""
+        if len(self.conversation_history) > 0:
+            conversation_context = "\n\nPrevious conversation:\n"
+            for item in self.conversation_history[-6:]:  # Last 6 items
+                if item['type'] == 'question':
+                    conversation_context += f"Q: {item['question']}\n"
+                elif item['type'] == 'answer':
+                    conversation_context += f"A: {item['answer']}\n"
+        
+        user_msg = f"""Generate ONE simple question about {element_desc} to help differentiate between these conditions:{conversation_context}
 
 Conditions:
 {chr(10).join(condition_info)}
 
-Generate ONE question only. Focus on {element_desc}. Use simple language. Focus ONLY on the chief complaint area - do NOT ask about unrelated body parts. For location questions, use the specific location details from the conditions above. Output only the question:"""
+Generate ONE question only. Focus on {element_desc}. Use simple language. Focus ONLY on the chief complaint area - do NOT ask about unrelated body parts. For location questions, use the specific location details from the conditions above. 
+CRITICAL: Always address the patient directly using 'your' - NEVER use 'her', 'his', 'their' or third person pronouns.
+IMPORTANT: Use the patient's previous answers to make your question more specific and avoid repeating information they already provided.
+Output only the question:"""
         
         try:
             response = self.llm_chat_simple_fn(
