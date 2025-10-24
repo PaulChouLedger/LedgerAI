@@ -48,17 +48,36 @@ COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K
 #COPY models/Llama-3.2-8B-Instruct-Q4_K_M.gguf /models/Llama-3.2-8B-Instruct-Q4_K_M.gguf
 COPY models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf /models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf
 
-# Install Python dependencies (LLM + Learning System)
-RUN pip3 install --ignore-installed \
-    flask \
-    python-dotenv \
-    numpy>=1.26.0 \
-    requests \
-    sentence-transformers \
-    faiss-cpu \
-    scikit-learn \
-    joblib \
-    --index-url https://pypi.org/simple
+# Check what's already installed and install only missing packages
+RUN python3 -c "
+import sys
+import subprocess
+import pkg_resources
+
+# Get list of installed packages
+installed = {pkg.project_name.lower() for pkg in pkg_resources.working_set}
+print(f'Already installed: {len(installed)} packages')
+
+# Required packages
+required = ['flask', 'python-dotenv', 'numpy', 'requests', 'sentence-transformers', 'faiss-cpu', 'scikit-learn', 'joblib']
+missing = [pkg for pkg in required if pkg.lower() not in installed]
+
+if missing:
+    print(f'Missing packages: {missing}')
+    subprocess.run(['pip3', 'install'] + missing + ['--index-url', 'https://pypi.org/simple'], check=False)
+else:
+    print('All required packages already installed!')
+"
+
+# Verify critical packages are available
+RUN python3 -c "
+try:
+    import flask, numpy, requests, sklearn
+    print('✅ Core packages verified')
+except ImportError as e:
+    print(f'❌ Missing package: {e}')
+    exit(1)
+"
 
 # Pre-download all-distilroberta-v1 model (benchmarked as best, makes it WiFi-independent for CPU mode)
 RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-distilroberta-v1')" && \
