@@ -1394,11 +1394,17 @@ class AdaptiveDiagnosticEngine:
         
         # Load comprehensive OLDCARTS keywords from JSON file
         try:
+            # Try current directory first
             with open('oldcarts_keywords.json', 'r') as f:
                 oldcarts_keywords = json.load(f)
         except FileNotFoundError:
-            self._capture_debug(f"[Engine] ⚠️ OLDCARTS keywords file not found, using fallback")
-            return self._parse_oldcarts_components_fallback(complaint)
+            try:
+                # Try llm-medical-container directory
+                with open('llm-medical-container/oldcarts_keywords.json', 'r') as f:
+                    oldcarts_keywords = json.load(f)
+            except FileNotFoundError:
+                self._capture_debug(f"[Engine] ⚠️ OLDCARTS keywords file not found, using fallback")
+                return self._parse_oldcarts_components_fallback(complaint)
         
         # Location indicators
         location_categories = ['anatomical_regions', 'quadrants', 'sides', 'specific_locations']
@@ -3592,7 +3598,7 @@ Your question:"""
                 {"role": "user", "content": user_msg}
             ],
             max_tokens=30,
-            temperature=0.6
+            temperature=self.temperature_simple
         )
         
         question = response.strip().strip('"\'')
@@ -3671,7 +3677,7 @@ Your question:"""
                 {"role": "user", "content": user_msg}
             ],
             max_tokens=30,
-            temperature=0.6
+            temperature=self.temperature_simple
         )
         
         question = response.strip().strip('"\'')
@@ -3703,7 +3709,7 @@ Your question:"""
                 {"role": "user", "content": user_msg}
             ],
             max_tokens=30,
-            temperature=0.6
+            temperature=self.temperature_simple
         )
         
         question = response.strip().strip('"\'')
@@ -3787,7 +3793,7 @@ Question:"""
                     {"role": "user", "content": user_msg}
                 ],
                 max_tokens=80,
-                temperature=0.4
+                temperature=self.temperature_complex
             )
             
             question = response.strip().strip('"\'')
@@ -3867,7 +3873,7 @@ Question:"""
                     {"role": "user", "content": user_msg}
                 ],
                 max_tokens=100,
-                temperature=0.3
+                temperature=self.temperature_complex
             )
             
             question = response.strip().strip('"\'')
@@ -3911,7 +3917,7 @@ Your question:"""
                 {"role": "user", "content": user_msg}
             ],
             max_tokens=20,
-            temperature=0.2
+            temperature=self.temperature_simple
         )
         
         question = response.strip().strip('"\'')

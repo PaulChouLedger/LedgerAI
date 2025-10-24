@@ -169,18 +169,7 @@ class MedicalRuleEngine:
         patient_lower = patient_text.lower()
         guideline_lower = guideline_text.lower()
         
-        # Check for true opposites only
-        opposites = [
-            ('left', 'right'), ('right', 'left'),
-            ('upper', 'lower'), ('lower', 'upper'),
-            ('anterior', 'posterior'), ('posterior', 'anterior')
-        ]
-        
-        for patient_term, guideline_term in opposites:
-            if patient_term in patient_lower and guideline_term in guideline_lower:
-                return True
-        
-        # Check for same-side matches (should NOT be opposites)
+        # First check for same-side matches (should NOT be opposites)
         same_side_matches = [
             ('left', 'left'), ('right', 'right'),
             ('upper', 'upper'), ('lower', 'lower'),
@@ -190,6 +179,17 @@ class MedicalRuleEngine:
         for patient_term, guideline_term in same_side_matches:
             if patient_term in patient_lower and guideline_term in guideline_lower:
                 return False  # Same side = NOT opposite
+        
+        # Then check for true opposites only
+        opposites = [
+            ('left', 'right'), ('right', 'left'),
+            ('upper', 'lower'), ('lower', 'upper'),
+            ('anterior', 'posterior'), ('posterior', 'anterior')
+        ]
+        
+        for patient_term, guideline_term in opposites:
+            if patient_term in patient_lower and guideline_term in guideline_lower:
+                return True
         
         return False
     
