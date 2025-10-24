@@ -867,6 +867,8 @@ class AdaptiveDiagnosticEngine:
         # Store demographics if provided
         self._capture_debug(f"[Engine] 🔍 Last question focus: {last_q.get('focus')}")
         self._capture_debug(f"[Engine] 🔍 Last question text: {last_q.get('question', '')}")
+        self._capture_debug(f"[Engine] 🔍 User answer: '{user_answer}'")
+        self._capture_debug(f"[Engine] 🔍 Demographics before processing: {self.demographics}")
         
         if last_q.get('focus') == 'demographics':
             if 'age' in last_q.get('question', '').lower():
@@ -882,10 +884,20 @@ class AdaptiveDiagnosticEngine:
                 sex_lower = user_answer.lower().strip()
                 self._capture_debug(f"[Engine] 🔍 Processing sex answer: '{user_answer}' -> '{sex_lower}'")
                 
-                if any(word in sex_lower for word in ['male', 'man', 'm']):
+                # Check for male keywords
+                male_keywords = ['male', 'man', 'm']
+                female_keywords = ['female', 'woman', 'f']
+                
+                male_found = any(word in sex_lower for word in male_keywords)
+                female_found = any(word in sex_lower for word in female_keywords)
+                
+                self._capture_debug(f"[Engine] 🔍 Male keywords found: {male_found}")
+                self._capture_debug(f"[Engine] 🔍 Female keywords found: {female_found}")
+                
+                if male_found:
                     self.demographics['sex'] = 'male'
                     self._capture_debug(f"[Engine] ✅ Detected MALE keywords")
-                elif any(word in sex_lower for word in ['female', 'woman', 'f']):
+                elif female_found:
                     self.demographics['sex'] = 'female'
                     self._capture_debug(f"[Engine] ✅ Detected FEMALE keywords")
                 else:
@@ -893,6 +905,7 @@ class AdaptiveDiagnosticEngine:
                     self._capture_debug(f"[Engine] 🔍 Available words: {sex_lower.split()}")
                 
                 self._capture_debug(f"[Engine] 📊 Stored patient sex: {self.demographics.get('sex', 'unknown')}")
+                self._capture_debug(f"[Engine] 📊 Demographics after sex processing: {self.demographics}")
             elif 'new problem' in last_q.get('question', '').lower() or 'ongoing' in last_q.get('question', '').lower():
                 # Store chronicity
                 chronicity_lower = user_answer.lower().strip()
@@ -3723,7 +3736,7 @@ Your question:"""
         if hasattr(self, 'chief_complaint') and self.chief_complaint:
             chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}. "
         
-        system_msg = f"You are a medical assistant. Generate ONE intelligent clarification question. Use PLAIN LANGUAGE. Do NOT ask questions requiring visual inspection. Do NOT use medical terms. {chief_complaint_context}Focus ONLY on the patient's chief complaint area - do NOT ask about unrelated body parts."
+        system_msg = f"You are a medical assistant. Generate ONE intelligent clarification question. Use PLAIN LANGUAGE. Do NOT ask questions requiring visual inspection. Do NOT use medical terms. {chief_complaint_context}CRITICAL: The patient's chief complaint is {self.chief_complaint}. You MUST ONLY ask about the {self.chief_complaint} area. DO NOT ask about shoulder, chest, head, arm, leg, or any other body parts. ONLY ask about the {self.chief_complaint} area."
         
         # Debug: Log what's being sent to LLM
         self._capture_debug(f"[Engine] 🧠 LLM System Message: {system_msg}")
@@ -3814,7 +3827,7 @@ Question:"""
         if hasattr(self, 'chief_complaint') and self.chief_complaint:
             chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}. "
         
-        system_msg = f"You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do NOT ask questions requiring visual inspection. Do NOT use medical terminology from guidelines. Do NOT include internal reasoning or explanations. {chief_complaint_context}Focus ONLY on the patient's chief complaint area - do NOT ask about unrelated body parts. Output only the question:"
+        system_msg = f"You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do NOT ask questions requiring visual inspection. Do NOT use medical terminology from guidelines. Do NOT include internal reasoning or explanations. {chief_complaint_context}CRITICAL: The patient's chief complaint is {self.chief_complaint}. You MUST ONLY ask about the {self.chief_complaint} area. DO NOT ask about shoulder, chest, head, arm, leg, or any other body parts. ONLY ask about the {self.chief_complaint} area. Output only the question:"
         
         # Debug: Log what's being sent to LLM
         self._capture_debug(f"[Engine] 🧠 LLM System Message: {system_msg}")
