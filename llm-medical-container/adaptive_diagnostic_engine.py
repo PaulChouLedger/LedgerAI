@@ -568,13 +568,33 @@ class AdaptiveDiagnosticEngine:
             question = "How old are you?"
             self._capture_debug(f"[Engine] ✅ ML demographics question generated: '{question}'")
         elif 'sex' not in self.demographics:
-            # Ask sex after age
+            # Ask sex with button-based response
             question = "What is your biological sex?"
-            self._capture_debug(f"[Engine] ✅ ML demographics question generated: '{question}'")
+            self._capture_debug(f"[Engine] ✅ Sex question with buttons: '{question}'")
+            return {
+                'success': True,
+                'question': question,
+                'status': 'questioning',
+                'buttons': [
+                    {'text': 'Male', 'callback_data': 'sex_male'},
+                    {'text': 'Female', 'callback_data': 'sex_female'}
+                ],
+                'debug': self._get_debug_info()
+            }
         elif 'chronicity' not in self.demographics:
-            # Ask chronicity after sex
-            question = self._generate_chronicity_question()
-            self._capture_debug(f"[Engine] ✅ ML chronicity question generated: '{question}'")
+            # Ask chronicity with button-based response
+            question = "Is this a new problem or an ongoing issue?"
+            self._capture_debug(f"[Engine] ✅ Chronicity question with buttons: '{question}'")
+            return {
+                'success': True,
+                'question': question,
+                'status': 'questioning',
+                'buttons': [
+                    {'text': 'New Problem', 'callback_data': 'chronicity_new'},
+                    {'text': 'Ongoing Issue', 'callback_data': 'chronicity_recurring'}
+                ],
+                'debug': self._get_debug_info()
+            }
         else:
             # Both demographics collected, ask first missing OLDCARTS component
             if hasattr(self, 'active_guidelines') and self.active_guidelines:
@@ -808,8 +828,19 @@ class AdaptiveDiagnosticEngine:
         self._capture_debug(f"[Engine]    Opening: '{opening_statement}'")
         self._capture_debug(f"[Engine]    Age Q: '{age_question}'")
         
+        # Debug: Check if opening statement is empty or not empathetic
+        if not opening_statement or opening_statement.strip() == "":
+            self._capture_debug(f"[Engine] ⚠️ EMPATHETIC STATEMENT IS EMPTY!")
+        elif len(opening_statement.strip()) < 10:
+            self._capture_debug(f"[Engine] ⚠️ EMPATHETIC STATEMENT TOO SHORT: '{opening_statement}'")
+        else:
+            self._capture_debug(f"[Engine] ✅ EMPATHETIC STATEMENT LOOKS GOOD: '{opening_statement}'")
+        
         # Combine them with proper spacing and pause
         combined_message = f"{opening_statement} <pause> {age_question}"
+        
+        # Debug: Log final combined message
+        self._capture_debug(f"[Engine] 🎯 FINAL COMBINED MESSAGE: '{combined_message}'")
         
         self.conversation_history.append({
             'type': 'question',
@@ -880,38 +911,45 @@ class AdaptiveDiagnosticEngine:
                 except ValueError:
                     self._capture_debug(f"[Engine] ⚠️ Invalid age format: '{user_answer}'")
             elif 'sex' in last_q.get('question', '').lower():
-                # Store sex
-                sex_lower = user_answer.lower().strip()
-                self._capture_debug(f"[Engine] 🔍 Processing sex answer: '{user_answer}' -> '{sex_lower}'")
+                # Handle button-based sex response
+                self._capture_debug(f"[Engine] 🔍 Processing sex response: '{user_answer}'")
                 
-                # Check for male keywords (whole words only)
-                male_keywords = ['male', 'man']
-                female_keywords = ['female', 'woman']
-                
-                # Split into words and check for exact matches
-                words = sex_lower.split()
-                male_found = any(word in male_keywords for word in words)
-                female_found = any(word in female_keywords for word in words)
-                
-                # Also check for single letter responses
-                if not male_found and not female_found and len(sex_lower.strip()) == 1:
-                    if sex_lower.strip() == 'm':
-                        male_found = True
-                    elif sex_lower.strip() == 'f':
-                        female_found = True
-                
-                self._capture_debug(f"[Engine] 🔍 Male keywords found: {male_found}")
-                self._capture_debug(f"[Engine] 🔍 Female keywords found: {female_found}")
-                
-                if male_found:
+                # Map button responses to sex values
+                if user_answer == 'sex_male':
                     self.demographics['sex'] = 'male'
-                    self._capture_debug(f"[Engine] ✅ Detected MALE keywords")
-                elif female_found:
+                    self._capture_debug(f"[Engine] ✅ Button response: Male")
+                elif user_answer == 'sex_female':
                     self.demographics['sex'] = 'female'
-                    self._capture_debug(f"[Engine] ✅ Detected FEMALE keywords")
+                    self._capture_debug(f"[Engine] ✅ Button response: Female")
                 else:
-                    self._capture_debug(f"[Engine] ⚠️ Unclear sex format: '{user_answer}'")
-                    self._capture_debug(f"[Engine] 🔍 Available words: {sex_lower.split()}")
+                    # Fallback to text processing for non-button responses
+                    sex_lower = user_answer.lower().strip()
+                    self._capture_debug(f"[Engine] 🔍 Processing text sex answer: '{user_answer}' -> '{sex_lower}'")
+                    
+                    # Check for male keywords (whole words only)
+                    male_keywords = ['male', 'man']
+                    female_keywords = ['female', 'woman']
+                    
+                    # Split into words and check for exact matches
+                    words = sex_lower.split()
+                    male_found = any(word in male_keywords for word in words)
+                    female_found = any(word in female_keywords for word in words)
+                    
+                    # Also check for single letter responses
+                    if not male_found and not female_found and len(sex_lower.strip()) == 1:
+                        if sex_lower.strip() == 'm':
+                            male_found = True
+                        elif sex_lower.strip() == 'f':
+                            female_found = True
+                    
+                    if male_found:
+                        self.demographics['sex'] = 'male'
+                        self._capture_debug(f"[Engine] ✅ Detected MALE keywords")
+                    elif female_found:
+                        self.demographics['sex'] = 'female'
+                        self._capture_debug(f"[Engine] ✅ Detected FEMALE keywords")
+                    else:
+                        self._capture_debug(f"[Engine] ⚠️ Unclear sex format: '{user_answer}'")
                 
                 self._capture_debug(f"[Engine] 📊 Stored patient sex: {self.demographics.get('sex', 'unknown')}")
                 self._capture_debug(f"[Engine] 📊 Demographics after sex processing: {self.demographics}")
@@ -1052,16 +1090,23 @@ class AdaptiveDiagnosticEngine:
             }
         
         elif last_q.get('focus') == 'chronicity' or (last_q.get('focus') == 'demographics' and 'chronicity' in last_q.get('question', '').lower()):
-            # Use LLM to intelligently classify chronicity
-            self._capture_debug(f"[Engine] 🔍 LLM analyzing chronicity from answer: '{user_answer}'")
+            # Handle button-based chronicity response
+            self._capture_debug(f"[Engine] 🔍 Processing chronicity response: '{user_answer}'")
             
-            chronicity = self._classify_chronicity_with_llm(user_answer)
+            # Map button responses to chronicity values
+            if user_answer == 'chronicity_new':
+                chronicity = 'new'
+            elif user_answer == 'chronicity_recurring':
+                chronicity = 'recurring'
+            else:
+                # Fallback to LLM classification for text responses
+                self._capture_debug(f"[Engine] 🔍 LLM analyzing chronicity from text answer: '{user_answer}'")
+                chronicity = self._classify_chronicity_with_llm(user_answer)
+            
             self.demographics['chronicity'] = chronicity
             self._capture_debug(f"[Engine] 📋 Chronicity: {chronicity}")
             
-            self._capture_debug(f"[Engine] 📋 Chronicity: {chronicity}")
             if chronicity == 'recurring':
-                self._capture_debug(f"[Engine] 💡 Consider: Follow-up vs new evaluation")
                 self._capture_debug(f"[Engine] 💡 Consider: Follow-up vs new evaluation")
             
             self._capture_debug(f"{'='*80}\n")
@@ -2976,9 +3021,9 @@ Normalized text:"""
             
             # Check if all demographics are collected
             if 'sex' not in self.demographics:
-                # Ask sex after age
+                # Ask sex with button-based response
                 question = "What is your biological sex?"
-                self._capture_debug(f"[Engine] ✅ ML demographics question generated: '{question}'")
+                self._capture_debug(f"[Engine] ✅ Sex question with buttons: '{question}'")
                 self.conversation_history.append({
                     'type': 'question',
                     'question': question,
@@ -2989,12 +3034,16 @@ Normalized text:"""
                     'success': True,
                     'question': question,
                     'status': 'questioning',
+                    'buttons': [
+                        {'text': 'Male', 'callback_data': 'sex_male'},
+                        {'text': 'Female', 'callback_data': 'sex_female'}
+                    ],
                     'debug': self._get_debug_info()
                 }
             elif 'chronicity' not in self.demographics:
-                # Ask chronicity after sex
-                question = self._generate_chronicity_question()
-                self._capture_debug(f"[Engine] ✅ ML chronicity question generated: '{question}'")
+                # Ask chronicity with button-based response
+                question = "Is this a new problem or an ongoing issue?"
+                self._capture_debug(f"[Engine] ✅ Chronicity question with buttons: '{question}'")
                 self.conversation_history.append({
                     'type': 'question',
                     'question': question,
@@ -3005,6 +3054,10 @@ Normalized text:"""
                     'success': True,
                     'question': question,
                     'status': 'questioning',
+                    'buttons': [
+                        {'text': 'New Problem', 'callback_data': 'chronicity_new'},
+                        {'text': 'Ongoing Issue', 'callback_data': 'chronicity_recurring'}
+                    ],
                     'debug': self._get_debug_info()
                 }
             else:
@@ -3521,6 +3574,12 @@ Examples:
 
 Your statement:"""
         
+        # Debug: Log what's being sent to LLM
+        self._capture_debug(f"[Engine] 🧠 EMPATHETIC STATEMENT GENERATION:")
+        self._capture_debug(f"[Engine] 🧠 System Message: {system_msg}")
+        self._capture_debug(f"[Engine] 🧠 User Message: {user_msg}")
+        self._capture_debug(f"[Engine] 🧠 Temperature: {self.temperature_simple}")
+        
         response = self.llm_chat_simple_fn(  # Use simple model (Llama-1B)
             [
                 {"role": "system", "content": system_msg},
@@ -3530,12 +3589,18 @@ Your statement:"""
             temperature=self.temperature_simple  # Use conservative temperature for consistent responses
         )
         
+        # Debug: Log raw LLM response
+        self._capture_debug(f"[Engine] 🧠 Raw LLM Response: '{response}'")
+        
         statement = response.strip().strip('"\'')
         
         # Remove numbered list markers if LLM still outputs them
         import re
         statement = re.sub(r'^\d+\.\s*', '', statement)  # Remove "1. " from start
         statement = re.sub(r'\n\d+\.\s*', ' ', statement)  # Remove "\n2. " from middle
+        
+        # Debug: Log processed statement
+        self._capture_debug(f"[Engine] 🧠 Processed Statement: '{statement}'")
         
         # VALIDATION: Only reject if completely nonsensical
         # Allow more natural variation in opening statements
@@ -3545,7 +3610,9 @@ Your statement:"""
             self._capture_debug(f"[Engine]    Generated: '{statement}'")
             statement = "I'm sorry to hear you're experiencing abdominal pain. Let me ask some questions to help figure out what's going on."
         
-        self._capture_debug(f"[Engine] ✅ Opening (simple model): '{statement}'")
+        # Debug: Log final statement
+        self._capture_debug(f"[Engine] ✅ Final Opening Statement: '{statement}'")
+        self._capture_debug(f"[Engine] ✅ Opening Statement Length: {len(statement)} characters")
         return statement
     
     def _generate_chronicity_question(self) -> str:
@@ -3558,11 +3625,13 @@ Your statement:"""
         
         user_msg = """Generate a natural, conversational question asking if this is a new problem or ongoing/recurrent issue.
 
+IMPORTANT: The question must be clear and force a specific answer. Avoid ambiguous questions that could be answered with "yes" or "no".
+
 Examples: 
-- "Is this a new problem or something you've experienced before?"
-- "Is this the first time you've had this symptom?"
-- "Have you had this issue before, or is this new?"
-- "Is this something new for you, or have you dealt with this before?"
+- "Is this the first time you've had this symptom, or have you experienced this before?"
+- "Is this a new problem for you, or have you had this issue before?"
+- "Have you experienced this type of pain before, or is this the first time?"
+- "Is this something you've dealt with before, or is this completely new to you?"
 
 Your question:"""
         
@@ -3594,16 +3663,21 @@ Your question:"""
 
 Patient response: "{answer}"
 
-CRITICAL: If the patient says "new", "first time", "started today/yesterday", or similar - classify as "new".
-If they say "before", "had this", "comes and goes", "chronic" - classify as "recurring".
+CRITICAL: If the patient says "new", "first time", "started today/yesterday", "never had this before", "completely new", or similar - classify as "new".
+If they say "before", "had this", "comes and goes", "chronic", "experienced before", "dealt with this before" - classify as "recurring".
+If unclear or ambiguous, classify as "unclear".
 
 Examples:
 - "new" → new
 - "It's new" → new
 - "This is the first time" → new
 - "It started yesterday" → new
+- "never had this before" → new
+- "completely new" → new
 - "I've had this before" → recurring  
 - "It comes and goes" → recurring
+- "dealt with this before" → recurring
+- "experienced this before" → recurring
 - "I don't know" → unclear
 - "I've had this for years" → recurring
 
