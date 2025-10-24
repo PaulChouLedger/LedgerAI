@@ -60,23 +60,9 @@ COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K
 #COPY models/Llama-3.2-8B-Instruct-Q4_K_M.gguf /models/Llama-3.2-8B-Instruct-Q4_K_M.gguf
 COPY models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf /models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf
 
-# Check if sentence transformer model is already available and download only if needed
-RUN python3 -c "\
-import os; \
-from sentence_transformers import SentenceTransformer; \
-from pathlib import Path; \
-cache_dir = Path.home() / '.cache' / 'huggingface' / 'hub'; \
-model_name = 'all-distilroberta-v1'; \
-model_path = cache_dir / f'models--sentence-transformers--{model_name}'; \
-print(f'✅ Model {model_name} already cached at {model_path}') if model_path.exists() else print(f'📥 Model {model_name} not found, downloading...'); \
-try: \
-    model = SentenceTransformer(model_name) if not model_path.exists() else SentenceTransformer(model_name); \
-    print(f'✅ Model {model_name} verified and working'); \
-except Exception as e: \
-    print(f'⚠️ Model cached but failed to load: {e}'); \
-    print('Downloading fresh model...'); \
-    SentenceTransformer(model_name); \
-    print(f'✅ Model {model_name} downloaded successfully')"
+# Pre-download sentence transformer model (cached layer)
+RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-distilroberta-v1')" && \
+    echo "✅ all-distilroberta-v1 model pre-downloaded into image"
 
 
 # === Environment defaults (can be overridden by .env or -e) ===
