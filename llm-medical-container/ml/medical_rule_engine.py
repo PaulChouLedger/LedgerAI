@@ -251,7 +251,54 @@ class MedicalRuleEngine:
             'spatial_term_count': len(re.findall(r'quadrant|side|flank|epigastric|midline|chest|back', text_lower))
         }
     
-    # Old semantic similarity method removed - now using ML-only approach
+    def get_semantic_similarity(self, patient_text: str, guideline_text: str) -> Dict[str, Any]:
+        """
+        Simple semantic similarity for trigger matching (not anatomical rules)
+        This is used for matching chief complaint triggers, not anatomical location
+        """
+        # For trigger matching, use simple word overlap and semantic similarity
+        # This is about matching "abdominal pain" to "abdominal pain", not anatomical location
+        
+        # Simple word overlap similarity
+        patient_words = set(patient_text.lower().split())
+        guideline_words = set(guideline_text.lower().split())
+        
+        if not patient_words or not guideline_words:
+            return {
+                'similarity': 0.0,
+                'method': 'no_words',
+                'confidence': 'low',
+                'reasoning': 'No words to compare'
+            }
+        
+        # Jaccard similarity for word overlap
+        intersection = len(patient_words.intersection(guideline_words))
+        union = len(patient_words.union(guideline_words))
+        jaccard_similarity = intersection / union if union > 0 else 0.0
+        
+        # Exact match bonus
+        if patient_text.lower() == guideline_text.lower():
+            similarity = 1.0
+            method = 'exact_match'
+        # Substring match bonus
+        elif patient_text.lower() in guideline_text.lower() or guideline_text.lower() in patient_text.lower():
+            similarity = 0.8
+            method = 'substring_match'
+        # Word overlap
+        elif jaccard_similarity > 0.5:
+            similarity = jaccard_similarity
+            method = 'word_overlap'
+        # Low similarity
+        else:
+            similarity = jaccard_similarity * 0.5  # Penalty for low overlap
+            method = 'low_overlap'
+        
+        return {
+            'similarity': similarity,
+            'method': method,
+            'confidence': 'medium',
+            'reasoning': f'Trigger matching: {method}'
+        }
 
 # Example usage
 if __name__ == "__main__":

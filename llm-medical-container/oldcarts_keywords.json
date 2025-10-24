@@ -1,0 +1,44 @@
+{
+  "location": {
+    "anatomical_regions": ["right", "left", "upper", "lower", "anterior", "posterior", "epigastric", "periumbilical", "flank", "suprapubic", "inguinal", "lumbar", "sacral", "cervical", "thoracic", "lumbar", "sacral", "coccygeal"],
+    "quadrants": ["right upper quadrant", "left upper quadrant", "right lower quadrant", "left lower quadrant", "ruq", "luq", "rlq", "llq"],
+    "sides": ["right side", "left side", "bilateral", "unilateral", "both sides", "either side"],
+    "specific_locations": ["chest", "abdomen", "belly", "stomach", "pelvis", "head", "neck", "back", "shoulder", "arm", "leg", "foot", "hand", "finger", "toe", "joint", "muscle", "bone", "spine", "jaw", "ear", "eye", "nose", "throat", "mouth", "face", "scalp", "forehead", "temple", "occipital", "parietal", "frontal"]
+  },
+  "character": {
+    "pain_quality": ["sharp", "dull", "aching", "burning", "stabbing", "throbbing", "cramping", "pressure", "squeezing", "tightness", "heavy", "gnawing", "shooting", "radiating", "tingling", "numbness", "itching", "prickling", "pulsating", "tearing", "ripping", "colicky"],
+    "pain_intensity": ["mild", "moderate", "severe", "intense", "unbearable", "excruciating", "agonizing", "slight", "discomfort"],
+    "pain_pattern": ["constant", "intermittent", "episodic", "recurrent", "persistent", "comes and goes", "waxing and waning"]
+  },
+  "aggravating": {
+    "activities": ["with movement", "with breathing", "with coughing", "with sneezing", "with walking", "with exercise", "with exertion", "with bending", "with lifting", "with straining", "with sitting", "with standing", "with lying down"],
+    "triggers": ["after eating", "with eating", "on empty stomach", "after spicy food", "after fatty food", "with stress", "with anxiety", "with cold", "with heat", "with alcohol", "with caffeine", "with certain foods", "with menstruation", "with urination", "with defecation", "worse with meals", "worse with eating", "worse after eating", "worse with food"],
+    "positions": ["when lying flat", "when sitting up", "when standing", "when bending forward", "when twisting", "when extending"]
+  },
+  "relieving": {
+    "positions": ["with rest", "at rest", "when lying down", "when sitting", "with position change", "when standing", "when walking"],
+    "interventions": ["with heat", "with cold", "with medication", "with pain medication", "with antacids", "with nitroglycerin", "with massage", "with stretching", "with ice"],
+    "activities": ["with sleep", "with relaxation", "with deep breathing", "with distraction", "with food", "with water"]
+  },
+  "onset": {
+    "temporal": ["sudden", "gradual", "acute", "chronic", "subacute", "insidious", "rapid", "slow", "abrupt", "spontaneous"],
+    "triggers": ["after trauma", "after injury", "after surgery", "after medication", "after eating", "after exercise", "after stress", "after infection", "after exposure"],
+    "descriptors": ["started", "began", "came on", "developed", "appeared", "occurred", "noticed", "felt", "started suddenly", "came on suddenly", "began suddenly"]
+  },
+  "duration": {
+    "time_units": ["seconds", "minutes", "hours", "days", "weeks", "months", "years"],
+    "descriptors": ["brief", "short", "long", "prolonged", "persistent", "continuous", "intermittent", "episodic", "recurrent"],
+    "patterns": ["constant", "intermittent", "episodic", "recurrent", "persistent", "comes and goes", "waxing and waning"]
+  },
+  "timing": {
+    "daily_patterns": ["morning", "afternoon", "evening", "night", "nighttime", "daytime", "upon waking", "before sleep"],
+    "meal_related": ["after meals", "before meals", "during meals", "on empty stomach"],
+    "activity_related": ["at rest", "with activity", "during exercise", "after exercise", "with movement", "with exertion"],
+    "frequency": ["daily", "weekly", "monthly", "occasionally", "frequently", "rarely", "intermittently", "constantly"]
+  },
+  "severity": {
+    "intensity_levels": ["mild", "moderate", "severe", "intense", "unbearable", "excruciating", "agonizing", "slight", "discomfort"],
+    "scale_descriptors": ["1/10", "2/10", "3/10", "4/10", "5/10", "6/10", "7/10", "8/10", "9/10", "10/10"],
+    "impact_descriptors": ["disabling", "debilitating", "incapacitating", "overwhelming", "limiting activities", "interfering with sleep", "affecting daily life"]
+  }
+}

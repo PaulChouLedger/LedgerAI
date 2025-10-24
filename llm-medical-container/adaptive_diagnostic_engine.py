@@ -446,81 +446,110 @@ class AdaptiveDiagnosticEngine:
         return self._generate_ml_first_question_with_demographics()
     
     def _match_to_guidelines_ml(self, normalized_complaint: str, category: str) -> List[Dict]:
-        """ML-powered guideline matching using comprehensive synonym files"""
-        self._capture_debug(f"[Engine] 🧠 ML-POWERED GUIDELINE MATCHING DEBUG:")
+        """ML-powered guideline matching with OLDCARTS construction"""
+        self._capture_debug(f"[Engine] 🧠 OLDCARTS CONSTRUCTION DEBUG:")
         self._capture_debug(f"[Engine] 🧠 Input: '{normalized_complaint}'")
         self._capture_debug(f"[Engine] 🧠 Category: {category}")
         
-        # Get relevant guidelines by category
+        # Get relevant guidelines by category (already narrowed down)
         relevant_guidelines = self._get_guidelines_by_category(category)
         self._capture_debug(f"[Engine] 🧠 Relevant guidelines: {len(relevant_guidelines)}")
         
+        # Parse OLDCARTS components from complaint
+        components = self._parse_oldcarts_components(normalized_complaint)
+        self._capture_debug(f"[Engine] 🧠 OLDCARTS components detected: {components}")
+        
+        # Construct OLDCARTS answers from complaint
+        oldcarts_answers = self._construct_oldcarts_answers(components)
+        self._capture_debug(f"[Engine] 🧠 OLDCARTS answers constructed: {oldcarts_answers}")
+        
+        # Auto-fill answered components and identify missing ones
+        missing_components = self._identify_missing_oldcarts_components(oldcarts_answers)
+        self._capture_debug(f"[Engine] 🧠 Missing OLDCARTS components: {missing_components}")
+        
+        # Return all guidelines with OLDCARTS answers for smart questioning
         matched_guidelines = []
-        total_guidelines_checked = 0
-        total_triggers_checked = 0
-        total_similarities_computed = 0
-        
-        # ML-powered matching using synonym files
         for name, guideline in relevant_guidelines.items():
-            total_guidelines_checked += 1
-            triggers = guideline.get('chief_complaint_triggers', [])
-            self._capture_debug(f"[Engine] 🧠 Checking guideline: {name} ({len(triggers)} triggers)")
-            
-            # Check each trigger for ML similarity
-            best_similarity = 0.0
-            best_trigger = ""
-            
-            for trigger in triggers:
-                total_triggers_checked += 1
-                self._capture_debug(f"[Engine] 🧠   Trigger: '{trigger}'")
-                
-                # Use ML similarity with synonym normalization
-                similarity = self._compute_ml_trigger_similarity(normalized_complaint, trigger)
-                total_similarities_computed += 1
-                
-                self._capture_debug(f"[Engine] 🧠   ML similarity: {similarity:.3f}")
-                
-                if similarity > best_similarity:
-                    best_similarity = similarity
-                    best_trigger = trigger
-                    self._capture_debug(f"[Engine] 🧠   New best similarity: {similarity:.3f}")
-            
-            self._capture_debug(f"[Engine] 🧠   Best similarity: {best_similarity:.3f} (trigger: '{best_trigger}')")
-            
-            # Add if similarity meets threshold (lowered for better matching)
-            if best_similarity > 0.3:  # ML threshold (lowered from 0.5)
-                prevalence = guideline.get('prevalence', 'uncommon')
-                prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
-                initial_score = prevalence_scores.get(prevalence, 0.50)
-                
-                matched_guidelines.append({
-                    'name': name,
-                    'score': initial_score,
-                    'data': guideline,
-                    'ml_similarity': best_similarity,
-                    'best_trigger': best_trigger
-                })
-                
-                self._capture_debug(f"[Engine] 🧠   ✓ MATCHED: {name} (ML similarity: {best_similarity:.3f}, trigger: '{best_trigger}')")
-            else:
-                self._capture_debug(f"[Engine] 🧠   ✗ REJECTED: {name} (similarity: {best_similarity:.3f} < 0.3)")
+            matched_guidelines.append({
+                'name': name,
+                'score': 0.5,  # Equal priority for all
+                'data': guideline,
+                'oldcarts_answers': oldcarts_answers,
+                'missing_components': missing_components,
+                'method': 'oldcarts_construction'
+            })
         
-        # Sort by ML similarity and prevalence
-        matched_guidelines.sort(key=lambda x: (x['ml_similarity'], x['score']), reverse=True)
-        
-        self._capture_debug(f"[Engine] 🧠 ML MATCHING SUMMARY:")
-        self._capture_debug(f"[Engine] 🧠 Total guidelines checked: {total_guidelines_checked}")
-        self._capture_debug(f"[Engine] 🧠 Total triggers checked: {total_triggers_checked}")
-        self._capture_debug(f"[Engine] 🧠 Total similarities computed: {total_similarities_computed}")
-        self._capture_debug(f"[Engine] 🧠 Guidelines matched: {len(matched_guidelines)}")
-        self._capture_debug(f"[Engine] 🧠 ML matching complete: {len(matched_guidelines)} guidelines matched")
+        self._capture_debug(f"[Engine] 🧠 OLDCARTS construction complete: {len(matched_guidelines)} guidelines with {len(missing_components)} missing components")
         return matched_guidelines
     
-    def _compute_ml_trigger_similarity(self, complaint: str, trigger: str) -> float:
+    def _get_all_guidelines_in_category(self, category: str) -> List[Dict]:
+        """Get all guidelines in category for generic complaints"""
+        relevant_guidelines = self._get_guidelines_by_category(category)
+        
+        # Return all guidelines with equal priority
+        matched_guidelines = []
+        for name, guideline in relevant_guidelines.items():
+            matched_guidelines.append({
+                'name': name,
+                'score': 0.5,  # Equal priority for all
+                'data': guideline,
+                'ml_similarity': 0.5,
+                'best_trigger': 'generic_complaint',
+                'method': 'generic_complaint'
+            })
+        
+        # Sort by prevalence (common conditions first)
+        matched_guidelines.sort(key=lambda x: x['data'].get('prevalence_score', 0), reverse=True)
+        
+        self._capture_debug(f"[Engine] 🧠 Generic complaint - returning all {len(matched_guidelines)} {category} guidelines")
+        return matched_guidelines
+    
+    def _perform_ml_analysis(self, complaint: str, category: str, components: Dict[str, List[str]]) -> List[Dict]:
+        """Analyze specific complaint against each guideline"""
+        relevant_guidelines = self._get_guidelines_by_category(category)
+        matched_guidelines = []
+        
+        for name, guideline in relevant_guidelines.items():
+            # Analyze each OLDCARTS component against guideline
+            similarity_score = 0.0
+            component_matches = 0
+            
+            for component_type, patient_terms in components.items():
+                if patient_terms:  # If patient has this component
+                    # Simple component matching (can be enhanced with hardcoded terms)
+                    if component_type == 'location' and any(term in complaint.lower() for term in ['right', 'left', 'upper', 'lower']):
+                        similarity_score += 0.3
+                        component_matches += 1
+                    elif component_type == 'aggravating' and any(term in complaint.lower() for term in ['after eating', 'with movement']):
+                        similarity_score += 0.2
+                        component_matches += 1
+                    elif component_type == 'character' and any(term in complaint.lower() for term in ['sharp', 'dull', 'burning']):
+                        similarity_score += 0.2
+                        component_matches += 1
+            
+            # Only include guidelines with sufficient matches
+            if component_matches >= 2:  # Need at least 2 component matches
+                matched_guidelines.append({
+                    'name': name,
+                    'score': similarity_score,
+                    'data': guideline,
+                    'ml_similarity': similarity_score,
+                    'best_trigger': 'oldcarts_analysis',
+                    'method': 'oldcarts_component_matching'
+                })
+        
+        # Sort by similarity (most relevant first)
+        matched_guidelines.sort(key=lambda x: x['ml_similarity'], reverse=True)
+        
+        self._capture_debug(f"[Engine] 🧠 ML analysis complete: {len(matched_guidelines)} guidelines matched")
+        return matched_guidelines
+    
+    def _compute_ml_trigger_similarity(self, complaint: str, trigger: str, condition_name: str) -> float:
         """Compute ML similarity between complaint and trigger using synonym files"""
         self._capture_debug(f"[Engine] 🧠 ML SIMILARITY COMPUTATION DEBUG:")
         self._capture_debug(f"[Engine] 🧠   Complaint: '{complaint}'")
         self._capture_debug(f"[Engine] 🧠   Trigger: '{trigger}'")
+        self._capture_debug(f"[Engine] 🧠   Condition: '{condition_name}'")
         
         # Normalize both complaint and trigger using synonym files
         normalized_complaint = self._normalize_complaint_with_synonyms(complaint)
@@ -529,24 +558,65 @@ class AdaptiveDiagnosticEngine:
         self._capture_debug(f"[Engine] 🧠   Normalized complaint: '{normalized_complaint}'")
         self._capture_debug(f"[Engine] 🧠   Normalized trigger: '{normalized_trigger}'")
         
-        # Use Medical Rule Engine for similarity (ML-only, no fallback)
+        # Use semantic similarity for trigger matching (not anatomical rules)
+        # Anatomical rules only apply to OLDCARTS location questions, not chief complaint triggers
+        
+        # For trigger matching, use simple semantic similarity
+        # This is about matching "abdominal pain" to "abdominal pain", not anatomical location
         if not self.medical_rule_engine:
             raise RuntimeError("Medical Rule Engine not available - ML system required")
         
-        self._capture_debug(f"[Engine] 🧠   Computing ML similarity...")
-        result = self.medical_rule_engine.get_enhanced_similarity(
-            normalized_complaint, normalized_trigger, "", organ_system="general"
+        self._capture_debug(f"[Engine] 🧠   Computing semantic similarity for trigger matching...")
+        
+        # Use semantic similarity for trigger matching (not anatomical rules)
+        # This should be a simple semantic comparison, not anatomical location analysis
+        result = self.medical_rule_engine.get_semantic_similarity(
+            normalized_complaint, normalized_trigger
         )
         
         similarity = result['similarity']
-        self._capture_debug(f"[Engine] 🧠   ML similarity result: {similarity:.3f}")
+        self._capture_debug(f"[Engine] 🧠   Semantic similarity result: {similarity:.3f}")
         return similarity
     
     def _generate_ml_first_question_with_demographics(self) -> Dict[str, Any]:
-        """Generate first question using ML-powered approach with demographics"""
-        self._capture_debug(f"[Engine] 🧠 Generating ML-powered first question with demographics...")
+        """Generate first question using ML-powered approach with demographics and missing OLDCARTS"""
+        self._capture_debug(f"[Engine] 🧠 Generating ML-powered first question with demographics and missing OLDCARTS...")
         
-        # Start with age question (demographics first)
+        # Check if we have missing OLDCARTS components from the initial complaint
+        if hasattr(self, 'active_guidelines') and self.active_guidelines:
+            first_guideline = self.active_guidelines[0]
+            missing_components = first_guideline.get('missing_components', [])
+            oldcarts_answers = first_guideline.get('oldcarts_answers', {})
+            
+            self._capture_debug(f"[Engine] 🧠 Missing OLDCARTS components: {missing_components}")
+            self._capture_debug(f"[Engine] 🧠 Already answered: {oldcarts_answers}")
+            
+            # If we have missing components, ask about the first one
+            if missing_components:
+                first_missing = missing_components[0]
+                question = self._generate_oldcarts_question_for_component(first_missing)
+                
+                # Add to conversation history
+                self.conversation_history.append({
+                    'type': 'question',
+                    'question': question,
+                    'oldcarts': first_missing,
+                    'focus': 'missing_oldcarts'
+                })
+                
+                self._capture_debug(f"[Engine] ✅ ML OLDCARTS question generated: '{question}'")
+                
+                return {
+                    'success': True,
+                    'question': question,
+                    'status': 'questioning',
+                    'oldcarts_element': first_missing,
+                    'missing_components': missing_components,
+                    'answered_components': oldcarts_answers,
+                    'debug': self._get_debug_info()
+                }
+        
+        # Fallback to age question if no missing components
         question = "How old are you?"
         
         # Add to conversation history
@@ -565,6 +635,21 @@ class AdaptiveDiagnosticEngine:
             'status': 'questioning',
             'debug': self._get_debug_info()
         }
+    
+    def _generate_oldcarts_question_for_component(self, component: str) -> str:
+        """Generate OLDCARTS question for specific component"""
+        question_templates = {
+            'location': "Where exactly is the pain located?",
+            'character': "How would you describe the pain?",
+            'aggravating': "What makes the pain worse?",
+            'relieving': "What makes the pain better?",
+            'onset': "How did the pain start?",
+            'duration': "How long have you had this pain?",
+            'timing': "When does the pain occur?",
+            'severity': "How severe is the pain on a scale of 1-10?"
+        }
+        
+        return question_templates.get(component, f"Tell me more about the {component} of your symptoms.")
     
     def _generate_ml_first_question(self) -> Dict[str, Any]:
         """Generate first question using ML-powered approach"""
@@ -1224,88 +1309,220 @@ class AdaptiveDiagnosticEngine:
         return normalized_complaint
     
     def _categorize_complaint_by_substring(self, normalized_complaint: str) -> str:
-        """Categorize complaint by substring matching against guideline triggers"""
-        self._capture_debug(f"[Engine] 🔍 CATEGORY DETECTION DEBUG:")
+        """Efficient category detection using organ system keywords"""
+        self._capture_debug(f"[Engine] 🔍 EFFICIENT CATEGORY DETECTION DEBUG:")
         self._capture_debug(f"[Engine] 🔍 Input: '{normalized_complaint}'")
-        self._capture_debug(f"[Engine] 🔍 Complaint words: {set(normalized_complaint.split())}")
         
-        # Load all guideline triggers and categorize by substring match
-        category_matches = {
-            'GI': 0,
-            'CARDIO': 0,
-            'NEURO': 0,
-            'MSK': 0,
-            'DERM': 0,
-            'RENAL': 0,
-            'GYN': 0
+        complaint_lower = normalized_complaint.lower()
+        
+        # Organ system keywords (not generic "pain")
+        organ_keywords = {
+            'GI': ['abdominal', 'stomach', 'belly', 'gut', 'bowel', 'intestine', 'gastrointestinal'],
+            'CARDIO': ['chest', 'heart', 'cardiac', 'coronary', 'myocardial'],
+            'NEURO': ['head', 'headache', 'brain', 'neurological', 'cerebral', 'migraine'],
+            'MSK': ['back', 'joint', 'muscle', 'bone', 'spine', 'musculoskeletal', 'orthopedic'],
+            'RENAL': ['kidney', 'urinary', 'bladder', 'flank', 'renal', 'genitourinary'],
+            'DERM': ['skin', 'rash', 'lesion', 'dermatological', 'cutaneous'],
+            'GYN': ['pelvic', 'menstrual', 'gynecological', 'reproductive']
         }
         
-        total_guidelines_checked = 0
-        total_triggers_checked = 0
-        matches_found = 0
+        # Count keyword matches by organ system
+        category_scores = {}
+        for organ, keywords in organ_keywords.items():
+            score = sum(1 for keyword in keywords if keyword in complaint_lower)
+            if score > 0:
+                category_scores[organ] = score
+                self._capture_debug(f"[Engine] 🔍 {organ}: {score} matches")
         
-        # Check each guideline's triggers for substring matches
-        for name, guideline in self.all_guidelines.items():
-            total_guidelines_checked += 1
-            triggers = guideline.get('chief_complaint_triggers', [])
-            self._capture_debug(f"[Engine] 🔍 Checking guideline: {name} ({len(triggers)} triggers)")
-            
-            for trigger in triggers:
-                total_triggers_checked += 1
-                trigger_lower = trigger.lower()
-                # Check for word overlap between complaint and trigger
-                complaint_words = set(normalized_complaint.split())
-                trigger_words = set(trigger_lower.split())
-                overlap = len(complaint_words.intersection(trigger_words))
-                
-                self._capture_debug(f"[Engine] 🔍   Trigger: '{trigger}' → '{trigger_lower}'")
-                self._capture_debug(f"[Engine] 🔍   Trigger words: {trigger_words}")
-                self._capture_debug(f"[Engine] 🔍   Overlap: {overlap} words")
-                
-                if overlap > 0:  # Any word overlap
-                    matches_found += 1
-                    # Determine category from guideline name
-                    if name.startswith('GI_'):
-                        category_matches['GI'] += 1
-                        self._capture_debug(f"[Engine] 🔍   ✓ GI match: {name} (overlap: {overlap})")
-                    elif name.startswith('CARDIO_'):
-                        category_matches['CARDIO'] += 1
-                        self._capture_debug(f"[Engine] 🔍   ✓ CARDIO match: {name} (overlap: {overlap})")
-                    elif name.startswith('NEURO_'):
-                        category_matches['NEURO'] += 1
-                        self._capture_debug(f"[Engine] 🔍   ✓ NEURO match: {name} (overlap: {overlap})")
-                    elif name.startswith('MSK_'):
-                        category_matches['MSK'] += 1
-                        self._capture_debug(f"[Engine] 🔍   ✓ MSK match: {name} (overlap: {overlap})")
-                    elif name.startswith('DERM_'):
-                        category_matches['DERM'] += 1
-                        self._capture_debug(f"[Engine] 🔍   ✓ DERM match: {name} (overlap: {overlap})")
-                    elif name.startswith('RENAL_'):
-                        category_matches['RENAL'] += 1
-                        self._capture_debug(f"[Engine] 🔍   ✓ RENAL match: {name} (overlap: {overlap})")
-                    elif name.startswith('GYN_'):
-                        category_matches['GYN'] += 1
-                        self._capture_debug(f"[Engine] 🔍   ✓ GYN match: {name} (overlap: {overlap})")
-                else:
-                    self._capture_debug(f"[Engine] 🔍   ✗ No overlap: {name}")
+        self._capture_debug(f"[Engine] 🔍 Category scores: {category_scores}")
         
-        self._capture_debug(f"[Engine] 🔍 CATEGORY DETECTION SUMMARY:")
-        self._capture_debug(f"[Engine] 🔍 Total guidelines checked: {total_guidelines_checked}")
-        self._capture_debug(f"[Engine] 🔍 Total triggers checked: {total_triggers_checked}")
-        self._capture_debug(f"[Engine] 🔍 Total matches found: {matches_found}")
-        self._capture_debug(f"[Engine] 🔍 Category matches: {category_matches}")
+        # Return organ system with highest score
+        if category_scores:
+            best_category = max(category_scores, key=category_scores.get)
+            self._capture_debug(f"[Engine] 🔍 Best category: {best_category}")
+            return best_category
+        else:
+            self._capture_debug(f"[Engine] 🔍 No organ keywords found, using ALL categories")
+            return 'ALL'
+    
+    def _parse_oldcarts_components(self, complaint: str) -> Dict[str, List[str]]:
+        """Parse complaint to extract OLDCARTS components using comprehensive keyword database"""
+        complaint_lower = complaint.lower()
+        components = {
+            'location': [],
+            'character': [],
+            'aggravating': [],
+            'relieving': [],
+            'onset': [],
+            'duration': [],
+            'timing': [],
+            'severity': []
+        }
         
-        # Find category with most matches (ML-only, no fallbacks)
-        if category_matches:
-            best_category = max(category_matches, key=category_matches.get)
-            if category_matches[best_category] > 0:
-                self._capture_debug(f"[Engine] 🎯 Substring matches: {category_matches}")
-                self._capture_debug(f"[Engine] 🎯 Best category: {best_category} ({category_matches[best_category]} matches)")
-                return best_category
+        # Load comprehensive OLDCARTS keywords from JSON file
+        try:
+            with open('oldcarts_keywords.json', 'r') as f:
+                oldcarts_keywords = json.load(f)
+        except FileNotFoundError:
+            self._capture_debug(f"[Engine] ⚠️ OLDCARTS keywords file not found, using fallback")
+            return self._parse_oldcarts_components_fallback(complaint)
         
-        # No fallbacks - use ALL categories if no matches
-        self._capture_debug(f"[Engine] 🎯 No substring matches found, using ALL categories")
-        return 'ALL'  # Process all if no matches
+        # Location indicators
+        location_categories = ['anatomical_regions', 'quadrants', 'sides', 'specific_locations']
+        for category in location_categories:
+            if category in oldcarts_keywords['location']:
+                for term in oldcarts_keywords['location'][category]:
+                    if term in complaint_lower:
+                        components['location'].append(term)
+        
+        # Character indicators
+        character_categories = ['pain_quality', 'pain_intensity', 'pain_pattern']
+        for category in character_categories:
+            if category in oldcarts_keywords['character']:
+                for term in oldcarts_keywords['character'][category]:
+                    if term in complaint_lower:
+                        components['character'].append(term)
+        
+        # Aggravating indicators
+        aggravating_categories = ['activities', 'triggers', 'positions']
+        for category in aggravating_categories:
+            if category in oldcarts_keywords['aggravating']:
+                for term in oldcarts_keywords['aggravating'][category]:
+                    if term in complaint_lower:
+                        components['aggravating'].append(term)
+        
+        # Relieving indicators
+        relieving_categories = ['positions', 'interventions', 'activities']
+        for category in relieving_categories:
+            if category in oldcarts_keywords['relieving']:
+                for term in oldcarts_keywords['relieving'][category]:
+                    if term in complaint_lower:
+                        components['relieving'].append(term)
+        
+        # Onset indicators
+        onset_categories = ['temporal', 'triggers', 'descriptors']
+        for category in onset_categories:
+            if category in oldcarts_keywords['onset']:
+                for term in oldcarts_keywords['onset'][category]:
+                    if term in complaint_lower:
+                        components['onset'].append(term)
+        
+        # Duration indicators
+        duration_categories = ['time_units', 'descriptors', 'patterns']
+        for category in duration_categories:
+            if category in oldcarts_keywords['duration']:
+                for term in oldcarts_keywords['duration'][category]:
+                    if term in complaint_lower:
+                        components['duration'].append(term)
+        
+        # Timing indicators
+        timing_categories = ['daily_patterns', 'meal_related', 'activity_related', 'frequency']
+        for category in timing_categories:
+            if category in oldcarts_keywords['timing']:
+                for term in oldcarts_keywords['timing'][category]:
+                    if term in complaint_lower:
+                        components['timing'].append(term)
+        
+        # Severity indicators
+        severity_categories = ['intensity_levels', 'scale_descriptors', 'impact_descriptors']
+        for category in severity_categories:
+            if category in oldcarts_keywords['severity']:
+                for term in oldcarts_keywords['severity'][category]:
+                    if term in complaint_lower:
+                        components['severity'].append(term)
+        
+        return components
+    
+    def _construct_oldcarts_answers(self, components: Dict[str, List[str]]) -> Dict[str, str]:
+        """Construct OLDCARTS answers from parsed components"""
+        oldcarts_answers = {}
+        
+        # Location
+        if components['location']:
+            oldcarts_answers['location'] = ', '.join(components['location'])
+        
+        # Character
+        if components['character']:
+            oldcarts_answers['character'] = ', '.join(components['character'])
+        
+        # Aggravating
+        if components['aggravating']:
+            oldcarts_answers['aggravating'] = ', '.join(components['aggravating'])
+        
+        # Relieving
+        if components['relieving']:
+            oldcarts_answers['relieving'] = ', '.join(components['relieving'])
+        
+        # Onset
+        if components['onset']:
+            oldcarts_answers['onset'] = ', '.join(components['onset'])
+        
+        # Duration
+        if components['duration']:
+            oldcarts_answers['duration'] = ', '.join(components['duration'])
+        
+        # Timing
+        if components['timing']:
+            oldcarts_answers['timing'] = ', '.join(components['timing'])
+        
+        # Severity
+        if components['severity']:
+            oldcarts_answers['severity'] = ', '.join(components['severity'])
+        
+        return oldcarts_answers
+    
+    def _identify_missing_oldcarts_components(self, oldcarts_answers: Dict[str, str]) -> List[str]:
+        """Identify missing OLDCARTS components that need to be asked"""
+        all_components = ['location', 'character', 'aggravating', 'relieving', 'onset', 'duration', 'timing', 'severity']
+        missing_components = []
+        
+        for component in all_components:
+            if component not in oldcarts_answers or not oldcarts_answers[component]:
+                missing_components.append(component)
+        
+        return missing_components
+    
+    def _parse_oldcarts_components_fallback(self, complaint: str) -> Dict[str, List[str]]:
+        """Fallback OLDCARTS parsing with basic keywords"""
+        complaint_lower = complaint.lower()
+        components = {
+            'location': [],
+            'character': [],
+            'aggravating': [],
+            'relieving': [],
+            'onset': [],
+            'duration': [],
+            'timing': [],
+            'severity': []
+        }
+        
+        # Basic fallback keywords
+        if 'right' in complaint_lower or 'left' in complaint_lower:
+            components['location'].append('side')
+        if 'sharp' in complaint_lower or 'dull' in complaint_lower:
+            components['character'].append('quality')
+        if 'worsened' in complaint_lower or 'worse' in complaint_lower:
+            components['aggravating'].append('worsened')
+        if 'better' in complaint_lower or 'improved' in complaint_lower:
+            components['relieving'].append('better')
+        if 'sudden' in complaint_lower or 'gradual' in complaint_lower:
+            components['onset'].append('temporal')
+        if 'minutes' in complaint_lower or 'hours' in complaint_lower:
+            components['duration'].append('time')
+        if 'morning' in complaint_lower or 'evening' in complaint_lower:
+            components['timing'].append('daily')
+        if 'mild' in complaint_lower or 'severe' in complaint_lower:
+            components['severity'].append('intensity')
+        
+        return components
+    
+    def _count_oldcarts_components(self, components: Dict[str, List[str]]) -> int:
+        """Count how many OLDCARTS components are present"""
+        component_count = 0
+        for component_type, terms in components.items():
+            if terms:  # If any terms found for this component
+                component_count += 1
+        return component_count
     
     def _get_guidelines_by_category(self, category: str) -> Dict:
         """Get guidelines filtered by organ system category"""
