@@ -35,6 +35,9 @@ COPY ml/location_ml_data.csv .
 COPY config/medical_rules.json .
 COPY config/medical_term_mappings.json .
 
+# Copy OLDCARTS keywords file
+COPY oldcarts_keywords.json .
+
 # Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
 
 
