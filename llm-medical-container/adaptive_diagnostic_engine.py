@@ -113,8 +113,8 @@ class AdaptiveDiagnosticEngine:
         self.embedding_model = embedding_model
         
         # Temperature configuration from environment variables
-        self.temperature_simple = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.1'))
-        self.temperature_complex = float(os.environ.get('LLM_TEMPERATURE_COMPLEX', '0.1'))
+        self.temperature_simple = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.05'))
+        self.temperature_complex = float(os.environ.get('LLM_TEMPERATURE_COMPLEX', '0.05'))
         
         # Token limits for different question types
         self.max_tokens_question = 60      # For complex clinical questions
@@ -865,6 +865,9 @@ class AdaptiveDiagnosticEngine:
         })
         
         # Store demographics if provided
+        self._capture_debug(f"[Engine] 🔍 Last question focus: {last_q.get('focus')}")
+        self._capture_debug(f"[Engine] 🔍 Last question text: {last_q.get('question', '')}")
+        
         if last_q.get('focus') == 'demographics':
             if 'age' in last_q.get('question', '').lower():
                 # Store age
@@ -877,12 +880,18 @@ class AdaptiveDiagnosticEngine:
             elif 'sex' in last_q.get('question', '').lower():
                 # Store sex
                 sex_lower = user_answer.lower().strip()
+                self._capture_debug(f"[Engine] 🔍 Processing sex answer: '{user_answer}' -> '{sex_lower}'")
+                
                 if any(word in sex_lower for word in ['male', 'man', 'm']):
                     self.demographics['sex'] = 'male'
+                    self._capture_debug(f"[Engine] ✅ Detected MALE keywords")
                 elif any(word in sex_lower for word in ['female', 'woman', 'f']):
                     self.demographics['sex'] = 'female'
+                    self._capture_debug(f"[Engine] ✅ Detected FEMALE keywords")
                 else:
                     self._capture_debug(f"[Engine] ⚠️ Unclear sex format: '{user_answer}'")
+                    self._capture_debug(f"[Engine] 🔍 Available words: {sex_lower.split()}")
+                
                 self._capture_debug(f"[Engine] 📊 Stored patient sex: {self.demographics.get('sex', 'unknown')}")
             elif 'new problem' in last_q.get('question', '').lower() or 'ongoing' in last_q.get('question', '').lower():
                 # Store chronicity
@@ -3789,7 +3798,12 @@ Your question:"""
         
         element_desc = element_descriptions.get(oldcarts_element, "the symptom")
         
-        system_msg = "You are a medical assistant. Generate ONE intelligent clarification question. Use PLAIN LANGUAGE. Do NOT ask questions requiring visual inspection. Do NOT use medical terms. Focus on the patient's chief complaint area only."
+        # Get chief complaint context for the LLM
+        chief_complaint_context = ""
+        if hasattr(self, 'chief_complaint') and self.chief_complaint:
+            chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}. "
+        
+        system_msg = f"You are a medical assistant. Generate ONE intelligent clarification question. Use PLAIN LANGUAGE. Do NOT ask questions requiring visual inspection. Do NOT use medical terms. {chief_complaint_context}Focus ONLY on the patient's chief complaint area - do NOT ask about unrelated body parts."
         
         user_msg = f"""The patient gave a vague answer about {element_desc}:
 
@@ -3797,6 +3811,7 @@ Patient's answer: "{vague_answer}"
 
 Generate ONE intelligent follow-up question to get more specific information about {element_desc}. 
 Make it natural and conversational, not clinical.
+Focus ONLY on the chief complaint area - do NOT ask about unrelated body parts.
 
 Question:"""
         
@@ -3868,14 +3883,19 @@ Question:"""
         
         element_desc = element_descriptions.get(oldcarts_element, "the symptom")
         
-        system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do NOT ask questions requiring visual inspection. Do NOT use medical terminology from guidelines. Do NOT include internal reasoning or explanations. Focus on the patient's chief complaint area only. Output only the question:"
+        # Get chief complaint context for the LLM
+        chief_complaint_context = ""
+        if hasattr(self, 'chief_complaint') and self.chief_complaint:
+            chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}. "
+        
+        system_msg = f"You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do NOT ask questions requiring visual inspection. Do NOT use medical terminology from guidelines. Do NOT include internal reasoning or explanations. {chief_complaint_context}Focus ONLY on the patient's chief complaint area - do NOT ask about unrelated body parts. Output only the question:"
         
         user_msg = f"""Generate ONE simple question about {element_desc} to help differentiate between these conditions:
 
 Conditions:
 {chr(10).join(condition_info)}
 
-Generate ONE question only. Focus on {element_desc}. Use simple language. Output only the question:"""
+Generate ONE question only. Focus on {element_desc}. Use simple language. Focus ONLY on the chief complaint area - do NOT ask about unrelated body parts. Output only the question:"""
         
         try:
             response = self.llm_chat_fn(
@@ -3951,14 +3971,7 @@ Your question:"""
             self._capture_debug(f"[Engine] ⚠️ No specific locations found in guidelines")
             return False
         
-        # Filter locations based on chief complaint context
-        if hasattr(self, 'chief_complaint') and self.chief_complaint:
-            specific_locations = self._filter_locations_by_context(specific_locations, self.chief_complaint)
-            self._capture_debug(f"[Engine] 🧠 Filtered to {len(specific_locations)} context-relevant locations")
-        
-        if not specific_locations:
-            self._capture_debug(f"[Engine] ⚠️ No context-relevant locations found")
-            return False
+        # No context filtering needed - LLM has chief complaint context
         
         try:
             # Calculate similarity scores with all specific locations
@@ -4003,9 +4016,7 @@ Your question:"""
         if not specific_locations:
             return "Can you be more specific about the exact location?"
         
-        # Filter locations based on chief complaint context
-        if hasattr(self, 'chief_complaint') and self.chief_complaint:
-            specific_locations = self._filter_locations_by_context(specific_locations, self.chief_complaint)
+        # No context filtering needed - LLM has chief complaint context
         
         if not specific_locations:
             return "Can you be more specific about the exact location?"
@@ -4070,46 +4081,6 @@ Your question:"""
         
         return len(intersection) / len(union) if union else 0.0
     
-    def _filter_locations_by_context(self, locations: list, chief_complaint: str) -> list:
-        """
-        Filter locations based on chief complaint context
-        """
-        complaint_lower = chief_complaint.lower()
-        
-        # Define context-specific location filters
-        if any(word in complaint_lower for word in ['abdominal', 'belly', 'stomach', 'abdomen']):
-            # GI context - filter for abdominal/trunk locations only
-            relevant_terms = ['abdomen', 'quadrant', 'epigastric', 'periumbilical', 'suprapubic', 'flank', 'groin']
-            return [loc for loc in locations if any(term in loc for term in relevant_terms)]
-        
-        elif any(word in complaint_lower for word in ['chest', 'heart', 'breast']):
-            # Cardiac/chest context
-            relevant_terms = ['chest', 'heart', 'breast', 'anterior', 'lateral', 'upper']
-            return [loc for loc in locations if any(term in loc for term in relevant_terms)]
-        
-        elif any(word in complaint_lower for word in ['head', 'headache', 'migraine']):
-            # Neurological/head context
-            relevant_terms = ['head', 'brain', 'anterior', 'posterior', 'lateral', 'upper']
-            return [loc for loc in locations if any(term in loc for term in relevant_terms)]
-        
-        elif any(word in complaint_lower for word in ['back', 'spine']):
-            # Back/spine context
-            relevant_terms = ['back', 'spine', 'upper', 'lower', 'lateral', 'anterior', 'posterior']
-            return [loc for loc in locations if any(term in loc for term in relevant_terms)]
-        
-        elif any(word in complaint_lower for word in ['arm', 'shoulder', 'elbow', 'wrist']):
-            # Upper extremity context
-            relevant_terms = ['arm', 'shoulder', 'elbow', 'wrist', 'upper', 'lateral', 'anterior']
-            return [loc for loc in locations if any(term in loc for term in relevant_terms)]
-        
-        elif any(word in complaint_lower for word in ['leg', 'knee', 'ankle', 'foot']):
-            # Lower extremity context
-            relevant_terms = ['leg', 'knee', 'ankle', 'foot', 'lower', 'lateral', 'anterior']
-            return [loc for loc in locations if any(term in loc for term in relevant_terms)]
-        
-        else:
-            # No specific context - return all locations
-            return locations
     
     def _analyze_missing_location_info(self, user_answer: str, best_match: str) -> str:
         """
@@ -4144,11 +4115,7 @@ Your question:"""
             if term in match_words and term not in user_words:
                 missing_descriptors.append(f'the {term} area')
         
-        # Check for missing body part specificity
-        body_parts = ['chest', 'head', 'back', 'abdomen', 'shoulder', 'arm', 'leg', 'knee', 'ankle', 'foot']
-        for part in body_parts:
-            if part in match_words and part not in user_words:
-                missing_descriptors.append(f'which part of your {part}')
+        # No context filtering needed - LLM has chief complaint context
         
         # Return the most relevant missing information
         if missing_descriptors:
