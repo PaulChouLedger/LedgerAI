@@ -121,9 +121,16 @@ class AdaptiveDiagnosticEngine:
             self.temperature_simple = LLM_TEMPERATURE_SIMPLE
             self.temperature_complex = LLM_TEMPERATURE_COMPLEX
         except ImportError:
-            # Fallback to environment variables if aura_config not available
-            self.temperature_simple = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.1'))
-            self.temperature_complex = float(os.environ.get('LLM_TEMPERATURE_COMPLEX', '0.1'))
+            # No fallback - require proper configuration
+            raise RuntimeError("aura_config module not available - configuration required")
+        
+        # Token limits for different question types
+        self.max_tokens_question = 60      # For complex clinical questions
+        self.max_tokens_simple = 30         # For simple questions
+        self.max_tokens_classification = 10 # For yes/no classifications
+        self.max_tokens_normalization = 50  # For text normalization
+        self.max_tokens_red_flag = 80       # For red flag questions
+        self.max_tokens_follow_up = 100     # For follow-up questions
         
         # Initialize debug capture
         self._captured_debug_output = []
@@ -215,18 +222,9 @@ class AdaptiveDiagnosticEngine:
         self.rag_api = RAGEmbeddingAPI() if RAG_API_AVAILABLE else None
         self.use_rag_api = RAG_API_AVAILABLE
         
-        # OLDCARTS element weights (how much impact each element has on scoring)
-        # More balanced weights that don't completely override previous scores
-        self.oldcarts_weights = {
-            'L': 0.6,  # Location - high weight but not overwhelming
-            'C': 0.5,  # Character - moderate-high weight
-            'A': 0.5,  # Aggravating - moderate-high weight
-            'R': 0.5,  # Relieving - moderate-high weight
-            'S': 0.4,  # Severity - moderate weight
-            'D': 0.3,  # Duration - moderate weight
-            'O': 0.2,  # Onset - low weight
-            'T': 0.3,  # Timing - moderate weight
-        }
+        # OLDCARTS element weights removed - now using semantic similarity scoring
+        # Each OLDCARTS element is scored using vector similarity to guideline sections
+        # No subjective weights needed - mathematical similarity is objective
         
         # Load guidelines
         self.all_guidelines = {}
@@ -273,9 +271,7 @@ class AdaptiveDiagnosticEngine:
         self._capture_debug(f"{'='*80}\n")
     
     
-    # REMOVED: _is_valid_chief_complaint - hardcoded validation not needed
-    # The system should handle invalid input through natural flow:
-    # 1. OLDCARTS normalization
+    # Chief complaint validation is handled through natural conversation flow
     # 2. Phase 1/2 matching 
     # 3. If no matches found, ask clarification
     
@@ -574,41 +570,7 @@ class AdaptiveDiagnosticEngine:
         """Generate first question using ML-powered approach with demographics and missing OLDCARTS"""
         self._capture_debug(f"[Engine] 🧠 Generating ML-powered first question with demographics and missing OLDCARTS...")
         
-        # Check if we have missing OLDCARTS components from the initial complaint
-        if hasattr(self, 'active_guidelines') and self.active_guidelines:
-            first_guideline = self.active_guidelines[0]
-            missing_components = first_guideline.get('missing_components', [])
-            oldcarts_answers = first_guideline.get('oldcarts_answers', {})
-            
-            self._capture_debug(f"[Engine] 🧠 Missing OLDCARTS components: {missing_components}")
-            self._capture_debug(f"[Engine] 🧠 Already answered: {oldcarts_answers}")
-            
-            # If we have missing components, ask about the first one
-            if missing_components:
-                first_missing = missing_components[0]
-                question = self._generate_oldcarts_question_for_component(first_missing)
-                
-                # Add to conversation history
-                self.conversation_history.append({
-                    'type': 'question',
-                    'question': question,
-                    'oldcarts': first_missing,
-                    'focus': 'missing_oldcarts'
-                })
-                
-                self._capture_debug(f"[Engine] ✅ ML OLDCARTS question generated: '{question}'")
-                
-                return {
-                    'success': True,
-                    'question': question,
-                    'status': 'questioning',
-                    'oldcarts_element': first_missing,
-                    'missing_components': missing_components,
-                    'answered_components': oldcarts_answers,
-                    'debug': self._get_debug_info()
-                }
-        
-        # Check if we need to ask demographics questions
+        # PRIORITY 1: Ask demographics FIRST (age, then sex, then chronicity)
         if not hasattr(self, 'demographics') or not self.demographics.get('age'):
             # Ask age first
             question = "How old are you?"
@@ -617,6 +579,10 @@ class AdaptiveDiagnosticEngine:
             # Ask sex after age
             question = "What is your biological sex?"
             self._capture_debug(f"[Engine] ✅ ML demographics question generated: '{question}'")
+        elif not self.demographics.get('chronicity'):
+            # Ask chronicity after sex
+            question = self._generate_chronicity_question()
+            self._capture_debug(f"[Engine] ✅ ML chronicity question generated: '{question}'")
         else:
             # Both demographics collected, ask first missing OLDCARTS component
             if hasattr(self, 'active_guidelines') and self.active_guidelines:
@@ -627,18 +593,17 @@ class AdaptiveDiagnosticEngine:
                     question = self._generate_oldcarts_question_for_component(first_missing)
                     self._capture_debug(f"[Engine] ✅ ML OLDCARTS question generated: '{question}'")
                 else:
-                    question = "How would you describe the pain?"
-                    self._capture_debug(f"[Engine] ✅ ML fallback question generated: '{question}'")
+                    raise RuntimeError("No missing OLDCARTS components found in active guidelines")
             else:
-                question = "How would you describe the pain?"
-                self._capture_debug(f"[Engine] ✅ ML fallback question generated: '{question}'")
+                raise RuntimeError("No active guidelines available for OLDCARTS questions")
         
         # Add to conversation history
+        is_demographics = 'age' in question.lower() or 'sex' in question.lower() or 'old are you' in question.lower() or 'biological sex' in question.lower() or 'new problem' in question.lower() or 'ongoing' in question.lower()
         self.conversation_history.append({
             'type': 'question',
             'question': question,
-            'oldcarts': 'demographics' if 'age' in question or 'sex' in question else 'oldcarts',
-            'focus': 'demographics' if 'age' in question or 'sex' in question else 'oldcarts'
+            'oldcarts': 'demographics' if is_demographics else 'oldcarts',
+            'focus': 'demographics' if is_demographics else 'oldcarts'
         })
         
         return {
@@ -691,10 +656,10 @@ class AdaptiveDiagnosticEngine:
         }
     
     def _determine_best_oldcarts_element(self) -> str:
-        """Use ML to determine best OLDCARTS element to ask about first"""
-        # For now, start with Location (L) as it's most discriminative
-        # TODO: Implement ML-based element selection
-        return 'L'
+        """Determine best OLDCARTS element to ask about first"""
+        # Follow standard OLDCARTS order: O-L-D-C-A-R-T-S
+        # Start with Onset (O) as it's the first element in the framework
+        return 'O'
     
     def _generate_ml_question(self, oldcarts_element: str) -> str:
         """Generate question using ML-powered approach"""
@@ -1403,8 +1368,8 @@ class AdaptiveDiagnosticEngine:
                 with open('llm-medical-container/oldcarts_keywords.json', 'r') as f:
                     oldcarts_keywords = json.load(f)
             except FileNotFoundError:
-                self._capture_debug(f"[Engine] ⚠️ OLDCARTS keywords file not found, using fallback")
-                return self._parse_oldcarts_components_fallback(complaint)
+                self._capture_debug(f"[Engine] ❌ OLDCARTS keywords file not found")
+                raise RuntimeError("OLDCARTS keywords file not found - required for parsing")
         
         # Location indicators
         location_categories = ['anatomical_regions', 'quadrants', 'sides', 'specific_locations']
@@ -1521,39 +1486,6 @@ class AdaptiveDiagnosticEngine:
         
         return missing_components
     
-    def _parse_oldcarts_components_fallback(self, complaint: str) -> Dict[str, List[str]]:
-        """Fallback OLDCARTS parsing with basic keywords"""
-        complaint_lower = complaint.lower()
-        components = {
-            'location': [],
-            'character': [],
-            'aggravating': [],
-            'relieving': [],
-            'onset': [],
-            'duration': [],
-            'timing': [],
-            'severity': []
-        }
-        
-        # Basic fallback keywords
-        if 'right' in complaint_lower or 'left' in complaint_lower:
-            components['location'].append('side')
-        if 'sharp' in complaint_lower or 'dull' in complaint_lower:
-            components['character'].append('quality')
-        if 'worsened' in complaint_lower or 'worse' in complaint_lower:
-            components['aggravating'].append('worsened')
-        if 'better' in complaint_lower or 'improved' in complaint_lower:
-            components['relieving'].append('better')
-        if 'sudden' in complaint_lower or 'gradual' in complaint_lower:
-            components['onset'].append('temporal')
-        if 'minutes' in complaint_lower or 'hours' in complaint_lower:
-            components['duration'].append('time')
-        if 'morning' in complaint_lower or 'evening' in complaint_lower:
-            components['timing'].append('daily')
-        if 'mild' in complaint_lower or 'severe' in complaint_lower:
-            components['severity'].append('intensity')
-        
-        return components
     
     def _count_oldcarts_components(self, components: Dict[str, List[str]]) -> int:
         """Count how many OLDCARTS components are present"""
@@ -1995,18 +1927,26 @@ class AdaptiveDiagnosticEngine:
         coverage_str = ''.join([k if v else '_' for k, v in self.oldcarts_covered.items()])
         
         # Determine next OLDCARTS element to ask about
+        # Follow proper OLDCARTS order: O-L-D-C-A-R-T-S
+        oldcarts_order = ['O', 'L', 'D', 'C', 'A', 'R', 'T', 'S']
+        
+        # Find the next uncovered element in proper order
+        next_element = None
+        for element in oldcarts_order:
+            if not self.oldcarts_covered[element]:
+                next_element = element
+                break
+        
         # Check if we've already asked about this element recently to prevent repetition
         recent_questions = [item for item in self.conversation_history[-5:] if item.get('type') == 'question']
         recent_oldcarts = [item.get('oldcarts') for item in recent_questions if item.get('oldcarts')]
         
-        # Filter out recently asked elements
-        available_elements = [elem for elem in uncovered_elements if elem not in recent_oldcarts]
-        
-        if not available_elements:
-            # If all uncovered elements were recently asked, use the first uncovered
-            available_elements = uncovered_elements
-        
-        next_element = available_elements[0] if available_elements else None
+        # If the next element was recently asked, skip to the next one
+        if next_element in recent_oldcarts:
+            for element in oldcarts_order:
+                if not self.oldcarts_covered[element] and element not in recent_oldcarts:
+                    next_element = element
+                    break
         
         # LLM-generated OLDCARTS questions
         if next_element:
@@ -2074,7 +2014,7 @@ Output only the question:"""
                         {"role": "system", "content": system_msg},
                         {"role": "user", "content": user_msg}
                     ],
-                    max_tokens=60,
+                    max_tokens=self.max_tokens_question,
                     temperature=self.temperature_complex
                 )
             else:
@@ -2085,7 +2025,7 @@ Output only the question:"""
                         {"role": "system", "content": system_msg},
                         {"role": "user", "content": user_msg}
                     ],
-                    max_tokens=30,
+                    max_tokens=self.max_tokens_simple,
                     temperature=self.temperature_simple
                 )
             
@@ -2139,8 +2079,7 @@ Output only the question:"""
             
             self._capture_debug(f"[Engine] ✅ OLDCARTS Question ({next_element}): '{question}'")
             
-            # Mark as covered
-            self.oldcarts_covered[oldcarts_element] = True
+            # Mark as covered after user answers
             self._capture_debug(f"{'='*80}\n")
             
             # Store question
@@ -2210,7 +2149,7 @@ Your question:"""
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
-            max_tokens=30,
+            max_tokens=self.max_tokens_simple,
             temperature=self.temperature_complex
         )
         
@@ -2337,8 +2276,7 @@ Your question:"""
             RuntimeError if embeddings not available or computation fails
         """
         if not self.embedding_model:
-            # Fallback to simple keyword-based similarity for testing
-            return self._compute_keyword_similarity(text1, text2)
+            raise RuntimeError("Embedding model not available - required for semantic similarity")
         
         if not text1 or not text2:
             raise ValueError("Both text1 and text2 must be non-empty")
@@ -2367,7 +2305,7 @@ Your question:"""
     
     def _compute_keyword_similarity(self, text1: str, text2: str) -> float:
         """
-        Fallback keyword-based similarity for testing when embedding model is not available
+        Keyword-based similarity for testing when embedding model is not available
         
         Returns: Simple similarity score 0-1 based on keyword overlap
         """
@@ -2648,8 +2586,7 @@ Your question:"""
                 with open('config/medical_term_mappings.json', 'r') as f:
                     self._medical_term_mappings = json.load(f)
             except FileNotFoundError:
-                # Fallback to basic replacement if file not found
-                self._medical_term_mappings = {}
+                raise RuntimeError("Medical term mappings file not found - required for normalization")
         
         # Get mapping for category
         category_mappings = self._medical_term_mappings.get(category, {})
@@ -2721,8 +2658,8 @@ Normalized text:"""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=50,
-                temperature=0.1
+                max_tokens=self.max_tokens_normalization,
+                temperature=self.temperature_simple
             )
             
             normalized = response.strip().strip('"\'')
@@ -3161,11 +3098,8 @@ Normalized text:"""
                 # Skip this guideline and continue with the next one
                 continue
             
-            # Update score using OLDCARTS element weight
+            # Update score using semantic similarity
             old_score = g['score']
-            
-            # Get element-specific weight (Location=1.0, Onset=0.3, etc.)
-            element_weight = self.oldcarts_weights.get(oldcarts_element, 0.5)
             
             # UNIFIED ML-ONLY SCORING: Use enhanced similarity directly as the score
             # No more hybrid scoring or penalties - ML system provides the final score for ALL OLDCARTS
@@ -3553,7 +3487,7 @@ Your statement:"""
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
-            max_tokens=50,  # Allow more natural variation
+            max_tokens=self.max_tokens_normalization,  # Allow more natural variation
             temperature=self.temperature_simple  # Use conservative temperature for consistent responses
         )
         
@@ -3597,7 +3531,7 @@ Your question:"""
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
-            max_tokens=30,
+            max_tokens=self.max_tokens_simple,
             temperature=self.temperature_simple
         )
         
@@ -3640,8 +3574,8 @@ Classification:"""
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
-            max_tokens=10,
-            temperature=0.1  # Use very low temperature for this critical classification
+            max_tokens=self.max_tokens_classification,
+            temperature=self.temperature_simple  # Use simple model temperature for classification
         )
         
         classification = response.strip().lower()
@@ -3676,7 +3610,7 @@ Your question:"""
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
-            max_tokens=30,
+            max_tokens=self.max_tokens_simple,
             temperature=self.temperature_simple
         )
         
@@ -3708,7 +3642,7 @@ Your question:"""
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
-            max_tokens=30,
+            max_tokens=self.max_tokens_simple,
             temperature=self.temperature_simple
         )
         
@@ -3796,7 +3730,7 @@ Question:"""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=80,
+                max_tokens=self.max_tokens_red_flag,
                 temperature=self.temperature_complex
             )
             
@@ -3808,9 +3742,8 @@ Question:"""
             return question
             
         except Exception as e:
-            self._capture_debug(f"[Engine] ⚠️ LLM clarification question failed: {e}")
-            # Fallback to simple template
-            return f"Can you tell me more about '{vague_answer}'?"
+            self._capture_debug(f"[Engine] ❌ LLM clarification question failed: {e}")
+            raise RuntimeError(f"Failed to generate clarification question: {e}")
     
     def _generate_differential_based_question(self, oldcarts_element: str) -> str:
         """
@@ -3876,7 +3809,7 @@ Question:"""
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=100,
+                max_tokens=self.max_tokens_follow_up,
                 temperature=self.temperature_complex
             )
             
@@ -3920,7 +3853,7 @@ Your question:"""
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": user_msg}
             ],
-            max_tokens=20,
+            max_tokens=self.max_tokens_simple,
             temperature=self.temperature_simple
         )
         
@@ -4039,15 +3972,14 @@ Your question:"""
                 similarity = self.rag_client.calculate_similarity(text1, text2)
                 return similarity
             else:
-                # Fallback to simple text similarity
-                return self._simple_text_similarity(text1, text2)
+                raise RuntimeError("RAG client not available - required for semantic similarity")
         except Exception as e:
-            self._capture_debug(f"[Engine] ⚠️ Error calculating semantic similarity: {e}")
-            return self._simple_text_similarity(text1, text2)
+            self._capture_debug(f"[Engine] ❌ Error calculating semantic similarity: {e}")
+            raise RuntimeError(f"Failed to calculate semantic similarity: {e}")
     
     def _simple_text_similarity(self, text1: str, text2: str) -> float:
         """
-        Simple text similarity as fallback
+        Simple text similarity for basic comparison
         """
         text1_lower = text1.lower()
         text2_lower = text2.lower()
@@ -4165,9 +4097,7 @@ Your question:"""
                 guidelines_to_use = self.active_guidelines + self.reserve_pool
                 self._capture_debug(f"[Engine] 🧠 Using session-matched guidelines: {len(guidelines_to_use)} guidelines")
             else:
-                # Fallback to all guidelines (for initial matching)
-                guidelines_to_use = [(name, guideline) for name, guideline in self.all_guidelines.items()]
-                self._capture_debug(f"[Engine] 🧠 Using all guidelines: {len(guidelines_to_use)} guidelines")
+                raise RuntimeError("No session-matched guidelines available - session not properly initialized")
             
             # Extract locations from the selected guidelines
             for guideline_info in guidelines_to_use:
@@ -4215,20 +4145,8 @@ Your question:"""
                             if len(clean_match) > 3:  # Avoid very short matches
                                 specific_locations.add(clean_match)
                     
-                    # Also look for common specific anatomical terms
-                    common_anatomical_terms = [
-                        'left lower quadrant', 'right lower quadrant', 'left upper quadrant', 'right upper quadrant',
-                        'epigastric region', 'periumbilical area', 'suprapubic region', 'flank area',
-                        'left chest', 'right chest', 'center chest', 'upper chest', 'lower chest',
-                        'left side of head', 'right side of head', 'front of head', 'back of head',
-                        'left shoulder', 'right shoulder', 'left arm', 'right arm',
-                        'left leg', 'right leg', 'left knee', 'right knee',
-                        'left ankle', 'right ankle', 'left foot', 'right foot'
-                    ]
-                    
-                    for term in common_anatomical_terms:
-                        if term in content.lower():
-                            specific_locations.add(term)
+                    # All anatomical terms are now extracted dynamically from guidelines
+                    # No hardcoded terms needed
             
             # Convert to list and sort
             specific_locations = list(specific_locations)
@@ -4239,17 +4157,8 @@ Your question:"""
             return specific_locations
             
         except Exception as e:
-            self._capture_debug(f"[Engine] ⚠️ Error extracting locations from guidelines: {e}")
-            # Fallback to basic anatomical terms
-            return [
-                'left lower quadrant', 'right lower quadrant', 'left upper quadrant', 'right upper quadrant',
-                'epigastric', 'periumbilical', 'suprapubic', 'flank', 'groin',
-                'left chest', 'right chest', 'center chest', 'upper chest', 'lower chest',
-                'left side of head', 'right side of head', 'front of head', 'back of head',
-                'left shoulder', 'right shoulder', 'left arm', 'right arm',
-                'left leg', 'right leg', 'left knee', 'right knee',
-                'left ankle', 'right ankle', 'left foot', 'right foot'
-            ]
+            self._capture_debug(f"[Engine] ❌ Error extracting locations from guidelines: {e}")
+            raise RuntimeError(f"Failed to extract locations from guidelines: {e}")
 
 
 # Test
