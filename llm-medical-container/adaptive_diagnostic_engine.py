@@ -1008,87 +1008,7 @@ class AdaptiveDiagnosticEngine:
                 'debug': self._get_debug_info()
             }
         
-        elif last_q.get('focus') == 'sex':
-            # Extract sex - use keyword matching with fuzzy tolerance for typos
-            self._capture_debug(f"[Engine] 🔍 Extracting sex from answer: '{user_answer}'")
-            self._capture_debug(f"[Engine] 🔍 Extracting sex from answer: '{user_answer}'")
-            
-            answer_lower = user_answer.lower()
-            # Strip punctuation and split into words
-            import string
-            cleaned = answer_lower.translate(str.maketrans('', '', string.punctuation))
-            words = cleaned.split()
-            
-            # Check for explicit sex words (standalone)
-            male_words = {'male', 'man', 'boy', 'guy'}
-            female_words = {'female', 'woman', 'girl', 'lady'}
-            
-            # Fast exact keyword check first
-            if any(word in male_words for word in words):
-                self.demographics['sex'] = 'male'
-                self._capture_debug(f"[Engine] 👤 Sex: male")
-            elif any(word in female_words for word in words):
-                self.demographics['sex'] = 'female'
-                self._capture_debug(f"[Engine] 👤 Sex: female")
-            else:
-                # Fuzzy match for typos (e.g., "femal", "mal", "womann")
-                def char_similarity(word, target):
-                    """Simple character overlap similarity (0-1)"""
-                    if len(word) == 0 or len(target) == 0:
-                        return 0.0
-                    # Count matching characters in order
-                    matches = sum(1 for a, b in zip(word, target) if a == b)
-                    # Normalize by average length
-                    avg_len = (len(word) + len(target)) / 2
-                    return matches / avg_len if avg_len > 0 else 0.0
-                
-                # Check each word for fuzzy match (>80% similarity)
-                for word in words:
-                    if len(word) >= 3:  # Only check words with 3+ chars
-                        for male_word in male_words:
-                            if char_similarity(word, male_word) > 0.80:
-                                self.demographics['sex'] = 'male'
-                                self._capture_debug(f"[Engine] 🔍 Fuzzy match: '{word}' → '{male_word}' ({char_similarity(word, male_word):.2f})")
-                                self._capture_debug(f"[Engine] 🔍 Fuzzy match: '{word}' → '{male_word}' ({char_similarity(word, male_word):.2f})")
-                                break
-                        
-                        for female_word in female_words:
-                            if char_similarity(word, female_word) > 0.80:
-                                self.demographics['sex'] = 'female'
-                                self._capture_debug(f"[Engine] 🔍 Fuzzy match: '{word}' → '{female_word}' ({char_similarity(word, female_word):.2f})")
-                                self._capture_debug(f"[Engine] 🔍 Fuzzy match: '{word}' → '{female_word}' ({char_similarity(word, female_word):.2f})")
-                                break
-                        
-                        if 'sex' in self.demographics:
-                            break
-            
-            sex_result = self.demographics.get('sex', 'unknown')
-            self._capture_debug(f"[Engine] 👤 Sex: {sex_result}")
-            self._capture_debug(f"[Engine] 👤 Sex: {sex_result}")
-            
-            # FILTER guidelines by sex NOW that we know it
-            if 'sex' in self.demographics:
-                self._capture_debug(f"[Engine] 🔍 Filtering guidelines by gender: {self.demographics['sex']}")
-                self._filter_by_gender()
-            
-            # VALIDATION: If sex is still unknown, re-ask using LLM
-            if 'sex' not in self.demographics:
-                self._capture_debug(f"[Engine] ⚠️ Invalid answer - re-asking for sex")
-                self._capture_debug(f"{'='*80}\n")
-                
-                sex_question = self._generate_clarification_question("sex")
-                self.conversation_history.append({
-                    'type': 'question',
-                    'question': sex_question,
-                    'focus': 'sex'
-                })
-                
-                return {
-                    'success': True,
-                    'question': sex_question,
-                    'status': 'questioning',
-                    'debug': self._get_debug_info()
-                }
+        # Sex processing already handled above - no duplicate needed
             
             self._capture_debug(f"{'='*80}\n")
             
@@ -3805,6 +3725,10 @@ Your question:"""
         
         system_msg = f"You are a medical assistant. Generate ONE intelligent clarification question. Use PLAIN LANGUAGE. Do NOT ask questions requiring visual inspection. Do NOT use medical terms. {chief_complaint_context}Focus ONLY on the patient's chief complaint area - do NOT ask about unrelated body parts."
         
+        # Debug: Log what's being sent to LLM
+        self._capture_debug(f"[Engine] 🧠 LLM System Message: {system_msg}")
+        self._capture_debug(f"[Engine] 🧠 Chief Complaint Context: '{chief_complaint_context}'")
+        
         user_msg = f"""The patient gave a vague answer about {element_desc}:
 
 Patient's answer: "{vague_answer}"
@@ -3829,6 +3753,8 @@ Question:"""
             if not question.endswith('?'):
                 question += '?'
             
+            # Debug: Log LLM response
+            self._capture_debug(f"[Engine] 🧠 LLM Raw Response: '{response}'")
             self._capture_debug(f"[Engine] ✅ LLM clarification question: '{question}'")
             return question
             
@@ -3890,6 +3816,10 @@ Question:"""
         
         system_msg = f"You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do NOT ask questions requiring visual inspection. Do NOT use medical terminology from guidelines. Do NOT include internal reasoning or explanations. {chief_complaint_context}Focus ONLY on the patient's chief complaint area - do NOT ask about unrelated body parts. Output only the question:"
         
+        # Debug: Log what's being sent to LLM
+        self._capture_debug(f"[Engine] 🧠 LLM System Message: {system_msg}")
+        self._capture_debug(f"[Engine] 🧠 Chief Complaint Context: '{chief_complaint_context}'")
+        
         user_msg = f"""Generate ONE simple question about {element_desc} to help differentiate between these conditions:
 
 Conditions:
@@ -3911,6 +3841,8 @@ Generate ONE question only. Focus on {element_desc}. Use simple language. Focus 
             if not question.endswith('?'):
                 question += '?'
             
+            # Debug: Log LLM response
+            self._capture_debug(f"[Engine] 🧠 LLM Raw Response: '{response}'")
             self._capture_debug(f"[Engine] ✅ LLM differential question: '{question}'")
             return question
             
