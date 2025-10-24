@@ -113,16 +113,8 @@ class AdaptiveDiagnosticEngine:
         self.embedding_model = embedding_model
         
         # Temperature configuration from environment variables
-        # Import temperature settings from aura_config
-        try:
-            from aura_config import (
-                LLM_TEMPERATURE_SIMPLE, LLM_TEMPERATURE_COMPLEX
-            )
-            self.temperature_simple = LLM_TEMPERATURE_SIMPLE
-            self.temperature_complex = LLM_TEMPERATURE_COMPLEX
-        except ImportError:
-            # No fallback - require proper configuration
-            raise RuntimeError("aura_config module not available - configuration required")
+        self.temperature_simple = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.1'))
+        self.temperature_complex = float(os.environ.get('LLM_TEMPERATURE_COMPLEX', '0.1'))
         
         # Token limits for different question types
         self.max_tokens_question = 60      # For complex clinical questions
