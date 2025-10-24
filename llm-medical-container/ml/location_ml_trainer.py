@@ -1,258 +1,226 @@
 #!/usr/bin/env python3
 """
 Location ML Trainer
-Trains ML model for anatomical type prediction
+Handles training and prediction for anatomical location relationships
 """
 
-import json
-import csv
-import re
-import numpy as np
-from pathlib import Path
-from typing import List, Dict, Any, Tuple
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.metrics import classification_report, confusion_matrix
-from sklearn.feature_extraction.text import TfidfVectorizer
 import joblib
+import numpy as np
+from typing import Dict, Any, List, Optional
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
+import os
 
 class LocationMLTrainer:
     """
-    Train ML model for anatomical type prediction
+    ML trainer for anatomical location relationships
+    Trains models to predict anatomical types (bilateral, unilateral, midline)
     """
     
-    def __init__(self, data_file: str = "location_ml_data.csv"):
-        self.data_file = data_file
+    def __init__(self):
         self.model = None
         self.vectorizer = None
         self.feature_names = []
         
-    def load_training_data(self) -> Tuple[List[Dict], List[str], List[str]]:
+    def load_model(self, model_path: str) -> Optional[Any]:
         """
-        Load training data from CSV
+        Load a trained ML model from file
+        
+        Args:
+            model_path: Path to the model file
+            
+        Returns:
+            Loaded model or None if not found
         """
-        print("📊 Loading training data...")
-        
-        data = []
-        with open(self.data_file, 'r', encoding='utf-8') as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                data.append(row)
-        
-        print(f"✅ Loaded {len(data)} training examples")
-        
-        # Extract features and labels
-        X = []
-        y = []
-        
-        for row in data:
-            # Extract anatomical features
-            features = self._extract_features(row)
-            X.append(features)
-            y.append(row['anatomical_type'])
-        
-        return data, X, y
+        try:
+            if os.path.exists(model_path):
+                model_data = joblib.load(model_path)
+                if isinstance(model_data, dict):
+                    self.model = model_data.get('model')
+                    self.vectorizer = model_data.get('vectorizer')
+                    self.feature_names = model_data.get('feature_names', [])
+                else:
+                    self.model = model_data
+                return self.model
+            else:
+                print(f"⚠️ Model file not found: {model_path}")
+                return None
+        except Exception as e:
+            print(f"⚠️ Error loading model: {e}")
+            return None
     
-    def _extract_features(self, row: Dict) -> List[float]:
+    def save_model(self, model_path: str, model: Any, vectorizer: Any = None, feature_names: List[str] = None):
         """
-        Extract features for ML model
+        Save a trained model to file
+        
+        Args:
+            model_path: Path to save the model
+            model: Trained model
+            vectorizer: Text vectorizer
+            feature_names: List of feature names
         """
-        features = []
-        
-        # 1. Anatomical features from extraction
-        anatomical_features = eval(row['anatomical_features'])  # Convert string to dict
-        
-        # Add boolean features
-        for key, value in anatomical_features.items():
-            if isinstance(value, bool):
-                features.append(1.0 if value else 0.0)
-            elif isinstance(value, int):
-                features.append(float(value))
-        
-        # 2. Text features from location text
-        location_text = row['location_text']
-        text_features = self._extract_text_features(location_text)
-        features.extend(text_features)
-        
-        # 3. Organ system features
-        organ_system = row['organ_system']
-        organ_features = self._extract_organ_features(organ_system)
-        features.extend(organ_features)
-        
-        return features
+        try:
+            model_data = {
+                'model': model,
+                'vectorizer': vectorizer,
+                'feature_names': feature_names or []
+            }
+            joblib.dump(model_data, model_path)
+            print(f"✅ Model saved to {model_path}")
+        except Exception as e:
+            print(f"⚠️ Error saving model: {e}")
     
-    def _extract_text_features(self, text: str) -> List[float]:
+    def train_model(self, training_data: List[Dict], model_path: str = "ml/location_ml_model.pkl"):
         """
-        Extract text-based features
+        Train a new ML model on anatomical location data
+        
+        Args:
+            training_data: List of training examples with 'text', 'organ_system', 'anatomical_type'
+            model_path: Path to save the trained model
         """
-        if not text:
-            return [0.0] * 10  # Return zeros if no text
-        
-        text_lower = text.lower()
-        
-        features = [
-            len(text),  # Text length
-            text.count(' '),  # Word count
-            text.count('right'),  # Right mentions
-            text.count('left'),  # Left mentions
-            text.count('bilateral'),  # Bilateral mentions
-            text.count('unilateral'),  # Unilateral mentions
-            text.count('midline'),  # Midline mentions
-            text.count('quadrant'),  # Quadrant mentions
-            text.count('chest'),  # Chest mentions
-            text.count('flank')  # Flank mentions
-        ]
-        
-        return features
+        try:
+            if not training_data:
+                print("⚠️ No training data provided")
+                return None
+            
+            # Extract features
+            texts = [item['text'] for item in training_data]
+            organ_systems = [item['organ_system'] for item in training_data]
+            anatomical_types = [item['anatomical_type'] for item in training_data]
+            
+            # Create text features
+            self.vectorizer = TfidfVectorizer(max_features=1000, stop_words='english')
+            text_features = self.vectorizer.fit_transform(texts)
+            
+            # Create organ system features (one-hot encoding)
+            organ_system_features = np.array([[1 if os == organ_system else 0 for os in set(organ_systems)] 
+                                            for organ_system in organ_systems])
+            
+            # Combine features
+            combined_features = np.hstack([text_features.toarray(), organ_system_features])
+            
+            # Train model
+            self.model = RandomForestClassifier(n_estimators=100, random_state=42)
+            self.model.fit(combined_features, anatomical_types)
+            
+            # Save model
+            self.save_model(model_path, self.model, self.vectorizer, self.feature_names)
+            
+            print(f"✅ Model trained on {len(training_data)} examples")
+            return self.model
+            
+        except Exception as e:
+            print(f"⚠️ Error training model: {e}")
+            return None
     
-    def _extract_organ_features(self, organ_system: str) -> List[float]:
+    def predict_anatomical_type(self, model: Any, guideline_text: str, 
+                               organ_system: str, anatomical_features: List[str]) -> Dict:
         """
-        Extract organ system features (one-hot encoding)
+        Predict anatomical type using trained model
+        
+        Args:
+            model: Trained model
+            guideline_text: Text from medical guideline
+            organ_system: Organ system (e.g., 'GI', 'Cardiac')
+            anatomical_features: List of anatomical features
+            
+        Returns:
+            Dictionary with prediction results
         """
-        organ_systems = ['GI', 'CARDIO', 'PULMONARY', 'GU', 'GYN']
-        features = [0.0] * len(organ_systems)
-        
-        if organ_system in organ_systems:
-            features[organ_systems.index(organ_system)] = 1.0
-        
-        return features
+        try:
+            if not model or not self.vectorizer:
+                # Fallback to rule-based prediction
+                return self._rule_based_prediction(guideline_text, organ_system, anatomical_features)
+            
+            # Prepare features
+            text_features = self.vectorizer.transform([guideline_text])
+            
+            # Create organ system features
+            all_organ_systems = ['GI', 'Cardiac', 'Pulmonary', 'Neurological', 'Renal', 'Musculoskeletal']
+            organ_system_features = np.array([[1 if os == organ_system else 0 for os in all_organ_systems]])
+            
+            # Combine features
+            combined_features = np.hstack([text_features.toarray(), organ_system_features])
+            
+            # Make prediction
+            prediction = model.predict(combined_features)[0]
+            probabilities = model.predict_proba(combined_features)[0]
+            confidence = max(probabilities)
+            
+            return {
+                'predicted_type': prediction,
+                'confidence': confidence,
+                'probabilities': dict(zip(model.classes_, probabilities))
+            }
+            
+        except Exception as e:
+            print(f"⚠️ Error in prediction: {e}")
+            return self._rule_based_prediction(guideline_text, organ_system, anatomical_features)
     
-    def train_model(self, X: List[List[float]], y: List[str]) -> RandomForestClassifier:
+    def _rule_based_prediction(self, guideline_text: str, organ_system: str, anatomical_features: List[str]) -> Dict:
         """
-        Train Random Forest model
+        Fallback rule-based prediction when ML model is not available
+        
+        Args:
+            guideline_text: Text from medical guideline
+            organ_system: Organ system
+            anatomical_features: List of anatomical features
+            
+        Returns:
+            Dictionary with rule-based prediction
         """
-        print("🤖 Training ML model...")
+        text_lower = guideline_text.lower()
         
-        # Convert to numpy arrays
-        X_array = np.array(X)
-        y_array = np.array(y)
+        # Rule-based classification
+        bilateral_indicators = ['both', 'bilateral', 'left and right', 'upper and lower']
+        midline_indicators = ['midline', 'center', 'central', 'middle']
+        unilateral_indicators = ['left', 'right', 'upper', 'lower', 'anterior', 'posterior']
         
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(
-            X_array, y_array, test_size=0.2, random_state=42, stratify=y_array
-        )
+        bilateral_score = sum(1 for indicator in bilateral_indicators if indicator in text_lower)
+        midline_score = sum(1 for indicator in midline_indicators if indicator in text_lower)
+        unilateral_score = sum(1 for indicator in unilateral_indicators if indicator in text_lower)
         
-        # Train Random Forest
-        model = RandomForestClassifier(
-            n_estimators=100,
-            max_depth=10,
-            min_samples_split=2,
-            min_samples_leaf=1,
-            random_state=42
-        )
-        
-        model.fit(X_train, y_train)
-        
-        # Evaluate model
-        train_score = model.score(X_train, y_train)
-        test_score = model.score(X_test, y_test)
-        
-        print(f"📈 Training accuracy: {train_score:.3f}")
-        print(f"📈 Test accuracy: {test_score:.3f}")
-        
-        # Cross-validation
-        cv_scores = cross_val_score(model, X_array, y_array, cv=5)
-        print(f"📈 Cross-validation: {cv_scores.mean():.3f} (+/- {cv_scores.std() * 2:.3f})")
-        
-        # Classification report
-        y_pred = model.predict(X_test)
-        print("\n📊 Classification Report:")
-        print(classification_report(y_test, y_pred))
-        
-        # Feature importance
-        feature_importance = model.feature_importances_
-        print(f"\n🔍 Top 10 Most Important Features:")
-        for i, importance in enumerate(sorted(feature_importance, reverse=True)[:10]):
-            print(f"   {i+1}. Importance: {importance:.3f}")
-        
-        return model
-    
-    def save_model(self, model: RandomForestClassifier, output_file: str = "location_ml_model.pkl"):
-        """
-        Save trained model
-        """
-        joblib.dump(model, output_file)
-        print(f"💾 Model saved to {output_file}")
-    
-    def load_model(self, model_file: str = "location_ml_model.pkl") -> RandomForestClassifier:
-        """
-        Load trained model
-        """
-        model = joblib.load(model_file)
-        print(f"📂 Model loaded from {model_file}")
-        return model
-    
-    def predict_anatomical_type(self, model: RandomForestClassifier, 
-                               location_text: str, organ_system: str, 
-                               anatomical_features: Dict) -> Dict:
-        """
-        Predict anatomical type for new data
-        """
-        # Extract features using the same method as training
-        features = self._extract_features({
-            'location_text': location_text,
-            'organ_system': organ_system,
-            'anatomical_features': str(anatomical_features)
-        })
-        
-        # Ensure feature count matches training data
-        expected_features = model.n_features_in_
-        if len(features) != expected_features:
-            print(f"⚠️ Feature mismatch: got {len(features)}, expected {expected_features}")
-            # Pad with zeros if needed
-            while len(features) < expected_features:
-                features.append(0.0)
-            # Truncate if too many
-            features = features[:expected_features]
-        
-        # Make prediction
-        prediction = model.predict([features])[0]
-        probabilities = model.predict_proba([features])[0]
-        
-        # Get class names
-        class_names = model.classes_
-        prob_dict = {class_names[i]: probabilities[i] for i in range(len(class_names))}
+        if bilateral_score > midline_score and bilateral_score > unilateral_score:
+            predicted_type = 'bilateral'
+            confidence = 0.8
+        elif midline_score > bilateral_score and midline_score > unilateral_score:
+            predicted_type = 'midline'
+            confidence = 0.8
+        else:
+            predicted_type = 'unilateral'
+            confidence = 0.7
         
         return {
-            'predicted_type': prediction,
-            'confidence': max(probabilities),
-            'probabilities': prob_dict
+            'predicted_type': predicted_type,
+            'confidence': confidence,
+            'probabilities': {
+                'bilateral': bilateral_score / (bilateral_score + midline_score + unilateral_score + 1),
+                'midline': midline_score / (bilateral_score + midline_score + unilateral_score + 1),
+                'unilateral': unilateral_score / (bilateral_score + midline_score + unilateral_score + 1)
+            }
         }
-
-# Example usage
-if __name__ == "__main__":
-    trainer = LocationMLTrainer()
     
-    # Load data
-    data, X, y = trainer.load_training_data()
-    
-    if len(data) > 0:
-        # Train model
-        model = trainer.train_model(X, y)
+    def create_sample_training_data(self) -> List[Dict]:
+        """
+        Create sample training data for initial model training
         
-        # Save model
-        trainer.save_model(model)
-        
-        # Test prediction
-        sample_features = {
-            'has_right_quadrant': True,
-            'has_left_quadrant': False,
-            'has_bilateral': False,
-            'has_midline': False,
-            'has_chest': False,
-            'has_flank': False,
-            'spatial_term_count': 2
-        }
-        
-        prediction = trainer.predict_anatomical_type(
-            model, "right lower quadrant pain", "GI", sample_features
-        )
-        
-        print(f"\n🎯 Sample Prediction:")
-        print(f"   Input: 'right lower quadrant pain' (GI)")
-        print(f"   Predicted: {prediction['predicted_type']}")
-        print(f"   Confidence: {prediction['confidence']:.3f}")
-        print(f"   Probabilities: {prediction['probabilities']}")
-        
-    else:
-        print("❌ No training data available")
+        Returns:
+            List of training examples
+        """
+        return [
+            # GI examples
+            {'text': 'right lower quadrant pain', 'organ_system': 'GI', 'anatomical_type': 'unilateral'},
+            {'text': 'left upper quadrant pain', 'organ_system': 'GI', 'anatomical_type': 'unilateral'},
+            {'text': 'bilateral abdominal pain', 'organ_system': 'GI', 'anatomical_type': 'bilateral'},
+            {'text': 'midline epigastric pain', 'organ_system': 'GI', 'anatomical_type': 'midline'},
+            
+            # Cardiac examples
+            {'text': 'left chest pain', 'organ_system': 'Cardiac', 'anatomical_type': 'unilateral'},
+            {'text': 'bilateral chest discomfort', 'organ_system': 'Cardiac', 'anatomical_type': 'bilateral'},
+            {'text': 'central chest pain', 'organ_system': 'Cardiac', 'anatomical_type': 'midline'},
+            
+            # Pulmonary examples
+            {'text': 'right lung pain', 'organ_system': 'Pulmonary', 'anatomical_type': 'unilateral'},
+            {'text': 'bilateral chest pain', 'organ_system': 'Pulmonary', 'anatomical_type': 'bilateral'},
+            {'text': 'central chest tightness', 'organ_system': 'Pulmonary', 'anatomical_type': 'midline'},
+        ]

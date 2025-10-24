@@ -10,8 +10,8 @@ from pathlib import Path
 def create_test_data():
     """Create sample test data to demonstrate monitoring"""
     
-    # Create data directory
-    data_dir = Path("./data/learning")
+    # Create data directory - use the correct path for monitoring system
+    data_dir = Path("../data/learning")
     data_dir.mkdir(parents=True, exist_ok=True)
     
     # Sample predictions data

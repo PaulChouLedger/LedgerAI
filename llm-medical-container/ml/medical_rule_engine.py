@@ -8,7 +8,14 @@ import json
 import joblib
 import re
 from typing import Dict, Any, List
-from location_ml_trainer import LocationMLTrainer
+
+# Optional ML trainer import
+try:
+    from location_ml_trainer import LocationMLTrainer
+    ML_TRAINER_AVAILABLE = True
+except ImportError:
+    ML_TRAINER_AVAILABLE = False
+    LocationMLTrainer = None
 
 class MedicalRuleEngine:
     """
@@ -18,14 +25,23 @@ class MedicalRuleEngine:
     
     def __init__(self, ml_model_path: str = "ml/location_ml_model.pkl"):
         self.ml_model = None
-        self.ml_trainer = LocationMLTrainer()
+        self.ml_trainer = None
         
-        # Load ML model if available
-        try:
-            self.ml_model = self.ml_trainer.load_model(ml_model_path)
-            print(f"✅ ML model loaded from {ml_model_path}")
-        except FileNotFoundError:
-            print(f"⚠️ ML model not found at {ml_model_path}, using hardcoded rules only")
+        # Initialize ML trainer if available
+        if ML_TRAINER_AVAILABLE:
+            try:
+                self.ml_trainer = LocationMLTrainer()
+                # Load ML model if available
+                try:
+                    self.ml_model = self.ml_trainer.load_model(ml_model_path)
+                    print(f"✅ ML model loaded from {ml_model_path}")
+                except FileNotFoundError:
+                    print(f"⚠️ ML model not found at {ml_model_path}, using hardcoded rules only")
+            except Exception as e:
+                print(f"⚠️ ML trainer initialization failed: {e}, using hardcoded rules only")
+                self.ml_trainer = None
+        else:
+            print("⚠️ Medical Rule Engine not available: No module named 'location_ml_trainer'")
         
         # Load hardcoded medical rules
         self.medical_rules = self._load_medical_rules()
@@ -198,6 +214,14 @@ class MedicalRuleEngine:
         """
         Get ML prediction for anatomical type
         """
+        # If ML trainer is not available, return default prediction
+        if not self.ml_trainer or not self.ml_model:
+            return {
+                'predicted_type': 'unilateral',
+                'confidence': 0.5,
+                'similarity_score': 0.5
+            }
+        
         # Extract anatomical features from guideline text
         anatomical_features = self._extract_anatomical_features(guideline_text)
         
