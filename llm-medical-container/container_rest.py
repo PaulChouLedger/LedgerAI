@@ -24,6 +24,12 @@ from rag_client import get_rag_client
 app = Flask(__name__)
 load_dotenv()
 
+# Debug: Check if environment variables are loaded
+print(f"[Container] 🔍 Environment check:")
+print(f"[Container] 🔍 LLM_TEMPERATURE_COMPLEX: {os.environ.get('LLM_TEMPERATURE_COMPLEX', 'NOT SET')}")
+print(f"[Container] 🔍 LLM_TEMPERATURE_SIMPLE: {os.environ.get('LLM_TEMPERATURE_SIMPLE', 'NOT SET')}")
+print(f"[Container] 🔍 All env vars with LLM_TEMPERATURE: {[k for k in os.environ.keys() if 'LLM_TEMPERATURE' in k]}")
+
 # === Thread Safety ===
 llm_lock = threading.Lock()
 
