@@ -1051,7 +1051,7 @@ class AdaptiveDiagnosticEngine:
                 'debug': self._get_debug_info()
             }
         
-        elif last_q.get('focus') == 'chronicity':
+        elif last_q.get('focus') == 'chronicity' or (last_q.get('focus') == 'demographics' and 'chronicity' in last_q.get('question', '').lower()):
             # Use LLM to intelligently classify chronicity
             self._capture_debug(f"[Engine] 🔍 LLM analyzing chronicity from answer: '{user_answer}'")
             
@@ -3543,7 +3543,7 @@ Your statement:"""
         if word_count > 50:  # Only reject if extremely long
             self._capture_debug(f"[Engine] ⚠️ Opening too long ({word_count} words) - using simple template")
             self._capture_debug(f"[Engine]    Generated: '{statement}'")
-            statement = "I understand. I'll ask some questions to help."
+            statement = "I'm sorry to hear you're experiencing abdominal pain. Let me ask some questions to help figure out what's going on."
         
         self._capture_debug(f"[Engine] ✅ Opening (simple model): '{statement}'")
         return statement
