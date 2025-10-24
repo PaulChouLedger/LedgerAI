@@ -1350,18 +1350,32 @@ class AdaptiveDiagnosticEngine:
         }
         
         # Load comprehensive OLDCARTS keywords from JSON file
-        try:
-            # Try current directory first
-            with open('oldcarts_keywords.json', 'r') as f:
-                oldcarts_keywords = json.load(f)
-        except FileNotFoundError:
+        import os
+        oldcarts_keywords = None
+        
+        # Try multiple possible locations for the file
+        possible_paths = [
+            'oldcarts_keywords.json',
+            'llm-medical-container/oldcarts_keywords.json',
+            '/app/oldcarts_keywords.json',
+            os.path.join(os.path.dirname(__file__), 'oldcarts_keywords.json'),
+            os.path.join(os.getcwd(), 'oldcarts_keywords.json'),
+            os.path.join(os.getcwd(), 'llm-medical-container', 'oldcarts_keywords.json')
+        ]
+        
+        for path in possible_paths:
             try:
-                # Try llm-medical-container directory
-                with open('llm-medical-container/oldcarts_keywords.json', 'r') as f:
-                    oldcarts_keywords = json.load(f)
-            except FileNotFoundError:
-                self._capture_debug(f"[Engine] ❌ OLDCARTS keywords file not found")
-                raise RuntimeError("OLDCARTS keywords file not found - required for parsing")
+                if os.path.exists(path):
+                    with open(path, 'r') as f:
+                        oldcarts_keywords = json.load(f)
+                        self._capture_debug(f"[Engine] ✅ Loaded OLDCARTS keywords from: {path}")
+                        break
+            except (FileNotFoundError, json.JSONDecodeError) as e:
+                continue
+        
+        if oldcarts_keywords is None:
+            self._capture_debug(f"[Engine] ❌ OLDCARTS keywords file not found in any of these locations: {possible_paths}")
+            raise RuntimeError("OLDCARTS keywords file not found - required for parsing")
         
         # Location indicators
         location_categories = ['anatomical_regions', 'quadrants', 'sides', 'specific_locations']
