@@ -66,11 +66,6 @@ SIMPLE_CHAT_FORMAT = os.getenv("SIMPLE_CHAT_FORMAT", "llama-3")
 
 # Model configuration functions (called after environment is loaded)
 def get_model_config():
-    # Debug: Check environment variables
-    print(f"[Container] 🔍 Environment check in get_model_config():")
-    print(f"[Container] 🔍 LLM_TEMPERATURE_COMPLEX: {os.environ.get('LLM_TEMPERATURE_COMPLEX', 'NOT SET')}")
-    print(f"[Container] 🔍 All env vars: {list(os.environ.keys())}")
-    
     return {
         "model_path": MODEL_PATH,
         "n_ctx": N_CTX,

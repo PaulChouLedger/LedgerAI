@@ -11,9 +11,9 @@ services:
     volumes:
       - ../shared:/shared
       - ../data:/app/data
-      - ../.env:/app/.env
+      - /home/aura/LedgerAI/.env:/app/.env
     working_dir: /app
-    env_file: ../.env
+    env_file: /home/aura/LedgerAI/.env
 
   rag:
     build: ../rag-container
