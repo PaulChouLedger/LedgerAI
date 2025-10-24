@@ -616,18 +616,38 @@ class AdaptiveDiagnosticEngine:
                     'debug': self._get_debug_info()
                 }
         
-        # Fallback to age question if no missing components
-        question = "How old are you?"
+        # Check if we need to ask demographics questions
+        if not hasattr(self, 'patient_age') or self.patient_age is None:
+            # Ask age first
+            question = "How old are you?"
+            self._capture_debug(f"[Engine] ✅ ML demographics question generated: '{question}'")
+        elif not hasattr(self, 'patient_sex') or self.patient_sex is None:
+            # Ask sex after age
+            question = "What is your biological sex?"
+            self._capture_debug(f"[Engine] ✅ ML demographics question generated: '{question}'")
+        else:
+            # Both demographics collected, ask first missing OLDCARTS component
+            if hasattr(self, 'active_guidelines') and self.active_guidelines:
+                first_guideline = self.active_guidelines[0]
+                missing_components = first_guideline.get('missing_components', [])
+                if missing_components:
+                    first_missing = missing_components[0]
+                    question = self._generate_oldcarts_question_for_component(first_missing)
+                    self._capture_debug(f"[Engine] ✅ ML OLDCARTS question generated: '{question}'")
+                else:
+                    question = "How would you describe the pain?"
+                    self._capture_debug(f"[Engine] ✅ ML fallback question generated: '{question}'")
+            else:
+                question = "How would you describe the pain?"
+                self._capture_debug(f"[Engine] ✅ ML fallback question generated: '{question}'")
         
         # Add to conversation history
         self.conversation_history.append({
             'type': 'question',
             'question': question,
-            'oldcarts': 'demographics',
-            'focus': 'demographics'
+            'oldcarts': 'demographics' if 'age' in question or 'sex' in question else 'oldcarts',
+            'focus': 'demographics' if 'age' in question or 'sex' in question else 'oldcarts'
         })
-        
-        self._capture_debug(f"[Engine] ✅ ML demographics question generated: '{question}'")
         
         return {
             'success': True,
@@ -894,6 +914,27 @@ class AdaptiveDiagnosticEngine:
             'answer': user_answer,
             'to_question': last_q.get('focus', 'unknown')
         })
+        
+        # Store demographics if provided
+        if last_q.get('focus') == 'demographics':
+            if 'age' in last_q.get('question', '').lower():
+                # Store age
+                try:
+                    age = int(user_answer.strip())
+                    self.patient_age = age
+                    self._capture_debug(f"[Engine] 📊 Stored patient age: {age}")
+                except ValueError:
+                    self._capture_debug(f"[Engine] ⚠️ Invalid age format: '{user_answer}'")
+            elif 'sex' in last_q.get('question', '').lower():
+                # Store sex
+                sex_lower = user_answer.lower().strip()
+                if any(word in sex_lower for word in ['male', 'man', 'm']):
+                    self.patient_sex = 'male'
+                elif any(word in sex_lower for word in ['female', 'woman', 'f']):
+                    self.patient_sex = 'female'
+                else:
+                    self._capture_debug(f"[Engine] ⚠️ Unclear sex format: '{user_answer}'")
+                self._capture_debug(f"[Engine] 📊 Stored patient sex: {getattr(self, 'patient_sex', 'unknown')}")
         
         # SPECIAL HANDLING: Red flag screening
         if self.status == 'red_flag_screening' and last_q.get('focus') == 'red_flag':
@@ -1548,9 +1589,11 @@ class AdaptiveDiagnosticEngine:
         
         for name, guideline in self.all_guidelines.items():
             # Check if guideline belongs to this category
-            if any(pattern in name for pattern in patterns):
+            # Check both the name and the condition field
+            condition = guideline.get('condition', '')
+            if any(pattern in name for pattern in patterns) or any(pattern in condition for pattern in patterns):
                 filtered_guidelines[name] = guideline
-                self._capture_debug(f"[Engine] ✅ Matched: {name}")
+                self._capture_debug(f"[Engine] ✅ Matched: {name} (condition: {condition})")
         
         self._capture_debug(f"[Engine] 🔍 Filtered guidelines: {len(filtered_guidelines)}")
         return filtered_guidelines
