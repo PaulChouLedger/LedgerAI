@@ -1589,9 +1589,12 @@ class AdaptiveDiagnosticEngine:
         
         for name, guideline in self.all_guidelines.items():
             # Check if guideline belongs to this category
-            # Check both the name and the condition field
+            # Check both the name and the condition field (case-insensitive)
             condition = guideline.get('condition', '')
-            if any(pattern in name for pattern in patterns) or any(pattern in condition for pattern in patterns):
+            name_lower = name.lower()
+            condition_lower = condition.lower()
+            
+            if any(pattern in name_lower for pattern in patterns) or any(pattern in condition_lower for pattern in patterns):
                 filtered_guidelines[name] = guideline
                 self._capture_debug(f"[Engine] ✅ Matched: {name} (condition: {condition})")
         
