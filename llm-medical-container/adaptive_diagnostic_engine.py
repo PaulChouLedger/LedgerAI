@@ -116,22 +116,14 @@ class AdaptiveDiagnosticEngine:
         # Import temperature settings from aura_config
         try:
             from aura_config import (
-                LLM_TEMPERATURE_SIMPLE, LLM_TEMPERATURE_COMPLEX, 
-                LLM_TEMPERATURE_NORMALIZATION, LLM_TEMPERATURE_CREATIVE, 
-                LLM_TEMPERATURE_ANALYSIS
+                LLM_TEMPERATURE_SIMPLE, LLM_TEMPERATURE_COMPLEX
             )
             self.temperature_simple = LLM_TEMPERATURE_SIMPLE
             self.temperature_complex = LLM_TEMPERATURE_COMPLEX
-            self.temperature_normalization = LLM_TEMPERATURE_NORMALIZATION
-            self.temperature_creative = LLM_TEMPERATURE_CREATIVE
-            self.temperature_analysis = LLM_TEMPERATURE_ANALYSIS
         except ImportError:
             # Fallback to environment variables if aura_config not available
             self.temperature_simple = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.1'))
             self.temperature_complex = float(os.environ.get('LLM_TEMPERATURE_COMPLEX', '0.1'))
-            self.temperature_normalization = float(os.environ.get('LLM_TEMPERATURE_NORMALIZATION', '0.1'))
-            self.temperature_creative = float(os.environ.get('LLM_TEMPERATURE_CREATIVE', '0.6'))
-            self.temperature_analysis = float(os.environ.get('LLM_TEMPERATURE_ANALYSIS', '0.3'))
         
         # Initialize debug capture
         self._captured_debug_output = []
@@ -195,7 +187,7 @@ class AdaptiveDiagnosticEngine:
             self._capture_debug(f"[Engine] ⚠️ User Feedback Interface not available")
         
         self._capture_debug(f"[Engine] 🧠 Using {'dual models (simple + complex)' if llm_chat_simple_fn else 'single model'}")
-        self._capture_debug(f"[Engine] 🌡️ Temperature settings: Simple={self.temperature_simple}, Complex={self.temperature_complex}, Normalization={self.temperature_normalization}, Creative={self.temperature_creative}, Analysis={self.temperature_analysis}")
+        self._capture_debug(f"[Engine] 🌡️ Temperature settings: Simple={self.temperature_simple}, Complex={self.temperature_complex}")
         
         # ============================================================================
         # 🔧 CONFIGURATION TOGGLES (Easy to modify)
@@ -617,11 +609,11 @@ class AdaptiveDiagnosticEngine:
                 }
         
         # Check if we need to ask demographics questions
-        if not hasattr(self, 'patient_age') or self.patient_age is None:
+        if not hasattr(self, 'demographics') or not self.demographics.get('age'):
             # Ask age first
             question = "How old are you?"
             self._capture_debug(f"[Engine] ✅ ML demographics question generated: '{question}'")
-        elif not hasattr(self, 'patient_sex') or self.patient_sex is None:
+        elif not self.demographics.get('sex'):
             # Ask sex after age
             question = "What is your biological sex?"
             self._capture_debug(f"[Engine] ✅ ML demographics question generated: '{question}'")
@@ -1997,7 +1989,18 @@ class AdaptiveDiagnosticEngine:
         coverage_str = ''.join([k if v else '_' for k, v in self.oldcarts_covered.items()])
         
         # Determine next OLDCARTS element to ask about
-        next_element = uncovered_elements[0] if uncovered_elements else None
+        # Check if we've already asked about this element recently to prevent repetition
+        recent_questions = [item for item in self.conversation_history[-5:] if item.get('type') == 'question']
+        recent_oldcarts = [item.get('oldcarts') for item in recent_questions if item.get('oldcarts')]
+        
+        # Filter out recently asked elements
+        available_elements = [elem for elem in uncovered_elements if elem not in recent_oldcarts]
+        
+        if not available_elements:
+            # If all uncovered elements were recently asked, use the first uncovered
+            available_elements = uncovered_elements
+        
+        next_element = available_elements[0] if available_elements else None
         
         # LLM-generated OLDCARTS questions
         if next_element:
@@ -2021,21 +2024,21 @@ class AdaptiveDiagnosticEngine:
             patient_info = f"{self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')}"
             symptom = self.chief_complaint.lower().replace('i have', '').replace('i had', '').replace('i\'m having', '').strip()
             
-            # Example questions for each OLDCARTS element
+            # Example questions for each OLDCARTS element - more specific and clinically focused
             oldcarts_examples = {
                 'O': "When did the pain start?",
                 'L': "Where exactly is the pain?",
                 'D': "How long does the pain last?",
-                'C': "How would you describe the pain?",
+                'C': "What does the pain feel like?",
                 'A': "What makes the pain worse?",
-                'R': "What helps relieve the pain?",
+                'R': "What makes the pain better?",
                 'T': "Is the pain constant or does it come and go?",
                 'S': "How severe is the pain on a scale of 1 to 10?"
             }
             
             example = oldcarts_examples.get(next_element, "Tell me about the symptom")
             
-            system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do not include medical terminology from guidelines. Do NOT ask questions requiring visual inspection (no 'point to', 'show me', 'look at', 'appearance', 'color', 'swelling'). Do NOT ask about duration/time - that will be covered later. No one prompt should include multiple questions, in other words do not include multiple phrases ending with a question mark."
+            system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do not include medical terminology from guidelines. Do NOT ask questions requiring visual inspection (no 'point to', 'show me', 'look at', 'appearance', 'color', 'swelling'). Do NOT ask about duration/time - that will be covered later. No one prompt should include multiple questions, in other words do not include multiple phrases ending with a question mark. Be SPECIFIC and CLINICALLY FOCUSED. Ask about ONE specific aspect only."
             
             user_msg = f"""Patient: {patient_info} with {symptom}
 
@@ -2044,14 +2047,11 @@ Ask about: {element_desc}
 Example: "{example}"
 
 Generate EXACTLY ONE question using SIMPLE, PLAIN LANGUAGE. Do NOT combine multiple questions. Do NOT ask about duration/time. 
-Make the question specific to the patient's chief complaint. For LOCATION questions, ask only about the relevant relevant body area for the chief complaint.
-For example, if the chief complaint is "abdominal pain", ask about the abdomen area, not the shoulders, arms, chest, or other body parts.
-For example, if the chief complaint is "headache", ask about the head area, not the shoulders, arms, chest, or other body parts.
-For example, if the chief complaint is "back pain", ask about the back area, not the shoulders, arms, chest, or other body parts.
-For example, if the chief complaint is "leg pain", ask about the leg area, not the shoulders, arms, chest, or other body parts.
-For example, if the chief complaint is "foot pain", ask about the foot area, not the shoulders, arms, chest, or other body parts.
-For example, if the chief complaint is "hand pain", ask about the hand area, not the shoulders, arms, chest, or other body parts.
-For example, if the chief complaint is "finger pain", ask about the finger area, not the shoulders, arms, chest, or other body parts.
+Make the question specific to the patient's chief complaint. For LOCATION questions, ask only about the relevant body area for the chief complaint.
+For abdominal pain, ask about the abdomen area only.
+For headache, ask about the head area only.
+For back pain, ask about the back area only.
+Be SPECIFIC and CLINICALLY FOCUSED. Ask about ONE specific aspect only.
 Output only the question:"""
             
             # Filler is now handled at container level for immediate streaming
@@ -2205,7 +2205,7 @@ Your question:"""
                 {"role": "user", "content": user_msg}
             ],
             max_tokens=30,
-            temperature=self.temperature_analysis
+            temperature=self.temperature_complex
         )
         
         question = response.strip().strip('"\'')
@@ -3548,7 +3548,7 @@ Your statement:"""
                 {"role": "user", "content": user_msg}
             ],
             max_tokens=50,  # Allow more natural variation
-            temperature=0.7  # More creative and natural
+            temperature=self.temperature_simple  # Use conservative temperature for consistent responses
         )
         
         statement = response.strip().strip('"\'')

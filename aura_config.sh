@@ -78,16 +78,10 @@ show_all_settings() {
     echo -e "${BOLD}🧠 LLM MODELS${NC}"
     echo "  Complex Model:     $(get_config_value 'MODEL_PATH' | sed 's|.*/||')"
     echo "  Complex Context:   $(get_config_value 'N_CTX')"
+    echo "  Complex Temperature: $(get_config_value 'LLM_TEMPERATURE_COMPLEX')"
     echo "  Simple Model:      $(get_config_value 'SIMPLE_MODEL_PATH' | sed 's|.*/||')"
     echo "  Simple Context:    $(get_config_value 'SIMPLE_N_CTX')"
-    echo "  Temperature:       $(get_config_value 'LLM_TEMPERATURE')"
-    echo ""
-    echo -e "${BOLD}🌡️ TEMPERATURE CONTROLS${NC}"
-    echo "  Simple Questions:  $(get_config_value 'LLM_TEMPERATURE_SIMPLE')"
-    echo "  Complex Questions: $(get_config_value 'LLM_TEMPERATURE_COMPLEX')"
-    echo "  Normalization:     $(get_config_value 'LLM_TEMPERATURE_NORMALIZATION')"
-    echo "  Creative:         $(get_config_value 'LLM_TEMPERATURE_CREATIVE')"
-    echo "  Analysis:         $(get_config_value 'LLM_TEMPERATURE_ANALYSIS')"
+    echo "  Simple Temperature: $(get_config_value 'LLM_TEMPERATURE_SIMPLE')"
     echo ""
     
     echo -e "${BOLD}📚 RAG SEARCH${NC}"
@@ -220,25 +214,18 @@ configure_llm() {
     
     echo "Complex Model:   $(get_config_value 'MODEL_PATH' | sed 's|.*/||')"
     echo "Complex Context: $(get_config_value 'N_CTX')"
+    echo "Complex Temperature: $(get_config_value 'LLM_TEMPERATURE_COMPLEX')"
     echo ""
     echo "Simple Model:    $(get_config_value 'SIMPLE_MODEL_PATH' | sed 's|.*/||')"
     echo "Simple Context:  $(get_config_value 'SIMPLE_N_CTX')"
-    echo ""
-    echo "Temperature:     $(get_config_value 'LLM_TEMPERATURE')"
-    echo ""
-    echo "🌡️ GRANULAR TEMPERATURE CONTROLS:"
-    echo "  Simple Questions:  $(get_config_value 'LLM_TEMPERATURE_SIMPLE')"
-    echo "  Complex Questions: $(get_config_value 'LLM_TEMPERATURE_COMPLEX')"
-    echo "  Normalization:     $(get_config_value 'LLM_TEMPERATURE_NORMALIZATION')"
-    echo "  Creative:         $(get_config_value 'LLM_TEMPERATURE_CREATIVE')"
-    echo "  Analysis:         $(get_config_value 'LLM_TEMPERATURE_ANALYSIS')"
+    echo "Simple Temperature: $(get_config_value 'LLM_TEMPERATURE_SIMPLE')"
     echo ""
     echo "1) Change complex model path"
     echo "2) Change complex model context size"
     echo "3) Change simple model path"
     echo "4) Change simple model context size"
-    echo "5) Adjust global temperature"
-    echo "6) Configure granular temperatures"
+    echo "5) Adjust complex model temperature"
+    echo "6) Adjust simple model temperature"
     echo "7) Back to main menu"
     echo ""
     read -p "Choice [1-7]: " choice
@@ -269,97 +256,16 @@ configure_llm() {
             show_restart_message
             ;;
         5)
-            read -p "Enter temperature (0.0-1.0): " temp
-            set_config_value "LLM_TEMPERATURE" "$temp"
-            show_restart_message
-            ;;
-        6)
-            configure_temperature
-            ;;
-        7) return ;;
-    esac
-}
-
-configure_temperature() {
-    print_header "GRANULAR TEMPERATURE CONFIGURATION"
-    
-    echo "Current Temperature Settings:"
-    echo ""
-    echo "  Simple Questions:  $(get_config_value 'LLM_TEMPERATURE_SIMPLE') (L, C, T, S, O, D)"
-    echo "  Complex Questions: $(get_config_value 'LLM_TEMPERATURE_COMPLEX') (A, R)"
-    echo "  Normalization:     $(get_config_value 'LLM_TEMPERATURE_NORMALIZATION') (text processing)"
-    echo "  Creative:         $(get_config_value 'LLM_TEMPERATURE_CREATIVE') (creative responses)"
-    echo "  Analysis:         $(get_config_value 'LLM_TEMPERATURE_ANALYSIS') (analysis tasks)"
-    echo ""
-    echo "1) Set simple questions temperature (0.0-1.0)"
-    echo "2) Set complex questions temperature (0.0-1.0)"
-    echo "3) Set normalization temperature (0.0-1.0)"
-    echo "4) Set creative temperature (0.0-1.0)"
-    echo "5) Set analysis temperature (0.0-1.0)"
-    echo "6) Set all to conservative (0.1)"
-    echo "7) Set all to balanced (0.3)"
-    echo "8) Set all to creative (0.6)"
-    echo "9) Back to LLM menu"
-    echo ""
-    read -p "Choice [1-9]: " choice
-    
-    case $choice in
-        1)
-            read -p "Enter simple questions temperature (0.0-1.0): " temp
-            set_config_value "LLM_TEMPERATURE_SIMPLE" "$temp"
-            show_restart_message
-            ;;
-        2)
-            read -p "Enter complex questions temperature (0.0-1.0): " temp
+            read -p "Enter complex model temperature (0.0-1.0): " temp
             set_config_value "LLM_TEMPERATURE_COMPLEX" "$temp"
             show_restart_message
             ;;
-        3)
-            read -p "Enter normalization temperature (0.0-1.0): " temp
-            set_config_value "LLM_TEMPERATURE_NORMALIZATION" "$temp"
-            show_restart_message
-            ;;
-        4)
-            read -p "Enter creative temperature (0.0-1.0): " temp
-            set_config_value "LLM_TEMPERATURE_CREATIVE" "$temp"
-            show_restart_message
-            ;;
-        5)
-            read -p "Enter analysis temperature (0.0-1.0): " temp
-            set_config_value "LLM_TEMPERATURE_ANALYSIS" "$temp"
-            show_restart_message
-            ;;
         6)
-            set_config_value "LLM_TEMPERATURE_SIMPLE" "0.1"
-            set_config_value "LLM_TEMPERATURE_COMPLEX" "0.1"
-            set_config_value "LLM_TEMPERATURE_NORMALIZATION" "0.1"
-            set_config_value "LLM_TEMPERATURE_CREATIVE" "0.1"
-            set_config_value "LLM_TEMPERATURE_ANALYSIS" "0.1"
-            echo ""
-            echo -e "${GREEN}✅ All temperatures set to conservative (0.1)${NC}"
+            read -p "Enter simple model temperature (0.0-1.0): " temp
+            set_config_value "LLM_TEMPERATURE_SIMPLE" "$temp"
             show_restart_message
             ;;
-        7)
-            set_config_value "LLM_TEMPERATURE_SIMPLE" "0.3"
-            set_config_value "LLM_TEMPERATURE_COMPLEX" "0.3"
-            set_config_value "LLM_TEMPERATURE_NORMALIZATION" "0.3"
-            set_config_value "LLM_TEMPERATURE_CREATIVE" "0.3"
-            set_config_value "LLM_TEMPERATURE_ANALYSIS" "0.3"
-            echo ""
-            echo -e "${GREEN}✅ All temperatures set to balanced (0.3)${NC}"
-            show_restart_message
-            ;;
-        8)
-            set_config_value "LLM_TEMPERATURE_SIMPLE" "0.6"
-            set_config_value "LLM_TEMPERATURE_COMPLEX" "0.6"
-            set_config_value "LLM_TEMPERATURE_NORMALIZATION" "0.6"
-            set_config_value "LLM_TEMPERATURE_CREATIVE" "0.6"
-            set_config_value "LLM_TEMPERATURE_ANALYSIS" "0.6"
-            echo ""
-            echo -e "${GREEN}✅ All temperatures set to creative (0.6)${NC}"
-            show_restart_message
-            ;;
-        9) return ;;
+        7) return ;;
     esac
 }
 
