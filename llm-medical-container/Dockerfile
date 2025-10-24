@@ -4,6 +4,23 @@ FROM dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04
 # Set working directory
 WORKDIR /app
 
+# Install required packages FIRST (this layer will be cached)
+# This ensures packages are only installed once and cached for future builds
+RUN pip3 install \
+    flask \
+    python-dotenv \
+    numpy>=1.26.0 \
+    requests \
+    sentence-transformers \
+    faiss-cpu \
+    scikit-learn \
+    joblib \
+    --index-url https://pypi.org/simple
+
+# Pre-download sentence transformer model (cached layer)
+RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-distilroberta-v1')" && \
+    echo "✅ all-distilroberta-v1 model pre-downloaded into image"
+
 # === CLINICIAN MODE ARCHITECTURE ===
 # This container provides a focused medical chatbot with:
 # - Clinician mode for all medical interactions (symptoms, knowledge, greetings)
@@ -35,19 +52,6 @@ COPY ml/location_ml_data.csv .
 COPY config/medical_rules.json .
 COPY config/medical_term_mappings.json .
 
-# Install required packages FIRST (this layer will be cached)
-# This ensures packages are only installed once and cached for future builds
-RUN pip3 install --no-cache-dir \
-    flask \
-    python-dotenv \
-    numpy>=1.26.0 \
-    requests \
-    sentence-transformers \
-    faiss-cpu \
-    scikit-learn \
-    joblib \
-    --index-url https://pypi.org/simple
-
 # Copy OLDCARTS keywords file
 COPY oldcarts_keywords.json .
 
@@ -59,11 +63,6 @@ COPY oldcarts_keywords.json .
 COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K_M.gguf
 #COPY models/Llama-3.2-8B-Instruct-Q4_K_M.gguf /models/Llama-3.2-8B-Instruct-Q4_K_M.gguf
 COPY models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf /models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf
-
-# Pre-download sentence transformer model (cached layer)
-RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-distilroberta-v1')" && \
-    echo "✅ all-distilroberta-v1 model pre-downloaded into image"
-
 
 # === Environment defaults (can be overridden by .env or -e) ===
 ENV MODEL_PATH=/models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf
