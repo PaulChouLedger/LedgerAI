@@ -11,11 +11,15 @@ from typing import Dict, Any, List
 
 # Optional ML trainer import
 try:
-    from location_ml_trainer import LocationMLTrainer
+    from .location_ml_trainer import LocationMLTrainer
     ML_TRAINER_AVAILABLE = True
 except ImportError:
-    ML_TRAINER_AVAILABLE = False
-    LocationMLTrainer = None
+    try:
+        from location_ml_trainer import LocationMLTrainer
+        ML_TRAINER_AVAILABLE = True
+    except ImportError:
+        ML_TRAINER_AVAILABLE = False
+        LocationMLTrainer = None
 
 class MedicalRuleEngine:
     """
