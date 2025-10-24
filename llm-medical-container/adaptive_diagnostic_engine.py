@@ -884,12 +884,21 @@ class AdaptiveDiagnosticEngine:
                 sex_lower = user_answer.lower().strip()
                 self._capture_debug(f"[Engine] 🔍 Processing sex answer: '{user_answer}' -> '{sex_lower}'")
                 
-                # Check for male keywords
-                male_keywords = ['male', 'man', 'm']
-                female_keywords = ['female', 'woman', 'f']
+                # Check for male keywords (whole words only)
+                male_keywords = ['male', 'man']
+                female_keywords = ['female', 'woman']
                 
-                male_found = any(word in sex_lower for word in male_keywords)
-                female_found = any(word in sex_lower for word in female_keywords)
+                # Split into words and check for exact matches
+                words = sex_lower.split()
+                male_found = any(word in male_keywords for word in words)
+                female_found = any(word in female_keywords for word in words)
+                
+                # Also check for single letter responses
+                if not male_found and not female_found and len(sex_lower.strip()) == 1:
+                    if sex_lower.strip() == 'm':
+                        male_found = True
+                    elif sex_lower.strip() == 'f':
+                        female_found = True
                 
                 self._capture_debug(f"[Engine] 🔍 Male keywords found: {male_found}")
                 self._capture_debug(f"[Engine] 🔍 Female keywords found: {female_found}")
