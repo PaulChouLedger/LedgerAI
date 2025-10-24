@@ -1572,13 +1572,13 @@ class AdaptiveDiagnosticEngine:
         
         # Map category to directory patterns
         category_patterns = {
-            'GI': ['GI_', 'gastrointestinal', 'abdominal'],
-            'CARDIO': ['CARDIO_', 'cardiovascular', 'chest', 'heart'],
-            'NEURO': ['NEURO_', 'neurological', 'head', 'brain'],
-            'MSK': ['MSK_', 'musculoskeletal', 'orthopedic', 'bone'],
-            'DERM': ['DERM_', 'dermatological', 'skin'],
-            'RENAL': ['RENAL_', 'renal', 'kidney', 'urinary'],
-            'GYN': ['GYN_', 'gynecological', 'pelvic', 'ovarian']
+            'GI': ['appendicitis', 'cholecystitis', 'pancreatitis', 'gastritis', 'diverticulitis', 'hepatitis', 'colic', 'obstruction', 'volvulus', 'gastroenteritis', 'biliary', 'cholangitis', 'gerd', 'ibs', 'ibd', 'hernia', 'mallory', 'mesenteric', 'ulcer', 'perforated', 'sigmoid', 'cecal', 'gastric', 'constipation', 'bowel'],
+            'CARDIO': ['cardiovascular', 'chest', 'heart', 'myocardial', 'infarction', 'angina', 'aortic', 'cardiac'],
+            'NEURO': ['neurological', 'head', 'brain', 'headache', 'migraine', 'seizure', 'stroke', 'cerebral'],
+            'MSK': ['musculoskeletal', 'orthopedic', 'bone', 'joint', 'muscle', 'spine', 'back', 'fracture'],
+            'DERM': ['dermatological', 'skin', 'rash', 'lesion', 'cutaneous', 'dermatitis'],
+            'RENAL': ['renal', 'kidney', 'urinary', 'bladder', 'stone', 'uti', 'pyelonephritis'],
+            'GYN': ['gynecological', 'pelvic', 'ovarian', 'pregnancy', 'menstrual', 'reproductive']
         }
         
         filtered_guidelines = {}
