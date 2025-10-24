@@ -60,16 +60,6 @@ COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K
 #COPY models/Llama-3.2-8B-Instruct-Q4_K_M.gguf /models/Llama-3.2-8B-Instruct-Q4_K_M.gguf
 COPY models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf /models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf
 
-# Verify critical packages are available
-RUN python3 -c "\
-import sys; \
-try: \
-    import flask, numpy, requests, sklearn; \
-    print('✅ Core packages verified'); \
-except ImportError as e: \
-    print(f'❌ Missing package: {e}'); \
-    sys.exit(1)"
-
 # Check if sentence transformer model is already available and download only if needed
 RUN python3 -c "\
 import os; \
