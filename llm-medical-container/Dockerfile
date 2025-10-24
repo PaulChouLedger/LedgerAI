@@ -49,7 +49,7 @@ COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K
 COPY models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf /models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf
 
 # Install Python dependencies (LLM + Learning System)
-RUN pip3 install --no-cache-dir --ignore-installed \
+RUN pip3 install --ignore-installed \
     flask \
     python-dotenv \
     numpy>=1.26.0 \
