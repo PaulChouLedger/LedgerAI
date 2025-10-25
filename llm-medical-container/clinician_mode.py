@@ -84,20 +84,9 @@ def _load_medical_terms():
     global MEDICAL_TERMS
     
     if not os.path.exists(MEDICAL_TERMS_FILE):
-        print(f"[Clinician] ⚠️ Medical terms file not found: {MEDICAL_TERMS_FILE}")
-        print(f"[Clinician] ⚠️ Using fallback medical terms - some functionality may be limited")
+        print(f"[Clinician] ❌ Medical terms file not found: {MEDICAL_TERMS_FILE}")
         print(f"[Clinician] 💡 To fix: Mount shared directory with: -v /path/to/shared:/shared")
-        
-        # Fallback: Use basic medical terms
-        MEDICAL_TERMS = {
-            'symptoms': ['pain', 'fever', 'headache', 'nausea', 'vomiting', 'diarrhea', 'cough', 'shortness of breath', 'chest pain', 'abdominal pain'],
-            'conditions': ['hypertension', 'diabetes', 'asthma', 'pneumonia', 'appendicitis', 'heart attack', 'stroke', 'cancer'],
-            'body_parts': ['head', 'chest', 'abdomen', 'back', 'arm', 'leg', 'heart', 'lung', 'liver', 'kidney'],
-            'medications': ['aspirin', 'ibuprofen', 'acetaminophen', 'insulin', 'antibiotics'],
-            '_all_terms_flat': ['pain', 'fever', 'headache', 'nausea', 'vomiting', 'diarrhea', 'cough', 'shortness of breath', 'chest pain', 'abdominal pain', 'hypertension', 'diabetes', 'asthma', 'pneumonia', 'appendicitis', 'heart attack', 'stroke', 'cancer', 'head', 'chest', 'abdomen', 'back', 'arm', 'leg', 'heart', 'lung', 'liver', 'kidney', 'aspirin', 'ibuprofen', 'acetaminophen', 'insulin', 'antibiotics']
-        }
-        print(f"[Clinician] ✅ Using fallback medical terms ({len(MEDICAL_TERMS['_all_terms_flat'])} terms)")
-        return
+        raise FileNotFoundError(f"Medical terms file not found: {MEDICAL_TERMS_FILE}")
     
     try:
         with open(MEDICAL_TERMS_FILE, 'r') as f:
