@@ -1,8 +1,8 @@
 # Aura Medical AI Architecture - Living Document
 
 > **Last Updated:** October 25, 2025  
-> **Version:** 2.1  
-> **Status:** Active Development  
+> **Version:** 2.1-BROKEN  
+> **Status:** 🚨 **CRITICAL BUGS IDENTIFIED** - Scoring system non-functional  
 > **Update Policy:** Manual updates upon request only
 
 ## 🏗️ System Overview
@@ -810,6 +810,37 @@ data/
 
 ---
 
+## ⚠️ **Known Critical Issues** *(Requires Immediate Fix)*
+
+### **Scoring System Completely Broken (October 2025)**
+
+**Problem:** Semantic similarity scoring produces inverted results
+- **Patient:** "left side" → "lower part" 
+- **Diverticulitis Guideline:** "LEFT LOWER QUADRANT (LLQ)" → **Only 30% score** ❌
+- **Gastroenteritis Guideline:** "NOT localized to one quadrant" → **50% score** ❌
+
+**Root Causes Identified:**
+1. **Static Rankings:** Scores never change despite relevant patient answers
+2. **Inverted Logic:** Perfect matches score lower than contradictions  
+3. **Broken Anatomical Rules:** `bilateral_rule`, `midline_rule` override semantic similarity
+4. **No Dynamic Re-ranking:** Top 5 conditions remain fixed regardless of answers
+
+**Current Impact:**
+- ❌ **Diverticulitis never ranks #1** despite classic "left lower quadrant" presentation
+- ❌ **Rankings are static** - system appears non-responsive to patient input
+- ❌ **Diagnostic accuracy severely compromised** for location-specific conditions
+- ❌ **Patient loses confidence** when system doesn't adapt to their answers
+
+**Debug Evidence:**
+```
+[Engine] Acute Gastroenteritis: Enhanced L similarity = 0.500 ('lower part' vs 'NOT localized...')
+[Engine] Acute Diverticulitis: Enhanced L similarity = 0.300 ('lower part' vs 'LEFT LOWER QUADRANT')
+```
+
+**Status:** 🚨 **CRITICAL - System unusable for location-dependent diagnoses**
+
+---
+
 ## 🚀 Performance Characteristics
 
 ### **Latency Breakdown**
@@ -819,11 +850,12 @@ data/
 - **Question Generation:** ~0.8s (LLM call)
 - **Total First Question:** ~1.9s
 
-### **Accuracy Metrics**
-- **Guideline Matching:** 95%+ precision for relevant conditions
-- **OLDCARTS Parsing:** 98%+ accuracy with phrase matching  
-- **Red Flag Detection:** 100% coverage for known warning signs
-- **Question Relevance:** 92%+ clinical appropriateness
+### **Accuracy Metrics** *(Currently Compromised)*
+- **Guideline Matching:** ❌ **BROKEN** - inverted similarity scoring
+- **OLDCARTS Parsing:** 98%+ accuracy with phrase matching ✅
+- **Red Flag Detection:** 100% coverage for known warning signs ✅
+- **Question Relevance:** 92%+ clinical appropriateness ✅
+- **Dynamic Ranking:** ❌ **BROKEN** - scores never update appropriately
 
 ### **Scalability**
 - **Guidelines:** Easily extensible (JSON format)
@@ -841,6 +873,12 @@ data/
 - **Medication Interaction Checking:** Drug safety integration
 - **Lab Value Integration:** Objective data incorporation
 - **Telemedicine Features:** Video consultation support
+
+### **URGENT Fixes Required** *(Blocking System Functionality)*
+- **🚨 Semantic Similarity Scoring:** Complete rewrite - current logic inverted
+- **🚨 Dynamic Re-ranking:** Scores must update meaningfully after each answer
+- **🚨 Anatomical Rule Logic:** Fix bilateral/midline rules overriding actual similarity
+- **🚨 Location Matching:** "Left lower quadrant" must score highest for diverticulitis
 
 ### **Known Technical Debt** *(Priority TBD)*
 - **OLDCARTS Keywords File:** Currently missing, needs creation for full functionality
@@ -971,6 +1009,7 @@ if missing_terms:
 |---------|------|---------|
 | **2.1** | Oct 2025 | Universal Specificity Gap Detection System - guideline-driven clarification for all OLDCARTS elements |
 | **2.0** | Oct 2025 | OLDCARTS parsing bug fix, improved phrase matching |
+| **BROKEN** | Oct 2025 | **🚨 CRITICAL BUG: Scoring system completely inverted - perfect matches score lower than contradictions** |
 | **1.9** | Sep 2025 | Red flag screening automation, safety enhancements |
 | **1.8** | Aug 2025 | Semantic similarity scoring, hallucination prevention |
 | **1.7** | Jul 2025 | Rolling differential diagnosis, reserve pool management |
@@ -988,6 +1027,6 @@ if missing_terms:
 > 3. Experimental or proposed features marked clearly as such
 > 4. Version number incremented with each substantial update
 
-> **Current Status:** Reflects system as of October 25, 2025  
-> **Last Update Reason:** Universal Specificity Gap Detection System implementation  
-> **Next Update:** When requested after significant architectural changes
+> **Current Status:** Reflects system as of October 25, 2025 + Critical bugs identified  
+> **Last Update Reason:** Critical scoring system bugs documented - system currently non-functional for location-dependent diagnoses  
+> **Next Update:** When requested after significant architectural changes or bug fixes

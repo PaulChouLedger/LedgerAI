@@ -2166,13 +2166,18 @@ Output only the question:"""
         
         symptoms_context = ', '.join([s.split(':')[0] for s in key_symptoms[:3]]) if key_symptoms else "common symptoms"
         
-        system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do not include multiple phrases ending with question marks."
+        system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Ask about common symptoms like fever, nausea, vomiting, diarrhea, dizziness, or appetite changes. Do NOT ask about patient demographics, medical history, or complex medical conditions."
         
         user_msg = f"""Patient: {patient_info}
 
-Ask about ONE associated symptom using SIMPLE language (fever, nausea, vomiting, diarrhea, etc). EXACTLY ONE question only.
+Ask about ONE common associated symptom using SIMPLE language. Choose from: fever, nausea, vomiting, diarrhea, dizziness, lightheadedness, appetite changes, or similar basic symptoms.
 
-Example: "Have you had any fever?"
+EXACTLY ONE question only. Use this format: "Have you had any [symptom]?"
+
+Examples:
+- "Have you had any fever?"
+- "Have you felt dizzy or lightheaded?"
+- "Have you had any nausea?"
 
 Your question:"""
         
@@ -2199,8 +2204,17 @@ Your question:"""
         if question_mark_count > 1 or has_sentence_before_question:
             self._capture_debug(f"[Engine] ⚠️ LLM combined multiple questions - using template")
             self._capture_debug(f"[Engine]    Generated: '{question}'")
-            # Use simple template (ML-only, no fallback)
-            question = "Have you had any fever?"
+            # Use simple template - rotate through common symptoms
+            simple_questions = [
+                "Have you had any fever?",
+                "Have you felt dizzy or lightheaded?", 
+                "Have you had any nausea?",
+                "Have you had any vomiting?",
+                "Have you had any diarrhea?"
+            ]
+            # Use conversation length to rotate through questions
+            question_index = len(self.conversation_history) % len(simple_questions)
+            question = simple_questions[question_index]
         
         self._capture_debug(f"[Engine] ✅ Associated symptom question: '{question}'")
         self._capture_debug(f"{'='*80}\n")
@@ -3271,10 +3285,14 @@ Normalized text:"""
         
         self._capture_debug(f"{'='*80}\n")
         
-        # Mark the OLDCARTS element as covered after processing the answer
-        if oldcarts_element:
+        # Mark the OLDCARTS element as covered ONLY if no clarification was asked
+        # This prevents repetitive questions when clarifications are needed
+        clarification_was_asked = self._was_clarification_just_asked()
+        if oldcarts_element and not clarification_was_asked:
             self._capture_debug(f"[Engine] ✅ Marking OLDCARTS element '{oldcarts_element}' as covered")
             self.oldcarts_covered[oldcarts_element] = True
+        elif clarification_was_asked:
+            self._capture_debug(f"[Engine] ⏳ NOT marking '{oldcarts_element}' as covered - clarification was just asked")
         
         # SAFETY CHECK: Ensure we have active guidelines
         if len(self.active_guidelines) == 0 and len(self.reserve_pool) == 0:
@@ -3337,10 +3355,24 @@ Normalized text:"""
             self._capture_debug(f"[Engine]   📊 Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
             self._capture_debug(f"[Engine]   🎯 Thresholds: spread < 0.15, top_score < 0.30")
             
-            # UNIVERSAL SPECIFICITY GAP DETECTION: Compare patient answer to all matching guidelines
-            is_clear_answer = False
-            needs_clarification_for_specificity = False
-            missing_specificity_terms = []
+        # UNIVERSAL SPECIFICITY GAP DETECTION: Compare patient answer to all matching guidelines
+        is_clear_answer = False
+        needs_clarification_for_specificity = False
+        missing_specificity_terms = []
+        
+        # Use semantic scoring to determine if answer is clear enough
+        # If the answer gets good semantic scores, it's clear and doesn't need clarification
+        # Only do specificity gap detection if semantic scores are poor
+        
+        # SEMANTIC CLARITY CHECK: If top score is high and spread is good, answer is clear
+        semantic_answer_is_clear = (top_score >= 0.40 and score_spread >= 0.20)
+        
+        if semantic_answer_is_clear:
+            self._capture_debug(f"[Engine] ✅ SEMANTIC CLARITY: Answer is clear (top_score={top_score:.0%}, spread={score_spread:.0%})")
+            is_clear_answer = True
+        else:
+            self._capture_debug(f"[Engine] 🔍 SEMANTIC UNCLEAR: Checking specificity gaps (top_score={top_score:.0%}, spread={score_spread:.0%})")
+            # Do specificity gap detection for unclear answers
             
             if oldcarts_element == 'L':  # Location - universal guideline-driven specificity check
                 # Get all L components from guidelines that match the patient's general area
@@ -4453,6 +4485,22 @@ Your question:"""
         
         return descriptive_terms
     
+    
+    def _was_clarification_just_asked(self) -> bool:
+        """
+        Check if the last question in conversation history was a clarification question
+        This helps prevent marking OLDCARTS elements as covered when clarification is pending
+        """
+        if not self.conversation_history:
+            return False
+        
+        # Look at the most recent question
+        for item in reversed(self.conversation_history):
+            if item.get('type') == 'question':
+                return item.get('is_clarification', False)
+        
+        return False
+    
     def _generate_clarifying_question(self, oldcarts_element: str, patient_answer: str, clarification_count: int, missing_terms: list = None) -> str:
         """
         Generate a clarifying question based on missing specificity terms from guidelines
@@ -4513,7 +4561,12 @@ Your question:"""
                     return "What helps make it better?"
             
             elif oldcarts_element == 'S':  # Severity
-                if any(f'scale_{i}' in missing_terms for i in range(1, 11)):
+                # Check if patient already provided a numeric scale
+                import re
+                has_number = bool(re.search(r'\b([1-9]|10)\b', patient_answer))
+                if has_number:
+                    return None  # Don't ask clarification if they already gave a number
+                elif any(f'scale_{i}' in missing_terms for i in range(1, 11)):
                     return "On a scale of 1 to 10, how severe is it?"
                 else:
                     return "How severe would you say it is?"
