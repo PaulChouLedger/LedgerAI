@@ -1,7 +1,7 @@
 # Aura Medical AI Architecture - Living Document
 
 > **Last Updated:** October 25, 2025  
-> **Version:** 2.0  
+> **Version:** 2.1  
 > **Status:** Active Development  
 > **Update Policy:** Manual updates upon request only
 
@@ -856,6 +856,99 @@ data/
 
 ---
 
+## 🎯 Universal Specificity Gap Detection System *(New in v2.1)*
+
+### **Overview**
+Revolutionary **guideline-driven clarification system** that eliminates repetitive questions by detecting exactly what anatomical or descriptive specificity is missing from patient answers compared to medical guidelines.
+
+### **Problem Solved**
+**Before:** Hardcoded clarification triggers led to repetitive, irrelevant questions:
+```
+Patient: "left side"
+System: "Could you tell me if the discomfort is on your chest, arm, or head?" ❌
+```
+
+**After:** Universal guideline-driven specificity detection:
+```
+Patient: "left side"
+Guidelines: "LEFT LOWER QUADRANT", "LEFT UPPER QUADRANT"
+System: "Can you be more specific about the upper or lower part?" ✅
+```
+
+### **Universal Algorithm**
+
+**For ANY OLDCARTS element (L, D, C, A, R, T, S):**
+
+1. **Extract all sections** of that element from active guidelines
+2. **Parse descriptive terms** from each guideline section using `_extract_descriptive_terms()`
+3. **Parse terms** from patient answer using same method
+4. **Calculate specificity gap**: `missing_terms = guideline_terms - patient_terms`
+5. **Generate targeted question** asking for exactly what's missing
+
+### **Implementation**
+
+```python
+# Universal for all OLDCARTS elements
+matching_sections = []
+for guideline in self.active_guidelines:
+    section = self._extract_oldcarts_section(guideline, oldcarts_element)
+    if section:
+        matching_sections.append(section)
+
+# Extract terms from guidelines and patient
+all_guideline_terms = set()
+for section in matching_sections:
+    guideline_terms = self._extract_descriptive_terms(section, oldcarts_element)
+    all_guideline_terms.update(guideline_terms)
+
+patient_terms = self._extract_descriptive_terms(answer, oldcarts_element)
+missing_terms = all_guideline_terms - patient_terms
+
+# Generate targeted question if specificity gap exists
+if missing_terms:
+    question = self._generate_clarifying_question(oldcarts_element, answer, missing_terms)
+```
+
+### **Universal Coverage**
+
+| OLDCARTS | Example Gap Detection |
+|----------|----------------------|
+| **L (Location)** | `"left side"` → Missing: `['lower', 'quadrant']` → `"Can you be more specific about the upper or lower part?"` |
+| **D (Duration)** | `"a while"` → Missing: `['hours', 'days']` → `"Can you be more specific about how long it lasts - minutes, hours, or longer?"` |
+| **C (Character)** | `"hurts"` → Missing: `['sharp', 'dull']` → `"Would you describe it as sharp or dull?"` |
+| **A (Aggravating)** | `"gets worse"` → Missing: `['movement', 'eating']` → `"Does movement make it worse?"` |
+| **R (Relieving)** | `"nothing helps"` → Missing: `['rest', 'medication']` → `"Does rest help?"` |
+| **T (Timing)** | `"varies"` → Missing: `['constant', 'waves']` → `"Is it constant or does it come and go?"` |
+| **S (Severity)** | `"bad"` → Missing: `['scale_8', 'severe']` → `"On a scale of 1 to 10, how severe is it?"` |
+
+### **Key Methods**
+
+- **`_is_location_compatible()`**: Checks if patient answer is compatible with guideline location (e.g., "left side" compatible with "LEFT LOWER QUADRANT")
+- **`_extract_anatomical_terms()`**: Extracts anatomical specificity terms (upper, lower, quadrant, epigastric, etc.)
+- **`_extract_descriptive_terms()`**: Universal term extraction for any OLDCARTS element
+- **`_generate_clarifying_question()`**: Generates targeted questions based on missing specificity terms
+
+### **Benefits**
+
+1. ✅ **No hardcoded terms** - everything comes from actual guidelines
+2. ✅ **Works for all symptoms** - not just abdominal pain  
+3. ✅ **Targeted questions** - asks for exactly what's missing
+4. ✅ **Eliminates repetition** - only asks when genuinely needed
+5. ✅ **Scales automatically** - new guidelines = new terms detected
+6. ✅ **Universal coverage** - works for chest pain, headache, back pain, any symptom
+
+### **Debug Output Example**
+```
+[Engine] 🎯 UNIVERSAL SPECIFICITY GAP (L):
+[Engine]   Patient said: 'left side'
+[Engine]   Patient terms: {'left'}
+[Engine]   Guideline terms: {'left', 'lower', 'quadrant'}
+[Engine]   Missing specificity: ['lower', 'quadrant']
+[Engine]   Acute Diverticulitis: 'LEFT LOWER QUADRANT (LLQ) - key differentiator...'
+```
+
+---
+
 ## 📊 System Metrics & Monitoring
 
 ### **Key Performance Indicators**
@@ -876,6 +969,7 @@ data/
 
 | Version | Date | Changes |
 |---------|------|---------|
+| **2.1** | Oct 2025 | Universal Specificity Gap Detection System - guideline-driven clarification for all OLDCARTS elements |
 | **2.0** | Oct 2025 | OLDCARTS parsing bug fix, improved phrase matching |
 | **1.9** | Sep 2025 | Red flag screening automation, safety enhancements |
 | **1.8** | Aug 2025 | Semantic similarity scoring, hallucination prevention |
@@ -895,5 +989,5 @@ data/
 > 4. Version number incremented with each substantial update
 
 > **Current Status:** Reflects system as of October 25, 2025  
-> **Last Update Reason:** OLDCARTS parsing bug fix implementation  
+> **Last Update Reason:** Universal Specificity Gap Detection System implementation  
 > **Next Update:** When requested after significant architectural changes

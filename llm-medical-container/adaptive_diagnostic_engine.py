@@ -3337,45 +3337,107 @@ Normalized text:"""
             self._capture_debug(f"[Engine]   📊 Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
             self._capture_debug(f"[Engine]   🎯 Thresholds: spread < 0.15, top_score < 0.30")
             
-            # Skip clarification for clear, specific answers
+            # UNIVERSAL SPECIFICITY GAP DETECTION: Compare patient answer to all matching guidelines
             is_clear_answer = False
-            if oldcarts_element == 'D':  # Duration
-                # Clear duration answers (specific time periods)
-                clear_duration_patterns = [
-                    r'\d+\s*(minutes?|mins?|hours?|hrs?|days?|weeks?|months?)',
-                    r'(few|several|many)\s*(minutes?|hours?|days?)',
-                    r'(just|about|around|approximately)\s*\d+\s*(minutes?|hours?|days?)'
-                ]
-                import re
-                for pattern in clear_duration_patterns:
-                    if re.search(pattern, answer.lower()):
-                        is_clear_answer = True
-                        break
-            elif oldcarts_element == 'L':  # Location
-                # Clear location answers
-                clear_location_patterns = [
-                    r'(left|right)\s+(side|lower|upper|quadrant)',
-                    r'(upper|lower)\s+(left|right)',
-                    r'(center|middle|central)',
-                    r'\d+\s*(quadrant|area)',
-                    r'(left|right)\s+(lower|upper)\s+(abdomen|side)'
-                ]
-                import re
-                for pattern in clear_location_patterns:
-                    if re.search(pattern, answer.lower()):
-                        is_clear_answer = True
-                        break
+            needs_clarification_for_specificity = False
+            missing_specificity_terms = []
             
-            if not is_clear_answer and (score_spread < 0.15 or top_score < 0.30):
+            if oldcarts_element == 'L':  # Location - universal guideline-driven specificity check
+                # Get all L components from guidelines that match the patient's general area
+                matching_location_sections = []
+                for guideline in self.active_guidelines:
+                    location_section = self._extract_oldcarts_section(
+                        guideline['data'].get('key_features', {}).get('classic_presentation', ''), 
+                        'L'
+                    )
+                    if location_section:
+                        # Check if this guideline's location is compatible with patient's answer
+                        if self._is_location_compatible(answer, location_section):
+                            matching_location_sections.append({
+                                'condition': guideline['name'],
+                                'location_text': location_section
+                            })
+                
+                if matching_location_sections:
+                    # Extract all anatomical terms from matching guidelines
+                    all_guideline_terms = set()
+                    for section in matching_location_sections:
+                        # Extract anatomical terms from guideline text
+                        guideline_terms = self._extract_anatomical_terms(section['location_text'])
+                        all_guideline_terms.update(guideline_terms)
+                    
+                    # Extract terms from patient answer
+                    patient_terms = self._extract_anatomical_terms(answer)
+                    
+                    # Find missing specificity terms
+                    missing_specificity_terms = list(all_guideline_terms - patient_terms)
+                    
+                    if missing_specificity_terms:
+                        needs_clarification_for_specificity = True
+                        self._capture_debug(f"[Engine] 🎯 UNIVERSAL SPECIFICITY GAP:")
+                        self._capture_debug(f"[Engine]   Patient said: '{answer}'")
+                        self._capture_debug(f"[Engine]   Patient terms: {patient_terms}")
+                        self._capture_debug(f"[Engine]   Guideline terms: {all_guideline_terms}")
+                        self._capture_debug(f"[Engine]   Missing specificity: {missing_specificity_terms}")
+                        for section in matching_location_sections:
+                            self._capture_debug(f"[Engine]   {section['condition']}: '{section['location_text'][:50]}...'")
+                
+                # Consider clear only if patient provided sufficient anatomical detail
+                is_clear_answer = len(missing_specificity_terms) == 0
+                        
+            else:  # For other OLDCARTS elements (D, C, A, R, T, S) - use universal approach
+                # Get all matching sections for this OLDCARTS element from active guidelines
+                matching_sections = []
+                for guideline in self.active_guidelines:
+                    section = self._extract_oldcarts_section(
+                        guideline['data'].get('key_features', {}).get('classic_presentation', ''), 
+                        oldcarts_element
+                    )
+                    if section:
+                        matching_sections.append({
+                            'condition': guideline['name'],
+                            'section_text': section
+                        })
+                
+                if matching_sections:
+                    # Extract key terms from all matching guideline sections
+                    all_guideline_terms = set()
+                    for section in matching_sections:
+                        # Extract key descriptive terms from guideline text
+                        guideline_terms = self._extract_descriptive_terms(section['section_text'], oldcarts_element)
+                        all_guideline_terms.update(guideline_terms)
+                    
+                    # Extract terms from patient answer
+                    patient_terms = self._extract_descriptive_terms(answer, oldcarts_element)
+                    
+                    # Find missing specificity terms
+                    missing_specificity_terms = list(all_guideline_terms - patient_terms)
+                    
+                    if missing_specificity_terms:
+                        needs_clarification_for_specificity = True
+                        self._capture_debug(f"[Engine] 🎯 UNIVERSAL SPECIFICITY GAP ({oldcarts_element}):")
+                        self._capture_debug(f"[Engine]   Patient said: '{answer}'")
+                        self._capture_debug(f"[Engine]   Patient terms: {patient_terms}")
+                        self._capture_debug(f"[Engine]   Guideline terms: {all_guideline_terms}")
+                        self._capture_debug(f"[Engine]   Missing specificity: {missing_specificity_terms}")
+                    
+                    # Consider clear only if patient provided sufficient detail
+                    is_clear_answer = len(missing_specificity_terms) == 0
+                else:
+                    # No matching sections found - consider clear to avoid infinite loops
+                    is_clear_answer = True
+            
+            if not is_clear_answer and (score_spread < 0.15 or top_score < 0.30 or needs_clarification_for_specificity):
                 if clarification_count < MAX_CLARIFICATIONS_PER_ELEMENT:
                     self._capture_debug(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
                     self._capture_debug(f"[Engine]   Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
-                    self._capture_debug(f"[Engine]   Reason: {'Scores too close' if score_spread < 0.15 else 'All scores too low'}")
+                    reason = "Specificity gap detected" if needs_clarification_for_specificity else ("Scores too close" if score_spread < 0.15 else "All scores too low")
+                    self._capture_debug(f"[Engine]   Reason: {reason}")
                     self._capture_debug(f"[Engine]   Clarifications asked so far: {clarification_count}/{MAX_CLARIFICATIONS_PER_ELEMENT}")
                     self._capture_debug(f"[Engine]   Strategy: {'Open-ended' if clarification_count == 0 else 'Targeted (differential-based)'}")
                     
                     # Generate progressively targeted clarifying question
-                    clarifying_q = self._generate_clarifying_question(oldcarts_element, answer, clarification_count)
+                    clarifying_q = self._generate_clarifying_question(oldcarts_element, answer, clarification_count, missing_specificity_terms)
                     
                     if clarifying_q:
                         # Add clarifying question to history
@@ -4221,6 +4283,249 @@ Your question:"""
         except Exception as e:
             self._capture_debug(f"[Engine] ❌ Error calculating semantic similarity: {e}")
             raise RuntimeError(f"Failed to calculate semantic similarity: {e}")
+    
+    def _is_location_compatible(self, patient_answer: str, guideline_location: str) -> bool:
+        """
+        Check if patient's location answer is compatible with guideline location
+        (e.g., "left side" is compatible with "LEFT LOWER QUADRANT")
+        """
+        patient_lower = patient_answer.lower()
+        guideline_lower = guideline_location.lower()
+        
+        # Check for side compatibility
+        patient_has_left = any(term in patient_lower for term in ['left', 'l '])
+        patient_has_right = any(term in patient_lower for term in ['right', 'r '])
+        guideline_has_left = any(term in guideline_lower for term in ['left', 'llq', 'luq'])
+        guideline_has_right = any(term in guideline_lower for term in ['right', 'rlq', 'ruq'])
+        
+        # If patient specified a side, guideline must match that side
+        if patient_has_left and guideline_has_right:
+            return False
+        if patient_has_right and guideline_has_left:
+            return False
+        
+        # Check for general area compatibility (abdomen, chest, etc.)
+        patient_has_abdomen = any(term in patient_lower for term in ['abdomen', 'belly', 'stomach'])
+        guideline_has_abdomen = any(term in guideline_lower for term in ['abdomen', 'quadrant', 'epigastric', 'periumbilical', 'hypogastric', 'suprapubic'])
+        
+        # If patient mentioned abdomen, guideline should be abdominal
+        if patient_has_abdomen and not guideline_has_abdomen:
+            return False
+        
+        return True
+    
+    def _extract_anatomical_terms(self, text: str) -> set:
+        """
+        Extract anatomical specificity terms from text
+        Returns set of anatomical descriptors found
+        """
+        text_lower = text.lower()
+        anatomical_terms = set()
+        
+        # Directional terms
+        if 'upper' in text_lower:
+            anatomical_terms.add('upper')
+        if 'lower' in text_lower:
+            anatomical_terms.add('lower')
+        if 'left' in text_lower:
+            anatomical_terms.add('left')
+        if 'right' in text_lower:
+            anatomical_terms.add('right')
+        if 'center' in text_lower or 'central' in text_lower or 'middle' in text_lower:
+            anatomical_terms.add('central')
+        
+        # Anatomical regions
+        if 'quadrant' in text_lower:
+            anatomical_terms.add('quadrant')
+        if 'epigastric' in text_lower:
+            anatomical_terms.add('epigastric')
+        if 'periumbilical' in text_lower:
+            anatomical_terms.add('periumbilical')
+        if 'hypogastric' in text_lower:
+            anatomical_terms.add('hypogastric')
+        if 'suprapubic' in text_lower:
+            anatomical_terms.add('suprapubic')
+        if 'flank' in text_lower:
+            anatomical_terms.add('flank')
+        
+        # Quadrant abbreviations
+        if 'rlq' in text_lower:
+            anatomical_terms.update(['right', 'lower', 'quadrant'])
+        if 'llq' in text_lower:
+            anatomical_terms.update(['left', 'lower', 'quadrant'])
+        if 'ruq' in text_lower:
+            anatomical_terms.update(['right', 'upper', 'quadrant'])
+        if 'luq' in text_lower:
+            anatomical_terms.update(['left', 'upper', 'quadrant'])
+        
+        return anatomical_terms
+    
+    def _extract_descriptive_terms(self, text: str, oldcarts_element: str) -> set:
+        """
+        Extract descriptive terms from text based on OLDCARTS element
+        Universal method that works for any OLDCARTS component
+        """
+        text_lower = text.lower()
+        descriptive_terms = set()
+        
+        if oldcarts_element == 'L':  # Location
+            return self._extract_anatomical_terms(text)
+        
+        elif oldcarts_element == 'D':  # Duration
+            # Time units and descriptors
+            if any(term in text_lower for term in ['minute', 'min']):
+                descriptive_terms.add('minutes')
+            if any(term in text_lower for term in ['hour', 'hr']):
+                descriptive_terms.add('hours')
+            if any(term in text_lower for term in ['day']):
+                descriptive_terms.add('days')
+            if any(term in text_lower for term in ['week']):
+                descriptive_terms.add('weeks')
+            if any(term in text_lower for term in ['month']):
+                descriptive_terms.add('months')
+            if any(term in text_lower for term in ['second']):
+                descriptive_terms.add('seconds')
+            if any(term in text_lower for term in ['constant', 'continuous', 'persistent']):
+                descriptive_terms.add('continuous')
+            if any(term in text_lower for term in ['intermittent', 'comes and goes', 'on and off']):
+                descriptive_terms.add('intermittent')
+        
+        elif oldcarts_element == 'C':  # Character
+            # Pain descriptors
+            if any(term in text_lower for term in ['sharp', 'stabbing', 'knife-like']):
+                descriptive_terms.add('sharp')
+            if any(term in text_lower for term in ['dull', 'aching', 'sore']):
+                descriptive_terms.add('dull')
+            if any(term in text_lower for term in ['burning', 'hot']):
+                descriptive_terms.add('burning')
+            if any(term in text_lower for term in ['cramping', 'cramp', 'spasm']):
+                descriptive_terms.add('cramping')
+            if any(term in text_lower for term in ['throbbing', 'pulsating']):
+                descriptive_terms.add('throbbing')
+            if any(term in text_lower for term in ['pressure', 'squeezing', 'tight']):
+                descriptive_terms.add('pressure')
+        
+        elif oldcarts_element == 'T':  # Timing
+            if any(term in text_lower for term in ['constant', 'continuous', 'all the time']):
+                descriptive_terms.add('constant')
+            if any(term in text_lower for term in ['intermittent', 'comes and goes', 'on and off']):
+                descriptive_terms.add('intermittent')
+            if any(term in text_lower for term in ['waves', 'wave-like', 'cyclical']):
+                descriptive_terms.add('waves')
+        
+        elif oldcarts_element == 'A':  # Aggravating
+            if any(term in text_lower for term in ['movement', 'moving', 'activity']):
+                descriptive_terms.add('movement')
+            if any(term in text_lower for term in ['eating', 'food', 'meal']):
+                descriptive_terms.add('eating')
+            if any(term in text_lower for term in ['breathing', 'cough', 'deep breath']):
+                descriptive_terms.add('breathing')
+            if any(term in text_lower for term in ['position', 'lying', 'sitting', 'standing']):
+                descriptive_terms.add('position')
+        
+        elif oldcarts_element == 'R':  # Relieving
+            if any(term in text_lower for term in ['rest', 'lying down', 'sitting']):
+                descriptive_terms.add('rest')
+            if any(term in text_lower for term in ['medication', 'medicine', 'pills']):
+                descriptive_terms.add('medication')
+            if any(term in text_lower for term in ['heat', 'warm', 'hot']):
+                descriptive_terms.add('heat')
+            if any(term in text_lower for term in ['cold', 'ice']):
+                descriptive_terms.add('cold')
+            if any(term in text_lower for term in ['nothing', 'no relief']):
+                descriptive_terms.add('nothing')
+        
+        elif oldcarts_element == 'S':  # Severity
+            # Extract numeric severity if present
+            import re
+            numbers = re.findall(r'\b(\d+)\b', text_lower)
+            for num in numbers:
+                if 1 <= int(num) <= 10:
+                    descriptive_terms.add(f'scale_{num}')
+            
+            # Severity descriptors
+            if any(term in text_lower for term in ['mild', 'slight', 'minor']):
+                descriptive_terms.add('mild')
+            if any(term in text_lower for term in ['moderate', 'medium']):
+                descriptive_terms.add('moderate')
+            if any(term in text_lower for term in ['severe', 'intense', 'excruciating']):
+                descriptive_terms.add('severe')
+        
+        return descriptive_terms
+    
+    def _generate_clarifying_question(self, oldcarts_element: str, patient_answer: str, clarification_count: int, missing_terms: list = None) -> str:
+        """
+        Generate a clarifying question based on missing specificity terms from guidelines
+        Uses universal approach - asks for specific missing information
+        """
+        if missing_terms and len(missing_terms) > 0:
+            # Generate targeted question based on missing specificity
+            if oldcarts_element == 'L':  # Location
+                if 'upper' in missing_terms or 'lower' in missing_terms:
+                    return "Can you be more specific about the upper or lower part?"
+                elif 'quadrant' in missing_terms:
+                    return "Can you describe which quadrant or specific area?"
+                elif any(term in missing_terms for term in ['epigastric', 'periumbilical', 'hypogastric']):
+                    return "Can you be more specific about the exact location in your abdomen?"
+                else:
+                    return f"Can you provide more detail about the location?"
+            
+            elif oldcarts_element == 'D':  # Duration
+                if any(term in missing_terms for term in ['minutes', 'hours', 'days']):
+                    return "Can you be more specific about how long it lasts - minutes, hours, or longer?"
+                elif 'continuous' in missing_terms or 'intermittent' in missing_terms:
+                    return "Is it continuous or does it come and go?"
+                else:
+                    return "Can you describe the duration more specifically?"
+            
+            elif oldcarts_element == 'C':  # Character
+                if 'sharp' in missing_terms or 'dull' in missing_terms:
+                    return "Would you describe it as sharp or dull?"
+                elif 'cramping' in missing_terms:
+                    return "Does it feel like cramping or a different type of pain?"
+                elif 'burning' in missing_terms:
+                    return "Is there any burning sensation?"
+                else:
+                    return "Can you describe what the pain feels like?"
+            
+            elif oldcarts_element == 'T':  # Timing
+                if 'constant' in missing_terms or 'intermittent' in missing_terms:
+                    return "Is it constant or does it come and go?"
+                elif 'waves' in missing_terms:
+                    return "Does it come in waves or cycles?"
+                else:
+                    return "Can you describe the pattern of the symptoms?"
+            
+            elif oldcarts_element == 'A':  # Aggravating
+                if 'movement' in missing_terms:
+                    return "Does movement make it worse?"
+                elif 'eating' in missing_terms:
+                    return "Does eating affect it?"
+                else:
+                    return "What makes it worse?"
+            
+            elif oldcarts_element == 'R':  # Relieving
+                if 'rest' in missing_terms:
+                    return "Does rest help?"
+                elif 'medication' in missing_terms:
+                    return "Have you tried any medications?"
+                else:
+                    return "What helps make it better?"
+            
+            elif oldcarts_element == 'S':  # Severity
+                if any(f'scale_{i}' in missing_terms for i in range(1, 11)):
+                    return "On a scale of 1 to 10, how severe is it?"
+                else:
+                    return "How severe would you say it is?"
+        
+        # Fallback to generic clarification
+        element_names = {
+            'L': 'location', 'D': 'duration', 'C': 'character', 
+            'A': 'aggravating factors', 'R': 'relieving factors', 
+            'T': 'timing', 'S': 'severity'
+        }
+        element_name = element_names.get(oldcarts_element, 'symptom')
+        return f"Can you provide more detail about the {element_name}?"
     
     def _simple_text_similarity(self, text1: str, text2: str) -> float:
         """

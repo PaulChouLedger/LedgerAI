@@ -42,13 +42,9 @@ COPY oldcarts_keywords.json .
 # - RAG API integration for semantic similarity and medical knowledge
 # - Dual LLM support (Llama-1B for simple tasks, Mistral-7B for complex reasoning)
 
-# Copy Python application files
-COPY container_rest.py .
-COPY clinician_mode.py .
-COPY adaptive_diagnostic_engine.py .
-COPY thinking_fillers.py .
-COPY rag_client.py .
-COPY feedback_guide.py .
+# Copy all Python application files in one layer (frequently changed - no caching)
+# This ensures that any change to any Python file only invalidates this single layer
+COPY container_rest.py clinician_mode.py adaptive_diagnostic_engine.py thinking_fillers.py rag_client.py feedback_guide.py ./
 
 # Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
 
