@@ -140,7 +140,8 @@ class PerformanceMonitor:
                     self.metrics['condition_performance'][condition_name] = []
                 self.metrics['condition_performance'][condition_name].append(prediction)
             
-            print(f"[Performance Monitor] 📈 Prediction tracked: {condition_name} ({organ_system}) - {prediction:.3f}")
+            # Muted: Verbose prediction tracking output
+            # print(f"[Performance Monitor] 📈 Prediction tracked: {condition_name} ({organ_system}) - {prediction:.3f}")
             
         except Exception as e:
             print(f"[Performance Monitor] ❌ Tracking error: {e}")
@@ -165,7 +166,8 @@ class PerformanceMonitor:
                 'organ_system': organ_system
             })
             
-            print(f"[Performance Monitor] 📊 Accuracy tracked: {accuracy:.3f} ({condition_name})")
+            # Muted: Verbose accuracy tracking output  
+            # print(f"[Performance Monitor] 📊 Accuracy tracked: {accuracy:.3f} ({condition_name})")
             
         except Exception as e:
             print(f"[Performance Monitor] ❌ Accuracy tracking error: {e}")
