@@ -205,6 +205,8 @@ def run_container(name, port, image, timeout=15):
         simple_chat_format = HOST_ENV.get("SIMPLE_CHAT_FORMAT")
         simple_n_ctx       = HOST_ENV.get("SIMPLE_N_CTX")
         ehr_enabled        = HOST_ENV.get("EHR_INTEGRATION_ENABLED")
+        llm_temp_complex   = HOST_ENV.get("LLM_TEMPERATURE_COMPLEX")
+        llm_temp_simple    = HOST_ENV.get("LLM_TEMPERATURE_SIMPLE")
 
         # Get workspace root (LedgerAI directory)
         workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -229,6 +231,10 @@ def run_container(name, port, image, timeout=15):
             cmd.extend(["-e", f"SIMPLE_N_CTX={simple_n_ctx}"])
         if ehr_enabled:
             cmd.extend(["-e", f"EHR_INTEGRATION_ENABLED={ehr_enabled}"])
+        if llm_temp_complex:
+            cmd.extend(["-e", f"LLM_TEMPERATURE_COMPLEX={llm_temp_complex}"])
+        if llm_temp_simple:
+            cmd.extend(["-e", f"LLM_TEMPERATURE_SIMPLE={llm_temp_simple}"])
     elif name == WHISPER_NAME:
         # faster-whisper model is baked into the image, no cache mounting needed
         # Get workspace root for shared mount
