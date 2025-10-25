@@ -172,7 +172,7 @@ class ClinicianSession:
         self.medical_rag = None
         
         # NEW: Adaptive diagnostic engine (with LLM + RAG embeddings for semantic similarity)
-        # Use singleton pattern - create once, reuse for all sessions (loading 65 guidelines is slow!)
+        # Use singleton pattern - create once, reuse for all sessions (loading 144 guidelines is expensive!)
         self.adaptive_engine = None
         
         if ADAPTIVE_ENGINE_AVAILABLE:
@@ -180,14 +180,13 @@ class ClinicianSession:
                 # Use RAG container's embedding service (no local model needed)
                 embedding_api = RAGEmbeddingAPI()
                 
-                # Initialize adaptive engine with BOTH models + embeddings
-                self.adaptive_engine = AdaptiveDiagnosticEngine(
+                # USE SINGLETON PATTERN - create once, reuse for all sessions (loading 144 guidelines is expensive!)
+                self.adaptive_engine = get_adaptive_engine(
                     llm_chat_fn=self.llm_chat_fn,
-                    embedding_model=embedding_api,
-                    llm_chat_simple_fn=self.llm_chat_simple_fn
+                    llm_chat_simple_fn=self.llm_chat_simple_fn,
+                    embedding_api=embedding_api
                 )
-                guideline_count = len(self.adaptive_engine.all_guidelines) if hasattr(self.adaptive_engine, 'all_guidelines') else 0
-                print(f"[Clinician] ✅ Adaptive engine initialized: {guideline_count} guidelines, dual LLMs, semantic embeddings")
+                # Note: Guidelines count and success message printed by singleton function
             except Exception as e:
                 print(f"[Clinician] ⚠️ Failed to initialize adaptive engine: {e}")
         
@@ -1095,7 +1094,8 @@ IMPORTANT: Always include appropriate medical disclaimers and recommend consulti
         ]
         
         try:
-            response = self.llm_chat_fn(
+            # Use simple LLM (Llama-1B) for fast greeting responses
+            response = self.llm_chat_simple_fn(
                 messages=messages,
                 max_tokens=100,
                 temperature=0.7
@@ -1163,32 +1163,86 @@ Remember: You are not a substitute for professional medical advice.
             'enhanced_clinician_available': ENHANCED_CLINICIAN_AVAILABLE
         }
 
-# Global unified medical session
-unified_medical_session = None
+# Global sessions dictionary - each user gets their own session instance
+active_sessions: Dict[str, ClinicianSession] = {}
+
+def cleanup_inactive_sessions():
+    """Clean up old inactive sessions to prevent memory leaks"""
+    from datetime import datetime, timedelta
+    
+    cutoff_time = datetime.now() - timedelta(hours=2)  # Remove sessions older than 2 hours
+    sessions_to_remove = []
+    
+    for session_id, session in active_sessions.items():
+        # Check if session has recent activity
+        if (hasattr(session, 'conversation_history') and 
+            session.conversation_history and 
+            len(session.conversation_history) > 0):
+            
+            # Get timestamp of last message
+            last_message = session.conversation_history[-1]
+            if 'timestamp' in last_message:
+                try:
+                    last_activity = datetime.fromisoformat(last_message['timestamp'])
+                    if last_activity < cutoff_time:
+                        sessions_to_remove.append(session_id)
+                except ValueError:
+                    # Invalid timestamp format - mark for removal
+                    sessions_to_remove.append(session_id)
+        else:
+            # No conversation history - mark for removal
+            sessions_to_remove.append(session_id)
+    
+    # Remove inactive sessions
+    for session_id in sessions_to_remove:
+        del active_sessions[session_id]
+        print(f"[Clinician] 🧹 Cleaned up inactive session: {session_id}")
+    
+    if sessions_to_remove:
+        print(f"[Clinician] 🧹 Cleaned up {len(sessions_to_remove)} inactive sessions")
+    
+    return len(sessions_to_remove)
 
 def get_clinician_session(session_id: str, llm_chat_fn: Callable, llm_chat_simple_fn: Callable = None) -> ClinicianSession:
-    """Get or create unified medical session"""
-    global unified_medical_session
-    if unified_medical_session is None or unified_medical_session.session_id != session_id:
-        unified_medical_session = ClinicianSession(session_id, llm_chat_fn, llm_chat_simple_fn)
-    return unified_medical_session
+    """Get or create session for specific user (proper concurrency support)"""
+    global active_sessions
+    
+    # Periodically clean up inactive sessions (every 10th request)
+    import random
+    if random.randint(1, 10) == 1:  # 10% chance to run cleanup
+        cleanup_inactive_sessions()
+    
+    # Create new session if doesn't exist for this session_id
+    if session_id not in active_sessions:
+        print(f"[Clinician] 🔧 Creating new session: {session_id} (Active sessions: {len(active_sessions)})")
+        active_sessions[session_id] = ClinicianSession(session_id, llm_chat_fn, llm_chat_simple_fn)
+    else:
+        print(f"[Clinician] 🔄 Reusing existing session: {session_id} (Active sessions: {len(active_sessions)})")
+    
+    return active_sessions[session_id]
 
 def reset_clinician_session(session_id: str):
     """Properly reset clinician session state"""
-    global unified_medical_session
+    global active_sessions
     print(f"[Clinician] 🔄 Resetting session state: {session_id}")
     
-    # Clear the global session
-    if unified_medical_session and unified_medical_session.session_id == session_id:
-        # Reset adaptive engine if it exists
-        if hasattr(unified_medical_session, 'adaptive_engine') and unified_medical_session.adaptive_engine:
-            unified_medical_session.adaptive_engine.reset_assessment()
-            print(f"[Clinician] ✅ Adaptive engine reset")
+    # Clear the specific session
+    if session_id in active_sessions:
+        session = active_sessions[session_id]
+        
+        # Reset adaptive engine if it exists (but keep shared engine for other users)
+        if hasattr(session, 'adaptive_engine') and session.adaptive_engine:
+            session.adaptive_engine.reset_assessment()
+            print(f"[Clinician] ✅ Adaptive engine reset for session: {session_id}")
         
         # Reset conversation history and state
-        unified_medical_session.conversation_history = []
-        unified_medical_session.dynamic_assessment = None
-        print(f"[Clinician] ✅ Session state cleared")
+        session.conversation_history = []
+        session.dynamic_assessment = None
+        print(f"[Clinician] ✅ Session state cleared for: {session_id}")
+        
+        # Remove session from active sessions dictionary
+        del active_sessions[session_id]
+        print(f"[Clinician] 🗑️ Session removed from active sessions: {session_id}")
     
     # Clear from session storage
     try:
@@ -1197,9 +1251,6 @@ def reset_clinician_session(session_id: str):
         print(f"[Clinician] ✅ Session storage cleared")
     except Exception as e:
         print(f"[Clinician] ⚠️ Could not clear session storage: {e}")
-    
-    # Set to None to force recreation
-    unified_medical_session = None
 
 def is_clinician_trigger(prompt: str) -> bool:
     """
