@@ -15,6 +15,8 @@ RUN pip3 install \
     faiss-cpu \
     scikit-learn \
     joblib \
+    fuzzywuzzy \
+    python-Levenshtein \
     --index-url https://pypi.org/simple
 
 # Pre-download sentence transformer model (cached layer)
@@ -39,12 +41,15 @@ COPY oldcarts_keywords.json .
 # This container provides a focused medical chatbot with:
 # - Clinician mode for all medical interactions (symptoms, knowledge, greetings)
 # - Adaptive diagnostic engine with guideline-based assessment
+# - Smart LLM-based age extraction for natural language processing
+# - Fuzzy medical matching for typo correction and robust input handling
 # - RAG API integration for semantic similarity and medical knowledge
 # - Dual LLM support (Llama-1B for simple tasks, Mistral-7B for complex reasoning)
+# - Complete session management with proper reset functionality
 
 # Copy all Python application files in one layer (frequently changed - no caching)
 # This ensures that any change to any Python file only invalidates this single layer
-COPY container_rest.py clinician_mode.py adaptive_diagnostic_engine.py thinking_fillers.py rag_client.py feedback_guide.py ./
+COPY container_rest.py clinician_mode.py adaptive_diagnostic_engine.py thinking_fillers.py rag_client.py feedback_guide.py fuzzy_medical_matcher.py ./
 
 # Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
 
