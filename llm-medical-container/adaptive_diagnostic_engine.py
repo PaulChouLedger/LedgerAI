@@ -3387,68 +3387,57 @@ Normalized text:"""
                 all_guideline_terms = set()
                 for section in matching_location_sections:
                     # Extract anatomical terms from guideline text
+                    condition_name = section.get('condition', 'Unknown')
+                    location_text = section.get('location_text', '')
+                    
+                    self._capture_debug(f"[Engine] 🔍 GUIDELINE LOCATION DEBUG:")
+                    self._capture_debug(f"[Engine]   Condition: {condition_name}")
+                    self._capture_debug(f"[Engine]   Location text: '{location_text}'")
+                    
                     guideline_terms = self._extract_anatomical_terms(section['location_text'])
                     all_guideline_terms.update(guideline_terms)
+                    
+                    self._capture_debug(f"[Engine]   Extracted terms: {guideline_terms}")
                 
                 # Extract terms from patient answer
                 patient_terms = self._extract_anatomical_terms(answer)
                 
                 # ALWAYS calculate segmental gaps - check for competing anatomical regions
-                # Even if patient provided general terms (like "right"), check for sub-region competition
+                # Use FULL LOCATION BLOCKS (much simpler and more reliable than term extraction)
                 
-                # Extract all sub-regions mentioned in guidelines
-                all_subregions = set()
-                for guideline_terms in [self._extract_anatomical_terms(section['location_text']) for section in matching_location_sections]:
-                    all_subregions.update(guideline_terms)
+                # Get all location blocks from active guidelines
+                location_blocks = []
+                for section in matching_location_sections:
+                    condition_name = section.get('condition', 'Unknown')
+                    location_text = section.get('location_text', '')
+                    location_blocks.append({
+                        'condition': condition_name,
+                        'location_text': location_text
+                    })
+                    
+                    self._capture_debug(f"[Engine] 🔍 LOCATION BLOCK DEBUG:")
+                    self._capture_debug(f"[Engine]   Condition: {condition_name}")  
+                    self._capture_debug(f"[Engine]   Location text: '{location_text}'")
                 
-                # Check for competing sub-regions within the same general area
-                patient_general_side = None
-                if 'right' in patient_terms:
-                    patient_general_side = 'right'
-                elif 'left' in patient_terms:
-                    patient_general_side = 'left'
+                # Direct anatomical competition detection from full location blocks
+                competition_result = self._detect_anatomical_competition(answer, location_blocks)
                 
-                # Look for competing sub-regions on the same side
-                competing_subregions = set()
-                if patient_general_side:
-                    # Check for upper/lower competition on same side
-                    side_subregions = [term for term in all_subregions 
-                                     if patient_general_side in term.lower()]
-                    
-                    self._capture_debug(f"[Engine] 🔍 DEBUG COMPETITION DETECTION:")
-                    self._capture_debug(f"[Engine]   Patient side: {patient_general_side}")
-                    self._capture_debug(f"[Engine]   All subregions: {all_subregions}")
-                    self._capture_debug(f"[Engine]   Side subregions: {side_subregions}")
-                    
-                    # Extract competing levels (upper/lower) 
-                    has_upper = any('upper' in term.lower() or 'ruq' in term.lower() or 'luq' in term.lower() 
-                                   for term in side_subregions)
-                    has_lower = any('lower' in term.lower() or 'rlq' in term.lower() or 'llq' in term.lower() 
-                                   for term in side_subregions)
-                    
-                    self._capture_debug(f"[Engine]   Has upper: {has_upper}")
-                    self._capture_debug(f"[Engine]   Has lower: {has_lower}")
-                    
-                    # If guidelines mention both upper and lower on same side, need clarification
-                    if has_upper and has_lower:
-                        competing_subregions = {'upper', 'lower'}
-                        self._capture_debug(f"[Engine]   COMPETITION FOUND: {competing_subregions}")
-                    else:
-                        self._capture_debug(f"[Engine]   NO COMPETITION: upper={has_upper}, lower={has_lower}")
-                
-                # Check what patient is missing for disambiguation
-                patient_has_upper = any(term in patient_terms for term in ['upper', 'ruq', 'luq'])
-                patient_has_lower = any(term in patient_terms for term in ['lower', 'rlq', 'llq'])
+                self._capture_debug(f"[Engine] 🔍 COMPETITION ANALYSIS:")
+                self._capture_debug(f"[Engine]   Patient answer: '{answer}'")
+                self._capture_debug(f"[Engine]   Competition detected: {competition_result['has_competition']}")
+                if competition_result['has_competition']:
+                    self._capture_debug(f"[Engine]   Competing areas: {competition_result['competing_areas']}")
+                    self._capture_debug(f"[Engine]   Need clarification: {competition_result['clarification_needed']}")
                 
                 # Determine if clarification is needed
-                if competing_subregions and not (patient_has_upper or patient_has_lower):
+                if competition_result['has_competition'] and competition_result['clarification_needed']:
                     # Guidelines have competing regions, but patient didn't specify - need clarification
-                    missing_specificity_terms = list(competing_subregions)
+                    missing_specificity_terms = competition_result['competing_areas']
                     needs_clarification_for_specificity = True
                     is_clear_answer = False
                     self._capture_debug(f"[Engine] 🎯 COMPETING ANATOMICAL REGIONS DETECTED:")
-                    self._capture_debug(f"[Engine]   Patient said: '{answer}' (general: {patient_general_side})")
-                    self._capture_debug(f"[Engine]   Competing subregions: {competing_subregions}")
+                    self._capture_debug(f"[Engine]   Patient said: '{answer}'")
+                    self._capture_debug(f"[Engine]   Competing areas: {missing_specificity_terms}")
                     self._capture_debug(f"[Engine]   Need to clarify: {missing_specificity_terms}")
                 else:
                     # No competition or patient already specified subregion
@@ -4502,7 +4491,7 @@ Your question:"""
         if 'center' in text_lower or 'central' in text_lower or 'middle' in text_lower:
             anatomical_terms.add('central')
         
-        # Anatomical regions
+        # General anatomical regions
         if 'quadrant' in text_lower:
             anatomical_terms.add('quadrant')
         if 'epigastric' in text_lower:
@@ -4516,17 +4505,130 @@ Your question:"""
         if 'flank' in text_lower:
             anatomical_terms.add('flank')
         
-        # Quadrant abbreviations
-        if 'rlq' in text_lower:
-            anatomical_terms.update(['right', 'lower', 'quadrant'])
-        if 'llq' in text_lower:
+        # Quadrant abbreviations (CRITICAL: Keep specific terms for competition detection)
+        if 'rlq' in text_lower or 'right lower quadrant' in text_lower:
+            anatomical_terms.add('rlq')  # Keep specific term!
+            anatomical_terms.update(['right', 'lower', 'quadrant'])  # Also add components
+        if 'llq' in text_lower or 'left lower quadrant' in text_lower:
+            anatomical_terms.add('llq')  # Keep specific term!
             anatomical_terms.update(['left', 'lower', 'quadrant'])
-        if 'ruq' in text_lower:
+        if 'ruq' in text_lower or 'right upper quadrant' in text_lower:
+            anatomical_terms.add('ruq')  # Keep specific term!
             anatomical_terms.update(['right', 'upper', 'quadrant'])
-        if 'luq' in text_lower:
+        if 'luq' in text_lower or 'left upper quadrant' in text_lower:
+            anatomical_terms.add('luq')  # Keep specific term!
             anatomical_terms.update(['left', 'upper', 'quadrant'])
         
         return anatomical_terms
+    
+    def _detect_anatomical_competition(self, patient_answer: str, location_blocks: list) -> dict:
+        """
+        Detect anatomical competition from full location blocks - MUCH simpler approach!
+        
+        Args:
+            patient_answer: Patient's location response (e.g., "right side")  
+            location_blocks: List of {'condition': str, 'location_text': str}
+            
+        Returns:
+            dict: {
+                'has_competition': bool,
+                'competing_areas': list,
+                'clarification_needed': bool
+            }
+        """
+        patient_lower = patient_answer.lower()
+        
+        # Check if patient mentioned a general side without specificity
+        patient_said_right = any(term in patient_lower for term in ['right', 'right side'])
+        patient_said_left = any(term in patient_lower for term in ['left', 'left side'])
+        
+        # Check if patient already provided specific location
+        patient_already_specific = any(term in patient_lower for term in [
+            'upper', 'lower', 'ruq', 'rlq', 'luq', 'llq', 'epigastric', 'periumbilical'
+        ])
+        
+        self._capture_debug(f"[Engine] 🔍 PATIENT ANALYSIS:")
+        self._capture_debug(f"[Engine]   Said right: {patient_said_right}")
+        self._capture_debug(f"[Engine]   Said left: {patient_said_left}")
+        self._capture_debug(f"[Engine]   Already specific: {patient_already_specific}")
+        
+        # If patient already gave specific location, no competition analysis needed
+        if patient_already_specific:
+            return {
+                'has_competition': False,
+                'competing_areas': [],
+                'clarification_needed': False
+            }
+        
+        # Analyze location blocks for competition
+        if patient_said_right:
+            return self._analyze_side_competition('right', location_blocks)
+        elif patient_said_left:
+            return self._analyze_side_competition('left', location_blocks)
+        else:
+            # Patient didn't specify a clear side
+            return {
+                'has_competition': False,
+                'competing_areas': [],
+                'clarification_needed': False
+            }
+    
+    def _analyze_side_competition(self, side: str, location_blocks: list) -> dict:
+        """
+        Analyze if there's upper/lower competition on the specified side
+        
+        Args:
+            side: 'right' or 'left'
+            location_blocks: List of location blocks to analyze
+            
+        Returns:
+            dict: Competition analysis results
+        """
+        has_upper = False
+        has_lower = False
+        competing_conditions = []
+        
+        for block in location_blocks:
+            condition = block['condition']
+            location_text = block['location_text'].lower()
+            
+            # Check if this condition is on the specified side
+            is_on_side = side in location_text
+            
+            if is_on_side:
+                # Check for upper/lower specificity
+                is_upper = any(term in location_text for term in [
+                    f'{side} upper', 'ruq' if side == 'right' else 'luq', 'upper quadrant'
+                ])
+                is_lower = any(term in location_text for term in [
+                    f'{side} lower', 'rlq' if side == 'right' else 'llq', 'lower quadrant'
+                ])
+                
+                self._capture_debug(f"[Engine] 🔍 CONDITION ANALYSIS:")
+                self._capture_debug(f"[Engine]   {condition}: side={side}, upper={is_upper}, lower={is_lower}")
+                
+                if is_upper:
+                    has_upper = True
+                    competing_conditions.append(f"{condition} (upper)")
+                if is_lower:
+                    has_lower = True
+                    competing_conditions.append(f"{condition} (lower)")
+        
+        # Determine competition
+        has_competition = has_upper and has_lower
+        competing_areas = ['upper', 'lower'] if has_competition else []
+        
+        self._capture_debug(f"[Engine] 🔍 SIDE COMPETITION RESULT ({side}):")
+        self._capture_debug(f"[Engine]   Has upper: {has_upper}")
+        self._capture_debug(f"[Engine]   Has lower: {has_lower}")
+        self._capture_debug(f"[Engine]   Competition: {has_competition}")
+        self._capture_debug(f"[Engine]   Competing conditions: {competing_conditions}")
+        
+        return {
+            'has_competition': has_competition,
+            'competing_areas': competing_areas,
+            'clarification_needed': has_competition  # Need clarification if there's competition
+        }
     
     def _extract_descriptive_terms(self, text: str, oldcarts_element: str) -> set:
         """
