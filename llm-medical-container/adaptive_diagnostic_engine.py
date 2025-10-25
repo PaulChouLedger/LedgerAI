@@ -3473,21 +3473,23 @@ Normalized text:"""
                 self._capture_debug(f"[Engine]   Competition detected: {oldcarts_result['has_competition']}")
                 self._capture_debug(f"[Engine]   Best similarity: {oldcarts_result['best_similarity']:.0%}")
                 
-                if oldcarts_result['has_competition'] or oldcarts_result['best_similarity'] < 0.4:
-                    # Low similarity or competing descriptions - need clarification
+                # CONTAINMENT SIMILARITY: Patient words found in guidelines (much better than Jaccard)
+                # "eating" in "eating may worsen..." = 100% containment ✅
+                if oldcarts_result['has_competition'] or oldcarts_result['best_similarity'] < 0.5:
+                    # Low containment or competing descriptions - need clarification
                     needs_clarification_for_specificity = True
                     is_clear_answer = False
                     missing_specificity_terms = oldcarts_result['competing_terms']
                     self._capture_debug(f"[Engine] 🎯 OLDCARTS SPECIFICITY GAP ({oldcarts_element}):")
-                    self._capture_debug(f"[Engine]   Similarity too low or competition detected")
+                    self._capture_debug(f"[Engine]   Containment {oldcarts_result['best_similarity']:.0%} < 50% threshold")
                     self._capture_debug(f"[Engine]   Competing descriptions: {oldcarts_result['competing_terms']}")
                 else:
-                    # Good similarity - accept answer
+                    # Good containment - accept answer
                     needs_clarification_for_specificity = False
                     is_clear_answer = True
                     missing_specificity_terms = []
                     self._capture_debug(f"[Engine] ✅ OLDCARTS ANSWER ACCEPTED ({oldcarts_element}):")
-                    self._capture_debug(f"[Engine]   Good semantic match with guidelines")
+                    self._capture_debug(f"[Engine]   Containment {oldcarts_result['best_similarity']:.0%} >= 50% - accepting answer")
             else:
                 # No matching sections found - consider clear to avoid infinite loops
                 is_clear_answer = True
@@ -4659,8 +4661,9 @@ Your question:"""
             condition = section['condition']
             section_text = section['section_text'].lower()
             
-            # Simple semantic similarity based on keyword overlap and context
-            similarity = self._calculate_text_similarity(patient_lower, section_text)
+            # SIMPLE CONTAINMENT CHECK (same approach as successful anatomical competition)
+            # No complex similarity - just check if patient words are contained in guideline
+            similarity = self._simple_containment_match(patient_lower, section_text)
             similarities.append(similarity)
             
             self._capture_debug(f"[Engine] 🔍 OLDCARTS SECTION ANALYSIS:")
@@ -4717,11 +4720,67 @@ Your question:"""
         if not patient_words or not guideline_words:
             return 0.0
         
-        # Calculate Jaccard similarity
+        # Use CONTAINMENT similarity instead of Jaccard to avoid penalizing detailed guidelines
+        # Focus on: "What percentage of patient words are found in the guideline?"
         intersection = len(patient_words & guideline_words)
-        union = len(patient_words | guideline_words)
         
-        return intersection / union if union > 0 else 0.0
+        # Containment similarity = intersection / patient_words (not union!)
+        # "eating" found in "eating may worsen..." = 100% match ✅
+        containment_similarity = intersection / len(patient_words) if patient_words else 0.0
+        
+        self._capture_debug(f"[Engine] 🔍 SIMILARITY CALCULATION:")
+        self._capture_debug(f"[Engine]   Patient words: {patient_words}")
+        self._capture_debug(f"[Engine]   Intersection: {patient_words & guideline_words}")
+        self._capture_debug(f"[Engine]   Containment: {intersection}/{len(patient_words)} = {containment_similarity:.0%}")
+        
+        return containment_similarity
+    
+    def _simple_containment_match(self, patient_text: str, guideline_text: str) -> float:
+        """
+        Simple containment matching - same approach as successful anatomical competition
+        Just check if patient words appear in the guideline text (no complex math)
+        """
+        # Clean up text
+        patient_words = set(patient_text.split())
+        guideline_lower = guideline_text.lower()
+        
+        # Remove very common words that don't add meaning
+        common_words = {'the', 'a', 'an', 'and', 'or', 'but', 'is', 'are', 'was', 'were', 'my', 'it'}
+        patient_words = {word for word in patient_words if word not in common_words}
+        
+        if not patient_words:
+            return 0.0
+        
+        # Medical contradiction check (still important for safety)
+        if self._has_medical_contradiction(patient_text, guideline_text):
+            return 0.1  # Very low for contradictions
+        
+        # Simple containment: How many patient words appear in guideline?
+        matches = sum(1 for word in patient_words if word in guideline_lower)
+        containment_score = matches / len(patient_words)
+        
+        self._capture_debug(f"[Engine] 🔍 SIMPLE CONTAINMENT:")
+        self._capture_debug(f"[Engine]   Patient words: {patient_words}")
+        self._capture_debug(f"[Engine]   Matches: {matches}/{len(patient_words)}")
+        self._capture_debug(f"[Engine]   Score: {containment_score:.0%}")
+        
+        return containment_score
+    
+    def _has_medical_contradiction(self, patient_text: str, guideline_text: str) -> bool:
+        """Check for medical contradictions (important for safety)"""
+        contradictions = [
+            (['constant', 'continuous', 'all the time'], ['intermittent', 'comes and go', 'on and off']),
+            (['sharp', 'stabbing'], ['dull', 'aching']),
+            (['burning'], ['freezing', 'cold']),
+        ]
+        
+        for group1, group2 in contradictions:
+            has_group1 = any(term in patient_text.lower() for term in group1)
+            has_group2 = any(term in guideline_text.lower() for term in group2)
+            if has_group1 and has_group2:
+                return True
+        
+        return False
     
     def _extract_descriptive_terms(self, text: str, oldcarts_element: str) -> set:
         """
