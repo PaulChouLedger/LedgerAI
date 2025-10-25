@@ -1173,6 +1173,34 @@ def get_clinician_session(session_id: str, llm_chat_fn: Callable, llm_chat_simpl
         unified_medical_session = ClinicianSession(session_id, llm_chat_fn, llm_chat_simple_fn)
     return unified_medical_session
 
+def reset_clinician_session(session_id: str):
+    """Properly reset clinician session state"""
+    global unified_medical_session
+    print(f"[Clinician] 🔄 Resetting session state: {session_id}")
+    
+    # Clear the global session
+    if unified_medical_session and unified_medical_session.session_id == session_id:
+        # Reset adaptive engine if it exists
+        if hasattr(unified_medical_session, 'adaptive_engine') and unified_medical_session.adaptive_engine:
+            unified_medical_session.adaptive_engine.reset_assessment()
+            print(f"[Clinician] ✅ Adaptive engine reset")
+        
+        # Reset conversation history and state
+        unified_medical_session.conversation_history = []
+        unified_medical_session.dynamic_assessment = None
+        print(f"[Clinician] ✅ Session state cleared")
+    
+    # Clear from session storage
+    try:
+        from container_rest import clear_session_state
+        clear_session_state(session_id)
+        print(f"[Clinician] ✅ Session storage cleared")
+    except Exception as e:
+        print(f"[Clinician] ⚠️ Could not clear session storage: {e}")
+    
+    # Set to None to force recreation
+    unified_medical_session = None
+
 def is_clinician_trigger(prompt: str) -> bool:
     """
     Determine if a prompt should trigger unified medical mode using intelligent keyword search

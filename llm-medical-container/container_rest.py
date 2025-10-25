@@ -85,6 +85,24 @@ def normalize_text(text: str) -> str:
     text = ' '.join(text.split())
     return text
 
+def clear_session_state(session_id: str):
+    """Clear session state from storage"""
+    try:
+        # Create data/sessions directory if it doesn't exist
+        sessions_dir = os.path.join("data", "sessions")
+        os.makedirs(sessions_dir, exist_ok=True)
+        
+        session_file = f"session_{session_id}.json"
+        session_path = os.path.join(sessions_dir, session_file)
+        
+        if os.path.exists(session_path):
+            os.remove(session_path)
+            print(f"[Container] 🗑️ Cleared session file: {session_path}")
+        else:
+            print(f"[Container] ℹ️ No session file to clear: {session_path}")
+    except Exception as e:
+        print(f"[Container] ⚠️ Error clearing session state: {e}")
+
 
 def extract_llm_response_content(response) -> str:
     """
@@ -161,10 +179,21 @@ def chat_tg():
     
     print(f"[Telegram] 💬 Session: {session_id}, Prompt: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}', Reset: {do_reset}")
     
-    # Handle session reset (simplified - just return reset message)
+    # Handle session reset - PROPERLY CLEAR SESSION STATE
     if do_reset:
-        if prompt_norm in RESET_KEYWORDS:
-            return jsonify({"response": "Session reset. Start again with your symptoms."})
+        print(f"[Telegram] 🔄 Resetting session: {session_id}")
+        
+        # Clear session state properly
+        try:
+            # Reset clinician session if exists
+            from clinician_mode import reset_clinician_session
+            reset_clinician_session(session_id)
+            print(f"[Telegram] ✅ Clinician session reset: {session_id}")
+        except Exception as e:
+            print(f"[Telegram] ⚠️ Error resetting clinician session: {e}")
+        
+        # Always return reset confirmation
+        return jsonify({"response": "Session reset. Start again with your symptoms."})
     
     try:
         # All requests go to clinician mode

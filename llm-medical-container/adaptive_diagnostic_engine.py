@@ -44,6 +44,9 @@ from thinking_fillers import get_filler
 from rag_client import get_rag_client
 import numpy as np
 
+# Import fuzzy medical matcher for typo correction
+from fuzzy_medical_matcher import FuzzyMedicalMatcher
+
 class RAGEmbeddingAPI:
     """
     Wrapper for RAG client's embedding service
@@ -184,6 +187,10 @@ class AdaptiveDiagnosticEngine:
         except ImportError:
             self.user_feedback = None
             self._capture_debug(f"[Engine] ⚠️ User Feedback Interface not available")
+        
+        # Initialize fuzzy medical matcher for typo correction
+        self.fuzzy_matcher = FuzzyMedicalMatcher()
+        self._capture_debug(f"[Engine] 🔤 Fuzzy Medical Matcher initialized")
         
         self._capture_debug(f"[Engine] 🧠 Using {'dual models (simple + complex)' if llm_chat_simple_fn else 'single model'}")
         self._capture_debug(f"[Engine] 🌡️ Temperature settings: Simple={self.temperature_simple}, Complex={self.temperature_complex}")
@@ -1045,64 +1052,52 @@ class AdaptiveDiagnosticEngine:
             # Continue screening (or finalize if done)
             return self._screen_red_flags(self.active_guidelines[0])
         
-        # Handle demographics
+        # Handle demographics - AGE
         if last_q.get('focus') == 'age':
-            # Extract age using LLM
-            self._capture_debug(f"[Engine] 🔍 Extracting age from answer: '{user_answer}'")
-            self._capture_debug(f"[Engine] 🔍 Extracting age from answer: '{user_answer}'")
+            self._capture_debug(f"[Engine] 🔍 Processing age response: '{user_answer}'")
             
-            # Use regex to extract numbers (simple and reliable)
-            import re
-            numbers = re.findall(r'\b(\d{1,3})\b', user_answer)
+            # SMART LLM-BASED AGE EXTRACTION
+            age_extracted = self._extract_age_with_llm(user_answer)
             
-            if numbers:
-                # Take first number found
-                age_num = int(numbers[0])
-                if 1 <= age_num <= 120:  # Sanity check
-                    self.demographics['age'] = age_num
-                    self._capture_debug(f"[Engine] 👤 Age: {age_num}")
-                    self._capture_debug(f"[Engine] 👤 Age: {age_num}")
-                else:
-                    self._capture_debug(f"[Engine] 👤 Age: Invalid ({age_num} out of range 1-120)")
-                    self._capture_debug(f"[Engine] 👤 Age: Invalid ({age_num} out of range 1-120)")
-            else:
-                self._capture_debug(f"[Engine] 👤 Age: No number found in answer")
-                self._capture_debug(f"[Engine] 👤 Age: No number found in answer")
-            
-            # VALIDATION: If no age found, re-ask using LLM
-            if 'age' not in self.demographics:
-                self._capture_debug(f"[Engine] ⚠️ Invalid answer - re-asking for age")
-                self._capture_debug(f"{'='*80}\n")
+            # VALIDATION: Check if valid age was extracted
+            if age_extracted:
+                # SUCCESS: Valid age found
+                self.demographics['age'] = age_extracted
+                self._capture_debug(f"[Engine] 👤 Age successfully stored: {age_extracted}")
                 
-                age_question = self._generate_clarification_question("age")
+                # Continue to sex question
+                sex_question = self._generate_sex_question()
                 self.conversation_history.append({
                     'type': 'question',
-                    'question': age_question,
-                    'focus': 'age'
+                    'question': sex_question,
+                    'focus': 'sex'
                 })
                 
                 return {
                     'success': True,
-                    'question': age_question,
+                    'question': sex_question,
                     'status': 'questioning',
                     'debug': self._get_debug_info()
                 }
-            
-            # Ask sex using LLM
-            sex_question = self._generate_sex_question()
-            self.conversation_history.append({
-                'type': 'question',
-                'question': sex_question,
-                'focus': 'sex'
-            })
-            self._capture_debug(f"{'='*80}\n")
-            
-            return {
-                'success': True,
-                'question': sex_question,
-                'status': 'questioning',
-                'debug': self._get_debug_info()
-            }
+            else:
+                # FAILURE: Invalid age response - re-ask with helpful guidance
+                self._capture_debug(f"[Engine] ❌ Invalid age response: '{user_answer}' - LLM could not extract valid age")
+                
+                # Generate helpful re-ask message
+                clarification_msg = f"I need your age as a number. Please tell me how old you are (for example: '25' or 'I am 30 years old')."
+                
+                self.conversation_history.append({
+                    'type': 'question',
+                    'question': clarification_msg,
+                    'focus': 'age'  # Keep same focus to stay in age processing
+                })
+                
+                return {
+                    'success': True,
+                    'question': clarification_msg,
+                    'status': 'questioning',
+                    'debug': self._get_debug_info()
+                }
         
         # Sex processing already handled above - no duplicate needed
             
@@ -1343,13 +1338,17 @@ class AdaptiveDiagnosticEngine:
         return normalized_complaint
     
     def _categorize_complaint_by_substring(self, normalized_complaint: str) -> str:
-        """Efficient category detection using organ system keywords"""
-        self._capture_debug(f"[Engine] 🔍 EFFICIENT CATEGORY DETECTION DEBUG:")
-        self._capture_debug(f"[Engine] 🔍 Input: '{normalized_complaint}'")
+        """Efficient category detection using organ system keywords with FUZZY MATCHING"""
+        self._capture_debug(f"[Engine] 🔍 FUZZY CATEGORY DETECTION DEBUG:")
+        self._capture_debug(f"[Engine] 🔍 Original Input: '{normalized_complaint}'")
         
-        complaint_lower = normalized_complaint.lower()
+        # STEP 1: Apply fuzzy correction for medical typos
+        corrected_complaint = self.fuzzy_matcher.fuzzy_correct_medical_terms(normalized_complaint)
+        self._capture_debug(f"[Engine] 🧠 Fuzzy Corrected: '{normalized_complaint}' → '{corrected_complaint}'")
         
-        # Organ system keywords (not generic "pain")
+        complaint_lower = corrected_complaint.lower()
+        
+        # STEP 2: Use corrected text for organ system detection
         organ_keywords = {
             'GI': ['abdominal', 'stomach', 'belly', 'gut', 'bowel', 'intestine', 'gastrointestinal'],
             'CARDIO': ['chest', 'heart', 'cardiac', 'coronary', 'myocardial'],
@@ -1360,20 +1359,20 @@ class AdaptiveDiagnosticEngine:
             'GYN': ['pelvic', 'menstrual', 'gynecological', 'reproductive']
         }
         
-        # Count keyword matches by organ system
+        # STEP 3: Count keyword matches by organ system (now with corrected text)
         category_scores = {}
         for organ, keywords in organ_keywords.items():
             score = sum(1 for keyword in keywords if keyword in complaint_lower)
             if score > 0:
                 category_scores[organ] = score
-                self._capture_debug(f"[Engine] 🔍 {organ}: {score} matches")
+                self._capture_debug(f"[Engine] 🔍 {organ}: {score} matches (fuzzy-corrected)")
         
         self._capture_debug(f"[Engine] 🔍 Category scores: {category_scores}")
         
-        # Return organ system with highest score
+        # STEP 4: Return organ system with highest score
         if category_scores:
             best_category = max(category_scores, key=category_scores.get)
-            self._capture_debug(f"[Engine] 🔍 Best category: {best_category}")
+            self._capture_debug(f"[Engine] ✅ Best category: {best_category} (fuzzy-enhanced detection)")
             return best_category
         else:
             self._capture_debug(f"[Engine] 🔍 No organ keywords found, using ALL categories")
@@ -3842,6 +3841,89 @@ Your question:"""
             question += '?'
         self._capture_debug(f"[Engine] ✅ Age question (simple model): '{question}'")
         return question
+    
+    def _extract_age_with_llm(self, user_answer: str) -> Optional[int]:
+        """
+        Use LLM to intelligently extract age from natural language responses
+        
+        Args:
+            user_answer: User's response to age question
+            
+        Returns:
+            int: Valid age (1-120) or None if no valid age found
+        """
+        self._capture_debug(f"[Engine] 🧠 Using LLM to extract age from: '{user_answer}'")
+        
+        # Quick regex fallback for simple cases (faster)
+        import re
+        simple_numbers = re.findall(r'\b(\d{1,3})\b', user_answer)
+        if simple_numbers:
+            potential_age = int(simple_numbers[0])
+            if 1 <= potential_age <= 120:
+                self._capture_debug(f"[Engine] ⚡ Quick extraction: {potential_age}")
+                return potential_age
+        
+        # Use LLM for complex natural language processing
+        system_msg = """You are an age extraction expert. Extract the person's age from their response.
+
+CRITICAL RULES:
+1. ONLY return a single number between 1-120
+2. If no valid age mentioned, return "NONE"
+3. Convert text numbers to digits (e.g., "thirty" → 30)
+4. Handle phrases like "I'm in my thirties" → estimate (e.g., 35)
+5. NEVER return anything except a number or "NONE"
+
+Examples:
+- "25" → 25
+- "I'm thirty-five" → 35
+- "I am 42 years old" → 42
+- "I'm in my twenties" → 25
+- "about forty" → 40
+- "hello" → NONE
+- "I don't want to say" → NONE
+- "xyz" → NONE"""
+
+        user_msg = f"""Extract the age from this response:
+
+"{user_answer}"
+
+Return ONLY the age number (1-120) or "NONE" if no valid age."""
+
+        try:
+            response = self.llm_chat_simple_fn(
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=10,  # Very short response expected
+                temperature=0.1  # Low temperature for consistent extraction
+            )
+            
+            response_clean = response.strip().upper()
+            self._capture_debug(f"[Engine] 🧠 LLM age extraction result: '{response_clean}'")
+            
+            # Parse LLM response
+            if response_clean == "NONE":
+                self._capture_debug(f"[Engine] ❌ LLM found no valid age")
+                return None
+            
+            # Try to parse as number
+            try:
+                age = int(response_clean)
+                if 1 <= age <= 120:
+                    self._capture_debug(f"[Engine] ✅ LLM extracted valid age: {age}")
+                    return age
+                else:
+                    self._capture_debug(f"[Engine] ❌ LLM age out of range: {age}")
+                    return None
+            except ValueError:
+                self._capture_debug(f"[Engine] ❌ LLM response not a number: '{response_clean}'")
+                return None
+                
+        except Exception as e:
+            self._capture_debug(f"[Engine] ⚠️ LLM age extraction failed: {e}")
+            # Fallback to None if LLM fails
+            return None
     
     def _generate_sex_question(self) -> str:
         """
