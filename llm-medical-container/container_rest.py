@@ -69,7 +69,9 @@ def get_model_config():
     # Debug: Check if environment variables are available
     print(f"[Container] 🔍 Environment variables available:")
     print(f"[Container] 🔍 LLM_TEMPERATURE_COMPLEX: {os.environ.get('LLM_TEMPERATURE_COMPLEX', 'NOT SET')}")
+    print(f"[Container] 🔍 TEST_VAR: {os.environ.get('TEST_VAR', 'NOT SET')}")
     print(f"[Container] 🔍 All env vars with LLM: {[k for k in os.environ.keys() if 'LLM' in k]}")
+    print(f"[Container] 🔍 Total env vars: {len(os.environ)}")
     
     return {
         "model_path": MODEL_PATH,
