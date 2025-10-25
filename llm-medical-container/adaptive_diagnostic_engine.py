@@ -3362,158 +3362,148 @@ Normalized text:"""
         
         # Use semantic scoring to determine if answer is clear enough
         # If the answer gets good semantic scores, it's clear and doesn't need clarification
-        # Only do specificity gap detection if semantic scores are poor
+        # ALWAYS do specificity gap detection - scores don't determine anatomical competition
+        self._capture_debug(f"[Engine] 🔍 SEGMENTAL GAP DETECTION: Always checking for anatomical competition (top_score={top_score:.0%})")
+        # REMOVED: Old semantic clarity bypass logic that prevented proper competition detection
         
-        # SEMANTIC CLARITY CHECK: If top score is high and spread is good, answer is clear
-        semantic_answer_is_clear = (top_score >= 0.40 and score_spread >= 0.20)
-        
-        if semantic_answer_is_clear:
-            self._capture_debug(f"[Engine] ✅ SEMANTIC CLARITY: Answer is clear (top_score={top_score:.0%}, spread={score_spread:.0%})")
-            is_clear_answer = True
-        else:
-            self._capture_debug(f"[Engine] 🔍 SEMANTIC UNCLEAR: Checking specificity gaps (top_score={top_score:.0%}, spread={score_spread:.0%})")
-            # Do specificity gap detection for unclear answers
-            
-            if oldcarts_element == 'L':  # Location - universal guideline-driven specificity check
-                # Get all L components from guidelines that match the patient's general area
-                matching_location_sections = []
-                for guideline in self.active_guidelines:
-                    location_section = self._extract_oldcarts_section(
-                        guideline['data'].get('key_features', {}).get('classic_presentation', ''), 
-                        'L'
-                    )
-                    if location_section:
-                        # Check if this guideline's location is compatible with patient's answer
-                        if self._is_location_compatible(answer, location_section):
-                            matching_location_sections.append({
-                                'condition': guideline['name'],
-                                'location_text': location_section
-                            })
-                
-                if matching_location_sections:
-                    # Extract all anatomical terms from matching guidelines
-                    all_guideline_terms = set()
-                    for section in matching_location_sections:
-                        # Extract anatomical terms from guideline text
-                        guideline_terms = self._extract_anatomical_terms(section['location_text'])
-                        all_guideline_terms.update(guideline_terms)
-                    
-                    # Extract terms from patient answer
-                    patient_terms = self._extract_anatomical_terms(answer)
-                    
-                    # ALWAYS calculate segmental gaps - check for competing anatomical regions
-                    # Even if patient provided general terms (like "right"), check for sub-region competition
-                    
-                    # Extract all sub-regions mentioned in guidelines
-                    all_subregions = set()
-                    for guideline_terms in [self._extract_anatomical_terms(section['location_text']) for section in matching_location_sections]:
-                        all_subregions.update(guideline_terms)
-                    
-                    # Check for competing sub-regions within the same general area
-                    patient_general_side = None
-                    if 'right' in patient_terms:
-                        patient_general_side = 'right'
-                    elif 'left' in patient_terms:
-                        patient_general_side = 'left'
-                    
-                    # Look for competing sub-regions on the same side
-                    competing_subregions = set()
-                    if patient_general_side:
-                        # Check for upper/lower competition on same side
-                        side_subregions = [term for term in all_subregions 
-                                         if patient_general_side in term.lower()]
-                        
-                        # Extract competing levels (upper/lower) 
-                        has_upper = any('upper' in term.lower() or 'ruq' in term.lower() or 'luq' in term.lower() 
-                                       for term in side_subregions)
-                        has_lower = any('lower' in term.lower() or 'rlq' in term.lower() or 'llq' in term.lower() 
-                                       for term in side_subregions)
-                        
-                        # If guidelines mention both upper and lower on same side, need clarification
-                        if has_upper and has_lower:
-                            competing_subregions = {'upper', 'lower'}
-                    
-                    # Check what patient is missing for disambiguation
-                    patient_has_upper = any(term in patient_terms for term in ['upper', 'ruq', 'luq'])
-                    patient_has_lower = any(term in patient_terms for term in ['lower', 'rlq', 'llq'])
-                    
-                    # Determine if clarification is needed
-                    if competing_subregions and not (patient_has_upper or patient_has_lower):
-                        # Guidelines have competing regions, but patient didn't specify - need clarification
-                        missing_specificity_terms = list(competing_subregions)
-                        needs_clarification_for_specificity = True
-                        is_clear_answer = False
-                        self._capture_debug(f"[Engine] 🎯 COMPETING ANATOMICAL REGIONS DETECTED:")
-                        self._capture_debug(f"[Engine]   Patient said: '{answer}' (general: {patient_general_side})")
-                        self._capture_debug(f"[Engine]   Competing subregions: {competing_subregions}")
-                        self._capture_debug(f"[Engine]   Need to clarify: {missing_specificity_terms}")
-                    else:
-                        # No competition or patient already specified subregion
-                        missing_specificity_terms = []
-                        needs_clarification_for_specificity = False
-                        is_clear_answer = True
-                        self._capture_debug(f"[Engine] ✅ NO ANATOMICAL COMPETITION:")
-                        self._capture_debug(f"[Engine]   Patient provided sufficient specificity or no competition exists")
-                        
-            else:  # For other OLDCARTS elements (D, C, A, R, T, S) - use universal approach
-                # Get all matching sections for this OLDCARTS element from active guidelines
-                matching_sections = []
-                for guideline in self.active_guidelines:
-                    section = self._extract_oldcarts_section(
-                        guideline['data'].get('key_features', {}).get('classic_presentation', ''), 
-                        oldcarts_element
-                    )
-                    if section:
-                        matching_sections.append({
+        if oldcarts_element == 'L':  # Location - universal guideline-driven specificity check
+            # Get all L components from guidelines that match the patient's general area
+            matching_location_sections = []
+            for guideline in self.active_guidelines:
+                location_section = self._extract_oldcarts_section(
+                    guideline['data'].get('key_features', {}).get('classic_presentation', ''), 
+                    'L'
+                )
+                if location_section:
+                    # Check if this guideline's location is compatible with patient's answer
+                    if self._is_location_compatible(answer, location_section):
+                        matching_location_sections.append({
                             'condition': guideline['name'],
-                            'section_text': section
+                            'location_text': location_section
                         })
+            
+            if matching_location_sections:
+                # Extract all anatomical terms from matching guidelines
+                all_guideline_terms = set()
+                for section in matching_location_sections:
+                    # Extract anatomical terms from guideline text
+                    guideline_terms = self._extract_anatomical_terms(section['location_text'])
+                    all_guideline_terms.update(guideline_terms)
                 
-                if matching_sections:
-                    # Extract key terms from all matching guideline sections
-                    all_guideline_terms = set()
-                    for section in matching_sections:
-                        # Extract key descriptive terms from guideline text
-                        guideline_terms = self._extract_descriptive_terms(section['section_text'], oldcarts_element)
-                        all_guideline_terms.update(guideline_terms)
+                # Extract terms from patient answer
+                patient_terms = self._extract_anatomical_terms(answer)
+                
+                # ALWAYS calculate segmental gaps - check for competing anatomical regions
+                # Even if patient provided general terms (like "right"), check for sub-region competition
+                
+                # Extract all sub-regions mentioned in guidelines
+                all_subregions = set()
+                for guideline_terms in [self._extract_anatomical_terms(section['location_text']) for section in matching_location_sections]:
+                    all_subregions.update(guideline_terms)
+                
+                # Check for competing sub-regions within the same general area
+                patient_general_side = None
+                if 'right' in patient_terms:
+                    patient_general_side = 'right'
+                elif 'left' in patient_terms:
+                    patient_general_side = 'left'
+                
+                # Look for competing sub-regions on the same side
+                competing_subregions = set()
+                if patient_general_side:
+                    # Check for upper/lower competition on same side
+                    side_subregions = [term for term in all_subregions 
+                                     if patient_general_side in term.lower()]
                     
-                    # Extract terms from patient answer
-                    patient_terms = self._extract_descriptive_terms(answer, oldcarts_element)
+                    # Extract competing levels (upper/lower) 
+                    has_upper = any('upper' in term.lower() or 'ruq' in term.lower() or 'luq' in term.lower() 
+                                   for term in side_subregions)
+                    has_lower = any('lower' in term.lower() or 'rlq' in term.lower() or 'llq' in term.lower() 
+                                   for term in side_subregions)
                     
-                    # Check if patient provided ANY reasonable descriptive terms
-                    # If user provided any guideline terms, that's sufficient specificity  
-                    patient_provided_guideline_terms = patient_terms & all_guideline_terms
-                    
-                    if patient_provided_guideline_terms:
-                        # User provided at least one guideline term - sufficient specificity
-                        needs_clarification_for_specificity = False
-                        is_clear_answer = True
-                        self._capture_debug(f"[Engine] ✅ SUFFICIENT SPECIFICITY ({oldcarts_element}):")
-                        self._capture_debug(f"[Engine]   Patient provided: {patient_provided_guideline_terms}")
-                        missing_specificity_terms = []
-                    else:
-                        # User didn't provide any guideline terms - might need clarification
-                        missing_specificity_terms = list(all_guideline_terms - patient_terms)
-                        needs_clarification_for_specificity = True  
-                        is_clear_answer = False
-                        self._capture_debug(f"[Engine] 🎯 UNIVERSAL SPECIFICITY GAP ({oldcarts_element}):")
-                        self._capture_debug(f"[Engine]   Patient said: '{answer}'")
-                        self._capture_debug(f"[Engine]   Patient terms: {patient_terms}")
-                        self._capture_debug(f"[Engine]   Guideline terms: {all_guideline_terms}")
-                        self._capture_debug(f"[Engine]   Missing specificity: {missing_specificity_terms}")
-                    
-                    # Clear if patient provided any guideline terms
+                    # If guidelines mention both upper and lower on same side, need clarification
+                    if has_upper and has_lower:
+                        competing_subregions = {'upper', 'lower'}
+                
+                # Check what patient is missing for disambiguation
+                patient_has_upper = any(term in patient_terms for term in ['upper', 'ruq', 'luq'])
+                patient_has_lower = any(term in patient_terms for term in ['lower', 'rlq', 'llq'])
+                
+                # Determine if clarification is needed
+                if competing_subregions and not (patient_has_upper or patient_has_lower):
+                    # Guidelines have competing regions, but patient didn't specify - need clarification
+                    missing_specificity_terms = list(competing_subregions)
+                    needs_clarification_for_specificity = True
+                    is_clear_answer = False
+                    self._capture_debug(f"[Engine] 🎯 COMPETING ANATOMICAL REGIONS DETECTED:")
+                    self._capture_debug(f"[Engine]   Patient said: '{answer}' (general: {patient_general_side})")
+                    self._capture_debug(f"[Engine]   Competing subregions: {competing_subregions}")
+                    self._capture_debug(f"[Engine]   Need to clarify: {missing_specificity_terms}")
                 else:
-                    # No matching sections found - consider clear to avoid infinite loops
+                    # No competition or patient already specified subregion
+                    missing_specificity_terms = []
+                    needs_clarification_for_specificity = False
                     is_clear_answer = True
+                    self._capture_debug(f"[Engine] ✅ NO ANATOMICAL COMPETITION:")
+                    self._capture_debug(f"[Engine]   Patient provided sufficient specificity or no competition exists")
+                    
+        else:  # For other OLDCARTS elements (D, C, A, R, T, S) - use universal approach
+            # Get all matching sections for this OLDCARTS element from active guidelines
+            matching_sections = []
+            for guideline in self.active_guidelines:
+                section = self._extract_oldcarts_section(
+                    guideline['data'].get('key_features', {}).get('classic_presentation', ''), 
+                    oldcarts_element
+                )
+                if section:
+                    matching_sections.append({
+                        'condition': guideline['name'],
+                        'section_text': section
+                    })
+            
+            if matching_sections:
+                # Extract key terms from all matching guideline sections
+                all_guideline_terms = set()
+                for section in matching_sections:
+                    # Extract key descriptive terms from guideline text
+                    guideline_terms = self._extract_descriptive_terms(section['section_text'], oldcarts_element)
+                    all_guideline_terms.update(guideline_terms)
+                
+                # Extract terms from patient answer
+                patient_terms = self._extract_descriptive_terms(answer, oldcarts_element)
+                
+                # Check if patient provided ANY reasonable descriptive terms
+                # If user provided any guideline terms, that's sufficient specificity  
+                patient_provided_guideline_terms = patient_terms & all_guideline_terms
+                
+                if patient_provided_guideline_terms:
+                    # User provided at least one guideline term - sufficient specificity
+                    needs_clarification_for_specificity = False
+                    is_clear_answer = True
+                    self._capture_debug(f"[Engine] ✅ SUFFICIENT SPECIFICITY ({oldcarts_element}):")
+                    self._capture_debug(f"[Engine]   Patient provided: {patient_provided_guideline_terms}")
+                    missing_specificity_terms = []
+                else:
+                    # User didn't provide any guideline terms - might need clarification
+                    missing_specificity_terms = list(all_guideline_terms - patient_terms)
+                    needs_clarification_for_specificity = True  
+                    is_clear_answer = False
+                    self._capture_debug(f"[Engine] 🎯 UNIVERSAL SPECIFICITY GAP ({oldcarts_element}):")
+                    self._capture_debug(f"[Engine]   Patient said: '{answer}'")
+                    self._capture_debug(f"[Engine]   Patient terms: {patient_terms}")
+                    self._capture_debug(f"[Engine]   Guideline terms: {all_guideline_terms}")
+                    self._capture_debug(f"[Engine]   Missing specificity: {missing_specificity_terms}")
+            else:
+                # No matching sections found - consider clear to avoid infinite loops
+                is_clear_answer = True
             
             # ALWAYS ask clarification if there are meaningful anatomical distinctions to be made
-            # Remove dependency on score_spread - focus on segmental gaps
-            if needs_clarification_for_specificity or (not is_clear_answer and top_score < 0.30):
+            # REMOVED: score_spread and top_score dependencies - focus purely on segmental gaps
+            if needs_clarification_for_specificity or not is_clear_answer:
                 if clarification_count < MAX_CLARIFICATIONS_PER_ELEMENT:
                     self._capture_debug(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
-                    self._capture_debug(f"[Engine]   Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
-                    reason = "Competing anatomical regions need clarification" if needs_clarification_for_specificity else "All scores too low"
+                    self._capture_debug(f"[Engine]   Top score: {top_score:.0%} (scores no longer determine clarification)")
+                    reason = "Competing anatomical regions need clarification" if needs_clarification_for_specificity else "Answer lacks specificity"
                     self._capture_debug(f"[Engine]   Reason: {reason}")
                     self._capture_debug(f"[Engine]   Clarifications asked so far: {clarification_count}/{MAX_CLARIFICATIONS_PER_ELEMENT}")
                     self._capture_debug(f"[Engine]   Strategy: {'Open-ended' if clarification_count == 0 else 'Targeted (differential-based)'}")
@@ -3545,8 +3535,8 @@ Normalized text:"""
             else:
                 # No clarification needed - accept answer
                 self._capture_debug(f"[Engine] ✅ ANSWER ACCEPTED: '{answer}' provides sufficient specificity")
-                self._capture_debug(f"[Engine]   🎯 No competing anatomical regions requiring clarification (top: {top_score:.0%})")
-                self._capture_debug(f"[Engine]   📝 Patient language adequately specific for differential diagnosis")
+                self._capture_debug(f"[Engine]   🎯 No competing anatomical regions requiring clarification")
+                self._capture_debug(f"[Engine]   📝 Segmental gap analysis complete - no further clarification needed")
         
         # Diagnosis criteria: ALL OLDCARTS covered + high confidence, OR max 15 questions
         if oldcarts_complete and top['score'] >= 0.95:
