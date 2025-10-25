@@ -21,7 +21,6 @@ services:
       - N_CTX=4096
       - SIMPLE_N_CTX=2048
       - EHR_INTEGRATION_ENABLED=false
-      - TEST_VAR=hello
 
   rag:
     build: ../rag-container
