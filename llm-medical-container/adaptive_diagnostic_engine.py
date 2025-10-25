@@ -389,8 +389,8 @@ class AdaptiveDiagnosticEngine:
             return 0.2  # Keep same side conditions unless very low
         elif score >= 0.2:  # ML predictions (0.2)
             return 0.1  # Keep ML predictions unless very low
-        else:  # Anatomical opposites (0.0)
-            return 0.05  # Rule out anatomical opposites
+        else:  # Anatomical opposites (0.0-0.05)
+            return 0.1  # Rule out anatomical mismatches (10% threshold)
     
     def start_assessment(self, chief_complaint: str) -> Dict[str, Any]:
         """
@@ -3290,6 +3290,7 @@ Normalized text:"""
         # Mark the OLDCARTS element as covered ONLY if no clarification was asked
         # This prevents repetitive questions when clarifications are needed
         clarification_was_asked = self._was_clarification_just_asked()
+        self._capture_debug(f"[Engine] 🔍 Clarification check: {clarification_was_asked}")
         if oldcarts_element and not clarification_was_asked:
             self._capture_debug(f"[Engine] ✅ Marking OLDCARTS element '{oldcarts_element}' as covered")
             self.oldcarts_covered[oldcarts_element] = True
@@ -3599,6 +3600,7 @@ Normalized text:"""
         question = self._red_flag_to_question(current_red_flag)
         
         self._capture_debug(f"[Engine] 🚩 Red flag {self.red_flag_index + 1}/{len(red_flags)}: {current_red_flag}")
+        self._capture_debug(f"[Engine] 🔍 Generated question: {question}")
         
         self.conversation_history.append({
             'type': 'question',
@@ -3623,19 +3625,33 @@ Normalized text:"""
         "High fever >103°F with severe pain - possible perforation"
         → "Have you had a fever higher than 103 degrees?"
         """
-        # Simple hardcoded patterns for common red flags
+        # More specific patterns to avoid generic questions
         lower = red_flag.lower()
         
-        if 'fever' in lower and '103' in lower:
-            question = "Have you had a fever higher than 103 degrees?"
+        # High fever patterns (more specific)
+        if 'fever' in lower and ('103' in lower or '102' in lower):
+            if '103' in lower:
+                question = "Have you had a fever higher than 103 degrees?"
+            else:
+                question = "Have you had a fever higher than 102 degrees?"
+        elif 'fever' in lower and 'high' in lower:
+            question = "Have you had a high fever?"
+        elif 'fever' in lower and 'rigor' in lower:
+            question = "Have you had shaking chills with fever?"
         elif 'fever' in lower:
             question = "Have you had any fever?"
+        # Rigid abdomen patterns
         elif 'rigid' in lower or 'board-like' in lower:
             question = "Does your abdomen feel hard or rigid?"
+        elif 'peritoneal' in lower:
+            question = "Does your abdomen feel very tender when pressed?"
+        # Dizziness/mental status patterns
         elif 'dizzy' in lower or 'faint' in lower or 'hypotension' in lower:
             question = "Have you felt dizzy or lightheaded?"
         elif 'confusion' in lower or 'altered mental' in lower:
             question = "Have you felt confused?"
+        elif 'mental' in lower:
+            question = "Have you felt confused or disoriented?"
         elif 'blood' in lower and 'stool' in lower:
             question = "Have you seen blood in your stool?"
         elif 'blood' in lower and 'vomit' in lower:
