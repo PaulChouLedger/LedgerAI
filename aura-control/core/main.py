@@ -433,48 +433,76 @@ def start_services():
     else:
         print("[Aura] 🚀 Starting containers (RAG disabled - using CPU mode)...")
     
-    # Start all containers in parallel using threads
-    def start_whisper():
-        print(f"[Aura] 🎤 Starting Whisper container ({WHISPER_DESCRIPTION})...")
-        return run_container(WHISPER_NAME, 5000, WHISPER_IMAGE, timeout=10)
+    # Start all containers using Docker Compose
+    def start_all_containers():
+        print("[Aura] 🚀 Starting all containers via Docker Compose...")
+        try:
+            # Get workspace root (LedgerAI directory)
+            workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+            setup_dir = os.path.join(workspace_root, 'setup')
+            
+            # Stop any existing containers first
+            print("[Aura] 🛑 Stopping existing containers...")
+            subprocess.run(
+                ["docker", "compose", "down"],
+                cwd=setup_dir,
+                capture_output=True,
+                check=False  # Don't fail if nothing to stop
+            )
+            
+            # Determine which services to start
+            services_to_start = ["whisper", "llm"]
+            if RAG_ENABLED:
+                services_to_start.append("rag")
+                print("[Aura] 🔍 RAG enabled - starting all containers including RAG")
+            else:
+                print("[Aura] ⏭️  RAG disabled - starting Whisper and LLM only")
+            
+            # Start selected services with Docker Compose
+            cmd = ["docker", "compose", "up", "-d"] + services_to_start
+            result = subprocess.run(
+                cmd,
+                cwd=setup_dir,
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode != 0:
+                print(f"[Aura] ❌ Failed to start containers: {result.stderr}")
+                return False
+            
+            print(f"[Aura] ✅ Started containers: {', '.join(services_to_start)}")
+            
+            # Wait for containers to be ready
+            print("[Aura] ⏳ Waiting for containers to be ready...")
+            
+            # Check Whisper
+            whisper_ready = wait_for_container("http://localhost:5000/health", "Whisper", timeout=15)
+            if not whisper_ready:
+                return False
+            
+            # Check LLM
+            llm_ready = wait_for_container("http://localhost:11434/health", "LLM", timeout=30)
+            if not llm_ready:
+                return False
+            
+            # Check RAG if enabled
+            if RAG_ENABLED:
+                rag_ready = wait_for_container("http://localhost:11435/health", "RAG", timeout=90)
+                if not rag_ready:
+                    return False
+            
+            print("[Aura] ✅ All containers are ready!")
+            return True
+            
+        except Exception as e:
+            print(f"[Aura] ❌ Error starting containers: {e}")
+            return False
     
-    def start_llm():
-        print("[Aura] 🧠 Starting LLM container...")
-        # Increased timeout: both models take ~3-10s to load + Flask startup
-        return run_container("aura-llm", 11434, "aura-llm:latest", timeout=30)
-    
-    def start_rag():
-        if RAG_ENABLED:
-            print("[Aura] 🔍 Starting RAG container...")
-            # RAG needs longer timeout due to CUDA model pre-loading (30-60s on first boot)
-            return run_container("aura-rag", 11435, "aura-rag:latest", timeout=90)
-        else:
-            print("[Aura] ⏭️  Skipping RAG container (using CPU mode)")
-            return True  # Return True so we don't fail the startup
-    
-    # Start containers simultaneously
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-        whisper_future = executor.submit(start_whisper)
-        llm_future = executor.submit(start_llm)
-        rag_future = executor.submit(start_rag)
-        
-        # Wait for all to complete
-        whisper_ok = whisper_future.result()
-        llm_ok = llm_future.result()
-        rag_ok = rag_future.result()
-    
-    # Check if all succeeded
-    if not whisper_ok:
-        print("[Aura] ❌ Whisper container failed. Aborting.")
+    # Start all containers using Docker Compose
+    if not start_all_containers():
+        print("[Aura] ❌ Failed to start containers. Aborting.")
         return
-    if not llm_ok:
-        print("[Aura] ❌ LLM container failed. Aborting.")
-        return
-    if RAG_ENABLED and not rag_ok:
-        print("[Aura] ❌ RAG container failed. Aborting.")
-        return
-    
-    print("[Aura] ✅ All containers started successfully!")
     
     # Wait for LLM Flask API AND both models to be fully ready
     print("[Aura] ⏳ Waiting for LLM Flask API and models to load...")
