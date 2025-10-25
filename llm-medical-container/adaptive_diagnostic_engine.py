@@ -344,6 +344,7 @@ class AdaptiveDiagnosticEngine:
         self.status = "idle"  # idle, questioning, red_flag_screening, diagnosed
         self.red_flags_present = []  # Track which red flags are present
         self.red_flag_index = 0  # Track which red flag we're asking about
+        self.diagnosed_condition = None  # Store diagnosed condition for red flag screening
         
         # Clear any LLM model state/cache to prevent cross-session contamination
         self._capture_debug(f"[Engine] 🔄 Clearing LLM model state for fresh session")
@@ -1049,8 +1050,8 @@ class AdaptiveDiagnosticEngine:
             # Move to next red flag
             self.red_flag_index += 1
             
-            # Continue screening (or finalize if done)
-            return self._screen_red_flags(self.active_guidelines[0])
+            # Continue screening (or finalize if done) - use stored diagnosed condition
+            return self._screen_red_flags(self.diagnosed_condition)
         
         # Handle demographics - AGE
         if last_q.get('focus') == 'age':
@@ -3400,12 +3401,23 @@ Normalized text:"""
                     # Extract terms from patient answer
                     patient_terms = self._extract_anatomical_terms(answer)
                     
-                    # Find missing specificity terms
-                    missing_specificity_terms = list(all_guideline_terms - patient_terms)
+                    # Check if patient provided ANY reasonable anatomical terms
+                    # If user provided any guideline terms, that's sufficient specificity
+                    patient_provided_guideline_terms = patient_terms & all_guideline_terms
                     
-                    if missing_specificity_terms:
+                    if patient_provided_guideline_terms:
+                        # User provided at least one guideline term - sufficient specificity
+                        needs_clarification_for_specificity = False
+                        is_clear_answer = True
+                        self._capture_debug(f"[Engine] ✅ SUFFICIENT ANATOMICAL SPECIFICITY:")
+                        self._capture_debug(f"[Engine]   Patient provided: {patient_provided_guideline_terms}")
+                        missing_specificity_terms = []
+                    else:
+                        # User didn't provide any guideline terms - might need clarification
+                        missing_specificity_terms = list(all_guideline_terms - patient_terms)
                         needs_clarification_for_specificity = True
-                        self._capture_debug(f"[Engine] 🎯 UNIVERSAL SPECIFICITY GAP:")
+                        is_clear_answer = False
+                        self._capture_debug(f"[Engine] 🎯 ANATOMICAL SPECIFICITY GAP:")
                         self._capture_debug(f"[Engine]   Patient said: '{answer}'")
                         self._capture_debug(f"[Engine]   Patient terms: {patient_terms}")
                         self._capture_debug(f"[Engine]   Guideline terms: {all_guideline_terms}")
@@ -3413,8 +3425,7 @@ Normalized text:"""
                         for section in matching_location_sections:
                             self._capture_debug(f"[Engine]   {section['condition']}: '{section['location_text'][:50]}...'")
                 
-                # Consider clear only if patient provided sufficient anatomical detail
-                is_clear_answer = len(missing_specificity_terms) == 0
+                # Clear if patient provided any guideline terms
                         
             else:  # For other OLDCARTS elements (D, C, A, R, T, S) - use universal approach
                 # Get all matching sections for this OLDCARTS element from active guidelines
@@ -3441,19 +3452,29 @@ Normalized text:"""
                     # Extract terms from patient answer
                     patient_terms = self._extract_descriptive_terms(answer, oldcarts_element)
                     
-                    # Find missing specificity terms
-                    missing_specificity_terms = list(all_guideline_terms - patient_terms)
+                    # Check if patient provided ANY reasonable descriptive terms
+                    # If user provided any guideline terms, that's sufficient specificity  
+                    patient_provided_guideline_terms = patient_terms & all_guideline_terms
                     
-                    if missing_specificity_terms:
-                        needs_clarification_for_specificity = True
+                    if patient_provided_guideline_terms:
+                        # User provided at least one guideline term - sufficient specificity
+                        needs_clarification_for_specificity = False
+                        is_clear_answer = True
+                        self._capture_debug(f"[Engine] ✅ SUFFICIENT SPECIFICITY ({oldcarts_element}):")
+                        self._capture_debug(f"[Engine]   Patient provided: {patient_provided_guideline_terms}")
+                        missing_specificity_terms = []
+                    else:
+                        # User didn't provide any guideline terms - might need clarification
+                        missing_specificity_terms = list(all_guideline_terms - patient_terms)
+                        needs_clarification_for_specificity = True  
+                        is_clear_answer = False
                         self._capture_debug(f"[Engine] 🎯 UNIVERSAL SPECIFICITY GAP ({oldcarts_element}):")
                         self._capture_debug(f"[Engine]   Patient said: '{answer}'")
                         self._capture_debug(f"[Engine]   Patient terms: {patient_terms}")
                         self._capture_debug(f"[Engine]   Guideline terms: {all_guideline_terms}")
                         self._capture_debug(f"[Engine]   Missing specificity: {missing_specificity_terms}")
                     
-                    # Consider clear only if patient provided sufficient detail
-                    is_clear_answer = len(missing_specificity_terms) == 0
+                    # Clear if patient provided any guideline terms
                 else:
                     # No matching sections found - consider clear to avoid infinite loops
                     is_clear_answer = True
@@ -3530,6 +3551,7 @@ Normalized text:"""
             self.status = 'red_flag_screening'
             self.red_flag_index = 0
             self.red_flags_present = []
+            self.diagnosed_condition = diagnosis_obj  # Store diagnosed condition
             self._capture_debug(f"[Engine] 🚩 Screening {len(red_flags)} red flags for {diagnosis_obj['name']}")
         
         # If we've asked about all red flags, finalize

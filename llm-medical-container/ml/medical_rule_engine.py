@@ -253,14 +253,53 @@ class MedicalRuleEngine:
                 }
             
             elif anatomical_type in ['right_only', 'left_only']:
-                return {
-                    'similarity': 0.3,
-                    'method': 'same_side_fallback',
-                    'confidence': 'low',
-                    'reasoning': f'Low semantic ({semantic_score:.2f}) - same side fallback',
-                    'anatomical_type': anatomical_type,
-                    'semantic_score': semantic_score
-                }
+                # Check if patient's side matches condition's side
+                patient_lower = patient_text.lower()
+                
+                # Determine if there's an anatomical match or mismatch
+                patient_has_left = any(term in patient_lower for term in ['left', 'llq', 'luq'])
+                patient_has_right = any(term in patient_lower for term in ['right', 'rlq', 'ruq'])
+                
+                if anatomical_type == 'left_only' and patient_has_left:
+                    # Patient mentions left, condition is left-only → Same side match
+                    return {
+                        'similarity': 0.3,
+                        'method': 'same_side_fallback',
+                        'confidence': 'low',
+                        'reasoning': f'Low semantic ({semantic_score:.2f}) - same side fallback (left)',
+                        'anatomical_type': anatomical_type,
+                        'semantic_score': semantic_score
+                    }
+                elif anatomical_type == 'right_only' and patient_has_right:
+                    # Patient mentions right, condition is right-only → Same side match
+                    return {
+                        'similarity': 0.3,
+                        'method': 'same_side_fallback',
+                        'confidence': 'low',
+                        'reasoning': f'Low semantic ({semantic_score:.2f}) - same side fallback (right)',
+                        'anatomical_type': anatomical_type,
+                        'semantic_score': semantic_score
+                    }
+                elif (anatomical_type == 'left_only' and patient_has_right) or (anatomical_type == 'right_only' and patient_has_left):
+                    # Clear anatomical mismatch → Very low score
+                    return {
+                        'similarity': 0.05,
+                        'method': 'anatomical_mismatch',
+                        'confidence': 'high',
+                        'reasoning': f'Low semantic ({semantic_score:.2f}) + anatomical mismatch ({anatomical_type} vs patient side)',
+                        'anatomical_type': anatomical_type,
+                        'semantic_score': semantic_score
+                    }
+                else:
+                    # No clear anatomical information from patient → Use semantic similarity
+                    return {
+                        'similarity': semantic_score,
+                        'method': 'semantic_only',
+                        'confidence': 'low',
+                        'reasoning': f'Low semantic ({semantic_score:.2f}) - no clear anatomical info from patient',
+                        'anatomical_type': anatomical_type,
+                        'semantic_score': semantic_score
+                    }
             
             # 6. Use ML prediction if available (for unknown anatomical type)
             if self.ml_model:
