@@ -1048,7 +1048,9 @@ class AdaptiveDiagnosticEngine:
                 self._capture_debug(f"[Engine] ✓ Red flag not present")
             
             # Move to next red flag
+            prev_index = self.red_flag_index
             self.red_flag_index += 1
+            self._capture_debug(f"[Engine] 🔄 Red flag index: {prev_index} → {self.red_flag_index}")
             
             # Continue screening (or finalize if done) - use stored diagnosed condition
             return self._screen_red_flags(self.diagnosed_condition)
@@ -3462,37 +3464,30 @@ Normalized text:"""
                     })
             
             if matching_sections:
-                # Extract key terms from all matching guideline sections
-                all_guideline_terms = set()
-                for section in matching_sections:
-                    # Extract key descriptive terms from guideline text
-                    guideline_terms = self._extract_descriptive_terms(section['section_text'], oldcarts_element)
-                    all_guideline_terms.update(guideline_terms)
+                # FULL TEXT BLOCK APPROACH (same as anatomical competition)
+                # Direct comparison between patient answer and full OLDCARTS sections
+                oldcarts_result = self._detect_oldcarts_competition(answer, oldcarts_element, matching_sections)
                 
-                # Extract terms from patient answer
-                patient_terms = self._extract_descriptive_terms(answer, oldcarts_element)
+                self._capture_debug(f"[Engine] 🔍 OLDCARTS FULL TEXT ANALYSIS ({oldcarts_element}):")
+                self._capture_debug(f"[Engine]   Patient answer: '{answer}'")
+                self._capture_debug(f"[Engine]   Competition detected: {oldcarts_result['has_competition']}")
+                self._capture_debug(f"[Engine]   Best similarity: {oldcarts_result['best_similarity']:.0%}")
                 
-                # Check if patient provided ANY reasonable descriptive terms
-                # If user provided any guideline terms, that's sufficient specificity  
-                patient_provided_guideline_terms = patient_terms & all_guideline_terms
-                
-                if patient_provided_guideline_terms:
-                    # User provided at least one guideline term - sufficient specificity
+                if oldcarts_result['has_competition'] or oldcarts_result['best_similarity'] < 0.4:
+                    # Low similarity or competing descriptions - need clarification
+                    needs_clarification_for_specificity = True
+                    is_clear_answer = False
+                    missing_specificity_terms = oldcarts_result['competing_terms']
+                    self._capture_debug(f"[Engine] 🎯 OLDCARTS SPECIFICITY GAP ({oldcarts_element}):")
+                    self._capture_debug(f"[Engine]   Similarity too low or competition detected")
+                    self._capture_debug(f"[Engine]   Competing descriptions: {oldcarts_result['competing_terms']}")
+                else:
+                    # Good similarity - accept answer
                     needs_clarification_for_specificity = False
                     is_clear_answer = True
-                    self._capture_debug(f"[Engine] ✅ SUFFICIENT SPECIFICITY ({oldcarts_element}):")
-                    self._capture_debug(f"[Engine]   Patient provided: {patient_provided_guideline_terms}")
                     missing_specificity_terms = []
-                else:
-                    # User didn't provide any guideline terms - might need clarification
-                    missing_specificity_terms = list(all_guideline_terms - patient_terms)
-                    needs_clarification_for_specificity = True  
-                    is_clear_answer = False
-                    self._capture_debug(f"[Engine] 🎯 UNIVERSAL SPECIFICITY GAP ({oldcarts_element}):")
-                    self._capture_debug(f"[Engine]   Patient said: '{answer}'")
-                    self._capture_debug(f"[Engine]   Patient terms: {patient_terms}")
-                    self._capture_debug(f"[Engine]   Guideline terms: {all_guideline_terms}")
-                    self._capture_debug(f"[Engine]   Missing specificity: {missing_specificity_terms}")
+                    self._capture_debug(f"[Engine] ✅ OLDCARTS ANSWER ACCEPTED ({oldcarts_element}):")
+                    self._capture_debug(f"[Engine]   Good semantic match with guidelines")
             else:
                 # No matching sections found - consider clear to avoid infinite loops
                 is_clear_answer = True
@@ -4638,6 +4633,96 @@ Your question:"""
             'clarification_needed': has_competition  # Need clarification if there's competition
         }
     
+    def _detect_oldcarts_competition(self, patient_answer: str, oldcarts_element: str, matching_sections: list) -> dict:
+        """
+        Detect OLDCARTS competition using full text blocks - same successful approach as anatomical!
+        
+        Args:
+            patient_answer: Patient's response (e.g., "comes and go")
+            oldcarts_element: OLDCARTS element being analyzed ('D', 'C', 'T', etc.)
+            matching_sections: List of {'condition': str, 'section_text': str}
+            
+        Returns:
+            dict: {
+                'has_competition': bool,
+                'best_similarity': float,
+                'competing_terms': list
+            }
+        """
+        patient_lower = patient_answer.lower()
+        
+        # Calculate semantic similarity with each OLDCARTS section
+        similarities = []
+        competing_descriptions = []
+        
+        for section in matching_sections:
+            condition = section['condition']
+            section_text = section['section_text'].lower()
+            
+            # Simple semantic similarity based on keyword overlap and context
+            similarity = self._calculate_text_similarity(patient_lower, section_text)
+            similarities.append(similarity)
+            
+            self._capture_debug(f"[Engine] 🔍 OLDCARTS SECTION ANALYSIS:")
+            self._capture_debug(f"[Engine]   {condition}: {similarity:.0%} similarity")
+            self._capture_debug(f"[Engine]   Patient: '{patient_answer}'")
+            self._capture_debug(f"[Engine]   Guideline: '{section_text[:100]}...'")
+            
+            # Track competing descriptions for clarification
+            if similarity > 0.2:  # Some relevance
+                competing_descriptions.append(f"{condition} ({similarity:.0%})")
+        
+        # Determine competition and acceptance
+        best_similarity = max(similarities) if similarities else 0.0
+        has_competition = len([s for s in similarities if s > 0.3]) > 1  # Multiple moderate matches
+        
+        self._capture_debug(f"[Engine] 🔍 OLDCARTS COMPETITION RESULT ({oldcarts_element}):")
+        self._capture_debug(f"[Engine]   Best similarity: {best_similarity:.0%}")
+        self._capture_debug(f"[Engine]   Has competition: {has_competition}")
+        self._capture_debug(f"[Engine]   Competing descriptions: {competing_descriptions}")
+        
+        return {
+            'has_competition': has_competition,
+            'best_similarity': best_similarity,
+            'competing_terms': competing_descriptions
+        }
+    
+    def _calculate_text_similarity(self, patient_text: str, guideline_text: str) -> float:
+        """
+        Calculate semantic similarity between patient answer and guideline text
+        Simple but effective approach using keyword overlap and context
+        """
+        # Medical contradiction detection
+        contradictions = [
+            (['constant', 'continuous', 'all the time'], ['intermittent', 'comes and go', 'on and off']),
+            (['sharp', 'stabbing'], ['dull', 'aching']),
+            (['burning'], ['freezing', 'cold']),
+        ]
+        
+        for group1, group2 in contradictions:
+            has_group1 = any(term in patient_text for term in group1)
+            has_group2 = any(term in guideline_text for term in group2)
+            if has_group1 and has_group2:
+                return 0.1  # Very low similarity for contradictions
+        
+        # Basic keyword overlap similarity
+        patient_words = set(patient_text.split())
+        guideline_words = set(guideline_text.split())
+        
+        # Remove common words
+        common_words = {'the', 'a', 'an', 'and', 'or', 'but', 'is', 'are', 'was', 'were'}
+        patient_words -= common_words
+        guideline_words -= common_words
+        
+        if not patient_words or not guideline_words:
+            return 0.0
+        
+        # Calculate Jaccard similarity
+        intersection = len(patient_words & guideline_words)
+        union = len(patient_words | guideline_words)
+        
+        return intersection / union if union > 0 else 0.0
+    
     def _extract_descriptive_terms(self, text: str, oldcarts_element: str) -> set:
         """
         Extract descriptive terms from text based on OLDCARTS element
@@ -4665,7 +4750,7 @@ Your question:"""
                 descriptive_terms.add('seconds')
             if any(term in text_lower for term in ['constant', 'continuous', 'persistent']):
                 descriptive_terms.add('continuous')
-            if any(term in text_lower for term in ['intermittent', 'comes and goes', 'on and off']):
+            if any(term in text_lower for term in ['intermittent', 'comes and goes', 'comes and go', 'come and go', 'on and off']):
                 descriptive_terms.add('intermittent')
         
         elif oldcarts_element == 'C':  # Character
@@ -4686,7 +4771,7 @@ Your question:"""
         elif oldcarts_element == 'T':  # Timing
             if any(term in text_lower for term in ['constant', 'continuous', 'all the time']):
                 descriptive_terms.add('constant')
-            if any(term in text_lower for term in ['intermittent', 'comes and goes', 'on and off']):
+            if any(term in text_lower for term in ['intermittent', 'comes and goes', 'comes and go', 'come and go', 'on and off']):
                 descriptive_terms.add('intermittent')
             if any(term in text_lower for term in ['waves', 'wave-like', 'cyclical']):
                 descriptive_terms.add('waves')
