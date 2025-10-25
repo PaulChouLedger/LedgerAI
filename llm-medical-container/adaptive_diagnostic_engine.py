@@ -3341,20 +3341,20 @@ Normalized text:"""
                                  if item.get('type') == 'question' 
                                  and item.get('oldcarts') == oldcarts_element 
                                  and item.get('is_clarification'))
-            
-            # If scores are too close (can't differentiate) OR all scores too low
-            # Ask clarification, but move on if we've asked too many times for this element
-            MAX_CLARIFICATIONS_PER_ELEMENT = 1  # Reduced to minimize repetition
-            
-            # MUCH MORE LENIENT: Only clarify when absolutely necessary
-            # Normal patient answers like "yesterday", "random", "sudden" should be accepted
-            # LLM semantic similarity should handle normalization (e.g., "yesterday" → "24 hours ago")
-            
-            # Show LLM normalization decision
-            self._capture_debug(f"\n[Engine] 🧠 ANSWER PROCESSING:")
-            self._capture_debug(f"[Engine]   📝 Patient answer: '{answer}'")
-            self._capture_debug(f"[Engine]   📊 Top score: {top_score:.0%} (scores no longer determine clarification)")
-            
+        
+        # If scores are too close (can't differentiate) OR all scores too low
+        # Ask clarification, but move on if we've asked too many times for this element
+        MAX_CLARIFICATIONS_PER_ELEMENT = 1  # Reduced to minimize repetition
+        
+        # MUCH MORE LENIENT: Only clarify when absolutely necessary
+        # Normal patient answers like "yesterday", "random", "sudden" should be accepted
+        # LLM semantic similarity should handle normalization (e.g., "yesterday" → "24 hours ago")
+        
+        # Show LLM normalization decision
+        self._capture_debug(f"\n[Engine] 🧠 ANSWER PROCESSING:")
+        self._capture_debug(f"[Engine]   📝 Patient answer: '{answer}'")
+        self._capture_debug(f"[Engine]   📊 Top score: {top_score:.0%} (scores no longer determine clarification)")
+        
         # UNIVERSAL SPECIFICITY GAP DETECTION: Compare patient answer to all matching guidelines
         is_clear_answer = False
         needs_clarification_for_specificity = False
