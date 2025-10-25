@@ -3497,46 +3497,54 @@ Normalized text:"""
                 # No matching sections found - consider clear to avoid infinite loops
                 is_clear_answer = True
             
-            # ALWAYS ask clarification if there are meaningful anatomical distinctions to be made
-            # REMOVED: score_spread and top_score dependencies - focus purely on segmental gaps
-            if needs_clarification_for_specificity or not is_clear_answer:
-                if clarification_count < MAX_CLARIFICATIONS_PER_ELEMENT:
-                    self._capture_debug(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
-                    self._capture_debug(f"[Engine]   Top score: {top_score:.0%} (scores no longer determine clarification)")
-                    reason = "Competing anatomical regions need clarification" if needs_clarification_for_specificity else "Answer lacks specificity"
-                    self._capture_debug(f"[Engine]   Reason: {reason}")
-                    self._capture_debug(f"[Engine]   Clarifications asked so far: {clarification_count}/{MAX_CLARIFICATIONS_PER_ELEMENT}")
-                    self._capture_debug(f"[Engine]   Strategy: {'Open-ended' if clarification_count == 0 else 'Targeted (differential-based)'}")
+        # Debug clarification decision
+        self._capture_debug(f"[Engine] 🔍 CLARIFICATION DECISION DEBUG:")
+        self._capture_debug(f"[Engine]   needs_clarification_for_specificity: {needs_clarification_for_specificity}")
+        self._capture_debug(f"[Engine]   is_clear_answer: {is_clear_answer}")
+        self._capture_debug(f"[Engine]   clarification_count: {clarification_count}")
+        self._capture_debug(f"[Engine]   MAX_CLARIFICATIONS_PER_ELEMENT: {MAX_CLARIFICATIONS_PER_ELEMENT}")
+        self._capture_debug(f"[Engine]   Condition met: {needs_clarification_for_specificity or not is_clear_answer}")
+        
+        # ALWAYS ask clarification if there are meaningful anatomical distinctions to be made
+        # REMOVED: score_spread and top_score dependencies - focus purely on segmental gaps
+        if needs_clarification_for_specificity or not is_clear_answer:
+            if clarification_count < MAX_CLARIFICATIONS_PER_ELEMENT:
+                self._capture_debug(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
+                self._capture_debug(f"[Engine]   Top score: {top_score:.0%} (scores no longer determine clarification)")
+                reason = "Competing anatomical regions need clarification" if needs_clarification_for_specificity else "Answer lacks specificity"
+                self._capture_debug(f"[Engine]   Reason: {reason}")
+                self._capture_debug(f"[Engine]   Clarifications asked so far: {clarification_count}/{MAX_CLARIFICATIONS_PER_ELEMENT}")
+                self._capture_debug(f"[Engine]   Strategy: {'Open-ended' if clarification_count == 0 else 'Targeted (differential-based)'}")
+                
+                # Generate progressively targeted clarifying question
+                clarifying_q = self._generate_clarifying_question(oldcarts_element, answer, clarification_count, missing_specificity_terms)
+                
+                if clarifying_q:
+                    # Add clarifying question to history
+                    self.conversation_history.append({
+                        'type': 'question',
+                        'question': clarifying_q,
+                        'oldcarts': oldcarts_element,  # Same OLDCARTS element
+                        'focus': 'clinical',
+                        'is_clarification': True
+                    })
                     
-                    # Generate progressively targeted clarifying question
-                    clarifying_q = self._generate_clarifying_question(oldcarts_element, answer, clarification_count, missing_specificity_terms)
-                    
-                    if clarifying_q:
-                        # Add clarifying question to history
-                        self.conversation_history.append({
-                            'type': 'question',
-                            'question': clarifying_q,
-                            'oldcarts': oldcarts_element,  # Same OLDCARTS element
-                            'focus': 'clinical',
-                            'is_clarification': True
-                        })
-                        
-                        return {
-                            'success': True,
-                            'question': clarifying_q,
-                            'status': 'questioning',
-                            'needs_clarification': True
-                        }
-                else:
-                    self._capture_debug(f"\n[Engine] ⚠️  Max clarifications reached (top: {top_score:.0%})")
-                    self._capture_debug(f"[Engine]   Already asked {clarification_count} clarifications for '{oldcarts_element}'")
-                    self._capture_debug(f"[Engine]   📋 Can't differentiate further on this element - moving to next OLDCARTS")
-                    # Will fall through and continue to next OLDCARTS element
+                    return {
+                        'success': True,
+                        'question': clarifying_q,
+                        'status': 'questioning',
+                        'needs_clarification': True
+                    }
             else:
-                # No clarification needed - accept answer
-                self._capture_debug(f"[Engine] ✅ ANSWER ACCEPTED: '{answer}' provides sufficient specificity")
-                self._capture_debug(f"[Engine]   🎯 No competing anatomical regions requiring clarification")
-                self._capture_debug(f"[Engine]   📝 Segmental gap analysis complete - no further clarification needed")
+                self._capture_debug(f"\n[Engine] ⚠️  Max clarifications reached (top: {top_score:.0%})")
+                self._capture_debug(f"[Engine]   Already asked {clarification_count} clarifications for '{oldcarts_element}'")
+                self._capture_debug(f"[Engine]   📋 Can't differentiate further on this element - moving to next OLDCARTS")
+                # Will fall through and continue to next OLDCARTS element
+        else:
+            # No clarification needed - accept answer
+            self._capture_debug(f"[Engine] ✅ ANSWER ACCEPTED: '{answer}' provides sufficient specificity")
+            self._capture_debug(f"[Engine]   🎯 No competing anatomical regions requiring clarification")
+            self._capture_debug(f"[Engine]   📝 Segmental gap analysis complete - no further clarification needed")
         
         # Diagnosis criteria: ALL OLDCARTS covered + high confidence, OR max 15 questions
         if oldcarts_complete and top['score'] >= 0.95:
