@@ -64,38 +64,7 @@ SIMPLE_MODEL_PATH = os.getenv("SIMPLE_MODEL_PATH", "/models/Llama-3.2-1B-Instruc
 SIMPLE_N_CTX = int(os.getenv("SIMPLE_N_CTX", "2048"))
 SIMPLE_CHAT_FORMAT = os.getenv("SIMPLE_CHAT_FORMAT", "llama-3")
 
-# Model configuration functions (called after environment is loaded)
-def get_model_config():
-    return {
-        "model_path": MODEL_PATH,
-        "n_ctx": N_CTX,
-        "n_gpu_layers": -1,
-        "n_threads": 6,
-        "chat_format": CHAT_FORMAT,
-        "use_mlock": True,
-        "use_mmap": True,
-        "verbose": False,
-        "temperature": float(os.environ["LLM_TEMPERATURE_COMPLEX"]),
-        "top_p": float(os.getenv("LLM_TOP_P", "0.85")),
-        "top_k": int(os.getenv("LLM_TOP_K", "30")),
-        "repeat_penalty": float(os.getenv("LLM_REPEAT_PENALTY", "1.15")),
-    }
-
-def get_simple_model_config():
-    return {
-        "model_path": SIMPLE_MODEL_PATH,
-        "n_ctx": SIMPLE_N_CTX,
-        "n_gpu_layers": -1,
-        "n_threads": 4,  # Fewer threads for simple model
-        "chat_format": SIMPLE_CHAT_FORMAT,
-        "use_mlock": True,
-        "use_mmap": True,
-        "verbose": False,
-        "temperature": float(os.environ["LLM_TEMPERATURE_SIMPLE"]),
-        "top_p": float(os.getenv("LLM_TOP_P", "0.85")),
-        "top_k": int(os.getenv("LLM_TOP_K", "30")),
-        "repeat_penalty": float(os.getenv("LLM_REPEAT_PENALTY", "1.15")),
-    }
+# Model configuration now uses direct environment variable access
 
 # Models will be loaded in __main__ block to prevent double loading
 import os
@@ -535,16 +504,15 @@ def llm_chat(messages, max_tokens=100, temperature=None, stream=False, **kwargs)
     """
     # Apply centralized speed optimizations
     if temperature is None:
-        model_config = get_model_config()
-        temperature = model_config.get("temperature")
+        temperature = float(os.environ["LLM_TEMPERATURE_COMPLEX"])
     
     generation_params = {
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
-        "top_p": kwargs.pop("top_p", get_model_config().get("top_p", 0.85)),
-        "top_k": kwargs.pop("top_k", get_model_config().get("top_k", 30)),
-        "repeat_penalty": kwargs.pop("repeat_penalty", get_model_config().get("repeat_penalty", 1.15)),
+        "top_p": kwargs.pop("top_p", float(os.getenv("LLM_TOP_P", "0.85"))),
+        "top_k": kwargs.pop("top_k", int(os.getenv("LLM_TOP_K", "30"))),
+        "repeat_penalty": kwargs.pop("repeat_penalty", float(os.getenv("LLM_REPEAT_PENALTY", "1.15"))),
         "stream": stream,
         **kwargs
     }
@@ -578,16 +546,15 @@ def llm_chat_simple(messages, max_tokens=100, temperature=None, stream=False, **
         **kwargs: Additional LLM parameters
     """
     if temperature is None:
-        simple_model_config = get_simple_model_config()
-        temperature = simple_model_config.get("temperature")
+        temperature = float(os.environ["LLM_TEMPERATURE_SIMPLE"])
     
     generation_params = {
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
-        "top_p": kwargs.pop("top_p", get_simple_model_config().get("top_p", 0.85)),
-        "top_k": kwargs.pop("top_k", get_simple_model_config().get("top_k", 30)),
-        "repeat_penalty": kwargs.pop("repeat_penalty", get_simple_model_config().get("repeat_penalty", 1.15)),
+        "top_p": kwargs.pop("top_p", float(os.getenv("LLM_TOP_P", "0.85"))),
+        "top_k": kwargs.pop("top_k", int(os.getenv("LLM_TOP_K", "30"))),
+        "repeat_penalty": kwargs.pop("repeat_penalty", float(os.getenv("LLM_REPEAT_PENALTY", "1.15"))),
         "stream": stream,
         **kwargs
     }
@@ -638,7 +605,20 @@ if __name__ == "__main__":
     
     print(f"[LLM] 🧠 Initializing Llama model (this may take a while for large models)...")
     start_time = time.time()
-    llm = Llama(**get_model_config())
+    llm = Llama(
+        model_path=MODEL_PATH,
+        n_ctx=N_CTX,
+        n_gpu_layers=-1,
+        n_threads=6,
+        chat_format=CHAT_FORMAT,
+        use_mlock=True,
+        use_mmap=True,
+        verbose=False,
+        temperature=float(os.environ["LLM_TEMPERATURE_COMPLEX"]),
+        top_p=float(os.getenv("LLM_TOP_P", "0.85")),
+        top_k=int(os.getenv("LLM_TOP_K", "30")),
+        repeat_penalty=float(os.getenv("LLM_REPEAT_PENALTY", "1.15"))
+    )
     load_time = time.time() - start_time
     print(f"[LLM] ✅ Complex model loaded: {MODEL_PATH} (took {load_time:.1f}s)")
     
@@ -659,7 +639,20 @@ if __name__ == "__main__":
     
     print(f"[LLM] 🧠 Initializing Llama model (this may take a while for large models)...")
     start_time = time.time()
-    llm_simple = Llama(**get_simple_model_config())
+    llm_simple = Llama(
+        model_path=SIMPLE_MODEL_PATH,
+        n_ctx=SIMPLE_N_CTX,
+        n_gpu_layers=-1,
+        n_threads=4,
+        chat_format=SIMPLE_CHAT_FORMAT,
+        use_mlock=True,
+        use_mmap=True,
+        verbose=False,
+        temperature=float(os.environ["LLM_TEMPERATURE_SIMPLE"]),
+        top_p=float(os.getenv("LLM_TOP_P", "0.85")),
+        top_k=int(os.getenv("LLM_TOP_K", "30")),
+        repeat_penalty=float(os.getenv("LLM_REPEAT_PENALTY", "1.15"))
+    )
     load_time = time.time() - start_time
     print(f"[LLM] ✅ Simple model loaded: {SIMPLE_MODEL_PATH} (took {load_time:.1f}s)")
     
