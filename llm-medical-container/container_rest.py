@@ -535,15 +535,16 @@ def llm_chat(messages, max_tokens=100, temperature=None, stream=False, **kwargs)
     """
     # Apply centralized speed optimizations
     if temperature is None:
+        model_config = get_model_config()
         temperature = model_config.get("temperature")
     
     generation_params = {
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
-        "top_p": kwargs.pop("top_p", model_config.get("top_p", 0.85)),
-        "top_k": kwargs.pop("top_k", model_config.get("top_k", 30)),
-        "repeat_penalty": kwargs.pop("repeat_penalty", model_config.get("repeat_penalty", 1.15)),
+        "top_p": kwargs.pop("top_p", get_model_config().get("top_p", 0.85)),
+        "top_k": kwargs.pop("top_k", get_model_config().get("top_k", 30)),
+        "repeat_penalty": kwargs.pop("repeat_penalty", get_model_config().get("repeat_penalty", 1.15)),
         "stream": stream,
         **kwargs
     }
@@ -577,15 +578,16 @@ def llm_chat_simple(messages, max_tokens=100, temperature=None, stream=False, **
         **kwargs: Additional LLM parameters
     """
     if temperature is None:
+        simple_model_config = get_simple_model_config()
         temperature = simple_model_config.get("temperature")
     
     generation_params = {
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
-        "top_p": kwargs.pop("top_p", simple_model_config.get("top_p", 0.85)),
-        "top_k": kwargs.pop("top_k", simple_model_config.get("top_k", 30)),
-        "repeat_penalty": kwargs.pop("repeat_penalty", simple_model_config.get("repeat_penalty", 1.15)),
+        "top_p": kwargs.pop("top_p", get_simple_model_config().get("top_p", 0.85)),
+        "top_k": kwargs.pop("top_k", get_simple_model_config().get("top_k", 30)),
+        "repeat_penalty": kwargs.pop("repeat_penalty", get_simple_model_config().get("repeat_penalty", 1.15)),
         "stream": stream,
         **kwargs
     }
