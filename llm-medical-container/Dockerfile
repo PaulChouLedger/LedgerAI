@@ -21,12 +21,19 @@ RUN pip3 install \
 RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-distilroberta-v1')" && \
     echo "✅ all-distilroberta-v1 model pre-downloaded into image"
 
-# Copy models (cached layer - these rarely change)
-#COPY models/qwen2.5-1.5b-instruct-q4_0.gguf /models/qwen2.5-1.5b-instruct-q4_0.gguf
-#COPY models/Llama-3.2-3B-Instruct-Q4_K_M.gguf /models/Llama-3.2-3B-Instruct-Q4_K_M.gguf
+# Copy models (cached - these are large and rarely change)
 COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K_M.gguf
-#COPY models/Llama-3.2-8B-Instruct-Q4_K_M.gguf /models/Llama-3.2-8B-Instruct-Q4_K_M.gguf
 COPY models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf /models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf
+
+# Copy static files (cached - these change less frequently than Python code)
+COPY synonyms/ /app/synonyms/
+COPY ml/ /app/ml/
+COPY medical/guidelines/ /app/medical/guidelines/
+COPY ml/location_ml_model.pkl .
+COPY ml/location_ml_data.csv .
+COPY config/medical_rules.json .
+COPY config/medical_term_mappings.json .
+COPY oldcarts_keywords.json .
 
 # === CLINICIAN MODE ARCHITECTURE ===
 # This container provides a focused medical chatbot with:
@@ -35,32 +42,13 @@ COPY models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf /models/Mistral-7B-Instruct-v0.
 # - RAG API integration for semantic similarity and medical knowledge
 # - Dual LLM support (Llama-1B for simple tasks, Mistral-7B for complex reasoning)
 
-# Copy application logic (clinician mode architecture)
-# validation.py removed - ML system handles all validation
+# Copy Python application files
 COPY container_rest.py .
 COPY clinician_mode.py .
 COPY adaptive_diagnostic_engine.py .
 COPY thinking_fillers.py .
 COPY rag_client.py .
-COPY synonyms/ /app/synonyms/
-
-# Copy ML system components
-COPY ml/ /app/ml/
 COPY feedback_guide.py .
-    
-# Copy medical guidelines (JSON files with chief complaint triggers and scoring)
-# These are used by the adaptive diagnostic engine for multi-guideline evaluation
-# Note: guidelines should be in llm-medical-container/medical/guidelines/ (inside build context)
-COPY medical/guidelines/ /app/medical/guidelines/
-
-# Copy ML models and data
-COPY ml/location_ml_model.pkl .
-COPY ml/location_ml_data.csv .
-COPY config/medical_rules.json .
-COPY config/medical_term_mappings.json .
-
-# Copy OLDCARTS keywords file
-COPY oldcarts_keywords.json .
 
 # Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
 
