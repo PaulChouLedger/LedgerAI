@@ -342,7 +342,7 @@ class AdaptiveDiagnosticEngine:
         self._capture_debug(f"[Engine] 🔄 Clearing LLM model state for fresh session")
         
         # ML Progress Tracking
-        self._capture_debug(f"[ML Progress] 📊 Session reset - ML learning state cleared")
+        self._capture_debug(f"[Scoring] 📊 Session reset - ML learning state cleared")
         
         # OLDCARTS tracking - must cover ALL before diagnosis
         self.oldcarts_covered = {
@@ -462,6 +462,41 @@ class AdaptiveDiagnosticEngine:
         
         self._capture_debug(f"[Engine] 🧠 OLDCARTS construction complete: {len(matched_guidelines)} guidelines with {len(missing_components)} missing components")
         return matched_guidelines
+    
+    def _is_whole_phrase_match(self, term: str, text: str) -> bool:
+        """
+        Check if a term appears as a complete phrase in text, preventing false substring matches
+        
+        Args:
+            term: The term to search for (e.g., "sharp pain", "cramping")
+            text: The text to search in (e.g., "i have sharp abdominal pain")
+        
+        Returns:
+            True if term appears as complete phrase, False if just substring
+        
+        Examples:
+            _is_whole_phrase_match("sharp pain", "i have sharp abdominal pain") → True
+            _is_whole_phrase_match("sharp pain", "i have abdominal pain") → False
+            _is_whole_phrase_match("cramping", "i have cramping pain") → True
+        """
+        import re
+        
+        # Normalize the term (remove extra spaces, convert to lowercase)
+        term_clean = ' '.join(term.strip().lower().split())
+        text_clean = text.strip().lower()
+        
+        # If term is empty, return False
+        if not term_clean:
+            return False
+        
+        # Create a regex pattern that matches the term as whole words
+        # \b ensures word boundaries (prevents substring matching)
+        pattern = r'\b' + re.escape(term_clean) + r'\b'
+        
+        # Search for the pattern in the text
+        match = re.search(pattern, text_clean)
+        
+        return match is not None
     
     def _get_all_guidelines_in_category(self, category: str) -> List[Dict]:
         """Get all guidelines in category for generic complaints"""
@@ -1386,68 +1421,81 @@ class AdaptiveDiagnosticEngine:
             self._capture_debug(f"[Engine] ❌ OLDCARTS keywords file not found in any of these locations: {possible_paths}")
             raise RuntimeError("OLDCARTS keywords file not found - required for parsing")
         
-        # Location indicators
+        # Location indicators - Use improved whole-phrase matching
         location_categories = ['anatomical_regions', 'quadrants', 'sides', 'specific_locations']
         for category in location_categories:
             if category in oldcarts_keywords['location']:
                 for term in oldcarts_keywords['location'][category]:
-                    if term in complaint_lower:
+                    if self._is_whole_phrase_match(term, complaint_lower):
                         components['location'].append(term)
         
-        # Character indicators
+        # Character indicators - FIXED: Prevent generic symptom words from matching
         character_categories = ['pain_quality', 'pain_intensity', 'pain_pattern']
+        
+        # Generic symptom words that should NOT count as character descriptors
+        generic_symptom_words = {
+            'pain', 'ache', 'discomfort', 'hurt', 'sore', 'tender', 'sensation',
+            'feeling', 'symptom', 'problem', 'issue', 'trouble'
+        }
+        
         for category in character_categories:
             if category in oldcarts_keywords['character']:
                 for term in oldcarts_keywords['character'][category]:
-                    if term in complaint_lower:
+                    # Skip if the term is just a generic symptom word
+                    if term.lower().strip() in generic_symptom_words:
+                        continue
+                        
+                    # Use whole-word matching to prevent substring false positives
+                    # Check if the term appears as a complete phrase in the complaint
+                    if self._is_whole_phrase_match(term, complaint_lower):
                         components['character'].append(term)
         
-        # Aggravating indicators
+        # Aggravating indicators - Use improved whole-phrase matching
         aggravating_categories = ['activities', 'triggers', 'positions']
         for category in aggravating_categories:
             if category in oldcarts_keywords['aggravating']:
                 for term in oldcarts_keywords['aggravating'][category]:
-                    if term in complaint_lower:
+                    if self._is_whole_phrase_match(term, complaint_lower):
                         components['aggravating'].append(term)
         
-        # Relieving indicators
+        # Relieving indicators - Use improved whole-phrase matching
         relieving_categories = ['positions', 'interventions', 'activities']
         for category in relieving_categories:
             if category in oldcarts_keywords['relieving']:
                 for term in oldcarts_keywords['relieving'][category]:
-                    if term in complaint_lower:
+                    if self._is_whole_phrase_match(term, complaint_lower):
                         components['relieving'].append(term)
         
-        # Onset indicators
+        # Onset indicators - Use improved whole-phrase matching
         onset_categories = ['temporal', 'triggers', 'descriptors']
         for category in onset_categories:
             if category in oldcarts_keywords['onset']:
                 for term in oldcarts_keywords['onset'][category]:
-                    if term in complaint_lower:
+                    if self._is_whole_phrase_match(term, complaint_lower):
                         components['onset'].append(term)
         
-        # Duration indicators
+        # Duration indicators - Use improved whole-phrase matching
         duration_categories = ['time_units', 'descriptors', 'patterns']
         for category in duration_categories:
             if category in oldcarts_keywords['duration']:
                 for term in oldcarts_keywords['duration'][category]:
-                    if term in complaint_lower:
+                    if self._is_whole_phrase_match(term, complaint_lower):
                         components['duration'].append(term)
         
-        # Timing indicators
+        # Timing indicators - Use improved whole-phrase matching
         timing_categories = ['daily_patterns', 'meal_related', 'activity_related', 'frequency']
         for category in timing_categories:
             if category in oldcarts_keywords['timing']:
                 for term in oldcarts_keywords['timing'][category]:
-                    if term in complaint_lower:
+                    if self._is_whole_phrase_match(term, complaint_lower):
                         components['timing'].append(term)
         
-        # Severity indicators
+        # Severity indicators - Use improved whole-phrase matching
         severity_categories = ['intensity_levels', 'scale_descriptors', 'impact_descriptors']
         for category in severity_categories:
             if category in oldcarts_keywords['severity']:
                 for term in oldcarts_keywords['severity'][category]:
-                    if term in complaint_lower:
+                    if self._is_whole_phrase_match(term, complaint_lower):
                         components['severity'].append(term)
         
         return components
@@ -2060,47 +2108,7 @@ Output only the question:"""
             if not question.endswith('?'):
                 question += '?'
             
-            # VALIDATION: Ensure only ONE question
-            # Check for multiple question marks or multiple declarative sentences before the question
-            question_mark_count = question.count('?')
-            
-            # Check for pattern: "Statement. Question?" which indicates combined questions
-            has_sentence_before_question = '. ' in question and question.index('. ') < question.rfind('?')
-            
-            # Check for combined questions with "and" or "also"
-            has_combined_indicators = any(phrase in question.lower() for phrase in [
-                ' and ', ' also ', ' how long ', ' how old ', ' what is your age ',
-                ' when did ', ' how long have ', ' how old are you '
-            ])
-            
-            # Check for inappropriate body part combinations (like shoulder, arm, chest)
-            inappropriate_combinations = [
-                'shoulder, arm', 'arm, chest', 'shoulder, arm, chest', 'chest, shoulder',
-                'discomfort is more specifically', 'help me understand better'
-            ]
-            has_inappropriate_combinations = any(combo in question.lower() for combo in inappropriate_combinations)
-            
-            # Check for medical jargon that patients won't understand
-            medical_jargon = [
-                'epigastric', 'periumbilical', 'flank', 'costovertebral', 'cva', 'quadrant',
-                'ruq', 'luq', 'rlq', 'llq', 'adnexal', 'suprapubic', 'hypogastric',
-                'retrosternal', 'substernal', 'pelvic', 'inguinal', 'femoral'
-            ]
-            has_jargon = any(term in question.lower() for term in medical_jargon)
-            
-            if question_mark_count > 1 or has_sentence_before_question or has_jargon or has_combined_indicators or has_inappropriate_combinations:
-                if has_jargon:
-                    self._capture_debug(f"[Engine] ⚠️ LLM used medical jargon - using plain language template")
-                elif has_combined_indicators:
-                    self._capture_debug(f"[Engine] ⚠️ LLM combined multiple questions (detected: {[phrase for phrase in [' and ', ' also ', ' how long ', ' how old ', ' what is your age ', ' when did ', ' how long have ', ' how old are you '] if phrase in question.lower()]}) - using template fallback")
-                elif has_inappropriate_combinations:
-                    self._capture_debug(f"[Engine] ⚠️ LLM used inappropriate body part combinations (detected: {[combo for combo in inappropriate_combinations if combo in question.lower()]}) - using template fallback")
-                else:
-                    self._capture_debug(f"[Engine] ⚠️ LLM combined multiple questions - using template fallback")
-                self._capture_debug(f"[Engine]    Generated: '{question}'")
-                self._capture_debug(f"[Engine]    Using template: '{example}'")
-                # Use simple template (ML-only, no fallback)
-                question = example
+            # NO VALIDATION - Let LLM question stand as-is, no fallbacks
             
             oldcarts_element = next_element
             
@@ -2778,14 +2786,14 @@ Normalized text:"""
             )
             
             # ML Progress Tracking
-            self._capture_debug(f"[ML Progress] 🧠 Learning data collected:")
-            self._capture_debug(f"[ML Progress]   📝 Patient: '{user_answer[:30]}...'")
-            self._capture_debug(f"[ML Progress]   📋 Condition: {condition_name}")
-            self._capture_debug(f"[ML Progress]   🎯 OLDCARTS: {oldcarts_element}")
-            self._capture_debug(f"[ML Progress]   🎯 Method: {result['method']}")
-            self._capture_debug(f"[ML Progress]   📊 Similarity: {result['similarity']:.3f}")
-            self._capture_debug(f"[ML Progress]   🏥 Anatomical: {result['anatomical_type']}")
-            self._capture_debug(f"[ML Progress]   🔄 Confidence: {result['confidence']}")
+            self._capture_debug(f"[Scoring] 🧠 Learning data collected:")
+            self._capture_debug(f"[Scoring]   📝 Patient: '{user_answer[:30]}...'")
+            self._capture_debug(f"[Scoring]   📋 Condition: {condition_name}")
+            self._capture_debug(f"[Scoring]   🎯 OLDCARTS: {oldcarts_element}")
+            self._capture_debug(f"[Scoring]   🎯 Method: {result['method']}")
+            self._capture_debug(f"[Scoring]   📊 Similarity: {result['similarity']:.3f}")
+            self._capture_debug(f"[Scoring]   🏥 Anatomical: {result['anatomical_type']}")
+            self._capture_debug(f"[Scoring]   🔄 Confidence: {result['confidence']}")
         
         # Track performance metrics if available
         if self.performance_monitor:
@@ -2798,11 +2806,11 @@ Normalized text:"""
             )
             
             # ML Progress Tracking - Performance
-            self._capture_debug(f"[ML Progress] 📈 Performance tracked:")
-            self._capture_debug(f"[ML Progress]   📊 Prediction: {result['similarity']:.3f}")
-            self._capture_debug(f"[ML Progress]   🔄 Confidence: {result['confidence']}")
-            self._capture_debug(f"[ML Progress]   🎯 Method: {result['method']}")
-            self._capture_debug(f"[ML Progress]   🏥 Organ System: {self._get_organ_system_from_condition(condition_name)}")
+            self._capture_debug(f"[Scoring] 📈 Performance tracked:")
+            self._capture_debug(f"[Scoring]   📊 Prediction: {result['similarity']:.3f}")
+            self._capture_debug(f"[Scoring]   🔄 Confidence: {result['confidence']}")
+            self._capture_debug(f"[Scoring]   🎯 Method: {result['method']}")
+            self._capture_debug(f"[Scoring]   🏥 Organ System: {self._get_organ_system_from_condition(condition_name)}")
         
         return result['similarity']
     
@@ -2836,13 +2844,13 @@ Normalized text:"""
             )
             
             # ML Progress Tracking
-            self._capture_debug(f"[ML Progress] 🧠 Learning data collected:")
-            self._capture_debug(f"[ML Progress]   📝 Patient: '{user_answer[:30]}...'")
-            self._capture_debug(f"[ML Progress]   📋 Condition: {condition_name}")
-            self._capture_debug(f"[ML Progress]   🎯 Method: {result['method']}")
-            self._capture_debug(f"[ML Progress]   📊 Similarity: {result['similarity']:.3f}")
-            self._capture_debug(f"[ML Progress]   🏥 Anatomical: {result['anatomical_type']}")
-            self._capture_debug(f"[ML Progress]   🔄 Confidence: {result['confidence']}")
+            self._capture_debug(f"[Scoring] 🧠 Learning data collected:")
+            self._capture_debug(f"[Scoring]   📝 Patient: '{user_answer[:30]}...'")
+            self._capture_debug(f"[Scoring]   📋 Condition: {condition_name}")
+            self._capture_debug(f"[Scoring]   🎯 Method: {result['method']}")
+            self._capture_debug(f"[Scoring]   📊 Similarity: {result['similarity']:.3f}")
+            self._capture_debug(f"[Scoring]   🏥 Anatomical: {result['anatomical_type']}")
+            self._capture_debug(f"[Scoring]   🔄 Confidence: {result['confidence']}")
         
         # Track performance metrics if available
         if self.performance_monitor:
@@ -2855,11 +2863,11 @@ Normalized text:"""
             )
             
             # ML Progress Tracking - Performance
-            self._capture_debug(f"[ML Progress] 📈 Performance tracked:")
-            self._capture_debug(f"[ML Progress]   📊 Prediction: {result['similarity']:.3f}")
-            self._capture_debug(f"[ML Progress]   🔄 Confidence: {result['confidence']}")
-            self._capture_debug(f"[ML Progress]   🎯 Method: {result['method']}")
-            self._capture_debug(f"[ML Progress]   🏥 Organ System: {self._get_organ_system_from_condition(condition_name)}")
+            self._capture_debug(f"[Scoring] 📈 Performance tracked:")
+            self._capture_debug(f"[Scoring]   📊 Prediction: {result['similarity']:.3f}")
+            self._capture_debug(f"[Scoring]   🔄 Confidence: {result['confidence']}")
+            self._capture_debug(f"[Scoring]   🎯 Method: {result['method']}")
+            self._capture_debug(f"[Scoring]   🏥 Organ System: {self._get_organ_system_from_condition(condition_name)}")
         
         return result['similarity']
     
@@ -2962,12 +2970,12 @@ Normalized text:"""
             status['feedback_summary'] = self.user_feedback.get_feedback_summary()
         
         # ML Progress Tracking - Learning Status
-        self._capture_debug(f"[ML Progress] 📊 Learning system status:")
-        self._capture_debug(f"[ML Progress]   🧠 Medical Rule Engine: {'Active' if self.medical_rule_engine else 'Inactive'}")
-        self._capture_debug(f"[ML Progress]   📝 Learning Collector: {'Active' if self.learning_collector else 'Inactive'}")
-        self._capture_debug(f"[ML Progress]   🔄 Continuous Learning: {'Active' if self.continuous_learning else 'Inactive'}")
-        self._capture_debug(f"[ML Progress]   📈 Performance Monitor: {'Active' if self.performance_monitor else 'Inactive'}")
-        self._capture_debug(f"[ML Progress]   💬 User Feedback: {'Active' if self.user_feedback else 'Inactive'}")
+        self._capture_debug(f"[Scoring] 📊 Learning system status:")
+        self._capture_debug(f"[Scoring]   🧠 Medical Rule Engine: {'Active' if self.medical_rule_engine else 'Inactive'}")
+        self._capture_debug(f"[Scoring]   📝 Learning Collector: {'Active' if self.learning_collector else 'Inactive'}")
+        self._capture_debug(f"[Scoring]   🔄 Continuous Learning: {'Active' if self.continuous_learning else 'Inactive'}")
+        self._capture_debug(f"[Scoring]   📈 Performance Monitor: {'Active' if self.performance_monitor else 'Inactive'}")
+        self._capture_debug(f"[Scoring]   💬 User Feedback: {'Active' if self.user_feedback else 'Inactive'}")
         
         return status
     
@@ -3164,38 +3172,29 @@ Normalized text:"""
                 self._capture_debug(f"[Engine] ⚠️ Warning: Could not extract {oldcarts_element} section from {g['name']} - skipping this guideline")
                 continue  # Skip this guideline instead of crashing
             
-            # UNIFIED ML SYSTEM: Use enhanced similarity for ALL OLDCARTS components
-            # This provides consistent ML-powered similarity across all components
-            try:
-                similarity = self._compute_enhanced_oldcarts_similarity(answer, oldcarts_section, oldcarts_element, g['name'])
-                self._capture_debug(f"[Engine]   {g['name']}: Enhanced {oldcarts_element} similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
-            except Exception as sim_error:
-                self._capture_debug(f"[Engine] ❌ Enhanced {oldcarts_element} similarity computation failed for {g['name']}: {sim_error}")
-                import traceback
-                traceback.print_exc()
-                # Skip this guideline and continue with the next one
-                continue
+            # ENHANCED OLDCARTS SIMILARITY: Use existing method - let it fail if broken
+            similarity = self._compute_enhanced_oldcarts_similarity(answer, oldcarts_section, oldcarts_element, g['name'])
+            self._capture_debug(f"[Engine]   {g['name']}: Enhanced {oldcarts_element} similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
             
             # Update score using semantic similarity
             old_score = g['score']
             
-            # UNIFIED ML-ONLY SCORING: Use enhanced similarity directly as the score
-            # No more hybrid scoring or penalties - ML system provides the final score for ALL OLDCARTS
+            # SEMANTIC SIMILARITY SCORING: Use similarity directly as the score
             new_score = similarity
             g['score'] = new_score
             change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
-            self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (unified-ml)")
-            self._capture_debug(f"[Engine]     🧠 ML {oldcarts_element} Score: {similarity:.2f} ('{answer}' ↔ '{oldcarts_section[:50]}...')")
+            self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (semantic)")
+            self._capture_debug(f"[Engine]     🧠 {oldcarts_element} Score: {similarity:.2f} ('{answer}' ↔ '{oldcarts_section[:50]}...')")
             self._capture_debug(f"[Engine]     📝 Patient: '{answer}' → Medical: '{oldcarts_section[:80]}...'")
             
             # ML Progress Tracking - Scoring
-            self._capture_debug(f"[ML Progress] 🎯 Score updated:")
-            self._capture_debug(f"[ML Progress]   📋 Condition: {g['name']}")
-            self._capture_debug(f"[ML Progress]   🎯 OLDCARTS: {oldcarts_element}")
-            self._capture_debug(f"[ML Progress]   📊 Old Score: {old_score:.0%} → New Score: {new_score:.0%} {change}")
-            self._capture_debug(f"[ML Progress]   🧠 ML Similarity: {similarity:.3f}")
-            self._capture_debug(f"[ML Progress]   📝 Patient Input: '{answer}'")
-            self._capture_debug(f"[ML Progress]   📋 Guideline: '{oldcarts_section[:50]}...'")
+            self._capture_debug(f"[Scoring] 🎯 Score updated:")
+            self._capture_debug(f"[Scoring]   📋 Condition: {g['name']}")
+            self._capture_debug(f"[Scoring]   🎯 OLDCARTS: {oldcarts_element}")
+            self._capture_debug(f"[Scoring]   📊 Old Score: {old_score:.0%} → New Score: {new_score:.0%} {change}")
+            self._capture_debug(f"[Scoring]   🧠 ML Similarity: {similarity:.3f}")
+            self._capture_debug(f"[Scoring]   📝 Patient Input: '{answer}'")
+            self._capture_debug(f"[Scoring]   📋 Guideline: '{oldcarts_section[:50]}...'")
         
         # DYNAMIC RE-RANKING: Sort ALL guidelines by updated scores
         # This ensures conditions like Diverticulitis (LLQ) jump to top when "left side" is mentioned
@@ -3213,18 +3212,18 @@ Normalized text:"""
                 ruled_out_this_round.append(g)
                 
                 # ML Progress Tracking - Rule Out
-                self._capture_debug(f"[ML Progress] ❌ Condition ruled out:")
-                self._capture_debug(f"[ML Progress]   📋 Condition: {g['name']}")
-                self._capture_debug(f"[ML Progress]   📊 Score: {g['score']:.0%} < Threshold: {threshold:.0%}")
-                self._capture_debug(f"[ML Progress]   🎯 ML Decision: Anatomical mismatch or low similarity")
+                self._capture_debug(f"[Scoring] ❌ Condition ruled out:")
+                self._capture_debug(f"[Scoring]   📋 Condition: {g['name']}")
+                self._capture_debug(f"[Scoring]   📊 Score: {g['score']:.0%} < Threshold: {threshold:.0%}")
+                self._capture_debug(f"[Scoring]   🎯 ML Decision: Anatomical mismatch or low similarity")
             else:
                 remaining.append(g)
                 
                 # ML Progress Tracking - Kept
-                self._capture_debug(f"[ML Progress] ✅ Condition kept:")
-                self._capture_debug(f"[ML Progress]   📋 Condition: {g['name']}")
-                self._capture_debug(f"[ML Progress]   📊 Score: {g['score']:.0%} >= Threshold: {threshold:.0%}")
-                self._capture_debug(f"[ML Progress]   🎯 ML Decision: Anatomical match or high similarity")
+                self._capture_debug(f"[Scoring] ✅ Condition kept:")
+                self._capture_debug(f"[Scoring]   📋 Condition: {g['name']}")
+                self._capture_debug(f"[Scoring]   📊 Score: {g['score']:.0%} >= Threshold: {threshold:.0%}")
+                self._capture_debug(f"[Scoring]   🎯 ML Decision: Anatomical match or high similarity")
         
         # Sort remaining by score (highest first)
         remaining.sort(key=lambda x: x['score'], reverse=True)
@@ -3253,22 +3252,22 @@ Normalized text:"""
             self._capture_debug(f"[Engine]   {i}. {g['name']}: {g['score']:.0%} {urgency_emoji}")
             
             # ML Progress Tracking - Top Conditions
-            self._capture_debug(f"[ML Progress] 🏆 Top {i}: {g['name']}")
-            self._capture_debug(f"[ML Progress]   📊 Score: {g['score']:.0%}")
-            self._capture_debug(f"[ML Progress]   📋 Prevalence: {g.get('prevalence', 'unknown')}")
-            self._capture_debug(f"[ML Progress]   🎯 ML Confidence: High similarity match")
-            self._capture_debug(f"[ML Progress]   🚨 Urgency: {g['data'].get('urgency', 'standard')}")
+            self._capture_debug(f"[Scoring] 🏆 Top {i}: {g['name']}")
+            self._capture_debug(f"[Scoring]   📊 Score: {g['score']:.0%}")
+            self._capture_debug(f"[Scoring]   📋 Prevalence: {g.get('prevalence', 'unknown')}")
+            self._capture_debug(f"[Scoring]   🎯 ML Confidence: High similarity match")
+            self._capture_debug(f"[Scoring]   🚨 Urgency: {g['data'].get('urgency', 'standard')}")
         
         # Always show pool statistics
         self._capture_debug(f"\n[Engine] 🔄 Pool status: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
         
         # ML Progress Tracking - Final Statistics
-        self._capture_debug(f"[ML Progress] 📊 Final statistics:")
-        self._capture_debug(f"[ML Progress]   🎯 Active Conditions: {len(self.active_guidelines)}")
-        self._capture_debug(f"[ML Progress]   📋 Reserve Conditions: {len(self.reserve_pool)}")
-        self._capture_debug(f"[ML Progress]   ❌ Ruled Out: {len(self.ruled_out)}")
-        self._capture_debug(f"[ML Progress]   📈 Total Processed: {len(all_guidelines)}")
-        self._capture_debug(f"[ML Progress]   🧠 ML System: Fully operational")
+        self._capture_debug(f"[Scoring] 📊 Final statistics:")
+        self._capture_debug(f"[Scoring]   🎯 Active Conditions: {len(self.active_guidelines)}")
+        self._capture_debug(f"[Scoring]   📋 Reserve Conditions: {len(self.reserve_pool)}")
+        self._capture_debug(f"[Scoring]   ❌ Ruled Out: {len(self.ruled_out)}")
+        self._capture_debug(f"[Scoring]   📈 Total Processed: {len(all_guidelines)}")
+        self._capture_debug(f"[Scoring]   🧠 ML System: Fully operational")
         
         self._capture_debug(f"{'='*80}\n")
         
@@ -3326,7 +3325,7 @@ Normalized text:"""
             
             # If scores are too close (can't differentiate) OR all scores too low
             # Ask clarification, but move on if we've asked too many times for this element
-            MAX_CLARIFICATIONS_PER_ELEMENT = 2  # Limit to avoid infinite loops
+            MAX_CLARIFICATIONS_PER_ELEMENT = 1  # Reduced to minimize repetition
             
             # MUCH MORE LENIENT: Only clarify when absolutely necessary
             # Normal patient answers like "yesterday", "random", "sudden" should be accepted
@@ -3336,7 +3335,7 @@ Normalized text:"""
             self._capture_debug(f"\n[Engine] 🧠 LLM NORMALIZATION DECISION:")
             self._capture_debug(f"[Engine]   📝 Patient answer: '{answer}'")
             self._capture_debug(f"[Engine]   📊 Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
-            self._capture_debug(f"[Engine]   🎯 Thresholds: spread < 0.05, top_score < 0.20")
+            self._capture_debug(f"[Engine]   🎯 Thresholds: spread < 0.15, top_score < 0.30")
             
             # Skip clarification for clear, specific answers
             is_clear_answer = False
@@ -3352,12 +3351,26 @@ Normalized text:"""
                     if re.search(pattern, answer.lower()):
                         is_clear_answer = True
                         break
+            elif oldcarts_element == 'L':  # Location
+                # Clear location answers
+                clear_location_patterns = [
+                    r'(left|right)\s+(side|lower|upper|quadrant)',
+                    r'(upper|lower)\s+(left|right)',
+                    r'(center|middle|central)',
+                    r'\d+\s*(quadrant|area)',
+                    r'(left|right)\s+(lower|upper)\s+(abdomen|side)'
+                ]
+                import re
+                for pattern in clear_location_patterns:
+                    if re.search(pattern, answer.lower()):
+                        is_clear_answer = True
+                        break
             
-            if not is_clear_answer and (score_spread < 0.05 or top_score < 0.20):
+            if not is_clear_answer and (score_spread < 0.15 or top_score < 0.30):
                 if clarification_count < MAX_CLARIFICATIONS_PER_ELEMENT:
                     self._capture_debug(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
                     self._capture_debug(f"[Engine]   Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
-                    self._capture_debug(f"[Engine]   Reason: {'Scores too close' if score_spread < 0.05 else 'All scores too low'}")
+                    self._capture_debug(f"[Engine]   Reason: {'Scores too close' if score_spread < 0.15 else 'All scores too low'}")
                     self._capture_debug(f"[Engine]   Clarifications asked so far: {clarification_count}/{MAX_CLARIFICATIONS_PER_ELEMENT}")
                     self._capture_debug(f"[Engine]   Strategy: {'Open-ended' if clarification_count == 0 else 'Targeted (differential-based)'}")
                     
