@@ -4,6 +4,7 @@
   "snomed": "29468003",
   "sex": "both",
   "prevalence": "uncommon",
+  "urgency": "urgent",
   "chief_complaint_triggers": [
     "abdominal pain",
     "vomiting",
@@ -13,9 +14,40 @@
     "persistent vomiting",
     "undigested food vomiting"
   ],
-  "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL onset over days to weeks (chronic obstruction), may have acute exacerbation. History of peptic ulcer disease or gastric malignancy. LOCATION: Epigastric (upper mid-abdomen), may radiate to back. DURATION: CONSTANT discomfort with episodic severe pain during eating. CHARACTER: CRAMPY, fullness, bloating initially. Becomes CONSTANT dull ache if severe. AGGRAVATING: Eating solid foods markedly worsens symptoms. Nausea and vomiting occur 30min-2hrs after eating. RELIEVING: Vomiting provides temporary relief of distension. Liquids tolerated better than solids initially. TIMING: Postprandial (after meals), progressive worsening over time. SEVERITY: 5-7/10, moderate. ASSOCIATED SYMPTOMS: Persistent or projectile vomiting of UNDIGESTED FOOD (hours old), early satiety, weight loss, visible gastric peristalsis (succussion splash), dehydration. Vomit may contain food from >12 hours ago. KEY POSITIVES: Vomiting undigested food, early satiety, weight loss, history of PUD or gastric cancer. KEY NEGATIVES: Bilious vomiting suggests obstruction beyond duodenum (different diagnosis)."
+    "classic_presentation": "ONSET: GRADUAL onset over days to weeks (chronic obstruction), may have acute exacerbation. History of peptic ulcer disease or gastric malignancy. LOCATION: Epigastric (upper mid-abdomen), may radiate to back. DURATION: CONSTANT discomfort with episodic severe pain during eating. CHARACTER: CRAMPY, fullness, bloating initially. Becomes CONSTANT dull ache if severe. AGGRAVATING: Eating solid foods markedly worsens symptoms. Nausea and vomiting occur 30min-2hrs after eating. RELIEVING: Vomiting provides temporary relief of distension. Liquids tolerated better than solids initially. TIMING: Postprandial (after meals), progressive worsening over time. SEVERITY: 5-7/10, moderate. ASSOCIATED SYMPTOMS: Persistent or projectile vomiting of UNDIGESTED FOOD (hours old), early satiety, weight loss, visible gastric peristalsis (succussion splash), dehydration. Vomit may contain food from >12 hours ago. KEY POSITIVES: Vomiting undigested food, early satiety, weight loss, history of PUD or gastric cancer. KEY NEGATIVES: Bilious vomiting suggests obstruction beyond duodenum (different diagnosis).",
+    "structured_oldcarts": {
+      "location": {
+        "includes": [
+          "upper mid",
+          "epigastric",
+          "upper abdomen"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "constant",
+          "persistent",
+          "continuous"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "worsening",
+          "getting worse",
+          "progressive"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "7",
+          "6",
+          "5",
+          "moderate",
+          "5-7/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe dehydration with hypotension - needs IV fluids immediately",

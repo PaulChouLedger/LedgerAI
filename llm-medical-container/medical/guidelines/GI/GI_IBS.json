@@ -4,6 +4,7 @@
   "snomed": "10743008",
   "sex": "both",
   "prevalence": "uncommon",
+  "urgency": "routine",
   "chief_complaint_triggers": [
     "abdominal pain",
     "cramping",
@@ -11,9 +12,122 @@
     "diarrhea",
     "constipation"
   ],
-  "urgency": "routine",
   "key_features": {
-    "classic_presentation": "ONSET: CHRONIC, RECURRENT pattern over months to years (NOT acute). Gradual development, waxing and waning. LOCATION: LOWER ABDOMEN, diffuse. Cramping migrates, not fixed to one spot. DURATION: CHRONIC condition lasting months to years. Individual cramping episodes last minutes to hours. Symptoms present at least once per week for 3+ months. CHARACTER: CRAMPY, INTERMITTENT discomfort. NOT sharp or severe. Bloating, gas sensations. AGGRAVATING: STRESS worsens symptoms significantly. Certain FOODS trigger (dairy, gluten, FODMAPs). Anxiety increases cramping. RELIEVING: DEFECATION provides relief. Stress reduction helps. Dietary changes improve. Antispasmodics reduce cramping. TIMING: INTERMITTENT cramping related to bowel movements. Pattern waxes and wanes. Often worse with stress. NO NOCTURNAL symptoms (doesn't wake from sleep). SEVERITY: 3-6/10, mild to moderate. Not severe enough to disrupt daily life significantly. ASSOCIATED SYMPTOMS: BLOATING and gas, mucus in stool (NO blood), sense of incomplete evacuation, alternating diarrhea/constipation. KEY POSITIVES: Chronic >6 months, pain relief with defecation, stress/food triggers, NO alarm features (no blood, weight loss, fever). KEY NEGATIVES: NEW onset age >50 needs workup for cancer. BLOOD in stool rules out irritable bowel syndrome (IBS). Weight loss, fever, NOCTURNAL diarrhea suggests inflammatory bowel disease (IBD)/organic disease."
+    "classic_presentation": "ONSET: CHRONIC, RECURRENT pattern over months to years (NOT acute). Gradual development, waxing and waning. LOCATION: LOWER ABDOMEN, diffuse. Cramping migrates, not fixed to one spot. DURATION: CHRONIC condition lasting months to years. Individual cramping episodes last minutes to hours. Symptoms present at least once per week for 3+ months. CHARACTER: CRAMPY, INTERMITTENT discomfort. NOT sharp or severe. Bloating, gas sensations. AGGRAVATING: STRESS worsens symptoms significantly. Certain FOODS trigger (dairy, gluten, FODMAPs). Anxiety increases cramping. RELIEVING: DEFECATION provides relief. Stress reduction helps. Dietary changes improve. Antispasmodics reduce cramping. TIMING: INTERMITTENT cramping related to bowel movements. Pattern waxes and wanes. Often worse with stress. NO NOCTURNAL symptoms (doesn't wake from sleep). SEVERITY: 3-6/10, mild to moderate. Not severe enough to disrupt daily life significantly. ASSOCIATED SYMPTOMS: BLOATING and gas, mucus in stool (NO blood), sense of incomplete evacuation, alternating diarrhea/constipation. KEY POSITIVES: Chronic >6 months, pain relief with defecation, stress/food triggers, NO alarm features (no blood, weight loss, fever). KEY NEGATIVES: NEW onset age >50 needs workup for cancer. BLOOD in stool rules out irritable bowel syndrome (IBS). Weight loss, fever, NOCTURNAL diarrhea suggests inflammatory bowel disease (IBD)/organic disease.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "chronic",
+          "months",
+          "years",
+          "recurrent"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "hours",
+          "new"
+        ]
+      },
+      "location": {
+        "includes": [
+          "lower abdomen",
+          "diffuse",
+          "crampy",
+          "not localized"
+        ],
+        "excludes": [
+          "right lower quadrant",
+          "RLQ",
+          "localized",
+          "point tender"
+        ],
+        "anatomical_type": "diffuse"
+      },
+      "duration": {
+        "includes": [
+          "chronic",
+          "months",
+          "years",
+          "episodic",
+          "minutes to hours"
+        ],
+        "excludes": [
+          "constant",
+          "days",
+          "persistent"
+        ]
+      },
+      "character": {
+        "includes": [
+          "crampy",
+          "bloating",
+          "gas-like",
+          "pressure"
+        ],
+        "excludes": [
+          "sharp",
+          "stabbing",
+          "severe",
+          "knife-like"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "stress",
+          "certain foods",
+          "dairy",
+          "anxiety"
+        ],
+        "excludes": [
+          "movement",
+          "coughing",
+          "physical activity"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "defecation",
+          "bowel movement",
+          "passing gas"
+        ],
+        "excludes": [
+          "lying still",
+          "avoiding movement"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "intermittent",
+          "episodic",
+          "comes and goes",
+          "variable"
+        ],
+        "excludes": [
+          "constant",
+          "continuous",
+          "persistent"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "mild",
+          "moderate",
+          "3",
+          "4",
+          "5",
+          "6",
+          "3-6/10"
+        ],
+        "excludes": [
+          "severe",
+          "8",
+          "9",
+          "10",
+          "unbearable"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Blood in stool - needs colonoscopy to rule out inflammatory bowel disease (IBD) or colon cancer",

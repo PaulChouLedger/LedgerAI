@@ -4,6 +4,7 @@
   "snomed": "14760008",
   "sex": "both",
   "prevalence": "uncommon",
+  "urgency": "routine",
   "chief_complaint_triggers": [
     "abdominal pain",
     "stomach pain",
@@ -12,9 +13,26 @@
     "can't have bowel movement",
     "constipation"
   ],
-  "urgency": "routine",
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL over days to weeks (not acute or sudden). Chronic, progressive pattern. LOCATION: LOWER ABDOMEN, diffuse. Cramping throughout lower belly (not localized). DURATION: Symptoms persist for days to weeks. Cramping episodes last minutes to hours, come and go. CHARACTER: CRAMPY, ACHY abdominal discomfort. NOT sharp or stabbing. Dull, bloating sensation. AGGRAVATING: Eating may worsen bloating. Straining worsens discomfort. RELIEVING: Bowel movement or PASSING GAS provides significant relief. Fiber, hydration, laxatives help. TIMING: INTERMITTENT cramping that comes and goes. Better after defecation, worse when haven't gone for days. SEVERITY: 3-6/10, mild to moderate discomfort (not severe). ASSOCIATED SYMPTOMS: BLOATING, sensation of incomplete evacuation, straining, HARD PELLET-LIKE STOOLS, NO bowel movement for 3-7+ days. Usually NO fever, NO vomiting. KEY POSITIVES: Gradual onset, able to pass gas (unlike obstruction), pain relief after defecation, chronic pattern, poor fiber/water intake. KEY NEGATIVES: SUDDEN onset with inability to pass gas suggests obstruction. Vomiting uncommon. SEVERE pain suggests alternative."
+    "classic_presentation": "ONSET: GRADUAL over days to weeks (not acute or sudden). Chronic, progressive pattern. LOCATION: LOWER ABDOMEN, diffuse. Cramping throughout lower belly (not localized). DURATION: Symptoms persist for days to weeks. Cramping episodes last minutes to hours, come and go. CHARACTER: CRAMPY, ACHY abdominal discomfort. NOT sharp or stabbing. Dull, bloating sensation. AGGRAVATING: Eating may worsen bloating. Straining worsens discomfort. RELIEVING: Bowel movement or PASSING GAS provides significant relief. Fiber, hydration, laxatives help. TIMING: INTERMITTENT cramping that comes and goes. Better after defecation, worse when haven't gone for days. SEVERITY: 3-6/10, mild to moderate discomfort (not severe). ASSOCIATED SYMPTOMS: BLOATING, sensation of incomplete evacuation, straining, HARD PELLET-LIKE STOOLS, NO bowel movement for 3-7+ days. Usually NO fever, NO vomiting. KEY POSITIVES: Gradual onset, able to pass gas (unlike obstruction), pain relief after defecation, chronic pattern, poor fiber/water intake. KEY NEGATIVES: SUDDEN onset with inability to pass gas suggests obstruction. Vomiting uncommon. SEVERE pain suggests alternative.",
+    "structured_oldcarts": {
+      "severity": {
+        "includes": [
+          "9",
+          "7",
+          "8",
+          "4",
+          "6",
+          "5",
+          "3",
+          "10",
+          "mild",
+          "moderate",
+          "3-6/10",
+          "severe"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Sudden onset severe constipation with vomiting - possible bowel obstruction, needs urgent imaging",

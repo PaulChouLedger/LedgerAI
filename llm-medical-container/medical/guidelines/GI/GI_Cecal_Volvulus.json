@@ -4,6 +4,7 @@
   "snomed": "235753000",
   "sex": "both",
   "prevalence": "rare",
+  "urgency": "emergent",
   "chief_complaint_triggers": [
     "abdominal pain",
     "belly pain",
@@ -12,9 +13,84 @@
     "severe constipation",
     "distended abdomen"
   ],
-  "urgency": "emergent",
   "key_features": {
-    "classic_presentation": "ONSET: ACUTE onset over hours, may have intermittent episodes if chronic. LOCATION: Right lower quadrant (RLQ) or periumbilical, may become diffuse. DURATION: CONSTANT pain lasting hours. CHARACTER: SHARP, SEVERE, COLICKY pain initially, becoming CONSTANT if ischemia develops. AGGRAVATING: Eating or drinking worsens symptoms. RELIEVING: NOTHING relieves pain. TIMING: Initially INTERMITTENT crampy pain, becomes CONSTANT as ischemia progresses. SEVERITY: 7-10/10, severe. ASSOCIATED SYMPTOMS: Severe abdominal distension (dramatic), obstipation (no flatus or stool), nausea and vomiting, tympanic distended abdomen. History of chronic constipation or prior abdominal surgery. KEY POSITIVES: Massive abdominal distension, right lower quadrant (RLQ) tenderness, obstipation, sudden onset. KEY NEGATIVES: Ability to pass flatus or stool makes complete volvulus unlikely."
+    "classic_presentation": "ONSET: ACUTE onset over hours, may have intermittent episodes if chronic. LOCATION: Right lower quadrant (RLQ) or periumbilical, may become diffuse. DURATION: CONSTANT pain lasting hours. CHARACTER: SHARP, SEVERE, COLICKY pain initially, becoming CONSTANT if ischemia develops. AGGRAVATING: Eating or drinking worsens symptoms. RELIEVING: NOTHING relieves pain. TIMING: Initially INTERMITTENT crampy pain, becomes CONSTANT as ischemia progresses. SEVERITY: 7-10/10, severe. ASSOCIATED SYMPTOMS: Severe abdominal distension (dramatic), obstipation (no flatus or stool), nausea and vomiting, tympanic distended abdomen. History of chronic constipation or prior abdominal surgery. KEY POSITIVES: Massive abdominal distension, right lower quadrant (RLQ) tenderness, obstipation, sudden onset. KEY NEGATIVES: Ability to pass flatus or stool makes complete volvulus unlikely.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "years",
+          "recurrent",
+          "months",
+          "chronic"
+        ]
+      },
+      "location": {
+        "includes": [
+          "everywhere",
+          "umbilical",
+          "all over",
+          "RLQ",
+          "diffuse",
+          "right lower quadrant",
+          "around navel",
+          "McBurney",
+          "periumbilical",
+          "right lower"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "hours",
+          "continuous",
+          "constant",
+          "persistent",
+          "several hours"
+        ]
+      },
+      "character": {
+        "includes": [
+          "stabbing",
+          "sharp",
+          "knife-like",
+          "unrelenting",
+          "constant",
+          "steady"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "meals",
+          "food",
+          "eating"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "nothing helps",
+          "no relief"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "all the time",
+          "comes and goes",
+          "episodic",
+          "continuous",
+          "intermittent",
+          "constant"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "9",
+          "7",
+          "8",
+          "7-10/10",
+          "10",
+          "severe"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Sudden severe pain with peritonitis - bowel necrosis/perforation, call 911",

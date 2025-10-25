@@ -4,6 +4,7 @@
   "snomed": "82403002",
   "sex": "both",
   "prevalence": "uncommon",
+  "urgency": "emergent",
   "chief_complaint_triggers": [
     "abdominal pain",
     "belly pain",
@@ -13,9 +14,69 @@
     "fever with abdominal pain",
     "jaundice"
   ],
-  "urgency": "emergent",
   "key_features": {
-    "classic_presentation": "ONSET: ACUTE onset over hours to days, often history of gallstones or prior biliary procedures. LOCATION: Right upper quadrant (RUQ), may radiate to right shoulder/scapula. DURATION: CONSTANT pain lasting hours to days. CHARACTER: DULL, ACHING, CONSTANT pain (less severe than cholecystitis alone). AGGRAVATING: No specific aggravating factors. RELIEVING: Nothing relieves pain. TIMING: CONSTANT and progressively worsening. SEVERITY: 5-8/10, moderate to severe. ASSOCIATED SYMPTOMS: CHARCOT'S TRIAD: fever + jaundice + right upper quadrant (RUQ) pain (50-70%). REYNOLDS' PENTAD: Charcot's triad + hypotension + altered mental status (7-10%, indicates severe disease). High fever with rigors, dark urine, pale stools, pruritus. KEY POSITIVES: Jaundice, high fever, right upper quadrant (RUQ) tenderness, history of gallstones. KEY NEGATIVES: Absence of jaundice makes cholangitis less likely."
+    "classic_presentation": "ONSET: ACUTE onset over hours to days, often history of gallstones or prior biliary procedures. LOCATION: Right upper quadrant (RUQ), may radiate to right shoulder/scapula. DURATION: CONSTANT pain lasting hours to days. CHARACTER: DULL, ACHING, CONSTANT pain (less severe than cholecystitis alone). AGGRAVATING: No specific aggravating factors. RELIEVING: Nothing relieves pain. TIMING: CONSTANT and progressively worsening. SEVERITY: 5-8/10, moderate to severe. ASSOCIATED SYMPTOMS: CHARCOT'S TRIAD: fever + jaundice + right upper quadrant (RUQ) pain (50-70%). REYNOLDS' PENTAD: Charcot's triad + hypotension + altered mental status (7-10%, indicates severe disease). High fever with rigors, dark urine, pale stools, pruritus. KEY POSITIVES: Jaundice, high fever, right upper quadrant (RUQ) tenderness, history of gallstones. KEY NEGATIVES: Absence of jaundice makes cholangitis less likely.",
+    "structured_oldcarts": {
+      "onset": {},
+      "location": {
+        "includes": [
+          "right upper",
+          "right upper quadrant",
+          "RUQ"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "multiple days",
+          "hours",
+          "continuous",
+          "days",
+          "constant",
+          "persistent",
+          "several hours"
+        ]
+      },
+      "character": {
+        "includes": [
+          "throbbing",
+          "dull",
+          "unrelenting",
+          "aching",
+          "constant",
+          "steady"
+        ]
+      },
+      "aggravating": {},
+      "relieving": {
+        "includes": [
+          "nothing helps",
+          "no relief"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "all the time",
+          "continuous",
+          "progressive",
+          "worsening",
+          "getting worse",
+          "constant"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "9",
+          "7",
+          "8",
+          "5-8/10",
+          "6",
+          "5",
+          "10",
+          "moderate",
+          "severe"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Hypotension with fever and right upper quadrant (RUQ) pain - septic shock, call 911",

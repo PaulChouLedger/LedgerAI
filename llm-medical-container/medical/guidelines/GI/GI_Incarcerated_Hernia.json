@@ -4,6 +4,7 @@
   "snomed": "236477004",
   "sex": "both",
   "prevalence": "uncommon",
+  "urgency": "urgent",
   "chief_complaint_triggers": [
     "groin pain",
     "groin bulge",
@@ -12,9 +13,46 @@
     "lump in groin",
     "painful bulge"
   ],
-  "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: ACUTE worsening over hours, often history of known hernia that was previously reducible. LOCATION: Groin (inguinal or femoral region), may have lower abdominal pain if bowel involved. DURATION: CONSTANT pain since hernia became irreducible. CHARACTER: SHARP, CONSTANT pain at hernia site, becomes SEVERE if strangulation occurs. AGGRAVATING: Standing, straining, coughing worsen pain. Cannot reduce (push back) the hernia. RELIEVING: Lying down may decrease discomfort slightly but hernia remains out. NOTHING fully relieves pain. TIMING: CONSTANT and progressively worsening if strangulation developing. SEVERITY: 6-9/10 if incarcerated, 9-10/10 if strangulated. ASSOCIATED SYMPTOMS: Tender, firm, non-reducible bulge in groin. Nausea, vomiting if bowel obstruction. Overlying skin erythema if strangulation. KEY POSITIVES: Irreducible groin mass, known hernia history, sudden change from reducible to irreducible. KEY NEGATIVES: Easily reducible bulge suggests simple hernia without incarceration."
+    "classic_presentation": "ONSET: ACUTE worsening over hours, often history of known hernia that was previously reducible. LOCATION: Groin (inguinal or femoral region), may have lower abdominal pain if bowel involved. DURATION: CONSTANT pain since hernia became irreducible. CHARACTER: SHARP, CONSTANT pain at hernia site, becomes SEVERE if strangulation occurs. AGGRAVATING: Standing, straining, coughing worsen pain. Cannot reduce (push back) the hernia. RELIEVING: Lying down may decrease discomfort slightly but hernia remains out. NOTHING fully relieves pain. TIMING: CONSTANT and progressively worsening if strangulation developing. SEVERITY: 6-9/10 if incarcerated, 9-10/10 if strangulated. ASSOCIATED SYMPTOMS: Tender, firm, non-reducible bulge in groin. Nausea, vomiting if bowel obstruction. Overlying skin erythema if strangulation. KEY POSITIVES: Irreducible groin mass, known hernia history, sudden change from reducible to irreducible. KEY NEGATIVES: Easily reducible bulge suggests simple hernia without incarceration.",
+    "structured_oldcarts": {
+      "onset": {},
+      "location": {},
+      "duration": {
+        "includes": [
+          "constant",
+          "persistent",
+          "continuous"
+        ]
+      },
+      "character": {
+        "includes": [
+          "stabbing",
+          "sharp",
+          "knife-like",
+          "unrelenting",
+          "constant",
+          "steady"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "all the time",
+          "continuous",
+          "progressive",
+          "worsening",
+          "getting worse",
+          "constant"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "9",
+          "6-9/10",
+          "6"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Overlying skin changes (red, dusky, necrotic) - strangulation, call 911",

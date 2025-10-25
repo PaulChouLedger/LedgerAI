@@ -4,6 +4,7 @@
   "snomed": "235595009",
   "sex": "both",
   "prevalence": "uncommon",
+  "urgency": "routine",
   "chief_complaint_triggers": [
     "heartburn",
     "chest pain",
@@ -11,9 +12,112 @@
     "acid reflux",
     "regurgitation"
   ],
-  "urgency": "routine",
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL, CHRONIC/RECURRENT over weeks to months (not acute). Often after meals or when lying down. LOCATION: RETROSTERNAL (behind breastbone) and EPIGASTRIC. BURNING rises from stomach toward throat. No radiation to arms/jaw. DURATION: Episodes last minutes to hours. Can be constant if severe reflux. May persist after meals. CHARACTER: BURNING sensation (heartburn). NOT sharp or pressure-like (would suggest cardiac). Acid rising sensation. AGGRAVATING: WORSE AFTER MEALS, when LYING DOWN, or BENDING OVER. Spicy foods, caffeine, alcohol, large meals trigger. RELIEVING: ANTACIDS provide quick relief. SITTING UPRIGHT helps. Elevation of head during sleep helps. TIMING: EPISODIC - worse after meals, at night when lying flat. Pattern repeats with dietary triggers. SEVERITY: 3-6/10, mild to moderate discomfort. Not severe. ASSOCIATED SYMPTOMS: SOUR TASTE (acid regurgitation), belching, dysphagia (if chronic), chronic cough, hoarseness. KEY POSITIVES: Antacid relief, worse when lying down, chronic pattern, dietary triggers. KEY NEGATIVES: NEW SEVERE chest pain requires cardiac workup FIRST. Dysphagia with weight loss suggests stricture/cancer. Hematemesis suggests ulcer."
+    "classic_presentation": "ONSET: GRADUAL, CHRONIC/RECURRENT over weeks to months (not acute). Often after meals or when lying down. LOCATION: RETROSTERNAL (behind breastbone) and EPIGASTRIC. BURNING rises from stomach toward throat. No radiation to arms/jaw. DURATION: Episodes last minutes to hours. Can be constant if severe reflux. May persist after meals. CHARACTER: BURNING sensation (heartburn). NOT sharp or pressure-like (would suggest cardiac). Acid rising sensation. AGGRAVATING: WORSE AFTER MEALS, when LYING DOWN, or BENDING OVER. Spicy foods, caffeine, alcohol, large meals trigger. RELIEVING: ANTACIDS provide quick relief. SITTING UPRIGHT helps. Elevation of head during sleep helps. TIMING: EPISODIC - worse after meals, at night when lying flat. Pattern repeats with dietary triggers. SEVERITY: 3-6/10, mild to moderate discomfort. Not severe. ASSOCIATED SYMPTOMS: SOUR TASTE (acid regurgitation), belching, dysphagia (if chronic), chronic cough, hoarseness. KEY POSITIVES: Antacid relief, worse when lying down, chronic pattern, dietary triggers. KEY NEGATIVES: NEW SEVERE chest pain requires cardiac workup FIRST. Dysphagia with weight loss suggests stricture/cancer. Hematemesis suggests ulcer.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "chronic",
+          "recurrent",
+          "months",
+          "years"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "hours"
+        ]
+      },
+      "location": {
+        "includes": [
+          "epigastric",
+          "substernal",
+          "chest",
+          "upper abdomen"
+        ],
+        "excludes": [
+          "lower abdomen",
+          "RLQ",
+          "LLQ"
+        ],
+        "anatomical_type": "upper_central"
+      },
+      "duration": {
+        "includes": [
+          "chronic",
+          "episodic",
+          "minutes to hours"
+        ],
+        "excludes": [
+          "constant",
+          "days"
+        ]
+      },
+      "character": {
+        "includes": [
+          "burning",
+          "heartburn",
+          "acid",
+          "rising sensation"
+        ],
+        "excludes": [
+          "sharp",
+          "stabbing",
+          "pressure-like",
+          "crushing"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "lying down",
+          "bending",
+          "large meals",
+          "spicy foods"
+        ],
+        "excludes": [
+          "movement",
+          "coughing"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "sitting up",
+          "antacids",
+          "proton pump inhibitors"
+        ],
+        "excludes": [
+          "lying still",
+          "movement"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "after meals",
+          "at night",
+          "episodic"
+        ],
+        "excludes": [
+          "constant",
+          "unrelated to meals"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "mild",
+          "moderate",
+          "3",
+          "4",
+          "5",
+          "6"
+        ],
+        "excludes": [
+          "severe",
+          "8",
+          "9",
+          "10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "New severe chest pain - rule out cardiac causes (myocardial infarction (MI), angina) FIRST before attributing to gastroesophageal reflux disease (GERD)",

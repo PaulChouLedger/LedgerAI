@@ -1,0 +1,24 @@
+{
+  "condition": "Acute Hepatitis",
+  "icd10": "K72.00",
+  "snomed": "37871000",
+  "sex": "both",
+  "prevalence": "rare",
+  "chief_complaint_triggers": [
+    "abdominal pain",
+    "right upper abdominal pain",
+    "jaundice",
+    "yellow eyes",
+    "dark urine"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: SUBACUTE over days to weeks. Gradual, progressive worsening. Jaundice appears after 1-2 weeks of prodrome. LOCATION: RIGHT UPPER QUADRANT (liver area) discomfort. right upper quadrant (RUQ) tenderness with hepatomegaly (enlarged liver). DURATION: Symptoms persist for weeks. Pain is chronic/persistent (not episodic). CHARACTER: DULL, ACHING discomfort. NOT sharp. Heavy or pressure sensation in right upper quadrant (RUQ). AGGRAVATING: Fatty food intake may worsen nausea. Activity may increase fatigue. Alcohol worsens. RELIEVING: Rest helps fatigue. Avoiding fatty foods reduces nausea. Hydration helps. Position doesn't significantly change right upper quadrant (RUQ) discomfort. TIMING: CONSTANT, persistent symptoms. Progressive worsening. Not wave-like. SEVERITY: 4-7/10, mild to moderate discomfort (not severe pain). ASSOCIATED SYMPTOMS: PROFOUND FATIGUE and malaise, JAUNDICE (yellow skin/eyes), DARK URINE (tea-colored), LIGHT-COLORED STOOLS (clay), anorexia, nausea, vomiting, LOW-GRADE FEVER. KEY POSITIVES: Scleral icterus, dark urine, profound fatigue, right upper quadrant (RUQ) tenderness, risk factors (IV drugs, unprotected sex, travel, alcohol, medications). KEY NEGATIVES: ACUTE SEVERE right upper quadrant (RUQ) pain without jaundice suggests cholecystitis. HIGH FEVER with rigors suggests cholangitis."
+  },
+  "red_flags": [
+    "Altered mental status (confusion, drowsiness) - acute liver failure, call 911",
+    "Coagulopathy (easy bruising, bleeding) - severe hepatitis with liver synthetic dysfunction",
+    "Hypoglycemia, severe jaundice - fulminant hepatic failure, needs ICU",
+    "Acetaminophen overdose history - potentially fatal, needs immediate N-acetylcysteine"
+  ]
+}
