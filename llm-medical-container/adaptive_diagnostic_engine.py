@@ -3330,16 +3330,17 @@ Normalized text:"""
         
         # CHECK IF CLARIFICATION NEEDED (before moving to next OLDCARTS element)
         # But LIMIT clarifications to avoid infinite loops
-        if len(self.active_guidelines) >= 2:
+        if len(self.active_guidelines) >= 1:
             top_score = self.active_guidelines[0]['score']
-            second_score = self.active_guidelines[1]['score']
-            score_spread = top_score - second_score
+            # Score spread no longer used for decisions - removed for clarity
+        else:
+            top_score = 0.0
             
-            # Count how many clarifications we've already asked for this OLDCARTS element
-            clarification_count = sum(1 for item in self.conversation_history 
-                                     if item.get('type') == 'question' 
-                                     and item.get('oldcarts') == oldcarts_element 
-                                     and item.get('is_clarification'))
+        # Count how many clarifications we've already asked for this OLDCARTS element
+        clarification_count = sum(1 for item in self.conversation_history 
+                                 if item.get('type') == 'question' 
+                                 and item.get('oldcarts') == oldcarts_element 
+                                 and item.get('is_clarification'))
             
             # If scores are too close (can't differentiate) OR all scores too low
             # Ask clarification, but move on if we've asked too many times for this element
@@ -3350,10 +3351,9 @@ Normalized text:"""
             # LLM semantic similarity should handle normalization (e.g., "yesterday" → "24 hours ago")
             
             # Show LLM normalization decision
-            self._capture_debug(f"\n[Engine] 🧠 LLM NORMALIZATION DECISION:")
+            self._capture_debug(f"\n[Engine] 🧠 ANSWER PROCESSING:")
             self._capture_debug(f"[Engine]   📝 Patient answer: '{answer}'")
-            self._capture_debug(f"[Engine]   📊 Top score: {top_score:.0%}, Spread: {score_spread:.0%}")
-            self._capture_debug(f"[Engine]   🎯 Thresholds: spread < 0.15, top_score < 0.30")
+            self._capture_debug(f"[Engine]   📊 Top score: {top_score:.0%} (scores no longer determine clarification)")
             
         # UNIVERSAL SPECIFICITY GAP DETECTION: Compare patient answer to all matching guidelines
         is_clear_answer = False
@@ -3415,15 +3415,26 @@ Normalized text:"""
                     side_subregions = [term for term in all_subregions 
                                      if patient_general_side in term.lower()]
                     
+                    self._capture_debug(f"[Engine] 🔍 DEBUG COMPETITION DETECTION:")
+                    self._capture_debug(f"[Engine]   Patient side: {patient_general_side}")
+                    self._capture_debug(f"[Engine]   All subregions: {all_subregions}")
+                    self._capture_debug(f"[Engine]   Side subregions: {side_subregions}")
+                    
                     # Extract competing levels (upper/lower) 
                     has_upper = any('upper' in term.lower() or 'ruq' in term.lower() or 'luq' in term.lower() 
                                    for term in side_subregions)
                     has_lower = any('lower' in term.lower() or 'rlq' in term.lower() or 'llq' in term.lower() 
                                    for term in side_subregions)
                     
+                    self._capture_debug(f"[Engine]   Has upper: {has_upper}")
+                    self._capture_debug(f"[Engine]   Has lower: {has_lower}")
+                    
                     # If guidelines mention both upper and lower on same side, need clarification
                     if has_upper and has_lower:
                         competing_subregions = {'upper', 'lower'}
+                        self._capture_debug(f"[Engine]   COMPETITION FOUND: {competing_subregions}")
+                    else:
+                        self._capture_debug(f"[Engine]   NO COMPETITION: upper={has_upper}, lower={has_lower}")
                 
                 # Check what patient is missing for disambiguation
                 patient_has_upper = any(term in patient_terms for term in ['upper', 'ruq', 'luq'])
@@ -3528,7 +3539,7 @@ Normalized text:"""
                             'needs_clarification': True
                         }
                 else:
-                    self._capture_debug(f"\n[Engine] ⚠️  Scores still close (top: {top_score:.0%}, spread: {score_spread:.0%})")
+                    self._capture_debug(f"\n[Engine] ⚠️  Max clarifications reached (top: {top_score:.0%})")
                     self._capture_debug(f"[Engine]   Already asked {clarification_count} clarifications for '{oldcarts_element}'")
                     self._capture_debug(f"[Engine]   📋 Can't differentiate further on this element - moving to next OLDCARTS")
                     # Will fall through and continue to next OLDCARTS element
