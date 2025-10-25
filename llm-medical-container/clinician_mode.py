@@ -112,8 +112,12 @@ def _load_medical_terms():
             '_all_terms_flat': ['pain', 'fever', 'headache', 'nausea', 'vomiting', 'diarrhea', 'cough', 'shortness of breath', 'chest pain', 'abdominal pain', 'hypertension', 'diabetes', 'asthma', 'pneumonia', 'appendicitis', 'heart attack', 'stroke', 'cancer', 'head', 'chest', 'abdomen', 'back', 'arm', 'leg', 'heart', 'lung', 'liver', 'kidney', 'aspirin', 'ibuprofen', 'acetaminophen', 'insulin', 'antibiotics']
         }
 
-# Load medical terms on module import
-_load_medical_terms()
+# Medical terms will be loaded when first needed
+def ensure_medical_terms_loaded():
+    """Ensure medical terms are loaded before use"""
+    global MEDICAL_TERMS
+    if not MEDICAL_TERMS:
+        _load_medical_terms()
 
 # Global adaptive engine singleton (created once, reused for all sessions)
 _global_adaptive_engine = None
