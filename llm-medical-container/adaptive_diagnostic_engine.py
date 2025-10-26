@@ -678,18 +678,24 @@ class AdaptiveDiagnosticEngine:
         
         Args:
             answer: The user's answer
-            primary_element: The primary OLDCARTS element being asked about
+            primary_element: The primary OLDCARTS element being asked about (single letter: 'O', 'L', etc.)
             
         Returns:
-            List of OLDCARTS elements that this answer semantically covers
+            List of OLDCARTS elements that this answer semantically covers (single letters: ['O', 'L', etc.])
         """
-        covered_elements = [primary_element]  # Always include the primary element
+        # Convert primary element to single letter if needed
+        if len(primary_element) > 1:
+            primary_letter = primary_element[0].upper()
+        else:
+            primary_letter = primary_element.upper()
         
-        # Get all OLDCARTS elements to check
+        covered_elements = [primary_letter]  # Always include the primary element
+        
+        # Get all OLDCARTS elements to check (full names for data lookup)
         all_elements = ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
         
         # Skip the primary element since it's already included
-        elements_to_check = [elem for elem in all_elements if elem != primary_element]
+        elements_to_check = [elem for elem in all_elements if elem != primary_element.lower()]
         
         for element in elements_to_check:
             # Get structured OLDCARTS data for this element from active guidelines
@@ -701,8 +707,9 @@ class AdaptiveDiagnosticEngine:
                 
                 # If similarity is above threshold, the answer covers this element
                 if similarity > 0.3:  # 30% similarity threshold
-                    covered_elements.append(element)
-                    self._capture_debug(f"[Engine]   ✅ Semantic match for {element}: {similarity:.2f}")
+                    element_letter = element[0].upper()  # Convert to single letter
+                    covered_elements.append(element_letter)
+                    self._capture_debug(f"[Engine]   ✅ Semantic match for {element} ({element_letter}): {similarity:.2f}")
                 else:
                     self._capture_debug(f"[Engine]   ❌ No semantic match for {element}: {similarity:.2f}")
         
@@ -741,6 +748,43 @@ class AdaptiveDiagnosticEngine:
                     element_data_parts.append(element_text)
         
         return ' '.join(element_data_parts) if element_data_parts else ""
+
+    def _update_oldcarts_analysis(self):
+        """
+        Update the oldcarts_analysis based on current coverage status
+        
+        This ensures that missing_components reflects the current state of coverage
+        and prevents asking the same question repeatedly.
+        """
+        if not hasattr(self, 'oldcarts_analysis') or not self.oldcarts_analysis:
+            return
+        
+        # Get all OLDCARTS elements (full names for analysis)
+        all_elements = ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
+        
+        # Determine which elements are still missing
+        missing_components = []
+        answered_components = {}
+        
+        for element in all_elements:
+            # Check if this element is covered using single letter key
+            element_letter = element[0].upper()
+            element_covered = self.oldcarts_covered.get(element_letter, False)
+            
+            if element_covered:
+                answered_components[element] = True
+            else:
+                missing_components.append(element)
+        
+        # Update the analysis
+        self.oldcarts_analysis = {
+            'answered_components': answered_components,
+            'missing_components': missing_components
+        }
+        
+        self._capture_debug(f"[Engine] 🔄 Updated OLDCARTS analysis:")
+        self._capture_debug(f"[Engine]   Answered: {list(answered_components.keys())}")
+        self._capture_debug(f"[Engine]   Missing: {missing_components}")
 
     def _compute_semantic_oldcarts_similarity(self, answer: str, element_data: str, element: str) -> float:
         """
@@ -2545,6 +2589,9 @@ Normalized text:"""
             self.oldcarts_covered['O'] = True
             self._capture_debug(f"[Engine] 📋 OLDCARTS Coverage: {''.join([k if v else '_' for k, v in self.oldcarts_covered.items()])} ({sum(self.oldcarts_covered.values())}/8)")
             
+            # UPDATE OLDCARTS ANALYSIS: Refresh missing components
+            self._update_oldcarts_analysis()
+            
             # Move to next question
             return self._ask_next_clinical_question()
         
@@ -2750,6 +2797,9 @@ Normalized text:"""
                 if not self.oldcarts_covered.get(element, False):  # Only mark if not already covered
                     self._capture_debug(f"[Engine] ✅ Marking OLDCARTS element '{element}' as covered")
                     self.oldcarts_covered[element] = True
+            
+            # UPDATE OLDCARTS ANALYSIS: Refresh missing components based on current coverage
+            self._update_oldcarts_analysis()
         else:
             self._capture_debug(f"[Engine] ⏳ NOT marking any elements as covered - clarification was just asked")
         
