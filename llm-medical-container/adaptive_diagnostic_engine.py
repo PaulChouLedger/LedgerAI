@@ -2876,15 +2876,37 @@ Normalized text:"""
         # REMOVED: Old semantic clarity bypass logic that prevented proper competition detection
         
         if oldcarts_element == 'L':  # Location - universal guideline-driven specificity check
-            # Get all L components from guidelines that match the patient's general area
+            # Get L components from guidelines that have some similarity to the current answer
             matching_location_sections = []
-            for guideline in self.active_guidelines:
+            all_matched_guidelines = self.active_guidelines + self.reserve_pool
+            
+            # Filter guidelines that have some similarity to the current answer (above threshold)
+            relevant_guidelines = []
+            similarity_threshold = 0.1  # 10% minimum similarity to be considered relevant
+            
+            for guideline in all_matched_guidelines:
+                # Check if this guideline's location section has some similarity to the current answer
                 location_section = self._extract_oldcarts_section(
                     guideline['data'].get('key_features', {}).get('classic_presentation', ''), 
                     'L'
                 )
                 if location_section:
-                    # Include all location sections - competition detection will filter by similarity
+                    # Calculate similarity between current answer and this guideline's location section
+                    similarity = self._simple_containment_match(answer.lower(), location_section.lower())
+                    if similarity >= similarity_threshold:
+                        relevant_guidelines.append(guideline)
+            
+            self._capture_debug(f"[Engine] 🔍 CHECKING RELEVANT GUIDELINES FOR ANATOMICAL COMPETITION:")
+            self._capture_debug(f"[Engine]   Total matched guidelines: {len(all_matched_guidelines)}")
+            self._capture_debug(f"[Engine]   Relevant guidelines (similarity >= {similarity_threshold:.0%}): {len(relevant_guidelines)}")
+            
+            for guideline in relevant_guidelines:
+                location_section = self._extract_oldcarts_section(
+                    guideline['data'].get('key_features', {}).get('classic_presentation', ''), 
+                    'L'
+                )
+                if location_section:
+                    # Include location sections from relevant guidelines only
                     matching_location_sections.append({
                         'condition': guideline['name'],
                         'location_text': location_section
@@ -2962,9 +2984,31 @@ Normalized text:"""
                 self._capture_debug(f"[Engine]   No location sections to compare against - accepting answer")
                     
         else:  # For other OLDCARTS elements (D, C, A, R, T, S) - use universal approach
-            # Get all matching sections for this OLDCARTS element from active guidelines
+            # Get matching sections for this OLDCARTS element from relevant guidelines only
             matching_sections = []
-            for guideline in self.active_guidelines:
+            all_matched_guidelines = self.active_guidelines + self.reserve_pool
+            
+            # Filter guidelines that have some similarity to the current answer (above threshold)
+            relevant_guidelines = []
+            similarity_threshold = 0.1  # 10% minimum similarity to be considered relevant
+            
+            for guideline in all_matched_guidelines:
+                # Check if this guideline's section for this OLDCARTS element has some similarity to the current answer
+                section = self._extract_oldcarts_section(
+                    guideline['data'].get('key_features', {}).get('classic_presentation', ''), 
+                    oldcarts_element
+                )
+                if section:
+                    # Calculate similarity between current answer and this guideline's section
+                    similarity = self._simple_containment_match(answer.lower(), section.lower())
+                    if similarity >= similarity_threshold:
+                        relevant_guidelines.append(guideline)
+            
+            self._capture_debug(f"[Engine] 🔍 CHECKING RELEVANT GUIDELINES FOR OLDCARTS COMPETITION ({oldcarts_element}):")
+            self._capture_debug(f"[Engine]   Total matched guidelines: {len(all_matched_guidelines)}")
+            self._capture_debug(f"[Engine]   Relevant guidelines (similarity >= {similarity_threshold:.0%}): {len(relevant_guidelines)}")
+            
+            for guideline in relevant_guidelines:
                 section = self._extract_oldcarts_section(
                     guideline['data'].get('key_features', {}).get('classic_presentation', ''), 
                     oldcarts_element
