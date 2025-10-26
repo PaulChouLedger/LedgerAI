@@ -552,6 +552,12 @@ class AdaptiveDiagnosticEngine:
             # Ask age first
             question = empathetic_prefix + "How old are you?"
             self._capture_debug(f"[Engine] ✅ Demographics question generated: '{question}'")
+            return {
+                'success': True,
+                'question': question,
+                'status': 'questioning',
+                'debug': self._get_debug_info()
+            }
         elif 'sex' not in self.demographics:
             # Ask sex with button-based response
             question = empathetic_prefix + "What is your biological sex?"
@@ -588,6 +594,22 @@ class AdaptiveDiagnosticEngine:
                     first_missing = missing_components[0]
                     question = self._generate_oldcarts_question_for_component(first_missing)
                     self._capture_debug(f"[Engine] ✅ Structured OLDCARTS question generated: '{question}'")
+                    
+                    # Add to conversation history
+                    is_demographics = 'age' in question.lower() or 'sex' in question.lower() or 'old are you' in question.lower() or 'biological sex' in question.lower() or 'new problem' in question.lower() or 'ongoing' in question.lower()
+                    self.conversation_history.append({
+                        'type': 'question',
+                        'question': question,
+                        'oldcarts': 'demographics' if is_demographics else 'oldcarts',
+                        'focus': 'demographics' if is_demographics else 'oldcarts'
+                    })
+                    
+                    return {
+                        'success': True,
+                        'question': question,
+                        'status': 'questioning',
+                        'debug': self._get_debug_info()
+                    }
                 else:
                     # All OLDCARTS components already answered in initial prompt
                     self._capture_debug(f"[Engine] ✅ All OLDCARTS components already answered in initial prompt")
@@ -595,22 +617,6 @@ class AdaptiveDiagnosticEngine:
                     return self._ask_next_clinical_question()
             else:
                 raise RuntimeError("No OLDCARTS analysis available for structured questions")
-        
-        # Add to conversation history
-        is_demographics = 'age' in question.lower() or 'sex' in question.lower() or 'old are you' in question.lower() or 'biological sex' in question.lower() or 'new problem' in question.lower() or 'ongoing' in question.lower()
-        self.conversation_history.append({
-            'type': 'question',
-            'question': question,
-            'oldcarts': 'demographics' if is_demographics else 'oldcarts',
-            'focus': 'demographics' if is_demographics else 'oldcarts'
-        })
-        
-        return {
-            'success': True,
-            'question': question,
-            'status': 'questioning',
-            'debug': self._get_debug_info()
-        }
     
     def _generate_oldcarts_question_for_component(self, component: str) -> str:
         """Generate OLDCARTS question for specific component"""
@@ -3697,7 +3703,7 @@ Your question:"""
             self._capture_debug(f"[Engine] ⚠️ No structured OLDCARTS found in guidelines")
             return {
                 'answered_components': {},
-                'missing_components': ['O', 'L', 'D', 'C', 'A', 'R', 'T', 'S']
+                'missing_components': ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
             }
         
         # Collect all 'includes' terms from ALL guidelines for each OLDCARTS element
@@ -3750,17 +3756,17 @@ Your question:"""
         }
         
         # Determine missing components
-        all_codes = ['O', 'L', 'D', 'C', 'A', 'R', 'T', 'S']
-        answered_codes = [element_to_code.get(element) for element in answered_components.keys() if element in element_to_code]
-        missing_codes = [code for code in all_codes if code not in answered_codes]
+        all_elements = ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
+        answered_elements = list(answered_components.keys())
+        missing_elements = [element for element in all_elements if element not in answered_elements]
         
         self._capture_debug(f"[Engine] 📊 Summary:")
-        self._capture_debug(f"[Engine]   ✅ Answered: {answered_codes} ({answered_components})")
-        self._capture_debug(f"[Engine]   ❌ Missing: {missing_codes}")
+        self._capture_debug(f"[Engine]   ✅ Answered: {answered_elements} ({answered_components})")
+        self._capture_debug(f"[Engine]   ❌ Missing: {missing_elements}")
         
         return {
             'answered_components': answered_components,
-            'missing_components': missing_codes
+            'missing_components': missing_elements
         }
 
 # Test

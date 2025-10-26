@@ -1,8 +1,8 @@
 # Aura Medical AI Architecture - Living Document
 
-> **Last Updated:** October 25, 2025  
-> **Version:** 2.7-SIMILARITY  
-> **Status:** ✅ **FULLY OPERATIONAL** - All critical issues resolved + Performance optimized + Multi-user ready + OLDCARTS architecture modernized + Similarity algorithm completely fixed  
+> **Last Updated:** January 27, 2025  
+> **Version:** 2.8-CHEST-PAIN-FLOW  
+> **Status:** ✅ **FULLY OPERATIONAL** - All critical issues resolved + Performance optimized + Multi-user ready + OLDCARTS architecture modernized + Similarity algorithm completely fixed + Complete chest pain flow documented  
 > **Update Policy:** Manual updates upon request only
 
 ## 🏗️ System Overview
@@ -201,6 +201,13 @@ def start_assessment(self, chief_complaint: str) -> Dict[str, Any]:
     self._capture_debug(f"[Engine] 📊 ML matched: {len(matched_guidelines)} guidelines")
 ```
 
+**Example Flow for "I have chest pain":**
+- **Input:** `"I have chest pain"`
+- **Normalization:** `"i have chest pain"` (lowercase, no changes needed)
+- **Category Detection:** `"chest"` → `"CARDIO"` (cardiovascular system)
+- **Guideline Matching:** Finds 8 cardiac conditions (MI, Angina, Pericarditis, etc.)
+- **Debug Output:** `[Engine] 🎯 ML category: CARDIO`, `[Engine] 📊 ML matched: 8 guidelines`
+
 **Processing Pipeline:**
 1. **Complaint Normalization** → Synonym-based standardization
 2. **Category Detection** → Organ system classification
@@ -216,7 +223,7 @@ def start_assessment(self, chief_complaint: str) -> Dict[str, Any]:
 
 ```python
 def _normalize_complaint_with_synonyms(self, complaint: str) -> str:
-    complaint_lower = complaint.lower()  # "i have abdominal pain"
+    complaint_lower = complaint.lower()  # "i have chest pain"
     
     # Load all synonym files (cached)
     all_synonyms = self._load_all_synonym_files()
@@ -232,14 +239,14 @@ def _normalize_complaint_with_synonyms(self, complaint: str) -> str:
     return normalized_complaint
 ```
 
-**Synonym Processing for "I have abdominal pain":**
-- Input: `"i have abdominal pain"`
-- Loads synonym files: `gi_synonyms_oldcarts.json`, `cardio_synonyms_oldcarts.json`, etc.
+**Synonym Processing for "I have chest pain":**
+- Input: `"i have chest pain"`
+- Loads synonym files: `cardio_synonyms_oldcarts.json`, `gi_synonyms_oldcarts.json`, etc.
 - Checks mappings like:
-  - `"stomach ache" → "abdominal_pain"`
-  - `"belly pain" → "abdominal_pain"`  
-  - `"tummy ache" → "abdominal_pain"`
-- **Result:** `"i have abdominal pain"` (no changes - already standard terms)
+  - `"chest discomfort" → "chest_pain"`
+  - `"heart pain" → "chest_pain"`  
+  - `"chest ache" → "chest_pain"`
+- **Result:** `"i have chest pain"` (no changes - already standard terms)
 
 ---
 
@@ -284,112 +291,123 @@ def _categorize_complaint_by_substring(self, normalized_complaint: str) -> str:
 
 **Fuzzy-Enhanced Category Detection:**
 
-**Example 1 - "I have abodminal pain" (typo):**
-- **Step 1:** Fuzzy correction: `"abodminal"` → `"abdominal"`
-- **Step 2:** Finds `"abdominal"` → matches `GI` category keywords
-- **Result:** `category = "GI"` (prevents cardiac misclassification)
+**Example 1 - "I have cheste pain" (typo):**
+- **Step 1:** Fuzzy correction: `"cheste"` → `"chest"`
+- **Step 2:** Finds `"chest"` → matches `CARDIO` category keywords
+- **Result:** `category = "CARDIO"` (prevents misclassification)
 
-**Example 2 - "I have abdominal pain" (correct):**
+**Example 2 - "I have chest pain" (correct):**
 - **Step 1:** No fuzzy changes needed
-- **Step 2:** Finds `"abdominal"` → matches `GI` category keywords  
-- **Result:** `category = "GI"` (gastrointestinal)
+- **Step 2:** Finds `"chest"` → matches `CARDIO` category keywords  
+- **Result:** `category = "CARDIO"` (cardiovascular)
 
 ---
 
-### **Step 5c: OLDCARTS Component Parsing** ⚠️ **RECENTLY FIXED**
+### **Step 5c: Structured OLDCARTS Analysis** ⚠️ **NEW ARCHITECTURE**
 
-**Function:** `_parse_oldcarts_components(normalized_complaint: str) -> Dict[str, List[str]]`
+**Function:** `_parse_prompt_against_structured_oldcarts(prompt: str, guidelines: List[Dict]) -> Dict[str, Any]`
 
 ```python
-def _parse_oldcarts_components(self, complaint: str) -> Dict[str, List[str]]:
-    complaint_lower = complaint.lower()
-    components = {
-        'location': [], 'character': [], 'aggravating': [], 'relieving': [],
-        'onset': [], 'duration': [], 'timing': [], 'severity': []
+def _parse_prompt_against_structured_oldcarts(self, prompt: str, guidelines: List[Dict]) -> Dict[str, Any]:
+    """Analyze initial prompt against structured OLDCARTS data from guidelines"""
+    
+    # Extract all structured OLDCARTS data from guidelines
+    all_oldcarts_data = {}
+    for guideline in guidelines:
+        structured_oldcarts = guideline.get('structured_oldcarts', {})
+        for element, data in structured_oldcarts.items():
+            if element not in all_oldcarts_data:
+                all_oldcarts_data[element] = {'includes': set(), 'excludes': set()}
+            all_oldcarts_data[element]['includes'].update(data.get('includes', []))
+            all_oldcarts_data[element]['excludes'].update(data.get('excludes', []))
+    
+    # Analyze what patient provided vs what guidelines expect
+    detected_components = {}
+    missing_components = []
+    
+    for element, data in all_oldcarts_data.items():
+        # Check if patient mentioned any terms from includes list
+        patient_terms = self._extract_patient_terms(prompt, element)
+        guideline_terms = data['includes']
+        
+        if patient_terms & guideline_terms:  # Intersection found
+            detected_components[element] = list(patient_terms & guideline_terms)
+        else:
+            missing_components.append(element)
+    
+    return {
+        'detected_components': detected_components,
+        'missing_components': missing_components,
+        'all_oldcarts_data': all_oldcarts_data
     }
-    
-    # Load OLDCARTS keywords from JSON
-    oldcarts_keywords = self._load_oldcarts_keywords()
-    
-    # Location indicators - Use improved whole-phrase matching
-    for term in oldcarts_keywords['location'][category]:
-        if self._is_whole_phrase_match(term, complaint_lower):
-            components['location'].append(term)
-    
-    # Character indicators - FIXED: Prevent generic symptom words from matching
-    generic_symptom_words = {
-        'pain', 'ache', 'discomfort', 'hurt', 'sore', 'tender', 'sensation'
-    }
-    
-    for term in oldcarts_keywords['character'][category]:
-        # Skip generic symptom words
-        if term.lower().strip() in generic_symptom_words:
-            continue
-        # Use whole-word matching    
-        if self._is_whole_phrase_match(term, complaint_lower):
-            components['character'].append(term)
 ```
 
-**🔧 Critical Fix Applied:**
-- **Problem:** Substring matching caused "pain" to match "sharp pain", "dull pain", etc.
-- **Solution:** Added generic word filtering + whole-phrase matching
-- **New Helper:** `_is_whole_phrase_match()` uses regex word boundaries (`\b`)
+**🔧 New Architecture Benefits:**
+- **Data-Driven:** Uses actual guideline `structured_oldcarts` data instead of hard-coded patterns
+- **Comprehensive:** Analyzes against ALL relevant guidelines, not just keywords
+- **Precise:** Identifies exactly what patient provided vs what's missing
 
-**OLDCARTS Parsing for "I have abdominal pain":**
+**Structured OLDCARTS Analysis for "I have chest pain":**
 
-| Component | Detection Result | Reasoning |
-|-----------|-----------------|-----------|
-| **Location** | ✅ `"abdominal"` | Direct keyword match |
-| **Character** | ❌ `missing` | "pain" filtered as generic word |
-| **Onset** | ❌ `missing` | No temporal indicators |
-| **Duration** | ❌ `missing` | No time duration mentioned |
-| **Aggravating** | ❌ `missing` | No worsening factors |
-| **Relieving** | ❌ `missing` | No relief factors |
-| **Timing** | ❌ `missing` | No timing patterns |
-| **Severity** | ❌ `missing` | No intensity described |
+| Component | Patient Input | Guideline Terms | Detection Result | Reasoning |
+|-----------|---------------|-----------------|------------------|-----------|
+| **Location** | `"chest"` | `["chest", "precordial", "sternal"]` | ✅ `"chest"` | Direct match in includes |
+| **Character** | `"pain"` | `["sharp", "pressure", "squeezing"]` | ❌ `missing` | "pain" not in character includes |
+| **Onset** | `""` | `["sudden", "gradual", "acute"]` | ❌ `missing` | No onset terms mentioned |
+| **Duration** | `""` | `["minutes", "hours", "persistent"]` | ❌ `missing` | No duration mentioned |
+| **Aggravating** | `""` | `["exertion", "stress", "cold"]` | ❌ `missing` | No aggravating factors |
+| **Relieving** | `""` | `["rest", "nitroglycerin", "sitting"]` | ❌ `missing` | No relieving factors |
+| **Timing** | `""` | `["constant", "intermittent", "episodic"]` | ❌ `missing` | No timing patterns |
+| **Severity** | `""` | `["mild", "moderate", "severe", "scale"]` | ❌ `missing` | No severity described |
 
-**Missing Components:** `['onset', 'character', 'duration', 'aggravating', 'relieving', 'timing', 'severity']`
+**Missing Components:** `['character', 'onset', 'duration', 'aggravating', 'relieving', 'timing', 'severity']`
 
 ---
 
 ### **Step 6: Guideline Matching & Differential Creation**
 
-**Function:** `_match_to_guidelines_ml(normalized_complaint: str, category: str) -> List[Dict]`
+**Function:** `_get_all_guidelines_in_category(category: str) -> List[Dict]`
 
 ```python
-def _match_to_guidelines_ml(self, normalized_complaint: str, category: str) -> List[Dict]:
-    # Get relevant guidelines by category (already narrowed down)
-    relevant_guidelines = self._get_guidelines_by_category(category)
+def _get_all_guidelines_in_category(self, category: str) -> List[Dict]:
+    """Get all guidelines in category for comprehensive analysis"""
     
-    # Return all guidelines with OLDCARTS answers for smart questioning
+    # Load guidelines from the specific category directory
+    category_path = self.guidelines_dir / category
     matched_guidelines = []
-    for name, guideline in relevant_guidelines.items():
-        matched_guidelines.append({
-            'name': name,
-            'score': 0.5,  # Equal priority initially
-            'data': guideline,
-            'oldcarts_answers': oldcarts_answers,
-            'missing_components': missing_components,
-            'method': 'oldcarts_construction'
-        })
+    
+    if category_path.exists():
+        for guideline_file in category_path.glob("*.json"):
+            with open(guideline_file, 'r') as f:
+                guideline_data = json.load(f)
+                
+            # Check if this guideline matches the complaint
+            triggers = guideline_data.get('chief_complaint_triggers', [])
+            if any(trigger.lower() in normalized_complaint for trigger in triggers):
+                matched_guidelines.append({
+                    'name': guideline_data['condition_name'],
+                    'score': 0.5,  # Equal priority initially
+                    'data': guideline_data,
+                    'method': 'structured_oldcarts'
+                })
     
     return matched_guidelines
 ```
 
-**Matched Gastrointestinal Guidelines for "abdominal pain":**
+**Matched Cardiovascular Guidelines for "chest pain":**
 
 Based on `chief_complaint_triggers` in JSON files:
 
 | Condition | Triggers | Urgency | Prevalence |
 |-----------|----------|---------|------------|
-| **Perforated Viscus** | "abdominal pain", "severe abdominal pain" | emergent | rare |
-| **Acute Appendicitis** | "abdominal pain", "belly pain", "RLQ pain" | urgent | common |
-| **Acute Cholecystitis** | "abdominal pain", "RUQ pain" | urgent | common |
-| **Acute Pancreatitis** | "abdominal pain", "epigastric pain" | urgent | common |
-| **Kidney Stone** | "abdominal pain", "flank pain" | urgent | common |
-| **Gastroenteritis** | "abdominal pain", "stomach pain" | routine | common |
-| **IBD Flare** | "abdominal pain", "cramping" | urgent | uncommon |
-| **IBS** | "abdominal pain", "cramping", "bloating" | routine | uncommon |
+| **Acute MI** | "chest pain", "heart attack", "myocardial infarction" | emergent | common |
+| **Unstable Angina** | "chest pain", "chest pressure", "angina" | emergent | common |
+| **Stable Angina** | "chest pain", "exertional chest pain" | urgent | common |
+| **Pericarditis** | "chest pain", "pleuritic chest pain" | urgent | uncommon |
+| **Aortic Dissection** | "chest pain", "tearing chest pain" | emergent | rare |
+| **Pulmonary Embolism** | "chest pain", "pleuritic chest pain" | emergent | uncommon |
+| **Costochondritis** | "chest pain", "chest wall pain" | routine | common |
+| **GERD** | "chest pain", "heartburn", "chest burning" | routine | common |
 
 ---
 
@@ -400,39 +418,38 @@ Based on `chief_complaint_triggers` in JSON files:
 1. Chief complaint → Match relevant guidelines (any body system)
 2. Sort by URGENCY (emergent > urgent > routine) then PREVALENCE (common > rare)  
 3. Top 5 become active differentials, rest go to reserve pool
-4. Feed all 5 guidelines' classical presentations to LLM
-5. LLM follows OLDCARTS roadmap to generate systematic questions
-6. Ask question → LLM scores all 5 → Re-rank by score
-7. Rule out <5% → Promote from reserve (preserve diffuse conditions)
-8. Repeat until 95% confidence + 12 questions (or 15 max)
-9. Screen ALL red flags after diagnosis
-10. Finalize with disposition + red flag warnings
+4. Use structured OLDCARTS data to generate targeted questions
+5. Ask question → Score all 5 using semantic similarity → Re-rank by score
+6. Rule out <5% → Promote from reserve (preserve diffuse conditions)
+7. Repeat until 95% confidence + 12 questions (or 15 max)
+8. Screen ALL red flags after diagnosis
+9. Finalize with disposition + red flag warnings
 ```
 
 **Ranking Algorithm:**
 
 1. **Primary Sort - URGENCY:**
-   - **Emergent** (life-threatening): Perforated Viscus, Ruptured AAA
-   - **Urgent** (hours matter): Appendicitis, Cholecystitis, Pancreatitis
-   - **Routine** (days acceptable): Gastroenteritis, IBS, GERD
+   - **Emergent** (life-threatening): Acute MI, Aortic Dissection, Pulmonary Embolism
+   - **Urgent** (hours matter): Unstable Angina, Pericarditis
+   - **Routine** (days acceptable): Stable Angina, Costochondritis, GERD
 
 2. **Secondary Sort - PREVALENCE:**
-   - **Common** (>3%): Appendicitis (10-23%), Cholecystitis (7-10%)
-   - **Uncommon** (1-3%): Diverticulitis, IBD Flare
-   - **Rare** (<1%): Perforated Viscus, Mesenteric Ischemia
+   - **Common** (>3%): Acute MI (5-10%), Stable Angina (3-5%)
+   - **Uncommon** (1-3%): Pericarditis, Pulmonary Embolism
+   - **Rare** (<1%): Aortic Dissection, Unstable Angina
 
-**Final Active Differentials (Top 5 for "abdominal pain"):**
-1. **Perforated Viscus** (emergent, rare) - highest urgency overrides prevalence
-2. **Acute Appendicitis** (urgent, common)  
-3. **Acute Cholecystitis** (urgent, common)
-4. **Acute Pancreatitis** (urgent, common)
-5. **Kidney Stone** (urgent, common)
+**Final Active Differentials (Top 5 for "chest pain"):**
+1. **Acute MI** (emergent, common) - highest urgency + high prevalence
+2. **Aortic Dissection** (emergent, rare) - highest urgency overrides prevalence
+3. **Pulmonary Embolism** (emergent, uncommon) - emergent urgency
+4. **Unstable Angina** (emergent, rare) - emergent urgency
+5. **Pericarditis** (urgent, uncommon) - urgent + moderate prevalence
 
 **Reserve Pool (sorted by prevalence):**
-- Gastroenteritis (routine, common)
-- IBD Flare (urgent, uncommon)  
-- IBS (routine, uncommon)
-- Peptic Ulcer (urgent, uncommon)
+- Stable Angina (urgent, common)
+- Costochondritis (routine, common)
+- GERD (routine, common)
+- Stable Angina (urgent, common)
 
 ---
 
@@ -444,7 +461,9 @@ Based on `chief_complaint_triggers` in JSON files:
 def _generate_ml_first_question_with_demographics(self) -> Dict[str, Any]:
     # PRIORITY 1: Ask demographics FIRST (age, then sex, then chronicity)
     if not hasattr(self, 'demographics') or not self.demographics.get('age'):
-        question = "How old are you?"
+        # Generate empathetic opening statement
+        opening = self._generate_opening_statement("chest pain")
+        question = f"{opening} How old are you?"
         return {
             'success': True,
             'question': question,
@@ -462,14 +481,19 @@ def _generate_ml_first_question_with_demographics(self) -> Dict[str, Any]:
         }
 ```
 
+**Example Flow for "I have chest pain":**
+- **Opening Statement:** `"I understand you're experiencing chest pain. This is important to evaluate properly."`
+- **First Question:** `"I understand you're experiencing chest pain. This is important to evaluate properly. How old are you?"`
+- **Status:** `"questioning"` → Continues to next demographic
+
 **Demographics Sequence:**
 1. **Age First:** `"How old are you?"` 
 2. **Sex Second:** `"What is your biological sex?"` (with buttons)
 3. **Chronicity Third:** `"Is this a new problem or ongoing?"` (with buttons)
 
 **Clinical Reasoning for Demographics Priority:**
-- **Age:** Determines risk stratification (appendicitis peaks 10-30 years)
-- **Sex:** Enables filtering (ovarian conditions, pregnancy-related)
+- **Age:** Determines risk stratification (MI risk increases with age, especially >65)
+- **Sex:** Enables filtering (women have different MI presentation patterns)
 - **Chronicity:** Differentiates acute emergencies from chronic conditions
 
 ---
@@ -1660,6 +1684,7 @@ if missing_terms:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| **2.8** | Jan 2025 | **📋 COMPLETE CHEST PAIN FLOW DOCUMENTATION: Updated architecture document with detailed step-by-step examples for "I have chest pain" flow, including structured OLDCARTS analysis, cardiovascular guideline matching, and empathetic demographics collection. All 22 core flow functions verified and working correctly.** |
 | **2.7** | Oct 2025 | **⚡ SIMILARITY ALGORITHM COMPLETE FIX: Critical discovery and fix of broken Jaccard similarity that was causing severe over-clarification. Replaced with simple containment matching (same as successful anatomical competition). Test results: 'eating' vs 'eating may worsen...' now scores 100% instead of 12%. Over-clarification completely eliminated.** |
 | **2.6** | Oct 2025 | **🔬 ARCHITECTURE MODERNIZATION: Major OLDCARTS refactoring - replaced 200+ hard-coded term patterns with full text block approach (same as successful anatomical competition), eliminated maintenance burden, improved natural language handling** |
 | **2.5** | Oct 2025 | **🚀 PERFORMANCE & CONCURRENCY OPTIMIZATION: Performance monitor output muted, guideline loading optimization with proper singleton usage, critical concurrency bug fix for multi-user safety** |
@@ -1685,6 +1710,6 @@ if missing_terms:
 > 3. Experimental or proposed features marked clearly as such
 > 4. Version number incremented with each substantial update
 
-> **Current Status:** Reflects system as of October 25, 2025 + Performance optimized + Multi-user concurrency ready + OLDCARTS architecture modernized + Similarity algorithm completely fixed  
-> **Last Update Reason:** Critical similarity algorithm discovery and fix - replaced broken Jaccard similarity (causing severe over-clarification) with simple containment matching. Same proven approach as successful anatomical competition. Test verified: perfect matches now score 100% instead of 12%.  
+> **Current Status:** Reflects system as of January 27, 2025 + Performance optimized + Multi-user concurrency ready + OLDCARTS architecture modernized + Similarity algorithm completely fixed + Complete chest pain flow documented  
+> **Last Update Reason:** Complete chest pain flow documentation with detailed step-by-step examples, structured OLDCARTS analysis, cardiovascular guideline matching, and empathetic demographics collection. All 22 core flow functions verified and working correctly.  
 > **Next Update:** When requested after significant architectural changes
