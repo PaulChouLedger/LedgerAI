@@ -238,7 +238,7 @@ class AdaptiveDiagnosticEngine:
         self.RULE_OUT_THRESHOLD = 0.05  # Below 5% → rule out (ML-only system threshold)
         self.MINIMUM_SCORE_FOR_RANKING = 0.05  # Minimum score to be considered for ranking
         self.MAX_ACTIVE = 5  # Keep 5 active differentials
-        self.MAX_CLARIFICATIONS = 2  # Max times to ask for clarification before moving on
+        # MAX_CLARIFICATIONS removed - now dynamically determined by number of competing guidelines
     
     def _load_guidelines(self):
         """Load all JSON guideline files from subdirectories"""
