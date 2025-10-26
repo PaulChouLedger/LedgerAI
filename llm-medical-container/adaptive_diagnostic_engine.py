@@ -2987,39 +2987,39 @@ Normalized text:"""
         
         # ALWAYS ask clarification if there are meaningful anatomical distinctions to be made
         # REMOVED: score_spread and top_score dependencies - focus purely on segmental gaps
+        # REMOVED: Max clarifications limit - continue until condition is met
         if needs_clarification_for_specificity or not is_clear_answer:
-            if clarification_count < MAX_CLARIFICATIONS_PER_ELEMENT:
-                self._capture_debug(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
-                self._capture_debug(f"[Engine]   Top score: {top_score:.0%} (scores no longer determine clarification)")
-                reason = "Competing anatomical regions need clarification" if needs_clarification_for_specificity else "Answer lacks specificity"
-                self._capture_debug(f"[Engine]   Reason: {reason}")
-                self._capture_debug(f"[Engine]   Clarifications asked so far: {clarification_count}/{MAX_CLARIFICATIONS_PER_ELEMENT}")
-                self._capture_debug(f"[Engine]   Strategy: {'Open-ended' if clarification_count == 0 else 'Targeted (differential-based)'}")
-                
+            self._capture_debug(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
+            self._capture_debug(f"[Engine]   Top score: {top_score:.0%} (scores no longer determine clarification)")
+            reason = "Competing anatomical regions need clarification" if needs_clarification_for_specificity else "Answer lacks specificity"
+            self._capture_debug(f"[Engine]   Reason: {reason}")
+            self._capture_debug(f"[Engine]   Clarifications asked so far: {clarification_count} (unlimited until condition met)")
+            self._capture_debug(f"[Engine]   Strategy: {'Open-ended' if clarification_count == 0 else 'Targeted (differential-based)'}")
+            
+            # Check if user is asking for clarification on our question (e.g., "what do you mean?", "provide more detail how?")
+            if self._is_user_asking_for_clarification(answer):
+                # Generate a rephrased clarifying question with options
+                clarifying_q = self._generate_llm_clarifying_question_with_options(oldcarts_element, clarification_count)
+            else:
                 # Generate progressively targeted clarifying question
                 clarifying_q = self._generate_clarifying_question(oldcarts_element, answer, clarification_count, missing_specificity_terms)
-                
-                if clarifying_q:
-                        # Add clarifying question to history
-                        self.conversation_history.append({
-                            'type': 'question',
-                            'question': clarifying_q,
-                            'oldcarts': oldcarts_element,  # Same OLDCARTS element
-                            'focus': 'clinical',
-                            'is_clarification': True
-                        })
-                        
-                        return {
-                            'success': True,
-                            'question': clarifying_q,
-                            'status': 'questioning',
-                            'needs_clarification': True
-                        }
-            else:
-                self._capture_debug(f"\n[Engine] ⚠️  Max clarifications reached (top: {top_score:.0%})")
-                self._capture_debug(f"[Engine]   Already asked {clarification_count} clarifications for '{oldcarts_element}'")
-                self._capture_debug(f"[Engine]   📋 Can't differentiate further on this element - moving to next OLDCARTS")
-                # Will fall through and continue to next OLDCARTS element
+            
+            if clarifying_q:
+                    # Add clarifying question to history
+                    self.conversation_history.append({
+                        'type': 'question',
+                        'question': clarifying_q,
+                        'oldcarts': oldcarts_element,  # Same OLDCARTS element
+                        'focus': 'clinical',
+                        'is_clarification': True
+                    })
+                    
+                    return {
+                        'success': True,
+                        'question': clarifying_q,
+                        'status': 'questioning',
+                        'needs_clarification': True
+                    }
         else:
             # No clarification needed - accept answer
             self._capture_debug(f"[Engine] ✅ ANSWER ACCEPTED: '{answer}' provides sufficient specificity")
@@ -3812,6 +3812,101 @@ Your question:"""
         }
         
         return element_questions.get(oldcarts_element, "Can you provide more detail?")
+    
+    def _is_user_asking_for_clarification(self, user_answer: str) -> bool:
+        """
+        Detect if the user is asking for clarification on our question
+        (e.g., "what do you mean?", "I don't understand", "provide more detail how?")
+        """
+        clarification_indicators = [
+            "what do you mean",
+            "i don't understand",
+            "i don't get",
+            "not sure what you mean",
+            "what are you asking",
+            "provide more detail how",
+            "more detail how",
+            "can you explain",
+            "what does that mean",
+            "not clear"
+        ]
+        
+        answer_lower = user_answer.lower()
+        return any(indicator in answer_lower for indicator in clarification_indicators)
+    
+    def _generate_llm_clarifying_question_with_options(self, oldcarts_element: str, clarification_count: int) -> str:
+        """
+        Use LLM to generate a clarifying question with specific options based on competing conditions
+        """
+        element_mapping = {
+            'O': 'onset',
+            'L': 'location',
+            'D': 'duration',
+            'C': 'character',
+            'A': 'aggravating',
+            'R': 'relieving',
+            'T': 'timing',
+            'S': 'severity'
+        }
+        element_name = element_mapping.get(oldcarts_element, oldcarts_element)
+        
+        # Get competing conditions and their key differentiators
+        competing_conditions = self.active_guidelines[:3]  # Top 3 competing conditions
+        
+        # Get the last question asked
+        last_question = None
+        for item in reversed(self.conversation_history):
+            if item.get('type') == 'question' and item.get('oldcarts') == oldcarts_element:
+                last_question = item.get('question')
+                break
+        
+        # Build context for LLM
+        conditions_summary = []
+        for i, guideline in enumerate(competing_conditions, 1):
+            conditions_summary.append(f"{i}. {guideline['name']}")
+        
+        system_msg = "You are a medical assistant helping to clarify patient symptoms. Generate a clear, simple question with specific options."
+        
+        user_msg = f"""The patient seems confused by your previous question. Generate a better clarifying question with specific options.
+
+Previous question: "{last_question}"
+
+We're trying to understand the patient's {element_name} to differentiate between:
+{chr(10).join(conditions_summary)}
+
+Generate a simple question with 2-3 specific options. For example, if asking about location:
+"Is the pain in your upper abdomen (below ribs) or lower abdomen (near hip)?"
+
+Be specific and offer concrete options. Don't use medical jargon. Keep it under 20 words."""
+
+        try:
+            response = self.llm_chat_simple_fn(
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=50,
+                temperature=0.3
+            )
+            
+            clarifying_q = response.strip().strip('"\'')
+            self._capture_debug(f"[Engine] 🧠 LLM generated clarifying question: '{clarifying_q}'")
+            return clarifying_q
+            
+        except Exception as e:
+            self._capture_debug(f"[Engine] ⚠️ LLM clarifying question generation failed: {e}")
+            # Fallback to default
+            element_questions = {
+                'L': "Is it in your upper abdomen (below ribs) or lower abdomen (near hip)?",
+                'D': "Does it last minutes, hours, or days?",
+                'C': "Is it sharp, dull, or crampy?",
+                'A': "Does anything make it worse?",
+                'R': "Does anything make it better?",
+                'T': "Is it constant or does it come and go?",
+                'S': "On a scale of 1-10, how severe is it?",
+                'O': "Did it start suddenly or gradually?"
+            }
+            return element_questions.get(oldcarts_element, "Can you provide more detail?")
     
     def _parse_prompt_against_structured_oldcarts(self, prompt: str, guidelines: List[Dict]) -> Dict[str, Any]:
         """
