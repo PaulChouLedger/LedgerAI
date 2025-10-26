@@ -552,6 +552,14 @@ class AdaptiveDiagnosticEngine:
             # Ask age first
             question = empathetic_prefix + "How old are you?"
             self._capture_debug(f"[Engine] ✅ Demographics question generated: '{question}'")
+            
+            # Add to conversation history with proper focus
+            self.conversation_history.append({
+                'type': 'question',
+                'question': question,
+                'focus': 'demographics'
+            })
+            
             return {
                 'success': True,
                 'question': question,
@@ -562,6 +570,14 @@ class AdaptiveDiagnosticEngine:
             # Ask sex with button-based response
             question = empathetic_prefix + "What is your biological sex?"
             self._capture_debug(f"[Engine] ✅ Sex question with buttons: '{question}'")
+            
+            # Add to conversation history with proper focus
+            self.conversation_history.append({
+                'type': 'question',
+                'question': question,
+                'focus': 'demographics'
+            })
+            
             return {
                 'success': True,
                 'question': question,
@@ -576,6 +592,14 @@ class AdaptiveDiagnosticEngine:
             # Ask chronicity with button-based response
             question = empathetic_prefix + "Is this a new problem or an ongoing issue?"
             self._capture_debug(f"[Engine] ✅ Chronicity question with buttons: '{question}'")
+            
+            # Add to conversation history with proper focus
+            self.conversation_history.append({
+                'type': 'question',
+                'question': question,
+                'focus': 'demographics'
+            })
+            
             return {
                 'success': True,
                 'question': question,
@@ -1004,73 +1028,7 @@ class AdaptiveDiagnosticEngine:
             # Continue screening (or finalize if done) - use stored diagnosed condition
             return self._screen_red_flags(self.diagnosed_condition)
         
-        # Handle demographics - AGE
-        if last_q.get('focus') == 'age':
-            self._capture_debug(f"[Engine] 🔍 Processing age response: '{user_answer}'")
-            
-            # SMART LLM-BASED AGE EXTRACTION
-            age_extracted = self._extract_age_with_llm(user_answer)
-            
-            # VALIDATION: Check if valid age was extracted
-            if age_extracted:
-                # SUCCESS: Valid age found
-                self.demographics['age'] = age_extracted
-                self._capture_debug(f"[Engine] 👤 Age successfully stored: {age_extracted}")
-                
-                # Continue to sex question
-                sex_question = self._generate_sex_question()
-                self.conversation_history.append({
-                    'type': 'question',
-                    'question': sex_question,
-                    'focus': 'sex'
-                })
-                
-                return {
-                    'success': True,
-                    'question': sex_question,
-                    'status': 'questioning',
-                    'debug': self._get_debug_info()
-                }
-            else:
-                # FAILURE: Invalid age response - re-ask with helpful guidance
-                self._capture_debug(f"[Engine] ❌ Invalid age response: '{user_answer}' - LLM could not extract valid age")
-            
-                # Generate helpful re-ask message
-                clarification_msg = f"I need your age as a number. Please tell me how old you are (for example: '25' or 'I am 30 years old')."
-                
-            self.conversation_history.append({
-                'type': 'question',
-                    'question': clarification_msg,
-                    'focus': 'age'  # Keep same focus to stay in age processing
-            })
-            
-            return {
-                'success': True,
-                    'question': clarification_msg,
-                'status': 'questioning',
-                'debug': self._get_debug_info()
-            }
-        
-        # Sex processing already handled above - no duplicate needed
-            
-            self._capture_debug(f"{'='*80}\n")
-            
-            # FIRST CLINICAL QUESTION: Ask about CHRONICITY (new vs recurrent/chronic)
-            # This helps differentiate new acute problems from chronic/recurrent issues
-            chronicity_question = self._generate_chronicity_question()
-            
-            self.conversation_history.append({
-                'type': 'question',
-                'question': chronicity_question,
-                'focus': 'chronicity'
-            })
-            
-            return {
-                'success': True,
-                'question': chronicity_question,
-                'status': 'questioning',
-                'debug': self._get_debug_info()
-            }
+        # Demographics processing already handled above - no duplicate needed
         
         elif last_q.get('focus') == 'chronicity' or (last_q.get('focus') == 'demographics' and 'chronicity' in last_q.get('question', '').lower()):
             # Handle button-based chronicity response
@@ -1878,28 +1836,28 @@ class AdaptiveDiagnosticEngine:
                 next_component = missing_components[0]
                 question = self._generate_oldcarts_question_for_component(next_component)
                 self._capture_debug(f"[Engine] ✅ Next structured question: '{question}'")
+                
+                # Add to conversation history
+                self.conversation_history.append({
+                    'type': 'question',
+                    'question': question,
+                    'oldcarts': next_component,
+                    'focus': 'clinical',
+                    'is_demographics': False
+                })
+                
+                return {
+                    'success': True,
+                    'question': question,
+                    'status': 'questioning',
+                    'debug': self._get_debug_info()
+                }
             else:
                 # All OLDCARTS components answered, proceed to scoring
                 self._capture_debug(f"[Engine] ✅ All OLDCARTS components answered, proceeding to scoring")
                 return self._process_clinical_answer("")  # Empty answer to trigger scoring
         else:
             raise RuntimeError("No OLDCARTS analysis available for structured questions")
-        
-        # Add to conversation history
-            self.conversation_history.append({
-                'type': 'question',
-                'question': question,
-            'oldcarts': next_component,
-                'focus': 'clinical',
-            'is_demographics': False
-            })
-            
-            return {
-                'success': True,
-                'question': question,
-                'status': 'questioning',
-                'debug': self._get_debug_info()
-        }
     
     
     def _extract_oldcarts_section(self, classic_presentation: str, element: str) -> str:

@@ -409,7 +409,7 @@ class ClinicianSession:
                     response = self.adaptive_engine.process_answer(symptom_query)
                 
                 # Handle response
-                if response.get('success'):
+                if response and response.get('success'):
                     if response.get('status') == 'diagnosed':
                         # Diagnosis reached!
                         print(f"[Adaptive] ✅ Diagnosis: {response.get('diagnosis')}")
@@ -421,6 +421,10 @@ class ClinicianSession:
                             return response  # Return dict with question + filler
                         else:
                             return response  # Return full response dict with debug info
+                elif response is None:
+                    # Response is None - this should not happen
+                    print("[Adaptive] ❌ Response is None - this indicates a bug in the adaptive engine")
+                    return "I'm sorry, there was an internal error. Please try again."
                 else:
                     # Error or no match
                     return response.get('message', 'I need more information to help you.')
