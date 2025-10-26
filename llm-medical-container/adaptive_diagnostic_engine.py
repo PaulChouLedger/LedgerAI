@@ -659,52 +659,107 @@ class AdaptiveDiagnosticEngine:
         covered_elements = [primary_element]  # Always include the primary element
         answer_lower = answer.lower().strip()
         
-        # Time-based answers often cover multiple elements
-        time_indicators = {
-            'onset': ['ago', 'started', 'began', 'came on', 'hit me', 'suddenly', 'gradually'],
-            'duration': ['ago', 'for', 'since', 'lasted', 'lasting', 'been', 'have had'],
-            'timing': ['ago', 'when', 'during', 'at', 'in the', 'morning', 'evening', 'night']
-        }
-        
-        # Check if answer contains time indicators
-        has_time_indicators = any(indicator in answer_lower for indicators in time_indicators.values() for indicator in indicators)
-        
-        if has_time_indicators:
-            # Time-based answers often cover onset, duration, and timing
-            if any(indicator in answer_lower for indicator in time_indicators['onset']):
-                if 'onset' not in covered_elements:
-                    covered_elements.append('onset')
-            if any(indicator in answer_lower for indicator in time_indicators['duration']):
-                if 'duration' not in covered_elements:
-                    covered_elements.append('duration')
-            if any(indicator in answer_lower for indicator in time_indicators['timing']):
-                if 'timing' not in covered_elements:
-                    covered_elements.append('timing')
-        
-        # Location answers might also cover character (e.g., "sharp pain in my side")
-        location_indicators = ['side', 'area', 'region', 'part', 'spot', 'place', 'where']
-        if any(indicator in answer_lower for indicator in location_indicators):
-            if 'location' not in covered_elements:
-                covered_elements.append('location')
-        
-        # Character answers might also cover severity (e.g., "very sharp pain")
-        severity_indicators = ['very', 'extremely', 'mild', 'moderate', 'severe', 'intense', 'unbearable']
-        if any(indicator in answer_lower for indicator in severity_indicators):
-            if 'severity' not in covered_elements:
-                covered_elements.append('severity')
-        
-        # Comprehensive pain descriptions often cover multiple elements
-        comprehensive_indicators = ['pain', 'ache', 'hurt', 'discomfort', 'sensation']
-        if any(indicator in answer_lower for indicator in comprehensive_indicators):
-            # If it's a comprehensive pain description, it might cover character and severity
-            if 'character' not in covered_elements and primary_element != 'character':
-                covered_elements.append('character')
+        # SEMANTIC ANALYSIS: Use embedding similarity to determine which OLDCARTS elements are covered
+        # This is more accurate than hardcoded keyword matching
+        covered_elements = self._analyze_semantic_oldcarts_coverage(answer, primary_element)
         
         self._capture_debug(f"[Engine] 🔍 Comprehensive analysis of '{answer}':")
         self._capture_debug(f"[Engine]   Primary element: {primary_element}")
         self._capture_debug(f"[Engine]   Covered elements: {covered_elements}")
         
         return covered_elements
+
+    def _analyze_semantic_oldcarts_coverage(self, answer: str, primary_element: str) -> List[str]:
+        """
+        Use semantic embedding similarity to determine which OLDCARTS elements are covered by the answer
+        
+        This method compares the user's answer against structured OLDCARTS data from guidelines
+        to determine which elements are semantically covered, rather than using hardcoded keywords.
+        
+        Args:
+            answer: The user's answer
+            primary_element: The primary OLDCARTS element being asked about
+            
+        Returns:
+            List of OLDCARTS elements that this answer semantically covers
+        """
+        covered_elements = [primary_element]  # Always include the primary element
+        
+        # Get all OLDCARTS elements to check
+        all_elements = ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
+        
+        # Skip the primary element since it's already included
+        elements_to_check = [elem for elem in all_elements if elem != primary_element]
+        
+        for element in elements_to_check:
+            # Get structured OLDCARTS data for this element from active guidelines
+            element_data = self._get_structured_oldcarts_data(element)
+            
+            if element_data:
+                # Use semantic similarity to determine if the answer covers this element
+                similarity = self._compute_semantic_oldcarts_similarity(answer, element_data, element)
+                
+                # If similarity is above threshold, the answer covers this element
+                if similarity > 0.3:  # 30% similarity threshold
+                    covered_elements.append(element)
+                    self._capture_debug(f"[Engine]   ✅ Semantic match for {element}: {similarity:.2f}")
+                else:
+                    self._capture_debug(f"[Engine]   ❌ No semantic match for {element}: {similarity:.2f}")
+        
+        return covered_elements
+
+    def _get_structured_oldcarts_data(self, element: str) -> str:
+        """
+        Get structured OLDCARTS data for a specific element from active guidelines
+        
+        Args:
+            element: The OLDCARTS element ('onset', 'location', etc.)
+            
+        Returns:
+            Combined structured data for this element from all active guidelines
+        """
+        element_data_parts = []
+        
+        for guideline in self.active_guidelines:
+            # Get structured OLDCARTS data for this element
+            structured_data = guideline['data'].get('key_features', {}).get('structured_oldcarts', {})
+            element_data = structured_data.get(element, {})
+            
+            if element_data:
+                # Combine includes and excludes into a single text
+                includes = element_data.get('includes', [])
+                excludes = element_data.get('excludes', [])
+                
+                if includes or excludes:
+                    includes_text = ', '.join(includes) if includes else ''
+                    excludes_text = ', '.join(excludes) if excludes else ''
+                    
+                    element_text = f"Includes: {includes_text}"
+                    if excludes_text:
+                        element_text += f". Excludes: {excludes_text}"
+                    
+                    element_data_parts.append(element_text)
+        
+        return ' '.join(element_data_parts) if element_data_parts else ""
+
+    def _compute_semantic_oldcarts_similarity(self, answer: str, element_data: str, element: str) -> float:
+        """
+        Compute semantic similarity between user answer and structured OLDCARTS data
+        
+        Args:
+            answer: User's answer
+            element_data: Structured OLDCARTS data for the element
+            element: The OLDCARTS element name
+            
+        Returns:
+            Similarity score between 0 and 1
+        """
+        try:
+            # Use the existing semantic similarity computation
+            return self._compute_similarity(answer, element_data)
+        except Exception as e:
+            self._capture_debug(f"[Engine] ⚠️ Error computing semantic similarity for {element}: {e}")
+            return 0.0
 
     def _generate_oldcarts_question_for_component(self, component: str) -> str:
         """Generate OLDCARTS question for specific component"""
@@ -713,7 +768,7 @@ class AdaptiveDiagnosticEngine:
             'character': "How would you describe the pain?",
             'aggravating': "What makes the pain worse?",
             'relieving': "What makes the pain better?",
-            'onset': "How did the pain start?",
+            'onset': "When did the pain start?",
             'duration': "How long have you had this pain?",
             'timing': "When does the pain occur?",
             'severity': "How severe is the pain on a scale of 1-10?"
@@ -1930,11 +1985,12 @@ class AdaptiveDiagnosticEngine:
         
         Args:
             classic_presentation: Full guideline text
-            element: 'O', 'L', 'D', 'C', 'A', 'R', 'T', or 'S'
+            element: 'O', 'L', 'D', 'C', 'A', 'R', 'T', 'S' or 'onset', 'location', 'duration', etc.
         
         Returns:
             The text for that OLDCARTS section
         """
+        # Handle both single letter codes and full element names
         element_names = {
             'O': 'ONSET',
             'L': 'LOCATION',
@@ -1943,7 +1999,16 @@ class AdaptiveDiagnosticEngine:
             'A': 'AGGRAVATING',
             'R': 'RELIEVING',
             'T': 'TIMING',
-            'S': 'SEVERITY'
+            'S': 'SEVERITY',
+            # Also handle full element names
+            'onset': 'ONSET',
+            'location': 'LOCATION',
+            'duration': 'DURATION',
+            'character': 'CHARACTER',
+            'aggravating': 'AGGRAVATING',
+            'relieving': 'RELIEVING',
+            'timing': 'TIMING',
+            'severity': 'SEVERITY'
         }
         
         element_name = element_names.get(element, '')
@@ -2883,7 +2948,9 @@ Normalized text:"""
                     self._capture_debug(f"[Engine]   Containment {oldcarts_result['best_similarity']:.0%} >= 30% - word found in guidelines, accepting")
             else:
                 # No matching sections found - consider clear to avoid infinite loops
+                needs_clarification_for_specificity = False
                 is_clear_answer = True
+                missing_specificity_terms = []
             
         # Debug clarification decision
         self._capture_debug(f"[Engine] 🔍 CLARIFICATION DECISION DEBUG:")
