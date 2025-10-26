@@ -3694,7 +3694,8 @@ Your question:"""
             }
         
         # 2. If patient answer matches all guidelines well → no clarification needed
-        if avg_patient_similarity > 0.5:
+        # Use >= 0.7 threshold since 50% is too vague (only 1 word matching out of 2)
+        if avg_patient_similarity >= 0.7:
             self._capture_debug(f"[Engine] ✅ Patient answer matches guidelines well - no clarification")
             return {
                 'has_competition': False,
