@@ -2789,21 +2789,21 @@ Normalized text:"""
         
         # CHECK IF CLARIFICATION NEEDED (before moving to next OLDCARTS element)
         # But LIMIT clarifications to avoid infinite loops
+        
+        # Count how many clarifications we've already asked for this OLDCARTS element
+        clarification_count = sum(1 for item in self.conversation_history 
+                                 if item.get('type') == 'question' 
+                                 and item.get('oldcarts') == oldcarts_element 
+                                 and item.get('is_clarification'))
+        
+        # Initialize MAX_CLARIFICATIONS_PER_ELEMENT - will be set dynamically based on competing patterns
+        MAX_CLARIFICATIONS_PER_ELEMENT = 1  # Default minimum
+        
         if len(self.active_guidelines) >= 1:
             top_score = self.active_guidelines[0]['score']
             # Score spread no longer used for decisions - removed for clarity
         else:
             top_score = 0.0
-            
-            # Count how many clarifications we've already asked for this OLDCARTS element
-            clarification_count = sum(1 for item in self.conversation_history 
-                                     if item.get('type') == 'question' 
-                                     and item.get('oldcarts') == oldcarts_element 
-                                     and item.get('is_clarification'))
-            
-            # If scores are too close (can't differentiate) OR all scores too low
-            # Ask clarification, but move on if we've asked too many times for this element
-            MAX_CLARIFICATIONS_PER_ELEMENT = 1  # Reduced to minimize repetition
             
             # MUCH MORE LENIENT: Only clarify when absolutely necessary
             # Normal patient answers like "yesterday", "random", "sudden" should be accepted
@@ -2885,10 +2885,17 @@ Normalized text:"""
                     missing_specificity_terms = competition_result['competing_areas']
                     needs_clarification_for_specificity = True
                     is_clear_answer = False
+                    
+                    # DYNAMIC MAX CLARIFICATIONS: Set based on number of competing patterns
+                    # Each competing area represents a different pattern that needs clarification
+                    num_competing_patterns = len(competition_result['competing_areas'])
+                    MAX_CLARIFICATIONS_PER_ELEMENT = max(1, num_competing_patterns)
+                    
                     self._capture_debug(f"[Engine] 🎯 COMPETING ANATOMICAL REGIONS DETECTED:")
                     self._capture_debug(f"[Engine]   Patient said: '{answer}'")
                     self._capture_debug(f"[Engine]   Competing areas: {missing_specificity_terms}")
                     self._capture_debug(f"[Engine]   Need to clarify: {missing_specificity_terms}")
+                    self._capture_debug(f"[Engine]   📊 Dynamic MAX_CLARIFICATIONS_PER_ELEMENT: {MAX_CLARIFICATIONS_PER_ELEMENT} (based on {num_competing_patterns} competing patterns)")
                 else:
                     # No competition or patient already specified subregion
                     missing_specificity_terms = []
@@ -2936,9 +2943,16 @@ Normalized text:"""
                     needs_clarification_for_specificity = True
                     is_clear_answer = False
                     missing_specificity_terms = oldcarts_result['competing_terms']
+                    
+                    # DYNAMIC MAX CLARIFICATIONS: Set based on number of competing patterns
+                    # Each competing term represents a different pattern that needs clarification
+                    num_competing_patterns = len(oldcarts_result['competing_terms'])
+                    MAX_CLARIFICATIONS_PER_ELEMENT = max(1, num_competing_patterns)
+                    
                     self._capture_debug(f"[Engine] 🎯 OLDCARTS SPECIFICITY GAP ({oldcarts_element}):")
                     self._capture_debug(f"[Engine]   Reason: Very low containment {oldcarts_result['best_similarity']:.0%} < 30% threshold")
                     self._capture_debug(f"[Engine]   Patient word not found in any guideline - need clarification")
+                    self._capture_debug(f"[Engine]   📊 Dynamic MAX_CLARIFICATIONS_PER_ELEMENT: {MAX_CLARIFICATIONS_PER_ELEMENT} (based on {num_competing_patterns} competing patterns)")
                 else:
                     # Word found in at least one guideline - accept answer
                     needs_clarification_for_specificity = False
