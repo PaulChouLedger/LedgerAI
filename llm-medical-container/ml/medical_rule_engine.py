@@ -132,14 +132,9 @@ class MedicalRuleEngine:
         patient_text_for_scoring = patient_text.lower()
         
         # 1. COMPUTE SEMANTIC SIMILARITY FIRST (Primary scoring method)
-        # If embedding model is available, use deep semantic similarity
-        if self.embedding_model:
-            semantic_result = self._compute_embedding_similarity(patient_text_for_scoring, guideline_text)
-            semantic_score = semantic_result['similarity']
-        else:
-            # Fallback to traditional semantic similarity
-            semantic_result = self._compute_semantic_similarity(patient_text_for_scoring, guideline_text)
-            semantic_score = semantic_result['similarity']
+        # Use embedding model for deep semantic similarity
+        semantic_result = self._compute_embedding_similarity(patient_text_for_scoring, guideline_text)
+        semantic_score = semantic_result['similarity']
         
         # 2. Get anatomical type for validation/modification
         anatomical_type = self.get_anatomical_type(condition_name, organ_system)
@@ -463,6 +458,17 @@ class MedicalRuleEngine:
             # Ensure similarity is between 0 and 1
             similarity = max(0.0, min(1.0, similarity))
             
+            # DEBUG: Show what's being compared
+            print(f"[Embedding] 🔍 Comparing:")
+            print(f"[Embedding]   Patient: '{patient_text}'")
+            print(f"[Embedding]   Guideline: '{guideline_text[:80]}...'")
+            print(f"[Embedding]   Patient vector shape: {patient_emb.shape}, first 5 values: {patient_emb[:5]}")
+            print(f"[Embedding]   Guideline vector shape: {guideline_emb.shape}, first 5 values: {guideline_emb[:5]}")
+            print(f"[Embedding]   Dot product: {np.dot(patient_emb, guideline_emb):.4f}")
+            print(f"[Embedding]   Patient norm: {np.linalg.norm(patient_emb):.4f}")
+            print(f"[Embedding]   Guideline norm: {np.linalg.norm(guideline_emb):.4f}")
+            print(f"[Embedding]   Raw similarity: {similarity:.4f}")
+            
             # Determine method and confidence based on score
             if similarity >= 0.85:
                 method = 'embedding_excellent_match'
@@ -480,6 +486,8 @@ class MedicalRuleEngine:
                 method = 'embedding_no_match'
                 confidence = 'low'
             
+            print(f"[Embedding]   Method: {method}, Confidence: {confidence}")
+            
             return {
                 'similarity': similarity,
                 'method': method,
@@ -488,233 +496,16 @@ class MedicalRuleEngine:
             }
             
         except Exception as e:
-            print(f"⚠️ Embedding similarity failed: {e}, falling back to traditional semantic similarity")
-            return self._compute_semantic_similarity(patient_text, guideline_text)
-    
-    def _compute_semantic_similarity(self, patient_text: str, guideline_text: str) -> Dict[str, Any]:
-        """
-        Compute semantic similarity between patient input and guideline text
-        This is the PRIMARY scoring method for OLDCARTS matching
-        """
-        # Normalize inputs
-        patient_lower = patient_text.lower().strip()
-        guideline_lower = guideline_text.lower().strip()
-        
-        if not patient_lower or not guideline_lower:
+            print(f"❌ Embedding similarity failed: {e}")
             return {
                 'similarity': 0.0,
-                'method': 'no_text',
+                'method': 'embedding_error',
                 'confidence': 'low',
-                'reasoning': 'No text to compare'
+                'reasoning': f'Embedding computation failed: {e}'
             }
-        
-        # 1. EXACT MATCH - Highest score
-        if patient_lower == guideline_lower:
-            return {
-                'similarity': 1.0,
-                'method': 'exact_match',
-                'confidence': 'high',
-                'reasoning': 'Exact text match'
-            }
-        
-        # 2. CONTRADICTION DETECTION - Look for explicit contradictions
-        if self._detect_contradiction(patient_lower, guideline_lower):
-            return {
-                'similarity': 0.1,  # Very low but not zero
-                'method': 'contradiction',
-                'confidence': 'high', 
-                'reasoning': 'Text contains contradictory information'
-            }
-        
-        # 3. ADVANCED SEMANTIC MATCHING - Check for conceptual matches
-        patient_words = set(patient_lower.split())
-        guideline_words = set(guideline_lower.split())
-        
-        # Remove common stop words for better matching
-        stop_words = {'the', 'and', 'or', 'in', 'on', 'at', 'to', 'of', 'a', 'an', 'is', 'are', 'was', 'were', 'pain', 'typically'}
-        patient_words = patient_words - stop_words
-        guideline_words = guideline_words - stop_words
-        
-        if not patient_words or not guideline_words:
-            similarity = 0.2
-            method = 'no_meaningful_words'
-        else:
-            # 4. MEDICAL CONCEPT MATCHING - Map synonymous medical terms
-            conceptual_similarity = self._compute_medical_concept_similarity(patient_words, guideline_words)
-            
-            # 5. WORD OVERLAP ANALYSIS
-            intersection = len(patient_words.intersection(guideline_words))
-            union = len(patient_words.union(guideline_words))
-            jaccard = intersection / union if union > 0 else 0.0
-            
-            # 6. SEMANTIC KEYWORD MATCHING
-            semantic_boost = self._compute_semantic_keyword_boost(patient_words, guideline_words)
-            
-            # 7. SUBSTRING MATCHING BONUS
-            substring_bonus = 0.0
-            if patient_lower in guideline_lower or guideline_lower in patient_lower:
-                substring_bonus = 0.3  # 30% bonus for substring matches
-            
-            # Combine all similarity measures
-            similarity = min(
-                max(conceptual_similarity, jaccard) + semantic_boost + substring_bonus, 
-                0.95  # Cap at 95% for non-exact matches
-            )
-            
-            # Assign method based on primary contributor
-            if conceptual_similarity >= 0.6:
-                method = 'medical_concept_match'
-            elif substring_bonus > 0:
-                method = 'substring_match'
-            elif jaccard >= 0.5:
-                method = 'high_word_overlap'
-            elif jaccard >= 0.2:
-                method = 'medium_word_overlap'
-            else:
-                method = 'low_word_overlap'
-        
-        return {
-            'similarity': similarity,
-            'method': method,
-            'confidence': 'medium',
-            'reasoning': f'Semantic analysis: {method}'
-        }
     
-    def _detect_contradiction(self, patient_text: str, guideline_text: str) -> bool:
-        """
-        Detect explicit contradictions between patient input and guideline
-        """
-        # Common contradiction patterns
-        contradictions = [
-            # Location contradictions
-            (['left'], ['right']),
-            (['right'], ['left']),  
-            (['upper'], ['lower']),
-            (['lower'], ['upper']),
-            
-            # Localization contradictions  
-            (['not localized', 'not local', 'diffuse', 'widespread'], ['localized', 'focal', 'specific']),
-            (['localized', 'focal', 'specific'], ['not localized', 'not local', 'diffuse', 'widespread']),
-            
-            # Severity contradictions
-            (['mild', 'slight'], ['severe', 'intense', 'excruciating']),
-            (['severe', 'intense'], ['mild', 'slight']),
-            
-            # Timing contradictions
-            (['constant', 'continuous'], ['intermittent', 'comes and goes']),
-            (['intermittent', 'comes and goes'], ['constant', 'continuous']),
-        ]
-        
-        for patient_terms, guideline_terms in contradictions:
-            patient_has = any(term in patient_text for term in patient_terms)
-            guideline_has = any(term in guideline_text for term in guideline_terms)
-            
-            if patient_has and guideline_has:
-                return True
-        
-        return False
-    
-    def _compute_medical_concept_similarity(self, patient_words: set, guideline_words: set) -> float:
-        """
-        Compute similarity based on medical concept mapping
-        Maps patient language to medical terminology
-        """
-        # Medical concept mappings - patient language to medical terms
-        concept_mappings = {
-            # Location mappings
-            'left': ['left', 'llq', 'luq'],
-            'right': ['right', 'rlq', 'ruq'], 
-            'lower': ['lower', 'llq', 'rlq', 'hypogastric', 'suprapubic'],
-            'upper': ['upper', 'luq', 'ruq', 'epigastric'],
-            'part': ['quadrant', 'area', 'region', 'zone'],
-            'side': ['side', 'lateral', 'quadrant'],
-            
-            # Character mappings
-            'sharp': ['sharp', 'stabbing', 'knife-like', 'piercing'],
-            'dull': ['dull', 'aching', 'throbbing'],
-            'burning': ['burning', 'searing', 'hot'],
-            'cramping': ['cramping', 'colicky', 'spasmodic'],
-            
-            # Timing mappings
-            'sudden': ['sudden', 'acute', 'abrupt'],
-            'gradual': ['gradual', 'insidious', 'slow'],
-            'constant': ['constant', 'continuous', 'persistent'],
-            'comes': ['intermittent', 'episodic', 'comes'],
-            'goes': ['intermittent', 'episodic', 'goes'],
-            
-            # Localization mappings
-            'localized': ['localized', 'focal', 'specific'],
-            'diffuse': ['diffuse', 'widespread', 'generalized'],
-            'not': ['not', 'no', 'without'],
-        }
-        
-        # Calculate conceptual matches
-        conceptual_score = 0.0
-        total_patient_concepts = 0
-        
-        for patient_word in patient_words:
-            total_patient_concepts += 1
-            
-            # Check if patient word maps to any guideline concepts
-            if patient_word in concept_mappings:
-                mapped_concepts = concept_mappings[patient_word]
-                
-                # Check if any mapped concept appears in guideline
-                for concept in mapped_concepts:
-                    if any(concept in guideline_word for guideline_word in guideline_words):
-                        conceptual_score += 1.0
-                        break  # Only count once per patient word
-                    # Also check exact matches
-                    elif concept in guideline_words:
-                        conceptual_score += 1.0
-                        break
-            
-            # Direct word matches get full score
-            elif patient_word in guideline_words:
-                conceptual_score += 1.0
-        
-        # Normalize by total patient concepts
-        if total_patient_concepts > 0:
-            return conceptual_score / total_patient_concepts
-        else:
-            return 0.0
-    
-    def _compute_semantic_keyword_boost(self, patient_words: set, guideline_words: set) -> float:
-        """
-        Compute semantic boost based on meaningful medical keyword matches
-        """
-        # Important medical location keywords get higher weight
-        location_keywords = {
-            'quadrant', 'rlq', 'llq', 'ruq', 'luq', 'epigastric', 'periumbilical', 
-            'flank', 'groin', 'chest', 'abdomen', 'abdominal'
-        }
-        
-        # Character keywords
-        character_keywords = {
-            'sharp', 'dull', 'cramping', 'burning', 'stabbing', 'aching', 'throbbing'
-        }
-        
-        # Timing keywords
-        timing_keywords = {
-            'constant', 'intermittent', 'continuous', 'episodic', 'waves'
-        }
-        
-        boost = 0.0
-        
-        # Location keyword matches get high boost
-        location_matches = patient_words.intersection(guideline_words).intersection(location_keywords)
-        boost += len(location_matches) * 0.2  # 20% boost per location keyword match
-        
-        # Character keyword matches get medium boost  
-        character_matches = patient_words.intersection(guideline_words).intersection(character_keywords)
-        boost += len(character_matches) * 0.15  # 15% boost per character keyword match
-        
-        # Timing keyword matches get medium boost
-        timing_matches = patient_words.intersection(guideline_words).intersection(timing_keywords) 
-        boost += len(timing_matches) * 0.1  # 10% boost per timing keyword match
-        
-        return min(boost, 0.3)  # Cap semantic boost at 30%
-    
+
+
     def get_semantic_similarity(self, patient_text: str, guideline_text: str) -> Dict[str, Any]:
         """
         Simple semantic similarity for trigger matching (not anatomical rules)
