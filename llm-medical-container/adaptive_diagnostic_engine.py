@@ -2742,24 +2742,7 @@ Normalized text:"""
             self._capture_debug(f"[Engine] 📚 Using synonym normalization")
             return self._apply_oldcarts_normalization(text, target_category)
     
-    def _normalize_oldcarts_answer_with_synonyms(self, user_answer: str, oldcarts_element: str) -> str:
-        """Normalize OLDCARTS answer using relevant synonym files"""
-        answer_lower = user_answer.lower()
-        
-        # Load all synonym files
-        all_synonyms = self._load_all_synonym_files()
-        
-        # Apply OLDCARTS-specific normalization
-        normalized_answer = answer_lower
-        for category, synonyms in all_synonyms.items():
-            for standard_term, synonym_list in synonyms.items():
-                for synonym in synonym_list:
-                    if synonym in normalized_answer:
-                        normalized_answer = normalized_answer.replace(synonym, standard_term)
-        
-        self._capture_debug(f"[Engine] 🔄 OLDCARTS synonym normalization ({oldcarts_element}): '{answer_lower}' → '{normalized_answer}'")
-        return normalized_answer
-    
+
     def _compute_enhanced_oldcarts_similarity(self, user_answer: str, oldcarts_section: str, oldcarts_element: str, condition_name: str = "") -> float:
         """
         Enhanced OLDCARTS similarity with Medical Rule Engine and ML - UNIFIED SYSTEM
@@ -2777,12 +2760,12 @@ Normalized text:"""
         if not self.medical_rule_engine:
             raise RuntimeError("Medical Rule Engine not available - ML system required")
         
-        # Normalize user answer using synonym files
-        normalized_answer = self._normalize_oldcarts_answer_with_synonyms(user_answer, oldcarts_element)
+        # Use raw user answer - embeddings handle natural language natively
+        # No synonym normalization needed - embeddings understand "right side towards the top" = "RUQ"
         
-        # Get enhanced similarity using Medical Rule Engine with normalized answer
+        # Get enhanced similarity using Medical Rule Engine with raw answer
         result = self.medical_rule_engine.get_enhanced_similarity(
-            normalized_answer, oldcarts_section, condition_name, 
+            user_answer, oldcarts_section, condition_name, 
             organ_system=self._get_organ_system_from_condition(condition_name),
             oldcarts_element=oldcarts_element
         )
@@ -2839,6 +2822,9 @@ Normalized text:"""
         # Ensure Medical Rule Engine is available
         if not self.medical_rule_engine:
             raise RuntimeError("Medical Rule Engine not available - ML system required")
+        
+        # Use raw user answer - embeddings handle natural language natively
+        # No synonym normalization needed - embeddings understand "right side towards the top" = "RUQ"
         
         # Get enhanced similarity using Medical Rule Engine
         organ_system = self._get_organ_system_from_condition(condition_name)
