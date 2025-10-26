@@ -2990,9 +2990,15 @@ Normalized text:"""
         # REMOVED: Old semantic clarity bypass logic that prevented proper competition detection
         
         if oldcarts_element == 'L':  # Location - universal guideline-driven specificity check
-            # Get all L components from guidelines that match the patient's general area
+            # Get all L components from ALL guidelines (not just active ones) for anatomical competition
             matching_location_sections = []
-            for guideline in self.active_guidelines:
+            all_guidelines = self.active_guidelines + self.reserve_pool
+            self._capture_debug(f"[Engine] 🔍 CHECKING ALL GUIDELINES FOR ANATOMICAL COMPETITION:")
+            self._capture_debug(f"[Engine]   Active guidelines: {len(self.active_guidelines)}")
+            self._capture_debug(f"[Engine]   Reserve guidelines: {len(self.reserve_pool)}")
+            self._capture_debug(f"[Engine]   Total guidelines to check: {len(all_guidelines)}")
+            
+            for guideline in all_guidelines:
                 location_section = self._extract_oldcarts_section(
                     guideline['data'].get('key_features', {}).get('classic_presentation', ''), 
                     'L'
