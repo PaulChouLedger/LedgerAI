@@ -3755,12 +3755,12 @@ Your question:"""
         
         # IMPROVED COMPETITION DETECTION: Only consider meaningful matches (>50%)
         # Previously used 30% threshold which included low-relevance matches
-        meaningful_matches = [s for s in similarities if s > 0.5]
+        meaningful_matches = [s for s in similarities if s >= 0.5]
         has_competition = len(meaningful_matches) > 1  # Multiple strong matches
         
         self._capture_debug(f"[Engine] 🔍 COMPETITION ANALYSIS:")
         self._capture_debug(f"[Engine]   All similarities: {[f'{s:.0%}' for s in similarities]}")
-        self._capture_debug(f"[Engine]   Meaningful matches (>50%): {[f'{s:.0%}' for s in meaningful_matches]}")
+        self._capture_debug(f"[Engine]   Meaningful matches (>=50%): {[f'{s:.0%}' for s in meaningful_matches]}")
         self._capture_debug(f"[Engine]   Competition detected: {len(meaningful_matches)} > 1 = {has_competition}")
         
         self._capture_debug(f"[Engine] 🔍 OLDCARTS COMPETITION RESULT ({oldcarts_element}):")
