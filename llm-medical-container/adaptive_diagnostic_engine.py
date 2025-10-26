@@ -137,8 +137,9 @@ class AdaptiveDiagnosticEngine:
         # Initialize Medical Rule Engine for enhanced location scoring
         try:
             from ml.medical_rule_engine import MedicalRuleEngine
-            self.medical_rule_engine = MedicalRuleEngine()
-            self._capture_debug(f"[Engine] 🎯 Medical Rule Engine initialized")
+            # Pass embedding model for deep semantic similarity
+            self.medical_rule_engine = MedicalRuleEngine(embedding_model=self.embedding_model)
+            self._capture_debug(f"[Engine] 🎯 Medical Rule Engine initialized with embedding model")
         except ImportError as e:
             self.medical_rule_engine = None
             self._capture_debug(f"[Engine] ⚠️ Medical Rule Engine not available: {e}")
@@ -147,8 +148,8 @@ class AdaptiveDiagnosticEngine:
                 import sys
                 sys.path.append('/app/ml')
                 from medical_rule_engine import MedicalRuleEngine
-                self.medical_rule_engine = MedicalRuleEngine()
-                self._capture_debug(f"[Engine] 🎯 Medical Rule Engine initialized (alternative path)")
+                self.medical_rule_engine = MedicalRuleEngine(embedding_model=self.embedding_model)
+                self._capture_debug(f"[Engine] 🎯 Medical Rule Engine initialized (alternative path) with embedding model")
             except ImportError as e2:
                 self._capture_debug(f"[Engine] ❌ Medical Rule Engine failed both paths: {e2}")
         
