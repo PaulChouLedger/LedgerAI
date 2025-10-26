@@ -2875,8 +2875,14 @@ Normalized text:"""
         self._capture_debug(f"[Engine] 🔍 SEGMENTAL GAP DETECTION: Always checking for competition (top_score={top_score:.0%})")
         # REMOVED: Old semantic clarity bypass logic that prevented proper competition detection
         
+        # SKIP CLARIFICATION FOR ONSET: Onset answers are always sufficient for ranking, no clarification needed
+        if oldcarts_element == 'O':
+            self._capture_debug(f"[Engine] 🎯 ONSET ELEMENT: Skipping clarification - onset answers are always sufficient for ranking")
+            needs_clarification_for_specificity = False
+            is_clear_answer = True
+            missing_specificity_terms = []
         # Use unified approach for ALL OLDCARTS elements (including location)
-        if True:  # Always use this unified approach
+        elif True:  # Always use this unified approach
             # Get sections for this OLDCARTS element from guidelines that have some similarity to the current answer
             matching_sections = []
             all_matched_guidelines = self.active_guidelines + self.reserve_pool
@@ -2947,9 +2953,9 @@ Normalized text:"""
                         # Multiple competing guidelines - need clarification despite >= 30% similarity
                         needs_clarification_for_specificity = True
                         is_clear_answer = False
-                        missing_specificity_terms = oldcarts_result['competing_descriptions']
+                        missing_specificity_terms = oldcarts_result['competing_terms']  # Fixed: using correct key name
                         
-                        num_competing_patterns = len(oldcarts_result['competing_descriptions'])
+                        num_competing_patterns = len(oldcarts_result['competing_terms'])
                         MAX_CLARIFICATIONS_PER_ELEMENT = max(1, num_competing_patterns)
                         
                         self._capture_debug(f"[Engine] 🎯 MULTIPLE COMPETING PATTERNS DETECTED ({oldcarts_element}):")
