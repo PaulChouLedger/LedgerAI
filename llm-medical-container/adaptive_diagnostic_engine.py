@@ -370,6 +370,85 @@ class AdaptiveDiagnosticEngine:
         
         # Debug output capture for Telegram display
         self._captured_debug_output = []  # Capture debug output for Telegram display
+    
+    def _call_llm(self, prompt: str, max_tokens: int = 150, use_context: bool = True) -> str:
+        """
+        Call the LLM with optional conversation context
+        
+        Args:
+            prompt: The prompt to send to the LLM
+            max_tokens: Maximum tokens to generate
+            use_context: Whether to include conversation history for more natural responses
+            
+        Returns:
+            LLM response as string
+        """
+        if not self.llm_chat_fn:
+            self._capture_debug(f"[Engine] ⚠️ No LLM function available")
+            return ""
+        
+        try:
+            if use_context and self.conversation_history:
+                # Build conversation context for more natural responses
+                context_messages = self._build_conversation_context()
+                
+                # Add the current prompt as user message
+                context_messages.append({
+                    "role": "user", 
+                    "content": prompt
+                })
+                
+                self._capture_debug(f"[Engine] 🤖 Calling LLM with {len(context_messages)} context messages")
+                response = self.llm_chat_fn(context_messages, max_tokens=max_tokens)
+            else:
+                # Simple prompt without context
+                messages = [{"role": "user", "content": prompt}]
+                self._capture_debug(f"[Engine] 🤖 Calling LLM with simple prompt")
+                response = self.llm_chat_fn(messages, max_tokens=max_tokens)
+            
+            if response and response.strip():
+                self._capture_debug(f"[Engine] ✅ LLM response: '{response[:100]}...'")
+                return response.strip()
+            else:
+                self._capture_debug(f"[Engine] ⚠️ Empty LLM response")
+                return ""
+                
+        except Exception as e:
+            self._capture_debug(f"[Engine] ❌ LLM call failed: {e}")
+            return ""
+    
+    def _build_conversation_context(self) -> List[Dict[str, str]]:
+        """
+        Build conversation context for LLM to make responses more natural
+        
+        Returns:
+            List of message dictionaries for LLM context
+        """
+        messages = []
+        
+        # Add system context about the medical assessment
+        system_context = f"""You are a helpful medical assistant conducting a symptom assessment. 
+
+Patient: {self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')} with {self.chief_complaint}
+
+You are asking questions to understand their symptoms better using the OLDCARTS framework (Onset, Location, Duration, Character, Aggravating, Relieving, Timing, Severity).
+
+Be conversational, empathetic, and helpful. When patients ask for clarification, explain things in simple terms and give them specific examples."""
+        
+        messages.append({"role": "system", "content": system_context})
+        
+        # Add recent conversation history (last 6 exchanges to keep context manageable)
+        recent_history = self.conversation_history[-12:]  # Last 12 items (6 Q&A pairs)
+        
+        for item in recent_history:
+            if item['type'] == 'question':
+                messages.append({"role": "assistant", "content": item['question']})
+            elif item['type'] == 'answer':
+                messages.append({"role": "user", "content": item['answer']})
+            elif item['type'] == 'explanation':
+                messages.append({"role": "assistant", "content": item['explanation']})
+        
+        return messages
         
         # Thresholds - Clinical scoring: only rule out with definitive proof
         self.RULE_OUT_THRESHOLD = 0.05  # Below 5% → rule out (ML-only system threshold)
@@ -1080,6 +1159,10 @@ class AdaptiveDiagnosticEngine:
         self._capture_debug(f"[Engine] 🔍 Last question text: {last_q.get('question', '')}")
         self._capture_debug(f"[Engine] 🔍 User answer: '{user_answer}'")
         self._capture_debug(f"[Engine] 🔍 Demographics before processing: {self.demographics}")
+        
+        # Check if this is a follow-up question (patient asking for clarification)
+        if self._is_follow_up_question(user_answer):
+            return self._handle_follow_up_question(user_answer, last_q)
         
         if last_q.get('focus') == 'demographics':
             if 'age' in last_q.get('question', '').lower():
@@ -2687,14 +2770,15 @@ Normalized text:"""
             similarity = self._compute_enhanced_oldcarts_similarity(answer, oldcarts_section, oldcarts_element, g['name'])
             self._capture_debug(f"[Engine]   {g['name']}: Enhanced {oldcarts_element} similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
             
-            # Update score using semantic similarity
+            # Update score using weighted average (running average)
             old_score = g['score']
             
-            # SEMANTIC SIMILARITY SCORING: Use similarity directly as the score
-            new_score = similarity
+            # RUNNING AVERAGE SCORING: Weighted average of old score + new similarity
+            # Use 70% old score + 30% new similarity to maintain accumulated evidence
+            new_score = (old_score * 0.7) + (similarity * 0.3)
             g['score'] = new_score
             change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
-            self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (semantic)")
+            self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (running avg: 70% old + 30% new)")
             self._capture_debug(f"[Engine]     🧠 {oldcarts_element} Score: {similarity:.2f} ('{answer}' ↔ '{oldcarts_section[:50]}...')")
             self._capture_debug(f"[Engine]     📝 Patient: '{answer}' → Medical: '{oldcarts_section[:80]}...'")
             
@@ -3818,38 +3902,185 @@ Your question:"""
         
         # Generate targeted question based on missing information
         if missing_terms:
-            # For location, be specific about upper/lower
+            # For location, be specific about upper/lower and provide options
             if oldcarts_element == 'L':
                 if any('upper' in term or 'ruq' in term or 'luq' in term for term in missing_terms) and \
                    any('lower' in term or 'rlq' in term or 'llq' in term for term in missing_terms):
-                    return "Is it in the upper part (below ribs) or lower part (near hip) of your abdomen?"
+                    return "To help narrow down the cause, is the pain in the upper part of your abdomen (below your ribs) or the lower part (near your hip)? You can also describe it in your own words."
                 elif any('upper' in term or 'ruq' in term or 'luq' in term for term in missing_terms):
-                    return "Is it in the upper part of your abdomen (below your ribs)?"
+                    return "Is the pain in the upper part of your abdomen (below your ribs)? If you're not sure, you can describe what you feel."
                 elif any('lower' in term or 'rlq' in term or 'llq' in term for term in missing_terms):
-                    return "Is it in the lower part of your abdomen (near your hip)?"
+                    return "Is the pain in the lower part of your abdomen (near your hip)? If you're not sure, you can describe what you feel."
+                else:
+                    # Generic location clarification with options
+                    return "Can you be more specific about where exactly the pain is? For example, is it in the upper abdomen (below ribs), lower abdomen (near hip), center, or somewhere else? You can describe it in your own words."
             
             # For duration, be specific about time
             elif oldcarts_element == 'D':
                 if any('hour' in term or 'minute' in term for term in missing_terms):
-                    return "How long does it last - minutes, hours, or days?"
+                    return "How long does each episode last - minutes, hours, or days? If it varies, you can describe the pattern."
             
-            # For character, ask about quality
+            # For character, ask about quality with options
             elif oldcarts_element == 'C':
-                return f"Can you describe the pain more specifically? Is it sharp, dull, crampy, or burning?"
+                return "Can you describe what the pain feels like? For example, is it sharp, dull, crampy, burning, stabbing, or something else? You can use your own words."
+            
+            # For other elements, provide helpful options
+            elif oldcarts_element == 'A':
+                return "What makes the pain worse? For example, does it get worse with movement, eating, breathing, or something else?"
+            elif oldcarts_element == 'R':
+                return "What helps make the pain better? For example, does rest, heat, cold, or certain positions help?"
+            elif oldcarts_element == 'T':
+                return "Does the pain come and go, or does it stay constant? If it comes and goes, describe the pattern."
+            elif oldcarts_element == 'S':
+                return "How severe is the pain on a scale of 1 to 10, where 1 is mild and 10 is unbearable? You can also describe it in your own words."
+            elif oldcarts_element == 'O':
+                return "Can you describe when the pain started? For example, was it sudden, gradual, or something else?"
         
-        # Fallback to generic question
+        # Fallback to helpful questions with options
         element_questions = {
-            'L': "Can you be more specific about the location?",
-            'D': "Can you be more specific about the duration?",
-            'C': "Can you describe what it feels like?",
-            'A': "What makes it worse?",
-            'R': "What helps make it better?",
-            'T': "Does it come and go or stay constant?",
-            'S': "How severe is it on a scale of 1 to 10?",
-            'O': "Can you describe when it started?"
+            'L': "Can you be more specific about the location? For example, upper abdomen (below ribs), lower abdomen (near hip), center, or describe it in your own words.",
+            'D': "Can you be more specific about the duration? For example, minutes, hours, days, or describe the pattern.",
+            'C': "Can you describe what it feels like? For example, sharp, dull, crampy, burning, or use your own words.",
+            'A': "What makes it worse? For example, movement, eating, breathing, or something else?",
+            'R': "What helps make it better? For example, rest, heat, cold, or certain positions?",
+            'T': "Does it come and go or stay constant? If it varies, describe the pattern.",
+            'S': "How severe is it on a scale of 1 to 10, or describe it in your own words.",
+            'O': "Can you describe when it started? For example, sudden, gradual, or use your own words."
         }
         
-        return element_questions.get(oldcarts_element, "Can you provide more detail?")
+        return element_questions.get(oldcarts_element, "Can you provide more detail? You can describe it in your own words.")
+    
+    def _is_follow_up_question(self, user_answer: str) -> bool:
+        """
+        Check if the user is asking a follow-up question for clarification
+        
+        Args:
+            user_answer: User's response
+            
+        Returns:
+            True if this is a follow-up question
+        """
+        follow_up_indicators = [
+            'what do you mean',
+            'i don\'t understand',
+            'i dont understand',
+            'can you explain',
+            'what does that mean',
+            'i\'m not sure what you mean',
+            'im not sure what you mean',
+            'could you clarify',
+            'can you clarify',
+            'what are you asking',
+            'i don\'t know what you mean',
+            'i dont know what you mean',
+            'help me understand',
+            'i need help',
+            'what should i say',
+            'how do i answer',
+            'what do you want to know'
+        ]
+        
+        answer_lower = user_answer.lower().strip()
+        
+        # Check for question marks or question words
+        is_question = '?' in answer_lower or any(word in answer_lower for word in ['what', 'how', 'why', 'when', 'where', 'which', 'who'])
+        
+        # Check for follow-up indicators
+        is_follow_up = any(indicator in answer_lower for indicator in follow_up_indicators)
+        
+        return is_question or is_follow_up
+    
+    def _handle_follow_up_question(self, user_answer: str, last_question: dict) -> Dict[str, Any]:
+        """
+        Handle follow-up questions from the patient using LLM
+        
+        Args:
+            user_answer: Patient's follow-up question
+            last_question: The last question that was asked
+            
+        Returns:
+            Response with clarification or rephrased question
+        """
+        self._capture_debug(f"[Engine] 🤔 Patient asking follow-up question: '{user_answer}'")
+        
+        # Get the context of what we're asking about
+        question_text = last_question.get('question', '')
+        oldcarts_element = last_question.get('oldcarts', '')
+        
+        # Create a helpful explanation using LLM with conversation context
+        try:
+            # Use the LLM to generate a natural explanation with full conversation context
+            explanation_prompt = f"""The patient asked: "{user_answer}" in response to your question: "{question_text}"
+
+The patient seems confused about what you're asking. Provide a helpful, natural explanation that:
+1. Acknowledges their confusion
+2. Explains what you're looking for in simple terms  
+3. Gives them specific examples or options
+4. Encourages them to answer in their own words
+
+Be conversational and reassuring. Don't be too technical."""
+            
+            # Use the LLM to generate a response with full conversation context
+            llm_response = self._call_llm(explanation_prompt, max_tokens=200, use_context=True)
+            
+            if llm_response and llm_response.strip():
+                self._capture_debug(f"[Engine] 🤖 LLM generated explanation: '{llm_response}'")
+                
+                # Add the explanation to conversation history
+                self.conversation_history.append({
+                    'type': 'explanation',
+                    'explanation': llm_response,
+                    'in_response_to': user_answer,
+                    'for_question': question_text
+                })
+                
+                return {
+                    'success': True,
+                    'message': llm_response,
+                    'status': 'questioning',
+                    'needs_clarification': True,
+                    'debug': self._get_debug_info()
+                }
+            else:
+                # Fallback if LLM fails
+                return self._generate_fallback_explanation(question_text, oldcarts_element)
+                
+        except Exception as e:
+            self._capture_debug(f"[Engine] ⚠️ Error generating LLM explanation: {e}")
+            return self._generate_fallback_explanation(question_text, oldcarts_element)
+    
+    def _generate_fallback_explanation(self, question_text: str, oldcarts_element: str) -> Dict[str, Any]:
+        """
+        Generate a fallback explanation when LLM is not available
+        
+        Args:
+            question_text: The original question
+            oldcarts_element: The OLDCARTS element being asked about
+            
+        Returns:
+            Response with fallback explanation
+        """
+        element_explanations = {
+            'location': "I'm trying to understand exactly where your pain is located. For example, is it in the upper part of your abdomen (below your ribs), the lower part (near your hip), or somewhere else? You can describe it however makes sense to you.",
+            'onset': "I'm asking about when your pain started. For example, did it begin suddenly, gradually, or was there a specific trigger? You can describe it in your own words.",
+            'duration': "I want to know how long the pain lasts. For example, does it last minutes, hours, or days? If it varies, you can describe the pattern.",
+            'character': "I'm asking what the pain feels like. For example, is it sharp, dull, crampy, burning, or something else? Use whatever words describe it best for you.",
+            'aggravating': "I want to know what makes your pain worse. For example, does it get worse with movement, eating, breathing, or something else?",
+            'relieving': "I'm asking what helps make your pain better. For example, does rest, heat, cold, or certain positions help?",
+            'timing': "I want to understand the pattern of your pain. For example, does it come and go, or does it stay constant? If it varies, describe the pattern.",
+            'severity': "I'm asking how severe your pain is. You can use a scale of 1 to 10, or just describe it in your own words."
+        }
+        
+        explanation = element_explanations.get(oldcarts_element, 
+            "I'm asking about your symptoms to help understand what might be causing them. Please answer in whatever way makes sense to you - there's no wrong answer.")
+        
+        return {
+            'success': True,
+            'message': explanation,
+            'status': 'questioning',
+            'needs_clarification': True,
+            'debug': self._get_debug_info()
+        }
     
     def _parse_prompt_against_structured_oldcarts(self, prompt: str, guidelines: List[Dict]) -> Dict[str, Any]:
         """

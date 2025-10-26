@@ -430,6 +430,212 @@ class MedicalRuleEngine:
             'spatial_term_count': len(re.findall(r'quadrant|side|flank|epigastric|midline|chest|back', text_lower))
         }
     
+    def _compute_duration_similarity(self, patient_text: str, guideline_text: str) -> Dict[str, Any]:
+        """
+        Special handling for duration/time-based similarity
+        
+        Args:
+            patient_text: Patient's duration response (e.g., "1 day", "2 hours", "constant")
+            guideline_text: Guideline text containing duration information
+            
+        Returns:
+            Duration-specific similarity result or None if not applicable
+        """
+        # Check if this looks like a duration question
+        duration_indicators = ['day', 'hour', 'minute', 'week', 'month', 'constant', 'intermittent', 'episodic', 'persistent']
+        patient_lower = patient_text.lower()
+        guideline_lower = guideline_text.lower()
+        
+        # Only apply duration logic if patient text contains time references
+        if not any(indicator in patient_lower for indicator in duration_indicators):
+            return None
+        
+        # Extract time references from patient text
+        patient_time = self._extract_time_reference(patient_text)
+        if not patient_time:
+            return None
+        
+        # Extract time references from guideline text
+        guideline_times = self._extract_guideline_times(guideline_text)
+        if not guideline_times:
+            return None
+        
+        # Compute duration similarity
+        similarity = self._match_duration_times(patient_time, guideline_times)
+        
+        return {
+            'similarity': similarity,
+            'method': 'duration_specialized',
+            'confidence': 'high' if similarity > 0.7 else 'medium',
+            'reasoning': f'Duration match: {patient_time} vs {guideline_times}',
+            'anatomical_type': 'duration',
+            'semantic_score': similarity
+        }
+    
+    def _extract_time_reference(self, text: str) -> Dict[str, Any]:
+        """Extract time reference from patient text"""
+        text_lower = text.lower().strip()
+        
+        # Parse various time formats
+        time_patterns = [
+            (r'(\d+)\s*days?', 'days'),
+            (r'(\d+)\s*hours?', 'hours'), 
+            (r'(\d+)\s*minutes?', 'minutes'),
+            (r'(\d+)\s*weeks?', 'weeks'),
+            (r'(\d+)\s*months?', 'months'),
+            (r'constant', 'constant'),
+            (r'intermittent', 'intermittent'),
+            (r'episodic', 'episodic'),
+            (r'persistent', 'persistent')
+        ]
+        
+        for pattern, unit in time_patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                if unit in ['constant', 'intermittent', 'episodic', 'persistent']:
+                    return {'type': 'qualitative', 'value': unit, 'text': text}
+                else:
+                    return {'type': 'quantitative', 'value': int(match.group(1)), 'unit': unit, 'text': text}
+        
+        return None
+    
+    def _extract_guideline_times(self, text: str) -> List[Dict[str, Any]]:
+        """Extract time references from guideline text"""
+        text_lower = text.lower()
+        times = []
+        
+        # Look for specific duration patterns in medical text
+        duration_patterns = [
+            (r'(\d+)\s*to\s*(\d+)\s*hours?', 'hours_range'),
+            (r'(\d+)\s*-\s*(\d+)\s*hours?', 'hours_range'),
+            (r'(\d+)\s*to\s*(\d+)\s*days?', 'days_range'),
+            (r'(\d+)\s*-\s*(\d+)\s*days?', 'days_range'),
+            (r'(\d+)\s*to\s*(\d+)\s*minutes?', 'minutes_range'),
+            (r'(\d+)\s*-\s*(\d+)\s*minutes?', 'minutes_range'),
+            (r'(\d+)\s*hours?', 'hours'),
+            (r'(\d+)\s*days?', 'days'),
+            (r'(\d+)\s*minutes?', 'minutes'),
+            (r'(\d+)\s*weeks?', 'weeks'),
+            (r'(\d+)\s*months?', 'months'),
+            (r'constant', 'constant'),
+            (r'intermittent', 'intermittent'),
+            (r'episodic', 'episodic'),
+            (r'persistent', 'persistent'),
+            (r'lasting\s*(\d+)\s*hours?', 'hours'),
+            (r'lasting\s*(\d+)\s*days?', 'days'),
+            (r'lasting\s*(\d+)\s*minutes?', 'minutes')
+        ]
+        
+        for pattern, unit in duration_patterns:
+            matches = re.finditer(pattern, text_lower)
+            for match in matches:
+                if 'range' in unit:
+                    # Handle ranges like "6-12 hours"
+                    start_val = int(match.group(1))
+                    end_val = int(match.group(2))
+                    times.append({
+                        'type': 'range',
+                        'start': start_val,
+                        'end': end_val,
+                        'unit': unit.replace('_range', ''),
+                        'text': match.group(0)
+                    })
+                else:
+                    # Handle single values
+                    value = int(match.group(1)) if match.group(1) else 0
+                    times.append({
+                        'type': 'single',
+                        'value': value,
+                        'unit': unit,
+                        'text': match.group(0)
+                    })
+        
+        return times
+    
+    def _match_duration_times(self, patient_time: Dict[str, Any], guideline_times: List[Dict[str, Any]]) -> float:
+        """Match patient time against guideline times"""
+        if not patient_time or not guideline_times:
+            return 0.0
+        
+        # Convert patient time to hours for comparison
+        patient_hours = self._convert_to_hours(patient_time)
+        if patient_hours is None:
+            return 0.0
+        
+        best_match = 0.0
+        
+        for guideline_time in guideline_times:
+            if guideline_time['type'] == 'range':
+                # Check if patient time falls within range
+                guideline_start = self._convert_to_hours(guideline_time)
+                guideline_end = self._convert_to_hours(guideline_time)
+                
+                if guideline_start <= patient_hours <= guideline_end:
+                    # Perfect match within range
+                    match_score = 1.0
+                elif patient_hours < guideline_start:
+                    # Patient time is shorter - partial match
+                    match_score = max(0.0, 1.0 - (guideline_start - patient_hours) / guideline_start)
+                else:
+                    # Patient time is longer - partial match
+                    match_score = max(0.0, 1.0 - (patient_hours - guideline_end) / guideline_end)
+                
+                best_match = max(best_match, match_score)
+                
+            elif guideline_time['type'] == 'single':
+                # Check single value match
+                guideline_hours = self._convert_to_hours(guideline_time)
+                if guideline_hours is not None:
+                    if patient_hours == guideline_hours:
+                        match_score = 1.0
+                    else:
+                        # Calculate similarity based on ratio
+                        ratio = min(patient_hours, guideline_hours) / max(patient_hours, guideline_hours)
+                        match_score = ratio
+                    
+                    best_match = max(best_match, match_score)
+        
+        return best_match
+    
+    def _convert_to_hours(self, time_ref: Dict[str, Any]) -> float:
+        """Convert time reference to hours for comparison"""
+        if time_ref['type'] == 'qualitative':
+            # Handle qualitative terms
+            if time_ref['value'] == 'constant':
+                return 24.0  # Assume constant means all day
+            elif time_ref['value'] in ['intermittent', 'episodic']:
+                return 0.5  # Short episodes
+            elif time_ref['value'] == 'persistent':
+                return 12.0  # Persistent but not necessarily constant
+            else:
+                return 0.0
+        
+        elif time_ref['type'] == 'quantitative':
+            # Convert to hours
+            value = time_ref['value']
+            unit = time_ref['unit']
+            
+            if unit == 'hours':
+                return float(value)
+            elif unit == 'days':
+                return float(value * 24)
+            elif unit == 'minutes':
+                return float(value) / 60.0
+            elif unit == 'weeks':
+                return float(value * 24 * 7)
+            elif unit == 'months':
+                return float(value * 24 * 30)  # Approximate
+            else:
+                return 0.0
+        
+        elif time_ref['type'] == 'range':
+            # For ranges, return the midpoint
+            start_hours = self._convert_to_hours({'type': 'quantitative', 'value': time_ref['start'], 'unit': time_ref['unit']})
+            end_hours = self._convert_to_hours({'type': 'quantitative', 'value': time_ref['end'], 'unit': time_ref['unit']})
+            return (start_hours + end_hours) / 2.0
+        
+        return 0.0
+    
     def _compute_embedding_similarity(self, patient_text: str, guideline_text: str) -> Dict[str, Any]:
         """
         Compute semantic similarity using embedding model
@@ -447,6 +653,11 @@ class MedicalRuleEngine:
             return self._compute_semantic_similarity(patient_text, guideline_text)
         
         try:
+            # SPECIAL HANDLING FOR DURATION: Extract and normalize time references
+            duration_similarity = self._compute_duration_similarity(patient_text, guideline_text)
+            if duration_similarity is not None:
+                return duration_similarity
+            
             # Encode both texts into embeddings
             embeddings = self.embedding_model.encode([patient_text, guideline_text])
             patient_emb = embeddings[0]
