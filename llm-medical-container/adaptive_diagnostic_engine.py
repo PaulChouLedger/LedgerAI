@@ -3396,14 +3396,6 @@ Normalized text:"""
                     self._capture_debug(f"[Engine] 🔍 GUIDELINE LOCATION DEBUG:")
                     self._capture_debug(f"[Engine]   Condition: {condition_name}")
                     self._capture_debug(f"[Engine]   Location text: '{location_text}'")
-                    
-                    guideline_terms = self._extract_anatomical_terms(section['location_text'])
-                    all_guideline_terms.update(guideline_terms)
-                    
-                    self._capture_debug(f"[Engine]   Extracted terms: {guideline_terms}")
-                
-                # Extract terms from patient answer
-                patient_terms = self._extract_anatomical_terms(answer)
                 
                 # ALWAYS calculate segmental gaps - check for competing anatomical regions
                 # Use FULL LOCATION BLOCKS (much simpler and more reliable than term extraction)
@@ -3474,29 +3466,24 @@ Normalized text:"""
                 self._capture_debug(f"[Engine]   Competition detected: {oldcarts_result['has_competition']}")
                 self._capture_debug(f"[Engine]   Best similarity: {oldcarts_result['best_similarity']:.0%}")
                 
-                # CONTAINMENT SIMILARITY: Patient words found in guidelines (much better than Jaccard)
-                # "eating" in "eating may worsen..." = 100% containment ✅
-                if oldcarts_result['has_competition'] or oldcarts_result['best_similarity'] < 0.5:
-                    # Competition detected OR low containment - need clarification
+                # SIMPLIFIED LOGIC: Only ask clarification if containment is VERY low (<30%)
+                # If patient word appears in ANY guideline, accept it (even if negated)
+                # Structured guidelines will handle exclusions explicitly via includes/excludes
+                if oldcarts_result['best_similarity'] < 0.3:
+                    # Very low containment - patient word not found anywhere - need clarification
                     needs_clarification_for_specificity = True
                     is_clear_answer = False
                     missing_specificity_terms = oldcarts_result['competing_terms']
                     self._capture_debug(f"[Engine] 🎯 OLDCARTS SPECIFICITY GAP ({oldcarts_element}):")
-                    
-                    # Better debug messages
-                    if oldcarts_result['has_competition']:
-                        self._capture_debug(f"[Engine]   Reason: Multiple strong matches detected (>50% threshold)")
-                    else:
-                        self._capture_debug(f"[Engine]   Reason: Low containment {oldcarts_result['best_similarity']:.0%} < 50% threshold")
-                    
-                    self._capture_debug(f"[Engine]   Competing descriptions: {oldcarts_result['competing_terms']}")
+                    self._capture_debug(f"[Engine]   Reason: Very low containment {oldcarts_result['best_similarity']:.0%} < 30% threshold")
+                    self._capture_debug(f"[Engine]   Patient word not found in any guideline - need clarification")
                 else:
-                    # Good containment - accept answer
+                    # Word found in at least one guideline - accept answer
                     needs_clarification_for_specificity = False
                     is_clear_answer = True
                     missing_specificity_terms = []
                     self._capture_debug(f"[Engine] ✅ OLDCARTS ANSWER ACCEPTED ({oldcarts_element}):")
-                    self._capture_debug(f"[Engine]   Containment {oldcarts_result['best_similarity']:.0%} >= 50% - accepting answer")
+                    self._capture_debug(f"[Engine]   Containment {oldcarts_result['best_similarity']:.0%} >= 30% - word found in guidelines, accepting")
             else:
                 # No matching sections found - consider clear to avoid infinite loops
                 is_clear_answer = True
@@ -4409,49 +4396,8 @@ Your question:"""
             self._capture_debug(f"[Engine] ⚠️ Error in dynamic location scoring: {e}")
             return False
     
-    def _generate_location_follow_up_question(self, vague_answer: str) -> str:
-        """
-        Generate intelligent follow-up question by analyzing missing information
-        Compares user response to precise locations in guidelines to identify gaps
-        """
-        answer_lower = vague_answer.lower().strip()
-        
-        # Get specific locations from guidelines, filtered by context
-        specific_locations = self._extract_specific_locations_from_guidelines()
-        
-        if not specific_locations:
-            return "Can you be more specific about the exact location?"
-        
-        # No context filtering needed - LLM has chief complaint context
-        
-        if not specific_locations:
-            return "Can you be more specific about the exact location?"
-        
-        try:
-            # Find the best matching specific location
-            best_match = None
-            best_score = 0.0
-            
-            for specific_loc in specific_locations:
-                score = self._calculate_semantic_similarity(answer_lower, specific_loc)
-                if score > best_score:
-                    best_score = score
-                    best_match = specific_loc
-            
-            if best_match:
-                # Analyze what information is missing by comparing to the best match
-                missing_info = self._analyze_missing_location_info(answer_lower, best_match)
-                
-                if missing_info:
-                    return f"Can you be more specific about {missing_info}?"
-                else:
-                    return f"Can you be more specific about the exact location?"
-            else:
-                return "Can you be more specific about the exact location?"
-                
-        except Exception as e:
-            self._capture_debug(f"[Engine] ⚠️ Error generating location follow-up: {e}")
-            return "Can you be more specific about the exact location?"
+    # OBSOLETE: Replaced by _detect_anatomical_competition() which uses full text blocks
+    # def _generate_location_follow_up_question(self, vague_answer: str) -> str:
     
     def _calculate_semantic_similarity(self, text1: str, text2: str) -> float:
         """
@@ -4468,92 +4414,26 @@ Your question:"""
             self._capture_debug(f"[Engine] ❌ Error calculating semantic similarity: {e}")
             raise RuntimeError(f"Failed to calculate semantic similarity: {e}")
     
-    def _is_location_compatible(self, patient_answer: str, guideline_location: str) -> bool:
-        """
-        Check if patient's location answer is compatible with guideline location
-        (e.g., "left side" is compatible with "LEFT LOWER QUADRANT")
-        """
-        patient_lower = patient_answer.lower()
-        guideline_lower = guideline_location.lower()
-        
-        # Check for side compatibility
-        patient_has_left = any(term in patient_lower for term in ['left', 'l '])
-        patient_has_right = any(term in patient_lower for term in ['right', 'r '])
-        guideline_has_left = any(term in guideline_lower for term in ['left', 'llq', 'luq'])
-        guideline_has_right = any(term in guideline_lower for term in ['right', 'rlq', 'ruq'])
-        
-        # If patient specified a side, guideline must match that side
-        if patient_has_left and guideline_has_right:
-            return False
-        if patient_has_right and guideline_has_left:
-            return False
-        
-        # Check for general area compatibility (abdomen, chest, etc.)
-        patient_has_abdomen = any(term in patient_lower for term in ['abdomen', 'belly', 'stomach'])
-        guideline_has_abdomen = any(term in guideline_lower for term in ['abdomen', 'quadrant', 'epigastric', 'periumbilical', 'hypogastric', 'suprapubic'])
-        
-        # If patient mentioned abdomen, guideline should be abdominal
-        if patient_has_abdomen and not guideline_has_abdomen:
-            return False
-        
-        return True
+    # OBSOLETE: Replaced by _detect_anatomical_competition() with full text block matching
+    # def _is_location_compatible(self, patient_answer: str, guideline_location: str) -> bool:
     
-    def _extract_anatomical_terms(self, text: str) -> set:
-        """
-        Extract anatomical specificity terms from text
-        Returns set of anatomical descriptors found
-        """
-        text_lower = text.lower()
-        anatomical_terms = set()
-        
-        # Directional terms
-        if 'upper' in text_lower:
-            anatomical_terms.add('upper')
-        if 'lower' in text_lower:
-            anatomical_terms.add('lower')
-        if 'left' in text_lower:
-            anatomical_terms.add('left')
-        if 'right' in text_lower:
-            anatomical_terms.add('right')
-        if 'center' in text_lower or 'central' in text_lower or 'middle' in text_lower:
-            anatomical_terms.add('central')
-        
-        # General anatomical regions
-        if 'quadrant' in text_lower:
-            anatomical_terms.add('quadrant')
-        if 'epigastric' in text_lower:
-            anatomical_terms.add('epigastric')
-        if 'periumbilical' in text_lower:
-            anatomical_terms.add('periumbilical')
-        if 'hypogastric' in text_lower:
-            anatomical_terms.add('hypogastric')
-        if 'suprapubic' in text_lower:
-            anatomical_terms.add('suprapubic')
-        if 'flank' in text_lower:
-            anatomical_terms.add('flank')
-        
-        # Quadrant abbreviations (CRITICAL: Keep specific terms for competition detection)
-        if 'rlq' in text_lower or 'right lower quadrant' in text_lower:
-            anatomical_terms.add('rlq')  # Keep specific term!
-            anatomical_terms.update(['right', 'lower', 'quadrant'])  # Also add components
-        if 'llq' in text_lower or 'left lower quadrant' in text_lower:
-            anatomical_terms.add('llq')  # Keep specific term!
-            anatomical_terms.update(['left', 'lower', 'quadrant'])
-        if 'ruq' in text_lower or 'right upper quadrant' in text_lower:
-            anatomical_terms.add('ruq')  # Keep specific term!
-            anatomical_terms.update(['right', 'upper', 'quadrant'])
-        if 'luq' in text_lower or 'left upper quadrant' in text_lower:
-            anatomical_terms.add('luq')  # Keep specific term!
-            anatomical_terms.update(['left', 'upper', 'quadrant'])
-        
-        return anatomical_terms
+    # OBSOLETE: Removed _extract_anatomical_terms() - replaced by inline pattern matching in _analyze_side_competition()
     
     def _detect_anatomical_competition(self, patient_answer: str, location_blocks: list) -> dict:
         """
-        Detect anatomical competition from full location blocks - MUCH simpler approach!
+        Detect anatomical competition using PURE text similarity - NO TERM EXTRACTION!
+        
+        Simple approach:
+        1. Compare patient answer to each guideline location block using containment similarity
+        2. If guidelines are highly similar to each other → no competition
+        3. If guidelines differ significantly → competition exists → ask for clarification
+        4. If patient answer matches ALL guidelines well → no clarification needed
+        5. If patient answer only matches SOME guidelines → clarification needed
+        
+        Works universally for all organ systems without any hard-coded terms!
         
         Args:
-            patient_answer: Patient's location response (e.g., "right side")  
+            patient_answer: Patient's location response (e.g., "right side", "upper back")  
             location_blocks: List of {'condition': str, 'location_text': str}
             
         Returns:
@@ -4563,98 +4443,65 @@ Your question:"""
                 'clarification_needed': bool
             }
         """
+        if not location_blocks:
+            return {
+                'has_competition': False,
+                'competing_areas': [],
+                'clarification_needed': False
+            }
+        
         patient_lower = patient_answer.lower()
         
-        # Check if patient mentioned a general side without specificity
-        patient_said_right = any(term in patient_lower for term in ['right', 'right side'])
-        patient_said_left = any(term in patient_lower for term in ['left', 'left side'])
-        
-        # Check if patient already provided specific location
-        patient_already_specific = any(term in patient_lower for term in [
-            'upper', 'lower', 'ruq', 'rlq', 'luq', 'llq', 'epigastric', 'periumbilical'
-        ])
-        
-        self._capture_debug(f"[Engine] 🔍 PATIENT ANALYSIS:")
-        self._capture_debug(f"[Engine]   Said right: {patient_said_right}")
-        self._capture_debug(f"[Engine]   Said left: {patient_said_left}")
-        self._capture_debug(f"[Engine]   Already specific: {patient_already_specific}")
-        
-        # If patient already gave specific location, no competition analysis needed
-        if patient_already_specific:
-            return {
-                'has_competition': False,
-                'competing_areas': [],
-                'clarification_needed': False
-            }
-        
-        # Analyze location blocks for competition
-        if patient_said_right:
-            return self._analyze_side_competition('right', location_blocks)
-        elif patient_said_left:
-            return self._analyze_side_competition('left', location_blocks)
-        else:
-            # Patient didn't specify a clear side
-            return {
-                'has_competition': False,
-                'competing_areas': [],
-                'clarification_needed': False
-            }
-    
-    def _analyze_side_competition(self, side: str, location_blocks: list) -> dict:
-        """
-        Analyze if there's upper/lower competition on the specified side
-        
-        Args:
-            side: 'right' or 'left'
-            location_blocks: List of location blocks to analyze
-            
-        Returns:
-            dict: Competition analysis results
-        """
-        has_upper = False
-        has_lower = False
-        competing_conditions = []
-        
+        # Calculate similarity between patient answer and each guideline
+        patient_similarities = []
         for block in location_blocks:
-            condition = block['condition']
             location_text = block['location_text'].lower()
-            
-            # Check if this condition is on the specified side
-            is_on_side = side in location_text
-            
-            if is_on_side:
-                # Check for upper/lower specificity
-                is_upper = any(term in location_text for term in [
-                    f'{side} upper', 'ruq' if side == 'right' else 'luq', 'upper quadrant'
-                ])
-                is_lower = any(term in location_text for term in [
-                    f'{side} lower', 'rlq' if side == 'right' else 'llq', 'lower quadrant'
-                ])
-                
-                self._capture_debug(f"[Engine] 🔍 CONDITION ANALYSIS:")
-                self._capture_debug(f"[Engine]   {condition}: side={side}, upper={is_upper}, lower={is_lower}")
-                
-                if is_upper:
-                    has_upper = True
-                    competing_conditions.append(f"{condition} (upper)")
-                if is_lower:
-                    has_lower = True
-                    competing_conditions.append(f"{condition} (lower)")
+            similarity = self._simple_containment_match(patient_lower, location_text)
+            patient_similarities.append(similarity)
         
-        # Determine competition
-        has_competition = has_upper and has_lower
-        competing_areas = ['upper', 'lower'] if has_competition else []
+        # Calculate similarity between guideline location blocks themselves
+        guideline_similarities = []
+        for i, block1 in enumerate(location_blocks):
+            for block2 in location_blocks[i+1:]:
+                similarity = self._simple_containment_match(
+                    block1['location_text'].lower(), 
+                    block2['location_text'].lower()
+                )
+                guideline_similarities.append(similarity)
         
-        self._capture_debug(f"[Engine] 🔍 SIDE COMPETITION RESULT ({side}):")
-        self._capture_debug(f"[Engine]   Has upper: {has_upper}")
-        self._capture_debug(f"[Engine]   Has lower: {has_lower}")
-        self._capture_debug(f"[Engine]   Competition: {has_competition}")
-        self._capture_debug(f"[Engine]   Competing conditions: {competing_conditions}")
+        avg_patient_similarity = sum(patient_similarities) / len(patient_similarities) if patient_similarities else 0
+        avg_guideline_similarity = sum(guideline_similarities) / len(guideline_similarities) if guideline_similarities else 1.0
         
+        self._capture_debug(f"[Engine] 🔍 LOCATION COMPETITION ANALYSIS:")
+        self._capture_debug(f"[Engine]   Patient answer: '{patient_answer}'")
+        self._capture_debug(f"[Engine]   Avg patient similarity to guidelines: {avg_patient_similarity:.1%}")
+        self._capture_debug(f"[Engine]   Avg guideline-to-guideline similarity: {avg_guideline_similarity:.1%}")
+        
+        # Decision logic:
+        # 1. If guidelines are very similar to each other (high internal similarity) → no competition
+        if avg_guideline_similarity > 0.7:
+            self._capture_debug(f"[Engine] ✅ Guidelines are similar - no competition")
+            return {
+                'has_competition': False,
+                'competing_areas': [],
+                'clarification_needed': False
+            }
+        
+        # 2. If patient answer matches all guidelines well → no clarification needed
+        if avg_patient_similarity > 0.5:
+            self._capture_debug(f"[Engine] ✅ Patient answer matches guidelines well - no clarification")
+            return {
+                'has_competition': False,
+                'competing_areas': [],
+                'clarification_needed': False
+            }
+        
+        # 3. Guidelines differ AND patient answer doesn't match well → competition exists → need clarification
+        self._capture_debug(f"[Engine] 🎯 COMPETITION DETECTED - Guidelines differ, patient vague")
         return {
-            'has_competition': has_competition,
-            'competing_areas': competing_areas,
-            'clarification_needed': has_competition  # Need clarification if there's competition
+            'has_competition': True,
+            'competing_areas': [block['condition'] for block in location_blocks],
+            'clarification_needed': True
         }
     
     def _detect_oldcarts_competition(self, patient_answer: str, oldcarts_element: str, matching_sections: list) -> dict:
@@ -4750,98 +4597,7 @@ Your question:"""
         return containment_score
     
     
-    def _extract_descriptive_terms(self, text: str, oldcarts_element: str) -> set:
-        """
-        Extract descriptive terms from text based on OLDCARTS element
-        Universal method that works for any OLDCARTS component
-        """
-        text_lower = text.lower()
-        descriptive_terms = set()
-        
-        if oldcarts_element == 'L':  # Location
-            return self._extract_anatomical_terms(text)
-        
-        elif oldcarts_element == 'D':  # Duration
-            # Time units and descriptors
-            if any(term in text_lower for term in ['minute', 'min']):
-                descriptive_terms.add('minutes')
-            if any(term in text_lower for term in ['hour', 'hr']):
-                descriptive_terms.add('hours')
-            if any(term in text_lower for term in ['day']):
-                descriptive_terms.add('days')
-            if any(term in text_lower for term in ['week']):
-                descriptive_terms.add('weeks')
-            if any(term in text_lower for term in ['month']):
-                descriptive_terms.add('months')
-            if any(term in text_lower for term in ['second']):
-                descriptive_terms.add('seconds')
-            if any(term in text_lower for term in ['constant', 'continuous', 'persistent']):
-                descriptive_terms.add('continuous')
-            if any(term in text_lower for term in ['intermittent', 'comes and goes', 'comes and go', 'come and go', 'on and off']):
-                descriptive_terms.add('intermittent')
-        
-        elif oldcarts_element == 'C':  # Character
-            # Pain descriptors
-            if any(term in text_lower for term in ['sharp', 'stabbing', 'knife-like']):
-                descriptive_terms.add('sharp')
-            if any(term in text_lower for term in ['dull', 'aching', 'sore']):
-                descriptive_terms.add('dull')
-            if any(term in text_lower for term in ['burning', 'hot']):
-                descriptive_terms.add('burning')
-            if any(term in text_lower for term in ['cramping', 'cramp', 'spasm']):
-                descriptive_terms.add('cramping')
-            if any(term in text_lower for term in ['throbbing', 'pulsating']):
-                descriptive_terms.add('throbbing')
-            if any(term in text_lower for term in ['pressure', 'squeezing', 'tight']):
-                descriptive_terms.add('pressure')
-        
-        elif oldcarts_element == 'T':  # Timing
-            if any(term in text_lower for term in ['constant', 'continuous', 'all the time']):
-                descriptive_terms.add('constant')
-            if any(term in text_lower for term in ['intermittent', 'comes and goes', 'comes and go', 'come and go', 'on and off']):
-                descriptive_terms.add('intermittent')
-            if any(term in text_lower for term in ['waves', 'wave-like', 'cyclical']):
-                descriptive_terms.add('waves')
-        
-        elif oldcarts_element == 'A':  # Aggravating
-            if any(term in text_lower for term in ['movement', 'moving', 'activity']):
-                descriptive_terms.add('movement')
-            if any(term in text_lower for term in ['eating', 'food', 'meal']):
-                descriptive_terms.add('eating')
-            if any(term in text_lower for term in ['breathing', 'cough', 'deep breath']):
-                descriptive_terms.add('breathing')
-            if any(term in text_lower for term in ['position', 'lying', 'sitting', 'standing']):
-                descriptive_terms.add('position')
-        
-        elif oldcarts_element == 'R':  # Relieving
-            if any(term in text_lower for term in ['rest', 'lying down', 'sitting']):
-                descriptive_terms.add('rest')
-            if any(term in text_lower for term in ['medication', 'medicine', 'pills']):
-                descriptive_terms.add('medication')
-            if any(term in text_lower for term in ['heat', 'warm', 'hot']):
-                descriptive_terms.add('heat')
-            if any(term in text_lower for term in ['cold', 'ice']):
-                descriptive_terms.add('cold')
-            if any(term in text_lower for term in ['nothing', 'no relief']):
-                descriptive_terms.add('nothing')
-        
-        elif oldcarts_element == 'S':  # Severity
-            # Extract numeric severity if present
-            import re
-            numbers = re.findall(r'\b(\d+)\b', text_lower)
-            for num in numbers:
-                if 1 <= int(num) <= 10:
-                    descriptive_terms.add(f'scale_{num}')
-            
-            # Severity descriptors
-            if any(term in text_lower for term in ['mild', 'slight', 'minor']):
-                descriptive_terms.add('mild')
-            if any(term in text_lower for term in ['moderate', 'medium']):
-                descriptive_terms.add('moderate')
-            if any(term in text_lower for term in ['severe', 'intense', 'excruciating']):
-                descriptive_terms.add('severe')
-        
-        return descriptive_terms
+    # OBSOLETE: Removed _extract_descriptive_terms() - replaced by _simple_containment_match() for full text blocks
     
     
     def _was_clarification_just_asked(self) -> bool:
@@ -4861,82 +4617,22 @@ Your question:"""
     
     def _generate_clarifying_question(self, oldcarts_element: str, patient_answer: str, clarification_count: int, missing_terms: list = None) -> str:
         """
-        Generate a clarifying question based on missing specificity terms from guidelines
-        Uses universal approach - asks for specific missing information
+        Generate a simple clarifying question based on OLDCARTS element
+        Now simplified - no longer needs complex hard-coded term matching
         """
-        if missing_terms and len(missing_terms) > 0:
-            # Generate targeted question based on missing specificity
-            if oldcarts_element == 'L':  # Location
-                if 'upper' in missing_terms or 'lower' in missing_terms:
-                    return "Can you be more specific about the upper or lower part?"
-                elif 'quadrant' in missing_terms:
-                    return "Can you describe which quadrant or specific area?"
-                elif any(term in missing_terms for term in ['epigastric', 'periumbilical', 'hypogastric']):
-                    return "Can you be more specific about the exact location in your abdomen?"
-                else:
-                    return f"Can you provide more detail about the location?"
-            
-            elif oldcarts_element == 'D':  # Duration
-                if any(term in missing_terms for term in ['minutes', 'hours', 'days']):
-                    return "Can you be more specific about how long it lasts - minutes, hours, or longer?"
-                elif 'continuous' in missing_terms or 'intermittent' in missing_terms:
-                    return "Is it continuous or does it come and go?"
-                else:
-                    return "Can you describe the duration more specifically?"
-            
-            elif oldcarts_element == 'C':  # Character
-                if 'sharp' in missing_terms or 'dull' in missing_terms:
-                    return "Would you describe it as sharp or dull?"
-                elif 'cramping' in missing_terms:
-                    return "Does it feel like cramping or a different type of pain?"
-                elif 'burning' in missing_terms:
-                    return "Is there any burning sensation?"
-                else:
-                    return "Can you describe what the pain feels like?"
-            
-            elif oldcarts_element == 'T':  # Timing
-                if 'constant' in missing_terms or 'intermittent' in missing_terms:
-                    return "Is it constant or does it come and go?"
-                elif 'waves' in missing_terms:
-                    return "Does it come in waves or cycles?"
-                else:
-                    return "Can you describe the pattern of the symptoms?"
-            
-            elif oldcarts_element == 'A':  # Aggravating
-                if 'movement' in missing_terms:
-                    return "Does movement make it worse?"
-                elif 'eating' in missing_terms:
-                    return "Does eating affect it?"
-                else:
-                    return "What makes it worse?"
-            
-            elif oldcarts_element == 'R':  # Relieving
-                if 'rest' in missing_terms:
-                    return "Does rest help?"
-                elif 'medication' in missing_terms:
-                    return "Have you tried any medications?"
-                else:
-                    return "What helps make it better?"
-            
-            elif oldcarts_element == 'S':  # Severity
-                # Check if patient already provided a numeric scale
-                import re
-                has_number = bool(re.search(r'\b([1-9]|10)\b', patient_answer))
-                if has_number:
-                    return None  # Don't ask clarification if they already gave a number
-                elif any(f'scale_{i}' in missing_terms for i in range(1, 11)):
-                    return "On a scale of 1 to 10, how severe is it?"
-                else:
-                    return "How severe would you say it is?"
-        
-        # Fallback to generic clarification
-        element_names = {
-            'L': 'location', 'D': 'duration', 'C': 'character', 
-            'A': 'aggravating factors', 'R': 'relieving factors', 
-            'T': 'timing', 'S': 'severity'
+        # Simple question templates based on OLDCARTS element
+        element_questions = {
+            'L': "Can you be more specific about the location?",
+            'D': "Can you be more specific about the duration?",
+            'C': "Can you describe what it feels like?",
+            'A': "What makes it worse?",
+            'R': "What helps make it better?",
+            'T': "Does it come and go or stay constant?",
+            'S': "How severe is it on a scale of 1 to 10?",
+            'O': "Can you describe when it started?"
         }
-        element_name = element_names.get(oldcarts_element, 'symptom')
-        return f"Can you provide more detail about the {element_name}?"
+        
+        return element_questions.get(oldcarts_element, "Can you provide more detail?")
     
     def _simple_text_similarity(self, text1: str, text2: str) -> float:
         """
@@ -4958,124 +4654,7 @@ Your question:"""
         return len(intersection) / len(union) if union else 0.0
     
     
-    def _analyze_missing_location_info(self, user_answer: str, best_match: str) -> str:
-        """
-        Analyze what specific information is missing from user's answer
-        by comparing it to the best matching precise location
-        """
-        user_words = set(user_answer.lower().split())
-        match_words = set(best_match.lower().split())
-        
-        # Common anatomical descriptors that might be missing
-        missing_descriptors = []
-        
-        # Check for missing directional information
-        if 'left' in match_words and 'left' not in user_words:
-            missing_descriptors.append('left or right side')
-        elif 'right' in match_words and 'right' not in user_words:
-            missing_descriptors.append('left or right side')
-        
-        # Check for missing positional information
-        if 'upper' in match_words and 'upper' not in user_words:
-            missing_descriptors.append('upper or lower part')
-        elif 'lower' in match_words and 'lower' not in user_words:
-            missing_descriptors.append('upper or lower part')
-        
-        # Check for missing quadrant information
-        if 'quadrant' in match_words and 'quadrant' not in user_words:
-            missing_descriptors.append('which quadrant')
-        
-        # Check for missing specific anatomical terms
-        anatomical_terms = ['epigastric', 'periumbilical', 'suprapubic', 'flank', 'groin']
-        for term in anatomical_terms:
-            if term in match_words and term not in user_words:
-                missing_descriptors.append(f'the {term} area')
-        
-        # No context filtering needed - LLM has chief complaint context
-        
-        # Return the most relevant missing information
-        if missing_descriptors:
-            return missing_descriptors[0]  # Return the first missing descriptor
-        else:
-            return "the exact location"
-    
-    def _extract_specific_locations_from_guidelines(self) -> list:
-        """
-        Extract specific anatomical locations from medical guidelines
-        This creates a dynamic database of precise locations for comparison
-        Uses session-matched guidelines if available, otherwise all guidelines
-        """
-        specific_locations = set()
-        
-        try:
-            # Use session-matched guidelines if available, otherwise all guidelines
-            if hasattr(self, 'active_guidelines') and self.active_guidelines:
-                # Use only the active guidelines from the current session
-                guidelines_to_use = self.active_guidelines + self.reserve_pool
-                self._capture_debug(f"[Engine] 🧠 Using session-matched guidelines: {len(guidelines_to_use)} guidelines")
-            else:
-                raise RuntimeError("No session-matched guidelines available - session not properly initialized")
-            
-            # Extract locations from the selected guidelines
-            for guideline_info in guidelines_to_use:
-                if isinstance(guideline_info, tuple):
-                    # Format: (name, guideline)
-                    condition_name, guideline = guideline_info
-                else:
-                    # Format: {'name': name, 'data': guideline}
-                    condition_name = guideline_info['name']
-                    guideline = guideline_info['data']
-                # Get content from key_features field
-                content = ""
-                if 'key_features' in guideline and 'classic_presentation' in guideline['key_features']:
-                    content = guideline['key_features']['classic_presentation']
-                elif 'key_features' in guideline:
-                    content = str(guideline['key_features'])
-                
-                if content:
-                    
-                    # Look for capitalized anatomical terms (likely specific locations)
-                    import re
-                    
-                    # Pattern to find anatomical terms (both capitalized and lowercase)
-                    anatomical_patterns = [
-                        # Quadrant patterns
-                        r'\b(?:left|right|upper|lower)\s+(?:left|right|upper|lower)?\s*quadrant\b',
-                        r'\b(?:RLQ|LLQ|RUQ|LUQ)\b',  # Abbreviations
-                        # Specific anatomical regions
-                        r'\b(?:epigastric|periumbilical|suprapubic|flank|groin|chest|head|back|shoulder|arm|leg|knee|ankle|foot)\b',
-                        # Directional + body part combinations
-                        r'\b(?:left|right|upper|lower|anterior|posterior|lateral|medial)\s+(?:chest|abdomen|back|head|arm|leg|knee|ankle|foot)\b',
-                        # Specific anatomical points
-                        r'\b(?:McBurney\'s|Murphy\'s|Kehr\'s)\s+point\b',
-                        # Body part + side combinations
-                        r'\b(?:left|right)\s+(?:side|chest|abdomen|back|head|arm|leg|knee|ankle|foot)\b',
-                        # Pain location patterns
-                        r'\b(?:left|right|upper|lower)\s+(?:abdominal|chest|back|head)\s+pain\b'
-                    ]
-                    
-                    for pattern in anatomical_patterns:
-                        matches = re.findall(pattern, content, re.IGNORECASE)
-                        for match in matches:
-                            # Clean up the match and add to set
-                            clean_match = match.strip().lower()
-                            if len(clean_match) > 3:  # Avoid very short matches
-                                specific_locations.add(clean_match)
-                    
-                    # All anatomical terms are now extracted dynamically from guidelines
-                    # No hardcoded terms needed
-            
-            # Convert to list and sort
-            specific_locations = list(specific_locations)
-            specific_locations.sort()
-            
-            self._capture_debug(f"[Engine] 🧠 Extracted {len(specific_locations)} specific locations from guidelines")
-            
-            return specific_locations
-            
-        except Exception as e:
-            self._capture_debug(f"[Engine] ❌ Error extracting locations from guidelines: {e}")
-            raise RuntimeError(f"Failed to extract locations from guidelines: {e}")
+
 
 
 # Test
