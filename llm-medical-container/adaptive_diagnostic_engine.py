@@ -3378,12 +3378,11 @@ Normalized text:"""
                     'L'
                 )
                 if location_section:
-                    # Check if this guideline's location is compatible with patient's answer
-                    if self._is_location_compatible(answer, location_section):
-                        matching_location_sections.append({
-                            'condition': guideline['name'],
-                            'location_text': location_section
-                        })
+                    # Include all location sections - competition detection will filter by similarity
+                    matching_location_sections.append({
+                        'condition': guideline['name'],
+                        'location_text': location_section
+                    })
             
             if matching_location_sections:
                 # Extract all anatomical terms from matching guidelines
