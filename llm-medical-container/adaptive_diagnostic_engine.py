@@ -233,6 +233,12 @@ class AdaptiveDiagnosticEngine:
         
         # Current assessment state
         self.reset_assessment()
+        
+        # Thresholds - Clinical scoring: only rule out with definitive proof
+        self.RULE_OUT_THRESHOLD = 0.05  # Below 5% → rule out (ML-only system threshold)
+        self.MINIMUM_SCORE_FOR_RANKING = 0.05  # Minimum score to be considered for ranking
+        self.MAX_ACTIVE = 5  # Keep 5 active differentials
+        self.MAX_CLARIFICATIONS = 2  # Max times to ask for clarification before moving on
     
     def _load_guidelines(self):
         """Load all JSON guideline files from subdirectories"""
@@ -449,12 +455,6 @@ Be conversational, empathetic, and helpful. When patients ask for clarification,
                 messages.append({"role": "assistant", "content": item['explanation']})
         
         return messages
-        
-        # Thresholds - Clinical scoring: only rule out with definitive proof
-        self.RULE_OUT_THRESHOLD = 0.05  # Below 5% → rule out (ML-only system threshold)
-        self.MINIMUM_SCORE_FOR_RANKING = 0.05  # Minimum score to be considered for ranking
-        self.MAX_ACTIVE = 5  # Keep 5 active differentials
-        self.MAX_CLARIFICATIONS = 2  # Max times to ask for clarification before moving on
     
     def _get_dynamic_threshold(self, score: float) -> float:
         """
@@ -628,26 +628,45 @@ Be conversational, empathetic, and helpful. When patients ask for clarification,
         
         # PRIORITY 1: Ask demographics FIRST (age, then sex, then chronicity)
         if not hasattr(self, 'demographics') or not self.demographics.get('age'):
-            # Ask age first
-            question = empathetic_prefix + "How old are you?"
-            self._capture_debug(f"[Engine] ✅ Demographics question generated: '{question}'")
+            # Check if empathetic statement has already been shown
+            empathetic_shown = any(item.get('type') == 'statement' and item.get('focus') == 'empathetic' 
+                                 for item in self.conversation_history)
             
-            # Add to conversation history with proper focus
-            self.conversation_history.append({
-                'type': 'question',
-                'question': question,
-                'focus': 'demographics'
-            })
-            
-            return {
-                'success': True,
-                'question': question,
-                'status': 'questioning',
-                'debug': self._get_debug_info()
-            }
+            if empathetic_prefix and not empathetic_shown:
+                # Return empathetic statement first
+                self.conversation_history.append({
+                    'type': 'statement',
+                    'message': empathetic_prefix.strip(),
+                    'focus': 'empathetic'
+                })
+                
+                return {
+                    'success': True,
+                    'message': empathetic_prefix.strip(),
+                    'status': 'empathetic_statement',
+                    'debug': self._get_debug_info()
+                }
+            else:
+                # Return the age question
+                question = "Let's start by asking some questions to assist you further. What is your age?"
+                self._capture_debug(f"[Engine] ✅ Demographics question generated: '{question}'")
+                
+                # Add to conversation history with proper focus
+                self.conversation_history.append({
+                    'type': 'question',
+                    'question': question,
+                    'focus': 'demographics'
+                })
+                
+                return {
+                    'success': True,
+                    'question': question,
+                    'status': 'questioning',
+                    'debug': self._get_debug_info()
+                }
         elif 'sex' not in self.demographics:
             # Ask sex with button-based response
-            question = empathetic_prefix + "What is your biological sex?"
+            question = "What is your biological sex?"
             self._capture_debug(f"[Engine] ✅ Sex question with buttons: '{question}'")
             
             # Add to conversation history with proper focus
@@ -669,7 +688,7 @@ Be conversational, empathetic, and helpful. When patients ask for clarification,
             }
         elif 'chronicity' not in self.demographics:
             # Ask chronicity with button-based response
-            question = empathetic_prefix + "Is this a new problem or an ongoing issue?"
+            question = "Is this a new problem or an ongoing issue?"
             self._capture_debug(f"[Engine] ✅ Chronicity question with buttons: '{question}'")
             
             # Add to conversation history with proper focus
@@ -1163,6 +1182,10 @@ Be conversational, empathetic, and helpful. When patients ask for clarification,
         # Check if this is a follow-up question (patient asking for clarification)
         if self._is_follow_up_question(user_answer):
             return self._handle_follow_up_question(user_answer, last_q)
+        
+        # Handle response to empathetic statement - ask age question
+        if last_q.get('focus') == 'empathetic':
+            return self._generate_ml_first_question_with_demographics()
         
         if last_q.get('focus') == 'demographics':
             if 'age' in last_q.get('question', '').lower():
@@ -3960,33 +3983,31 @@ Your question:"""
         Returns:
             True if this is a follow-up question
         """
-        follow_up_indicators = [
-            'what do you mean',
-            'i don\'t understand',
-            'i dont understand',
-            'can you explain',
-            'what does that mean',
-            'i\'m not sure what you mean',
-            'im not sure what you mean',
-            'could you clarify',
-            'can you clarify',
-            'what are you asking',
-            'i don\'t know what you mean',
-            'i dont know what you mean',
-            'help me understand',
-            'i need help',
-            'what should i say',
-            'how do i answer',
-            'what do you want to know'
-        ]
+        # Let LLM determine if this is a follow-up question naturally
+        # No hardcoded indicators needed - LLM can detect confusion, privacy concerns, etc.
         
         answer_lower = user_answer.lower().strip()
         
         # Check for question marks or question words
         is_question = '?' in answer_lower or any(word in answer_lower for word in ['what', 'how', 'why', 'when', 'where', 'which', 'who'])
         
-        # Check for follow-up indicators
-        is_follow_up = any(indicator in answer_lower for indicator in follow_up_indicators)
+        # Use LLM to determine if this is a follow-up question (confusion, privacy concerns, etc.)
+        if not is_question and len(answer_lower.split()) > 3:  # Only check longer responses
+            try:
+                # Quick LLM check to see if this is a follow-up question
+                follow_up_prompt = f"""Is this response a follow-up question or expression of confusion/concern that needs clarification?
+
+Patient response: "{user_answer}"
+
+Answer with just "YES" or "NO" - no explanation needed."""
+                
+                llm_response = self._call_llm(follow_up_prompt, max_tokens=10, use_context=False)
+                is_follow_up = llm_response and llm_response.strip().upper() == "YES"
+            except:
+                # Fallback to simple heuristics if LLM fails
+                is_follow_up = False
+        else:
+            is_follow_up = False
         
         return is_question or is_follow_up
     
@@ -4009,16 +4030,18 @@ Your question:"""
         
         # Create a helpful explanation using LLM with conversation context
         try:
-            # Use the LLM to generate a natural explanation with full conversation context
-            explanation_prompt = f"""The patient asked: "{user_answer}" in response to your question: "{question_text}"
+            # Let LLM naturally determine the type of concern and respond appropriately
+            explanation_prompt = f"""The patient responded: "{user_answer}" to your question: "{question_text}"
 
-The patient seems confused about what you're asking. Provide a helpful, natural explanation that:
-1. Acknowledges their confusion
-2. Explains what you're looking for in simple terms  
-3. Gives them specific examples or options
-4. Encourages them to answer in their own words
+The patient seems to have a concern, question, or confusion about what you're asking. Provide a helpful, natural response that:
+1. Acknowledges their concern with empathy
+2. Explains what you're looking for in simple terms
+3. If it's a privacy concern, offer alternatives and reassure about confidentiality
+4. If it's confusion, give specific examples or options
+5. Encourage them to answer in their own words
+6. Give them options to proceed
 
-Be conversational and reassuring. Don't be too technical."""
+Be understanding, conversational, and reassuring. Adapt your response to their specific concern."""
             
             # Use the LLM to generate a response with full conversation context
             llm_response = self._call_llm(explanation_prompt, max_tokens=200, use_context=True)
