@@ -633,21 +633,33 @@ Be conversational, empathetic, and helpful. When patients ask for clarification,
                                  for item in self.conversation_history)
             
             if empathetic_prefix and not empathetic_shown:
-                # Return empathetic statement first
+                # Return both empathetic statement and age question together
+                empathetic_message = empathetic_prefix.strip()
+                age_question = "Let's start by asking some questions to assist you further. What is your age?"
+                
+                # Add both to conversation history
                 self.conversation_history.append({
                     'type': 'statement',
-                    'message': empathetic_prefix.strip(),
+                    'message': empathetic_message,
                     'focus': 'empathetic'
                 })
+                self.conversation_history.append({
+                    'type': 'question',
+                    'question': age_question,
+                    'focus': 'demographics'
+                })
+                
+                self._capture_debug(f"[Engine] ✅ Combined empathetic + age question generated")
                 
                 return {
                     'success': True,
-                    'message': empathetic_prefix.strip(),
-                    'status': 'empathetic_statement',
+                    'message': empathetic_message,
+                    'question': age_question,
+                    'status': 'questioning',
                     'debug': self._get_debug_info()
                 }
             else:
-                # Return the age question
+                # Return just the age question (empathetic already shown)
                 question = "Let's start by asking some questions to assist you further. What is your age?"
                 self._capture_debug(f"[Engine] ✅ Demographics question generated: '{question}'")
                 
@@ -1182,10 +1194,6 @@ Be conversational, empathetic, and helpful. When patients ask for clarification,
         # Check if this is a follow-up question (patient asking for clarification)
         if self._is_follow_up_question(user_answer):
             return self._handle_follow_up_question(user_answer, last_q)
-        
-        # Handle response to empathetic statement - ask age question
-        if last_q.get('focus') == 'empathetic':
-            return self._generate_ml_first_question_with_demographics()
         
         if last_q.get('focus') == 'demographics':
             if 'age' in last_q.get('question', '').lower():
@@ -3721,14 +3729,14 @@ Your question:"""
         
         patient_lower = patient_answer.lower()
         
-        # Calculate similarity between patient answer and each guideline
+        # Calculate similarity between patient answer and each guideline using simple containment
         patient_similarities = []
         for block in location_blocks:
             location_text = block['location_text'].lower()
             similarity = self._simple_containment_match(patient_lower, location_text)
             patient_similarities.append(similarity)
         
-        # Calculate similarity between guideline location blocks themselves
+        # Calculate similarity between guideline location blocks themselves using simple containment
         guideline_similarities = []
         for i, block1 in enumerate(location_blocks):
             for block2 in location_blocks[i+1:]:
@@ -3746,31 +3754,22 @@ Your question:"""
         self._capture_debug(f"[Engine]   Avg patient similarity to guidelines: {avg_patient_similarity:.1%}")
         self._capture_debug(f"[Engine]   Avg guideline-to-guideline similarity: {avg_guideline_similarity:.1%}")
         
-        # Decision logic:
-        # 1. If guidelines are very similar to each other (high internal similarity) → no competition
-        if avg_guideline_similarity > 0.7:
-            self._capture_debug(f"[Engine] ✅ Guidelines are similar - no competition")
+        # Decision logic: Simple approach from working commit
+        # If patient answer has very low containment (< 30%) → need clarification
+        if avg_patient_similarity < 0.3:
+            self._capture_debug(f"[Engine] 🎯 COMPETITION DETECTED - Very low containment {avg_patient_similarity:.1%} < 30%")
             return {
-                'has_competition': False,
-                'competing_areas': [],
-                'clarification_needed': False
+                'has_competition': True,
+                'competing_areas': [block['condition'] for block in location_blocks],
+                'clarification_needed': True
             }
         
-        # 2. If patient answer matches all guidelines well → no clarification needed
-        if avg_patient_similarity > 0.5:
-            self._capture_debug(f"[Engine] ✅ Patient answer matches guidelines well - no clarification")
-            return {
-                'has_competition': False,
-                'competing_areas': [],
-                'clarification_needed': False
-            }
-        
-        # 3. Guidelines differ AND patient answer doesn't match well → competition exists → need clarification
-        self._capture_debug(f"[Engine] 🎯 COMPETITION DETECTED - Guidelines differ, patient vague")
+        # If patient answer has good containment (>= 30%) → no clarification needed
+        self._capture_debug(f"[Engine] ✅ NO COMPETITION - Good containment {avg_patient_similarity:.1%} >= 30%")
         return {
-            'has_competition': True,
-            'competing_areas': [block['condition'] for block in location_blocks],
-            'clarification_needed': True
+            'has_competition': False,
+            'competing_areas': [],
+            'clarification_needed': False
         }
     
     def _detect_oldcarts_competition(self, patient_answer: str, oldcarts_element: str, matching_sections: list) -> dict:
