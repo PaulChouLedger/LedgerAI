@@ -408,31 +408,34 @@ class AdaptiveDiagnosticEngine:
         self._capture_debug(f"{'='*80}")
         self._capture_debug(f"[Engine] Chief Complaint: '{chief_complaint}'")
         
-        # ML-POWERED PROCESSING
-        # Step 1: ML-powered complaint normalization
-        normalized_complaint = self._normalize_complaint_with_synonyms(chief_complaint)
-        self._capture_debug(f"[Engine] 🧠 ML normalization: '{chief_complaint}' → '{normalized_complaint}'")
+        # STRUCTURED OLDCARTS PROCESSING
+        # Step 1: Basic category detection (for guideline filtering)
+        category = self._categorize_complaint_by_substring(chief_complaint)
+        self._capture_debug(f"[Engine] 🎯 Category: {category}")
         
-        # Step 2: ML-powered category detection
-        category = self._categorize_complaint_by_substring(normalized_complaint)
-        self._capture_debug(f"[Engine] 🎯 ML category: {category}")
+        # Step 2: Get guidelines for this category
+        matched_guidelines = self._get_all_guidelines_in_category(category)
+        self._capture_debug(f"[Engine] 📊 Found {len(matched_guidelines)} guidelines for {category}")
         
-        # Step 3: ML-powered guideline matching
-        matched_guidelines = self._match_to_guidelines_ml(normalized_complaint, category)
-        self._capture_debug(f"[Engine] 📊 ML matched: {len(matched_guidelines)} guidelines")
+        # Step 3: Parse prompt against structured OLDCARTS
+        oldcarts_analysis = self._parse_prompt_against_structured_oldcarts(chief_complaint, matched_guidelines)
+        self._capture_debug(f"[Engine] 🔍 OLDCARTS Analysis: {oldcarts_analysis}")
         
-        # Continue with ML-powered assessment
+        # Continue with structured assessment
         self.reset_assessment()
         self.chief_complaint = chief_complaint
         self.status = "questioning"
         
-        # Use ML-matched guidelines
+        # Use matched guidelines
         self.active_guidelines = matched_guidelines[:5]  # Top 5
         self.reserve_pool = matched_guidelines[5:]  # Rest
         
-        self._capture_debug(f"[Engine] 🎯 ML-powered guidelines: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}")
+        # Store OLDCARTS analysis for use in questioning
+        self.oldcarts_analysis = oldcarts_analysis
         
-        # Generate first question using ML (with age/sex first)
+        self._capture_debug(f"[Engine] 🎯 Structured guidelines: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}")
+        
+        # Generate first question using structured approach (with age/sex first)
         return self._generate_ml_first_question_with_demographics()
     
     def _match_to_guidelines_ml(self, normalized_complaint: str, category: str) -> List[Dict]:
@@ -529,92 +532,29 @@ class AdaptiveDiagnosticEngine:
         self._capture_debug(f"[Engine] 🧠 Generic complaint - returning all {len(matched_guidelines)} {category} guidelines")
         return matched_guidelines
     
-    def _perform_ml_analysis(self, complaint: str, category: str, components: Dict[str, List[str]]) -> List[Dict]:
-        """Analyze specific complaint against each guideline"""
-        relevant_guidelines = self._get_guidelines_by_category(category)
-        matched_guidelines = []
-        
-        for name, guideline in relevant_guidelines.items():
-            # Analyze each OLDCARTS component against guideline
-            similarity_score = 0.0
-            component_matches = 0
-            
-            for component_type, patient_terms in components.items():
-                if patient_terms:  # If patient has this component
-                    # Simple component matching (can be enhanced with hardcoded terms)
-                    if component_type == 'location' and any(term in complaint.lower() for term in ['right', 'left', 'upper', 'lower']):
-                        similarity_score += 0.3
-                        component_matches += 1
-                    elif component_type == 'aggravating' and any(term in complaint.lower() for term in ['after eating', 'with movement']):
-                        similarity_score += 0.2
-                        component_matches += 1
-                    elif component_type == 'character' and any(term in complaint.lower() for term in ['sharp', 'dull', 'burning']):
-                        similarity_score += 0.2
-                        component_matches += 1
-            
-            # Only include guidelines with sufficient matches
-            if component_matches >= 2:  # Need at least 2 component matches
-                matched_guidelines.append({
-                    'name': name,
-                    'score': similarity_score,
-                    'data': guideline,
-                    'ml_similarity': similarity_score,
-                    'best_trigger': 'oldcarts_analysis',
-                    'method': 'oldcarts_component_matching'
-                })
-        
-        # Sort by similarity (most relevant first)
-        matched_guidelines.sort(key=lambda x: x['ml_similarity'], reverse=True)
-        
-        self._capture_debug(f"[Engine] 🧠 ML analysis complete: {len(matched_guidelines)} guidelines matched")
-        return matched_guidelines
     
-    def _compute_ml_trigger_similarity(self, complaint: str, trigger: str, condition_name: str) -> float:
-        """Compute ML similarity between complaint and trigger using synonym files"""
-        self._capture_debug(f"[Engine] 🧠 ML SIMILARITY COMPUTATION DEBUG:")
-        self._capture_debug(f"[Engine] 🧠   Complaint: '{complaint}'")
-        self._capture_debug(f"[Engine] 🧠   Trigger: '{trigger}'")
-        self._capture_debug(f"[Engine] 🧠   Condition: '{condition_name}'")
-        
-        # Normalize both complaint and trigger using synonym files
-        normalized_complaint = self._normalize_complaint_with_synonyms(complaint)
-        normalized_trigger = self._normalize_complaint_with_synonyms(trigger)
-        
-        self._capture_debug(f"[Engine] 🧠   Normalized complaint: '{normalized_complaint}'")
-        self._capture_debug(f"[Engine] 🧠   Normalized trigger: '{normalized_trigger}'")
-        
-        # Use semantic similarity for trigger matching (not anatomical rules)
-        # Anatomical rules only apply to OLDCARTS location questions, not chief complaint triggers
-        
-        # For trigger matching, use simple semantic similarity
-        # This is about matching "abdominal pain" to "abdominal pain", not anatomical location
-        if not self.medical_rule_engine:
-            raise RuntimeError("Medical Rule Engine not available - ML system required")
-        
-        self._capture_debug(f"[Engine] 🧠   Computing semantic similarity for trigger matching...")
-        
-        # Use semantic similarity for trigger matching (not anatomical rules)
-        # This should be a simple semantic comparison, not anatomical location analysis
-        result = self.medical_rule_engine.get_semantic_similarity(
-            normalized_complaint, normalized_trigger
-        )
-        
-        similarity = result['similarity']
-        self._capture_debug(f"[Engine] 🧠   Semantic similarity result: {similarity:.3f}")
-        return similarity
     
     def _generate_ml_first_question_with_demographics(self) -> Dict[str, Any]:
-        """Generate first question using ML-powered approach with demographics and missing OLDCARTS"""
-        self._capture_debug(f"[Engine] 🧠 Generating ML-powered first question with demographics and missing OLDCARTS...")
+        """Generate first question using structured OLDCARTS approach with demographics"""
+        self._capture_debug(f"[Engine] 🧠 Generating structured first question with demographics...")
+        
+        # PRIORITY 0: Add empathetic opening statement (only on first question)
+        empathetic_prefix = ""
+        if not self.conversation_history:
+            chief_complaint_lower = self.chief_complaint.lower()
+            # Extract the symptom from chief complaint
+            symptom = chief_complaint_lower.replace('i have ', '').replace('i am experiencing ', '').replace('i\'m experiencing ', '').strip()
+            empathetic_prefix = f"I'm sorry you're experiencing {symptom}. Let me ask you some questions to help determine what's causing it. "
+            self._capture_debug(f"[Engine] ✅ Empathetic prefix added: '{empathetic_prefix}'")
         
         # PRIORITY 1: Ask demographics FIRST (age, then sex, then chronicity)
         if not hasattr(self, 'demographics') or not self.demographics.get('age'):
             # Ask age first
-            question = "How old are you?"
-            self._capture_debug(f"[Engine] ✅ ML demographics question generated: '{question}'")
+            question = empathetic_prefix + "How old are you?"
+            self._capture_debug(f"[Engine] ✅ Demographics question generated: '{question}'")
         elif 'sex' not in self.demographics:
             # Ask sex with button-based response
-            question = "What is your biological sex?"
+            question = empathetic_prefix + "What is your biological sex?"
             self._capture_debug(f"[Engine] ✅ Sex question with buttons: '{question}'")
             return {
                 'success': True,
@@ -628,7 +568,7 @@ class AdaptiveDiagnosticEngine:
             }
         elif 'chronicity' not in self.demographics:
             # Ask chronicity with button-based response
-            question = "Is this a new problem or an ongoing issue?"
+            question = empathetic_prefix + "Is this a new problem or an ongoing issue?"
             self._capture_debug(f"[Engine] ✅ Chronicity question with buttons: '{question}'")
             return {
                 'success': True,
@@ -642,17 +582,19 @@ class AdaptiveDiagnosticEngine:
             }
         else:
             # Both demographics collected, ask first missing OLDCARTS component
-            if hasattr(self, 'active_guidelines') and self.active_guidelines:
-                first_guideline = self.active_guidelines[0]
-                missing_components = first_guideline.get('missing_components', [])
+            if hasattr(self, 'oldcarts_analysis') and self.oldcarts_analysis:
+                missing_components = self.oldcarts_analysis.get('missing_components', [])
                 if missing_components:
                     first_missing = missing_components[0]
                     question = self._generate_oldcarts_question_for_component(first_missing)
-                    self._capture_debug(f"[Engine] ✅ ML OLDCARTS question generated: '{question}'")
+                    self._capture_debug(f"[Engine] ✅ Structured OLDCARTS question generated: '{question}'")
                 else:
-                    raise RuntimeError("No missing OLDCARTS components found in active guidelines")
+                    # All OLDCARTS components already answered in initial prompt
+                    self._capture_debug(f"[Engine] ✅ All OLDCARTS components already answered in initial prompt")
+                    # Proceed to scoring and diagnosis
+                    return self._ask_next_clinical_question()
             else:
-                raise RuntimeError("No active guidelines available for OLDCARTS questions")
+                raise RuntimeError("No OLDCARTS analysis available for structured questions")
         
         # Add to conversation history
         is_demographics = 'age' in question.lower() or 'sex' in question.lower() or 'old are you' in question.lower() or 'biological sex' in question.lower() or 'new problem' in question.lower() or 'ongoing' in question.lower()
@@ -1086,22 +1028,22 @@ class AdaptiveDiagnosticEngine:
             else:
                 # FAILURE: Invalid age response - re-ask with helpful guidance
                 self._capture_debug(f"[Engine] ❌ Invalid age response: '{user_answer}' - LLM could not extract valid age")
-                
+            
                 # Generate helpful re-ask message
                 clarification_msg = f"I need your age as a number. Please tell me how old you are (for example: '25' or 'I am 30 years old')."
                 
-                self.conversation_history.append({
-                    'type': 'question',
+            self.conversation_history.append({
+                'type': 'question',
                     'question': clarification_msg,
                     'focus': 'age'  # Keep same focus to stay in age processing
-                })
-                
-                return {
-                    'success': True,
+            })
+            
+            return {
+                'success': True,
                     'question': clarification_msg,
-                    'status': 'questioning',
-                    'debug': self._get_debug_info()
-                }
+                'status': 'questioning',
+                'debug': self._get_debug_info()
+            }
         
         # Sex processing already handled above - no duplicate needed
             
@@ -1235,61 +1177,6 @@ class AdaptiveDiagnosticEngine:
         self._capture_debug(f"[Engine] 📊 Validation: ACCEPT ✅ (substantive answer)")
         return True
     
-    def _filter_by_gender(self):
-        """
-        Filter active and reserve pools based on patient's biological sex.
-        Called AFTER sex is collected.
-        Uses 'sex' field from guideline JSON: 'male', 'female', or 'both'
-        """
-        patient_sex = self.demographics.get('sex')
-        if not patient_sex:
-            return
-        
-        self._capture_debug(f"\n[Engine] 🚺🚹 GENDER FILTERING (patient is {patient_sex})...")
-        
-        excluded_count = 0
-        
-        # Filter active guidelines
-        filtered_active = []
-        for g in self.active_guidelines:
-            guideline_sex = g['data'].get('sex', 'both')
-            
-            # Skip if guideline is sex-specific and doesn't match patient
-            if guideline_sex != 'both' and guideline_sex != patient_sex:
-                self._capture_debug(f"[Engine]   ⛔ Excluding {g['name']} from active (requires {guideline_sex}, patient is {patient_sex})")
-                excluded_count += 1
-                continue
-            
-            filtered_active.append(g)
-        
-        # Filter reserve pool
-        filtered_reserve = []
-        for g in self.reserve_pool:
-            guideline_sex = g['data'].get('sex', 'both')
-            
-            # Skip if guideline is sex-specific and doesn't match patient
-            if guideline_sex != 'both' and guideline_sex != patient_sex:
-                self._capture_debug(f"[Engine]   ⛔ Excluding {g['name']} from reserve (requires {guideline_sex}, patient is {patient_sex})")
-                excluded_count += 1
-                continue
-            
-            filtered_reserve.append(g)
-        
-        self.active_guidelines = filtered_active
-        self.reserve_pool = filtered_reserve
-        
-        # Promote from reserve if active is now < MAX_ACTIVE
-        while len(self.active_guidelines) < self.MAX_ACTIVE and len(self.reserve_pool) > 0:
-            self.reserve_pool.sort(key=lambda x: x['score'], reverse=True)
-            next_condition = self.reserve_pool.pop(0)
-            self.active_guidelines.append(next_condition)
-            self._capture_debug(f"[Engine]   🔼 PROMOTING: {next_condition['name']} to active after filtering")
-        
-        self.active_guidelines.sort(key=lambda x: x['score'], reverse=True)
-        
-        self._capture_debug(f"[Engine] ✅ Excluded {excluded_count} sex-specific conditions")
-        self._capture_debug(f"[Engine] 🔄 After filtering: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}")
-        self._capture_debug(f"{'='*80}\n")
     
     def _load_all_synonym_files(self) -> Dict:
         """Load all synonym files for comprehensive normalization (cached)"""
@@ -1553,13 +1440,6 @@ class AdaptiveDiagnosticEngine:
         return missing_components
     
     
-    def _count_oldcarts_components(self, components: Dict[str, List[str]]) -> int:
-        """Count how many OLDCARTS components are present"""
-        component_count = 0
-        for component_type, terms in components.items():
-            if terms:  # If any terms found for this component
-                component_count += 1
-        return component_count
     
     def _get_guidelines_by_category(self, category: str) -> Dict:
         """Get guidelines filtered by organ system category"""
@@ -1964,15 +1844,15 @@ class AdaptiveDiagnosticEngine:
     
     def _ask_next_clinical_question(self) -> Dict[str, Any]:
         """
-        Use LLM to analyze all 3 guidelines and generate next best question
+        Use structured OLDCARTS approach to generate next best question
         
         This is the CORE intelligence of the system.
         """
         self._capture_debug(f"\n{'='*80}")
-        self._capture_debug(f"[Engine] 🧠 LLM QUESTION GENERATION")
+        self._capture_debug(f"[Engine] 🧠 STRUCTURED QUESTION GENERATION")
         self._capture_debug(f"{'='*80}")
         
-        # Build context for LLM (MINIMAL - no guidelines, just OLDCARTS template)
+        # Build context
         patient_info = f"{self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')} with {self.chief_complaint}"
         
         # Get questions already asked
@@ -1984,302 +1864,37 @@ class AdaptiveDiagnosticEngine:
         self._capture_debug(f"[Engine] 📋 Patient: {patient_info}")
         self._capture_debug(f"[Engine] 📋 Questions asked: {len(asked)}")
         
-        # LLM PROMPT: Generate next question using ONLY generic OLDCARTS template
-        system_msg = "Generate question. Follow the format exactly. Output ONLY the question text, no other words."
-        
-        # Show OLDCARTS coverage
-        covered_elements = [k for k, v in self.oldcarts_covered.items() if v]
-        uncovered_elements = [k for k, v in self.oldcarts_covered.items() if not v]
-        coverage_str = ''.join([k if v else '_' for k, v in self.oldcarts_covered.items()])
-        
-        # Determine next OLDCARTS element to ask about
-        # Follow proper OLDCARTS order: O-L-D-C-A-R-T-S
-        oldcarts_order = ['O', 'L', 'D', 'C', 'A', 'R', 'T', 'S']
-        
-        # Find the next uncovered element in proper order
-        next_element = None
-        for element in oldcarts_order:
-            if not self.oldcarts_covered[element]:
-                next_element = element
-                break
-        
-        # Check if we've already asked about this element recently to prevent repetition
-        recent_questions = [item for item in self.conversation_history[-5:] if item.get('type') == 'question']
-        recent_oldcarts = [item.get('oldcarts') for item in recent_questions if item.get('oldcarts')]
-        
-        # If the next element was recently asked, skip to the next one
-        if next_element in recent_oldcarts:
-            for element in oldcarts_order:
-                if not self.oldcarts_covered[element] and element not in recent_oldcarts:
-                    next_element = element
-                    break
-        
-        # LLM-generated OLDCARTS questions
-        if next_element:
-            self._capture_debug(f"[Engine] 🧠 Generating question for OLDCARTS element: {next_element}")
-            
-            # Define what each OLDCARTS element asks about
-            oldcarts_descriptions = {
-                'O': "ONSET - when the symptom started (time/timing)",
-                'L': "LOCATION - where the symptom is located (anatomical location)",
-                'D': "DURATION - how long the symptom lasts or persists",
-                'C': "CHARACTER - what the symptom feels like (quality/description)",
-                'A': "AGGRAVATING factors - what makes the symptom worse",
-                'R': "RELIEVING factors - what makes the symptom better",
-                'T': "TIMING - pattern of the symptom (constant vs intermittent)",
-                'S': "SEVERITY - how bad the symptom is (intensity/scale)"
-            }
-            
-            element_desc = oldcarts_descriptions.get(next_element, "the symptom")
-            
-            # Build patient context
-            patient_info = f"{self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')}"
-            symptom = self.chief_complaint.lower().replace('i have', '').replace('i had', '').replace('i\'m having', '').strip()
-            
-            # Example questions for each OLDCARTS element - more specific and clinically focused
-            oldcarts_examples = {
-                'O': "When did the pain start?",
-                'L': "Where exactly is the pain?",
-                'D': "How long does the pain last?",
-                'C': "What does the pain feel like?",
-                'A': "What makes the pain worse?",
-                'R': "What makes the pain better?",
-                'T': "Is the pain constant or does it come and go?",
-                'S': "How severe is the pain on a scale of 1 to 10?"
-            }
-            
-            example = oldcarts_examples.get(next_element, "Tell me about the symptom")
-            
-            system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do not include medical terminology from guidelines. Do NOT ask questions requiring visual inspection (no 'point to', 'show me', 'look at', 'appearance', 'color', 'swelling'). Do NOT ask about duration/time - that will be covered later. No one prompt should include multiple questions, in other words do not include multiple phrases ending with a question mark. Be SPECIFIC and CLINICALLY FOCUSED. Ask about ONE specific aspect only. CRITICAL: Always use 'your' when asking the patient directly - NEVER use 'her', 'his', 'their' or third person pronouns."
-            
-            # Build conversation history for context
-            conversation_context = ""
-            if len(self.conversation_history) > 0:
-                conversation_context = "\n\nPrevious conversation:\n"
-                for item in self.conversation_history[-6:]:  # Last 6 items
-                    if item['type'] == 'question':
-                        conversation_context += f"Q: {item['question']}\n"
-                    elif item['type'] == 'answer':
-                        conversation_context += f"A: {item['answer']}\n"
-            
-            user_msg = f"""Patient: {patient_info} with {symptom}{conversation_context}
-
-Ask about: {element_desc}
-
-Example: "{example}"
-
-Generate EXACTLY ONE question using SIMPLE, PLAIN LANGUAGE. Do NOT combine multiple questions. Do NOT ask about duration/time. 
-Make the question specific to the patient's chief complaint. For LOCATION questions, ask only about the relevant body area for the chief complaint.
-For abdominal pain, ask about the abdomen area only.
-For headache, ask about the head area only.
-For back pain, ask about the back area only.
-Be SPECIFIC and CLINICALLY FOCUSED. Ask about ONE specific aspect only.
-CRITICAL: Always address the patient directly using 'your' - NEVER use 'her', 'his', 'their' or third person pronouns.
-IMPORTANT: Use the patient's previous answers to make your question more specific and avoid repeating information they already provided.
-Output only the question:"""
-            
-            # Filler is now handled at container level for immediate streaming
-            self._capture_debug(f"[Engine] 💬 Generating question (filler handled by container)...")
-            
-            # HYBRID STRATEGY: Use simple model for basic questions, complex model for critical differentiating questions
-            # - Simple model (Llama-1B): L, C, T, S, O, D (basic questions that don't need sophisticated reasoning)
-            # - Complex model (Mistral-7B): A, R (aggravating/relieving factors - requires understanding of medical context and guidelines)
-            if next_element in ['A', 'R']:
-                # Use simple model for aggravating/relieving factors (now has specific OLDCARTS components)
-                self._capture_debug(f"[Engine] 🧠 Using SIMPLE model (Llama-1B) for {next_element} - now has specific OLDCARTS components")
-                response = self.llm_chat_simple_fn(
-                    [
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_msg}
-                    ],
-                    max_tokens=self.max_tokens_simple,
-                    temperature=self.temperature_simple
-                )
+        # Use structured OLDCARTS analysis to determine next question
+        if hasattr(self, 'oldcarts_analysis') and self.oldcarts_analysis:
+            missing_components = self.oldcarts_analysis.get('missing_components', [])
+            if missing_components:
+                # Ask next missing OLDCARTS component
+                next_component = missing_components[0]
+                question = self._generate_oldcarts_question_for_component(next_component)
+                self._capture_debug(f"[Engine] ✅ Next structured question: '{question}'")
             else:
-                # Use simple model for basic questions (L, C, T, S, O, D) - straightforward questions
-                self._capture_debug(f"[Engine] 🔧 Using SIMPLE model (Llama-1B) for {next_element} - straightforward question")
-                response = self.llm_chat_simple_fn(
-                    [
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_msg}
-                    ],
-                    max_tokens=self.max_tokens_simple,
-                    temperature=self.temperature_simple
-                )
-            
-            question = response.strip().strip('"\'')
-            if not question.endswith('?'):
-                question += '?'
-            
-            # NO VALIDATION - Let LLM question stand as-is, no fallbacks
-            
-            oldcarts_element = next_element
-            
-            self._capture_debug(f"[Engine] ✅ OLDCARTS Question ({next_element}): '{question}'")
-            
-            # Mark as covered after user answers
-            self._capture_debug(f"{'='*80}\n")
-            
-            # Store question
+                # All OLDCARTS components answered, proceed to scoring
+                self._capture_debug(f"[Engine] ✅ All OLDCARTS components answered, proceeding to scoring")
+                return self._process_clinical_answer("")  # Empty answer to trigger scoring
+        else:
+            raise RuntimeError("No OLDCARTS analysis available for structured questions")
+        
+        # Add to conversation history
             self.conversation_history.append({
                 'type': 'question',
                 'question': question,
+            'oldcarts': next_component,
                 'focus': 'clinical',
-                'oldcarts': oldcarts_element
+            'is_demographics': False
             })
             
             return {
                 'success': True,
                 'question': question,
                 'status': 'questioning',
-                'debug': self._get_debug_info()  # For Telegram debug display
-            }
-        
-        # After OLDCARTS: Ask about associated symptoms using LLM
-        self._capture_debug(f"[Engine] ℹ️  OLDCARTS complete - now asking about associated symptoms to reach 95% confidence")
-        self._capture_debug(f"[Engine] 🧠 Generating associated symptom question...")
-        
-        # SAFETY: Check if we have active guidelines
-        if not self.active_guidelines:
-            self._capture_debug(f"[Engine] ❌ No active guidelines remaining - cannot generate question")
-            self._capture_debug(f"[Engine] 📊 Debug: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
-            self._capture_debug(f"[Engine] 📋 OLDCARTS covered: {self.oldcarts_covered}")
-            self._capture_debug(f"[Engine] 📋 Demographics: {self.demographics}")
-            return {
-                'success': False,
-                'message': "I couldn't match your symptoms to a specific condition. Please seek medical evaluation.",
                 'debug': self._get_debug_info()
-            }
-        
-        # Build context of what's been asked
-        asked_lower = ' '.join(asked).lower()
-        
-        # Get KEY POSITIVES from top 3 guidelines for context
-        key_symptoms = []
-        try:
-            for g in self.active_guidelines[:3]:
-                classic = g['data'].get('key_features', {}).get('classic_presentation', '')
-                if 'KEY POSITIVES:' in classic:
-                    parts = classic.split('KEY POSITIVES:')
-                    if len(parts) > 1:
-                        key_pos = parts[1].split('KEY NEGATIVES:')[0] if 'KEY NEGATIVES:' in parts[1] else parts[1]
-                        key_symptoms.append(f"{g['name']}: {key_pos[:100]}")
-        except Exception as e:
-            self._capture_debug(f"[Engine] ⚠️ Error extracting key symptoms: {e}")
-        
-        symptoms_context = ', '.join([s.split(':')[0] for s in key_symptoms[:3]]) if key_symptoms else "common symptoms"
-        
-        system_msg = "You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Ask about common symptoms like fever, nausea, vomiting, diarrhea, dizziness, or appetite changes. Do NOT ask about patient demographics, medical history, or complex medical conditions."
-        
-        user_msg = f"""Patient: {patient_info}
-
-Ask about ONE common associated symptom using SIMPLE language. Choose from: fever, nausea, vomiting, diarrhea, dizziness, lightheadedness, appetite changes, or similar basic symptoms.
-
-EXACTLY ONE question only. Use this format: "Have you had any [symptom]?"
-
-Examples:
-- "Have you had any fever?"
-- "Have you felt dizzy or lightheaded?"
-- "Have you had any nausea?"
-
-Your question:"""
-        
-        # Filler is now handled at container level for immediate streaming
-        self._capture_debug(f"[Engine] 💬 Generating associated symptom question (filler handled by container)...")
-        
-        response = self.llm_chat_simple_fn(
-            [
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": user_msg}
-            ],
-            max_tokens=self.max_tokens_simple,
-            temperature=self.temperature_simple
-        )
-        
-        question = response.strip().strip('"\'')
-        if not question.endswith('?'):
-            question += '?'
-        
-        # VALIDATION: Ensure only ONE question
-        question_mark_count = question.count('?')
-        has_sentence_before_question = '. ' in question and question.index('. ') < question.rfind('?')
-        
-        if question_mark_count > 1 or has_sentence_before_question:
-            self._capture_debug(f"[Engine] ⚠️ LLM combined multiple questions - using template")
-            self._capture_debug(f"[Engine]    Generated: '{question}'")
-            # Use simple template - rotate through common symptoms
-            simple_questions = [
-                "Have you had any fever?",
-                "Have you felt dizzy or lightheaded?", 
-                "Have you had any nausea?",
-                "Have you had any vomiting?",
-                "Have you had any diarrhea?"
-            ]
-            # Use conversation length to rotate through questions
-            question_index = len(self.conversation_history) % len(simple_questions)
-            question = simple_questions[question_index]
-        
-        self._capture_debug(f"[Engine] ✅ Associated symptom question: '{question}'")
-        self._capture_debug(f"{'='*80}\n")
-        
-        # Store question
-        self.conversation_history.append({
-            'type': 'question',
-            'question': question,
-            'focus': 'clinical',
-            'oldcarts': None  # Not an OLDCARTS question
-        })
-        
-        return {
-            'success': True,
-            'question': question,
-            'status': 'questioning',
-            # Filler is now handled at container level for immediate streaming
-            'debug': self._get_debug_info()  # For Telegram debug display
         }
     
-    def _detect_oldcarts_element(self, question: str) -> Optional[str]:
-        """
-        Detect which OLDCARTS element a question addresses
-        
-        Returns: 'O', 'L', 'D', 'C', 'A', 'R', 'T', or 'S' (or None if unclear)
-        """
-        # Simple keyword-based detection (reliable, fast)
-        q_lower = question.lower()
-        
-        # O - ONSET
-        if any(phrase in q_lower for phrase in ['when did', 'how did', 'started', 'began', 'onset', 'when exactly']):
-            return 'O'
-        
-        # L - LOCATION
-        if any(word in q_lower for word in ['where', 'location', 'which part', 'what area', 'which side']):
-            return 'L'
-        
-        # D - DURATION
-        if any(phrase in q_lower for phrase in ['how long', 'duration']):
-            return 'D'
-        
-        # C - CHARACTER / Quality
-        if any(phrase in q_lower for phrase in ['describe', 'feel like', 'type of', 'kind of', 'quality']):
-            return 'C'
-        
-        # A - AGGRAVATING
-        if any(phrase in q_lower for phrase in ['worse', 'worsen', 'aggravate', 'trigger']):
-            return 'A'
-        
-        # R - RELIEVING
-        if any(phrase in q_lower for phrase in ['better', 'relieve', 'improve', 'help']):
-            return 'R'
-        
-        # T - TIMING (pattern)
-        if any(phrase in q_lower for phrase in ['constant', 'come and go', 'intermittent', 'pattern']):
-            return 'T'
-        
-        # S - SEVERITY
-        if any(phrase in q_lower for phrase in ['severe', 'bad', 'scale', '1 to 10', 'intensity']):
-            return 'S'
-        
-        return None
     
     def _extract_oldcarts_section(self, classic_presentation: str, element: str) -> str:
         """
@@ -2354,196 +1969,6 @@ Your question:"""
         self._capture_debug(f"[Engine]   🔍 Pure semantic similarity: {cosine_similarity:.3f}")
         
         return float(cosine_similarity)
-    
-    def _compute_keyword_similarity(self, text1: str, text2: str) -> float:
-        """
-        Keyword-based similarity for testing when embedding model is not available
-        
-        Returns: Simple similarity score 0-1 based on keyword overlap
-        """
-        # Convert to lowercase and split into words
-        words1 = set(text1.lower().split())
-        words2 = set(text2.lower().split())
-        
-        # Remove common stop words
-        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'my', 'your', 'his', 'her', 'its', 'our', 'their'}
-        
-        words1 = words1 - stop_words
-        words2 = words2 - stop_words
-        
-        if not words1 or not words2:
-            return 0.0
-        
-        # Calculate Jaccard similarity
-        intersection = len(words1 & words2)
-        union = len(words1 | words2)
-        
-        similarity = intersection / union if union > 0 else 0.0
-        
-        self._capture_debug(f"[Engine]   🔍 Keyword similarity: {similarity:.3f} (intersection: {intersection}, union: {union})")
-        
-        return similarity
-    
-    
-    def _compute_jaccard_similarity(self, text1: str, text2: str) -> float:
-        """
-        Compute Jaccard similarity between two texts based on word overlap
-        
-        Args:
-            text1: First text (normalized complaint)
-            text2: Second text (guideline location description)
-            
-        Returns:
-            Jaccard similarity score 0-1
-        """
-        # Convert to lowercase and split into words
-        words1 = set(text1.lower().split())
-        words2 = set(text2.lower().split())
-        
-        # Remove common stop words and clean punctuation
-        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'my', 'your', 'his', 'her', 'its', 'our', 'their', 'really', 'bad', 'gets', 'worse'}
-        
-        words1 = {w.strip('.,!?;:') for w in words1} - stop_words
-        words2 = {w.strip('.,!?;:') for w in words2} - stop_words
-        
-        if not words1 or not words2:
-            return 0.0
-        
-        # Let semantic similarity handle directional conflicts - no hardcoded logic
-        
-        # Calculate Jaccard similarity: intersection / union
-        intersection = words1 & words2
-        union = len(words1 | words2)
-        
-        similarity = len(intersection) / union if union > 0 else 0.0
-        
-        # Let semantic similarity handle meaningful matches - no hardcoded medical terms
-        
-        self._capture_debug(f"[Engine]   🔍 Jaccard similarity: {similarity:.3f} (intersection: {len(intersection)}, union: {union})")
-        self._capture_debug(f"[Engine]   🔍 Words1: {sorted(words1)}")
-        self._capture_debug(f"[Engine]   🔍 Words2: {sorted(words2)}")
-        self._capture_debug(f"[Engine]   🔍 Intersection: {sorted(intersection)}")
-        
-        return similarity
-    
-    def _check_anatomical_exclusion(self, patient_location: str, guideline_location: str, condition_name: str) -> bool:
-        """
-        Check for anatomical mismatches using LLM normalization and semantic similarity
-        
-        Args:
-            patient_location: Patient's reported location (LLM normalized)
-            guideline_location: Guideline location description
-            condition_name: Name of the condition
-            
-        Returns:
-            True if anatomically impossible, False otherwise
-        """
-        # Use semantic similarity to determine if there's a fundamental mismatch
-        try:
-            semantic_score = self._compute_similarity(patient_location, guideline_location)
-        except Exception as e:
-            self._capture_debug(f"[Engine]   ⚠️ Semantic similarity failed for anatomical check: {e}")
-            semantic_score = 0.0
-        
-        # Use Jaccard similarity as secondary check
-        jaccard_score = self._compute_jaccard_similarity(patient_location, guideline_location)
-        
-        # Check for anatomical mismatch using multiple criteria
-        # The embedding model is unreliable for anatomical opposites, so we need strict rules
-        
-        # 1. If Jaccard similarity is 0 (no word overlap), it's likely an anatomical mismatch
-        # regardless of what the unreliable semantic similarity says
-        if jaccard_score == 0.0:
-            self._capture_debug(f"[Engine]   ⛔ ANATOMICAL EXCLUSION: {condition_name} (semantic={semantic_score:.3f}, jaccard={jaccard_score:.3f}) - no word overlap indicates anatomical mismatch")
-            return True
-        
-        # 2. If both similarities are very low, it's a mismatch
-        elif semantic_score < 0.15 and jaccard_score < 0.1:
-            self._capture_debug(f"[Engine]   ⛔ ANATOMICAL EXCLUSION: {condition_name} (semantic={semantic_score:.3f}, jaccard={jaccard_score:.3f})")
-            return True
-        
-        # If similarities are reasonable, no anatomical exclusion
-        self._capture_debug(f"[Engine]   ✅ NO ANATOMICAL EXCLUSION: {condition_name} (semantic={semantic_score:.3f}, jaccard={jaccard_score:.3f})")
-        return False
-
-    # Old hybrid similarity method removed - now using ML-based Medical Rule Engine
-    
-    def _apply_synonym_expansion(self, text: str) -> str:
-        """Apply OLDCARTS-structured synonym expansion to normalize medical terms"""
-        import json
-        import os
-        import re
-        
-        # Load OLDCARTS-structured synonyms from the synonyms directory
-        # Try both Docker and local paths
-        base_paths = [
-            "/app/synonyms/",  # Docker container path
-            "/Users/rcabello/Documents/GitHub/LedgerAI/llm-container/synonyms/"  # Local path
-        ]
-        
-        synonym_files = []
-        for base_path in base_paths:
-            if os.path.exists(base_path):
-                synonym_files.extend([
-                    os.path.join(base_path, "gi_synonyms_oldcarts.json"),
-                    os.path.join(base_path, "cardio_synonyms_oldcarts.json"),
-                    os.path.join(base_path, "derm_synonyms_oldcarts.json"),
-                    os.path.join(base_path, "endocrine_synonyms_oldcarts.json"),
-                    os.path.join(base_path, "neuro_synonyms_oldcarts.json"),
-                    os.path.join(base_path, "gu_synonyms_oldcarts.json"),
-                    os.path.join(base_path, "resp_synonyms_oldcarts.json"),
-                    os.path.join(base_path, "renal_synonyms_oldcarts.json")
-                ])
-                break
-        
-        # Load all OLDCARTS synonyms
-        oldcarts_synonyms = {}
-        for file_path in synonym_files:
-            if os.path.exists(file_path):
-                try:
-                    with open(file_path, 'r') as f:
-                        file_synonyms = json.load(f)
-                        oldcarts_synonyms.update(file_synonyms)
-                except Exception as e:
-                    self._capture_debug(f"[Engine] ⚠️ Failed to load OLDCARTS synonyms from {file_path}: {e}")
-        
-        # Flatten OLDCARTS structure into standard_term -> variations mapping
-        synonyms = {}
-        for category, subcategories in oldcarts_synonyms.items():
-            if isinstance(subcategories, dict):
-                for subcategory, variations in subcategories.items():
-                    if isinstance(variations, list):
-                        # Create standard term from category and subcategory
-                        standard_term = f"{category}_{subcategory}".replace("_", " ")
-                        synonyms[standard_term] = variations
-                    elif isinstance(variations, dict):
-                        # Handle nested structures (like stool_characteristics)
-                        for nested_key, nested_variations in variations.items():
-                            if isinstance(nested_variations, list):
-                                standard_term = f"{category}_{subcategory}_{nested_key}".replace("_", " ")
-                                synonyms[standard_term] = nested_variations
-            elif isinstance(subcategories, list):
-                # Direct list of variations
-                standard_term = category.replace("_", " ")
-                synonyms[standard_term] = subcategories
-        
-        expanded_text = text
-        all_variations = []
-        for standard_term, variations in synonyms.items():
-            for variation in variations:
-                all_variations.append((len(variation), variation, standard_term))
-        
-        # Sort by length (longest first) to avoid partial replacements
-        all_variations.sort(key=lambda x: x[0], reverse=True)
-        
-        for length, variation, standard_term in all_variations:
-            pattern = r'\b' + re.escape(variation) + r'\b'
-            if re.search(pattern, expanded_text, re.IGNORECASE):
-                expanded_text = re.sub(pattern, standard_term, expanded_text, flags=re.IGNORECASE)
-                self._capture_debug(f"[Engine] 🔄 Synonym expansion: '{variation}' → '{standard_term}'")
-                break  # Only replace first match to avoid over-replacement
-        
-        return expanded_text
     
     def _apply_oldcarts_normalization(self, text: str, target_category: str = None) -> str:
         """
@@ -2742,7 +2167,7 @@ Normalized text:"""
             self._capture_debug(f"[Engine] 📚 Using synonym normalization")
             return self._apply_oldcarts_normalization(text, target_category)
     
-
+    
     def _compute_enhanced_oldcarts_similarity(self, user_answer: str, oldcarts_section: str, oldcarts_element: str, condition_name: str = "") -> float:
         """
         Enhanced OLDCARTS similarity with Medical Rule Engine and ML - UNIFIED SYSTEM
@@ -2816,68 +2241,6 @@ Normalized text:"""
         
         return result['similarity']
     
-    def _compute_enhanced_location_similarity(self, user_answer: str, oldcarts_section: str, condition_name: str = "") -> float:
-        """Enhanced location similarity with Medical Rule Engine and ML - ML ONLY"""
-        
-        # Ensure Medical Rule Engine is available
-        if not self.medical_rule_engine:
-            raise RuntimeError("Medical Rule Engine not available - ML system required")
-        
-        # Use raw user answer - embeddings handle natural language natively
-        # No synonym normalization needed - embeddings understand "right side towards the top" = "RUQ"
-        
-        # Get enhanced similarity using Medical Rule Engine
-        organ_system = self._get_organ_system_from_condition(condition_name)
-        result = self.medical_rule_engine.get_enhanced_similarity(
-            user_answer, oldcarts_section, condition_name,
-            organ_system=organ_system,
-            oldcarts_element='L'  # This is for location similarity
-        )
-        
-        # Log the result
-        self._capture_debug(f"[Engine]   🎯 Enhanced similarity: {result['similarity']:.3f} (method: {result['method']})")
-        self._capture_debug(f"[Engine]   📝 Reasoning: {result['reasoning']}")
-        self._capture_debug(f"[Engine]   🏥 Anatomical Type: {result['anatomical_type']}")
-        
-        # Collect learning data if available
-        if self.learning_collector:
-            self.learning_collector.collect_prediction(
-                patient_text=user_answer,
-                guideline_text=oldcarts_section,
-                condition_name=condition_name,
-                similarity=result['similarity'],
-                method=result['method'],
-                confidence=result['confidence'],
-                anatomical_type=result['anatomical_type']
-            )
-            
-            # ML Progress Tracking
-            self._capture_debug(f"[Scoring] 🧠 Learning data collected:")
-            self._capture_debug(f"[Scoring]   📝 Patient: '{user_answer[:30]}...'")
-            self._capture_debug(f"[Scoring]   📋 Condition: {condition_name}")
-            self._capture_debug(f"[Scoring]   🎯 Method: {result['method']}")
-            self._capture_debug(f"[Scoring]   📊 Similarity: {result['similarity']:.3f}")
-            self._capture_debug(f"[Scoring]   🏥 Anatomical: {result['anatomical_type']}")
-            self._capture_debug(f"[Scoring]   🔄 Confidence: {result['confidence']}")
-        
-        # Track performance metrics if available
-        if self.performance_monitor:
-            self.performance_monitor.track_prediction(
-                prediction=result['similarity'],
-                confidence=result['confidence'],
-                method=result['method'],
-                condition_name=condition_name,
-                organ_system=self._get_organ_system_from_condition(condition_name)
-            )
-            
-            # ML Progress Tracking - Performance
-            self._capture_debug(f"[Scoring] 📈 Performance tracked:")
-            self._capture_debug(f"[Scoring]   📊 Prediction: {result['similarity']:.3f}")
-            self._capture_debug(f"[Scoring]   🔄 Confidence: {result['confidence']}")
-            self._capture_debug(f"[Scoring]   🎯 Method: {result['method']}")
-            self._capture_debug(f"[Scoring]   🏥 Organ System: {self._get_organ_system_from_condition(condition_name)}")
-        
-        return result['similarity']
     
     def _get_organ_system_from_condition(self, condition_name: str) -> str:
         """Get organ system from condition name"""
@@ -3181,8 +2544,8 @@ Normalized text:"""
                 continue  # Skip this guideline instead of crashing
             
             # ENHANCED OLDCARTS SIMILARITY: Use existing method - let it fail if broken
-            similarity = self._compute_enhanced_oldcarts_similarity(answer, oldcarts_section, oldcarts_element, g['name'])
-            self._capture_debug(f"[Engine]   {g['name']}: Enhanced {oldcarts_element} similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
+                similarity = self._compute_enhanced_oldcarts_similarity(answer, oldcarts_section, oldcarts_element, g['name'])
+                self._capture_debug(f"[Engine]   {g['name']}: Enhanced {oldcarts_element} similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
             
             # Update score using semantic similarity
             old_score = g['score']
@@ -3331,29 +2694,29 @@ Normalized text:"""
         else:
             top_score = 0.0
             
-        # Count how many clarifications we've already asked for this OLDCARTS element
-        clarification_count = sum(1 for item in self.conversation_history 
-                                 if item.get('type') == 'question' 
-                                 and item.get('oldcarts') == oldcarts_element 
-                                 and item.get('is_clarification'))
-        
-        # If scores are too close (can't differentiate) OR all scores too low
-        # Ask clarification, but move on if we've asked too many times for this element
-        MAX_CLARIFICATIONS_PER_ELEMENT = 1  # Reduced to minimize repetition
-        
-        # MUCH MORE LENIENT: Only clarify when absolutely necessary
-        # Normal patient answers like "yesterday", "random", "sudden" should be accepted
-        # LLM semantic similarity should handle normalization (e.g., "yesterday" → "24 hours ago")
-        
-        # Show LLM normalization decision
-        self._capture_debug(f"\n[Engine] 🧠 ANSWER PROCESSING:")
-        self._capture_debug(f"[Engine]   📝 Patient answer: '{answer}'")
-        self._capture_debug(f"[Engine]   📊 Top score: {top_score:.0%} (scores no longer determine clarification)")
-        
-        # UNIVERSAL SPECIFICITY GAP DETECTION: Compare patient answer to all matching guidelines
-        is_clear_answer = False
-        needs_clarification_for_specificity = False
-        missing_specificity_terms = []
+            # Count how many clarifications we've already asked for this OLDCARTS element
+            clarification_count = sum(1 for item in self.conversation_history 
+                                     if item.get('type') == 'question' 
+                                     and item.get('oldcarts') == oldcarts_element 
+                                     and item.get('is_clarification'))
+            
+            # If scores are too close (can't differentiate) OR all scores too low
+            # Ask clarification, but move on if we've asked too many times for this element
+            MAX_CLARIFICATIONS_PER_ELEMENT = 1  # Reduced to minimize repetition
+            
+            # MUCH MORE LENIENT: Only clarify when absolutely necessary
+            # Normal patient answers like "yesterday", "random", "sudden" should be accepted
+            # LLM semantic similarity should handle normalization (e.g., "yesterday" → "24 hours ago")
+            
+            # Show LLM normalization decision
+            self._capture_debug(f"\n[Engine] 🧠 ANSWER PROCESSING:")
+            self._capture_debug(f"[Engine]   📝 Patient answer: '{answer}'")
+            self._capture_debug(f"[Engine]   📊 Top score: {top_score:.0%} (scores no longer determine clarification)")
+            
+            # UNIVERSAL SPECIFICITY GAP DETECTION: Compare patient answer to all matching guidelines
+            is_clear_answer = False
+            needs_clarification_for_specificity = False
+            missing_specificity_terms = []
         
         # Use semantic scoring to determine if answer is clear enough
         # If the answer gets good semantic scores, it's clear and doesn't need clarification
@@ -3502,21 +2865,21 @@ Normalized text:"""
                 clarifying_q = self._generate_clarifying_question(oldcarts_element, answer, clarification_count, missing_specificity_terms)
                 
                 if clarifying_q:
-                    # Add clarifying question to history
-                    self.conversation_history.append({
-                        'type': 'question',
-                        'question': clarifying_q,
-                        'oldcarts': oldcarts_element,  # Same OLDCARTS element
-                        'focus': 'clinical',
-                        'is_clarification': True
-                    })
-                    
-                    return {
-                        'success': True,
-                        'question': clarifying_q,
-                        'status': 'questioning',
-                        'needs_clarification': True
-                    }
+                        # Add clarifying question to history
+                        self.conversation_history.append({
+                            'type': 'question',
+                            'question': clarifying_q,
+                            'oldcarts': oldcarts_element,  # Same OLDCARTS element
+                            'focus': 'clinical',
+                            'is_clarification': True
+                        })
+                        
+                        return {
+                            'success': True,
+                            'question': clarifying_q,
+                            'status': 'questioning',
+                            'needs_clarification': True
+                        }
             else:
                 self._capture_debug(f"\n[Engine] ⚠️  Max clarifications reached (top: {top_score:.0%})")
                 self._capture_debug(f"[Engine]   Already asked {clarification_count} clarifications for '{oldcarts_element}'")
@@ -3597,51 +2960,50 @@ Normalized text:"""
     
     def _red_flag_to_question(self, red_flag: str) -> str:
         """
-        Convert a red flag statement to a yes/no question
+        Convert a red flag statement to a yes/no question using structured data from guidelines
         
-        Example:
-        "High fever >103°F with severe pain - possible perforation"
-        → "Have you had a fever higher than 103 degrees?"
+        Uses the red flag text directly from guidelines to generate appropriate questions
         """
-        # More specific patterns to avoid generic questions
-        lower = red_flag.lower()
+        # Extract the core symptom from the red flag text
+        # Remove medical terminology and convert to patient-friendly question
         
-        # High fever patterns (more specific)
-        if 'fever' in lower and ('103' in lower or '102' in lower):
-            if '103' in lower:
-                question = "Have you had a fever higher than 103 degrees?"
-            else:
-                question = "Have you had a fever higher than 102 degrees?"
-        elif 'fever' in lower and 'high' in lower:
-            question = "Have you had a high fever?"
-        elif 'fever' in lower and 'rigor' in lower:
-            question = "Have you had shaking chills with fever?"
-        elif 'fever' in lower:
-            question = "Have you had any fever?"
-        # Rigid abdomen patterns
-        elif 'rigid' in lower or 'board-like' in lower:
-            question = "Does your abdomen feel hard or rigid?"
-        elif 'peritoneal' in lower:
-            question = "Does your abdomen feel very tender when pressed?"
-        # Dizziness/mental status patterns
-        elif 'dizzy' in lower or 'faint' in lower or 'hypotension' in lower:
-            question = "Have you felt dizzy or lightheaded?"
-        elif 'confusion' in lower or 'altered mental' in lower:
-            question = "Have you felt confused?"
-        elif 'mental' in lower:
-            question = "Have you felt confused or disoriented?"
-        elif 'blood' in lower and 'stool' in lower:
-            question = "Have you seen blood in your stool?"
-        elif 'blood' in lower and 'vomit' in lower:
-            question = "Have you vomited blood?"
-        elif 'jaundice' in lower or 'yellow' in lower:
-            question = "Have you noticed any yellowing of your skin or eyes?"
-        else:
-            # Generic
-            question = f"Have you experienced {red_flag.split('-')[0].strip().lower()}?"
+        # Use LLM to convert medical red flag text to patient-friendly question
+        system_msg = "You are a medical assistant. Convert a medical red flag statement to a simple yes/no question for a patient. Use plain language, no medical jargon. Output ONLY the question."
         
-        self._capture_debug(f"[Engine] ✅ Red flag question: '{question}'")
-        return question
+        user_msg = f"""Convert this medical red flag to a simple yes/no question for a patient:
+
+Red flag: "{red_flag}"
+
+Examples:
+- "High fever >103°F with severe pain - possible perforation" → "Have you had a fever higher than 103 degrees?"
+- "Severe pain with abdominal rigidity (board-like abdomen) - perforation with peritonitis" → "Does your abdomen feel hard or rigid?"
+- "Hypotension, tachycardia, altered mental status - septic shock" → "Have you felt dizzy or lightheaded?"
+
+Your question:"""
+        
+        try:
+            response = self.llm_chat_simple_fn(
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=self.max_tokens_simple,
+                temperature=self.temperature_simple
+            )
+            
+            question = response.strip().strip('"\'')
+            if not question.endswith('?'):
+                question += '?'
+            
+            self._capture_debug(f"[Engine] ✅ Red flag question: '{question}'")
+            return question
+            
+        except Exception as e:
+            self._capture_debug(f"[Engine] ⚠️ LLM red flag question failed: {e}")
+            # Fallback: simple extraction
+            main_symptom = red_flag.split('-')[0].strip().lower()
+            question = f"Have you experienced {main_symptom}?"
+            return question
     
     def _finalize_diagnosis(self, diagnosis_obj: Dict) -> Dict[str, Any]:
         """
@@ -3967,7 +3329,7 @@ Return ONLY the age number (1-120) or "NONE" if no valid age."""
             except ValueError:
                 self._capture_debug(f"[Engine] ❌ LLM response not a number: '{response_clean}'")
                 return None
-                
+            
         except Exception as e:
             self._capture_debug(f"[Engine] ⚠️ LLM age extraction failed: {e}")
             # Fallback to None if LLM fails
@@ -3992,295 +3354,6 @@ Examples:
 Your question:"""
         
         response = self.llm_chat_simple_fn(  # Use simple model (Llama-1B)
-            [
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": user_msg}
-            ],
-            max_tokens=self.max_tokens_simple,
-            temperature=self.temperature_simple
-        )
-        
-        question = response.strip().strip('"\'')
-        if not question.endswith('?'):
-            question += '?'
-        self._capture_debug(f"[Engine] ✅ Sex question (simple model): '{question}'")
-        return question
-    
-    def _generate_clarifying_question(self, oldcarts_element: str, vague_answer: str, clarification_count: int = 0) -> str:
-        """
-        Generate progressively targeted clarifying questions based on top differentials
-        
-        Strategy:
-        - 1st clarification: Open-ended (gather more info)
-        - 2nd+ clarifications: Targeted based on top differentials (discriminate between conditions)
-        
-        Args:
-            oldcarts_element: The OLDCARTS element that needs clarification (O, L, D, C, A, R, T, S)
-            vague_answer: The user's vague answer that needs clarification
-            clarification_count: How many clarifications already asked for this element
-            
-        Returns:
-            Progressively more targeted question for the same OLDCARTS element
-        """
-        self._capture_debug(f"[Engine] 🧠 Generating clarifying question #{clarification_count + 1} for OLDCARTS '{oldcarts_element}'...")
-        
-        # First clarification: Use LLM to generate intelligent open-ended question
-        if clarification_count == 0:
-            question = self._llm_generate_clarification_question(oldcarts_element, vague_answer)
-        
-        # Subsequent clarifications: Targeted based on top differentials
-        else:
-            # Try to generate targeted question based on top differentials
-            question = self._generate_differential_based_question(oldcarts_element)
-            
-            # If we got the same generic question, it means we can't differentiate further
-            # Add variation or use a different angle
-            if clarification_count >= 1 and oldcarts_element == 'O':
-                # For onset, ask about associated context instead
-                question = "Did anything trigger it? Like eating, physical activity, or did it just happen out of nowhere?"
-        
-        self._capture_debug(f"[Engine] ✅ Clarifying question #{clarification_count + 1}: '{question}'")
-        return question
-    
-    def _llm_generate_clarification_question(self, oldcarts_element: str, vague_answer: str) -> str:
-        """
-        Use LLM to generate intelligent clarification questions
-        Analyzes the vague answer and generates a targeted follow-up
-        """
-        self._capture_debug(f"[Engine] 🧠 LLM generating clarification for '{oldcarts_element}': '{vague_answer}'")
-        
-        # Special handling for location questions
-        if oldcarts_element == 'L' and self._is_vague_location_answer(vague_answer):
-            return self._generate_location_follow_up_question(vague_answer)
-        
-        # Get top conditions for context
-        top_conditions = self.active_guidelines[:3] if self.active_guidelines else []
-        
-        # Map OLDCARTS elements to their section names in guidelines
-        oldcarts_sections = {
-            'L': 'LOCATION:',
-            'O': 'ONSET:',
-            'D': 'DURATION:',
-            'C': 'CHARACTER:',
-            'A': 'AGGRAVATING:',
-            'R': 'RELIEVING:',
-            'T': 'TIMING:',
-            'S': 'SEVERITY:'
-        }
-        
-        section_name = oldcarts_sections.get(oldcarts_element, 'LOCATION:')
-        
-        # Build context with specific OLDCARTS component from guidelines
-        condition_info = []
-        for g in top_conditions:
-            # Extract specific OLDCARTS component from classic_presentation
-            classic_presentation = g['data'].get('key_features', {}).get('classic_presentation', '')
-            component_info = ""
-            
-            if section_name in classic_presentation:
-                # Extract the specific OLDCARTS section
-                section_start = classic_presentation.find(section_name)
-                section_end = classic_presentation.find('.', section_start)
-                if section_end == -1:
-                    # Look for next OLDCARTS section
-                    next_sections = [s for s in oldcarts_sections.values() if s != section_name]
-                    next_positions = [classic_presentation.find(s, section_start) for s in next_sections]
-                    next_positions = [pos for pos in next_positions if pos != -1]
-                    section_end = min(next_positions) if next_positions else len(classic_presentation)
-                else:
-                    section_end += 1  # Include the period
-                
-                component_info = classic_presentation[section_start:section_end].strip()
-            
-            condition_info.append(f"- {g['name']}: {component_info if component_info else g['data'].get('description', 'No description')}")
-        
-        # Get chief complaint context for the LLM
-        chief_complaint_context = ""
-        if hasattr(self, 'chief_complaint') and self.chief_complaint:
-            chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}. "
-        
-        system_msg = f"You are a medical assistant. Generate ONE intelligent clarification question. Use PLAIN LANGUAGE. Do NOT ask questions requiring visual inspection. Do NOT use medical terms. {chief_complaint_context}CRITICAL: The patient's chief complaint is {self.chief_complaint}. You MUST ONLY ask about the {self.chief_complaint} area. DO NOT ask about shoulder, chest, head, arm, leg, or any other body parts. ONLY ask about the {self.chief_complaint} area. FORBIDDEN WORDS: shoulder, chest, head, arm, leg, back, neck. DO NOT USE THESE WORDS. CRITICAL: Always use 'your' when asking the patient directly - NEVER use 'her', 'his', 'their' or third person pronouns."
-        
-        # Add specific examples for abdominal pain
-        if 'abdominal' in self.chief_complaint.lower() or 'belly' in self.chief_complaint.lower() or 'stomach' in self.chief_complaint.lower():
-            system_msg += " EXAMPLE: For abdominal pain, ask 'Can you be more specific about upper or lower part?' NOT 'shoulder, chest, or abdomen'."
-        
-        # Debug: Log what's being sent to LLM
-        self._capture_debug(f"[Engine] 🧠 LLM System Message: {system_msg}")
-        self._capture_debug(f"[Engine] 🧠 Chief Complaint Context: '{chief_complaint_context}'")
-        
-        # Build conversation history for context
-        conversation_context = ""
-        if len(self.conversation_history) > 0:
-            conversation_context = "\n\nPrevious conversation:\n"
-            for item in self.conversation_history[-6:]:  # Last 6 items
-                if item['type'] == 'question':
-                    conversation_context += f"Q: {item['question']}\n"
-                elif item['type'] == 'answer':
-                    conversation_context += f"A: {item['answer']}\n"
-        
-        user_msg = f"""The patient gave a vague answer about {oldcarts_element}:
-
-Patient's answer: "{vague_answer}"{conversation_context}
-
-Generate ONE simple clarification question to get more specific information. Use the specific details from these conditions to guide your question:
-
-Conditions:
-{chr(10).join(condition_info)}
-
-Generate ONE question only. Focus on getting specific {oldcarts_element} information. Use simple language. Focus ONLY on the chief complaint area - do NOT ask about unrelated body parts. For location questions, use the specific location details from the conditions above. 
-IMPORTANT: Use the patient's previous answers to make your question more specific and avoid repeating information they already provided.
-Output only the question:"""
-        
-        try:
-            # Use complex model for clarification questions (better reasoning)
-            response = self.llm_chat_fn(
-                [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg}
-                ],
-                max_tokens=self.max_tokens_question,
-                temperature=self.temperature_complex
-            )
-            
-            question = response.strip().strip('"\'')
-            if not question.endswith('?'):
-                question += '?'
-            
-            # Check for duplicate questions
-            recent_questions = [item['question'] for item in self.conversation_history[-10:] if item.get('type') == 'question']
-            if question in recent_questions:
-                self._capture_debug(f"[Engine] ⚠️ Duplicate question detected: '{question}'")
-                # Generate alternative question
-                question = f"Can you be more specific about the {oldcarts_element.lower()} of your {self.chief_complaint}?"
-            
-            # Debug: Log LLM response
-            self._capture_debug(f"[Engine] 🧠 LLM Raw Response: '{response}'")
-            self._capture_debug(f"[Engine] ✅ LLM clarification question: '{question}'")
-            return question
-            
-        except Exception as e:
-            self._capture_debug(f"[Engine] ❌ LLM clarification question failed: {e}")
-            raise RuntimeError(f"Failed to generate clarification question: {e}")
-    
-    def _generate_differential_based_question(self, oldcarts_element: str) -> str:
-        """
-        Generate targeted question based on top differentials to discriminate between them
-        Uses LLM to generate generic questions for any medical condition
-        """
-        if len(self.active_guidelines) < 2:
-            return "Could you be more specific?"
-        
-        # Get top 3 differentials
-        top_conditions = self.active_guidelines[:min(3, len(self.active_guidelines))]
-        
-        # Extract key distinguishing features from guidelines
-        condition_names = [g['name'] for g in top_conditions]
-        
-        self._capture_debug(f"[Engine] 🎯 Generating targeted question to differentiate between:")
-        for g in top_conditions:
-            self._capture_debug(f"[Engine]   - {g['name']} ({g['score']:.0%})")
-        
-        # Use LLM to generate targeted question based on differentials
-        return self._llm_generate_differential_question(oldcarts_element, top_conditions)
-    
-    def _llm_generate_differential_question(self, oldcarts_element: str, top_conditions: List[Dict]) -> str:
-        """
-        Use LLM to generate targeted question that discriminates between top differentials
-        Generic approach that works for any medical condition
-        """
-        self._capture_debug(f"[Engine] 🧠 LLM generating differential question for {oldcarts_element}")
-        
-        # Build context with top conditions - extract specific OLDCARTS component
-        condition_info = []
-        
-        # Map OLDCARTS elements to their section names in guidelines
-        oldcarts_sections = {
-            'L': 'LOCATION:',
-            'O': 'ONSET:',
-            'D': 'DURATION:',
-            'C': 'CHARACTER:',
-            'A': 'AGGRAVATING:',
-            'R': 'RELIEVING:',
-            'T': 'TIMING:',
-            'S': 'SEVERITY:'
-        }
-        
-        section_name = oldcarts_sections.get(oldcarts_element, 'LOCATION:')
-        
-        for g in top_conditions:
-            # Extract specific OLDCARTS component from classic_presentation
-            classic_presentation = g['data'].get('key_features', {}).get('classic_presentation', '')
-            component_info = ""
-            
-            if section_name in classic_presentation:
-                # Extract the specific OLDCARTS section
-                section_start = classic_presentation.find(section_name)
-                section_end = classic_presentation.find('.', section_start)
-                if section_end == -1:
-                    # Look for next OLDCARTS section
-                    next_sections = [s for s in oldcarts_sections.values() if s != section_name]
-                    next_positions = [classic_presentation.find(s, section_start) for s in next_sections]
-                    next_positions = [pos for pos in next_positions if pos != -1]
-                    section_end = min(next_positions) if next_positions else len(classic_presentation)
-                else:
-                    section_end += 1  # Include the period
-                
-                component_info = classic_presentation[section_start:section_end].strip()
-            
-            condition_info.append(f"- {g['name']}: {component_info if component_info else g['data'].get('description', 'No description')}")
-        
-        # OLDCARTS element descriptions
-        element_descriptions = {
-            'L': "LOCATION - where the symptom is located",
-            'O': "ONSET - when the symptom started", 
-            'D': "DURATION - how long the symptom lasts",
-            'C': "CHARACTER - what the symptom feels like",
-            'A': "AGGRAVATING factors - what makes it worse",
-            'R': "RELIEVING factors - what makes it better", 
-            'T': "TIMING - pattern of the symptom",
-            'S': "SEVERITY - how bad the symptom is"
-        }
-        
-        element_desc = element_descriptions.get(oldcarts_element, "the symptom")
-        
-        # Get chief complaint context for the LLM
-        chief_complaint_context = ""
-        if hasattr(self, 'chief_complaint') and self.chief_complaint:
-            chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}. "
-        
-        system_msg = f"You are a medical assistant. CRITICAL: Output EXACTLY ONE question only. NEVER combine multiple questions. Use PLAIN LANGUAGE (no medical jargon). Do NOT ask questions requiring visual inspection. Do NOT use medical terminology from guidelines. Do NOT include internal reasoning or explanations. {chief_complaint_context}CRITICAL: The patient's chief complaint is {self.chief_complaint}. You MUST ONLY ask about the {self.chief_complaint} area. DO NOT ask about shoulder, chest, head, arm, leg, or any other body parts. ONLY ask about the {self.chief_complaint} area. FORBIDDEN WORDS: shoulder, chest, head, arm, leg, back, neck. DO NOT USE THESE WORDS. CRITICAL: Always use 'your' when asking the patient directly - NEVER use 'her', 'his', 'their' or third person pronouns. Output only the question:"
-        
-        # Add specific examples for abdominal pain
-        if 'abdominal' in self.chief_complaint.lower() or 'belly' in self.chief_complaint.lower() or 'stomach' in self.chief_complaint.lower():
-            system_msg += " EXAMPLE: For abdominal pain, ask 'Can you be more specific about upper or lower part?' NOT 'shoulder, chest, or abdomen'."
-        
-        # Debug: Log what's being sent to LLM
-        self._capture_debug(f"[Engine] 🧠 LLM System Message: {system_msg}")
-        self._capture_debug(f"[Engine] 🧠 Chief Complaint Context: '{chief_complaint_context}'")
-        
-        # Build conversation history for context
-        conversation_context = ""
-        if len(self.conversation_history) > 0:
-            conversation_context = "\n\nPrevious conversation:\n"
-            for item in self.conversation_history[-6:]:  # Last 6 items
-                if item['type'] == 'question':
-                    conversation_context += f"Q: {item['question']}\n"
-                elif item['type'] == 'answer':
-                    conversation_context += f"A: {item['answer']}\n"
-        
-        user_msg = f"""Generate ONE simple question about {element_desc} to help differentiate between these conditions:{conversation_context}
-
-Conditions:
-{chr(10).join(condition_info)}
-
-Generate ONE question only. Focus on {element_desc}. Use simple language. Focus ONLY on the chief complaint area - do NOT ask about unrelated body parts. For location questions, use the specific location details from the conditions above. 
-CRITICAL: Always address the patient directly using 'your' - NEVER use 'her', 'his', 'their' or third person pronouns.
-IMPORTANT: Use the patient's previous answers to make your question more specific and avoid repeating information they already provided.
-Output only the question:"""
-        
-        try:
-            response = self.llm_chat_simple_fn(
                 [
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
@@ -4289,18 +3362,11 @@ Output only the question:"""
                 temperature=self.temperature_simple
             )
             
-            question = response.strip().strip('"\'')
-            if not question.endswith('?'):
-                question += '?'
-            
-            # Debug: Log LLM response
-            self._capture_debug(f"[Engine] 🧠 LLM Raw Response: '{response}'")
-            self._capture_debug(f"[Engine] ✅ LLM differential question: '{question}'")
-            return question
-            
-        except Exception as e:
-            self._capture_debug(f"[Engine] ⚠️ LLM differential question failed: {e}")
-            return "Could you provide more details?"
+        question = response.strip().strip('"\'')
+        if not question.endswith('?'):
+            question += '?'
+        self._capture_debug(f"[Engine] ✅ Sex question (simple model): '{question}'")
+        return question
     
     
     def _generate_clarification_question(self, topic: str) -> str:
@@ -4340,67 +3406,6 @@ Your question:"""
             question += '?'
         self._capture_debug(f"[Engine] ✅ Clarification (simple model): '{question}'")
         return question
-    
-    def _is_vague_location_answer(self, answer: str) -> bool:
-        """
-        Check if location answer is too vague and needs follow-up
-        Uses dynamic scoring to compare user response to precise locations in guidelines
-        """
-        answer_lower = answer.lower().strip()
-        
-        # Get specific locations from medical guidelines, filtered by chief complaint context
-        specific_locations = self._extract_specific_locations_from_guidelines()
-        
-        if not specific_locations:
-            self._capture_debug(f"[Engine] ⚠️ No specific locations found in guidelines")
-            return False
-        
-        # No context filtering needed - LLM has chief complaint context
-        
-        try:
-            # Calculate similarity scores with all specific locations
-            similarity_scores = []
-            for specific_loc in specific_locations:
-                score = self._calculate_semantic_similarity(answer, specific_loc)
-                similarity_scores.append((specific_loc, score))
-            
-            # Sort by similarity score
-            similarity_scores.sort(key=lambda x: x[1], reverse=True)
-            
-            # Get the best match
-            best_match = similarity_scores[0] if similarity_scores else (None, 0.0)
-            best_location, best_score = best_match
-            
-            # Determine if answer is vague based on similarity threshold
-            # If the best match is below threshold, the answer is too vague
-            SIMILARITY_THRESHOLD = 0.6  # Adjust this threshold as needed
-            
-            is_vague = best_score < SIMILARITY_THRESHOLD
-            
-            self._capture_debug(f"[Engine] 🧠 Location vagueness check: '{answer}'")
-            self._capture_debug(f"[Engine] 🧠 Best match: '{best_location}' (score: {best_score:.3f})")
-            self._capture_debug(f"[Engine] 🧠 Threshold: {SIMILARITY_THRESHOLD}, Is vague: {is_vague}")
-            
-            return is_vague
-            
-        except Exception as e:
-            self._capture_debug(f"[Engine] ⚠️ Error in dynamic location scoring: {e}")
-            return False
-    
-    def _calculate_semantic_similarity(self, text1: str, text2: str) -> float:
-        """
-        Calculate semantic similarity between two texts using the RAG client
-        """
-        try:
-            if hasattr(self, 'rag_client') and self.rag_client:
-                # Use RAG client for semantic similarity
-                similarity = self.rag_client.calculate_similarity(text1, text2)
-                return similarity
-            else:
-                raise RuntimeError("RAG client not available - required for semantic similarity")
-        except Exception as e:
-            self._capture_debug(f"[Engine] ❌ Error calculating semantic similarity: {e}")
-            raise RuntimeError(f"Failed to calculate semantic similarity: {e}")
     
     def _detect_anatomical_competition(self, patient_answer: str, location_blocks: list) -> dict:
         """
@@ -4596,10 +3601,69 @@ Your question:"""
     
     def _generate_clarifying_question(self, oldcarts_element: str, patient_answer: str, clarification_count: int, missing_terms: list = None) -> str:
         """
-        Generate a clarifying question based on OLDCARTS element
-        Questions are open-ended to allow natural language responses
+        Generate a targeted clarifying question based on structured OLDCARTS data
+        
+        Compares normalized patient answer against structured_oldcarts includes/excludes
+        to generate targeted questions that help discriminate between conditions
         """
-        # Simple question templates based on OLDCARTS element
+        self._capture_debug(f"[Engine] 🎯 Generating targeted clarifying question for {oldcarts_element}")
+        self._capture_debug(f"[Engine]   Patient answer: '{patient_answer}'")
+        
+        # Get structured OLDCARTS data from active guidelines
+        element_mapping = {
+            'O': 'onset',
+            'L': 'location',
+            'D': 'duration',
+            'C': 'character',
+            'A': 'aggravating',
+            'R': 'relieving',
+            'T': 'timing',
+            'S': 'severity'
+        }
+        element_name = element_mapping.get(oldcarts_element, oldcarts_element)
+        
+        # Collect expected terms from all active guidelines for this element
+        expected_terms = set()
+        
+        for guideline in self.active_guidelines[:5]:  # Check top 5
+            structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            
+            if element_name in structured:
+                element_data = structured[element_name]
+                if isinstance(element_data, dict) and 'includes' in element_data:
+                    for term in element_data['includes']:
+                        expected_terms.add(term.lower())
+        
+        self._capture_debug(f"[Engine]   Expected terms from guidelines: {expected_terms}")
+        
+        # Check which expected terms are missing from patient answer
+        patient_words = set(patient_answer.lower().split())
+        missing_terms = [term for term in expected_terms if term not in patient_answer.lower()]
+        
+        self._capture_debug(f"[Engine]   Missing terms: {missing_terms}")
+        
+        # Generate targeted question based on missing information
+        if missing_terms:
+            # For location, be specific about upper/lower
+            if oldcarts_element == 'L':
+                if any('upper' in term or 'ruq' in term or 'luq' in term for term in missing_terms) and \
+                   any('lower' in term or 'rlq' in term or 'llq' in term for term in missing_terms):
+                    return "Is it in the upper part (below ribs) or lower part (near hip) of your abdomen?"
+                elif any('upper' in term or 'ruq' in term or 'luq' in term for term in missing_terms):
+                    return "Is it in the upper part of your abdomen (below your ribs)?"
+                elif any('lower' in term or 'rlq' in term or 'llq' in term for term in missing_terms):
+                    return "Is it in the lower part of your abdomen (near your hip)?"
+            
+            # For duration, be specific about time
+            elif oldcarts_element == 'D':
+                if any('hour' in term or 'minute' in term for term in missing_terms):
+                    return "How long does it last - minutes, hours, or days?"
+            
+            # For character, ask about quality
+            elif oldcarts_element == 'C':
+                return f"Can you describe the pain more specifically? Is it sharp, dull, crampy, or burning?"
+        
+        # Fallback to generic question
         element_questions = {
             'L': "Can you be more specific about the location?",
             'D': "Can you be more specific about the duration?",
@@ -4613,28 +3677,91 @@ Your question:"""
         
         return element_questions.get(oldcarts_element, "Can you provide more detail?")
     
-    def _simple_text_similarity(self, text1: str, text2: str) -> float:
+    def _parse_prompt_against_structured_oldcarts(self, prompt: str, guidelines: List[Dict]) -> Dict[str, Any]:
         """
-        Simple text similarity for basic comparison
+        Parse the normalized prompt against structured OLDCARTS to determine what's already answered
+        
+        Args:
+            prompt: Normalized user complaint (e.g., "I have abdomian pain on my [right side] that gets [worse with eating]")
+            guidelines: Matched guidelines with structured_oldcarts
+        
+        Returns:
+            Dictionary with:
+                - 'answered_components': Dict of OLDCARTS elements that were answered
+                - 'missing_components': List of OLDCARTS elements that need to be asked
         """
-        text1_lower = text1.lower()
-        text2_lower = text2.lower()
+        self._capture_debug(f"[Engine] 🔍 Parsing prompt against structured OLDCARTS")
+        self._capture_debug(f"[Engine] 📝 Prompt: '{prompt}'")
         
-        # Simple word overlap similarity
-        words1 = set(text1_lower.split())
-        words2 = set(text2_lower.split())
+        if not guidelines or not any(g.get('data', {}).get('key_features', {}).get('structured_oldcarts') for g in guidelines):
+            self._capture_debug(f"[Engine] ⚠️ No structured OLDCARTS found in guidelines")
+            return {
+                'answered_components': {},
+                'missing_components': ['O', 'L', 'D', 'C', 'A', 'R', 'T', 'S']
+            }
         
-        if not words1 or not words2:
-            return 0.0
+        # Collect all 'includes' terms from ALL guidelines for each OLDCARTS element
+        # This represents what the guidelines are looking for
+        all_includes = {
+            'onset': set(),
+            'location': set(),
+            'duration': set(),
+            'character': set(),
+            'aggravating': set(),
+            'relieving': set(),
+            'timing': set(),
+            'severity': set()
+        }
         
-        intersection = words1.intersection(words2)
-        union = words1.union(words2)
+        for guideline in guidelines[:5]:  # Check active guidelines only
+            structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            
+            for element, data in structured.items():
+                if isinstance(data, dict) and 'includes' in data:
+                    for term in data['includes']:
+                        all_includes[element].add(term.lower())
         
-        return len(intersection) / len(union) if union else 0.0
-    
-    
-
-
+        self._capture_debug(f"[Engine] 📊 Collected {sum(len(terms) for terms in all_includes.values())} expected terms from guidelines")
+        
+        # Check which elements are present in the prompt
+        answered_components = {}
+        prompt_lower = prompt.lower()
+        
+        for element, expected_terms in all_includes.items():
+            # Check if any expected term from guidelines appears in the prompt
+            for term in expected_terms:
+                if term in prompt_lower:
+                    if element not in answered_components:
+                        answered_components[element] = []
+                    answered_components[element].append(term)
+                    self._capture_debug(f"[Engine] ✅ Found {element}: '{term}'")
+                    break  # Found at least one match for this element
+        
+        # Map element names to OLDCARTS codes
+        element_to_code = {
+            'onset': 'O',
+            'location': 'L',
+            'duration': 'D',
+            'character': 'C',
+            'aggravating': 'A',
+            'relieving': 'R',
+            'timing': 'T',
+            'severity': 'S'
+        }
+        
+        # Determine missing components
+        all_codes = ['O', 'L', 'D', 'C', 'A', 'R', 'T', 'S']
+        answered_codes = [element_to_code.get(element) for element in answered_components.keys() if element in element_to_code]
+        missing_codes = [code for code in all_codes if code not in answered_codes]
+        
+        self._capture_debug(f"[Engine] 📊 Summary:")
+        self._capture_debug(f"[Engine]   ✅ Answered: {answered_codes} ({answered_components})")
+        self._capture_debug(f"[Engine]   ❌ Missing: {missing_codes}")
+        
+        return {
+            'answered_components': answered_components,
+            'missing_components': missing_codes
+        }
 
 # Test
 if __name__ == "__main__":

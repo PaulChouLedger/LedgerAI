@@ -1,4 +1,27 @@
 {
+  "chief_complaint": {
+    "abdominal_pain": [
+      "belly ache",
+      "belly pain",
+      "stomach ache",
+      "stomach pain",
+      "gut pain",
+      "tummy ache",
+      "bellyache",
+      "tummy pain",
+      "abdominal pain",
+      "abdominal ache",
+      "stomach hurt",
+      "belly hurt",
+      "my stomach",
+      "my belly",
+      "hurts in my stomach",
+      "hurts in my belly",
+      "pain in abdomen",
+      "pain in stomach",
+      "pain in belly"
+    ]
+  },
   "onset": {
     "sudden": [
       "suddenly",
@@ -36,21 +59,6 @@
     ]
   },
   "location": {
-    "abdominal_pain": [
-      "stomach ache",
-      "belly pain",
-      "belly ache",
-      "gut pain",
-      "tummy",
-      "tummy ache",
-      "stomach pain",
-      "bellyache",
-      "cramps",
-      "stomach cramps",
-      "hurts",
-      "pain in my abdomen",
-      "diffuse abdominal pain"
-    ],
     "left_side": [
       "left side",
       "on my left side",
