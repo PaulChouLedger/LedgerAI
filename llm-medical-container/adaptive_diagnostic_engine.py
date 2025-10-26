@@ -617,9 +617,12 @@ Be conversational, empathetic, and helpful. When patients ask for clarification,
         """Generate first question using structured OLDCARTS approach with demographics"""
         self._capture_debug(f"[Engine] 🧠 Generating structured first question with demographics...")
         
-        # PRIORITY 0: Add empathetic opening statement (only on first question)
+        # PRIORITY 0: Add empathetic opening statement (only if not already shown)
         empathetic_prefix = ""
-        if not self.conversation_history:
+        empathetic_shown = any(item.get('type') == 'statement' and item.get('focus') == 'empathetic' 
+                             for item in self.conversation_history)
+        
+        if not empathetic_shown:
             chief_complaint_lower = self.chief_complaint.lower()
             # Extract the symptom from chief complaint
             symptom = chief_complaint_lower.replace('i have ', '').replace('i am experiencing ', '').replace('i\'m experiencing ', '').strip()
@@ -628,10 +631,6 @@ Be conversational, empathetic, and helpful. When patients ask for clarification,
         
         # PRIORITY 1: Ask demographics FIRST (age, then sex, then chronicity)
         if not hasattr(self, 'demographics') or not self.demographics.get('age'):
-            # Check if empathetic statement has already been shown
-            empathetic_shown = any(item.get('type') == 'statement' and item.get('focus') == 'empathetic' 
-                                 for item in self.conversation_history)
-            
             if empathetic_prefix and not empathetic_shown:
                 # Return both empathetic statement and age question together
                 empathetic_message = empathetic_prefix.strip()
@@ -3754,22 +3753,31 @@ Your question:"""
         self._capture_debug(f"[Engine]   Avg patient similarity to guidelines: {avg_patient_similarity:.1%}")
         self._capture_debug(f"[Engine]   Avg guideline-to-guideline similarity: {avg_guideline_similarity:.1%}")
         
-        # Decision logic: Simple approach from working commit
-        # If patient answer has very low containment (< 30%) → need clarification
-        if avg_patient_similarity < 0.3:
-            self._capture_debug(f"[Engine] 🎯 COMPETITION DETECTED - Very low containment {avg_patient_similarity:.1%} < 30%")
+        # Decision logic:
+        # 1. If guidelines are very similar to each other (high internal similarity) → no competition
+        if avg_guideline_similarity > 0.7:
+            self._capture_debug(f"[Engine] ✅ Guidelines are similar - no competition")
             return {
-                'has_competition': True,
-                'competing_areas': [block['condition'] for block in location_blocks],
-                'clarification_needed': True
+                'has_competition': False,
+                'competing_areas': [],
+                'clarification_needed': False
             }
         
-        # If patient answer has good containment (>= 30%) → no clarification needed
-        self._capture_debug(f"[Engine] ✅ NO COMPETITION - Good containment {avg_patient_similarity:.1%} >= 30%")
+        # 2. If patient answer matches all guidelines well → no clarification needed
+        if avg_patient_similarity > 0.5:
+            self._capture_debug(f"[Engine] ✅ Patient answer matches guidelines well - no clarification")
+            return {
+                'has_competition': False,
+                'competing_areas': [],
+                'clarification_needed': False
+            }
+        
+        # 3. Guidelines differ AND patient answer doesn't match well → competition exists → need clarification
+        self._capture_debug(f"[Engine] 🎯 COMPETITION DETECTED - Guidelines differ, patient vague")
         return {
-            'has_competition': False,
-            'competing_areas': [],
-            'clarification_needed': False
+            'has_competition': True,
+            'competing_areas': [block['condition'] for block in location_blocks],
+            'clarification_needed': True
         }
     
     def _detect_oldcarts_competition(self, patient_answer: str, oldcarts_element: str, matching_sections: list) -> dict:
