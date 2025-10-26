@@ -2781,7 +2781,9 @@ Normalized text:"""
         
         # Get enhanced similarity using Medical Rule Engine with normalized answer
         result = self.medical_rule_engine.get_enhanced_similarity(
-            normalized_answer, oldcarts_section, condition_name, organ_system=self._get_organ_system_from_condition(condition_name)
+            normalized_answer, oldcarts_section, condition_name, 
+            organ_system=self._get_organ_system_from_condition(condition_name),
+            oldcarts_element=oldcarts_element
         )
         
         # Log the result
@@ -2838,8 +2840,11 @@ Normalized text:"""
             raise RuntimeError("Medical Rule Engine not available - ML system required")
         
         # Get enhanced similarity using Medical Rule Engine
+        organ_system = self._get_organ_system_from_condition(condition_name)
         result = self.medical_rule_engine.get_enhanced_similarity(
-            user_answer, oldcarts_section, condition_name
+            user_answer, oldcarts_section, condition_name,
+            organ_system=organ_system,
+            oldcarts_element='L'  # This is for location similarity
         )
         
         # Log the result
@@ -4395,9 +4400,6 @@ Your question:"""
             self._capture_debug(f"[Engine] ⚠️ Error in dynamic location scoring: {e}")
             return False
     
-    # OBSOLETE: Replaced by _detect_anatomical_competition() which uses full text blocks
-    # def _generate_location_follow_up_question(self, vague_answer: str) -> str:
-    
     def _calculate_semantic_similarity(self, text1: str, text2: str) -> float:
         """
         Calculate semantic similarity between two texts using the RAG client
@@ -4412,11 +4414,6 @@ Your question:"""
         except Exception as e:
             self._capture_debug(f"[Engine] ❌ Error calculating semantic similarity: {e}")
             raise RuntimeError(f"Failed to calculate semantic similarity: {e}")
-    
-    # OBSOLETE: Replaced by _detect_anatomical_competition() with full text block matching
-    # def _is_location_compatible(self, patient_answer: str, guideline_location: str) -> bool:
-    
-    # OBSOLETE: Removed _extract_anatomical_terms() - replaced by inline pattern matching in _analyze_side_competition()
     
     def _detect_anatomical_competition(self, patient_answer: str, location_blocks: list) -> dict:
         """
@@ -4595,10 +4592,6 @@ Your question:"""
         
         return containment_score
     
-    
-    # OBSOLETE: Removed _extract_descriptive_terms() - replaced by _simple_containment_match() for full text blocks
-    
-    
     def _was_clarification_just_asked(self) -> bool:
         """
         Check if the last question in conversation history was a clarification question
@@ -4616,8 +4609,8 @@ Your question:"""
     
     def _generate_clarifying_question(self, oldcarts_element: str, patient_answer: str, clarification_count: int, missing_terms: list = None) -> str:
         """
-        Generate a simple clarifying question based on OLDCARTS element
-        Now simplified - no longer needs complex hard-coded term matching
+        Generate a clarifying question based on OLDCARTS element
+        Questions are open-ended to allow natural language responses
         """
         # Simple question templates based on OLDCARTS element
         element_questions = {

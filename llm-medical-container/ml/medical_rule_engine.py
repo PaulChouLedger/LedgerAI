@@ -50,6 +50,84 @@ class MedicalRuleEngine:
         # Load hardcoded medical rules
         self.medical_rules = self._load_medical_rules()
         
+        # Load medical term mappings for normalization
+        self.term_mappings = self._load_term_mappings()
+        
+    def _load_term_mappings(self) -> Dict:
+        """
+        Load all synonym files for universal normalization
+        Lazy-loading: will load specific category synonyms when needed
+        """
+        self.synonym_cache = {}
+        print(f"✅ Synonym cache initialized (files will be loaded on-demand)")
+        return {}
+    
+    def _load_category_synonyms(self, category: str) -> Dict:
+        """
+        Load synonyms for a specific category (GI, CARDIO, etc.)
+        
+        Args:
+            category: Organ system category (e.g., 'GI', 'CARDIO')
+            
+        Returns:
+            Dict of synonyms organized by OLDCARTS section
+        """
+        category_lower = category.lower()
+        
+        # Check cache first
+        if category_lower in self.synonym_cache:
+            return self.synonym_cache[category_lower]
+        
+        # Build file path
+        synonym_file = f'synonyms/{category_lower}_synonyms_oldcarts.json'
+        
+        try:
+            with open(synonym_file, 'r') as f:
+                synonyms = json.load(f)
+            
+            # Cache it
+            self.synonym_cache[category_lower] = synonyms
+            print(f"✅ Loaded synonyms for {category} from {synonym_file}")
+            return synonyms
+        except FileNotFoundError:
+            print(f"⚠️ Synonym file not found: {synonym_file}")
+            return {}
+        except Exception as e:
+            print(f"⚠️ Error loading {synonym_file}: {e}")
+            return {}
+    
+    def _normalize_with_synonyms(self, user_response: str, category: str, oldcarts_section: str) -> str:
+        """
+        Normalize user response using category-specific synonyms for the given OLDCARTS section
+        
+        Args:
+            user_response: User's natural language response
+            category: Organ system category (e.g., 'GI', 'CARDIO')
+            oldcarts_section: OLDCARTS element (e.g., 'location', 'character', 'duration')
+            
+        Returns:
+            Normalized user response
+        """
+        synonyms = self._load_category_synonyms(category)
+        
+        if not synonyms:
+            return user_response.lower()
+        
+        # Get synonyms for the specific OLDCARTS section
+        section_synonyms = synonyms.get(oldcarts_section, {})
+        
+        user_lower = user_response.lower()
+        
+        # Check each synonym entry
+        for standard_term, variations in section_synonyms.items():
+            for variation in variations:
+                if variation.lower() in user_lower:
+                    # Found a match - return the standard term
+                    return standard_term
+        
+        # No synonym match found - return original (lowercased)
+        return user_lower
+    
     def _load_medical_rules(self) -> Dict:
         """
         Load hardcoded medical rules
@@ -117,7 +195,7 @@ class MedicalRuleEngine:
         return 'unknown'
     
     def get_enhanced_similarity(self, patient_text: str, guideline_text: str, 
-                              condition_name: str, organ_system: str = None) -> Dict[str, Any]:
+                              condition_name: str, organ_system: str = None, oldcarts_element: str = None) -> Dict[str, Any]:
         """
         Enhanced similarity with SEMANTIC SIMILARITY FIRST, anatomical rules as modifiers
         
@@ -125,8 +203,14 @@ class MedicalRuleEngine:
         anatomical rules only as fallbacks or modifiers for inconclusive cases
         """
         
+        # Normalize patient text using category-specific synonyms for the OLDCARTS section
+        if organ_system and oldcarts_element:
+            normalized_patient_text = self._normalize_with_synonyms(patient_text, organ_system, oldcarts_element)
+        else:
+            normalized_patient_text = patient_text.lower()
+        
         # 1. COMPUTE SEMANTIC SIMILARITY FIRST (Primary scoring method)
-        semantic_result = self._compute_semantic_similarity(patient_text, guideline_text)
+        semantic_result = self._compute_semantic_similarity(normalized_patient_text, guideline_text)
         semantic_score = semantic_result['similarity']
         
         # 2. Get anatomical type for validation/modification
@@ -254,29 +338,63 @@ class MedicalRuleEngine:
             
             elif anatomical_type in ['right_only', 'left_only']:
                 # Check if patient's side matches condition's side
-                patient_lower = patient_text.lower()
+                patient_lower = normalized_patient_text.lower()
+                guideline_lower = guideline_text.lower()
                 
-                # Determine if there's an anatomical match or mismatch
+                # Determine if there's an anatomical match or mismatch using normalized text
                 patient_has_left = any(term in patient_lower for term in ['left', 'llq', 'luq'])
                 patient_has_right = any(term in patient_lower for term in ['right', 'rlq', 'ruq'])
                 
+                # Load synonyms for quadrant detection
+                if organ_system:
+                    synonyms = self._load_category_synonyms(organ_system)
+                    location_syns = synonyms.get('location', {})
+                    
+                    # Get all RUQ/LUQ/RLQ/LLQ terms from synonyms
+                    ruq_terms = location_syns.get('ruq_pain', [])
+                    luq_terms = location_syns.get('luq_pain', [])
+                    rlq_terms = location_syns.get('rlq_pain', [])
+                    llq_terms = location_syns.get('llq_pain', [])
+                    
+                    upper_terms = ruq_terms + luq_terms
+                    lower_terms = rlq_terms + llq_terms
+                else:
+                    # Fallback to basic terms
+                    upper_terms = ['upper', 'top', 'ruq', 'luq']
+                    lower_terms = ['lower', 'bottom', 'hip', 'rlq', 'llq']
+                
+                # Check for quadrant/region specificity
+                patient_has_upper = any(term in patient_lower for term in upper_terms)
+                patient_has_lower = any(term in patient_lower for term in lower_terms)
+                guideline_has_upper = any(term in guideline_lower for term in ['upper', 'ruq', 'luq', 'quadrant'])
+                guideline_has_lower = any(term in guideline_lower for term in ['lower', 'rlq', 'llq', 'quadrant'])
+                
+                # Check if patient provides quadrant-level specificity
+                has_quadrant_match = False
+                if patient_has_upper and guideline_has_upper:
+                    has_quadrant_match = True
+                elif patient_has_lower and guideline_has_lower:
+                    has_quadrant_match = True
+                
                 if anatomical_type == 'left_only' and patient_has_left:
                     # Patient mentions left, condition is left-only → Same side match
+                    similarity = 0.8 if has_quadrant_match else 0.3
                     return {
-                        'similarity': 0.3,
-                        'method': 'same_side_fallback',
-                        'confidence': 'low',
-                        'reasoning': f'Low semantic ({semantic_score:.2f}) - same side fallback (left)',
+                        'similarity': similarity,
+                        'method': 'same_side_fallback' if not has_quadrant_match else 'quadrant_match',
+                        'confidence': 'high' if has_quadrant_match else 'low',
+                        'reasoning': f'Low semantic ({semantic_score:.2f}) - {"quadrant match" if has_quadrant_match else "same side fallback"} (left)',
                         'anatomical_type': anatomical_type,
                         'semantic_score': semantic_score
                     }
                 elif anatomical_type == 'right_only' and patient_has_right:
                     # Patient mentions right, condition is right-only → Same side match
+                    similarity = 0.8 if has_quadrant_match else 0.3
                     return {
-                        'similarity': 0.3,
-                        'method': 'same_side_fallback',
-                        'confidence': 'low',
-                        'reasoning': f'Low semantic ({semantic_score:.2f}) - same side fallback (right)',
+                        'similarity': similarity,
+                        'method': 'same_side_fallback' if not has_quadrant_match else 'quadrant_match',
+                        'confidence': 'high' if has_quadrant_match else 'low',
+                        'reasoning': f'Low semantic ({semantic_score:.2f}) - {"quadrant match" if has_quadrant_match else "same side fallback"} (right)',
                         'anatomical_type': anatomical_type,
                         'semantic_score': semantic_score
                     }
