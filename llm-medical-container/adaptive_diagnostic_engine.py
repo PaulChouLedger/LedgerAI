@@ -233,12 +233,6 @@ class AdaptiveDiagnosticEngine:
         
         # Current assessment state
         self.reset_assessment()
-        
-        # Thresholds - Clinical scoring: only rule out with definitive proof
-        self.RULE_OUT_THRESHOLD = 0.05  # Below 5% → rule out (ML-only system threshold)
-        self.MINIMUM_SCORE_FOR_RANKING = 0.05  # Minimum score to be considered for ranking
-        self.MAX_ACTIVE = 5  # Keep 5 active differentials
-        # MAX_CLARIFICATIONS removed - now dynamically determined by number of competing guidelines
     
     def _load_guidelines(self):
         """Load all JSON guideline files from subdirectories"""
@@ -376,85 +370,12 @@ class AdaptiveDiagnosticEngine:
         
         # Debug output capture for Telegram display
         self._captured_debug_output = []  # Capture debug output for Telegram display
-    
-    def _call_llm(self, prompt: str, max_tokens: int = 150, use_context: bool = True) -> str:
-        """
-        Call the LLM with optional conversation context
         
-        Args:
-            prompt: The prompt to send to the LLM
-            max_tokens: Maximum tokens to generate
-            use_context: Whether to include conversation history for more natural responses
-            
-        Returns:
-            LLM response as string
-        """
-        if not self.llm_chat_fn:
-            self._capture_debug(f"[Engine] ⚠️ No LLM function available")
-            return ""
-        
-        try:
-            if use_context and self.conversation_history:
-                # Build conversation context for more natural responses
-                context_messages = self._build_conversation_context()
-                
-                # Add the current prompt as user message
-                context_messages.append({
-                    "role": "user", 
-                    "content": prompt
-                })
-                
-                self._capture_debug(f"[Engine] 🤖 Calling LLM with {len(context_messages)} context messages")
-                response = self.llm_chat_fn(context_messages, max_tokens=max_tokens)
-            else:
-                # Simple prompt without context
-                messages = [{"role": "user", "content": prompt}]
-                self._capture_debug(f"[Engine] 🤖 Calling LLM with simple prompt")
-                response = self.llm_chat_fn(messages, max_tokens=max_tokens)
-            
-            if response and response.strip():
-                self._capture_debug(f"[Engine] ✅ LLM response: '{response[:100]}...'")
-                return response.strip()
-            else:
-                self._capture_debug(f"[Engine] ⚠️ Empty LLM response")
-                return ""
-                
-        except Exception as e:
-            self._capture_debug(f"[Engine] ❌ LLM call failed: {e}")
-            return ""
-    
-    def _build_conversation_context(self) -> List[Dict[str, str]]:
-        """
-        Build conversation context for LLM to make responses more natural
-        
-        Returns:
-            List of message dictionaries for LLM context
-        """
-        messages = []
-        
-        # Add system context about the medical assessment
-        system_context = f"""You are a helpful medical assistant conducting a symptom assessment. 
-
-Patient: {self.demographics.get('age', '?')} year old {self.demographics.get('sex', '?')} with {self.chief_complaint}
-
-You are asking questions to understand their symptoms better using the OLDCARTS framework (Onset, Location, Duration, Character, Aggravating, Relieving, Timing, Severity).
-
-Be conversational, empathetic, and helpful. When patients ask for clarification, explain things in simple terms and give them specific examples."""
-        
-        messages.append({"role": "system", "content": system_context})
-        
-        # Add recent conversation history (last 6 exchanges to keep context manageable)
-        recent_history = self.conversation_history[-12:]  # Last 12 items (6 Q&A pairs)
-        
-        for item in recent_history:
-            if item['type'] == 'question':
-                messages.append({"role": "assistant", "content": item['question']})
-            elif item['type'] == 'answer':
-                messages.append({"role": "user", "content": item['answer']})
-            elif item['type'] == 'explanation':
-                messages.append({"role": "assistant", "content": item['explanation']})
-        
-        return messages
+        # Thresholds - Clinical scoring: only rule out with definitive proof
+        self.RULE_OUT_THRESHOLD = 0.05  # Below 5% → rule out (ML-only system threshold)
+        self.MINIMUM_SCORE_FOR_RANKING = 0.05  # Minimum score to be considered for ranking
+        self.MAX_ACTIVE = 5  # Keep 5 active differentials
+        self.MAX_CLARIFICATIONS = 2  # Max times to ask for clarification before moving on
     
     def _get_dynamic_threshold(self, score: float) -> float:
         """
@@ -617,12 +538,9 @@ Be conversational, empathetic, and helpful. When patients ask for clarification,
         """Generate first question using structured OLDCARTS approach with demographics"""
         self._capture_debug(f"[Engine] 🧠 Generating structured first question with demographics...")
         
-        # PRIORITY 0: Add empathetic opening statement (only if not already shown)
+        # PRIORITY 0: Add empathetic opening statement (only on first question)
         empathetic_prefix = ""
-        empathetic_shown = any(item.get('type') == 'statement' and item.get('focus') == 'empathetic' 
-                             for item in self.conversation_history)
-        
-        if not empathetic_shown:
+        if not self.conversation_history:
             chief_complaint_lower = self.chief_complaint.lower()
             # Extract the symptom from chief complaint
             symptom = chief_complaint_lower.replace('i have ', '').replace('i am experiencing ', '').replace('i\'m experiencing ', '').strip()
@@ -631,53 +549,26 @@ Be conversational, empathetic, and helpful. When patients ask for clarification,
         
         # PRIORITY 1: Ask demographics FIRST (age, then sex, then chronicity)
         if not hasattr(self, 'demographics') or not self.demographics.get('age'):
-            if empathetic_prefix and not empathetic_shown:
-                # Return both empathetic statement and age question together
-                empathetic_message = empathetic_prefix.strip()
-                age_question = "Let's start by asking some questions to assist you further. What is your age?"
-                
-                # Add both to conversation history
-                self.conversation_history.append({
-                    'type': 'statement',
-                    'message': empathetic_message,
-                    'focus': 'empathetic'
-                })
-                self.conversation_history.append({
-                    'type': 'question',
-                    'question': age_question,
-                    'focus': 'demographics'
-                })
-                
-                self._capture_debug(f"[Engine] ✅ Combined empathetic + age question generated")
-                
-                return {
-                    'success': True,
-                    'message': empathetic_message,
-                    'question': age_question,
-                    'status': 'questioning',
-                    'debug': self._get_debug_info()
-                }
-            else:
-                # Return just the age question (empathetic already shown)
-                question = "Let's start by asking some questions to assist you further. What is your age?"
-                self._capture_debug(f"[Engine] ✅ Demographics question generated: '{question}'")
-                
-                # Add to conversation history with proper focus
-                self.conversation_history.append({
-                    'type': 'question',
-                    'question': question,
-                    'focus': 'demographics'
-                })
-                
-                return {
-                    'success': True,
-                    'question': question,
-                    'status': 'questioning',
-                    'debug': self._get_debug_info()
-                }
+            # Ask age first
+            question = empathetic_prefix + "How old are you?"
+            self._capture_debug(f"[Engine] ✅ Demographics question generated: '{question}'")
+            
+            # Add to conversation history with proper focus
+            self.conversation_history.append({
+                'type': 'question',
+                'question': question,
+                'focus': 'demographics'
+            })
+            
+            return {
+                'success': True,
+                'question': question,
+                'status': 'questioning',
+                'debug': self._get_debug_info()
+            }
         elif 'sex' not in self.demographics:
             # Ask sex with button-based response
-            question = "What is your biological sex?"
+            question = empathetic_prefix + "What is your biological sex?"
             self._capture_debug(f"[Engine] ✅ Sex question with buttons: '{question}'")
             
             # Add to conversation history with proper focus
@@ -699,7 +590,7 @@ Be conversational, empathetic, and helpful. When patients ask for clarification,
             }
         elif 'chronicity' not in self.demographics:
             # Ask chronicity with button-based response
-            question = "Is this a new problem or an ongoing issue?"
+            question = empathetic_prefix + "Is this a new problem or an ongoing issue?"
             self._capture_debug(f"[Engine] ✅ Chronicity question with buttons: '{question}'")
             
             # Add to conversation history with proper focus
@@ -1189,10 +1080,6 @@ Be conversational, empathetic, and helpful. When patients ask for clarification,
         self._capture_debug(f"[Engine] 🔍 Last question text: {last_q.get('question', '')}")
         self._capture_debug(f"[Engine] 🔍 User answer: '{user_answer}'")
         self._capture_debug(f"[Engine] 🔍 Demographics before processing: {self.demographics}")
-        
-        # Check if this is a follow-up question (patient asking for clarification)
-        if self._is_follow_up_question(user_answer):
-            return self._handle_follow_up_question(user_answer, last_q)
         
         if last_q.get('focus') == 'demographics':
             if 'age' in last_q.get('question', '').lower():
@@ -2800,15 +2687,14 @@ Normalized text:"""
             similarity = self._compute_enhanced_oldcarts_similarity(answer, oldcarts_section, oldcarts_element, g['name'])
             self._capture_debug(f"[Engine]   {g['name']}: Enhanced {oldcarts_element} similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
             
-            # Update score using weighted average (running average)
+            # Update score using semantic similarity
             old_score = g['score']
             
-            # RUNNING AVERAGE SCORING: Weighted average of old score + new similarity
-            # Use 70% old score + 30% new similarity to maintain accumulated evidence
-            new_score = (old_score * 0.7) + (similarity * 0.3)
+            # SEMANTIC SIMILARITY SCORING: Use similarity directly as the score
+            new_score = similarity
             g['score'] = new_score
             change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
-            self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (running avg: 70% old + 30% new)")
+            self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (semantic)")
             self._capture_debug(f"[Engine]     🧠 {oldcarts_element} Score: {similarity:.2f} ('{answer}' ↔ '{oldcarts_section[:50]}...')")
             self._capture_debug(f"[Engine]     📝 Patient: '{answer}' → Medical: '{oldcarts_section[:80]}...'")
             
@@ -2990,15 +2876,9 @@ Normalized text:"""
         # REMOVED: Old semantic clarity bypass logic that prevented proper competition detection
         
         if oldcarts_element == 'L':  # Location - universal guideline-driven specificity check
-            # Get all L components from ALL guidelines (not just active ones) for anatomical competition
+            # Get all L components from guidelines that match the patient's general area
             matching_location_sections = []
-            all_guidelines = self.active_guidelines + self.reserve_pool
-            self._capture_debug(f"[Engine] 🔍 CHECKING ALL GUIDELINES FOR ANATOMICAL COMPETITION:")
-            self._capture_debug(f"[Engine]   Active guidelines: {len(self.active_guidelines)}")
-            self._capture_debug(f"[Engine]   Reserve guidelines: {len(self.reserve_pool)}")
-            self._capture_debug(f"[Engine]   Total guidelines to check: {len(all_guidelines)}")
-            
-            for guideline in all_guidelines:
+            for guideline in self.active_guidelines:
                 location_section = self._extract_oldcarts_section(
                     guideline['data'].get('key_features', {}).get('classic_presentation', ''), 
                     'L'
@@ -3734,14 +3614,14 @@ Your question:"""
         
         patient_lower = patient_answer.lower()
         
-        # Calculate similarity between patient answer and each guideline using simple containment
+        # Calculate similarity between patient answer and each guideline
         patient_similarities = []
         for block in location_blocks:
             location_text = block['location_text'].lower()
             similarity = self._simple_containment_match(patient_lower, location_text)
             patient_similarities.append(similarity)
         
-        # Calculate similarity between guideline location blocks themselves using simple containment
+        # Calculate similarity between guideline location blocks themselves
         guideline_similarities = []
         for i, block1 in enumerate(location_blocks):
             for block2 in location_blocks[i+1:]:
@@ -3938,185 +3818,38 @@ Your question:"""
         
         # Generate targeted question based on missing information
         if missing_terms:
-            # For location, be specific about upper/lower and provide options
+            # For location, be specific about upper/lower
             if oldcarts_element == 'L':
                 if any('upper' in term or 'ruq' in term or 'luq' in term for term in missing_terms) and \
                    any('lower' in term or 'rlq' in term or 'llq' in term for term in missing_terms):
-                    return "To help narrow down the cause, is the pain in the upper part of your abdomen (below your ribs) or the lower part (near your hip)? You can also describe it in your own words."
+                    return "Is it in the upper part (below ribs) or lower part (near hip) of your abdomen?"
                 elif any('upper' in term or 'ruq' in term or 'luq' in term for term in missing_terms):
-                    return "Is the pain in the upper part of your abdomen (below your ribs)? If you're not sure, you can describe what you feel."
+                    return "Is it in the upper part of your abdomen (below your ribs)?"
                 elif any('lower' in term or 'rlq' in term or 'llq' in term for term in missing_terms):
-                    return "Is the pain in the lower part of your abdomen (near your hip)? If you're not sure, you can describe what you feel."
-                else:
-                    # Generic location clarification with options
-                    return "Can you be more specific about where exactly the pain is? For example, is it in the upper abdomen (below ribs), lower abdomen (near hip), center, or somewhere else? You can describe it in your own words."
+                    return "Is it in the lower part of your abdomen (near your hip)?"
             
             # For duration, be specific about time
             elif oldcarts_element == 'D':
                 if any('hour' in term or 'minute' in term for term in missing_terms):
-                    return "How long does each episode last - minutes, hours, or days? If it varies, you can describe the pattern."
+                    return "How long does it last - minutes, hours, or days?"
             
-            # For character, ask about quality with options
+            # For character, ask about quality
             elif oldcarts_element == 'C':
-                return "Can you describe what the pain feels like? For example, is it sharp, dull, crampy, burning, stabbing, or something else? You can use your own words."
-            
-            # For other elements, provide helpful options
-            elif oldcarts_element == 'A':
-                return "What makes the pain worse? For example, does it get worse with movement, eating, breathing, or something else?"
-            elif oldcarts_element == 'R':
-                return "What helps make the pain better? For example, does rest, heat, cold, or certain positions help?"
-            elif oldcarts_element == 'T':
-                return "Does the pain come and go, or does it stay constant? If it comes and goes, describe the pattern."
-            elif oldcarts_element == 'S':
-                return "How severe is the pain on a scale of 1 to 10, where 1 is mild and 10 is unbearable? You can also describe it in your own words."
-            elif oldcarts_element == 'O':
-                return "Can you describe when the pain started? For example, was it sudden, gradual, or something else?"
+                return f"Can you describe the pain more specifically? Is it sharp, dull, crampy, or burning?"
         
-        # Fallback to helpful questions with options
+        # Fallback to generic question
         element_questions = {
-            'L': "Can you be more specific about the location? For example, upper abdomen (below ribs), lower abdomen (near hip), center, or describe it in your own words.",
-            'D': "Can you be more specific about the duration? For example, minutes, hours, days, or describe the pattern.",
-            'C': "Can you describe what it feels like? For example, sharp, dull, crampy, burning, or use your own words.",
-            'A': "What makes it worse? For example, movement, eating, breathing, or something else?",
-            'R': "What helps make it better? For example, rest, heat, cold, or certain positions?",
-            'T': "Does it come and go or stay constant? If it varies, describe the pattern.",
-            'S': "How severe is it on a scale of 1 to 10, or describe it in your own words.",
-            'O': "Can you describe when it started? For example, sudden, gradual, or use your own words."
+            'L': "Can you be more specific about the location?",
+            'D': "Can you be more specific about the duration?",
+            'C': "Can you describe what it feels like?",
+            'A': "What makes it worse?",
+            'R': "What helps make it better?",
+            'T': "Does it come and go or stay constant?",
+            'S': "How severe is it on a scale of 1 to 10?",
+            'O': "Can you describe when it started?"
         }
         
-        return element_questions.get(oldcarts_element, "Can you provide more detail? You can describe it in your own words.")
-    
-    def _is_follow_up_question(self, user_answer: str) -> bool:
-        """
-        Check if the user is asking a follow-up question for clarification
-        
-        Args:
-            user_answer: User's response
-            
-        Returns:
-            True if this is a follow-up question
-        """
-        # Let LLM determine if this is a follow-up question naturally
-        # No hardcoded indicators needed - LLM can detect confusion, privacy concerns, etc.
-        
-        answer_lower = user_answer.lower().strip()
-        
-        # Check for question marks or question words
-        is_question = '?' in answer_lower or any(word in answer_lower for word in ['what', 'how', 'why', 'when', 'where', 'which', 'who'])
-        
-        # Use LLM to determine if this is a follow-up question (confusion, privacy concerns, etc.)
-        if not is_question and len(answer_lower.split()) > 3:  # Only check longer responses
-            try:
-                # Quick LLM check to see if this is a follow-up question
-                follow_up_prompt = f"""Is this response a follow-up question or expression of confusion/concern that needs clarification?
-
-Patient response: "{user_answer}"
-
-Answer with just "YES" or "NO" - no explanation needed."""
-                
-                llm_response = self._call_llm(follow_up_prompt, max_tokens=10, use_context=False)
-                is_follow_up = llm_response and llm_response.strip().upper() == "YES"
-            except:
-                # Fallback to simple heuristics if LLM fails
-                is_follow_up = False
-        else:
-            is_follow_up = False
-        
-        return is_question or is_follow_up
-    
-    def _handle_follow_up_question(self, user_answer: str, last_question: dict) -> Dict[str, Any]:
-        """
-        Handle follow-up questions from the patient using LLM
-        
-        Args:
-            user_answer: Patient's follow-up question
-            last_question: The last question that was asked
-            
-        Returns:
-            Response with clarification or rephrased question
-        """
-        self._capture_debug(f"[Engine] 🤔 Patient asking follow-up question: '{user_answer}'")
-        
-        # Get the context of what we're asking about
-        question_text = last_question.get('question', '')
-        oldcarts_element = last_question.get('oldcarts', '')
-        
-        # Create a helpful explanation using LLM with conversation context
-        try:
-            # Let LLM naturally determine the type of concern and respond appropriately
-            explanation_prompt = f"""The patient responded: "{user_answer}" to your question: "{question_text}"
-
-The patient seems to have a concern, question, or confusion about what you're asking. Provide a helpful, natural response that:
-1. Acknowledges their concern with empathy
-2. Explains what you're looking for in simple terms
-3. If it's a privacy concern, offer alternatives and reassure about confidentiality
-4. If it's confusion, give specific examples or options
-5. Encourage them to answer in their own words
-6. Give them options to proceed
-
-Be understanding, conversational, and reassuring. Adapt your response to their specific concern."""
-            
-            # Use the LLM to generate a response with full conversation context
-            llm_response = self._call_llm(explanation_prompt, max_tokens=200, use_context=True)
-            
-            if llm_response and llm_response.strip():
-                self._capture_debug(f"[Engine] 🤖 LLM generated explanation: '{llm_response}'")
-                
-                # Add the explanation to conversation history
-                self.conversation_history.append({
-                    'type': 'explanation',
-                    'explanation': llm_response,
-                    'in_response_to': user_answer,
-                    'for_question': question_text
-                })
-                
-                return {
-                    'success': True,
-                    'message': llm_response,
-                    'status': 'questioning',
-                    'needs_clarification': True,
-                    'debug': self._get_debug_info()
-                }
-            else:
-                # Fallback if LLM fails
-                return self._generate_fallback_explanation(question_text, oldcarts_element)
-                
-        except Exception as e:
-            self._capture_debug(f"[Engine] ⚠️ Error generating LLM explanation: {e}")
-            return self._generate_fallback_explanation(question_text, oldcarts_element)
-    
-    def _generate_fallback_explanation(self, question_text: str, oldcarts_element: str) -> Dict[str, Any]:
-        """
-        Generate a fallback explanation when LLM is not available
-        
-        Args:
-            question_text: The original question
-            oldcarts_element: The OLDCARTS element being asked about
-            
-        Returns:
-            Response with fallback explanation
-        """
-        element_explanations = {
-            'location': "I'm trying to understand exactly where your pain is located. For example, is it in the upper part of your abdomen (below your ribs), the lower part (near your hip), or somewhere else? You can describe it however makes sense to you.",
-            'onset': "I'm asking about when your pain started. For example, did it begin suddenly, gradually, or was there a specific trigger? You can describe it in your own words.",
-            'duration': "I want to know how long the pain lasts. For example, does it last minutes, hours, or days? If it varies, you can describe the pattern.",
-            'character': "I'm asking what the pain feels like. For example, is it sharp, dull, crampy, burning, or something else? Use whatever words describe it best for you.",
-            'aggravating': "I want to know what makes your pain worse. For example, does it get worse with movement, eating, breathing, or something else?",
-            'relieving': "I'm asking what helps make your pain better. For example, does rest, heat, cold, or certain positions help?",
-            'timing': "I want to understand the pattern of your pain. For example, does it come and go, or does it stay constant? If it varies, describe the pattern.",
-            'severity': "I'm asking how severe your pain is. You can use a scale of 1 to 10, or just describe it in your own words."
-        }
-        
-        explanation = element_explanations.get(oldcarts_element, 
-            "I'm asking about your symptoms to help understand what might be causing them. Please answer in whatever way makes sense to you - there's no wrong answer.")
-        
-        return {
-            'success': True,
-            'message': explanation,
-            'status': 'questioning',
-            'needs_clarification': True,
-            'debug': self._get_debug_info()
-        }
+        return element_questions.get(oldcarts_element, "Can you provide more detail?")
     
     def _parse_prompt_against_structured_oldcarts(self, prompt: str, guidelines: List[Dict]) -> Dict[str, Any]:
         """
