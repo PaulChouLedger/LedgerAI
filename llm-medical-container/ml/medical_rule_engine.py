@@ -54,51 +54,34 @@ class MedicalRuleEngine:
     
     def _load_medical_rules(self) -> Dict:
         """
-        Load hardcoded medical rules
+        Load medical rules from JSON file
         """
-        return {
-            'GI': {
-                'bilateral': [
-                    'Acute Gastroenteritis', 'Severe Constipation', 'IBD Flare', 'IBS',
-                    'Acute Mesenteric Ischemia'
-                ],
-                'midline': [
-                    'Peptic Ulcer Disease', 'Acute Gastritis', 'Acute Pancreatitis',
-                    'Gastric Outlet Obstruction'
-                ],
-                'right_only': [
-                    'Acute Appendicitis', 'Acute Cholecystitis', 'Biliary Colic',
-                    'Acute Cholangitis', 'Acute Hepatitis'
-                ],
-                'left_only': [
-                    'Acute Diverticulitis', 'Sigmoid Volvulus'
-                ]
-            },
-            'GU': {
-                'bilateral': [
-                    'Kidney Stone', 'UTI/Pyelonephritis'
-                ],
-                'midline': [
-                    'Bladder Infection', 'Urethritis'
-                ]
-            },
-            'CARDIO': {
-                'bilateral': [
-                    'Pneumothorax', 'Pleural Effusion', 'Pleurisy'
-                ],
-                'midline': [
-                    'Aortic Dissection', 'Aortic Stenosis'
-                ]
-            },
-            'PULMONARY': {
-                'bilateral': [
-                    'Pneumothorax', 'Pleural Effusion'
-                ],
-                'midline': [
-                    'Epiglottitis'
-                ]
-            }
-        }
+        import json
+        from pathlib import Path
+        
+        # Get path to medical_rules.json relative to this file
+        current_file = Path(__file__).resolve()
+        config_dir = current_file.parent.parent / 'config'
+        json_path = config_dir / 'medical_rules.json'
+        
+        try:
+            with open(json_path, 'r') as f:
+                rules = json.load(f)
+            print(f"[MedicalRules] ✅ Loaded medical rules from {json_path}")
+            print(f"[MedicalRules] 📊 Organ systems: {len(rules)}")
+            return rules
+        except FileNotFoundError:
+            print(f"[MedicalRules] ⚠️ JSON file not found at {json_path}")
+            print(f"[MedicalRules] Using empty rules dict")
+            return {}
+        except json.JSONDecodeError as e:
+            print(f"[MedicalRules] ❌ Error parsing JSON: {e}")
+            print(f"[MedicalRules] Using empty rules dict")
+            return {}
+        except Exception as e:
+            print(f"[MedicalRules] ❌ Unexpected error loading rules: {e}")
+            print(f"[MedicalRules] Using empty rules dict")
+            return {}
     
     def get_anatomical_type(self, condition_name: str, organ_system: str = None) -> str:
         """

@@ -2205,12 +2205,12 @@ class AdaptiveDiagnosticEngine:
         # Get mapping for category
         category_mappings = self._medical_term_mappings.get(category, {})
         
-        # Return mapped term or formatted subcategory (ML-only, no fallback)
+        # Return mapped term (raise error if not found - no fallback)
         if subcategory in category_mappings:
             return category_mappings[subcategory]
         else:
-            # Format subcategory (replace underscores with spaces)
-            return subcategory.replace('_', ' ')
+            # No fallback - raise error if mapping not found
+            raise KeyError(f"No mapping found for '{subcategory}' in category '{category}'")
     
     def _apply_variations(self, text: str, variations: list, standard_term: str) -> str:
         """Apply synonym variations to text"""
@@ -2872,119 +2872,12 @@ Normalized text:"""
         # Use semantic scoring to determine if answer is clear enough
         # If the answer gets good semantic scores, it's clear and doesn't need clarification
         # ALWAYS do specificity gap detection - scores don't determine anatomical competition
-        self._capture_debug(f"[Engine] 🔍 SEGMENTAL GAP DETECTION: Always checking for anatomical competition (top_score={top_score:.0%})")
+        self._capture_debug(f"[Engine] 🔍 SEGMENTAL GAP DETECTION: Always checking for competition (top_score={top_score:.0%})")
         # REMOVED: Old semantic clarity bypass logic that prevented proper competition detection
         
-        if oldcarts_element == 'L':  # Location - universal guideline-driven specificity check
-            # Get L components from guidelines that have some similarity to the current answer
-            matching_location_sections = []
-            all_matched_guidelines = self.active_guidelines + self.reserve_pool
-            
-            # Filter guidelines that have some similarity to the current answer (above threshold)
-            relevant_guidelines = []
-            similarity_threshold = 0.1  # 10% minimum similarity to be considered relevant
-            
-            for guideline in all_matched_guidelines:
-                # Check if this guideline's location section has some similarity to the current answer
-                location_section = self._extract_oldcarts_section(
-                    guideline['data'].get('key_features', {}).get('classic_presentation', ''), 
-                    'L'
-                )
-                if location_section:
-                    # Calculate similarity between current answer and this guideline's location section
-                    similarity = self._simple_containment_match(answer.lower(), location_section.lower())
-                    if similarity >= similarity_threshold:
-                        relevant_guidelines.append(guideline)
-            
-            self._capture_debug(f"[Engine] 🔍 CHECKING RELEVANT GUIDELINES FOR ANATOMICAL COMPETITION:")
-            self._capture_debug(f"[Engine]   Total matched guidelines: {len(all_matched_guidelines)}")
-            self._capture_debug(f"[Engine]   Relevant guidelines (similarity >= {similarity_threshold:.0%}): {len(relevant_guidelines)}")
-            
-            for guideline in relevant_guidelines:
-                location_section = self._extract_oldcarts_section(
-                    guideline['data'].get('key_features', {}).get('classic_presentation', ''), 
-                    'L'
-                )
-                if location_section:
-                    # Include location sections from relevant guidelines only
-                    matching_location_sections.append({
-                        'condition': guideline['name'],
-                        'location_text': location_section
-                    })
-            
-            if matching_location_sections:
-                # Extract all anatomical terms from matching guidelines
-                all_guideline_terms = set()
-                for section in matching_location_sections:
-                    # Extract anatomical terms from guideline text
-                    condition_name = section.get('condition', 'Unknown')
-                    location_text = section.get('location_text', '')
-                    
-                    self._capture_debug(f"[Engine] 🔍 GUIDELINE LOCATION DEBUG:")
-                    self._capture_debug(f"[Engine]   Condition: {condition_name}")
-                    self._capture_debug(f"[Engine]   Location text: '{location_text}'")
-                
-                # ALWAYS calculate segmental gaps - check for competing anatomical regions
-                # Use FULL LOCATION BLOCKS (much simpler and more reliable than term extraction)
-                
-                # Get all location blocks from active guidelines
-                location_blocks = []
-                for section in matching_location_sections:
-                    condition_name = section.get('condition', 'Unknown')
-                    location_text = section.get('location_text', '')
-                    location_blocks.append({
-                        'condition': condition_name,
-                        'location_text': location_text
-                    })
-                    
-                    self._capture_debug(f"[Engine] 🔍 LOCATION BLOCK DEBUG:")
-                    self._capture_debug(f"[Engine]   Condition: {condition_name}")  
-                    self._capture_debug(f"[Engine]   Location text: '{location_text}'")
-                
-                # Direct anatomical competition detection from full location blocks
-                competition_result = self._detect_anatomical_competition(answer, location_blocks)
-                
-                self._capture_debug(f"[Engine] 🔍 COMPETITION ANALYSIS:")
-                self._capture_debug(f"[Engine]   Patient answer: '{answer}'")
-                self._capture_debug(f"[Engine]   Competition detected: {competition_result['has_competition']}")
-                if competition_result['has_competition']:
-                    self._capture_debug(f"[Engine]   Competing areas: {competition_result['competing_areas']}")
-                    self._capture_debug(f"[Engine]   Need clarification: {competition_result['clarification_needed']}")
-                
-                # Determine if clarification is needed
-                if competition_result['has_competition'] and competition_result['clarification_needed']:
-                    # Guidelines have competing regions, but patient didn't specify - need clarification
-                    missing_specificity_terms = competition_result['competing_areas']
-                    needs_clarification_for_specificity = True
-                    is_clear_answer = False
-                    
-                    # DYNAMIC MAX CLARIFICATIONS: Set based on number of competing patterns
-                    # Each competing area represents a different pattern that needs clarification
-                    num_competing_patterns = len(competition_result['competing_areas'])
-                    MAX_CLARIFICATIONS_PER_ELEMENT = max(1, num_competing_patterns)
-                    
-                    self._capture_debug(f"[Engine] 🎯 COMPETING ANATOMICAL REGIONS DETECTED:")
-                    self._capture_debug(f"[Engine]   Patient said: '{answer}'")
-                    self._capture_debug(f"[Engine]   Competing areas: {missing_specificity_terms}")
-                    self._capture_debug(f"[Engine]   Need to clarify: {missing_specificity_terms}")
-                    self._capture_debug(f"[Engine]   📊 Dynamic MAX_CLARIFICATIONS_PER_ELEMENT: {MAX_CLARIFICATIONS_PER_ELEMENT} (based on {num_competing_patterns} competing patterns)")
-                else:
-                    # No competition or patient already specified subregion
-                    missing_specificity_terms = []
-                    needs_clarification_for_specificity = False
-                    is_clear_answer = True
-                    self._capture_debug(f"[Engine] ✅ NO ANATOMICAL COMPETITION:")
-                    self._capture_debug(f"[Engine]   Patient provided sufficient specificity or no competition exists")
-            else:
-                # No matching location sections found - consider clear to avoid infinite loops
-                needs_clarification_for_specificity = False
-                is_clear_answer = True
-                missing_specificity_terms = []
-                self._capture_debug(f"[Engine] ✅ NO LOCATION SECTIONS FOUND:")
-                self._capture_debug(f"[Engine]   No location sections to compare against - accepting answer")
-                    
-        else:  # For other OLDCARTS elements (D, C, A, R, T, S) - use universal approach
-            # Get matching sections for this OLDCARTS element from relevant guidelines only
+        # Use unified approach for ALL OLDCARTS elements (including location)
+        if True:  # Always use this unified approach
+            # Get sections for this OLDCARTS element from guidelines that have some similarity to the current answer
             matching_sections = []
             all_matched_guidelines = self.active_guidelines + self.reserve_pool
             
@@ -3004,7 +2897,7 @@ Normalized text:"""
                     if similarity >= similarity_threshold:
                         relevant_guidelines.append(guideline)
             
-            self._capture_debug(f"[Engine] 🔍 CHECKING RELEVANT GUIDELINES FOR OLDCARTS COMPETITION ({oldcarts_element}):")
+            self._capture_debug(f"[Engine] 🔍 CHECKING RELEVANT GUIDELINES FOR COMPETITION ({oldcarts_element}):")
             self._capture_debug(f"[Engine]   Total matched guidelines: {len(all_matched_guidelines)}")
             self._capture_debug(f"[Engine]   Relevant guidelines (similarity >= {similarity_threshold:.0%}): {len(relevant_guidelines)}")
             
@@ -3014,14 +2907,14 @@ Normalized text:"""
                     oldcarts_element
                 )
                 if section:
+                    # Include sections from relevant guidelines only
                     matching_sections.append({
                         'condition': guideline['name'],
                         'section_text': section
                     })
             
             if matching_sections:
-                # FULL TEXT BLOCK APPROACH (same as anatomical competition)
-                # Direct comparison between patient answer and full OLDCARTS sections
+                # FULL TEXT BLOCK APPROACH: Direct comparison between patient answer and full OLDCARTS sections
                 oldcarts_result = self._detect_oldcarts_competition(answer, oldcarts_element, matching_sections)
                 
                 self._capture_debug(f"[Engine] 🔍 OLDCARTS FULL TEXT ANALYSIS ({oldcarts_element}):")
@@ -3048,12 +2941,30 @@ Normalized text:"""
                     self._capture_debug(f"[Engine]   Patient word not found in any guideline - need clarification")
                     self._capture_debug(f"[Engine]   📊 Dynamic MAX_CLARIFICATIONS_PER_ELEMENT: {MAX_CLARIFICATIONS_PER_ELEMENT} (based on {num_competing_patterns} competing patterns)")
                 else:
-                    # Word found in at least one guideline - accept answer
-                    needs_clarification_for_specificity = False
-                    is_clear_answer = True
-                    missing_specificity_terms = []
-                    self._capture_debug(f"[Engine] ✅ OLDCARTS ANSWER ACCEPTED ({oldcarts_element}):")
-                    self._capture_debug(f"[Engine]   Containment {oldcarts_result['best_similarity']:.0%} >= 30% - word found in guidelines, accepting")
+                    # Check if there's competition - if multiple guidelines with similar similarity, need clarification
+                    # Even if similarity is >= 30%, if there are multiple competing patterns, clarification is needed
+                    if oldcarts_result['has_competition']:
+                        # Multiple competing guidelines - need clarification despite >= 30% similarity
+                        needs_clarification_for_specificity = True
+                        is_clear_answer = False
+                        missing_specificity_terms = oldcarts_result['competing_descriptions']
+                        
+                        num_competing_patterns = len(oldcarts_result['competing_descriptions'])
+                        MAX_CLARIFICATIONS_PER_ELEMENT = max(1, num_competing_patterns)
+                        
+                        self._capture_debug(f"[Engine] 🎯 MULTIPLE COMPETING PATTERNS DETECTED ({oldcarts_element}):")
+                        self._capture_debug(f"[Engine]   Best similarity: {oldcarts_result['best_similarity']:.0%}")
+                        self._capture_debug(f"[Engine]   Competition detected: {oldcarts_result['has_competition']}")
+                        self._capture_debug(f"[Engine]   Competing patterns: {num_competing_patterns}")
+                        self._capture_debug(f"[Engine]   Need clarification to differentiate between competing patterns")
+                        self._capture_debug(f"[Engine]   📊 Dynamic MAX_CLARIFICATIONS_PER_ELEMENT: {MAX_CLARIFICATIONS_PER_ELEMENT}")
+                    else:
+                        # Single clear match - accept answer
+                        needs_clarification_for_specificity = False
+                        is_clear_answer = True
+                        missing_specificity_terms = []
+                        self._capture_debug(f"[Engine] ✅ OLDCARTS ANSWER ACCEPTED ({oldcarts_element}):")
+                        self._capture_debug(f"[Engine]   Containment {oldcarts_result['best_similarity']:.0%} >= 30% - word found in guidelines, accepting")
             else:
                 # No matching sections found - consider clear to avoid infinite loops
                 needs_clarification_for_specificity = False
@@ -3694,8 +3605,8 @@ Your question:"""
             }
         
         # 2. If patient answer matches all guidelines well → no clarification needed
-        # Use >= 0.7 threshold since 50% is too vague (only 1 word matching out of 2)
-        if avg_patient_similarity >= 0.7:
+        # Use same threshold as OLDCARTS competition for consistency (>= 0.5)
+        if avg_patient_similarity >= 0.5:
             self._capture_debug(f"[Engine] ✅ Patient answer matches guidelines well - no clarification")
             return {
                 'has_competition': False,
