@@ -2637,8 +2637,8 @@ Normalized text:"""
                 continue  # Skip this guideline instead of crashing
             
             # ENHANCED OLDCARTS SIMILARITY: Use existing method - let it fail if broken
-                similarity = self._compute_enhanced_oldcarts_similarity(answer, oldcarts_section, oldcarts_element, g['name'])
-                self._capture_debug(f"[Engine]   {g['name']}: Enhanced {oldcarts_element} similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
+            similarity = self._compute_enhanced_oldcarts_similarity(answer, oldcarts_section, oldcarts_element, g['name'])
+            self._capture_debug(f"[Engine]   {g['name']}: Enhanced {oldcarts_element} similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
             
             # Update score using semantic similarity
             old_score = g['score']
@@ -3803,12 +3803,23 @@ Your question:"""
         self._capture_debug(f"[Engine] 🔍 Parsing prompt against structured OLDCARTS")
         self._capture_debug(f"[Engine] 📝 Prompt: '{prompt}'")
         
-        if not guidelines or not any(g.get('data', {}).get('key_features', {}).get('structured_oldcarts') for g in guidelines):
+        if not guidelines:
+            self._capture_debug(f"[Engine] ⚠️ No guidelines provided")
+            return {
+                'answered_components': {},
+                'missing_components': ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
+            }
+        
+        # Check if any guidelines have structured_oldcarts data
+        guidelines_with_oldcarts = [g for g in guidelines if g.get('data', {}).get('key_features', {}).get('structured_oldcarts')]
+        if not guidelines_with_oldcarts:
             self._capture_debug(f"[Engine] ⚠️ No structured OLDCARTS found in guidelines")
             return {
                 'answered_components': {},
                 'missing_components': ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
             }
+        
+        self._capture_debug(f"[Engine] ✅ Found {len(guidelines_with_oldcarts)} guidelines with structured OLDCARTS data")
         
         # Collect all 'includes' terms from ALL guidelines for each OLDCARTS element
         # This represents what the guidelines are looking for
@@ -3823,7 +3834,7 @@ Your question:"""
             'severity': set()
         }
         
-        for guideline in guidelines[:5]:  # Check active guidelines only
+        for guideline in guidelines_with_oldcarts[:5]:  # Check active guidelines only
             structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
             
             for element, data in structured.items():
