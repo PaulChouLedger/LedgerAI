@@ -642,6 +642,70 @@ class AdaptiveDiagnosticEngine:
             else:
                 raise RuntimeError("No OLDCARTS analysis available for structured questions")
     
+    def _analyze_comprehensive_oldcarts_coverage(self, answer: str, primary_element: str) -> List[str]:
+        """
+        Analyze a comprehensive answer to determine which OLDCARTS elements it covers
+        
+        This prevents asking redundant questions when a single answer covers multiple elements.
+        For example, "2 days ago" covers both onset (when it started) and duration (how long).
+        
+        Args:
+            answer: The patient's answer
+            primary_element: The primary OLDCARTS element being asked about
+            
+        Returns:
+            List of OLDCARTS elements that this answer covers
+        """
+        covered_elements = [primary_element]  # Always include the primary element
+        answer_lower = answer.lower().strip()
+        
+        # Time-based answers often cover multiple elements
+        time_indicators = {
+            'onset': ['ago', 'started', 'began', 'came on', 'hit me', 'suddenly', 'gradually'],
+            'duration': ['ago', 'for', 'since', 'lasted', 'lasting', 'been', 'have had'],
+            'timing': ['ago', 'when', 'during', 'at', 'in the', 'morning', 'evening', 'night']
+        }
+        
+        # Check if answer contains time indicators
+        has_time_indicators = any(indicator in answer_lower for indicators in time_indicators.values() for indicator in indicators)
+        
+        if has_time_indicators:
+            # Time-based answers often cover onset, duration, and timing
+            if any(indicator in answer_lower for indicator in time_indicators['onset']):
+                if 'onset' not in covered_elements:
+                    covered_elements.append('onset')
+            if any(indicator in answer_lower for indicator in time_indicators['duration']):
+                if 'duration' not in covered_elements:
+                    covered_elements.append('duration')
+            if any(indicator in answer_lower for indicator in time_indicators['timing']):
+                if 'timing' not in covered_elements:
+                    covered_elements.append('timing')
+        
+        # Location answers might also cover character (e.g., "sharp pain in my side")
+        location_indicators = ['side', 'area', 'region', 'part', 'spot', 'place', 'where']
+        if any(indicator in answer_lower for indicator in location_indicators):
+            if 'location' not in covered_elements:
+                covered_elements.append('location')
+        
+        # Character answers might also cover severity (e.g., "very sharp pain")
+        severity_indicators = ['very', 'extremely', 'mild', 'moderate', 'severe', 'intense', 'unbearable']
+        if any(indicator in answer_lower for indicator in severity_indicators):
+            if 'severity' not in covered_elements:
+                covered_elements.append('severity')
+        
+        # Comprehensive pain descriptions often cover multiple elements
+        comprehensive_indicators = ['pain', 'ache', 'hurt', 'discomfort', 'sensation']
+        if any(indicator in answer_lower for indicator in comprehensive_indicators):
+            # If it's a comprehensive pain description, it might cover character and severity
+            if 'character' not in covered_elements and primary_element != 'character':
+                covered_elements.append('character')
+        
+        self._capture_debug(f"[Engine] 🔍 Comprehensive analysis of '{answer}':")
+        self._capture_debug(f"[Engine]   Primary element: {primary_element}")
+        self._capture_debug(f"[Engine]   Covered elements: {covered_elements}")
+        
+        return covered_elements
+
     def _generate_oldcarts_question_for_component(self, component: str) -> str:
         """Generate OLDCARTS question for specific component"""
         question_templates = {
@@ -2606,15 +2670,23 @@ Normalized text:"""
         
         self._capture_debug(f"{'='*80}\n")
         
-        # Mark the OLDCARTS element as covered ONLY if no clarification was asked
-        # This prevents repetitive questions when clarifications are needed
+        # COMPREHENSIVE OLDCARTS COVERAGE: Analyze answer against ALL elements
+        # This prevents asking redundant questions when comprehensive answers cover multiple elements
         clarification_was_asked = self._was_clarification_just_asked()
         self._capture_debug(f"[Engine] 🔍 Clarification check: {clarification_was_asked}")
-        if oldcarts_element and not clarification_was_asked:
-            self._capture_debug(f"[Engine] ✅ Marking OLDCARTS element '{oldcarts_element}' as covered")
-            self.oldcarts_covered[oldcarts_element] = True
-        elif clarification_was_asked:
-            self._capture_debug(f"[Engine] ⏳ NOT marking '{oldcarts_element}' as covered - clarification was just asked")
+        
+        if not clarification_was_asked:
+            # Analyze the answer against all OLDCARTS elements to detect comprehensive coverage
+            covered_elements = self._analyze_comprehensive_oldcarts_coverage(answer, oldcarts_element)
+            self._capture_debug(f"[Engine] 🎯 Comprehensive OLDCARTS analysis: {covered_elements}")
+            
+            # Mark all covered elements as complete
+            for element in covered_elements:
+                if not self.oldcarts_covered.get(element, False):  # Only mark if not already covered
+                    self._capture_debug(f"[Engine] ✅ Marking OLDCARTS element '{element}' as covered")
+                    self.oldcarts_covered[element] = True
+        else:
+            self._capture_debug(f"[Engine] ⏳ NOT marking any elements as covered - clarification was just asked")
         
         # SAFETY CHECK: Ensure we have active guidelines
         if len(self.active_guidelines) == 0 and len(self.reserve_pool) == 0:
@@ -2759,6 +2831,13 @@ Normalized text:"""
                     is_clear_answer = True
                     self._capture_debug(f"[Engine] ✅ NO ANATOMICAL COMPETITION:")
                     self._capture_debug(f"[Engine]   Patient provided sufficient specificity or no competition exists")
+            else:
+                # No matching location sections found - consider clear to avoid infinite loops
+                needs_clarification_for_specificity = False
+                is_clear_answer = True
+                missing_specificity_terms = []
+                self._capture_debug(f"[Engine] ✅ NO LOCATION SECTIONS FOUND:")
+                self._capture_debug(f"[Engine]   No location sections to compare against - accepting answer")
                     
         else:  # For other OLDCARTS elements (D, C, A, R, T, S) - use universal approach
             # Get all matching sections for this OLDCARTS element from active guidelines
