@@ -31,7 +31,7 @@ Aura is a **physician-like medical AI system** that combines evidence-based clin
 └─────────────────┘    └──────────────────┘
 ```
 
-## 🔄 Complete Processing Flow: "I have abdominal pain"
+## 🔄 Complete Processing Flow: "I have chest pain"
 
 ### **Step 1: Input Reception & Routing**
 
@@ -42,7 +42,7 @@ Aura is a **physician-like medical AI system** that combines evidence-based clin
 @app.route("/chat-tts", methods=["POST"])
 def chat_tts():
     data = request.get_json()
-    prompt = data.get("prompt")  # "I have abdominal pain"
+    prompt = data.get("prompt")  # "I have chest pain"
     session_id = data.get("session_id")
     
     print(f"[Aura-LLM] 💬 Session: {session_id}, Prompt: '{prompt[:50]}...'")
@@ -50,6 +50,12 @@ def chat_tts():
     # All requests go to clinician mode
     print(f"[Aura-LLM] 🎯 Using clinician mode for all requests")
 ```
+
+**Example Flow:**
+- **Input:** `{"prompt": "I have chest pain", "session_id": "user_123"}`
+- **Processing:** Extracts prompt and session ID
+- **Routing:** Routes to clinician mode for medical assessment
+- **Output:** `{"success": true, "question": "I understand you're experiencing chest pain. How old are you?", "status": "questioning"}`
 
 **Logic:**
 - Receives JSON payload with user input
@@ -77,10 +83,16 @@ def is_clinician_trigger(prompt: str) -> bool:
     ]
     
     for symptom in common_symptoms:
-        if symptom in prompt_lower:  # "abdominal" detected!
+        if symptom in prompt_lower:  # "chest" detected!
             print(f"[Clinician] 🎯 Common symptom: '{symptom}'")
             return True
 ```
+
+**Example Flow:**
+- **Input:** `"I have chest pain"`
+- **Detection:** Finds `"chest"` and `"pain"` in common symptoms list
+- **Result:** `True` → Routes to clinician mode
+- **Debug:** `[Clinician] 🎯 Common symptom: 'chest'`
 
 **Logic:**
 - Scans prompt for medical keywords from multiple sources:
@@ -102,7 +114,7 @@ def process_medical_query(self, user_input: str):
     # Store the query in conversation history
     self.conversation_history.append({
         'role': 'patient',
-        'content': user_input,  # "I have abdominal pain"
+        'content': user_input,  # "I have chest pain"
         'timestamp': datetime.now().isoformat()
     })
 
@@ -113,6 +125,12 @@ def process_medical_query(self, user_input: str):
     # PRIORITY 2: Determine if this is symptom assessment or knowledge query
     query_type = self._analyze_medical_query(user_input)
 ```
+
+**Example Flow:**
+- **Input:** `"I have chest pain"`
+- **History Storage:** `[{"role": "patient", "content": "I have chest pain", "timestamp": "2025-01-27T10:30:00"}]`
+- **Status Check:** `adaptive_engine.status = "idle"` → New assessment needed
+- **Query Type:** `"symptom_assessment"` → Routes to adaptive engine
 
 **Logic:**
 - Maintains conversation history across session
@@ -142,6 +160,13 @@ def _handle_symptom_assessment(self, symptom_query: str) -> str:
                 print("[Adaptive] 🔄 Continuing adaptive assessment")
                 response = self.adaptive_engine.process_answer(symptom_query)
 ```
+
+**Example Flow:**
+- **Input:** `"I have chest pain"`
+- **Status Check:** `adaptive_engine.status = "idle"` → New assessment
+- **Action:** Calls `start_assessment("I have chest pain")`
+- **Debug:** `[Adaptive] 🚀 Starting new adaptive assessment`
+- **Result:** Returns first question with demographics
 
 **Logic:**
 - Detects new symptom complaints vs. ongoing assessments
