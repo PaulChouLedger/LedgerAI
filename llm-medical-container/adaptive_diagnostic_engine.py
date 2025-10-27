@@ -262,7 +262,12 @@ class AdaptiveDiagnosticEngine:
                         organ_systems[organ_system] = []
                     organ_systems[organ_system].append(name)
                     
-                    self._capture_debug(f"[Engine]   ✓ {organ_system}/{name}")
+                    # Debug: Check if structured_oldcarts exists
+                    key_features = guideline.get('key_features', {})
+                    structured_oldcarts = key_features.get('structured_oldcarts', {})
+                    has_structured_data = bool(structured_oldcarts and isinstance(structured_oldcarts, dict) and structured_oldcarts)
+                    
+                    self._capture_debug(f"[Engine]   ✓ {organ_system}/{name} (structured_oldcarts: {has_structured_data})")
             except Exception as e:
                 self._capture_debug(f"[Engine] ⚠️ Failed to load {json_file.name}: {e}")
         
@@ -3810,6 +3815,7 @@ Your question:"""
             self._capture_debug(f"[Engine] 🔍 DEBUG:   key_features keys: {list(key_features.keys())}")
             self._capture_debug(f"[Engine] 🔍 DEBUG:   structured_oldcarts keys: {list(structured.keys())}")
             self._capture_debug(f"[Engine] 🔍 DEBUG:   structured_oldcarts type: {type(structured)}")
+            self._capture_debug(f"[Engine] 🔍 DEBUG:   structured_oldcarts content: {structured}")
             
             if element_name in structured:
                 element_data = structured[element_name]
