@@ -3791,14 +3791,26 @@ Your question:"""
         # Collect expected terms from all active guidelines for this element
         expected_terms = set()
         
+        self._capture_debug(f"[Engine] 🔍 DEBUG: Looking for element '{element_name}' in {len(self.active_guidelines)} active guidelines")
+        
         for guideline in self.active_guidelines[:5]:  # Check top 5
+            guideline_name = guideline.get('name', 'Unknown')
             structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            
+            self._capture_debug(f"[Engine] 🔍 DEBUG: Guideline '{guideline_name}' has structured_oldcarts keys: {list(structured.keys())}")
             
             if element_name in structured:
                 element_data = structured[element_name]
+                self._capture_debug(f"[Engine] 🔍 DEBUG: Found '{element_name}' data: {element_data}")
                 if isinstance(element_data, dict) and 'includes' in element_data:
-                    for term in element_data['includes']:
+                    includes = element_data['includes']
+                    self._capture_debug(f"[Engine] 🔍 DEBUG: Includes terms: {includes}")
+                    for term in includes:
                         expected_terms.add(term.lower())
+                else:
+                    self._capture_debug(f"[Engine] 🔍 DEBUG: Element data is not dict or missing 'includes': {type(element_data)}")
+            else:
+                self._capture_debug(f"[Engine] 🔍 DEBUG: Element '{element_name}' not found in guideline '{guideline_name}'")
         
         self._capture_debug(f"[Engine]   Expected terms from guidelines: {expected_terms}")
         
