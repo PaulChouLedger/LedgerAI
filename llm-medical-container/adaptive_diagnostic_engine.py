@@ -321,7 +321,7 @@ class AdaptiveDiagnosticEngine:
             },
             'last_answer': last_answer,
             'last_answer_scores': getattr(self, '_last_answer_scores', None),  # Set during scoring
-            'engine_debug_output': captured_output  # Captured debug output
+            'engine_debug_output': getattr(self, '_captured_debug_output', [])  # Captured debug output
         }
         
         # Add matching algorithm info if available
@@ -4088,6 +4088,18 @@ Be specific and offer concrete options. Don't use medical jargon. Keep it under 
         
         # Check if any guidelines have structured_oldcarts data
         guidelines_with_oldcarts = [g for g in guidelines if g.get('data', {}).get('key_features', {}).get('structured_oldcarts')]
+        
+        # Debug: Show what's actually in the guidelines
+        self._capture_debug(f"[Engine] 🔍 DEBUG: Checking {len(guidelines)} guidelines for structured_oldcarts")
+        for i, g in enumerate(guidelines[:3]):  # Check first 3
+            name = g.get('name', 'Unknown')
+            data = g.get('data', {})
+            key_features = data.get('key_features', {})
+            structured_oldcarts = key_features.get('structured_oldcarts')
+            self._capture_debug(f"[Engine] 🔍 DEBUG: Guideline {i+1} '{name}' - structured_oldcarts: {bool(structured_oldcarts)}")
+            if structured_oldcarts:
+                self._capture_debug(f"[Engine] 🔍 DEBUG:   structured_oldcarts keys: {list(structured_oldcarts.keys())}")
+        
         if not guidelines_with_oldcarts:
             self._capture_debug(f"[Engine] ⚠️ No structured OLDCARTS found in guidelines")
             return {
