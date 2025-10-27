@@ -221,7 +221,8 @@ class AdaptiveDiagnosticEngine:
         
         # RAG API for GPU-accelerated FAISS operations
         self.rag_api = RAGEmbeddingAPI() if RAG_API_AVAILABLE else None
-        self.use_rag_api = True  # Use RAG with FAISS for better performance
+        # Set use_rag_api based on RAG_MODE environment variable
+        self.use_rag_api = (self.rag_mode == 'GPU' and RAG_API_AVAILABLE)
         
         # OLDCARTS element weights removed - now using semantic similarity scoring
         # Each OLDCARTS element is scored using vector similarity to guideline sections
@@ -296,14 +297,6 @@ class AdaptiveDiagnosticEngine:
         # OLDCARTS coverage
         covered_count = sum(self.oldcarts_covered.values())
         coverage_str = ''.join([k if v else '_' for k, v in self.oldcarts_covered.items()])
-        
-        # Debug: Check if captured debug output exists
-        captured_output = getattr(self, '_captured_debug_output', [])
-        self._capture_debug(f"[Engine] 🔍 Debug capture status: {len(captured_output)} lines captured")
-        if captured_output:
-            self._capture_debug(f"[Engine] 🔍 First few debug lines: {captured_output[:3]}")
-        else:
-            self._capture_debug(f"[Engine] ⚠️ No debug output captured")
         
         debug_info = {
             'demographics': self.demographics,
@@ -526,17 +519,6 @@ class AdaptiveDiagnosticEngine:
         # Return all guidelines with equal priority
         matched_guidelines = []
         for name, guideline in relevant_guidelines.items():
-            # Debug: Check if structured_oldcarts exists in the guideline
-            key_features = guideline.get('key_features', {})
-            structured_oldcarts = key_features.get('structured_oldcarts', {})
-            has_structured_data = bool(structured_oldcarts and isinstance(structured_oldcarts, dict) and structured_oldcarts)
-            
-            self._capture_debug(f"[Engine] 🧠 Processing guideline '{name}' (structured_oldcarts: {has_structured_data})")
-            if has_structured_data:
-                self._capture_debug(f"[Engine]     📋 structured_oldcarts keys: {list(structured_oldcarts.keys())}")
-            else:
-                self._capture_debug(f"[Engine]     ⚠️ structured_oldcarts content: {structured_oldcarts}")
-            
             matched_guidelines.append({
                 'name': name,
                 'score': 0.5,  # Equal priority for all
@@ -3817,53 +3799,26 @@ Your question:"""
         # Collect expected terms from all active guidelines for this element
         expected_terms = set()
         
-        self._capture_debug(f"[Engine] 🔍 DEBUG: Looking for element '{element_name}' in {len(self.active_guidelines)} active guidelines")
-        
         for guideline in self.active_guidelines[:5]:  # Check top 5
-            guideline_name = guideline.get('name', 'Unknown')
             data = guideline.get('data', {})
             key_features = data.get('key_features', {})
             structured = key_features.get('structured_oldcarts', {})
             
-            self._capture_debug(f"[Engine] 🔍 DEBUG: Guideline '{guideline_name}'")
-            self._capture_debug(f"[Engine] 🔍 DEBUG:   data keys: {list(data.keys())}")
-            self._capture_debug(f"[Engine] 🔍 DEBUG:   key_features keys: {list(key_features.keys())}")
-            self._capture_debug(f"[Engine] 🔍 DEBUG:   structured_oldcarts keys: {list(structured.keys())}")
-            self._capture_debug(f"[Engine] 🔍 DEBUG:   structured_oldcarts type: {type(structured)}")
-            self._capture_debug(f"[Engine] 🔍 DEBUG:   structured_oldcarts content: {structured}")
-            
-            # Debug: Check if this guideline exists in all_guidelines
-            if guideline_name in self.all_guidelines:
-                original_guideline = self.all_guidelines[guideline_name]
-                original_key_features = original_guideline.get('key_features', {})
-                original_structured = original_key_features.get('structured_oldcarts', {})
-                self._capture_debug(f"[Engine] 🔍 DEBUG:   Original structured_oldcarts keys: {list(original_structured.keys())}")
-                self._capture_debug(f"[Engine] 🔍 DEBUG:   Original structured_oldcarts content: {original_structured}")
-            else:
-                self._capture_debug(f"[Engine] 🔍 DEBUG:   ⚠️ Guideline '{guideline_name}' not found in all_guidelines!")
-            
             if element_name in structured:
                 element_data = structured[element_name]
-                self._capture_debug(f"[Engine] 🔍 DEBUG: Found '{element_name}' data: {element_data}")
                 if isinstance(element_data, dict):
                     # Use includes terms for expected patterns
                     if 'includes' in element_data:
                         includes = element_data['includes']
-                        self._capture_debug(f"[Engine] 🔍 DEBUG: Includes terms: {includes}")
                         for term in includes:
                             expected_terms.add(term.lower())
                     
                     # Also use excludes terms as alternative patterns to consider
                     if 'excludes' in element_data:
                         excludes = element_data['excludes']
-                        self._capture_debug(f"[Engine] 🔍 DEBUG: Excludes terms: {excludes}")
                         # Add excludes as alternative patterns (for clarification options)
                         for term in excludes:
                             expected_terms.add(term.lower())
-                else:
-                    self._capture_debug(f"[Engine] 🔍 DEBUG: Element data is not dict: {type(element_data)}")
-            else:
-                self._capture_debug(f"[Engine] 🔍 DEBUG: Element '{element_name}' not found in guideline '{guideline_name}'")
         
         self._capture_debug(f"[Engine]   Expected terms from guidelines: {expected_terms}")
         
