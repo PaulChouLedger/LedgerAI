@@ -2987,6 +2987,14 @@ Normalized text:"""
         self._capture_debug(f"[Engine]   MAX_CLARIFICATIONS_PER_ELEMENT: {MAX_CLARIFICATIONS_PER_ELEMENT}")
         self._capture_debug(f"[Engine]   Condition met: {needs_clarification_for_specificity or not is_clear_answer}")
         
+        # NEVER ask clarification for certain OLDCARTS elements (e.g., onset)
+        ELEMENTS_THAT_DO_NOT_NEED_CLARIFICATION = {'O'}  # Onset never needs clarification
+        
+        if oldcarts_element in ELEMENTS_THAT_DO_NOT_NEED_CLARIFICATION:
+            self._capture_debug(f"[Engine] 🎯 SKIPPING CLARIFICATION for {oldcarts_element} - this element never requires clarification")
+            needs_clarification_for_specificity = False
+            is_clear_answer = True
+        
         # ALWAYS ask clarification if there are meaningful anatomical distinctions to be made
         # REMOVED: score_spread and top_score dependencies - focus purely on segmental gaps
         # REMOVED: Max clarifications limit - continue until condition is met
