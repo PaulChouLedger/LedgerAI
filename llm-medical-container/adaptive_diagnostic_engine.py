@@ -3027,8 +3027,14 @@ Normalized text:"""
             
             # Check if user is asking for clarification on our question (e.g., "what do you mean?", "provide more detail how?")
             if self._is_user_asking_for_clarification(answer):
-                # Generate a rephrased clarifying question with options
-                clarifying_q = self._generate_llm_clarifying_question_with_options(oldcarts_element, clarification_count)
+                # Use LLM to respond conversationally with full context
+                conversational_response = self._generate_conversational_response(answer, oldcarts_element)
+                return {
+                    'success': True,
+                    'question': conversational_response,
+                    'status': 'questioning',
+                    'needs_clarification': True
+                }
             else:
                 # Generate progressively targeted clarifying question
                 clarifying_q = self._generate_clarifying_question(oldcarts_element, answer, clarification_count, missing_specificity_terms)
@@ -3836,28 +3842,41 @@ Your question:"""
         
         self._capture_debug(f"[Engine]   Missing terms: {missing_terms}")
         
-        # Generate targeted question based on missing information
+        # Generate targeted question based on missing information from structured_oldcarts
         if missing_terms:
-            # For location, be specific about upper/lower
-            if oldcarts_element == 'location':
-                if any('upper' in term or 'ruq' in term or 'luq' in term for term in missing_terms) and \
-                   any('lower' in term or 'rlq' in term or 'llq' in term for term in missing_terms):
-                    return "Is it in the upper part (below ribs) or lower part (near hip) of your abdomen?"
-                elif any('upper' in term or 'ruq' in term or 'luq' in term for term in missing_terms):
-                    return "Is it in the upper part of your abdomen (below your ribs)?"
-                elif any('lower' in term or 'rlq' in term or 'llq' in term for term in missing_terms):
-                    return "Is it in the lower part of your abdomen (near your hip)?"
+            # Collect all includes and excludes terms from guidelines for this element
+            all_includes = set()
+            all_excludes = set()
             
-            # For duration, be specific about time
-            elif oldcarts_element == 'duration':
-                if any('hour' in term or 'minute' in term for term in missing_terms):
-                    return "How long does it last - minutes, hours, or days?"
+            for guideline in self.active_guidelines[:5]:
+                data = guideline.get('data', {})
+                key_features = data.get('key_features', {})
+                structured = key_features.get('structured_oldcarts', {})
+                
+                if element_name in structured and isinstance(structured[element_name], dict):
+                    element_data = structured[element_name]
+                    if 'includes' in element_data:
+                        all_includes.update(element_data['includes'])
+                    if 'excludes' in element_data:
+                        all_excludes.update(element_data['excludes'])
             
-            # For character, ask about quality
-            elif oldcarts_element == 'character':
-                return f"Can you describe the pain more specifically? Is it sharp, dull, crampy, or burning?"
+            # Generate question based on available terms
+            if all_includes or all_excludes:
+                # Create options from includes and excludes
+                options = []
+                if all_includes:
+                    options.extend(list(all_includes)[:3])  # Limit to 3 includes
+                if all_excludes:
+                    options.extend(list(all_excludes)[:2])  # Limit to 2 excludes
+                
+                # Remove duplicates and limit total options
+                options = list(set(options))[:4]
+                
+                if options:
+                    options_str = ", ".join(options)
+                    return f"Can you be more specific about the {oldcarts_element}? For example: {options_str}?"
         
-        # No fallback - let it fail
+        # No structured data available - let it fail
         raise ValueError(f"Failed to generate clarifying question for {oldcarts_element} - missing data or logic error")
     
     def _is_user_asking_for_clarification(self, user_answer: str) -> bool:
@@ -3880,6 +3899,71 @@ Your question:"""
         
         answer_lower = user_answer.lower()
         return any(indicator in answer_lower for indicator in clarification_indicators)
+    
+    def _generate_conversational_response(self, user_answer: str, oldcarts_element: str) -> str:
+        """
+        Generate a conversational response when user asks for clarification
+        Uses full conversation context to provide natural, helpful responses
+        """
+        # Get the last question asked
+        last_question = None
+        for item in reversed(self.conversation_history):
+            if item.get('type') == 'question' and item.get('oldcarts') == oldcarts_element:
+                last_question = item.get('question')
+                break
+        
+        # Build conversation context
+        qa_pairs = []
+        temp_q = None
+        for item in self.conversation_history[-10:]:  # Last 10 items for context
+            if item.get('type') == 'question' and item.get('focus') not in ['age', 'sex']:
+                temp_q = item.get('question')
+            elif item.get('type') == 'answer' and temp_q:
+                qa_pairs.append(f"Q: {temp_q}\nA: {item.get('answer', '')}")
+                temp_q = None
+        
+        context = "\n\n".join(qa_pairs) if qa_pairs else "No previous conversation"
+        
+        system_msg = "You are a helpful medical assistant. The patient is asking for clarification on your previous question. Respond naturally and helpfully, explaining what you meant in simple terms."
+        
+        user_msg = f"""The patient asked: "{user_answer}"
+
+This was in response to your question: "{last_question}"
+
+Conversation context:
+{context}
+
+Respond naturally and helpfully. Explain what you meant by your question in simple, clear terms. Be conversational and reassuring. Keep it under 50 words."""
+
+        try:
+            response = self.llm_chat_simple_fn(
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=100,
+                temperature=0.7
+            )
+            
+            # Clean up the response
+            conversational_response = response.strip().strip('"\'')
+            
+            # Add to conversation history
+            self.conversation_history.append({
+                'type': 'question',
+                'question': conversational_response,
+                'oldcarts': oldcarts_element,
+                'focus': 'clinical',
+                'is_clarification': True,
+                'is_conversational': True
+            })
+            
+            return conversational_response
+            
+        except Exception as e:
+            self._capture_debug(f"[Engine] ❌ Conversational response generation failed: {e}")
+            # Fallback to simple explanation
+            return f"I'm asking about the {oldcarts_element} of your pain. Can you tell me more specifically?"
     
     def _generate_llm_clarifying_question_with_options(self, oldcarts_element: str, clarification_count: int) -> str:
         """
