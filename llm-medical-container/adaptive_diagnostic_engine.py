@@ -3801,19 +3801,8 @@ Your question:"""
             elif oldcarts_element == 'C':
                 return f"Can you describe the pain more specifically? Is it sharp, dull, crampy, or burning?"
         
-        # Fallback to generic question
-        element_questions = {
-            'L': "Can you be more specific about the location?",
-            'D': "Can you be more specific about the duration?",
-            'C': "Can you describe what it feels like?",
-            'A': "What makes it worse?",
-            'R': "What helps make it better?",
-            'T': "Does it come and go or stay constant?",
-            'S': "How severe is it on a scale of 1 to 10?",
-            'O': "Can you describe when it started?"
-        }
-        
-        return element_questions.get(oldcarts_element, "Can you provide more detail?")
+        # No fallback - should have been handled above
+        raise ValueError(f"Failed to generate clarifying question for {oldcarts_element} - missing data or logic error")
     
     def _is_user_asking_for_clarification(self, user_answer: str) -> bool:
         """
@@ -3898,25 +3887,50 @@ Be specific and offer concrete options. Don't use medical jargon. Keep it under 
             # Extract just the question, removing any explanatory text
             clarifying_q = response.strip().strip('"\'')
             
-            # Remove common prefixes that LLM adds
+            # Remove common prefixes that LLM adds (case-insensitive)
             prefixes_to_remove = [
                 "Here's a better clarifying question:",
                 "Here's a good clarifying question:",
                 "A good clarifying question would be:",
                 "Try this question:",
                 "You could ask:",
-                "Here's a question:"
+                "Here's a question:",
+                "Better question:",
+                "Here's a better question:",
+                "Ask this:",
+                "Try asking:"
             ]
             
+            # Check for prefix (case-insensitive)
+            clarifying_q_lower = clarifying_q.lower()
             for prefix in prefixes_to_remove:
-                if clarifying_q.startswith(prefix):
-                    clarifying_q = clarifying_q[len(prefix):].strip().strip('"\'')
+                if clarifying_q_lower.startswith(prefix.lower()):
+                    # Find the actual start of the prefix in the original string
+                    idx = clarifying_q_lower.find(prefix.lower())
+                    clarifying_q = clarifying_q[idx + len(prefix):].strip().strip('"\'')
+                    break
+            
+            # Remove any trailing explanatory text after the question
+            # Look for common patterns that indicate explanation
+            explanatory_patterns = [
+                " This option provides",
+                " This helps",
+                " This will",
+                " By asking",
+                " The question",
+                "\n"
+            ]
+            
+            for pattern in explanatory_patterns:
+                if pattern in clarifying_q:
+                    clarifying_q = clarifying_q.split(pattern)[0].strip()
                     break
             
             # If there's still extra text after the question, extract just the first sentence
-            if '\n' in clarifying_q or '.' in clarifying_q and clarifying_q.find('.') < len(clarifying_q) - 1:
-                # Get the first sentence (up to first period or newline)
-                first_sentence = clarifying_q.split('.')[0].strip()
+            if '.' in clarifying_q and clarifying_q.find('.') < len(clarifying_q) - 1:
+                # Get the first sentence (up to first period)
+                sentences = clarifying_q.split('.')
+                first_sentence = sentences[0].strip()
                 if len(first_sentence) > 10:  # Only use if it's a real sentence
                     clarifying_q = first_sentence
             
