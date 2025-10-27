@@ -3785,18 +3785,8 @@ Your question:"""
         self._capture_debug(f"[Engine] 🎯 Generating targeted clarifying question for {oldcarts_element}")
         self._capture_debug(f"[Engine]   Patient answer: '{patient_answer}'")
         
-        # Get structured OLDCARTS data from active guidelines
-        element_mapping = {
-            'O': 'onset',
-            'L': 'location',
-            'D': 'duration',
-            'C': 'character',
-            'A': 'aggravating',
-            'R': 'relieving',
-            'T': 'timing',
-            'S': 'severity'
-        }
-        element_name = element_mapping.get(oldcarts_element, oldcarts_element)
+        # Codebase uses lowercase full names only
+        element_name = oldcarts_element
         
         # Collect expected terms from all active guidelines for this element
         expected_terms = set()
