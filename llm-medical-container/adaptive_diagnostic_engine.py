@@ -2495,7 +2495,9 @@ Normalized text:"""
         Returns True if clarification should be skipped, False otherwise
         """
         ELEMENTS_THAT_DO_NOT_NEED_CLARIFICATION = {'O'}  # Onset never needs clarification
-        return oldcarts_element in ELEMENTS_THAT_DO_NOT_NEED_CLARIFICATION
+        should_bypass = oldcarts_element in ELEMENTS_THAT_DO_NOT_NEED_CLARIFICATION
+        self._capture_debug(f"[Engine] 🎯 BYPASS CHECK: element='{oldcarts_element}', should_bypass={should_bypass}, bypass_list={ELEMENTS_THAT_DO_NOT_NEED_CLARIFICATION}")
+        return should_bypass
     
     def _process_clinical_answer(self, answer: str) -> Dict[str, Any]:
         """
@@ -2997,7 +2999,8 @@ Normalized text:"""
         
         # SINGLE POINT: Check if clarification should be bypassed for this element
         if self._should_bypass_clarification(oldcarts_element):
-            self._capture_debug(f"[Engine] 🎯 COMPLETE CLARIFICATION BYPASS for {oldcarts_element} - skipping all clarification logic")
+            self._capture_debug(f"[Engine] 🎯 COMPLETE CLARIFICATION BYPASS for {oldcarts_element}")
+            self._capture_debug(f"[Engine]   Element '{oldcarts_element}' never requires clarification - accepting answer as-is")
             # Set both flags to prevent entering clarification block
             needs_clarification_for_specificity = False
             is_clear_answer = True
@@ -3009,18 +3012,13 @@ Normalized text:"""
         elif needs_clarification_for_specificity or not is_clear_answer:
             self._capture_debug(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
             self._capture_debug(f"[Engine]   Top score: {top_score:.0%} (scores no longer determine clarification)")
-            reason = "Competing anatomical regions need clarification" if needs_clarification_for_specificity else "Answer lacks specificity"
+            reason = "Competing conditions need clarification" if needs_clarification_for_specificity else "Answer lacks specificity"
             self._capture_debug(f"[Engine]   Reason: {reason}")
             self._capture_debug(f"[Engine]   Clarifications asked so far: {clarification_count} (unlimited until condition met)")
             self._capture_debug(f"[Engine]   Strategy: {'Open-ended' if clarification_count == 0 else 'Targeted (differential-based)'}")
             
-            # BYPASS CHECK: Check if this element should skip clarification (after determining clarification is needed)
-            if self._should_bypass_clarification(oldcarts_element):
-                self._capture_debug(f"[Engine] ⏭️  BYPASS: Element '{oldcarts_element}' skips clarification - accepting answer as-is")
-                # Don't generate clarifying question, accept answer and continue
-                clarifying_q = None
             # Check if user is asking for clarification on our question (e.g., "what do you mean?", "provide more detail how?")
-            elif self._is_user_asking_for_clarification(answer):
+            if self._is_user_asking_for_clarification(answer):
                 # Generate a rephrased clarifying question with options
                 clarifying_q = self._generate_llm_clarifying_question_with_options(oldcarts_element, clarification_count)
             else:
