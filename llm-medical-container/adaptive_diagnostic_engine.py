@@ -2876,13 +2876,15 @@ Normalized text:"""
         # REMOVED: Old semantic clarity bypass logic that prevented proper competition detection
         
         # SKIP CLARIFICATION FOR ONSET: Onset answers are always sufficient for ranking, no clarification needed
+        # Also skip if onset element - bypass all competition detection
         if oldcarts_element == 'O':
-            self._capture_debug(f"[Engine] 🎯 ONSET ELEMENT: Skipping clarification - onset answers are always sufficient for ranking")
+            self._capture_debug(f"[Engine] 🎯 ONSET ELEMENT: Skipping ALL clarification logic - onset answers are always sufficient for ranking")
             needs_clarification_for_specificity = False
             is_clear_answer = True
             missing_specificity_terms = []
-        # Use unified approach for ALL OLDCARTS elements (including location)
-        elif True:  # Always use this unified approach
+            oldcarts_result = {'has_competition': False, 'best_similarity': 1.0, 'competing_terms': []}  # Set dummy result
+        # Use unified approach for ALL OTHER OLDCARTS elements (including location)
+        else:  # Only process non-onset elements
             # Get sections for this OLDCARTS element from guidelines that have some similarity to the current answer
             matching_sections = []
             all_matched_guidelines = self.active_guidelines + self.reserve_pool
@@ -3860,24 +3862,28 @@ Your question:"""
                 last_question = item.get('question')
                 break
         
-        # Build context for LLM
-        conditions_summary = []
-        for i, guideline in enumerate(competing_conditions, 1):
-            conditions_summary.append(f"{i}. {guideline['name']}")
+        # Extract structured OLDCARTS data for this element from competing conditions
+        condition_details = []
+        for guideline in competing_conditions:
+            structured_oldcarts = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            if element_name in structured_oldcarts:
+                element_data = structured_oldcarts[element_name]
+                includes = element_data.get('includes', [])
+                condition_details.append(f"- {guideline['name']}: {', '.join(includes[:3])}")
         
-        system_msg = "You are a medical assistant helping to clarify patient symptoms. Generate a clear, simple question with specific options."
+        system_msg = "You are a medical assistant helping to clarify patient symptoms. Generate a clear, simple question with specific options based on competing medical conditions."
         
-        user_msg = f"""The patient seems confused by your previous question. Generate a better clarifying question with specific options.
+        user_msg = f"""The patient seems confused by your previous question. Generate a better clarifying question with specific options based on the competing conditions.
 
 Previous question: "{last_question}"
 
-We're trying to understand the patient's {element_name} to differentiate between:
-{chr(10).join(conditions_summary)}
+We're trying to understand the patient's {element_name} to differentiate between these conditions:
 
-Generate a simple question with 2-3 specific options. For example, if asking about location:
-"Is the pain in your upper abdomen (below ribs) or lower abdomen (near hip)?"
+{chr(10).join(condition_details)}
 
-Be specific and offer concrete options. Don't use medical jargon. Keep it under 20 words."""
+Generate a simple question with 2-3 specific options that help distinguish between these conditions. Base the options on the {element_name} characteristics listed above.
+
+Be specific and offer concrete options. Don't use medical jargon. Keep it under 25 words. Only return the question, nothing else."""
 
         try:
             response = self.llm_chat_simple_fn(
@@ -3889,24 +3895,38 @@ Be specific and offer concrete options. Don't use medical jargon. Keep it under 
                 temperature=0.3
             )
             
+            # Extract just the question, removing any explanatory text
             clarifying_q = response.strip().strip('"\'')
+            
+            # Remove common prefixes that LLM adds
+            prefixes_to_remove = [
+                "Here's a better clarifying question:",
+                "Here's a good clarifying question:",
+                "A good clarifying question would be:",
+                "Try this question:",
+                "You could ask:",
+                "Here's a question:"
+            ]
+            
+            for prefix in prefixes_to_remove:
+                if clarifying_q.startswith(prefix):
+                    clarifying_q = clarifying_q[len(prefix):].strip().strip('"\'')
+                    break
+            
+            # If there's still extra text after the question, extract just the first sentence
+            if '\n' in clarifying_q or '.' in clarifying_q and clarifying_q.find('.') < len(clarifying_q) - 1:
+                # Get the first sentence (up to first period or newline)
+                first_sentence = clarifying_q.split('.')[0].strip()
+                if len(first_sentence) > 10:  # Only use if it's a real sentence
+                    clarifying_q = first_sentence
+            
             self._capture_debug(f"[Engine] 🧠 LLM generated clarifying question: '{clarifying_q}'")
             return clarifying_q
             
         except Exception as e:
-            self._capture_debug(f"[Engine] ⚠️ LLM clarifying question generation failed: {e}")
-            # Fallback to default
-            element_questions = {
-                'L': "Is it in your upper abdomen (below ribs) or lower abdomen (near hip)?",
-                'D': "Does it last minutes, hours, or days?",
-                'C': "Is it sharp, dull, or crampy?",
-                'A': "Does anything make it worse?",
-                'R': "Does anything make it better?",
-                'T': "Is it constant or does it come and go?",
-                'S': "On a scale of 1-10, how severe is it?",
-                'O': "Did it start suddenly or gradually?"
-            }
-            return element_questions.get(oldcarts_element, "Can you provide more detail?")
+            self._capture_debug(f"[Engine] ❌ LLM clarifying question generation failed: {e}")
+            # No fallback - let it fail to surface the issue
+            raise RuntimeError(f"Failed to generate clarifying question for {element_name}: {e}")
     
     def _parse_prompt_against_structured_oldcarts(self, prompt: str, guidelines: List[Dict]) -> Dict[str, Any]:
         """
