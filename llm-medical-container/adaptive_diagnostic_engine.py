@@ -3795,20 +3795,36 @@ Your question:"""
         
         for guideline in self.active_guidelines[:5]:  # Check top 5
             guideline_name = guideline.get('name', 'Unknown')
-            structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            data = guideline.get('data', {})
+            key_features = data.get('key_features', {})
+            structured = key_features.get('structured_oldcarts', {})
             
-            self._capture_debug(f"[Engine] 🔍 DEBUG: Guideline '{guideline_name}' has structured_oldcarts keys: {list(structured.keys())}")
+            self._capture_debug(f"[Engine] 🔍 DEBUG: Guideline '{guideline_name}'")
+            self._capture_debug(f"[Engine] 🔍 DEBUG:   data keys: {list(data.keys())}")
+            self._capture_debug(f"[Engine] 🔍 DEBUG:   key_features keys: {list(key_features.keys())}")
+            self._capture_debug(f"[Engine] 🔍 DEBUG:   structured_oldcarts keys: {list(structured.keys())}")
+            self._capture_debug(f"[Engine] 🔍 DEBUG:   structured_oldcarts type: {type(structured)}")
             
             if element_name in structured:
                 element_data = structured[element_name]
                 self._capture_debug(f"[Engine] 🔍 DEBUG: Found '{element_name}' data: {element_data}")
-                if isinstance(element_data, dict) and 'includes' in element_data:
-                    includes = element_data['includes']
-                    self._capture_debug(f"[Engine] 🔍 DEBUG: Includes terms: {includes}")
-                    for term in includes:
-                        expected_terms.add(term.lower())
+                if isinstance(element_data, dict):
+                    # Use includes terms for expected patterns
+                    if 'includes' in element_data:
+                        includes = element_data['includes']
+                        self._capture_debug(f"[Engine] 🔍 DEBUG: Includes terms: {includes}")
+                        for term in includes:
+                            expected_terms.add(term.lower())
+                    
+                    # Also use excludes terms as alternative patterns to consider
+                    if 'excludes' in element_data:
+                        excludes = element_data['excludes']
+                        self._capture_debug(f"[Engine] 🔍 DEBUG: Excludes terms: {excludes}")
+                        # Add excludes as alternative patterns (for clarification options)
+                        for term in excludes:
+                            expected_terms.add(term.lower())
                 else:
-                    self._capture_debug(f"[Engine] 🔍 DEBUG: Element data is not dict or missing 'includes': {type(element_data)}")
+                    self._capture_debug(f"[Engine] 🔍 DEBUG: Element data is not dict: {type(element_data)}")
             else:
                 self._capture_debug(f"[Engine] 🔍 DEBUG: Element '{element_name}' not found in guideline '{guideline_name}'")
         
@@ -3841,7 +3857,7 @@ Your question:"""
             elif oldcarts_element == 'character':
                 return f"Can you describe the pain more specifically? Is it sharp, dull, crampy, or burning?"
         
-        # No fallback - should have been handled above
+        # No fallback - let it fail
         raise ValueError(f"Failed to generate clarifying question for {oldcarts_element} - missing data or logic error")
     
     def _is_user_asking_for_clarification(self, user_answer: str) -> bool:
