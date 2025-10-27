@@ -20,8 +20,14 @@ class GuidelineToRAGConverter:
         if guidelines_dir is None:
             script_dir = Path(__file__).resolve().parent
             repo_root = script_dir.parent
-            # Correct path: llm-container/medical/guidelines (where JSON files actually are)
-            guidelines_dir = repo_root / "llm-container" / "medical" / "guidelines"
+            # Try both possible paths for different systems
+            if (repo_root / "llm-medical-container" / "medical" / "guidelines").exists():
+                guidelines_dir = repo_root / "llm-medical-container" / "medical" / "guidelines"
+            elif (repo_root / "llm-container" / "medical" / "guidelines").exists():
+                guidelines_dir = repo_root / "llm-container" / "medical" / "guidelines"
+            else:
+                # Default to llm-medical-container
+                guidelines_dir = repo_root / "llm-medical-container" / "medical" / "guidelines"
         
         if output_dir is None:
             script_dir = Path(__file__).resolve().parent
@@ -50,12 +56,16 @@ class GuidelineToRAGConverter:
         
         # === METADATA ===
         sections.append(f"Condition: {guideline['condition']}")
-        sections.append(f"Category: {guideline['category']}")
+        sections.append(f"Category: {guideline.get('category', 'N/A')}")
         sections.append(f"Urgency Level: {guideline.get('urgency', 'N/A')}")
         sections.append(f"Prevalence: {guideline.get('prevalence', 'N/A')}")
         
-        if guideline.get('icd10_codes'):
-            sections.append(f"ICD-10 Codes: {', '.join(guideline['icd10_codes'])}")
+        if guideline.get('icd10'):
+            sections.append(f"ICD-10 Code: {guideline['icd10']}")
+        if guideline.get('snomed'):
+            sections.append(f"SNOMED Code: {guideline['snomed']}")
+        if guideline.get('sex'):
+            sections.append(f"Sex: {guideline['sex']}")
         
         sections.append("")
         sections.append("-"*80)
@@ -84,6 +94,31 @@ class GuidelineToRAGConverter:
             if features.get('pathophysiology_brief'):
                 sections.append("PATHOPHYSIOLOGY:")
                 sections.append(features['pathophysiology_brief'])
+                sections.append("")
+            
+            # === STRUCTURED OLDCARTS DATA (CRITICAL FOR DYNAMIC QUESTIONING) ===
+            if features.get('structured_oldcarts'):
+                sections.append("STRUCTURED OLDCARTS ASSESSMENT:")
+                sections.append("Use this structured data for dynamic questioning:")
+                sections.append("")
+                
+                structured = features['structured_oldcarts']
+                for element, data in structured.items():
+                    if isinstance(data, dict):
+                        sections.append(f"{element.upper()}:")
+                        
+                        if data.get('includes'):
+                            sections.append(f"  Positive indicators: {', '.join(data['includes'])}")
+                        
+                        if data.get('excludes'):
+                            sections.append(f"  Negative indicators: {', '.join(data['excludes'])}")
+                        
+                        if data.get('anatomical_type'):
+                            sections.append(f"  Anatomical type: {data['anatomical_type']}")
+                        
+                        sections.append("")
+                
+                sections.append("-"*40)
                 sections.append("")
         
         sections.append("-"*80)
@@ -124,9 +159,14 @@ class GuidelineToRAGConverter:
             sections.append("")
             
             for flag in guideline['red_flags']:
-                sections.append(f"  🚨 {flag['finding']}")
-                sections.append(f"     Urgency: {flag['urgency']}")
-                sections.append(f"     Action: {flag['action']}")
+                if isinstance(flag, dict):
+                    sections.append(f"  🚨 {flag.get('finding', flag)}")
+                    if flag.get('urgency'):
+                        sections.append(f"     Urgency: {flag['urgency']}")
+                    if flag.get('action'):
+                        sections.append(f"     Action: {flag['action']}")
+                else:
+                    sections.append(f"  🚨 {flag}")
                 sections.append("")
         
         sections.append("-"*80)
@@ -193,7 +233,8 @@ class GuidelineToRAGConverter:
     
     def convert_all_guidelines(self) -> int:
         """Convert all JSON guidelines to RAG text format"""
-        json_files = list(self.guidelines_dir.glob("*.json"))
+        # Only convert GI guidelines for now since they have proper structured_oldcarts format
+        json_files = list(self.guidelines_dir.glob("GI/*.json"))
         
         if not json_files:
             print("[Converter] ⚠️ No JSON guideline files found")
@@ -226,6 +267,8 @@ class GuidelineToRAGConverter:
                 
             except Exception as e:
                 print(f"[Converter] ❌ Error converting {json_file.name}: {e}")
+                import traceback
+                traceback.print_exc()
         
         print(f"\n[Converter] ✅ Converted {converted_count}/{len(json_files)} guidelines")
         print(f"[Converter] 📁 Output: {self.output_dir}")

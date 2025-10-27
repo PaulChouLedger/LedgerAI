@@ -221,7 +221,7 @@ class AdaptiveDiagnosticEngine:
         
         # RAG API for GPU-accelerated FAISS operations
         self.rag_api = RAGEmbeddingAPI() if RAG_API_AVAILABLE else None
-        self.use_rag_api = RAG_API_AVAILABLE
+        self.use_rag_api = True  # Use RAG with FAISS for better performance
         
         # OLDCARTS element weights removed - now using semantic similarity scoring
         # Each OLDCARTS element is scored using vector similarity to guideline sections
@@ -268,6 +268,10 @@ class AdaptiveDiagnosticEngine:
                     has_structured_data = bool(structured_oldcarts and isinstance(structured_oldcarts, dict) and structured_oldcarts)
                     
                     self._capture_debug(f"[Engine]   ✓ {organ_system}/{name} (structured_oldcarts: {has_structured_data})")
+                    if has_structured_data:
+                        self._capture_debug(f"[Engine]     📋 structured_oldcarts keys: {list(structured_oldcarts.keys())}")
+                    else:
+                        self._capture_debug(f"[Engine]     ⚠️ structured_oldcarts content: {structured_oldcarts}")
             except Exception as e:
                 self._capture_debug(f"[Engine] ⚠️ Failed to load {json_file.name}: {e}")
         
@@ -522,6 +526,17 @@ class AdaptiveDiagnosticEngine:
         # Return all guidelines with equal priority
         matched_guidelines = []
         for name, guideline in relevant_guidelines.items():
+            # Debug: Check if structured_oldcarts exists in the guideline
+            key_features = guideline.get('key_features', {})
+            structured_oldcarts = key_features.get('structured_oldcarts', {})
+            has_structured_data = bool(structured_oldcarts and isinstance(structured_oldcarts, dict) and structured_oldcarts)
+            
+            self._capture_debug(f"[Engine] 🧠 Processing guideline '{name}' (structured_oldcarts: {has_structured_data})")
+            if has_structured_data:
+                self._capture_debug(f"[Engine]     📋 structured_oldcarts keys: {list(structured_oldcarts.keys())}")
+            else:
+                self._capture_debug(f"[Engine]     ⚠️ structured_oldcarts content: {structured_oldcarts}")
+            
             matched_guidelines.append({
                 'name': name,
                 'score': 0.5,  # Equal priority for all
@@ -3816,6 +3831,16 @@ Your question:"""
             self._capture_debug(f"[Engine] 🔍 DEBUG:   structured_oldcarts keys: {list(structured.keys())}")
             self._capture_debug(f"[Engine] 🔍 DEBUG:   structured_oldcarts type: {type(structured)}")
             self._capture_debug(f"[Engine] 🔍 DEBUG:   structured_oldcarts content: {structured}")
+            
+            # Debug: Check if this guideline exists in all_guidelines
+            if guideline_name in self.all_guidelines:
+                original_guideline = self.all_guidelines[guideline_name]
+                original_key_features = original_guideline.get('key_features', {})
+                original_structured = original_key_features.get('structured_oldcarts', {})
+                self._capture_debug(f"[Engine] 🔍 DEBUG:   Original structured_oldcarts keys: {list(original_structured.keys())}")
+                self._capture_debug(f"[Engine] 🔍 DEBUG:   Original structured_oldcarts content: {original_structured}")
+            else:
+                self._capture_debug(f"[Engine] 🔍 DEBUG:   ⚠️ Guideline '{guideline_name}' not found in all_guidelines!")
             
             if element_name in structured:
                 element_data = structured[element_name]
