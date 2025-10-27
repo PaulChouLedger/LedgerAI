@@ -2489,6 +2489,14 @@ Normalized text:"""
     
     
     
+    def _should_bypass_clarification(self, oldcarts_element: str) -> bool:
+        """
+        SINGLE POINT: Determine if an OLDCARTS element should bypass clarification
+        Returns True if clarification should be skipped, False otherwise
+        """
+        ELEMENTS_THAT_DO_NOT_NEED_CLARIFICATION = {'O'}  # Onset never needs clarification
+        return oldcarts_element in ELEMENTS_THAT_DO_NOT_NEED_CLARIFICATION
+    
     def _process_clinical_answer(self, answer: str) -> Dict[str, Any]:
         """
         Score guidelines using SEMANTIC SIMILARITY between answer and corresponding OLDCARTS section
@@ -2987,19 +2995,18 @@ Normalized text:"""
         self._capture_debug(f"[Engine]   MAX_CLARIFICATIONS_PER_ELEMENT: {MAX_CLARIFICATIONS_PER_ELEMENT}")
         self._capture_debug(f"[Engine]   Condition met: {needs_clarification_for_specificity or not is_clear_answer}")
         
-        # NEVER ask clarification for certain OLDCARTS elements (e.g., onset) - check here FIRST!
-        ELEMENTS_THAT_DO_NOT_NEED_CLARIFICATION = {'O'}  # Onset never needs clarification
-        
-        # Force skip clarification for onset even if competition was detected
-        if oldcarts_element in ELEMENTS_THAT_DO_NOT_NEED_CLARIFICATION:
-            self._capture_debug(f"[Engine] 🎯 FORCE SKIP CLARIFICATION for {oldcarts_element} - this element never requires clarification")
+        # SINGLE POINT: Check if clarification should be bypassed for this element
+        if self._should_bypass_clarification(oldcarts_element):
+            self._capture_debug(f"[Engine] 🎯 COMPLETE CLARIFICATION BYPASS for {oldcarts_element} - skipping all clarification logic")
+            # Set both flags to prevent entering clarification block
             needs_clarification_for_specificity = False
             is_clear_answer = True
-        
+            # FORCE SKIP - do not enter clarification block at all
+            self._capture_debug(f"[Engine] ✅ ANSWER ACCEPTED WITHOUT CLARIFICATION (element: {oldcarts_element})")
         # ALWAYS ask clarification if there are meaningful anatomical distinctions to be made
         # REMOVED: score_spread and top_score dependencies - focus purely on segmental gaps
         # REMOVED: Max clarifications limit - continue until condition is met
-        if needs_clarification_for_specificity or not is_clear_answer:
+        elif needs_clarification_for_specificity or not is_clear_answer:
             self._capture_debug(f"\n[Engine] 🔍 CLARIFICATION NEEDED:")
             self._capture_debug(f"[Engine]   Top score: {top_score:.0%} (scores no longer determine clarification)")
             reason = "Competing anatomical regions need clarification" if needs_clarification_for_specificity else "Answer lacks specificity"
@@ -3007,8 +3014,13 @@ Normalized text:"""
             self._capture_debug(f"[Engine]   Clarifications asked so far: {clarification_count} (unlimited until condition met)")
             self._capture_debug(f"[Engine]   Strategy: {'Open-ended' if clarification_count == 0 else 'Targeted (differential-based)'}")
             
+            # BYPASS CHECK: Check if this element should skip clarification (after determining clarification is needed)
+            if self._should_bypass_clarification(oldcarts_element):
+                self._capture_debug(f"[Engine] ⏭️  BYPASS: Element '{oldcarts_element}' skips clarification - accepting answer as-is")
+                # Don't generate clarifying question, accept answer and continue
+                clarifying_q = None
             # Check if user is asking for clarification on our question (e.g., "what do you mean?", "provide more detail how?")
-            if self._is_user_asking_for_clarification(answer):
+            elif self._is_user_asking_for_clarification(answer):
                 # Generate a rephrased clarifying question with options
                 clarifying_q = self._generate_llm_clarifying_question_with_options(oldcarts_element, clarification_count)
             else:
@@ -3031,8 +3043,15 @@ Normalized text:"""
                         'status': 'questioning',
                         'needs_clarification': True
                     }
-        else:
-            # No clarification needed - accept answer
+        
+        # NOTE: If we reach here, either:
+        # 1. Clarification was bypassed (onset, etc.)
+        # 2. Clarification was not needed (clear answer)
+        # 3. Clarification was attempted but failed
+        # In all cases, we accept the answer and continue
+        
+        if not self._should_bypass_clarification(oldcarts_element):
+            # Only log acceptance for non-bypassed elements
             self._capture_debug(f"[Engine] ✅ ANSWER ACCEPTED: '{answer}' provides sufficient specificity")
             self._capture_debug(f"[Engine]   🎯 No competing anatomical regions requiring clarification")
             self._capture_debug(f"[Engine]   📝 Segmental gap analysis complete - no further clarification needed")
@@ -3753,6 +3772,10 @@ Your question:"""
         Compares normalized patient answer against structured_oldcarts includes/excludes
         to generate targeted questions that help discriminate between conditions
         """
+        # BYPASS CHECK: If this element should skip clarification, raise error (should never be called)
+        if self._should_bypass_clarification(oldcarts_element):
+            raise ValueError(f"❌ BUG: _generate_clarifying_question called for {oldcarts_element} which should bypass clarification - this should never happen!")
+        
         self._capture_debug(f"[Engine] 🎯 Generating targeted clarifying question for {oldcarts_element}")
         self._capture_debug(f"[Engine]   Patient answer: '{patient_answer}'")
         
@@ -3838,6 +3861,10 @@ Your question:"""
         """
         Use LLM to generate a clarifying question with specific options based on competing conditions
         """
+        # BYPASS CHECK: If this element should skip clarification, raise error (should never be called)
+        if self._should_bypass_clarification(oldcarts_element):
+            raise ValueError(f"❌ BUG: _generate_llm_clarifying_question_with_options called for {oldcarts_element} which should bypass clarification - this should never happen!")
+        
         element_mapping = {
             'O': 'onset',
             'L': 'location',
