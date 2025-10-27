@@ -849,28 +849,28 @@ class AdaptiveDiagnosticEngine:
     
     def _determine_best_oldcarts_element(self) -> str:
         """Determine best OLDCARTS element to ask about first"""
-        # Follow standard OLDCARTS order: O-L-D-C-A-R-T-S
-        # Start with Onset (O) as it's the first element in the framework
-        return 'O'
+        # Follow standard OLDCARTS order: onset-location-duration-character-aggravating-relieving-timing-severity
+        # Start with onset as it's the first element in the framework
+        return 'onset'
     
     def _generate_ml_question(self, oldcarts_element: str) -> str:
         """Generate question using ML-powered approach"""
-        # Use existing question generation but with ML context
-        if oldcarts_element == 'L':
+        # Codebase uses lowercase full names only
+        if oldcarts_element == 'location':
             return "Where exactly is the pain located?"
-        elif oldcarts_element == 'O':
+        elif oldcarts_element == 'onset':
             return "When did the pain start?"
-        elif oldcarts_element == 'D':
+        elif oldcarts_element == 'duration':
             return "How long does the pain last?"
-        elif oldcarts_element == 'C':
+        elif oldcarts_element == 'character':
             return "How would you describe the pain?"
-        elif oldcarts_element == 'A':
+        elif oldcarts_element == 'aggravating':
             return "What makes the pain worse?"
-        elif oldcarts_element == 'R':
+        elif oldcarts_element == 'relieving':
             return "What makes the pain better?"
-        elif oldcarts_element == 'T':
+        elif oldcarts_element == 'timing':
             return "Is the pain constant or does it come and go?"
-        elif oldcarts_element == 'S':
+        elif oldcarts_element == 'severity':
             return "On a scale of 1-10, how severe is the pain?"
         else:
             return "Can you tell me more about your symptoms?"
@@ -2493,8 +2493,15 @@ Normalized text:"""
         """
         SINGLE POINT: Determine if an OLDCARTS element should bypass clarification
         Returns True if clarification should be skipped, False otherwise
+        
+        Args:
+            oldcarts_element: OLDCARTS element in lowercase full name format ('onset', 'location', etc.)
+        
+        Returns:
+            bool: True if clarification should be bypassed, False otherwise
         """
-        ELEMENTS_THAT_DO_NOT_NEED_CLARIFICATION = {'O'}  # Onset never needs clarification
+        # Codebase uses lowercase full names only - no normalization needed
+        ELEMENTS_THAT_DO_NOT_NEED_CLARIFICATION = {'onset'}  # Onset never needs clarification
         should_bypass = oldcarts_element in ELEMENTS_THAT_DO_NOT_NEED_CLARIFICATION
         self._capture_debug(f"[Engine] 🎯 BYPASS CHECK: element='{oldcarts_element}', should_bypass={should_bypass}, bypass_list={ELEMENTS_THAT_DO_NOT_NEED_CLARIFICATION}")
         return should_bypass
@@ -2593,7 +2600,7 @@ Normalized text:"""
                 return self._ask_next_clinical_question()
         
         # ONSET: Documentation only - no scoring needed
-        if oldcarts_element == 'O':
+        if oldcarts_element == 'onset':
             self._capture_debug(f"[Engine] 📝 ONSET: Documentation only - no scoring needed")
             self._capture_debug(f"[Engine] ✅ Marking OLDCARTS element 'O' as covered")
             self.oldcarts_covered['O'] = True
@@ -2887,7 +2894,7 @@ Normalized text:"""
         
         # SKIP CLARIFICATION FOR ONSET: Onset answers are always sufficient for ranking, no clarification needed
         # Also skip if onset element - bypass all competition detection
-        if oldcarts_element == 'O':
+        if oldcarts_element == 'onset':
             self._capture_debug(f"[Engine] 🎯 ONSET ELEMENT: Skipping ALL clarification logic - onset answers are always sufficient for ranking")
             needs_clarification_for_specificity = False
             is_clear_answer = True
@@ -2991,6 +2998,7 @@ Normalized text:"""
             
         # Debug clarification decision
         self._capture_debug(f"[Engine] 🔍 CLARIFICATION DECISION DEBUG:")
+        self._capture_debug(f"[Engine]   oldcarts_element value: '{oldcarts_element}' (type: {type(oldcarts_element).__name__})")
         self._capture_debug(f"[Engine]   needs_clarification_for_specificity: {needs_clarification_for_specificity}")
         self._capture_debug(f"[Engine]   is_clear_answer: {is_clear_answer}")
         self._capture_debug(f"[Engine]   clarification_count: {clarification_count}")
@@ -3813,7 +3821,7 @@ Your question:"""
         # Generate targeted question based on missing information
         if missing_terms:
             # For location, be specific about upper/lower
-            if oldcarts_element == 'L':
+            if oldcarts_element == 'location':
                 if any('upper' in term or 'ruq' in term or 'luq' in term for term in missing_terms) and \
                    any('lower' in term or 'rlq' in term or 'llq' in term for term in missing_terms):
                     return "Is it in the upper part (below ribs) or lower part (near hip) of your abdomen?"
@@ -3823,12 +3831,12 @@ Your question:"""
                     return "Is it in the lower part of your abdomen (near your hip)?"
             
             # For duration, be specific about time
-            elif oldcarts_element == 'D':
+            elif oldcarts_element == 'duration':
                 if any('hour' in term or 'minute' in term for term in missing_terms):
                     return "How long does it last - minutes, hours, or days?"
             
             # For character, ask about quality
-            elif oldcarts_element == 'C':
+            elif oldcarts_element == 'character':
                 return f"Can you describe the pain more specifically? Is it sharp, dull, crampy, or burning?"
         
         # No fallback - should have been handled above
@@ -3863,17 +3871,8 @@ Your question:"""
         if self._should_bypass_clarification(oldcarts_element):
             raise ValueError(f"❌ BUG: _generate_llm_clarifying_question_with_options called for {oldcarts_element} which should bypass clarification - this should never happen!")
         
-        element_mapping = {
-            'O': 'onset',
-            'L': 'location',
-            'D': 'duration',
-            'C': 'character',
-            'A': 'aggravating',
-            'R': 'relieving',
-            'T': 'timing',
-            'S': 'severity'
-        }
-        element_name = element_mapping.get(oldcarts_element, oldcarts_element)
+        # Codebase uses lowercase full names only
+        element_name = oldcarts_element
         
         # Get competing conditions and their key differentiators
         competing_conditions = self.active_guidelines[:3]  # Top 3 competing conditions
