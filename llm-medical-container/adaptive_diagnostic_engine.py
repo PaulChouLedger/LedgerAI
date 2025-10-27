@@ -266,6 +266,9 @@ class AdaptiveDiagnosticEngine:
                     # Debug: Check if structured_oldcarts exists
                     key_features = guideline.get('key_features', {})
                     structured_oldcarts = key_features.get('structured_oldcarts', {})
+                    self._capture_debug(f"[Engine] 🔍 DEBUG: Loading '{name}' - structured_oldcarts: {bool(structured_oldcarts)}")
+                    if structured_oldcarts:
+                        self._capture_debug(f"[Engine] 🔍 DEBUG:   structured_oldcarts keys: {list(structured_oldcarts.keys())}")
                     has_structured_data = bool(structured_oldcarts and isinstance(structured_oldcarts, dict) and structured_oldcarts)
                     
                     self._capture_debug(f"[Engine]   ✓ {organ_system}/{name} (structured_oldcarts: {has_structured_data})")
@@ -4131,6 +4134,9 @@ Be specific and offer concrete options. Don't use medical jargon. Keep it under 
                         all_includes[element].add(term.lower())
         
         self._capture_debug(f"[Engine] 📊 Collected {sum(len(terms) for terms in all_includes.values())} expected terms from guidelines")
+        
+        # Store for use in _generate_clarifying_question
+        self.all_includes = all_includes
         
         # Check which elements are present in the prompt
         answered_components = {}
