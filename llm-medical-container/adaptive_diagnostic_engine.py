@@ -2551,32 +2551,46 @@ Normalized text:"""
         with open(synonym_path, 'r') as f:
             synonyms = json.load(f)
         
-        # Build a mapping of include terms to their patient-friendly synonyms
-        term_to_synonyms = {}
+        # Build a mapping of medical terms to their patient-friendly synonyms
+        # Look for each missing term in the synonym categories
+        patient_friendly_options = []
+        
         if 'location' in synonyms:
-            for category, synonym_list in synonyms['location'].items():
-                if isinstance(synonym_list, list):
-                    for synonym in synonym_list:
-                        # Map each synonym back to the medical term it represents
-                        term_to_synonyms[synonym.lower()] = synonym_list
+            for missing_term in missing_terms:
+                term_lower = missing_term.lower()
+                
+                # Try to find this term in the synonym categories
+                for category, synonym_list in synonyms['location'].items():
+                    if isinstance(synonym_list, list):
+                        # Check if the missing term appears in this synonym list
+                        for synonym in synonym_list:
+                            synonym_lower = synonym.lower()
+                            # Check for match (either exact or partial)
+                            if (term_lower == synonym_lower or 
+                                term_lower in synonym_lower or 
+                                synonym_lower in term_lower):
+                                # Found a match - get patient-friendly options from this category
+                                # Format: "medical term (patient-friendly description)"
+                                # After reorganization, index 1 should always be patient-friendly
+                                
+                                if len(synonym_list) >= 2:
+                                    medical_term = synonym_list[0]  # Medical term
+                                    patient_friendly = synonym_list[1]  # Patient-friendly description (reorganized)
+                                    combined = f"{medical_term} ({patient_friendly})"
+                                    patient_friendly_options.append(combined)
+                                elif len(synonym_list) == 1:
+                                    # Only medical term available
+                                    patient_friendly_options.append(synonym_list[0])
+                                break
+                        
+                        # Check if we already found a match for this term
+                        if patient_friendly_options and patient_friendly_options[-1] in synonym_list:
+                            break
         
-        # Convert medical terms to patient-friendly options using LLM
-        # Filter out common words and keep only meaningful location terms
-        stop_words = ['the', 'and', 'or', 'may', 'can', 'to', 'from', 'of', 'in', 'on', 'at', 'by', 'radiates']
-        meaningful_terms = [term for term in missing_terms if term not in stop_words and len(term) > 3]
+        # Remove duplicates and limit to 4 options
+        options = list(dict.fromkeys(patient_friendly_options))[:4]
         
-        # Get unique terms (limit to 8 for LLM processing)
-        unique_terms = list(set(meaningful_terms))[:8]
-        
-        self._capture_debug(f"[Engine] 🎯 Converting {len(unique_terms)} missing terms to patient-friendly")
-        
-        # Convert medical terms to patient-friendly options using LLM
-        patient_friendly_options = self._convert_medical_terms_to_patient_friendly(unique_terms, 'location')
-        
-        # Limit to 4 options to avoid overwhelming the patient
-        options = patient_friendly_options[:4]
-        
-        self._capture_debug(f"[Engine] 🎯 Generated targeted options: {options}")
+        self._capture_debug(f"[Engine] 🎯 Generated targeted options from {len(missing_terms)} missing terms: {options}")
         return options
     
     def _select_patient_friendly_options(self, synonyms: list) -> list:

@@ -2,25 +2,25 @@
   "chief_complaint": {
     "flank_pain": [
       "side pain",
-      "kidney pain",
       "loin pain",
       "pain in side",
       "back side pain",
       "renal pain",
       "flank pain",
       "side ache",
-      "kidney ache",
       "loin ache",
       "side hurt",
-      "kidney hurt",
       "loin hurt",
       "side sore",
-      "kidney sore",
       "loin sore",
       "side tender",
-      "kidney tender",
       "loin tender",
-      "side throb"
+      "side throb",
+      "kidney pain",
+      "kidney ache",
+      "kidney hurt",
+      "kidney sore",
+      "kidney tender"
     ],
     "back_pain": [
       "back pain",
@@ -149,11 +149,11 @@
   "location": {
     "flank_pain": [
       "side pain",
-      "kidney pain",
       "loin pain",
       "pain in side",
       "back side pain",
-      "renal pain"
+      "renal pain",
+      "kidney pain"
     ],
     "back": [
       "back pain",
@@ -189,19 +189,19 @@
     ],
     "bilateral": [
       "both sides",
-      "both kidneys",
       "both sides of back",
       "bilateral pain",
       "both flanks",
-      "symmetrical"
+      "symmetrical",
+      "both kidneys"
     ],
     "unilateral": [
       "one side",
       "single side",
-      "one kidney",
       "one flank",
       "one side only",
-      "unilateral"
+      "unilateral",
+      "one kidney"
     ],
     "diffuse": [
       "all over",

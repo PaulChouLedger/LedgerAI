@@ -166,10 +166,10 @@
     ],
     "flank_pain": [
       "side pain",
-      "kidney pain",
       "loin pain",
       "pain in side",
-      "back side pain"
+      "back side pain",
+      "kidney pain"
     ],
     "pelvic_pain": [
       "lower abdominal pain",
@@ -477,18 +477,18 @@
     "incontinence": [
       "urine leakage",
       "accidental urination",
-      "can't control bladder",
-      "bladder control problems",
       "urinary incontinence",
-      "leaking urine"
+      "leaking urine",
+      "can't control bladder",
+      "bladder control problems"
     ],
     "retention": [
       "can't pee",
       "difficulty urinating",
       "trouble peeing",
       "urinary retention",
-      "can't empty bladder",
-      "blocked urination"
+      "blocked urination",
+      "can't empty bladder"
     ],
     "nocturia": [
       "waking up to pee",

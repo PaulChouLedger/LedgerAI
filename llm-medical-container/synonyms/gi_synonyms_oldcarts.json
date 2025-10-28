@@ -68,20 +68,18 @@
       "left side of belly"
     ],
     "right_side": [
-      "right side", 
+      "right side",
       "on my right side",
       "right",
       "right side of abdomen",
-      "right side of stomach", 
+      "right side of stomach",
       "right side of belly"
     ],
     "ruq_pain": [
       "right upper quadrant pain",
-      "gallbladder pain",
       "pain under ribs right side",
       "upper right",
       "upper right abdominal pain",
-      "liver pain",
       "upper abdomen",
       "upper stomach",
       "pain in upper abdomen",
@@ -100,12 +98,12 @@
       "below ribs right",
       "under ribs right",
       "top right",
-      "more towards the top right"
+      "more towards the top right",
+      "gallbladder pain",
+      "liver pain"
     ],
     "rlq_pain": [
       "right lower quadrant pain",
-      "appendix pain",
-      "appendicitis pain",
       "lower right abdominal pain",
       "pain near right pelvis",
       "right pelvic pain",
@@ -123,17 +121,19 @@
       "bottom right",
       "hip area",
       "near right hip",
-      "by right hip"
+      "by right hip",
+      "appendix pain",
+      "appendicitis pain"
     ],
     "luq_pain": [
       "left upper quadrant pain",
-      "spleen pain",
       "stomach ulcer pain left side",
       "upper left abdominal pain",
       "pain under ribs left side",
       "upper left stomach pain",
       "pain in left upper abdomen",
-      "pain in left upper stomach"
+      "pain in left upper stomach",
+      "spleen pain"
     ],
     "llq_pain": [
       "left lower quadrant pain",
@@ -158,11 +158,11 @@
       "epigastrium pain"
     ],
     "suprapubic_pain": [
-      "pain above bladder",
       "pain below belly button",
       "lower middle abdominal pain",
       "pubic pain",
-      "suprapubic area pain"
+      "suprapubic area pain",
+      "pain above bladder"
     ],
     "diffuse_pain": [
       "pain all over abdomen",
@@ -740,24 +740,24 @@
   },
   "specific_conditions": {
     "pancreatitis": [
-      "pancreas inflammation",
       "epigastric pain radiating to back",
       "severe upper abdominal pain",
       "pain going to back",
-      "pancreas pain",
-      "upper abdomen pain radiating back"
+      "upper abdomen pain radiating back",
+      "pancreas inflammation",
+      "pancreas pain"
     ],
     "appendicitis": [
-      "appendix pain",
-      "appendicitis pain",
       "right lower quadrant pain",
-      "mcburney point pain"
+      "mcburney point pain",
+      "appendix pain",
+      "appendicitis pain"
     ],
     "cholecystitis": [
-      "gallbladder pain",
-      "gallbladder inflammation",
       "right upper quadrant pain",
-      "biliary colic"
+      "biliary colic",
+      "gallbladder pain",
+      "gallbladder inflammation"
     ],
     "diverticulitis": [
       "diverticulitis pain",
