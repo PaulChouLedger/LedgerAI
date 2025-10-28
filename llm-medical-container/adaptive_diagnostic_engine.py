@@ -130,6 +130,9 @@ class AdaptiveDiagnosticEngine:
         # Initialize debug capture
         self._captured_debug_output = []
         
+        # Initialize current category (determined during assessment)
+        self.current_category = None
+        
         # Initialize RAG mode selection (simple toggle)
         self.rag_mode = os.environ.get('RAG_MODE', 'CPU').upper()  # CPU or GPU
         self._capture_debug(f"[Engine] 🎯 RAG Mode: {self.rag_mode}")
@@ -412,12 +415,12 @@ class AdaptiveDiagnosticEngine:
         
         # STRUCTURED OLDCARTS PROCESSING
         # Step 1: Basic category detection (for guideline filtering)
-        category = self._categorize_complaint_by_substring(chief_complaint)
-        self._capture_debug(f"[Engine] 🎯 Category: {category}")
+        self.current_category = self._categorize_complaint_by_substring(chief_complaint)
+        self._capture_debug(f"[Engine] 🎯 Category: {self.current_category}")
         
         # Step 2: Get guidelines for this category
-        matched_guidelines = self._get_all_guidelines_in_category(category)
-        self._capture_debug(f"[Engine] 📊 Found {len(matched_guidelines)} guidelines for {category}")
+        matched_guidelines = self._get_all_guidelines_in_category(self.current_category)
+        self._capture_debug(f"[Engine] 📊 Found {len(matched_guidelines)} guidelines for {self.current_category}")
         
         # Step 3: Parse prompt against structured OLDCARTS
         oldcarts_analysis = self._parse_prompt_against_structured_oldcarts(chief_complaint, matched_guidelines)
@@ -2363,28 +2366,11 @@ Normalized text:"""
             self._capture_debug(f"[Scoring]   📊 Prediction: {result['similarity']:.3f}")
             self._capture_debug(f"[Scoring]   🔄 Confidence: {result['confidence']}")
             self._capture_debug(f"[Scoring]   🎯 Method: {result['method']}")
-            self._capture_debug(f"[Scoring]   🏥 Organ System: {self._get_organ_system_from_condition(condition_name)}")
+            self._capture_debug(f"[Scoring]   🏥 Organ System: {self.current_category if hasattr(self, 'current_category') else 'UNKNOWN'}")
         
         return result['similarity']
     
     
-    def _get_organ_system_from_condition(self, condition_name: str) -> str:
-        """Get organ system from condition name"""
-        # Simple mapping - could be enhanced with more sophisticated logic
-        condition_lower = condition_name.lower()
-        
-        if any(term in condition_lower for term in ['appendicitis', 'cholecystitis', 'pancreatitis', 'gastritis', 'ulcer', 'diverticulitis']):
-            return 'GI'
-        elif any(term in condition_lower for term in ['mi', 'angina', 'heart', 'cardiac', 'aortic']):
-            return 'CARDIO'
-        elif any(term in condition_lower for term in ['pneumonia', 'pneumothorax', 'pleural', 'lung']):
-            return 'PULMONARY'
-        elif any(term in condition_lower for term in ['kidney', 'uti', 'stone', 'prostatitis']):
-            return 'GU'
-        elif any(term in condition_lower for term in ['pregnancy', 'ovarian', 'pelvic', 'gynecologic']):
-            return 'GYN'
-        else:
-            return 'UNKNOWN'
     
     def _get_structured_oldcarts_for_condition(self, condition_name: str) -> dict:
         """Get structured OLDCARTS data for a specific condition"""
@@ -2439,14 +2425,13 @@ Normalized text:"""
         return missing_categories
     
     def _get_organ_system_from_guidelines(self, guidelines: list) -> str:
-        """Extract organ system from high-scoring guidelines"""
-        if not guidelines:
-            return None
+        """Get organ system from already-determined category"""
+        # Use the category that was determined during initial complaint processing
+        if hasattr(self, 'current_category') and self.current_category:
+            return self.current_category
         
-        # Get organ system from first guideline
-        first_guideline = guidelines[0]
-        condition_name = first_guideline.get('data', {}).get('condition', first_guideline['name'])
-        return self._get_organ_system_from_condition(condition_name)
+        # No fallback - this should not happen if initial categorization worked
+        raise RuntimeError(f"Organ system not determined during initial assessment. Guidelines: {len(guidelines) if guidelines else 0}")
     
     def _get_available_categories_from_synonyms(self, synonyms: dict, oldcarts_element: str) -> list:
         """Get available categories from synonym file for specific OLDCARTS element"""
