@@ -2426,7 +2426,37 @@ Normalized text:"""
         available_categories = self._get_available_categories_from_synonyms(synonyms, oldcarts_element)
         self._capture_debug(f"[Engine] 📋 Available categories in {organ_system} synonyms: {available_categories}")
         
-        # Check what the patient has provided vs what's available
+        # FIRST: Determine which category the patient has already specified
+        patient_specified_category = None
+        for category in available_categories:
+            if not self._is_category_missing_from_patient_answer(patient_lower, category, synonyms[oldcarts_element]):
+                patient_specified_category = category
+                self._capture_debug(f"[Engine] ✅ Patient specified category: {category}")
+                break
+        
+        # SECOND: If patient has specified a category, only check for sub-information within that category
+        # (e.g., radiation, specific points) rather than checking for OTHER categories
+        if patient_specified_category:
+            # Get structured OLDCARTS data from high-scoring guidelines to find sub-details
+            for guideline in high_scoring_guidelines:
+                data = guideline.get('data', {})
+                key_features = data.get('key_features', {})
+                structured = key_features.get('structured_oldcarts', {})
+                
+                if 'location' in structured and isinstance(structured['location'], dict):
+                    includes = structured['location'].get('includes', [])
+                    
+                    # Check for radiation or other descriptive sub-categories
+                    for term in includes:
+                        if 'radiates' in term.lower() or 'radiation' in term.lower():
+                            if not any(word in patient_lower for word in ['radiates', 'radiation', 'spread', 'goes to']):
+                                self._capture_debug(f"[Engine] ✅ Sub-category 'radiation' is missing from patient answer")
+                                # Don't add as a category, but we'll handle this differently
+                                break
+            # If patient specified a category, don't ask about competing categories
+            return []
+        
+        # THIRD: Patient hasn't specified a category yet - check what's missing
         for category in available_categories:
             if self._is_category_missing_from_patient_answer(patient_lower, category, synonyms[oldcarts_element]):
                 # Check if this category discriminates between high-scoring guidelines
@@ -2595,10 +2625,10 @@ Select 2 terms that are:
 Return only the 2 selected terms, separated by commas."""
 
         try:
-            response = self.simple_llm.chat_completion(
+            response = self.llm_chat_simple_fn(
                 system_message=system_msg,
                 user_message=user_msg,
-                temperature=0.1
+                temperature=self.temperature_simple
             )
             
             # Parse response
