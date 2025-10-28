@@ -15,7 +15,133 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset during activity - twisting, pivoting, direct blow, or hyperextension. Common in sports, falls, or accidents. LOCATION: Anterior knee (patellar), medial knee (MCL), lateral knee (LCL), or posterior knee depending on mechanism. DURATION: Immediate pain that may worsen over first 24-48 hours. CHARACTER: SHARP initial pain, then THROBBING and ACHING. May have 'popping' or 'snapping' sound. AGGRAVATING: WEIGHT BEARING, walking, stairs, squatting, knee flexion/extension. RELIEVING: REST, ICE, elevation, NSAIDs. TIMING: Immediate pain, swelling develops over hours, stiffness increases over 24-48 hours. SEVERITY: 5-9/10, severe with activity. ASSOCIATED SYMPTOMS: SWELLING within hours (effusion), BRUISING develops over 24-48 hours, STIFFNESS, difficulty walking or bearing weight, knee may 'give way' or 'lock'. May have audible 'pop' at injury. KEY POSITIVES: Joint effusion, tenderness over affected ligaments, positive Lachman test (ACL), positive valgus/varus stress tests (MCL/LCL), positive McMurray test (meniscus). KEY NEGATIVES: No bony tenderness over patella or tibial plateau (rules out fracture), no obvious deformity."
+    "classic_presentation": "ONSET: SUDDEN onset during activity - twisting, pivoting, direct blow, or hyperextension. Common in sports, falls, or accidents. LOCATION: Anterior knee (patellar), medial knee (MCL), lateral knee (LCL), or posterior knee depending on mechanism. DURATION: Immediate pain that may worsen over first 24-48 hours. CHARACTER: SHARP initial pain, then THROBBING and ACHING. May have 'popping' or 'snapping' sound. AGGRAVATING: WEIGHT BEARING, walking, stairs, squatting, knee flexion/extension. RELIEVING: REST, ICE, elevation, NSAIDs. TIMING: Immediate pain, swelling develops over hours, stiffness increases over 24-48 hours. SEVERITY: 5-9/10, severe with activity. ASSOCIATED SYMPTOMS: SWELLING within hours (effusion), BRUISING develops over 24-48 hours, STIFFNESS, difficulty walking or bearing weight, knee may 'give way' or 'lock'. May have audible 'pop' at injury. KEY POSITIVES: Joint effusion, tenderness over affected ligaments, positive Lachman test (ACL), positive valgus/varus stress tests (MCL/LCL), positive McMurray test (meniscus). KEY NEGATIVES: No bony tenderness over patella or tibial plateau (rules out fracture), no obvious deformity.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "during activity",
+          "twisting",
+          "pivoting",
+          "direct blow",
+          "hyperextension"
+        ],
+        "excludes": [
+          "gradual",
+          "progressive",
+          "slow onset",
+          "days to weeks"
+        ]
+      },
+      "location": {
+        "includes": [
+          "anterior knee",
+          "patellar",
+          "medial knee",
+          "MCL",
+          "lateral knee",
+          "LCL",
+          "posterior knee"
+        ],
+        "excludes": [
+          "hip",
+          "ankle",
+          "thigh",
+          "calf"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "immediate",
+          "24-48 hours",
+          "hours",
+          "persistent"
+        ],
+        "excludes": [
+          "minutes",
+          "seconds",
+          "chronic",
+          "weeks to months"
+        ]
+      },
+      "character": {
+        "includes": [
+          "sharp",
+          "throbbing",
+          "aching",
+          "popping",
+          "snapping"
+        ],
+        "excludes": [
+          "dull",
+          "burning",
+          "numbness",
+          "tingling"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "weight bearing",
+          "walking",
+          "stairs",
+          "squatting",
+          "knee flexion",
+          "knee extension"
+        ],
+        "excludes": [
+          "rest",
+          "ice",
+          "elevation",
+          "NSAIDs"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "rest",
+          "ice",
+          "elevation",
+          "NSAIDs",
+          "immobilization"
+        ],
+        "excludes": [
+          "weight bearing",
+          "walking",
+          "stairs",
+          "squatting"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "immediate",
+          "hours",
+          "24-48 hours",
+          "progressive"
+        ],
+        "excludes": [
+          "delayed",
+          "days later",
+          "chronic",
+          "intermittent"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "severe",
+          "5-9/10",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9"
+        ],
+        "excludes": [
+          "mild",
+          "1-3/10",
+          "moderate",
+          "4/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Inability to bear weight immediately - possible fracture or severe ligament injury",

@@ -15,7 +15,120 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within minutes. LOCATION: UNILATERAL weakness, numbness, or paralysis. DURATION: SYMPTOMS RESOLVE within 24 hours (usually within minutes to hours). CHARACTER: SUDDEN, SEVERE weakness, numbness, or paralysis that RESOLVES. AGGRAVATING: MOVEMENT, speaking, swallowing. RELIEVING: SYMPTOMS RESOLVE spontaneously. TIMING: Sudden onset, symptoms resolve within 24 hours. SEVERITY: 6-8/10 during episode, then resolves. ASSOCIATED SYMPTOMS: FACIAL DROOP, arm weakness, speech difficulty, vision problems, dizziness, confusion, headache. KEY POSITIVES: Positive FAST test (Face, Arm, Speech, Time), unilateral weakness, facial droop, speech difficulty. KEY NEGATIVES: No fever, no neck stiffness, no photophobia."
+    "classic_presentation": "ONSET: SUDDEN onset within minutes. LOCATION: UNILATERAL weakness, numbness, or paralysis. DURATION: SYMPTOMS RESOLVE within 24 hours (usually within minutes to hours). CHARACTER: SUDDEN, SEVERE weakness, numbness, or paralysis that RESOLVES. AGGRAVATING: MOVEMENT, speaking, swallowing. RELIEVING: SYMPTOMS RESOLVE spontaneously. TIMING: Sudden onset, symptoms resolve within 24 hours. SEVERITY: 6-8/10 during episode, then resolves. ASSOCIATED SYMPTOMS: FACIAL DROOP, arm weakness, speech difficulty, vision problems, dizziness, confusion, headache. KEY POSITIVES: Positive FAST test (Face, Arm, Speech, Time), unilateral weakness, facial droop, speech difficulty. KEY NEGATIVES: No fever, no neck stiffness, no photophobia.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "within minutes",
+          "immediate",
+          "acute"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset",
+          "progressive"
+        ]
+      },
+      "location": {
+        "includes": [
+          "unilateral weakness",
+          "numbness",
+          "paralysis",
+          "one side"
+        ],
+        "excludes": [
+          "bilateral",
+          "both sides",
+          "generalized",
+          "diffuse"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "resolves within 24 hours",
+          "minutes to hours",
+          "transient",
+          "brief"
+        ],
+        "excludes": [
+          "persistent",
+          "ongoing",
+          "chronic",
+          "permanent"
+        ]
+      },
+      "character": {
+        "includes": [
+          "sudden",
+          "severe weakness",
+          "numbness",
+          "paralysis that resolves"
+        ],
+        "excludes": [
+          "mild",
+          "gradual",
+          "persistent",
+          "permanent"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "movement",
+          "speaking",
+          "swallowing",
+          "activity"
+        ],
+        "excludes": [
+          "symptoms resolve spontaneously",
+          "rest",
+          "treatment",
+          "medications"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "symptoms resolve spontaneously",
+          "rest",
+          "treatment",
+          "medications"
+        ],
+        "excludes": [
+          "movement",
+          "speaking",
+          "swallowing",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "sudden onset",
+          "resolves within 24 hours",
+          "transient"
+        ],
+        "excludes": [
+          "continuous",
+          "persistent",
+          "unrelenting"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "6-8/10 during episode",
+          "6",
+          "7",
+          "8",
+          "moderate to severe during episode"
+        ],
+        "excludes": [
+          "mild",
+          "1-5/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Symptoms lasting >24 hours - possible stroke, call 911",

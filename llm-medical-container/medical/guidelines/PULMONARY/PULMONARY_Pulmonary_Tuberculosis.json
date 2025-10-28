@@ -13,7 +13,107 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: Gradual over weeks to months. LOCATION: Bilateral, often upper lobes. DURATION: Chronic, months. CHARACTER: Chronic cough, chest pain. AGGRAVATING: Lying flat, exertion. RELIEVING: Antitubercular drugs. TIMING: Chronic, persistent. SEVERITY: Moderate to severe (5-8/10). ASSOCIATED SYMPTOMS: Chronic cough, hemoptysis, fever, night sweats, weight loss, fatigue. KEY POSITIVES: Chronic cough, hemoptysis, fever, weight loss. KEY NEGATIVES: No wheezing (unless reactive airway disease)."
+    "classic_presentation": "ONSET: Gradual over weeks to months. LOCATION: Bilateral, often upper lobes. DURATION: Chronic, months. CHARACTER: Chronic cough, chest pain. AGGRAVATING: Lying flat, exertion. RELIEVING: Antitubercular drugs. TIMING: Chronic, persistent. SEVERITY: Moderate to severe (5-8/10). ASSOCIATED SYMPTOMS: Chronic cough, hemoptysis, fever, night sweats, weight loss, fatigue. KEY POSITIVES: Chronic cough, hemoptysis, fever, weight loss. KEY NEGATIVES: No wheezing (unless reactive airway disease).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual over weeks to months",
+          "progressive",
+          "slow onset"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "immediate"
+        ]
+      },
+      "location": {
+        "includes": [
+          "bilateral",
+          "often upper lobes"
+        ],
+        "excludes": [
+          "unilateral",
+          "one side only",
+          "lower lobes"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "chronic",
+          "months",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "chronic cough",
+          "chest pain"
+        ],
+        "excludes": [
+          "no wheezing",
+          "acute",
+          "mild"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "lying flat",
+          "exertion",
+          "activity"
+        ],
+        "excludes": [
+          "antitubercular drugs",
+          "rest",
+          "treatment"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "antitubercular drugs",
+          "rest",
+          "treatment"
+        ],
+        "excludes": [
+          "lying flat",
+          "exertion",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "chronic",
+          "persistent",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "moderate to severe",
+          "5-8/10",
+          "5",
+          "6",
+          "7",
+          "8"
+        ],
+        "excludes": [
+          "mild",
+          "1-4/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe dyspnea or respiratory distress",

@@ -13,7 +13,108 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: Gradual over days to weeks. LOCATION: Unilateral or bilateral chest. DURATION: Days to weeks, can be chronic. CHARACTER: Dyspnea, chest discomfort. AGGRAVATING: Lying flat, exertion. RELIEVING: Sitting upright, thoracentesis. TIMING: Chronic, persistent. SEVERITY: Moderate to severe (5-8/10). ASSOCIATED SYMPTOMS: Dyspnea, chest pain, cough, fever (if infectious), weight loss (if malignant). KEY POSITIVES: Dyspnea, chest pain, cough, fever. KEY NEGATIVES: No wheezing (unless reactive airway disease)."
+    "classic_presentation": "ONSET: Gradual over days to weeks. LOCATION: Unilateral or bilateral chest. DURATION: Days to weeks, can be chronic. CHARACTER: Dyspnea, chest discomfort. AGGRAVATING: Lying flat, exertion. RELIEVING: Sitting upright, thoracentesis. TIMING: Chronic, persistent. SEVERITY: Moderate to severe (5-8/10). ASSOCIATED SYMPTOMS: Dyspnea, chest pain, cough, fever (if infectious), weight loss (if malignant). KEY POSITIVES: Dyspnea, chest pain, cough, fever. KEY NEGATIVES: No wheezing (unless reactive airway disease).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual over days to weeks",
+          "progressive",
+          "slow onset"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "immediate"
+        ]
+      },
+      "location": {
+        "includes": [
+          "unilateral or bilateral chest",
+          "one side",
+          "both sides"
+        ],
+        "excludes": [
+          "localized",
+          "specific point",
+          "diffuse"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "days to weeks",
+          "can be chronic",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "dyspnea",
+          "chest discomfort"
+        ],
+        "excludes": [
+          "no wheezing",
+          "sharp",
+          "stabbing"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "lying flat",
+          "exertion",
+          "activity"
+        ],
+        "excludes": [
+          "sitting upright",
+          "thoracentesis",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "sitting upright",
+          "thoracentesis",
+          "rest"
+        ],
+        "excludes": [
+          "lying flat",
+          "exertion",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "chronic",
+          "persistent",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "moderate to severe",
+          "5-8/10",
+          "5",
+          "6",
+          "7",
+          "8"
+        ],
+        "excludes": [
+          "mild",
+          "1-4/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe dyspnea or respiratory distress",

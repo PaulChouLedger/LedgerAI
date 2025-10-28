@@ -13,7 +13,107 @@
   ],
   "urgency": "routine",
   "key_features": {
-    "classic_presentation": "ONSET: Chronic, progressive over months to years. LOCATION: Bilateral, often lower lobes. DURATION: Chronic, persistent with acute exacerbations. CHARACTER: Chronic productive cough with copious sputum. AGGRAVATING: Infections, lying flat, morning. RELIEVING: Postural drainage, chest physiotherapy, antibiotics. TIMING: Worse in morning, improves with postural drainage. SEVERITY: Moderate to severe (5-8/10). ASSOCIATED SYMPTOMS: Chronic productive cough, recurrent infections, hemoptysis, dyspnea, fatigue, weight loss. KEY POSITIVES: Chronic productive cough, recurrent infections, copious sputum. KEY NEGATIVES: No chest pain (unless infection), no wheezing (unless reactive airway disease)."
+    "classic_presentation": "ONSET: Chronic, progressive over months to years. LOCATION: Bilateral, often lower lobes. DURATION: Chronic, persistent with acute exacerbations. CHARACTER: Chronic productive cough with copious sputum. AGGRAVATING: Infections, lying flat, morning. RELIEVING: Postural drainage, chest physiotherapy, antibiotics. TIMING: Worse in morning, improves with postural drainage. SEVERITY: Moderate to severe (5-8/10). ASSOCIATED SYMPTOMS: Chronic productive cough, recurrent infections, hemoptysis, dyspnea, fatigue, weight loss. KEY POSITIVES: Chronic productive cough, recurrent infections, copious sputum. KEY NEGATIVES: No chest pain (unless infection), no wheezing (unless reactive airway disease).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "chronic",
+          "progressive over months to years",
+          "slow onset"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "immediate"
+        ]
+      },
+      "location": {
+        "includes": [
+          "bilateral",
+          "often lower lobes"
+        ],
+        "excludes": [
+          "unilateral",
+          "one side only",
+          "upper lobes"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "chronic",
+          "persistent with acute exacerbations",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "chronic productive cough with copious sputum",
+          "productive cough"
+        ],
+        "excludes": [
+          "no chest pain",
+          "no wheezing",
+          "dry cough"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "infections",
+          "lying flat",
+          "morning"
+        ],
+        "excludes": [
+          "postural drainage",
+          "chest physiotherapy",
+          "antibiotics"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "postural drainage",
+          "chest physiotherapy",
+          "antibiotics"
+        ],
+        "excludes": [
+          "infections",
+          "lying flat",
+          "morning"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "worse in morning",
+          "improves with postural drainage",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "moderate to severe",
+          "5-8/10",
+          "5",
+          "6",
+          "7",
+          "8"
+        ],
+        "excludes": [
+          "mild",
+          "1-4/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Massive hemoptysis",

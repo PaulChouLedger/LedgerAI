@@ -1,0 +1,50 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: PELVIC INFLAMMATORY DISEASE (PID)
+================================================================================
+
+Condition: Pelvic Inflammatory Disease (PID)
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: N73.9
+SNOMED Code: 198130006
+Sex: female
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • pelvic pain
+  • lower abdominal pain
+  • vaginal discharge
+  • painful intercourse
+  • fever with pelvic pain
+
+CLASSIC PRESENTATION:
+ONSET: SUBACUTE onset over days to weeks. More common in sexually active women <25 years. LOCATION: Bilateral lower abdominal pain, may be unilateral. Deep pelvic pain. DURATION: CONSTANT pain lasting days to weeks. CHARACTER: DULL, ACHING, CONSTANT deep pelvic pain. May be SHARP with movement. AGGRAVATING: Intercourse (deep dyspareunia), jarring movements, pelvic exam causes severe tenderness (cervical motion tenderness). RELIEVING: Rest may help slightly. Antibiotics resolve pain over days. TIMING: CONSTANT baseline pain, worsens with movement or intercourse. SEVERITY: 5-8/10, moderate to severe. ASSOCIATED SYMPTOMS: Abnormal vaginal discharge (mucopurulent), fever (low-grade to high), dyspareunia, abnormal vaginal bleeding, dysuria. Cervical motion tenderness and adnexal tenderness on exam. May have right upper quadrant (RUQ) pain if Fitz-Hugh-Curtis syndrome (perihepatic inflammation). KEY POSITIVES: Bilateral lower abdominal tenderness, cervical motion tenderness, abnormal discharge, sexual activity, young age. KEY NEGATIVES: Unilateral pain more suggests adnexal pathology (cyst, torsion). Sudden severe pain suggests ruptured mass.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 High fever with severe pain - tubo-ovarian abscess possible
+
+  🚨 Sudden severe pain with peritonitis - ruptured abscess, call 911
+
+  🚨 Pregnant with pelvic inflammatory disease (PID) symptoms - ectopic pregnancy must be ruled out
+
+  🚨 Hypotension or sepsis - ruptured tubo-ovarian abscess, call 911
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Pelvic Inflammatory Disease (PID)
+================================================================================

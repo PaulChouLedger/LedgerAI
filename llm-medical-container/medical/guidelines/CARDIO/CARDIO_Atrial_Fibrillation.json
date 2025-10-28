@@ -13,7 +13,106 @@
   "prevalence": "common",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Sudden or gradual, can be paroxysmal (comes and goes). LOCATION: Chest (palpitations), generalized. DURATION: Variable (minutes to persistent). CHARACTER: IRREGULAR, RAPID palpitations, \"fluttering\" or \"quivering\" in chest. AGGRAVATING: Caffeine, alcohol, stress, dehydration. RELIEVING: Rest, sometimes spontaneous. TIMING: Paroxysmal (episodic) or persistent. SEVERITY: Variable discomfort. KEY POSITIVES: Dyspnea, lightheadedness, fatigue, irregularly irregular pulse on exam, chest discomfort. KEY NEGATIVES: NOT regular rapid heartbeat (SVT), NOT slow irregular (heart block)."
+    "classic_presentation": "ONSET: Sudden or gradual, can be paroxysmal (comes and goes). LOCATION: Chest (palpitations), generalized. DURATION: Variable (minutes to persistent). CHARACTER: IRREGULAR, RAPID palpitations, \"fluttering\" or \"quivering\" in chest. AGGRAVATING: Caffeine, alcohol, stress, dehydration. RELIEVING: Rest, sometimes spontaneous. TIMING: Paroxysmal (episodic) or persistent. SEVERITY: Variable discomfort. KEY POSITIVES: Dyspnea, lightheadedness, fatigue, irregularly irregular pulse on exam, chest discomfort. KEY NEGATIVES: NOT regular rapid heartbeat (SVT), NOT slow irregular (heart block).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "gradual",
+          "paroxysmal",
+          "comes and goes"
+        ],
+        "excludes": [
+          "chronic",
+          "constant",
+          "unrelenting"
+        ]
+      },
+      "location": {
+        "includes": [
+          "chest",
+          "palpitations",
+          "generalized"
+        ],
+        "excludes": [
+          "localized",
+          "one area only",
+          "extremities"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "variable",
+          "minutes to persistent",
+          "episodic"
+        ],
+        "excludes": [
+          "constant",
+          "unrelenting",
+          "hours only"
+        ]
+      },
+      "character": {
+        "includes": [
+          "irregular",
+          "rapid palpitations",
+          "fluttering",
+          "quivering"
+        ],
+        "excludes": [
+          "regular",
+          "slow",
+          "steady"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "caffeine",
+          "alcohol",
+          "stress",
+          "dehydration"
+        ],
+        "excludes": [
+          "rest",
+          "medication",
+          "spontaneous"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "rest",
+          "sometimes spontaneous"
+        ],
+        "excludes": [
+          "caffeine",
+          "alcohol",
+          "stress"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "paroxysmal",
+          "episodic",
+          "persistent"
+        ],
+        "excludes": [
+          "constant",
+          "unrelenting",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "variable discomfort",
+          "variable"
+        ],
+        "excludes": [
+          "severe",
+          "mild",
+          "constant"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Hemodynamic instability (hypotension)",

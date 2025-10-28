@@ -1,0 +1,95 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: ASPIRATION PNEUMONIA
+================================================================================
+
+Condition: Aspiration Pneumonia
+Category: N/A
+Urgency Level: urgent
+Prevalence: uncommon
+ICD-10 Code: J69.0
+SNOMED Code: 233604007
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • aspiration
+  • choking
+  • vomiting and breathing problems
+  • food in lungs
+  • aspiration pneumonia
+
+CLASSIC PRESENTATION:
+ONSET: Sudden during or shortly after aspiration event. LOCATION: Dependent lung regions (right lower lobe most common). DURATION: Acute onset, can persist for days to weeks. CHARACTER: Dyspnea, cough, chest discomfort. AGGRAVATING: Lying flat, continued aspiration risk. RELIEVING: Upright positioning, suctioning, antibiotics. TIMING: Acute, often during eating or vomiting. SEVERITY: Moderate to severe (6-8/10). ASSOCIATED SYMPTOMS: Fever, productive cough (may be foul-smelling), dyspnea, chest pain, altered mental status (if hypoxic). KEY POSITIVES: Recent aspiration event, fever, productive cough, dyspnea. KEY NEGATIVES: No chest pain (unless severe), no wheezing (unless reactive airway disease).
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden during or shortly after aspiration event, acute, immediate
+  Negative indicators: gradual, chronic, slow onset
+
+LOCATION:
+  Positive indicators: dependent lung regions, right lower lobe most common, lung
+  Negative indicators: unilateral, one side only, upper lobes
+
+DURATION:
+  Positive indicators: acute onset, can persist for days to weeks, ongoing
+  Negative indicators: intermittent, episodic, comes and goes
+
+CHARACTER:
+  Positive indicators: dyspnea, cough, chest discomfort
+  Negative indicators: no chest pain, no wheezing, mild
+
+AGGRAVATING:
+  Positive indicators: lying flat, continued aspiration risk, activity
+  Negative indicators: upright positioning, suctioning, antibiotics
+
+RELIEVING:
+  Positive indicators: upright positioning, suctioning, antibiotics
+  Negative indicators: lying flat, continued aspiration risk, activity
+
+TIMING:
+  Positive indicators: acute, often during eating or vomiting, continuous
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: moderate to severe, 6-8/10, 6, 7, 8
+  Negative indicators: mild, 1-5/10, severe, 9-10/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe dyspnea or respiratory distress
+
+  🚨 High fever >101.5°F
+
+  🚨 Altered mental status
+
+  🚨 Cyanosis or oxygen saturation <90%
+
+  🚨 Hemoptysis or blood in sputum
+
+  🚨 Shock or hypotension
+
+  🚨 Inability to protect airway
+
+  🚨 Recurrent aspiration events
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Aspiration Pneumonia
+================================================================================

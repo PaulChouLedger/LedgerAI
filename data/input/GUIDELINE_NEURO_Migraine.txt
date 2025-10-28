@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: MIGRAINE
+================================================================================
+
+Condition: Migraine
+Category: N/A
+Urgency Level: non-urgent
+Prevalence: common
+ICD-10 Code: G43.9
+SNOMED Code: 125629009
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • migraine
+  • severe headache
+  • head pain
+  • throbbing headache
+  • headache with nausea
+  • visual disturbances
+  • aura
+
+CLASSIC PRESENTATION:
+ONSET: GRADUAL onset over minutes to hours. LOCATION: UNILATERAL or bilateral. DURATION: Lasts 4-72 hours. CHARACTER: THROBBING, PULSATING pain. AGGRAVATING: LIGHT, sound, movement, stress. RELIEVING: DARK, quiet room, sleep, medications. TIMING: Gradual onset, lasts 4-72 hours. SEVERITY: 6-9/10, moderate to severe. ASSOCIATED SYMPTOMS: NAUSEA, vomiting, photophobia, phonophobia, may have aura (visual, sensory, motor). KEY POSITIVES: Throbbing pain, nausea, photophobia, phonophobia, aura. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: gradual, minutes to hours, slow onset, progressive
+  Negative indicators: sudden, acute, immediate, seconds
+
+LOCATION:
+  Positive indicators: unilateral, bilateral, one side, both sides
+  Negative indicators: localized, specific point, focal
+
+DURATION:
+  Positive indicators: 4-72 hours, hours, prolonged
+  Negative indicators: minutes, seconds, brief
+
+CHARACTER:
+  Positive indicators: throbbing, pulsating, moderate to severe, intense
+  Negative indicators: dull, aching, mild, pressure-like
+
+AGGRAVATING:
+  Positive indicators: light, sound, movement, stress
+  Negative indicators: dark, quiet room, sleep, medications
+
+RELIEVING:
+  Positive indicators: dark, quiet room, sleep, medications
+  Negative indicators: light, sound, movement, stress
+
+TIMING:
+  Positive indicators: gradual onset, prolonged, episodic
+  Negative indicators: sudden, continuous, unrelenting
+
+SEVERITY:
+  Positive indicators: moderate to severe, 6-9/10, 6, 7, 8, 9
+  Negative indicators: mild, 1-5/10, severe, 10/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Sudden severe headache - possible subarachnoid hemorrhage, call 911
+
+  🚨 Headache with neck stiffness and fever - possible meningitis, call 911
+
+  🚨 Headache with focal neurological deficits - possible stroke, call 911
+
+  🚨 Headache with signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911
+
+  🚨 Headache with severe hypertension - possible hypertensive crisis, call 911
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Migraine
+================================================================================

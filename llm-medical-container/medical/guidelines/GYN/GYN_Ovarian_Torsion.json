@@ -19,5 +19,84 @@
     "Sudden severe unilateral pelvic pain in woman - needs urgent ultrasound with Doppler",
     "Pregnancy with ovarian torsion - corpus luteum cyst torsion, needs urgent surgery",
     "ANY delay in diagnosis risks permanent ovarian damage"
-  ]
+  ],
+  "structured_oldcarts": {
+    "onset": {
+      "includes": [
+        "sudden",
+        "acute",
+        "immediate",
+        "minutes",
+        "hours",
+        "days"
+      ],
+      "excludes": [
+        "gradual",
+        "chronic"
+      ]
+    },
+    "location": {
+      "includes": [
+        "pelvic",
+        "lower abdominal",
+        "unilateral",
+        "bilateral",
+        "adnexal"
+      ],
+      "excludes": []
+    },
+    "duration": {
+      "includes": [
+        "constant",
+        "persistent"
+      ],
+      "excludes": [
+        "intermittent",
+        "episodic"
+      ]
+    },
+    "character": {
+      "includes": [
+        "severe",
+        "sharp",
+        "stabbing",
+        "twisting"
+      ],
+      "excludes": []
+    },
+    "aggravating": {
+      "includes": [
+        "movement",
+        "physical activity",
+        "position changes",
+        "jarring movements"
+      ],
+      "excludes": []
+    },
+    "relieving": {
+      "includes": [
+        "nothing relieves",
+        "surgical intervention"
+      ],
+      "excludes": [
+        "position changes",
+        "medications"
+      ]
+    },
+    "timing": {
+      "includes": [
+        "constant",
+        "unrelenting",
+        "episodic"
+      ],
+      "excludes": []
+    },
+    "severity": {
+      "includes": [
+        "8-10/10",
+        "very severe"
+      ],
+      "excludes": []
+    }
+  }
 }

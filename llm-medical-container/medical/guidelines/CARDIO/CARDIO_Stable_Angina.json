@@ -11,7 +11,113 @@
   "prevalence": "common",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Gradual with exertion, predictable pattern. LOCATION: RETROSTERNAL or left chest. RADIATES to left arm, jaw, shoulder. DURATION: Brief, typically 2-10 minutes. CHARACTER: Pressure, tightness, heaviness. AGGRAVATING: EXERTION, cold weather, heavy meals, emotional stress. RELIEVING: REST (within minutes) or nitroglycerin. TIMING: Reproducible with similar exertion levels. SEVERITY: 4-6/10, consistent. KEY POSITIVES: Predictable with exertion, relieved by rest in <5 minutes, relieved by nitroglycerin, history of CAD or risk factors. KEY NEGATIVES: NOT at rest (unstable angina), NOT unpredictable."
+    "classic_presentation": "ONSET: Gradual with exertion, predictable pattern. LOCATION: RETROSTERNAL or left chest. RADIATES to left arm, jaw, shoulder. DURATION: Brief, typically 2-10 minutes. CHARACTER: Pressure, tightness, heaviness. AGGRAVATING: EXERTION, cold weather, heavy meals, emotional stress. RELIEVING: REST (within minutes) or nitroglycerin. TIMING: Reproducible with similar exertion levels. SEVERITY: 4-6/10, consistent. KEY POSITIVES: Predictable with exertion, relieved by rest in <5 minutes, relieved by nitroglycerin, history of CAD or risk factors. KEY NEGATIVES: NOT at rest (unstable angina), NOT unpredictable.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "with exertion",
+          "predictable pattern"
+        ],
+        "excludes": [
+          "sudden",
+          "at rest",
+          "unpredictable"
+        ]
+      },
+      "location": {
+        "includes": [
+          "retrosternal",
+          "left chest",
+          "radiates to left arm",
+          "radiates to jaw",
+          "radiates to shoulder"
+        ],
+        "excludes": [
+          "right side only",
+          "no radiation",
+          "localized point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "brief",
+          "2-10 minutes",
+          "short duration"
+        ],
+        "excludes": [
+          "prolonged",
+          ">10 minutes",
+          "continuous"
+        ]
+      },
+      "character": {
+        "includes": [
+          "pressure",
+          "tightness",
+          "heaviness"
+        ],
+        "excludes": [
+          "sharp",
+          "stabbing",
+          "burning",
+          "crushing"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "exertion",
+          "cold weather",
+          "heavy meals",
+          "emotional stress",
+          "activity"
+        ],
+        "excludes": [
+          "rest",
+          "nitroglycerin",
+          "medication"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "rest",
+          "within minutes",
+          "nitroglycerin"
+        ],
+        "excludes": [
+          "exertion",
+          "activity",
+          "cold weather"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "reproducible",
+          "similar exertion levels",
+          "predictable"
+        ],
+        "excludes": [
+          "unpredictable",
+          "at rest",
+          "random"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "4-6/10",
+          "consistent",
+          "4",
+          "5",
+          "6"
+        ],
+        "excludes": [
+          "severe",
+          "7-10/10",
+          "mild",
+          "1-3/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Changing pattern (unstable angina)",

@@ -15,7 +15,125 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset during trauma - fall on outstretched arm, direct blow, or forceful abduction/external rotation. LOCATION: Anterior shoulder (95% anterior dislocations), posterior shoulder (5% posterior dislocations). DURATION: Immediate severe pain that persists until reduction. CHARACTER: SEVERE, SHARP, CONSTANT pain. AGGRAVATING: ANY shoulder movement, especially abduction and external rotation. RELIEVING: NOTHING relieves pain until reduction. Patient holds arm in protective position. TIMING: Immediate severe pain that persists until reduction. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: OBVIOUS DEFORMITY (squared-off shoulder, prominent acromion), arm held in abduction and external rotation, inability to move shoulder, numbness/tingling in arm (axillary nerve injury), 'dead arm' sensation. May have audible 'pop' at injury. KEY POSITIVES: Obvious deformity, positive apprehension test, positive relocation test, axillary nerve deficit, prominent acromion. KEY NEGATIVES: No bony tenderness over clavicle or humerus (rules out fracture), no crepitus."
+    "classic_presentation": "ONSET: SUDDEN onset during trauma - fall on outstretched arm, direct blow, or forceful abduction/external rotation. LOCATION: Anterior shoulder (95% anterior dislocations), posterior shoulder (5% posterior dislocations). DURATION: Immediate severe pain that persists until reduction. CHARACTER: SEVERE, SHARP, CONSTANT pain. AGGRAVATING: ANY shoulder movement, especially abduction and external rotation. RELIEVING: NOTHING relieves pain until reduction. Patient holds arm in protective position. TIMING: Immediate severe pain that persists until reduction. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: OBVIOUS DEFORMITY (squared-off shoulder, prominent acromion), arm held in abduction and external rotation, inability to move shoulder, numbness/tingling in arm (axillary nerve injury), 'dead arm' sensation. May have audible 'pop' at injury. KEY POSITIVES: Obvious deformity, positive apprehension test, positive relocation test, axillary nerve deficit, prominent acromion. KEY NEGATIVES: No bony tenderness over clavicle or humerus (rules out fracture), no crepitus.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "during trauma",
+          "fall on outstretched arm",
+          "direct blow",
+          "forceful abduction",
+          "external rotation"
+        ],
+        "excludes": [
+          "gradual",
+          "progressive",
+          "slow onset",
+          "days to weeks"
+        ]
+      },
+      "location": {
+        "includes": [
+          "anterior shoulder",
+          "posterior shoulder",
+          "shoulder",
+          "shoulder joint"
+        ],
+        "excludes": [
+          "elbow",
+          "wrist",
+          "neck",
+          "chest"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "immediate",
+          "persists until reduction",
+          "constant",
+          "ongoing"
+        ],
+        "excludes": [
+          "brief",
+          "minutes",
+          "hours",
+          "transient"
+        ]
+      },
+      "character": {
+        "includes": [
+          "severe",
+          "sharp",
+          "constant",
+          "unrelenting"
+        ],
+        "excludes": [
+          "mild",
+          "dull",
+          "intermittent",
+          "aching"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "shoulder movement",
+          "abduction",
+          "external rotation",
+          "any movement"
+        ],
+        "excludes": [
+          "reduction",
+          "immobilization",
+          "rest",
+          "treatment"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "reduction",
+          "immobilization",
+          "rest",
+          "treatment"
+        ],
+        "excludes": [
+          "shoulder movement",
+          "abduction",
+          "external rotation",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "immediate",
+          "persists until reduction",
+          "constant",
+          "ongoing"
+        ],
+        "excludes": [
+          "delayed",
+          "intermittent",
+          "variable",
+          "episodic"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "severe",
+          "8-10/10",
+          "8",
+          "9",
+          "10",
+          "unrelenting"
+        ],
+        "excludes": [
+          "mild",
+          "1-3/10",
+          "moderate",
+          "4-7/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Open wound with bone visible - open dislocation, call 911",

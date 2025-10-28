@@ -13,7 +13,109 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: Gradual over months. LOCATION: Focal or diffuse lung areas. DURATION: Chronic, progressive. CHARACTER: Chronic cough, chest pain, dyspnea. AGGRAVATING: Exertion, lying flat. RELIEVING: Pain medications, oxygen. TIMING: Chronic, progressive. SEVERITY: Moderate to severe (5-8/10). ASSOCIATED SYMPTOMS: Chronic cough, hemoptysis, chest pain, dyspnea, weight loss, fatigue, hoarseness, bone pain. KEY POSITIVES: Smoking history, chronic cough, hemoptysis, weight loss. KEY NEGATIVES: No fever (unless infection), no wheezing (unless obstruction)."
+    "classic_presentation": "ONSET: Gradual over months. LOCATION: Focal or diffuse lung areas. DURATION: Chronic, progressive. CHARACTER: Chronic cough, chest pain, dyspnea. AGGRAVATING: Exertion, lying flat. RELIEVING: Pain medications, oxygen. TIMING: Chronic, progressive. SEVERITY: Moderate to severe (5-8/10). ASSOCIATED SYMPTOMS: Chronic cough, hemoptysis, chest pain, dyspnea, weight loss, fatigue, hoarseness, bone pain. KEY POSITIVES: Smoking history, chronic cough, hemoptysis, weight loss. KEY NEGATIVES: No fever (unless infection), no wheezing (unless obstruction).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual over months",
+          "progressive",
+          "slow onset"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "immediate"
+        ]
+      },
+      "location": {
+        "includes": [
+          "focal or diffuse lung areas",
+          "lung",
+          "chest"
+        ],
+        "excludes": [
+          "unilateral",
+          "one side only",
+          "specific point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "chronic",
+          "progressive",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "chronic cough",
+          "chest pain",
+          "dyspnea"
+        ],
+        "excludes": [
+          "no fever",
+          "no wheezing",
+          "mild"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "exertion",
+          "lying flat",
+          "activity"
+        ],
+        "excludes": [
+          "pain medications",
+          "oxygen",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "pain medications",
+          "oxygen",
+          "rest"
+        ],
+        "excludes": [
+          "exertion",
+          "lying flat",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "chronic",
+          "progressive",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "moderate to severe",
+          "5-8/10",
+          "5",
+          "6",
+          "7",
+          "8"
+        ],
+        "excludes": [
+          "mild",
+          "1-4/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Massive hemoptysis",

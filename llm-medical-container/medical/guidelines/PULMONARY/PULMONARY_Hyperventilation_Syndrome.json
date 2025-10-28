@@ -13,7 +13,106 @@
   ],
   "urgency": "routine",
   "key_features": {
-    "classic_presentation": "ONSET: Sudden, often triggered by stress or anxiety. LOCATION: Diffuse chest. DURATION: Minutes to hours. CHARACTER: Dyspnea, chest tightness, 'can't get enough air'. AGGRAVATING: Stress, anxiety, panic. RELIEVING: Breathing exercises, paper bag breathing, reassurance. TIMING: Episodic, often during stress. SEVERITY: Moderate (5-7/10). ASSOCIATED SYMPTOMS: Paresthesias, dizziness, lightheadedness, chest tightness, palpitations, anxiety. KEY POSITIVES: Anxiety, stress, paresthesias, dizziness. KEY NEGATIVES: No fever, no chest pain (unless secondary), no wheezing."
+    "classic_presentation": "ONSET: Sudden, often triggered by stress or anxiety. LOCATION: Diffuse chest. DURATION: Minutes to hours. CHARACTER: Dyspnea, chest tightness, 'can't get enough air'. AGGRAVATING: Stress, anxiety, panic. RELIEVING: Breathing exercises, paper bag breathing, reassurance. TIMING: Episodic, often during stress. SEVERITY: Moderate (5-7/10). ASSOCIATED SYMPTOMS: Paresthesias, dizziness, lightheadedness, chest tightness, palpitations, anxiety. KEY POSITIVES: Anxiety, stress, paresthesias, dizziness. KEY NEGATIVES: No fever, no chest pain (unless secondary), no wheezing.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "often triggered by stress or anxiety",
+          "acute"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "diffuse chest"
+        ],
+        "excludes": [
+          "localized",
+          "one side only",
+          "specific point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "minutes to hours",
+          "episodic",
+          "variable"
+        ],
+        "excludes": [
+          "chronic",
+          "persistent",
+          "ongoing"
+        ]
+      },
+      "character": {
+        "includes": [
+          "dyspnea",
+          "chest tightness",
+          "can't get enough air"
+        ],
+        "excludes": [
+          "no fever",
+          "no chest pain",
+          "no wheezing"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "stress",
+          "anxiety",
+          "panic"
+        ],
+        "excludes": [
+          "breathing exercises",
+          "paper bag breathing",
+          "reassurance"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "breathing exercises",
+          "paper bag breathing",
+          "reassurance"
+        ],
+        "excludes": [
+          "stress",
+          "anxiety",
+          "panic"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "episodic",
+          "often during stress",
+          "intermittent"
+        ],
+        "excludes": [
+          "continuous",
+          "persistent",
+          "ongoing"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "moderate",
+          "5-7/10",
+          "5",
+          "6",
+          "7"
+        ],
+        "excludes": [
+          "mild",
+          "1-4/10",
+          "severe",
+          "8-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe dyspnea or respiratory distress",

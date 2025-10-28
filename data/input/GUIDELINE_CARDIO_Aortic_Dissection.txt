@@ -1,0 +1,96 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: AORTIC DISSECTION
+================================================================================
+
+Condition: Aortic Dissection
+Category: N/A
+Urgency Level: emergent
+Prevalence: rare
+ICD-10 Code: I71.00
+SNOMED Code: 423794004
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • tearing chest pain
+  • ripping chest pain
+  • sudden severe chest pain
+  • back pain radiating
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN, instantaneous, maximal at onset ("like a light switch"). LOCATION: ANTERIOR CHEST (Type A) or INTERSCAPULAR BACK (Type B). RADIATES down back as dissection propagates, can radiate to abdomen. DURATION: Continuous, persistent. CHARACTER: TEARING, RIPPING, SHARP, most severe pain ever experienced. AGGRAVATING: None (unprovoked). RELIEVING: Nothing helps. TIMING: Sudden onset, persistent. SEVERITY: 10/10, catastrophic pain. KEY POSITIVES: Pulse differential (unequal pulses between arms), blood pressure differential (>20 mmHg between arms), neurologic deficits, hypertension history, Marfan syndrome. KEY NEGATIVES: NOT gradual onset, NOT pressure/squeezing like myocardial infarction (MI).
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, instantaneous, maximal at onset, like a light switch
+  Negative indicators: gradual onset, chronic, slow onset
+
+LOCATION:
+  Positive indicators: anterior chest, Type A, interscapular back, Type B, radiates down back, can radiate to abdomen
+  Negative indicators: localized, one area only, no radiation
+
+DURATION:
+  Positive indicators: continuous, persistent, ongoing
+  Negative indicators: intermittent, episodic, comes and goes
+
+CHARACTER:
+  Positive indicators: tearing, ripping, sharp, most severe pain ever experienced
+  Negative indicators: pressure, squeezing, like myocardial infarction, dull
+
+AGGRAVATING:
+  Positive indicators: none, unprovoked
+  Negative indicators: nothing helps, medication, rest
+
+RELIEVING:
+  Positive indicators: nothing helps
+  Negative indicators: medication, rest, position
+
+TIMING:
+  Positive indicators: sudden onset, persistent, continuous
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: 10/10, catastrophic pain, 10
+  Negative indicators: mild, moderate, 1-9/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Sudden maximal pain at onset
+
+  🚨 Tearing or ripping quality
+
+  🚨 Pulse differential between arms
+
+  🚨 Blood pressure differential >20 mmHg
+
+  🚨 Neurologic symptoms (stroke-like)
+
+  🚨 History of hypertension
+
+  🚨 Marfan syndrome or connective tissue disorder
+
+  🚨 Syncope
+
+  🚨 Aortic regurgitation murmur
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Aortic Dissection
+================================================================================

@@ -266,9 +266,6 @@ class AdaptiveDiagnosticEngine:
                     # Debug: Check if structured_oldcarts exists
                     key_features = guideline.get('key_features', {})
                     structured_oldcarts = key_features.get('structured_oldcarts', {})
-                    self._capture_debug(f"[Engine] 🔍 DEBUG: Loading '{name}' - structured_oldcarts: {bool(structured_oldcarts)}")
-                    if structured_oldcarts:
-                        self._capture_debug(f"[Engine] 🔍 DEBUG:   structured_oldcarts keys: {list(structured_oldcarts.keys())}")
                     has_structured_data = bool(structured_oldcarts and isinstance(structured_oldcarts, dict) and structured_oldcarts)
                     
                     self._capture_debug(f"[Engine]   ✓ {organ_system}/{name} (structured_oldcarts: {has_structured_data})")
@@ -1379,7 +1376,9 @@ class AdaptiveDiagnosticEngine:
             'MSK': ['back', 'joint', 'muscle', 'bone', 'spine', 'musculoskeletal', 'orthopedic'],
             'RENAL': ['kidney', 'urinary', 'bladder', 'flank', 'renal', 'genitourinary'],
             'DERM': ['skin', 'rash', 'lesion', 'dermatological', 'cutaneous'],
-            'GYN': ['pelvic', 'menstrual', 'gynecological', 'reproductive']
+            'GYN': ['pelvic', 'menstrual', 'gynecological', 'reproductive'],
+            'GU': ['prostate', 'testicular', 'scrotal', 'genitourinary'],
+            'PULMONARY': ['lung', 'breathing', 'respiratory', 'pulmonary', 'asthma', 'pneumonia', 'bronchitis']
         }
         
         # STEP 3: Count keyword matches by organ system (now with corrected text)
@@ -1574,37 +1573,60 @@ class AdaptiveDiagnosticEngine:
     
     
     def _get_guidelines_by_category(self, category: str) -> Dict:
-        """Get guidelines filtered by organ system category"""
+        """Get guidelines filtered by organ system category using new naming format"""
         if category == 'ALL':
             return self.all_guidelines
         
-        # Map category to directory patterns
-        category_patterns = {
+        # Map category to prefix patterns (new naming format)
+        category_prefixes = {
+            'GI': ['GI_'],
+            'CARDIO': ['CARDIO_'],
+            'NEURO': ['NEURO_'],
+            'MSK': ['MSK_'],
+            'DERM': ['DERM_'],
+            'RENAL': ['RENAL_'],
+            'GYN': ['GYN_'],
+            'GU': ['GU_'],
+            'PULMONARY': ['PULMONARY_']
+        }
+        
+        # Fallback patterns for backward compatibility
+        fallback_patterns = {
             'GI': ['appendicitis', 'cholecystitis', 'pancreatitis', 'gastritis', 'diverticulitis', 'hepatitis', 'colic', 'obstruction', 'volvulus', 'gastroenteritis', 'biliary', 'cholangitis', 'gerd', 'ibs', 'ibd', 'hernia', 'mallory', 'mesenteric', 'ulcer', 'perforated', 'sigmoid', 'cecal', 'gastric', 'constipation', 'bowel'],
             'CARDIO': ['cardiovascular', 'chest', 'heart', 'myocardial', 'infarction', 'angina', 'aortic', 'cardiac'],
             'NEURO': ['neurological', 'head', 'brain', 'headache', 'migraine', 'seizure', 'stroke', 'cerebral'],
             'MSK': ['musculoskeletal', 'orthopedic', 'bone', 'joint', 'muscle', 'spine', 'back', 'fracture'],
             'DERM': ['dermatological', 'skin', 'rash', 'lesion', 'cutaneous', 'dermatitis'],
             'RENAL': ['renal', 'kidney', 'urinary', 'bladder', 'stone', 'uti', 'pyelonephritis'],
-            'GYN': ['gynecological', 'pelvic', 'ovarian', 'pregnancy', 'menstrual', 'reproductive']
+            'GYN': ['gynecological', 'pelvic', 'ovarian', 'pregnancy', 'menstrual', 'reproductive'],
+            'GU': ['genitourinary', 'prostate', 'testicular', 'scrotal'],
+            'PULMONARY': ['pulmonary', 'respiratory', 'lung', 'breathing', 'asthma', 'pneumonia', 'bronchitis']
         }
         
         filtered_guidelines = {}
-        patterns = category_patterns.get(category, [])
+        prefixes = category_prefixes.get(category, [])
+        patterns = fallback_patterns.get(category, [])
         
-        self._capture_debug(f"[Engine] 🔍 Category '{category}' patterns: {patterns}")
+        self._capture_debug(f"[Engine] 🔍 Category '{category}' prefixes: {prefixes}")
+        self._capture_debug(f"[Engine] 🔍 Category '{category}' fallback patterns: {patterns}")
         self._capture_debug(f"[Engine] 🔍 Total guidelines loaded: {len(self.all_guidelines)}")
         
         for name, guideline in self.all_guidelines.items():
-            # Check if guideline belongs to this category
-            # Check both the name and the condition field (case-insensitive)
-            condition = guideline.get('condition', '')
+            # Check if guideline belongs to this category using new prefix format
             name_lower = name.lower()
+            condition = guideline.get('condition', '')
             condition_lower = condition.lower()
             
-            if any(pattern in name_lower for pattern in patterns) or any(pattern in condition_lower for pattern in patterns):
+            # Primary: Check for prefix match (new format)
+            prefix_match = any(name.startswith(prefix) for prefix in prefixes)
+            
+            # Fallback: Check for pattern match (old format)
+            pattern_match = any(pattern in name_lower for pattern in patterns) or any(pattern in condition_lower for pattern in patterns)
+            
+            if prefix_match or pattern_match:
                 filtered_guidelines[name] = guideline
-                self._capture_debug(f"[Engine] ✅ Matched: {name} (condition: {condition})")
+                match_type = "prefix" if prefix_match else "pattern"
+                self._capture_debug(f"[Engine] ✅ Matched ({match_type}): {name} (condition: {condition})")
         
         self._capture_debug(f"[Engine] 🔍 Filtered guidelines: {len(filtered_guidelines)}")
         return filtered_guidelines
@@ -4091,17 +4113,6 @@ Be specific and offer concrete options. Don't use medical jargon. Keep it under 
         
         # Check if any guidelines have structured_oldcarts data
         guidelines_with_oldcarts = [g for g in guidelines if g.get('data', {}).get('key_features', {}).get('structured_oldcarts')]
-        
-        # Debug: Show what's actually in the guidelines
-        self._capture_debug(f"[Engine] 🔍 DEBUG: Checking {len(guidelines)} guidelines for structured_oldcarts")
-        for i, g in enumerate(guidelines[:3]):  # Check first 3
-            name = g.get('name', 'Unknown')
-            data = g.get('data', {})
-            key_features = data.get('key_features', {})
-            structured_oldcarts = key_features.get('structured_oldcarts')
-            self._capture_debug(f"[Engine] 🔍 DEBUG: Guideline {i+1} '{name}' - structured_oldcarts: {bool(structured_oldcarts)}")
-            if structured_oldcarts:
-                self._capture_debug(f"[Engine] 🔍 DEBUG:   structured_oldcarts keys: {list(structured_oldcarts.keys())}")
         
         if not guidelines_with_oldcarts:
             self._capture_debug(f"[Engine] ⚠️ No structured OLDCARTS found in guidelines")

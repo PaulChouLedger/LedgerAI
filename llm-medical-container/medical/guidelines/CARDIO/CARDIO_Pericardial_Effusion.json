@@ -11,7 +11,104 @@
   "prevalence": "uncommon",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Gradual, over days to weeks. LOCATION: Chest (retrosternal or precordial). DURATION: Progressive over time. CHARACTER: Dull chest discomfort, pressure, or fullness. AGGRAVATING: Lying flat. RELIEVING: Sitting up, leaning forward. TIMING: Progressive worsening. SEVERITY: 3-6/10 discomfort. KEY POSITIVES: Recent pericarditis, malignancy history, uremia (kidney failure), hypothyroidism, autoimmune disease, muffled heart sounds, dyspnea. KEY NEGATIVES: NOT hemodynamic compromise (that's tamponade), NOT Beck's triad."
+    "classic_presentation": "ONSET: Gradual, over days to weeks. LOCATION: Chest (retrosternal or precordial). DURATION: Progressive over time. CHARACTER: Dull chest discomfort, pressure, or fullness. AGGRAVATING: Lying flat. RELIEVING: Sitting up, leaning forward. TIMING: Progressive worsening. SEVERITY: 3-6/10 discomfort. KEY POSITIVES: Recent pericarditis, malignancy history, uremia (kidney failure), hypothyroidism, autoimmune disease, muffled heart sounds, dyspnea. KEY NEGATIVES: NOT hemodynamic compromise (that's tamponade), NOT Beck's triad.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "over days to weeks",
+          "slow"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "minutes"
+        ]
+      },
+      "location": {
+        "includes": [
+          "chest",
+          "retrosternal",
+          "precordial"
+        ],
+        "excludes": [
+          "right side only",
+          "no radiation",
+          "localized point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "progressive over time",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "dull chest discomfort",
+          "pressure",
+          "fullness"
+        ],
+        "excludes": [
+          "sharp",
+          "stabbing",
+          "burning",
+          "crushing"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "lying flat"
+        ],
+        "excludes": [
+          "sitting up",
+          "leaning forward",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "sitting up",
+          "leaning forward"
+        ],
+        "excludes": [
+          "lying flat",
+          "activity",
+          "exertion"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "progressive worsening",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "3-6/10",
+          "3",
+          "4",
+          "5",
+          "6"
+        ],
+        "excludes": [
+          "mild",
+          "1-2/10",
+          "severe",
+          "7-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Rapidly accumulating effusion",

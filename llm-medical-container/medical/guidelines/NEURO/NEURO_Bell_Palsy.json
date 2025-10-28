@@ -15,7 +15,121 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within hours to days. LOCATION: UNILATERAL facial paralysis. DURATION: Develops over hours to days, may persist for weeks to months. CHARACTER: SUDDEN, SEVERE facial weakness or paralysis. AGGRAVATING: SPEAKING, eating, drinking. RELIEVING: STEROIDS, antiviral medications. TIMING: Sudden onset, develops over hours to days. SEVERITY: 6-9/10, moderate to severe. ASSOCIATED SYMPTOMS: FACIAL WEAKNESS, facial droop, difficulty speaking, eating, drinking, may have facial pain, may have taste changes. KEY POSITIVES: Unilateral facial weakness, facial droop, difficulty speaking, eating, drinking. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+    "classic_presentation": "ONSET: SUDDEN onset within hours to days. LOCATION: UNILATERAL facial paralysis. DURATION: Develops over hours to days, may persist for weeks to months. CHARACTER: SUDDEN, SEVERE facial weakness or paralysis. AGGRAVATING: SPEAKING, eating, drinking. RELIEVING: STEROIDS, antiviral medications. TIMING: Sudden onset, develops over hours to days. SEVERITY: 6-9/10, moderate to severe. ASSOCIATED SYMPTOMS: FACIAL WEAKNESS, facial droop, difficulty speaking, eating, drinking, may have facial pain, may have taste changes. KEY POSITIVES: Unilateral facial weakness, facial droop, difficulty speaking, eating, drinking. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "within hours to days",
+          "immediate",
+          "acute"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset",
+          "progressive"
+        ]
+      },
+      "location": {
+        "includes": [
+          "unilateral facial paralysis",
+          "one side",
+          "facial",
+          "unilateral"
+        ],
+        "excludes": [
+          "bilateral",
+          "both sides",
+          "generalized",
+          "diffuse"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "develops over hours to days",
+          "weeks to months",
+          "prolonged",
+          "persistent"
+        ],
+        "excludes": [
+          "minutes",
+          "seconds",
+          "brief",
+          "transient"
+        ]
+      },
+      "character": {
+        "includes": [
+          "sudden",
+          "severe facial weakness",
+          "paralysis",
+          "moderate to severe"
+        ],
+        "excludes": [
+          "mild",
+          "gradual",
+          "localized",
+          "focal"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "speaking",
+          "eating",
+          "drinking",
+          "facial movement"
+        ],
+        "excludes": [
+          "steroids",
+          "antiviral medications",
+          "rest",
+          "treatment"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "steroids",
+          "antiviral medications",
+          "rest",
+          "treatment"
+        ],
+        "excludes": [
+          "speaking",
+          "eating",
+          "drinking",
+          "facial movement"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "sudden onset",
+          "develops over hours to days",
+          "progressive"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "moderate to severe",
+          "6-9/10",
+          "6",
+          "7",
+          "8",
+          "9"
+        ],
+        "excludes": [
+          "mild",
+          "1-5/10",
+          "severe",
+          "10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Bilateral facial weakness - possible Guillain-Barré syndrome, call 911",

@@ -15,7 +15,120 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within hours to days. LOCATION: GENERALIZED symptoms. DURATION: Develops over hours to days. CHARACTER: SEVERE headache, neck stiffness, fever. AGGRAVATING: LIGHT, sound, movement. RELIEVING: ANTIBIOTICS, supportive care. TIMING: Sudden onset, develops over hours to days. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE HEADACHE, neck stiffness, fever, photophobia, nausea, vomiting, may have altered mental status. KEY POSITIVES: Severe headache, neck stiffness, fever, photophobia, positive Kernig sign, positive Brudzinski sign. KEY NEGATIVES: No focal neurological deficits."
+    "classic_presentation": "ONSET: SUDDEN onset within hours to days. LOCATION: GENERALIZED symptoms. DURATION: Develops over hours to days. CHARACTER: SEVERE headache, neck stiffness, fever. AGGRAVATING: LIGHT, sound, movement. RELIEVING: ANTIBIOTICS, supportive care. TIMING: Sudden onset, develops over hours to days. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE HEADACHE, neck stiffness, fever, photophobia, nausea, vomiting, may have altered mental status. KEY POSITIVES: Severe headache, neck stiffness, fever, photophobia, positive Kernig sign, positive Brudzinski sign. KEY NEGATIVES: No focal neurological deficits.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "within hours to days",
+          "immediate",
+          "acute"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset",
+          "progressive"
+        ]
+      },
+      "location": {
+        "includes": [
+          "generalized",
+          "diffuse",
+          "whole head",
+          "neck"
+        ],
+        "excludes": [
+          "localized",
+          "focal",
+          "specific point",
+          "unilateral"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "develops over hours to days",
+          "progressive",
+          "ongoing",
+          "persistent"
+        ],
+        "excludes": [
+          "minutes",
+          "seconds",
+          "brief",
+          "transient"
+        ]
+      },
+      "character": {
+        "includes": [
+          "severe headache",
+          "neck stiffness",
+          "fever",
+          "severe and unrelenting"
+        ],
+        "excludes": [
+          "mild",
+          "focal deficits",
+          "localized",
+          "moderate"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "light",
+          "sound",
+          "movement",
+          "stimuli"
+        ],
+        "excludes": [
+          "antibiotics",
+          "supportive care",
+          "dark",
+          "quiet"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "antibiotics",
+          "supportive care",
+          "dark",
+          "quiet"
+        ],
+        "excludes": [
+          "light",
+          "sound",
+          "movement",
+          "stimuli"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "sudden onset",
+          "progressive",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "severe and unrelenting",
+          "8-10/10",
+          "8",
+          "9",
+          "10"
+        ],
+        "excludes": [
+          "mild",
+          "1-7/10",
+          "moderate",
+          "variable"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe neurological deficits with altered mental status - possible severe meningitis, call 911",

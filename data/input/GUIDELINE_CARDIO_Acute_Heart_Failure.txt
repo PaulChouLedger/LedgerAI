@@ -1,0 +1,95 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: ACUTE HEART FAILURE / PULMONARY EDEMA
+================================================================================
+
+Condition: Acute Heart Failure / Pulmonary Edema
+Category: N/A
+Urgency Level: emergent
+Prevalence: common
+ICD-10 Code: I50.9
+SNOMED Code: 84114007
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • shortness of breath
+  • difficulty breathing
+  • can't breathe
+  • chest tightness
+  • leg swelling
+
+CLASSIC PRESENTATION:
+ONSET: Hours to days, progressive worsening. LOCATION: Chest (dyspnea), bilateral lower extremities (edema). DURATION: Progressive, continuous dyspnea. CHARACTER: Dyspnea, orthopnea (can't lie flat), paroxysmal nocturnal dyspnea (wake up gasping). AGGRAVATING: Lying flat, exertion, fluid intake. RELIEVING: Sitting upright, diuretics. TIMING: Progressive, worse at night. SEVERITY: Severe dyspnea, patient speaks in short phrases. KEY POSITIVES: Bilateral leg swelling, weight gain, pink frothy sputum, rales on lung exam, elevated JVP, S3 gallop. KEY NEGATIVES: NOT unilateral leg swelling (DVT), NOT pleuritic (PE).
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: hours to days, progressive worsening, gradual
+  Negative indicators: sudden, acute, minutes
+
+LOCATION:
+  Positive indicators: chest, dyspnea, bilateral lower extremities, edema
+  Negative indicators: unilateral leg swelling, localized, one area only
+
+DURATION:
+  Positive indicators: progressive, continuous dyspnea, ongoing
+  Negative indicators: intermittent, episodic, comes and goes
+
+CHARACTER:
+  Positive indicators: dyspnea, orthopnea, can't lie flat, paroxysmal nocturnal dyspnea, wake up gasping
+  Negative indicators: pleuritic, sharp, stabbing, no respiratory symptoms
+
+AGGRAVATING:
+  Positive indicators: lying flat, exertion, fluid intake
+  Negative indicators: sitting upright, diuretics, rest
+
+RELIEVING:
+  Positive indicators: sitting upright, diuretics
+  Negative indicators: lying flat, exertion, fluid intake
+
+TIMING:
+  Positive indicators: progressive, worse at night, continuous
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: severe dyspnea, patient speaks in short phrases, severe
+  Negative indicators: mild, moderate, no symptoms
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Unable to lie flat (orthopnea)
+
+  🚨 Pink frothy sputum
+
+  🚨 Severe dyspnea at rest
+
+  🚨 Hypoxia (low oxygen saturation)
+
+  🚨 Altered mental status
+
+  🚨 Hypotension
+
+  🚨 Rapid weight gain (>5 lbs in days)
+
+  🚨 History of heart failure or myocardial infarction (MI)
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Acute Heart Failure / Pulmonary Edema
+================================================================================

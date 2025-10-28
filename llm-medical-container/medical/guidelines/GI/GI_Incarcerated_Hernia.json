@@ -16,13 +16,44 @@
   "key_features": {
     "classic_presentation": "ONSET: ACUTE worsening over hours, often history of known hernia that was previously reducible. LOCATION: Groin (inguinal or femoral region), may have lower abdominal pain if bowel involved. DURATION: CONSTANT pain since hernia became irreducible. CHARACTER: SHARP, CONSTANT pain at hernia site, becomes SEVERE if strangulation occurs. AGGRAVATING: Standing, straining, coughing worsen pain. Cannot reduce (push back) the hernia. RELIEVING: Lying down may decrease discomfort slightly but hernia remains out. NOTHING fully relieves pain. TIMING: CONSTANT and progressively worsening if strangulation developing. SEVERITY: 6-9/10 if incarcerated, 9-10/10 if strangulated. ASSOCIATED SYMPTOMS: Tender, firm, non-reducible bulge in groin. Nausea, vomiting if bowel obstruction. Overlying skin erythema if strangulation. KEY POSITIVES: Irreducible groin mass, known hernia history, sudden change from reducible to irreducible. KEY NEGATIVES: Easily reducible bulge suggests simple hernia without incarceration.",
     "structured_oldcarts": {
-      "onset": {},
-      "location": {},
+      "onset": {
+        "includes": [
+          "acute",
+          "worsening over hours",
+          "sudden change",
+          "previously reducible"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "groin",
+          "inguinal",
+          "femoral",
+          "lower abdominal",
+          "hernia site"
+        ],
+        "excludes": [
+          "upper abdomen",
+          "chest",
+          "back"
+        ]
+      },
       "duration": {
         "includes": [
           "constant",
           "persistent",
-          "continuous"
+          "continuous",
+          "since irreducible"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
         ]
       },
       "character": {
@@ -32,7 +63,37 @@
           "knife-like",
           "unrelenting",
           "constant",
-          "steady"
+          "steady",
+          "severe if strangulation"
+        ],
+        "excludes": [
+          "mild",
+          "dull",
+          "crampy"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "standing",
+          "straining",
+          "coughing",
+          "movement"
+        ],
+        "excludes": [
+          "lying down",
+          "rest",
+          "reducing hernia"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "lying down",
+          "slight decrease"
+        ],
+        "excludes": [
+          "nothing fully relieves",
+          "hernia remains out",
+          "cannot reduce"
         ]
       },
       "timing": {
@@ -43,13 +104,25 @@
           "worsening",
           "getting worse",
           "constant"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
         ]
       },
       "severity": {
         "includes": [
           "9",
           "6-9/10",
-          "6"
+          "9-10/10",
+          "severe",
+          "if strangulated"
+        ],
+        "excludes": [
+          "mild",
+          "1-5/10",
+          "moderate"
         ]
       }
     }

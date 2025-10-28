@@ -15,7 +15,59 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within hours to days after drug exposure or infection. LOCATION: GENERALIZED with mucous membrane involvement (eyes, mouth, genitals). DURATION: Rapid progression over hours to days. CHARACTER: ERYTHEMATOUS (red) patches that progress to BULLAE (large blisters) and EPIDERMAL NECROSIS (skin death). AGGRAVATING: TOUCH, heat, movement. RELIEVING: IMMEDIATE discontinuation of offending drug, supportive care, burn unit care. TIMING: Rapid progression over hours to days. SEVERITY: 8-10/10 pain, severe and unrelenting. ASSOCIATED SYMPTOMS: FEVER (100-104°F), malaise, mucous membrane involvement, skin sloughing, may have systemic symptoms. KEY POSITIVES: Erythematous patches, bullae, epidermal necrosis, mucous membrane involvement, positive Nikolsky sign. KEY NEGATIVES: No fever >104°F (rules out toxic shock), no systemic shock (unless severe)."
+    "classic_presentation": "ONSET: SUDDEN onset within hours to days after drug exposure or infection. LOCATION: GENERALIZED with mucous membrane involvement (eyes, mouth, genitals). DURATION: Rapid progression over hours to days. CHARACTER: ERYTHEMATOUS (red) patches that progress to BULLAE (large blisters) and EPIDERMAL NECROSIS (skin death). AGGRAVATING: TOUCH, heat, movement. RELIEVING: IMMEDIATE discontinuation of offending drug, supportive care, burn unit care. TIMING: Rapid progression over hours to days. SEVERITY: 8-10/10 pain, severe and unrelenting. ASSOCIATED SYMPTOMS: FEVER (100-104°F), malaise, mucous membrane involvement, skin sloughing, may have systemic symptoms. KEY POSITIVES: Erythematous patches, bullae, epidermal necrosis, mucous membrane involvement, positive Nikolsky sign. KEY NEGATIVES: No fever >104°F (rules out toxic shock), no systemic shock (unless severe).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "immediate",
+          "hours",
+          "days"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic"
+        ]
+      },
+      "location": {
+        "includes": [
+          "anywhere",
+          "generalized"
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          "erythematous",
+          "red"
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          "heat"
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          "severe"
+        ],
+        "excludes": []
+      }
+    }
   },
   "red_flags": [
     "Rash involving >30% of body surface - toxic epidermal necrolysis, call 911",

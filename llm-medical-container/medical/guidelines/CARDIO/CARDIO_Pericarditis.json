@@ -11,7 +11,113 @@
   "prevalence": "uncommon",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Gradual over hours to days, often post-viral illness. LOCATION: RETROSTERNAL or left precordial (over heart). RADIATES to trapezius ridge (shoulder), neck. DURATION: Continuous for hours to days. CHARACTER: SHARP, PLEURITIC (worse with breathing), stabbing. AGGRAVATING: Deep inspiration, lying flat, cough. RELIEVING: SITTING UP and LEANING FORWARD. TIMING: Constant but fluctuates with position and breathing. SEVERITY: 6-8/10. KEY POSITIVES: Recent viral illness (URI), pericardial friction rub on exam, positional relief. KEY NEGATIVES: NOT crushing/pressure (unlike myocardial infarction ), NOT exertional."
+    "classic_presentation": "ONSET: Gradual over hours to days, often post-viral illness. LOCATION: RETROSTERNAL or left precordial (over heart). RADIATES to trapezius ridge (shoulder), neck. DURATION: Continuous for hours to days. CHARACTER: SHARP, PLEURITIC (worse with breathing), stabbing. AGGRAVATING: Deep inspiration, lying flat, cough. RELIEVING: SITTING UP and LEANING FORWARD. TIMING: Constant but fluctuates with position and breathing. SEVERITY: 6-8/10. KEY POSITIVES: Recent viral illness (URI), pericardial friction rub on exam, positional relief. KEY NEGATIVES: NOT crushing/pressure (unlike myocardial infarction ), NOT exertional.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "over hours to days",
+          "post-viral illness"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "minutes"
+        ]
+      },
+      "location": {
+        "includes": [
+          "retrosternal",
+          "left precordial",
+          "over heart",
+          "radiates to trapezius ridge",
+          "radiates to shoulder",
+          "radiates to neck"
+        ],
+        "excludes": [
+          "right side only",
+          "no radiation",
+          "localized point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "continuous",
+          "hours to days",
+          "persistent"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "sharp",
+          "pleuritic",
+          "worse with breathing",
+          "stabbing"
+        ],
+        "excludes": [
+          "crushing",
+          "pressure",
+          "dull",
+          "not worse with breathing"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "deep inspiration",
+          "lying flat",
+          "cough",
+          "breathing"
+        ],
+        "excludes": [
+          "sitting up",
+          "leaning forward",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "sitting up",
+          "leaning forward",
+          "positional relief"
+        ],
+        "excludes": [
+          "lying flat",
+          "deep inspiration",
+          "cough"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "constant",
+          "fluctuates with position",
+          "fluctuates with breathing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "6-8/10",
+          "6",
+          "7",
+          "8"
+        ],
+        "excludes": [
+          "mild",
+          "1-5/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Fever",

@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: SEIZURE
+================================================================================
+
+Condition: Seizure
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: G40.9
+SNOMED Code: 125628008
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • seizure
+  • convulsion
+  • epilepsy
+  • shaking
+  • unconscious
+  • jerking
+  • fainting
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset within seconds. LOCATION: GENERALIZED or focal. DURATION: Lasts seconds to minutes. CHARACTER: INVOLUNTARY movements, jerking, convulsions. AGGRAVATING: STRESS, sleep deprivation, alcohol withdrawal. RELIEVING: ANTICONVULSANTS, supportive care. TIMING: Sudden onset, lasts seconds to minutes. SEVERITY: 8-10/10 during episode, then resolves. ASSOCIATED SYMPTOMS: LOSS OF CONSCIOUSNESS, jerking movements, tongue biting, incontinence, postictal confusion. KEY POSITIVES: Involuntary movements, loss of consciousness, postictal confusion, tongue biting. KEY NEGATIVES: No fever, no neck stiffness, no photophobia.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, within seconds, immediate, acute
+  Negative indicators: gradual, chronic, slow onset, progressive
+
+LOCATION:
+  Positive indicators: generalized, focal, whole body, specific area
+  Negative indicators: localized, specific point, unilateral only
+
+DURATION:
+  Positive indicators: seconds to minutes, brief, transient, short
+  Negative indicators: hours, days, persistent, ongoing
+
+CHARACTER:
+  Positive indicators: involuntary movements, jerking, convulsions, severe during episode
+  Negative indicators: voluntary, controlled, mild, localized
+
+AGGRAVATING:
+  Positive indicators: stress, sleep deprivation, alcohol withdrawal, triggers
+  Negative indicators: anticonvulsants, supportive care, rest, treatment
+
+RELIEVING:
+  Positive indicators: anticonvulsants, supportive care, rest, treatment
+  Negative indicators: stress, sleep deprivation, alcohol withdrawal, triggers
+
+TIMING:
+  Positive indicators: sudden onset, episodic, intermittent
+  Negative indicators: continuous, persistent, unrelenting
+
+SEVERITY:
+  Positive indicators: 8-10/10 during episode, 8, 9, 10, severe during episode
+  Negative indicators: mild, 1-7/10, moderate, constant
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Seizure lasting >5 minutes - status epilepticus, call 911
+
+  🚨 Multiple seizures without regaining consciousness - status epilepticus, call 911
+
+  🚨 Seizure with severe head injury - possible traumatic brain injury, call 911
+
+  🚨 Seizure with signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911
+
+  🚨 Seizure with severe hypertension - possible hypertensive crisis, call 911
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Seizure
+================================================================================

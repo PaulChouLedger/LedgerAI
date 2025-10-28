@@ -15,7 +15,74 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within hours to days. LOCATION: UNILATERAL or bilateral kidney involvement. DURATION: Develops over hours to days, may persist for days to weeks. CHARACTER: SEVERE flank pain, fever, chills. AGGRAVATING: MOVEMENT, urination. RELIEVING: ANTIBIOTICS, pain medications. TIMING: Sudden onset, develops over hours to days. SEVERITY: 7-9/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE FLANK PAIN, fever, chills, nausea, vomiting, may have hematuria. KEY POSITIVES: Severe flank pain, fever, chills, positive urinalysis, positive blood cultures. KEY NEGATIVES: No neck stiffness, no focal neurological deficits."
+    "classic_presentation": "ONSET: SUDDEN onset within hours to days. LOCATION: UNILATERAL or bilateral kidney involvement. DURATION: Develops over hours to days, may persist for days to weeks. CHARACTER: SEVERE flank pain, fever, chills. AGGRAVATING: MOVEMENT, urination. RELIEVING: ANTIBIOTICS, pain medications. TIMING: Sudden onset, develops over hours to days. SEVERITY: 7-9/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE FLANK PAIN, fever, chills, nausea, vomiting, may have hematuria. KEY POSITIVES: Severe flank pain, fever, chills, positive urinalysis, positive blood cultures. KEY NEGATIVES: No neck stiffness, no focal neurological deficits.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "acute",
+          "immediate",
+          "hours",
+          "days",
+          "weeks"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic"
+        ]
+      },
+      "location": {
+        "includes": [
+          "kidney",
+          "renal",
+          "flank",
+          "bilateral",
+          "unilateral"
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          "progressive"
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          "severe"
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          "movement",
+          "urination",
+          "medications"
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          "antibiotics",
+          "pain medications"
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          "unrelenting",
+          "progressive"
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          "7-9/10",
+          "severe"
+        ],
+        "excludes": []
+      }
+    }
   },
   "red_flags": [
     "High fever with rigors - possible sepsis, call 911",

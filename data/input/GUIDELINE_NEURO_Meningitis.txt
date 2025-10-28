@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: MENINGITIS
+================================================================================
+
+Condition: Meningitis
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: G03.9
+SNOMED Code: 125644004
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • meningitis
+  • headache
+  • neck stiffness
+  • fever
+  • photophobia
+  • nausea
+  • vomiting
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset within hours to days. LOCATION: GENERALIZED symptoms. DURATION: Develops over hours to days. CHARACTER: SEVERE headache, neck stiffness, fever. AGGRAVATING: LIGHT, sound, movement. RELIEVING: ANTIBIOTICS, supportive care. TIMING: Sudden onset, develops over hours to days. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE HEADACHE, neck stiffness, fever, photophobia, nausea, vomiting, may have altered mental status. KEY POSITIVES: Severe headache, neck stiffness, fever, photophobia, positive Kernig sign, positive Brudzinski sign. KEY NEGATIVES: No focal neurological deficits.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, within hours to days, immediate, acute
+  Negative indicators: gradual, chronic, slow onset, progressive
+
+LOCATION:
+  Positive indicators: generalized, diffuse, whole head, neck
+  Negative indicators: localized, focal, specific point, unilateral
+
+DURATION:
+  Positive indicators: develops over hours to days, progressive, ongoing, persistent
+  Negative indicators: minutes, seconds, brief, transient
+
+CHARACTER:
+  Positive indicators: severe headache, neck stiffness, fever, severe and unrelenting
+  Negative indicators: mild, focal deficits, localized, moderate
+
+AGGRAVATING:
+  Positive indicators: light, sound, movement, stimuli
+  Negative indicators: antibiotics, supportive care, dark, quiet
+
+RELIEVING:
+  Positive indicators: antibiotics, supportive care, dark, quiet
+  Negative indicators: light, sound, movement, stimuli
+
+TIMING:
+  Positive indicators: sudden onset, progressive, continuous
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: severe and unrelenting, 8-10/10, 8, 9, 10
+  Negative indicators: mild, 1-7/10, moderate, variable
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe neurological deficits with altered mental status - possible severe meningitis, call 911
+
+  🚨 Signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911
+
+  🚨 Severe hypertension with neurological deficits - possible hypertensive crisis, call 911
+
+  🚨 Signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911
+
+  🚨 Signs of respiratory failure - difficulty breathing, cyanosis, altered mental status - call 911
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Meningitis
+================================================================================

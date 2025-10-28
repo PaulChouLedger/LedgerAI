@@ -15,7 +15,68 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within minutes to hours. LOCATION: UNILATERAL flank pain, may radiate to groin. DURATION: Lasts hours to days. CHARACTER: SEVERE, SHARP, COLIC pain. AGGRAVATING: MOVEMENT, urination. RELIEVING: PAIN medications, hydration. TIMING: Sudden onset, lasts hours to days. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE FLANK PAIN, may have nausea, vomiting, hematuria, may have fever if infected. KEY POSITIVES: Severe flank pain, hematuria, positive imaging. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+    "classic_presentation": "ONSET: SUDDEN onset within minutes to hours. LOCATION: UNILATERAL flank pain, may radiate to groin. DURATION: Lasts hours to days. CHARACTER: SEVERE, SHARP, COLIC pain. AGGRAVATING: MOVEMENT, urination. RELIEVING: PAIN medications, hydration. TIMING: Sudden onset, lasts hours to days. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE FLANK PAIN, may have nausea, vomiting, hematuria, may have fever if infected. KEY POSITIVES: Severe flank pain, hematuria, positive imaging. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "acute",
+          "immediate",
+          "minutes",
+          "hours",
+          "days"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic"
+        ]
+      },
+      "location": {
+        "includes": [
+          "flank",
+          "unilateral"
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          "severe",
+          "sharp"
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          "movement",
+          "urination",
+          "medications"
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          "pain medications"
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          "unrelenting"
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          "8-10/10",
+          "severe"
+        ],
+        "excludes": []
+      }
+    }
   },
   "red_flags": [
     "Severe pain with fever - possible infected stone, call 911",

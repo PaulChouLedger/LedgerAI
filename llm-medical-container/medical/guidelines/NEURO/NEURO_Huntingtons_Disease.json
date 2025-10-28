@@ -15,7 +15,122 @@
   ],
   "urgency": "non-urgent",
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL onset over months to years. LOCATION: GENERALIZED symptoms. DURATION: Chronic progressive condition. CHARACTER: CHOREA, cognitive decline, behavioral changes. AGGRAVATING: STRESS, fatigue, medication changes. RELIEVING: SUPPORTIVE care, medications. TIMING: Chronic progressive, symptoms worsen over time. SEVERITY: 3-7/10, mild to moderate. ASSOCIATED SYMPTOMS: CHOREA, cognitive decline, behavioral changes, may have psychiatric symptoms. KEY POSITIVES: Chorea, cognitive decline, behavioral changes, family history. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+    "classic_presentation": "ONSET: GRADUAL onset over months to years. LOCATION: GENERALIZED symptoms. DURATION: Chronic progressive condition. CHARACTER: CHOREA, cognitive decline, behavioral changes. AGGRAVATING: STRESS, fatigue, medication changes. RELIEVING: SUPPORTIVE care, medications. TIMING: Chronic progressive, symptoms worsen over time. SEVERITY: 3-7/10, mild to moderate. ASSOCIATED SYMPTOMS: CHOREA, cognitive decline, behavioral changes, may have psychiatric symptoms. KEY POSITIVES: Chorea, cognitive decline, behavioral changes, family history. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "months to years",
+          "slow onset",
+          "progressive"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "immediate",
+          "hours"
+        ]
+      },
+      "location": {
+        "includes": [
+          "generalized symptoms",
+          "diffuse",
+          "whole body",
+          "bilateral"
+        ],
+        "excludes": [
+          "localized",
+          "focal",
+          "specific area",
+          "unilateral"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "chronic progressive",
+          "ongoing",
+          "persistent",
+          "worsening"
+        ],
+        "excludes": [
+          "acute",
+          "brief",
+          "transient",
+          "intermittent"
+        ]
+      },
+      "character": {
+        "includes": [
+          "chorea",
+          "cognitive decline",
+          "behavioral changes",
+          "mild to moderate"
+        ],
+        "excludes": [
+          "severe",
+          "focal deficits",
+          "localized",
+          "acute"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "stress",
+          "fatigue",
+          "medication changes",
+          "triggers"
+        ],
+        "excludes": [
+          "supportive care",
+          "medications",
+          "rest",
+          "treatment"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "supportive care",
+          "medications",
+          "rest",
+          "treatment"
+        ],
+        "excludes": [
+          "stress",
+          "fatigue",
+          "medication changes",
+          "triggers"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "chronic progressive",
+          "worsening over time",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "mild to moderate",
+          "3-7/10",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7"
+        ],
+        "excludes": [
+          "severe",
+          "8-10/10",
+          "mild",
+          "1-2/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe neurological deficits with altered mental status - possible severe Huntington's flare, call 911",

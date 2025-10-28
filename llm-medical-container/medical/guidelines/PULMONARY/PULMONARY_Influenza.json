@@ -13,7 +13,107 @@
   ],
   "urgency": "routine",
   "key_features": {
-    "classic_presentation": "ONSET: Sudden onset over hours. LOCATION: Systemic, respiratory. DURATION: 3-7 days, can last longer. CHARACTER: High fever, severe body aches, dry cough. AGGRAVATING: Exertion, cold air. RELIEVING: Rest, fluids, antipyretics. TIMING: Acute, seasonal. SEVERITY: Moderate to severe (6-8/10). ASSOCIATED SYMPTOMS: High fever, chills, severe body aches, headache, dry cough, sore throat, fatigue, weakness. KEY POSITIVES: High fever, body aches, dry cough, seasonal. KEY NEGATIVES: No chest pain (unless secondary), no wheezing (unless reactive airway disease)."
+    "classic_presentation": "ONSET: Sudden onset over hours. LOCATION: Systemic, respiratory. DURATION: 3-7 days, can last longer. CHARACTER: High fever, severe body aches, dry cough. AGGRAVATING: Exertion, cold air. RELIEVING: Rest, fluids, antipyretics. TIMING: Acute, seasonal. SEVERITY: Moderate to severe (6-8/10). ASSOCIATED SYMPTOMS: High fever, chills, severe body aches, headache, dry cough, sore throat, fatigue, weakness. KEY POSITIVES: High fever, body aches, dry cough, seasonal. KEY NEGATIVES: No chest pain (unless secondary), no wheezing (unless reactive airway disease).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden onset over hours",
+          "acute",
+          "immediate"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "systemic",
+          "respiratory"
+        ],
+        "excludes": [
+          "localized",
+          "one side only",
+          "specific point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "3-7 days",
+          "can last longer",
+          "variable"
+        ],
+        "excludes": [
+          "chronic",
+          "persistent",
+          "ongoing"
+        ]
+      },
+      "character": {
+        "includes": [
+          "high fever",
+          "severe body aches",
+          "dry cough"
+        ],
+        "excludes": [
+          "no chest pain",
+          "no wheezing",
+          "mild"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "exertion",
+          "cold air",
+          "activity"
+        ],
+        "excludes": [
+          "rest",
+          "fluids",
+          "antipyretics"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "rest",
+          "fluids",
+          "antipyretics"
+        ],
+        "excludes": [
+          "exertion",
+          "cold air",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "acute",
+          "seasonal",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "moderate to severe",
+          "6-8/10",
+          "6",
+          "7",
+          "8"
+        ],
+        "excludes": [
+          "mild",
+          "1-5/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe dyspnea or respiratory distress",

@@ -13,7 +13,107 @@
   "prevalence": "common",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Sudden, preceded by prodrome (warning signs). LOCATION: Generalized, loss of consciousness. DURATION: Seconds to 1-2 minutes, brief. CHARACTER: Lightheadedness, tunnel vision, nausea, sweating before fainting. AGGRAVATING: Prolonged standing, heat, dehydration, pain, emotional stress, sight of blood. RELIEVING: Lying down, recovery rapid once horizontal. TIMING: Single episode or rare episodes with clear triggers. SEVERITY: Complete LOC but brief. KEY POSITIVES: Prodrome (warning), rapid recovery, no confusion post-event, clear trigger, young patient. KEY NEGATIVES: NO exertional syncope (cardiac), NO chest pain, NO palpitations before event, NO seizure activity."
+    "classic_presentation": "ONSET: Sudden, preceded by prodrome (warning signs). LOCATION: Generalized, loss of consciousness. DURATION: Seconds to 1-2 minutes, brief. CHARACTER: Lightheadedness, tunnel vision, nausea, sweating before fainting. AGGRAVATING: Prolonged standing, heat, dehydration, pain, emotional stress, sight of blood. RELIEVING: Lying down, recovery rapid once horizontal. TIMING: Single episode or rare episodes with clear triggers. SEVERITY: Complete LOC but brief. KEY POSITIVES: Prodrome (warning), rapid recovery, no confusion post-event, clear trigger, young patient. KEY NEGATIVES: NO exertional syncope (cardiac), NO chest pain, NO palpitations before event, NO seizure activity.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "preceded by prodrome",
+          "warning signs"
+        ],
+        "excludes": [
+          "gradual",
+          "no warning",
+          "chronic"
+        ]
+      },
+      "location": {
+        "includes": [
+          "generalized",
+          "loss of consciousness"
+        ],
+        "excludes": [
+          "localized",
+          "one area only",
+          "chest"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "seconds to 1-2 minutes",
+          "brief",
+          "short"
+        ],
+        "excludes": [
+          "prolonged",
+          ">5 minutes",
+          "hours"
+        ]
+      },
+      "character": {
+        "includes": [
+          "lightheadedness",
+          "tunnel vision",
+          "nausea",
+          "sweating before fainting"
+        ],
+        "excludes": [
+          "chest pain",
+          "palpitations",
+          "seizure activity"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "prolonged standing",
+          "heat",
+          "dehydration",
+          "pain",
+          "emotional stress",
+          "sight of blood"
+        ],
+        "excludes": [
+          "lying down",
+          "rest",
+          "medication"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "lying down",
+          "recovery rapid once horizontal"
+        ],
+        "excludes": [
+          "prolonged standing",
+          "heat",
+          "dehydration"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "single episode",
+          "rare episodes",
+          "clear triggers"
+        ],
+        "excludes": [
+          "frequent",
+          "unpredictable",
+          "no triggers"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "complete LOC",
+          "brief",
+          "rapid recovery"
+        ],
+        "excludes": [
+          "prolonged",
+          "confusion post-event",
+          "severe"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Exertional syncope (suggests cardiac cause)",

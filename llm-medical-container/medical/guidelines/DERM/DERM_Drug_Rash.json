@@ -15,7 +15,69 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within hours to days after starting new medication. LOCATION: GENERALIZED or localized to specific areas. DURATION: Develops over hours to days, may persist for days to weeks. CHARACTER: ERYTHEMATOUS (red), PRURITIC (itchy), may be MACULOPAPULAR (flat and raised) or VESICULAR (blistering). AGGRAVATING: SCRATCHING, heat, stress. RELIEVING: DISCONTINUING offending drug, antihistamines, topical steroids. TIMING: Develops within hours to days of drug exposure. SEVERITY: 4-8/10 itching, moderate to severe. ASSOCIATED SYMPTOMS: SEVERE ITCHING (pruritus), erythema, may have fever, may have systemic symptoms (nausea, vomiting, diarrhea). KEY POSITIVES: Erythema, pruritus, recent medication history, positive drug challenge. KEY NEGATIVES: No fever >102°F (rules out serious drug reaction), no systemic symptoms (unless severe)."
+    "classic_presentation": "ONSET: SUDDEN onset within hours to days after starting new medication. LOCATION: GENERALIZED or localized to specific areas. DURATION: Develops over hours to days, may persist for days to weeks. CHARACTER: ERYTHEMATOUS (red), PRURITIC (itchy), may be MACULOPAPULAR (flat and raised) or VESICULAR (blistering). AGGRAVATING: SCRATCHING, heat, stress. RELIEVING: DISCONTINUING offending drug, antihistamines, topical steroids. TIMING: Develops within hours to days of drug exposure. SEVERITY: 4-8/10 itching, moderate to severe. ASSOCIATED SYMPTOMS: SEVERE ITCHING (pruritus), erythema, may have fever, may have systemic symptoms (nausea, vomiting, diarrhea). KEY POSITIVES: Erythema, pruritus, recent medication history, positive drug challenge. KEY NEGATIVES: No fever >102°F (rules out serious drug reaction), no systemic symptoms (unless severe).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "immediate",
+          "hours",
+          "days",
+          "weeks"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic"
+        ]
+      },
+      "location": {
+        "includes": [
+          "anywhere",
+          "generalized"
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          "erythematous",
+          "red",
+          "pruritic",
+          "itchy",
+          "raised"
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          "scratching",
+          "heat",
+          "stress"
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          "antihistamines",
+          "topical steroids"
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          "moderate",
+          "severe"
+        ],
+        "excludes": []
+      }
+    }
   },
   "red_flags": [
     "Rash with fever >102°F - possible serious drug reaction, call 911",

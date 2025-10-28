@@ -15,7 +15,128 @@
   ],
   "urgency": "non-urgent",
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL onset over weeks to months (chronic) or SUDDEN onset during trauma (acute). Chronic from repetitive overhead activities, acute from fall or direct blow. LOCATION: Anterior shoulder, may radiate to upper arm. DURATION: Chronic pain lasting weeks to months, or acute pain lasting days to weeks. CHARACTER: DULL, ACHING pain with sharp episodes. AGGRAVATING: OVERHEAD activities, reaching behind back, sleeping on affected side, lifting, pushing, pulling. RELIEVING: REST, ice, NSAIDs, physical therapy. TIMING: Pain worse at night, especially when sleeping on affected side. SEVERITY: 4-7/10, moderate to severe with activity. ASSOCIATED SYMPTOMS: WEAKNESS with overhead activities, difficulty reaching behind back, night pain, stiffness, may have 'catching' or 'locking' sensation. KEY POSITIVES: Positive impingement signs, weakness with external rotation, positive drop arm test, positive empty can test. KEY NEGATIVES: No obvious deformity, no neurological deficits, no fever."
+    "classic_presentation": "ONSET: GRADUAL onset over weeks to months (chronic) or SUDDEN onset during trauma (acute). Chronic from repetitive overhead activities, acute from fall or direct blow. LOCATION: Anterior shoulder, may radiate to upper arm. DURATION: Chronic pain lasting weeks to months, or acute pain lasting days to weeks. CHARACTER: DULL, ACHING pain with sharp episodes. AGGRAVATING: OVERHEAD activities, reaching behind back, sleeping on affected side, lifting, pushing, pulling. RELIEVING: REST, ice, NSAIDs, physical therapy. TIMING: Pain worse at night, especially when sleeping on affected side. SEVERITY: 4-7/10, moderate to severe with activity. ASSOCIATED SYMPTOMS: WEAKNESS with overhead activities, difficulty reaching behind back, night pain, stiffness, may have 'catching' or 'locking' sensation. KEY POSITIVES: Positive impingement signs, weakness with external rotation, positive drop arm test, positive empty can test. KEY NEGATIVES: No obvious deformity, no neurological deficits, no fever.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "weeks to months",
+          "sudden",
+          "during trauma",
+          "fall",
+          "direct blow"
+        ],
+        "excludes": [
+          "immediate",
+          "seconds",
+          "minutes",
+          "hours"
+        ]
+      },
+      "location": {
+        "includes": [
+          "anterior shoulder",
+          "upper arm",
+          "shoulder",
+          "shoulder joint"
+        ],
+        "excludes": [
+          "elbow",
+          "wrist",
+          "neck",
+          "chest"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "weeks to months",
+          "days to weeks",
+          "chronic",
+          "persistent"
+        ],
+        "excludes": [
+          "minutes",
+          "hours",
+          "brief",
+          "transient"
+        ]
+      },
+      "character": {
+        "includes": [
+          "dull",
+          "aching",
+          "sharp episodes",
+          "moderate"
+        ],
+        "excludes": [
+          "severe",
+          "constant",
+          "burning",
+          "numbness"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "overhead activities",
+          "reaching behind back",
+          "sleeping on affected side",
+          "lifting",
+          "pushing",
+          "pulling"
+        ],
+        "excludes": [
+          "rest",
+          "ice",
+          "NSAIDs",
+          "physical therapy"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "rest",
+          "ice",
+          "NSAIDs",
+          "physical therapy",
+          "treatment"
+        ],
+        "excludes": [
+          "overhead activities",
+          "reaching behind back",
+          "sleeping on affected side",
+          "lifting"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "worse at night",
+          "sleeping on affected side",
+          "chronic",
+          "persistent"
+        ],
+        "excludes": [
+          "morning only",
+          "daytime only",
+          "intermittent",
+          "variable"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "moderate to severe",
+          "4-7/10",
+          "4",
+          "5",
+          "6",
+          "7"
+        ],
+        "excludes": [
+          "mild",
+          "1-3/10",
+          "severe",
+          "8-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe pain with sudden weakness - possible acute rotator cuff tear, needs urgent evaluation",

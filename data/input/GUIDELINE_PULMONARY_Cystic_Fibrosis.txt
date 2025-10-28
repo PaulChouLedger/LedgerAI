@@ -1,0 +1,95 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: CYSTIC FIBROSIS
+================================================================================
+
+Condition: Cystic Fibrosis
+Category: N/A
+Urgency Level: urgent
+Prevalence: rare
+ICD-10 Code: E84.9
+SNOMED Code: 190905008
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • cystic fibrosis
+  • CF
+  • chronic lung disease
+  • recurrent lung infections
+  • thick mucus
+
+CLASSIC PRESENTATION:
+ONSET: Chronic from birth, acute exacerbations. LOCATION: Bilateral, diffuse. DURATION: Chronic with acute exacerbations. CHARACTER: Chronic productive cough, dyspnea. AGGRAVATING: Infections, thick secretions, dehydration. RELIEVING: Chest physiotherapy, mucolytics, antibiotics. TIMING: Chronic baseline with acute worsening. SEVERITY: Moderate to severe (5-9/10). ASSOCIATED SYMPTOMS: Chronic productive cough, recurrent infections, dyspnea, failure to thrive, salty skin, clubbing, sinusitis. KEY POSITIVES: Family history, chronic cough, recurrent infections, failure to thrive. KEY NEGATIVES: No chest pain (unless infection), no wheezing (unless reactive airway disease).
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: chronic from birth, acute exacerbations, progressive
+  Negative indicators: sudden, acute, immediate
+
+LOCATION:
+  Positive indicators: bilateral, diffuse
+  Negative indicators: unilateral, one side only, localized
+
+DURATION:
+  Positive indicators: chronic with acute exacerbations, ongoing, persistent
+  Negative indicators: intermittent, episodic, comes and goes
+
+CHARACTER:
+  Positive indicators: chronic productive cough, dyspnea
+  Negative indicators: no chest pain, no wheezing, dry cough
+
+AGGRAVATING:
+  Positive indicators: infections, thick secretions, dehydration
+  Negative indicators: chest physiotherapy, mucolytics, antibiotics
+
+RELIEVING:
+  Positive indicators: chest physiotherapy, mucolytics, antibiotics
+  Negative indicators: infections, thick secretions, dehydration
+
+TIMING:
+  Positive indicators: chronic baseline with acute worsening, continuous, persistent
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: moderate to severe, 5-9/10, 5, 6, 7, 8, 9
+  Negative indicators: mild, 1-4/10, severe, 10/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe respiratory distress
+
+  🚨 High fever with purulent sputum
+
+  🚨 Hemoptysis
+
+  🚨 Signs of respiratory failure
+
+  🚨 Altered mental status
+
+  🚨 Cyanosis
+
+  🚨 Weight loss or failure to thrive
+
+  🚨 Recurrent pneumonias
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Cystic Fibrosis
+================================================================================

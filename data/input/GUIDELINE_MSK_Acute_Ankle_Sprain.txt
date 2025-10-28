@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: ACUTE ANKLE SPRAIN
+================================================================================
+
+Condition: Acute Ankle Sprain
+Category: N/A
+Urgency Level: non-urgent
+Prevalence: common
+ICD-10 Code: S93.40
+SNOMED Code: 125605004
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • ankle pain
+  • twisted ankle
+  • rolled ankle
+  • ankle injury
+  • sprained ankle
+  • ankle swelling
+  • can't walk on ankle
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset during activity - twisting, rolling, or landing awkwardly. Usually during sports, walking on uneven surface, or stepping off curb. LOCATION: Lateral ankle (outside) most common (85%), medial ankle (inside) less common, anterior ankle possible. DURATION: Immediate pain that may worsen over first 24-48 hours. CHARACTER: SHARP initial pain, then THROBBING and ACHING. AGGRAVATING: WEIGHT BEARING, walking, ankle movement, especially inversion (rolling inward). RELIEVING: REST, ICE, elevation, NSAIDs help. TIMING: Immediate pain that peaks at 24-48 hours, then gradually improves over days to weeks. SEVERITY: 4-8/10 initially, improves with rest. ASSOCIATED SYMPTOMS: SWELLING within hours (lateral ankle), BRUISING (ecchymosis) develops over 24-48 hours, STIFFNESS, difficulty walking or bearing weight. May have 'popping' or 'snapping' sound at injury. KEY POSITIVES: Lateral ankle tenderness, swelling, bruising, positive anterior drawer test, positive talar tilt test. KEY NEGATIVES: No bony tenderness over malleoli (rules out fracture), no deformity, no crepitus.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, during activity, twisting, rolling, landing awkwardly
+  Negative indicators: gradual, progressive, slow onset, days to weeks
+
+LOCATION:
+  Positive indicators: lateral ankle, outside ankle, medial ankle, inside ankle, anterior ankle
+  Negative indicators: knee, hip, foot, calf
+
+DURATION:
+  Positive indicators: immediate, 24-48 hours, days to weeks, gradual improvement
+  Negative indicators: seconds, minutes, chronic, months
+
+CHARACTER:
+  Positive indicators: sharp, throbbing, aching, initial pain
+  Negative indicators: dull, burning, numbness, tingling
+
+AGGRAVATING:
+  Positive indicators: weight bearing, walking, ankle movement, inversion, rolling inward
+  Negative indicators: rest, ice, elevation, NSAIDs
+
+RELIEVING:
+  Positive indicators: rest, ice, elevation, NSAIDs, immobilization
+  Negative indicators: weight bearing, walking, ankle movement, inversion
+
+TIMING:
+  Positive indicators: immediate, peaks at 24-48 hours, gradual improvement, days to weeks
+  Negative indicators: delayed, chronic, intermittent, constant
+
+SEVERITY:
+  Positive indicators: 4-8/10, 4, 5, 6, 7, 8, improves with rest
+  Negative indicators: mild, 1-3/10, severe, 9-10/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Inability to bear weight immediately after injury - possible fracture, needs X-ray
+
+  🚨 Severe deformity or obvious fracture - obvious ankle fracture, call 911
+
+  🚨 Numbness or tingling in foot - possible nerve injury or compartment syndrome
+
+  🚨 Cold, pale, or blue foot - possible vascular injury, call 911
+
+  🚨 Open wound with bone visible - open fracture, call 911
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Acute Ankle Sprain
+================================================================================

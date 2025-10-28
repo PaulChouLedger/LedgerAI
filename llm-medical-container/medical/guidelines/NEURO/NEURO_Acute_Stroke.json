@@ -15,7 +15,115 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within minutes to hours. LOCATION: UNILATERAL weakness, numbness, or paralysis. DURATION: Immediate onset, symptoms persist. CHARACTER: SUDDEN, SEVERE weakness, numbness, or paralysis. AGGRAVATING: MOVEMENT, speaking, swallowing. RELIEVING: IMMEDIATE medical intervention, thrombolytics if within window. TIMING: Sudden onset, symptoms persist. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: FACIAL DROOP, arm weakness, speech difficulty, vision problems, dizziness, confusion, headache. KEY POSITIVES: Positive FAST test (Face, Arm, Speech, Time), unilateral weakness, facial droop, speech difficulty. KEY NEGATIVES: No fever, no neck stiffness, no photophobia."
+    "classic_presentation": "ONSET: SUDDEN onset within minutes to hours. LOCATION: UNILATERAL weakness, numbness, or paralysis. DURATION: Immediate onset, symptoms persist. CHARACTER: SUDDEN, SEVERE weakness, numbness, or paralysis. AGGRAVATING: MOVEMENT, speaking, swallowing. RELIEVING: IMMEDIATE medical intervention, thrombolytics if within window. TIMING: Sudden onset, symptoms persist. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: FACIAL DROOP, arm weakness, speech difficulty, vision problems, dizziness, confusion, headache. KEY POSITIVES: Positive FAST test (Face, Arm, Speech, Time), unilateral weakness, facial droop, speech difficulty. KEY NEGATIVES: No fever, no neck stiffness, no photophobia.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "minutes to hours",
+          "immediate",
+          "acute"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "unilateral",
+          "one side",
+          "face",
+          "arm",
+          "leg",
+          "speech area"
+        ],
+        "excludes": [
+          "bilateral",
+          "both sides",
+          "generalized"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "immediate onset",
+          "symptoms persist",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "sudden",
+          "severe",
+          "weakness",
+          "numbness",
+          "paralysis"
+        ],
+        "excludes": [
+          "mild",
+          "gradual",
+          "intermittent"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "movement",
+          "speaking",
+          "swallowing",
+          "activity"
+        ],
+        "excludes": [
+          "rest",
+          "medication",
+          "position"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "immediate medical intervention",
+          "thrombolytics",
+          "emergency treatment"
+        ],
+        "excludes": [
+          "rest",
+          "home remedies",
+          "delayed treatment"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "sudden onset",
+          "symptoms persist",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "8-10/10",
+          "severe",
+          "unrelenting",
+          "8",
+          "9",
+          "10"
+        ],
+        "excludes": [
+          "mild",
+          "moderate",
+          "1-7/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Sudden severe headache with neck stiffness - possible hemorrhagic stroke, call 911",

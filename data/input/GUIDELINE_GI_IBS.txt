@@ -1,0 +1,88 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: IRRITABLE BOWEL SYNDROME (IBS)
+================================================================================
+
+Condition: Irritable Bowel Syndrome (IBS)
+Category: N/A
+Urgency Level: routine
+Prevalence: uncommon
+ICD-10 Code: K58.9
+SNOMED Code: 10743008
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • abdominal pain
+  • cramping
+  • bloating
+  • diarrhea
+  • constipation
+
+CLASSIC PRESENTATION:
+ONSET: CHRONIC, RECURRENT pattern over months to years (NOT acute). Gradual development, waxing and waning. LOCATION: LOWER ABDOMEN, diffuse. Cramping migrates, not fixed to one spot. DURATION: CHRONIC condition lasting months to years. Individual cramping episodes last minutes to hours. Symptoms present at least once per week for 3+ months. CHARACTER: CRAMPY, INTERMITTENT discomfort. NOT sharp or severe. Bloating, gas sensations. AGGRAVATING: STRESS worsens symptoms significantly. Certain FOODS trigger (dairy, gluten, FODMAPs). Anxiety increases cramping. RELIEVING: DEFECATION provides relief. Stress reduction helps. Dietary changes improve. Antispasmodics reduce cramping. TIMING: INTERMITTENT cramping related to bowel movements. Pattern waxes and wanes. Often worse with stress. NO NOCTURNAL symptoms (doesn't wake from sleep). SEVERITY: 3-6/10, mild to moderate. Not severe enough to disrupt daily life significantly. ASSOCIATED SYMPTOMS: BLOATING and gas, mucus in stool (NO blood), sense of incomplete evacuation, alternating diarrhea/constipation. KEY POSITIVES: Chronic >6 months, pain relief with defecation, stress/food triggers, NO alarm features (no blood, weight loss, fever). KEY NEGATIVES: NEW onset age >50 needs workup for cancer. BLOOD in stool rules out irritable bowel syndrome (IBS). Weight loss, fever, NOCTURNAL diarrhea suggests inflammatory bowel disease (IBD)/organic disease.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: chronic, months, years, recurrent
+  Negative indicators: sudden, acute, hours, new
+
+LOCATION:
+  Positive indicators: lower abdomen, diffuse, crampy, not localized
+  Negative indicators: right lower quadrant, RLQ, localized, point tender
+  Anatomical type: diffuse
+
+DURATION:
+  Positive indicators: chronic, months, years, episodic, minutes to hours
+  Negative indicators: constant, days, persistent
+
+CHARACTER:
+  Positive indicators: crampy, bloating, gas-like, pressure
+  Negative indicators: sharp, stabbing, severe, knife-like
+
+AGGRAVATING:
+  Positive indicators: stress, certain foods, dairy, anxiety
+  Negative indicators: movement, coughing, physical activity
+
+RELIEVING:
+  Positive indicators: defecation, bowel movement, passing gas
+  Negative indicators: lying still, avoiding movement
+
+TIMING:
+  Positive indicators: intermittent, episodic, comes and goes, variable
+  Negative indicators: constant, continuous, persistent
+
+SEVERITY:
+  Positive indicators: mild, moderate, 3, 4, 5, 6, 3-6/10
+  Negative indicators: severe, 8, 9, 10, unbearable
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Blood in stool - needs colonoscopy to rule out inflammatory bowel disease (IBD) or colon cancer
+
+  🚨 Unintentional weight loss - organic pathology, not irritable bowel syndrome (IBS)
+
+  🚨 New onset after age 50 - higher risk of colon cancer, needs colonoscopy
+
+  🚨 Nocturnal symptoms waking patient from sleep - suggests organic disease
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Irritable Bowel Syndrome (IBS)
+================================================================================

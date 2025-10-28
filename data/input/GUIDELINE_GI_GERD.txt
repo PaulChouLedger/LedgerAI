@@ -1,0 +1,88 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: GASTROESOPHAGEAL REFLUX DISEASE (GERD) (GASTROESOPHAGEAL REFLUX DISEASE)
+================================================================================
+
+Condition: gastroesophageal reflux disease (GERD) (Gastroesophageal Reflux Disease)
+Category: N/A
+Urgency Level: routine
+Prevalence: uncommon
+ICD-10 Code: K21.9
+SNOMED Code: 235595009
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • heartburn
+  • chest pain
+  • burning
+  • acid reflux
+  • regurgitation
+
+CLASSIC PRESENTATION:
+ONSET: GRADUAL, CHRONIC/RECURRENT over weeks to months (not acute). Often after meals or when lying down. LOCATION: RETROSTERNAL (behind breastbone) and EPIGASTRIC. BURNING rises from stomach toward throat. No radiation to arms/jaw. DURATION: Episodes last minutes to hours. Can be constant if severe reflux. May persist after meals. CHARACTER: BURNING sensation (heartburn). NOT sharp or pressure-like (would suggest cardiac). Acid rising sensation. AGGRAVATING: WORSE AFTER MEALS, when LYING DOWN, or BENDING OVER. Spicy foods, caffeine, alcohol, large meals trigger. RELIEVING: ANTACIDS provide quick relief. SITTING UPRIGHT helps. Elevation of head during sleep helps. TIMING: EPISODIC - worse after meals, at night when lying flat. Pattern repeats with dietary triggers. SEVERITY: 3-6/10, mild to moderate discomfort. Not severe. ASSOCIATED SYMPTOMS: SOUR TASTE (acid regurgitation), belching, dysphagia (if chronic), chronic cough, hoarseness. KEY POSITIVES: Antacid relief, worse when lying down, chronic pattern, dietary triggers. KEY NEGATIVES: NEW SEVERE chest pain requires cardiac workup FIRST. Dysphagia with weight loss suggests stricture/cancer. Hematemesis suggests ulcer.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: chronic, recurrent, months, years
+  Negative indicators: sudden, acute, hours
+
+LOCATION:
+  Positive indicators: epigastric, substernal, chest, upper abdomen
+  Negative indicators: lower abdomen, RLQ, LLQ
+  Anatomical type: upper_central
+
+DURATION:
+  Positive indicators: chronic, episodic, minutes to hours
+  Negative indicators: constant, days
+
+CHARACTER:
+  Positive indicators: burning, heartburn, acid, rising sensation
+  Negative indicators: sharp, stabbing, pressure-like, crushing
+
+AGGRAVATING:
+  Positive indicators: lying down, bending, large meals, spicy foods
+  Negative indicators: movement, coughing
+
+RELIEVING:
+  Positive indicators: sitting up, antacids, proton pump inhibitors
+  Negative indicators: lying still, movement
+
+TIMING:
+  Positive indicators: after meals, at night, episodic
+  Negative indicators: constant, unrelated to meals
+
+SEVERITY:
+  Positive indicators: mild, moderate, 3, 4, 5, 6
+  Negative indicators: severe, 8, 9, 10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 New severe chest pain - rule out cardiac causes (myocardial infarction (MI), angina) FIRST before attributing to gastroesophageal reflux disease (GERD)
+
+  🚨 Dysphagia (difficulty swallowing) with weight loss - esophageal stricture or cancer, needs endoscopy
+
+  🚨 Vomiting blood or black tarry stools - GI bleeding from severe esophagitis or ulcer
+
+  🚨 Symptoms not responding to PPI therapy - consider alternative diagnosis or Barrett's esophagus
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: gastroesophageal reflux disease (GERD) (Gastroesophageal Reflux Disease)
+================================================================================

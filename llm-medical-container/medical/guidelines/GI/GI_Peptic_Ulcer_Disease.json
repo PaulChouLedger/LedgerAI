@@ -14,7 +14,109 @@
   ],
   "key_features": {
     "classic_presentation": "ONSET: GRADUAL or chronic/recurrent over weeks to months. Not sudden. LOCATION: EPIGASTRIC, midline upper abdomen. No radiation typically. DURATION: Episodes last minutes to hours. May be constant in severe cases. CHARACTER: BURNING or GNAWING quality. Aching or hunger-like discomfort. AGGRAVATING: DUODENAL ulcers worsen 2-5 hours after meals (empty stomach). GASTRIC ulcers worsen WITH food. NSAIDs worsen. RELIEVING: DUODENAL ulcers improve WITH food and ANTACIDS. GASTRIC ulcers may improve with antacids but worsen with food. TIMING: EPISODIC with meal-related pattern. NOCTURNAL pain (wakes patient at night) is characteristic. DUODENAL=better with food, GASTRIC=worse with food. SEVERITY: 5-8/10, moderate. Not usually severe unless perforation. ASSOCIATED SYMPTOMS: Nausea, bloating, early satiety. NO vomiting unless obstruction. KEY POSITIVES: Meal-related pattern, antacid relief, nocturnal pain, NSAID use, H. pylori history. KEY NEGATIVES: SUDDEN SEVERE pain suggests perforation. Hematemesis (vomiting blood) or melena (black tarry stools) indicates bleeding ulcer needing urgent care. Weight loss suggests gastric cancer.",
-    "structured_oldcarts": {}
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "chronic",
+          "recurrent",
+          "weeks to months"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "hours"
+        ]
+      },
+      "location": {
+        "includes": [
+          "epigastric",
+          "midline upper abdomen",
+          "upper abdomen"
+        ],
+        "excludes": [
+          "radiates",
+          "lower abdomen",
+          "sides"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "minutes to hours",
+          "episodes",
+          "constant in severe cases"
+        ],
+        "excludes": [
+          "days",
+          "weeks",
+          "continuous"
+        ]
+      },
+      "character": {
+        "includes": [
+          "burning",
+          "gnawing",
+          "aching",
+          "hunger-like",
+          "discomfort"
+        ],
+        "excludes": [
+          "sharp",
+          "stabbing",
+          "crampy"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "duodenal ulcers worsen 2-5 hours after meals",
+          "gastric ulcers worsen with food",
+          "NSAIDs",
+          "empty stomach"
+        ],
+        "excludes": [
+          "food for duodenal",
+          "antacids"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "duodenal ulcers improve with food",
+          "antacids",
+          "food for duodenal"
+        ],
+        "excludes": [
+          "food for gastric",
+          "NSAIDs"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "episodic",
+          "meal-related pattern",
+          "nocturnal",
+          "wakes at night"
+        ],
+        "excludes": [
+          "constant",
+          "unrelenting"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "5-8/10",
+          "moderate",
+          "5",
+          "6",
+          "7",
+          "8"
+        ],
+        "excludes": [
+          "severe",
+          "9-10/10",
+          "mild"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Sudden severe epigastric pain with peritoneal signs - perforated ulcer, call 911",

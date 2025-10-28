@@ -13,7 +13,102 @@
   "prevalence": "rare",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Acute, often following myocardial infarction (MI) or acute heart failure. LOCATION: Generalized, systemic hypoperfusion. DURATION: Continuous, life-threatening. CHARACTER: Severe dyspnea, chest pain (if myocardial infarction ), altered mental status, cold/clammy skin. AGGRAVATING: Reduced cardiac output. RELIEVING: Inotropic support, revascularization. TIMING: Acute decompensation. SEVERITY: Critical, life-threatening. KEY POSITIVES: Hypotension (systolic blood pressure (SBP) <90 mmHg), tachycardia, cold clammy extremities, altered mental status, oliguria (low urine output), pulmonary edema, recent myocardial infarction (MI), severe heart failure. KEY NEGATIVES: NOT septic shock (warm extremities), NOT hypovolemic shock (responds to fluids)."
+    "classic_presentation": "ONSET: Acute, often following myocardial infarction (MI) or acute heart failure. LOCATION: Generalized, systemic hypoperfusion. DURATION: Continuous, life-threatening. CHARACTER: Severe dyspnea, chest pain (if myocardial infarction ), altered mental status, cold/clammy skin. AGGRAVATING: Reduced cardiac output. RELIEVING: Inotropic support, revascularization. TIMING: Acute decompensation. SEVERITY: Critical, life-threatening. KEY POSITIVES: Hypotension (systolic blood pressure (SBP) <90 mmHg), tachycardia, cold clammy extremities, altered mental status, oliguria (low urine output), pulmonary edema, recent myocardial infarction (MI), severe heart failure. KEY NEGATIVES: NOT septic shock (warm extremities), NOT hypovolemic shock (responds to fluids).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "acute",
+          "following myocardial infarction",
+          "acute heart failure"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "generalized",
+          "systemic hypoperfusion"
+        ],
+        "excludes": [
+          "localized",
+          "one area only",
+          "chest"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "continuous",
+          "life-threatening",
+          "persistent"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "severe dyspnea",
+          "chest pain",
+          "altered mental status",
+          "cold clammy skin"
+        ],
+        "excludes": [
+          "mild",
+          "moderate",
+          "warm extremities",
+          "no symptoms"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "reduced cardiac output"
+        ],
+        "excludes": [
+          "inotropic support",
+          "revascularization",
+          "medication"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "inotropic support",
+          "revascularization"
+        ],
+        "excludes": [
+          "reduced cardiac output",
+          "activity",
+          "exertion"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "acute decompensation",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "critical",
+          "life-threatening",
+          "severe"
+        ],
+        "excludes": [
+          "mild",
+          "moderate",
+          "no symptoms"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Hypotension <90 mmHg systolic",

@@ -12,7 +12,113 @@
   "prevalence": "common",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Gradual or after physical activity, coughing, or trauma. LOCATION: ANTERIOR CHEST WALL, costochondral junctions (where ribs meet cartilage), often left-sided. DURATION: Days to weeks. CHARACTER: SHARP, stabbing, localized. AGGRAVATING: Deep breathing, coughing, palpation of affected area, arm movements, twisting. RELIEVING: Rest, NSAIDs, avoiding movements. TIMING: Intermittent, worse with movements. SEVERITY: 4-7/10. KEY POSITIVES: REPRODUCIBLE with palpation (tender to touch), young patient, recent URI or cough, musculoskeletal pattern. KEY NEGATIVES: NOT radiating to arm/jaw, NOT exertional, NOT diaphoresis, NOT dyspnea."
+    "classic_presentation": "ONSET: Gradual or after physical activity, coughing, or trauma. LOCATION: ANTERIOR CHEST WALL, costochondral junctions (where ribs meet cartilage), often left-sided. DURATION: Days to weeks. CHARACTER: SHARP, stabbing, localized. AGGRAVATING: Deep breathing, coughing, palpation of affected area, arm movements, twisting. RELIEVING: Rest, NSAIDs, avoiding movements. TIMING: Intermittent, worse with movements. SEVERITY: 4-7/10. KEY POSITIVES: REPRODUCIBLE with palpation (tender to touch), young patient, recent URI or cough, musculoskeletal pattern. KEY NEGATIVES: NOT radiating to arm/jaw, NOT exertional, NOT diaphoresis, NOT dyspnea.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "after physical activity",
+          "after coughing",
+          "after trauma"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "minutes"
+        ]
+      },
+      "location": {
+        "includes": [
+          "anterior chest wall",
+          "costochondral junctions",
+          "where ribs meet cartilage",
+          "often left-sided"
+        ],
+        "excludes": [
+          "retrosternal",
+          "radiates to arm",
+          "radiates to jaw",
+          "posterior"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "days to weeks",
+          "persistent"
+        ],
+        "excludes": [
+          "hours",
+          "minutes",
+          "intermittent"
+        ]
+      },
+      "character": {
+        "includes": [
+          "sharp",
+          "stabbing",
+          "localized"
+        ],
+        "excludes": [
+          "crushing",
+          "pressure",
+          "dull",
+          "diffuse"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "deep breathing",
+          "coughing",
+          "palpation",
+          "arm movements",
+          "twisting"
+        ],
+        "excludes": [
+          "rest",
+          "NSAIDs",
+          "avoiding movements"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "rest",
+          "NSAIDs",
+          "avoiding movements"
+        ],
+        "excludes": [
+          "deep breathing",
+          "coughing",
+          "palpation",
+          "arm movements"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "intermittent",
+          "worse with movements"
+        ],
+        "excludes": [
+          "constant",
+          "continuous",
+          "unrelenting"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "4-7/10",
+          "4",
+          "5",
+          "6",
+          "7"
+        ],
+        "excludes": [
+          "mild",
+          "1-3/10",
+          "severe",
+          "8-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Fever (suggests infection)",

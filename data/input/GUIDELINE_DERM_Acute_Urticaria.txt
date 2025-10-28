@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: ACUTE URTICARIA
+================================================================================
+
+Condition: Acute Urticaria
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: L50.9
+SNOMED Code: 125615000
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • hives
+  • urticaria
+  • skin rash
+  • itchy bumps
+  • allergic reaction
+  • skin welts
+  • raised rash
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset within minutes to hours after exposure to trigger. LOCATION: ANYWHERE on body - face, trunk, extremities, may be localized or generalized. DURATION: Individual lesions last <24 hours, but new lesions may appear for days to weeks. CHARACTER: RAISED, WHEAL-LIKE lesions that are PRURITIC (itchy). AGGRAVATING: HEAT, stress, pressure, scratching. RELIEVING: COOL compresses, antihistamines, avoiding triggers. TIMING: Lesions appear and disappear within 24 hours, but new ones may continue. SEVERITY: 3-8/10 itching, moderate to severe. ASSOCIATED SYMPTOMS: SEVERE ITCHING (pruritus), raised wheals with central pallor and red borders, lesions may coalesce into larger areas, may have angioedema (swelling of lips, eyes, throat). KEY POSITIVES: Raised wheals, central pallor with red borders, severe pruritus, lesions <24 hours duration. KEY NEGATIVES: No fever, no systemic symptoms (unless anaphylaxis), no scaling or crusting.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, minutes to hours, after exposure to trigger
+  Negative indicators: gradual, chronic, days
+
+LOCATION:
+  Positive indicators: anywhere on body, face, trunk, extremities, localized, generalized
+  Negative indicators: internal organs, specific organ systems
+
+DURATION:
+  Positive indicators: individual lesions <24 hours, new lesions for days to weeks
+  Negative indicators: chronic lesions, permanent lesions
+
+CHARACTER:
+  Positive indicators: raised, wheal-like, pruritic, itchy, central pallor, red borders
+  Negative indicators: flat, non-itchy, painful, scaly
+
+AGGRAVATING:
+  Positive indicators: heat, stress, pressure, scratching
+  Negative indicators: cool, rest, avoiding triggers
+
+RELIEVING:
+  Positive indicators: cool compresses, antihistamines, avoiding triggers
+  Negative indicators: heat, scratching, stress
+
+TIMING:
+  Positive indicators: lesions appear and disappear within 24 hours, new ones may continue
+  Negative indicators: constant, chronic, permanent
+
+SEVERITY:
+  Positive indicators: 3-8/10 itching, moderate, severe
+  Negative indicators: mild, 1-2/10, asymptomatic
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Difficulty breathing or swallowing - possible anaphylaxis, call 911
+
+  🚨 Swelling of face, lips, or throat - angioedema, call 911
+
+  🚨 Severe systemic symptoms - nausea, vomiting, dizziness - possible anaphylaxis, call 911
+
+  🚨 Rash with fever and systemic symptoms - possible serious allergic reaction, call 911
+
+  🚨 Rash involving mucous membranes - possible Stevens-Johnson syndrome, needs urgent evaluation
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Acute Urticaria
+================================================================================

@@ -13,7 +13,106 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: Gradual over months to years. LOCATION: Diffuse chest. DURATION: Chronic, progressive. CHARACTER: Progressive dyspnea, chest pain. AGGRAVATING: Exertion, lying flat. RELIEVING: Oxygen, vasodilators. TIMING: Chronic, progressive. SEVERITY: Moderate to severe (5-8/10). ASSOCIATED SYMPTOMS: Progressive dyspnea, chest pain, fatigue, syncope, leg swelling. KEY POSITIVES: Progressive dyspnea, chest pain, fatigue. KEY NEGATIVES: No fever, no wheezing (unless reactive airway disease)."
+    "classic_presentation": "ONSET: Gradual over months to years. LOCATION: Diffuse chest. DURATION: Chronic, progressive. CHARACTER: Progressive dyspnea, chest pain. AGGRAVATING: Exertion, lying flat. RELIEVING: Oxygen, vasodilators. TIMING: Chronic, progressive. SEVERITY: Moderate to severe (5-8/10). ASSOCIATED SYMPTOMS: Progressive dyspnea, chest pain, fatigue, syncope, leg swelling. KEY POSITIVES: Progressive dyspnea, chest pain, fatigue. KEY NEGATIVES: No fever, no wheezing (unless reactive airway disease).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual over months to years",
+          "progressive",
+          "slow onset"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "immediate"
+        ]
+      },
+      "location": {
+        "includes": [
+          "diffuse chest"
+        ],
+        "excludes": [
+          "localized",
+          "one side only",
+          "specific point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "chronic",
+          "progressive",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "progressive dyspnea",
+          "chest pain"
+        ],
+        "excludes": [
+          "no fever",
+          "no wheezing",
+          "mild"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "exertion",
+          "lying flat",
+          "activity"
+        ],
+        "excludes": [
+          "oxygen",
+          "vasodilators",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "oxygen",
+          "vasodilators",
+          "rest"
+        ],
+        "excludes": [
+          "exertion",
+          "lying flat",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "chronic",
+          "progressive",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "moderate to severe",
+          "5-8/10",
+          "5",
+          "6",
+          "7",
+          "8"
+        ],
+        "excludes": [
+          "mild",
+          "1-4/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe dyspnea or respiratory distress",

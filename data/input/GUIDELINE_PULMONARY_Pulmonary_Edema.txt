@@ -1,0 +1,95 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: PULMONARY EDEMA
+================================================================================
+
+Condition: Pulmonary Edema
+Category: N/A
+Urgency Level: emergent
+Prevalence: common
+ICD-10 Code: J81.1
+SNOMED Code: 233604007
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • pulmonary edema
+  • fluid in lungs
+  • shortness of breath
+  • heart failure
+  • can't breathe
+
+CLASSIC PRESENTATION:
+ONSET: Sudden or gradual over hours. LOCATION: Bilateral, diffuse. DURATION: Hours to days. CHARACTER: Severe dyspnea, 'drowning sensation'. AGGRAVATING: Lying flat, exertion. RELIEVING: Sitting upright, oxygen, diuretics. TIMING: Acute, progressive. SEVERITY: Severe (8-10/10). ASSOCIATED SYMPTOMS: Severe dyspnea, orthopnea, paroxysmal nocturnal dyspnea, pink frothy sputum, anxiety. KEY POSITIVES: Severe dyspnea, orthopnea, pink frothy sputum. KEY NEGATIVES: No chest pain (unless secondary), no wheezing (unless reactive airway disease).
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden or gradual over hours, acute, progressive
+  Negative indicators: chronic, slow onset, gradual over days
+
+LOCATION:
+  Positive indicators: bilateral, diffuse
+  Negative indicators: unilateral, one side only, localized
+
+DURATION:
+  Positive indicators: hours to days, acute, ongoing
+  Negative indicators: intermittent, episodic, comes and goes
+
+CHARACTER:
+  Positive indicators: severe dyspnea, drowning sensation
+  Negative indicators: no chest pain, no wheezing, mild
+
+AGGRAVATING:
+  Positive indicators: lying flat, exertion, activity
+  Negative indicators: sitting upright, oxygen, diuretics
+
+RELIEVING:
+  Positive indicators: sitting upright, oxygen, diuretics
+  Negative indicators: lying flat, exertion, activity
+
+TIMING:
+  Positive indicators: acute, progressive, continuous
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: severe, 8-10/10, 8, 9, 10
+  Negative indicators: mild, 1-7/10, moderate
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe dyspnea or respiratory distress
+
+  🚨 Cyanosis or oxygen saturation <90%
+
+  🚨 Pink frothy sputum
+
+  🚨 Altered mental status
+
+  🚨 Signs of respiratory failure
+
+  🚨 Signs of shock
+
+  🚨 Severe anxiety or panic
+
+  🚨 Inability to speak
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Pulmonary Edema
+================================================================================

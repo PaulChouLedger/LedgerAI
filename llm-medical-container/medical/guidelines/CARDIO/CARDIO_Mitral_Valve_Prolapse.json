@@ -12,7 +12,106 @@
   "prevalence": "common",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Episodic, often asymptomatic discovered incidentally. LOCATION: Left chest or precordial. DURATION: Brief episodes of palpitations or atypical chest pain. CHARACTER: Sharp, brief, atypical chest pain NOT typical angina. Palpitations. AGGRAVATING: Anxiety, caffeine, dehydration. RELIEVING: Rest, beta-blockers. TIMING: Episodic, unpredictable. SEVERITY: Mild, 2-4/10. KEY POSITIVES: Young female (classic), mid-systolic click on exam, late systolic murmur, palpitations, atypical chest pain, anxiety, thin body habitus. KEY NEGATIVES: NOT exertional angina, NOT dyspnea typically (unless severe regurgitation)."
+    "classic_presentation": "ONSET: Episodic, often asymptomatic discovered incidentally. LOCATION: Left chest or precordial. DURATION: Brief episodes of palpitations or atypical chest pain. CHARACTER: Sharp, brief, atypical chest pain NOT typical angina. Palpitations. AGGRAVATING: Anxiety, caffeine, dehydration. RELIEVING: Rest, beta-blockers. TIMING: Episodic, unpredictable. SEVERITY: Mild, 2-4/10. KEY POSITIVES: Young female (classic), mid-systolic click on exam, late systolic murmur, palpitations, atypical chest pain, anxiety, thin body habitus. KEY NEGATIVES: NOT exertional angina, NOT dyspnea typically (unless severe regurgitation).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "episodic",
+          "often asymptomatic",
+          "discovered incidentally"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "minutes"
+        ]
+      },
+      "location": {
+        "includes": [
+          "left chest",
+          "precordial"
+        ],
+        "excludes": [
+          "right side only",
+          "no radiation",
+          "localized point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "brief episodes",
+          "short duration"
+        ],
+        "excludes": [
+          "continuous",
+          "unrelenting",
+          "hours"
+        ]
+      },
+      "character": {
+        "includes": [
+          "sharp",
+          "brief",
+          "atypical chest pain",
+          "not typical angina",
+          "palpitations"
+        ],
+        "excludes": [
+          "exertional angina",
+          "dyspnea",
+          "crushing",
+          "pressure"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "anxiety",
+          "caffeine",
+          "dehydration"
+        ],
+        "excludes": [
+          "rest",
+          "beta-blockers",
+          "medication"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "rest",
+          "beta-blockers"
+        ],
+        "excludes": [
+          "anxiety",
+          "caffeine",
+          "dehydration"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "episodic",
+          "unpredictable"
+        ],
+        "excludes": [
+          "constant",
+          "unrelenting",
+          "continuous"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "mild",
+          "2-4/10",
+          "2",
+          "3",
+          "4"
+        ],
+        "excludes": [
+          "moderate",
+          "5-10/10",
+          "severe"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe mitral regurgitation",

@@ -1,0 +1,95 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: PULMONARY FIBROSIS
+================================================================================
+
+Condition: Pulmonary Fibrosis
+Category: N/A
+Urgency Level: urgent
+Prevalence: uncommon
+ICD-10 Code: J84.10
+SNOMED Code: 233604007
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • pulmonary fibrosis
+  • lung scarring
+  • shortness of breath
+  • chronic lung disease
+  • interstitial lung disease
+
+CLASSIC PRESENTATION:
+ONSET: Gradual over months to years. LOCATION: Bilateral, diffuse. DURATION: Chronic, progressive. CHARACTER: Progressive dyspnea, dry cough. AGGRAVATING: Exertion, infections. RELIEVING: Oxygen, steroids, antifibrotics. TIMING: Chronic, progressive. SEVERITY: Moderate to severe (5-8/10). ASSOCIATED SYMPTOMS: Progressive dyspnea, dry cough, fatigue, weight loss, clubbing. KEY POSITIVES: Progressive dyspnea, dry cough, clubbing. KEY NEGATIVES: No chest pain (unless secondary), no wheezing (unless reactive airway disease).
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: gradual over months to years, progressive, slow onset
+  Negative indicators: sudden, acute, immediate
+
+LOCATION:
+  Positive indicators: bilateral, diffuse
+  Negative indicators: unilateral, one side only, localized
+
+DURATION:
+  Positive indicators: chronic, progressive, ongoing
+  Negative indicators: intermittent, episodic, comes and goes
+
+CHARACTER:
+  Positive indicators: progressive dyspnea, dry cough
+  Negative indicators: no chest pain, no wheezing, productive cough
+
+AGGRAVATING:
+  Positive indicators: exertion, infections, activity
+  Negative indicators: oxygen, steroids, antifibrotics
+
+RELIEVING:
+  Positive indicators: oxygen, steroids, antifibrotics
+  Negative indicators: exertion, infections, activity
+
+TIMING:
+  Positive indicators: chronic, progressive, continuous
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: moderate to severe, 5-8/10, 5, 6, 7, 8
+  Negative indicators: mild, 1-4/10, severe, 9-10/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe dyspnea or respiratory distress
+
+  🚨 Cyanosis or oxygen saturation <90%
+
+  🚨 Signs of respiratory failure
+
+  🚨 Altered mental status
+
+  🚨 Severe fatigue or weakness
+
+  🚨 Signs of infection
+
+  🚨 Weight loss or cachexia
+
+  🚨 Clubbing of fingers
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Pulmonary Fibrosis
+================================================================================

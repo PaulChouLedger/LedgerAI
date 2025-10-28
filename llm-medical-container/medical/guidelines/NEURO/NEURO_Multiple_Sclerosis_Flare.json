@@ -15,7 +15,122 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL onset over days to weeks. LOCATION: VARIABLE - may affect any part of nervous system. DURATION: Develops over days to weeks, may persist for weeks to months. CHARACTER: VARIABLE symptoms depending on affected area. AGGRAVATING: HEAT, stress, fatigue. RELIEVING: STEROIDS, disease-modifying therapies. TIMING: Gradual onset, develops over days to weeks. SEVERITY: 4-8/10, moderate to severe. ASSOCIATED SYMPTOMS: VARIABLE - muscle weakness, numbness, tingling, vision problems, balance problems, may have cognitive changes. KEY POSITIVES: Variable symptoms, may have previous MS diagnosis, may have MRI changes. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+    "classic_presentation": "ONSET: GRADUAL onset over days to weeks. LOCATION: VARIABLE - may affect any part of nervous system. DURATION: Develops over days to weeks, may persist for weeks to months. CHARACTER: VARIABLE symptoms depending on affected area. AGGRAVATING: HEAT, stress, fatigue. RELIEVING: STEROIDS, disease-modifying therapies. TIMING: Gradual onset, develops over days to weeks. SEVERITY: 4-8/10, moderate to severe. ASSOCIATED SYMPTOMS: VARIABLE - muscle weakness, numbness, tingling, vision problems, balance problems, may have cognitive changes. KEY POSITIVES: Variable symptoms, may have previous MS diagnosis, may have MRI changes. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "days to weeks",
+          "slow onset",
+          "progressive"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "immediate",
+          "hours"
+        ]
+      },
+      "location": {
+        "includes": [
+          "variable - may affect any part of nervous system",
+          "focal",
+          "specific area",
+          "localized"
+        ],
+        "excludes": [
+          "generalized",
+          "diffuse",
+          "bilateral",
+          "whole body"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "develops over days to weeks",
+          "weeks to months",
+          "prolonged",
+          "persistent"
+        ],
+        "excludes": [
+          "minutes",
+          "seconds",
+          "brief",
+          "transient"
+        ]
+      },
+      "character": {
+        "includes": [
+          "variable symptoms depending on affected area",
+          "moderate to severe",
+          "progressive",
+          "focal"
+        ],
+        "excludes": [
+          "mild",
+          "generalized",
+          "localized",
+          "acute"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "heat",
+          "stress",
+          "fatigue",
+          "triggers"
+        ],
+        "excludes": [
+          "steroids",
+          "disease-modifying therapies",
+          "rest",
+          "treatment"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "steroids",
+          "disease-modifying therapies",
+          "rest",
+          "treatment"
+        ],
+        "excludes": [
+          "heat",
+          "stress",
+          "fatigue",
+          "triggers"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "gradual onset",
+          "develops over days to weeks",
+          "progressive"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "moderate to severe",
+          "4-8/10",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8"
+        ],
+        "excludes": [
+          "mild",
+          "1-3/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe neurological deficits with altered mental status - possible severe MS flare, call 911",

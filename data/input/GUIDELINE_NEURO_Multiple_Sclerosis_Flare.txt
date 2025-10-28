@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: MULTIPLE SCLEROSIS FLARE
+================================================================================
+
+Condition: Multiple Sclerosis Flare
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: G35
+SNOMED Code: 125634004
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • multiple sclerosis
+  • MS flare
+  • neurological symptoms
+  • muscle weakness
+  • numbness
+  • vision problems
+  • balance problems
+
+CLASSIC PRESENTATION:
+ONSET: GRADUAL onset over days to weeks. LOCATION: VARIABLE - may affect any part of nervous system. DURATION: Develops over days to weeks, may persist for weeks to months. CHARACTER: VARIABLE symptoms depending on affected area. AGGRAVATING: HEAT, stress, fatigue. RELIEVING: STEROIDS, disease-modifying therapies. TIMING: Gradual onset, develops over days to weeks. SEVERITY: 4-8/10, moderate to severe. ASSOCIATED SYMPTOMS: VARIABLE - muscle weakness, numbness, tingling, vision problems, balance problems, may have cognitive changes. KEY POSITIVES: Variable symptoms, may have previous MS diagnosis, may have MRI changes. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: gradual, days to weeks, slow onset, progressive
+  Negative indicators: sudden, acute, immediate, hours
+
+LOCATION:
+  Positive indicators: variable - may affect any part of nervous system, focal, specific area, localized
+  Negative indicators: generalized, diffuse, bilateral, whole body
+
+DURATION:
+  Positive indicators: develops over days to weeks, weeks to months, prolonged, persistent
+  Negative indicators: minutes, seconds, brief, transient
+
+CHARACTER:
+  Positive indicators: variable symptoms depending on affected area, moderate to severe, progressive, focal
+  Negative indicators: mild, generalized, localized, acute
+
+AGGRAVATING:
+  Positive indicators: heat, stress, fatigue, triggers
+  Negative indicators: steroids, disease-modifying therapies, rest, treatment
+
+RELIEVING:
+  Positive indicators: steroids, disease-modifying therapies, rest, treatment
+  Negative indicators: heat, stress, fatigue, triggers
+
+TIMING:
+  Positive indicators: gradual onset, develops over days to weeks, progressive
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: moderate to severe, 4-8/10, 4, 5, 6, 7, 8
+  Negative indicators: mild, 1-3/10, severe, 9-10/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe neurological deficits with altered mental status - possible severe MS flare, call 911
+
+  🚨 Signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911
+
+  🚨 Severe hypertension with neurological deficits - possible hypertensive crisis, call 911
+
+  🚨 Signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911
+
+  🚨 Signs of respiratory failure - difficulty breathing, cyanosis, altered mental status - call 911
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Multiple Sclerosis Flare
+================================================================================

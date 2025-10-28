@@ -15,7 +15,122 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL onset over days to weeks. LOCATION: BILATERAL weakness, usually starting in legs. DURATION: Progressive over days to weeks. CHARACTER: PROGRESSIVE weakness, numbness, tingling. AGGRAVATING: MOVEMENT, breathing. RELIEVING: IMMUNOGLOBULIN, plasmapheresis. TIMING: Progressive over days to weeks. SEVERITY: 6-10/10, severe and progressive. ASSOCIATED SYMPTOMS: PROGRESSIVE WEAKNESS, numbness, tingling, difficulty walking, breathing problems, may have facial weakness. KEY POSITIVES: Progressive weakness, numbness, tingling, difficulty walking, breathing problems. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+    "classic_presentation": "ONSET: GRADUAL onset over days to weeks. LOCATION: BILATERAL weakness, usually starting in legs. DURATION: Progressive over days to weeks. CHARACTER: PROGRESSIVE weakness, numbness, tingling. AGGRAVATING: MOVEMENT, breathing. RELIEVING: IMMUNOGLOBULIN, plasmapheresis. TIMING: Progressive over days to weeks. SEVERITY: 6-10/10, severe and progressive. ASSOCIATED SYMPTOMS: PROGRESSIVE WEAKNESS, numbness, tingling, difficulty walking, breathing problems, may have facial weakness. KEY POSITIVES: Progressive weakness, numbness, tingling, difficulty walking, breathing problems. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "days to weeks",
+          "slow onset",
+          "progressive"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "immediate",
+          "hours"
+        ]
+      },
+      "location": {
+        "includes": [
+          "bilateral weakness",
+          "usually starting in legs",
+          "both sides",
+          "generalized"
+        ],
+        "excludes": [
+          "unilateral",
+          "one side only",
+          "localized",
+          "focal"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "progressive over days to weeks",
+          "ongoing",
+          "persistent",
+          "worsening"
+        ],
+        "excludes": [
+          "acute",
+          "brief",
+          "transient",
+          "intermittent"
+        ]
+      },
+      "character": {
+        "includes": [
+          "progressive weakness",
+          "numbness",
+          "tingling",
+          "severe and progressive"
+        ],
+        "excludes": [
+          "mild",
+          "focal deficits",
+          "localized",
+          "acute"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "movement",
+          "breathing",
+          "activity",
+          "exertion"
+        ],
+        "excludes": [
+          "immunoglobulin",
+          "plasmapheresis",
+          "rest",
+          "treatment"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "immunoglobulin",
+          "plasmapheresis",
+          "rest",
+          "treatment"
+        ],
+        "excludes": [
+          "movement",
+          "breathing",
+          "activity",
+          "exertion"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "progressive over days to weeks",
+          "worsening",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "severe and progressive",
+          "6-10/10",
+          "6",
+          "7",
+          "8",
+          "9",
+          "10"
+        ],
+        "excludes": [
+          "mild",
+          "1-5/10",
+          "moderate",
+          "variable"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe respiratory distress - possible respiratory failure, call 911",

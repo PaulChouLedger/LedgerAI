@@ -1,0 +1,92 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: PANIC ATTACK / ANXIETY-RELATED CHEST PAIN
+================================================================================
+
+Condition: Panic Attack / Anxiety-Related Chest Pain
+Category: N/A
+Urgency Level: routine
+Prevalence: common
+ICD-10 Code: F41.0
+SNOMED Code: 371631005
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • chest pain
+  • can't breathe
+  • hyperventilating
+  • panic attack
+
+CLASSIC PRESENTATION:
+ONSET: Sudden, often with anxiety or stress trigger. LOCATION: Chest (variable location, can be diffuse or left-sided). DURATION: Minutes to hours, typically peaks at 10 minutes. CHARACTER: Sharp or vague discomfort, "can't catch breath", chest tightness. AGGRAVATING: Anxiety, stress, hyperventilation. RELIEVING: Reassurance, breathing exercises, anxiolytics. TIMING: Episodic, associated with stress/anxiety. SEVERITY: 5-8/10 subjectively but benign objectively. KEY POSITIVES: Hyperventilation, perioral tingling, carpopedal spasm, sense of impending doom, young patient, history of anxiety disorder, dyspnea out of proportion to findings. KEY NEGATIVES: NOT exertional pattern, NOT cardiac risk factors typically, NOT reproducible with palpation.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, often with anxiety, stress trigger
+  Negative indicators: gradual, chronic, slow onset
+
+LOCATION:
+  Positive indicators: chest, variable location, can be diffuse, left-sided
+  Negative indicators: exertional pattern, cardiac risk factors, reproducible with palpation
+
+DURATION:
+  Positive indicators: minutes to hours, typically peaks at 10 minutes, variable
+  Negative indicators: continuous, unrelenting, days
+
+CHARACTER:
+  Positive indicators: sharp, vague discomfort, can't catch breath, chest tightness
+  Negative indicators: exertional pattern, cardiac risk factors, reproducible with palpation
+
+AGGRAVATING:
+  Positive indicators: anxiety, stress, hyperventilation
+  Negative indicators: reassurance, breathing exercises, anxiolytics
+
+RELIEVING:
+  Positive indicators: reassurance, breathing exercises, anxiolytics
+  Negative indicators: anxiety, stress, hyperventilation
+
+TIMING:
+  Positive indicators: episodic, associated with stress, associated with anxiety
+  Negative indicators: constant, unrelenting, continuous
+
+SEVERITY:
+  Positive indicators: 5-8/10, 5, 6, 7, 8, subjectively but benign objectively
+  Negative indicators: mild, 1-4/10, severe, 9-10/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Cardiac risk factors present (must rule out cardiac)
+
+  🚨 Exertional pattern (suggests cardiac)
+
+  🚨 Older age (suggests cardiac)
+
+  🚨 Diaphoresis (suggests cardiac)
+
+  🚨 Radiation to arm/jaw (suggests cardiac)
+
+  🚨 Syncope
+
+  🚨 First episode ever in older patient
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Panic Attack / Anxiety-Related Chest Pain
+================================================================================

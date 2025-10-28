@@ -13,7 +13,101 @@
   "prevalence": "rare",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Sudden, abrupt start. LOCATION: Chest (palpitations), generalized symptoms. DURATION: Sustained (>30 seconds) or non-sustained bursts. CHARACTER: Rapid, regular or slightly irregular palpitations. AGGRAVATING: Exertion, electrolyte abnormalities. RELIEVING: Cardioversion, antiarrhythmics. TIMING: Can be episodic or sustained. SEVERITY: Variable, can be asymptomatic to severe symptoms. KEY POSITIVES: Heart rate 120-250 bpm, wide QRS on electrocardiogram (ECG), history of myocardial infarction (MI) or cardiomyopathy, syncope, chest pain, dyspnea, altered mental status. KEY NEGATIVES: NOT narrow complex tachycardia (SVT)."
+    "classic_presentation": "ONSET: Sudden, abrupt start. LOCATION: Chest (palpitations), generalized symptoms. DURATION: Sustained (>30 seconds) or non-sustained bursts. CHARACTER: Rapid, regular or slightly irregular palpitations. AGGRAVATING: Exertion, electrolyte abnormalities. RELIEVING: Cardioversion, antiarrhythmics. TIMING: Can be episodic or sustained. SEVERITY: Variable, can be asymptomatic to severe symptoms. KEY POSITIVES: Heart rate 120-250 bpm, wide QRS on electrocardiogram (ECG), history of myocardial infarction (MI) or cardiomyopathy, syncope, chest pain, dyspnea, altered mental status. KEY NEGATIVES: NOT narrow complex tachycardia (SVT).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "abrupt start"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "chest",
+          "palpitations",
+          "generalized symptoms"
+        ],
+        "excludes": [
+          "localized",
+          "one area only",
+          "extremities"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "sustained",
+          ">30 seconds",
+          "non-sustained bursts"
+        ],
+        "excludes": [
+          "brief",
+          "minutes only",
+          "intermittent"
+        ]
+      },
+      "character": {
+        "includes": [
+          "rapid",
+          "regular",
+          "slightly irregular palpitations"
+        ],
+        "excludes": [
+          "slow",
+          "steady",
+          "no palpitations"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "exertion",
+          "electrolyte abnormalities"
+        ],
+        "excludes": [
+          "cardioversion",
+          "antiarrhythmics",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "cardioversion",
+          "antiarrhythmics"
+        ],
+        "excludes": [
+          "exertion",
+          "electrolyte abnormalities",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "episodic",
+          "sustained"
+        ],
+        "excludes": [
+          "constant",
+          "unrelenting",
+          "continuous"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "variable",
+          "asymptomatic to severe",
+          "variable symptoms"
+        ],
+        "excludes": [
+          "mild",
+          "moderate",
+          "constant"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Syncope or loss of consciousness",

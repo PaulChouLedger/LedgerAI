@@ -12,7 +12,104 @@
   "prevalence": "uncommon",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Progressive over weeks to months, acute decompensation possible. LOCATION: Generalized dyspnea, bilateral lower extremity edema. DURATION: Progressive, chronic with acute worsening. CHARACTER: Dyspnea on exertion progressing to dyspnea at rest, orthopnea, paroxysmal nocturnal dyspnea, fatigue. AGGRAVATING: Exertion, lying flat, salt intake. RELIEVING: Diuretics, sitting upright. TIMING: Progressive worsening. SEVERITY: Severe dyspnea. KEY POSITIVES: Bilateral leg edema, weight gain, orthopnea, PND, S3 gallop, cardiomegaly on chest X-ray (CXR), history of alcohol abuse or chemotherapy or viral illness. KEY NEGATIVES: NOT acute myocardial infarction (MI) presentation, NOT pleuritic."
+    "classic_presentation": "ONSET: Progressive over weeks to months, acute decompensation possible. LOCATION: Generalized dyspnea, bilateral lower extremity edema. DURATION: Progressive, chronic with acute worsening. CHARACTER: Dyspnea on exertion progressing to dyspnea at rest, orthopnea, paroxysmal nocturnal dyspnea, fatigue. AGGRAVATING: Exertion, lying flat, salt intake. RELIEVING: Diuretics, sitting upright. TIMING: Progressive worsening. SEVERITY: Severe dyspnea. KEY POSITIVES: Bilateral leg edema, weight gain, orthopnea, PND, S3 gallop, cardiomegaly on chest X-ray (CXR), history of alcohol abuse or chemotherapy or viral illness. KEY NEGATIVES: NOT acute myocardial infarction (MI) presentation, NOT pleuritic.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "progressive over weeks to months",
+          "acute decompensation possible",
+          "gradual"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "minutes"
+        ]
+      },
+      "location": {
+        "includes": [
+          "generalized dyspnea",
+          "bilateral lower extremity edema"
+        ],
+        "excludes": [
+          "unilateral leg swelling",
+          "localized",
+          "one area only"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "progressive",
+          "chronic with acute worsening",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "dyspnea on exertion",
+          "progressing to dyspnea at rest",
+          "orthopnea",
+          "paroxysmal nocturnal dyspnea",
+          "fatigue"
+        ],
+        "excludes": [
+          "acute myocardial infarction presentation",
+          "pleuritic",
+          "sharp",
+          "stabbing"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "exertion",
+          "lying flat",
+          "salt intake"
+        ],
+        "excludes": [
+          "diuretics",
+          "sitting upright",
+          "medication"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "diuretics",
+          "sitting upright"
+        ],
+        "excludes": [
+          "exertion",
+          "lying flat",
+          "salt intake"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "progressive worsening",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "severe dyspnea",
+          "severe"
+        ],
+        "excludes": [
+          "mild",
+          "moderate",
+          "no symptoms"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe dyspnea at rest",

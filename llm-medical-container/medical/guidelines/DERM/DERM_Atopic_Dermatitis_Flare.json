@@ -15,7 +15,116 @@
   ],
   "urgency": "non-urgent",
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL onset over days to weeks, often triggered by stress, weather, or irritants. LOCATION: FLEXURAL areas (elbows, knees, neck), face, hands, or generalized. DURATION: Chronic condition with acute flares lasting days to weeks. CHARACTER: ERYTHEMATOUS (red), PRURITIC (itchy), DRY, SCALY skin. AGGRAVATING: SCRATCHING, heat, stress, certain fabrics, soaps. RELIEVING: MOISTURIZERS, topical steroids, antihistamines, avoiding triggers. TIMING: Chronic with acute flares, worse at night. SEVERITY: 4-8/10 itching, moderate to severe. ASSOCIATED SYMPTOMS: SEVERE ITCHING (pruritus), dry skin, scaling, may have lichenification (thickened skin), may have secondary infection from scratching. KEY POSITIVES: Erythema, pruritus, scaling, lichenification, flexural distribution. KEY NEGATIVES: No fever, no systemic symptoms, no vesicles or bullae (unless secondary infection)."
+    "classic_presentation": "ONSET: GRADUAL onset over days to weeks, often triggered by stress, weather, or irritants. LOCATION: FLEXURAL areas (elbows, knees, neck), face, hands, or generalized. DURATION: Chronic condition with acute flares lasting days to weeks. CHARACTER: ERYTHEMATOUS (red), PRURITIC (itchy), DRY, SCALY skin. AGGRAVATING: SCRATCHING, heat, stress, certain fabrics, soaps. RELIEVING: MOISTURIZERS, topical steroids, antihistamines, avoiding triggers. TIMING: Chronic with acute flares, worse at night. SEVERITY: 4-8/10 itching, moderate to severe. ASSOCIATED SYMPTOMS: SEVERE ITCHING (pruritus), dry skin, scaling, may have lichenification (thickened skin), may have secondary infection from scratching. KEY POSITIVES: Erythema, pruritus, scaling, lichenification, flexural distribution. KEY NEGATIVES: No fever, no systemic symptoms, no vesicles or bullae (unless secondary infection).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "days to weeks",
+          "triggered by stress",
+          "weather",
+          "irritants"
+        ],
+        "excludes": [
+          "sudden",
+          "immediate",
+          "chronic without flares"
+        ]
+      },
+      "location": {
+        "includes": [
+          "flexural areas",
+          "elbows",
+          "knees",
+          "neck",
+          "face",
+          "hands",
+          "generalized"
+        ],
+        "excludes": [
+          "internal organs",
+          "specific organ systems"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "chronic condition",
+          "acute flares",
+          "days to weeks"
+        ],
+        "excludes": [
+          "acute only",
+          "permanent resolution"
+        ]
+      },
+      "character": {
+        "includes": [
+          "erythematous",
+          "red",
+          "pruritic",
+          "itchy",
+          "dry",
+          "scaly"
+        ],
+        "excludes": [
+          "moist",
+          "non-itchy",
+          "smooth",
+          "normal skin"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "scratching",
+          "heat",
+          "stress",
+          "certain fabrics",
+          "soaps"
+        ],
+        "excludes": [
+          "moisturizers",
+          "cool",
+          "avoiding triggers"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "moisturizers",
+          "topical steroids",
+          "antihistamines",
+          "avoiding triggers"
+        ],
+        "excludes": [
+          "scratching",
+          "heat",
+          "stress",
+          "irritants"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "chronic with acute flares",
+          "worse at night"
+        ],
+        "excludes": [
+          "constant",
+          "only during day",
+          "intermittent"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "4-8/10 itching",
+          "moderate",
+          "severe"
+        ],
+        "excludes": [
+          "mild",
+          "1-3/10",
+          "asymptomatic"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Rash with fever and systemic symptoms - possible secondary infection, needs urgent evaluation",

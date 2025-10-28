@@ -12,7 +12,98 @@
   "prevalence": "rare",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Subacute, over days to weeks. LOCATION: Generalized systemic symptoms. DURATION: Continuous over weeks. CHARACTER: Fever, fatigue, malaise, night sweats. AGGRAVATING: None specific. RELIEVING: Antibiotics. TIMING: Progressive, worsening. SEVERITY: Variable systemic illness. KEY POSITIVES: Persistent fever, new or changing heart murmur, IVDU (injection drug use), recent dental work or procedure, prosthetic valve, splinter hemorrhages, Osler nodes, Janeway lesions, embolic phenomena (stroke, splenic infarct). KEY NEGATIVES: NOT acute onset, NOT isolated chest pain."
+    "classic_presentation": "ONSET: Subacute, over days to weeks. LOCATION: Generalized systemic symptoms. DURATION: Continuous over weeks. CHARACTER: Fever, fatigue, malaise, night sweats. AGGRAVATING: None specific. RELIEVING: Antibiotics. TIMING: Progressive, worsening. SEVERITY: Variable systemic illness. KEY POSITIVES: Persistent fever, new or changing heart murmur, IVDU (injection drug use), recent dental work or procedure, prosthetic valve, splinter hemorrhages, Osler nodes, Janeway lesions, embolic phenomena (stroke, splenic infarct). KEY NEGATIVES: NOT acute onset, NOT isolated chest pain.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "subacute",
+          "over days to weeks",
+          "gradual"
+        ],
+        "excludes": [
+          "acute onset",
+          "sudden",
+          "minutes"
+        ]
+      },
+      "location": {
+        "includes": [
+          "generalized systemic symptoms"
+        ],
+        "excludes": [
+          "localized",
+          "one area only",
+          "chest"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "continuous over weeks",
+          "persistent"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "fever",
+          "fatigue",
+          "malaise",
+          "night sweats"
+        ],
+        "excludes": [
+          "isolated chest pain",
+          "no fever",
+          "no systemic symptoms"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "none specific"
+        ],
+        "excludes": [
+          "antibiotics",
+          "medication",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "antibiotics"
+        ],
+        "excludes": [
+          "activity",
+          "exertion",
+          "stress"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "progressive",
+          "worsening",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "variable systemic illness",
+          "variable"
+        ],
+        "excludes": [
+          "mild",
+          "moderate",
+          "constant"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Persistent fever despite antibiotics",

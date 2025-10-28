@@ -11,7 +11,108 @@
   "prevalence": "common",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Immediate, within seconds to minutes of standing. LOCATION: Generalized lightheadedness, dizziness. DURATION: Brief, seconds to minutes, resolves when sitting/lying down. CHARACTER: Lightheadedness, dizziness, blurred vision, weakness. AGGRAVATING: STANDING UP from sitting or lying, prolonged standing, hot environment, dehydration. RELIEVING: Sitting or lying down immediately. TIMING: Reproducible with postural changes. SEVERITY: Variable, can lead to syncope if severe. KEY POSITIVES: Occurs with postural change, elderly patient, medications (antihypertensives, diuretics), dehydration, rapid resolution when sitting. KEY NEGATIVES: NOT constant dizziness, NOT spinning vertigo (BPPV), NOT exertional."
+    "classic_presentation": "ONSET: Immediate, within seconds to minutes of standing. LOCATION: Generalized lightheadedness, dizziness. DURATION: Brief, seconds to minutes, resolves when sitting/lying down. CHARACTER: Lightheadedness, dizziness, blurred vision, weakness. AGGRAVATING: STANDING UP from sitting or lying, prolonged standing, hot environment, dehydration. RELIEVING: Sitting or lying down immediately. TIMING: Reproducible with postural changes. SEVERITY: Variable, can lead to syncope if severe. KEY POSITIVES: Occurs with postural change, elderly patient, medications (antihypertensives, diuretics), dehydration, rapid resolution when sitting. KEY NEGATIVES: NOT constant dizziness, NOT spinning vertigo (BPPV), NOT exertional.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "immediate",
+          "within seconds to minutes of standing",
+          "sudden"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "generalized lightheadedness",
+          "dizziness"
+        ],
+        "excludes": [
+          "localized",
+          "one area only",
+          "chest"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "brief",
+          "seconds to minutes",
+          "resolves when sitting lying down"
+        ],
+        "excludes": [
+          "continuous",
+          "unrelenting",
+          "hours"
+        ]
+      },
+      "character": {
+        "includes": [
+          "lightheadedness",
+          "dizziness",
+          "blurred vision",
+          "weakness"
+        ],
+        "excludes": [
+          "constant dizziness",
+          "spinning vertigo",
+          "exertional",
+          "chest pain"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "standing up from sitting",
+          "standing up from lying",
+          "prolonged standing",
+          "hot environment",
+          "dehydration"
+        ],
+        "excludes": [
+          "sitting",
+          "lying down",
+          "rest",
+          "medication"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "sitting",
+          "lying down immediately",
+          "rest"
+        ],
+        "excludes": [
+          "standing up",
+          "prolonged standing",
+          "hot environment"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "reproducible with postural changes",
+          "consistent"
+        ],
+        "excludes": [
+          "unpredictable",
+          "random",
+          "continuous"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "variable",
+          "can lead to syncope if severe",
+          "variable symptoms"
+        ],
+        "excludes": [
+          "mild",
+          "moderate",
+          "constant"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Syncope or actual loss of consciousness",

@@ -13,7 +13,111 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: Gradual over days. LOCATION: Focal or diffuse lung areas. DURATION: Days to weeks. CHARACTER: Productive cough, chest pain, dyspnea. AGGRAVATING: Lying flat, exertion. RELIEVING: Antibiotics, oxygen, positioning. TIMING: Acute, persistent. SEVERITY: Moderate to severe (6-8/10). ASSOCIATED SYMPTOMS: High fever, productive cough, chest pain, dyspnea, fatigue, malaise. KEY POSITIVES: High fever, productive cough, chest pain, dyspnea. KEY NEGATIVES: No wheezing (unless reactive airway disease)."
+    "classic_presentation": "ONSET: Gradual over days. LOCATION: Focal or diffuse lung areas. DURATION: Days to weeks. CHARACTER: Productive cough, chest pain, dyspnea. AGGRAVATING: Lying flat, exertion. RELIEVING: Antibiotics, oxygen, positioning. TIMING: Acute, persistent. SEVERITY: Moderate to severe (6-8/10). ASSOCIATED SYMPTOMS: High fever, productive cough, chest pain, dyspnea, fatigue, malaise. KEY POSITIVES: High fever, productive cough, chest pain, dyspnea. KEY NEGATIVES: No wheezing (unless reactive airway disease).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "over days",
+          "progressive"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "minutes"
+        ]
+      },
+      "location": {
+        "includes": [
+          "focal lung",
+          "diffuse lung",
+          "lung areas",
+          "chest"
+        ],
+        "excludes": [
+          "abdomen",
+          "extremities",
+          "head"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "days to weeks",
+          "persistent",
+          "acute"
+        ],
+        "excludes": [
+          "hours",
+          "minutes",
+          "intermittent"
+        ]
+      },
+      "character": {
+        "includes": [
+          "productive cough",
+          "chest pain",
+          "dyspnea",
+          "shortness of breath"
+        ],
+        "excludes": [
+          "dry cough",
+          "no respiratory symptoms",
+          "abdominal pain"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "lying flat",
+          "exertion",
+          "activity",
+          "breathing"
+        ],
+        "excludes": [
+          "rest",
+          "oxygen",
+          "antibiotics"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "antibiotics",
+          "oxygen",
+          "positioning",
+          "rest"
+        ],
+        "excludes": [
+          "exertion",
+          "lying flat",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "acute",
+          "persistent",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "moderate to severe",
+          "6-8/10",
+          "6",
+          "7",
+          "8"
+        ],
+        "excludes": [
+          "mild",
+          "1-5/10",
+          "severe"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe dyspnea or respiratory distress",

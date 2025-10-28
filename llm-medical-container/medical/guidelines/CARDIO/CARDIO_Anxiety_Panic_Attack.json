@@ -12,7 +12,111 @@
   "prevalence": "common",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Sudden, often with anxiety or stress trigger. LOCATION: Chest (variable location, can be diffuse or left-sided). DURATION: Minutes to hours, typically peaks at 10 minutes. CHARACTER: Sharp or vague discomfort, \"can't catch breath\", chest tightness. AGGRAVATING: Anxiety, stress, hyperventilation. RELIEVING: Reassurance, breathing exercises, anxiolytics. TIMING: Episodic, associated with stress/anxiety. SEVERITY: 5-8/10 subjectively but benign objectively. KEY POSITIVES: Hyperventilation, perioral tingling, carpopedal spasm, sense of impending doom, young patient, history of anxiety disorder, dyspnea out of proportion to findings. KEY NEGATIVES: NOT exertional pattern, NOT cardiac risk factors typically, NOT reproducible with palpation."
+    "classic_presentation": "ONSET: Sudden, often with anxiety or stress trigger. LOCATION: Chest (variable location, can be diffuse or left-sided). DURATION: Minutes to hours, typically peaks at 10 minutes. CHARACTER: Sharp or vague discomfort, \"can't catch breath\", chest tightness. AGGRAVATING: Anxiety, stress, hyperventilation. RELIEVING: Reassurance, breathing exercises, anxiolytics. TIMING: Episodic, associated with stress/anxiety. SEVERITY: 5-8/10 subjectively but benign objectively. KEY POSITIVES: Hyperventilation, perioral tingling, carpopedal spasm, sense of impending doom, young patient, history of anxiety disorder, dyspnea out of proportion to findings. KEY NEGATIVES: NOT exertional pattern, NOT cardiac risk factors typically, NOT reproducible with palpation.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "often with anxiety",
+          "stress trigger"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "chest",
+          "variable location",
+          "can be diffuse",
+          "left-sided"
+        ],
+        "excludes": [
+          "exertional pattern",
+          "cardiac risk factors",
+          "reproducible with palpation"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "minutes to hours",
+          "typically peaks at 10 minutes",
+          "variable"
+        ],
+        "excludes": [
+          "continuous",
+          "unrelenting",
+          "days"
+        ]
+      },
+      "character": {
+        "includes": [
+          "sharp",
+          "vague discomfort",
+          "can't catch breath",
+          "chest tightness"
+        ],
+        "excludes": [
+          "exertional pattern",
+          "cardiac risk factors",
+          "reproducible with palpation"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "anxiety",
+          "stress",
+          "hyperventilation"
+        ],
+        "excludes": [
+          "reassurance",
+          "breathing exercises",
+          "anxiolytics"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "reassurance",
+          "breathing exercises",
+          "anxiolytics"
+        ],
+        "excludes": [
+          "anxiety",
+          "stress",
+          "hyperventilation"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "episodic",
+          "associated with stress",
+          "associated with anxiety"
+        ],
+        "excludes": [
+          "constant",
+          "unrelenting",
+          "continuous"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "5-8/10",
+          "5",
+          "6",
+          "7",
+          "8",
+          "subjectively but benign objectively"
+        ],
+        "excludes": [
+          "mild",
+          "1-4/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Cardiac risk factors present (must rule out cardiac)",

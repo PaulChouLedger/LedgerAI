@@ -11,7 +11,111 @@
   "prevalence": "common",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Acute, over minutes to hours. LOCATION: RETROSTERNAL or left chest. RADIATES to left arm, jaw, neck, back. DURATION: Prolonged >10-20 minutes. CHARACTER: Pressure, squeezing, heaviness. AGGRAVATING: Can occur at rest or with exertion. RELIEVING: Partial relief with nitroglycerin possible. TIMING: Persistent or crescendo pattern. SEVERITY: 6-9/10. KEY POSITIVES: Troponin elevation (positive cardiac enzymes), dyspnea, diaphoresis, nausea, elderly or diabetic patient, cardiac risk factors. KEY NEGATIVES: NO ST elevation on electrocardiogram (ECG) (differentiates from ST-elevation myocardial infarction (STEMI) but still myocardial infarction (MI))."
+    "classic_presentation": "ONSET: Acute, over minutes to hours. LOCATION: RETROSTERNAL or left chest. RADIATES to left arm, jaw, neck, back. DURATION: Prolonged >10-20 minutes. CHARACTER: Pressure, squeezing, heaviness. AGGRAVATING: Can occur at rest or with exertion. RELIEVING: Partial relief with nitroglycerin possible. TIMING: Persistent or crescendo pattern. SEVERITY: 6-9/10. KEY POSITIVES: Troponin elevation (positive cardiac enzymes), dyspnea, diaphoresis, nausea, elderly or diabetic patient, cardiac risk factors. KEY NEGATIVES: NO ST elevation on electrocardiogram (ECG) (differentiates from ST-elevation myocardial infarction (STEMI) but still myocardial infarction (MI)).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "acute",
+          "over minutes to hours",
+          "sudden"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "retrosternal",
+          "left chest",
+          "radiates to left arm",
+          "radiates to jaw",
+          "radiates to neck",
+          "radiates to back"
+        ],
+        "excludes": [
+          "right side only",
+          "no radiation",
+          "localized point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "prolonged",
+          ">10-20 minutes",
+          "persistent"
+        ],
+        "excludes": [
+          "brief",
+          "2-10 minutes",
+          "intermittent"
+        ]
+      },
+      "character": {
+        "includes": [
+          "pressure",
+          "squeezing",
+          "heaviness"
+        ],
+        "excludes": [
+          "sharp",
+          "stabbing",
+          "burning",
+          "crushing"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "can occur at rest",
+          "with exertion",
+          "variable"
+        ],
+        "excludes": [
+          "only with exertion",
+          "only at rest",
+          "predictable"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "partial relief with nitroglycerin",
+          "possible relief"
+        ],
+        "excludes": [
+          "complete relief",
+          "no relief",
+          "predictable relief"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "persistent",
+          "crescendo pattern",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "6-9/10",
+          "6",
+          "7",
+          "8",
+          "9"
+        ],
+        "excludes": [
+          "mild",
+          "1-5/10",
+          "severe",
+          "10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Elevated troponin (confirms myocardial infarction )",

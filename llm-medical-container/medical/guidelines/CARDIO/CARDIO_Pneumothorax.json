@@ -12,7 +12,107 @@
   "prevalence": "uncommon",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset. LOCATION: UNILATERAL chest pain (left or right). DURATION: Continuous until treated. CHARACTER: SHARP, PLEURITIC (worse with breathing). AGGRAVATING: Deep inspiration, cough. RELIEVING: Shallow breathing, sitting upright. TIMING: Sudden onset, persistent. SEVERITY: 7-10/10 for pain and dyspnea. KEY POSITIVES: Tall, thin young male (spontaneous), recent trauma or procedure, decreased breath sounds on affected side, hyperresonance, dyspnea. KEY NEGATIVES: NOT bilateral, NOT gradual onset, NOT cardiac radiation pattern."
+    "classic_presentation": "ONSET: SUDDEN onset. LOCATION: UNILATERAL chest pain (left or right). DURATION: Continuous until treated. CHARACTER: SHARP, PLEURITIC (worse with breathing). AGGRAVATING: Deep inspiration, cough. RELIEVING: Shallow breathing, sitting upright. TIMING: Sudden onset, persistent. SEVERITY: 7-10/10 for pain and dyspnea. KEY POSITIVES: Tall, thin young male (spontaneous), recent trauma or procedure, decreased breath sounds on affected side, hyperresonance, dyspnea. KEY NEGATIVES: NOT bilateral, NOT gradual onset, NOT cardiac radiation pattern.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden onset",
+          "acute",
+          "immediate"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "unilateral chest pain",
+          "left or right",
+          "one side"
+        ],
+        "excludes": [
+          "bilateral",
+          "cardiac radiation pattern",
+          "both sides"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "continuous until treated",
+          "persistent"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "sharp",
+          "pleuritic",
+          "worse with breathing"
+        ],
+        "excludes": [
+          "dull",
+          "pressure",
+          "crushing",
+          "not worse with breathing"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "deep inspiration",
+          "cough",
+          "breathing"
+        ],
+        "excludes": [
+          "shallow breathing",
+          "sitting upright",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "shallow breathing",
+          "sitting upright"
+        ],
+        "excludes": [
+          "deep inspiration",
+          "cough",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "sudden onset",
+          "persistent",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "7-10/10",
+          "7",
+          "8",
+          "9",
+          "10",
+          "for pain and dyspnea"
+        ],
+        "excludes": [
+          "mild",
+          "1-6/10",
+          "moderate"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe dyspnea",

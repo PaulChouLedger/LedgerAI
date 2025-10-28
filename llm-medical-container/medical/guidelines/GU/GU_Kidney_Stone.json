@@ -13,12 +13,84 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within minutes to hours. Acute, dramatic presentation. LOCATION: Unilateral FLANK PAIN. RADIATES from flank\u2192groin\u2192testicle (males) or labia (females). Follows ureter path. DURATION: Waves last minutes, entire episode lasts hours. COLICKY (comes and goes in waves). CHARACTER: SEVERE COLICKY PAIN described as SHARP, STABBING, or 'WORST PAIN OF MY LIFE'. Intensity waxes and wanes. AGGRAVATING: NOTHING specifically worsens (spontaneous waves). Movement doesn't change intensity. Dehydration may precipitate. RELIEVING: NOTHING relieves during wave. Position changes don't help (patient RESTLESS, paces, cannot find comfort - unlike peritonitis where still). Narcotics needed. TIMING: COMES IN WAVES - intense for minutes, then slightly better, then intense again. Pattern repeats. Not constant. SEVERITY: 8-10/10, extremely severe and dramatic. ASSOCIATED SYMPTOMS: NAUSEA AND VOMITING (very common), HEMATURIA (blood in urine - 90%, gross or microscopic), urinary frequency, urgency. KEY POSITIVES: cerebrovascular accident (CVA) tenderness, hematuria, colicky waves, restlessness, flank\u2192groin radiation. KEY NEGATIVES: Peritoneal signs (rigidity) suggest alternative. FEVER suggests pyelonephritis not stone. Bilateral pain unusual."
+    "classic_presentation": "ONSET: SUDDEN onset within minutes to hours. Acute, dramatic presentation. LOCATION: Unilateral FLANK PAIN. RADIATES from flank→groin→testicle (males) or labia (females). Follows ureter path. DURATION: Waves last minutes, entire episode lasts hours. COLICKY (comes and goes in waves). CHARACTER: SEVERE COLICKY PAIN described as SHARP, STABBING, or 'WORST PAIN OF MY LIFE'. Intensity waxes and wanes. AGGRAVATING: NOTHING specifically worsens (spontaneous waves). Movement doesn't change intensity. Dehydration may precipitate. RELIEVING: NOTHING relieves during wave. Position changes don't help (patient RESTLESS, paces, cannot find comfort - unlike peritonitis where still). Narcotics needed. TIMING: COMES IN WAVES - intense for minutes, then slightly better, then intense again. Pattern repeats. Not constant. SEVERITY: 8-10/10, extremely severe and dramatic. ASSOCIATED SYMPTOMS: NAUSEA AND VOMITING (very common), HEMATURIA (blood in urine - 90%, gross or microscopic), urinary frequency, urgency. KEY POSITIVES: cerebrovascular accident (CVA) tenderness, hematuria, colicky waves, restlessness, flank→groin radiation. KEY NEGATIVES: Peritoneal signs (rigidity) suggest alternative. FEVER suggests pyelonephritis not stone. Bilateral pain unusual."
   },
   "red_flags": [
     "Fever with flank pain - infected stone (pyonephrosis), needs urgent urology intervention",
     "Anuria (no urine output) - complete obstruction, needs urgent decompression",
     "Single kidney with obstructing stone - urgent urology consult",
     "Severe pain unresponsive to narcotics - may need urgent intervention"
-  ]
+  ],
+  "structured_oldcarts": {
+    "onset": {
+      "includes": [
+        "sudden",
+        "acute",
+        "immediate",
+        "minutes",
+        "hours"
+      ],
+      "excludes": [
+        "gradual",
+        "chronic"
+      ]
+    },
+    "location": {
+      "includes": [
+        "testicle",
+        "testicular",
+        "scrotal",
+        "flank",
+        "groin"
+      ],
+      "excludes": []
+    },
+    "duration": {
+      "includes": [
+        "constant",
+        "colicky"
+      ],
+      "excludes": [
+        "intermittent",
+        "episodic"
+      ]
+    },
+    "character": {
+      "includes": [
+        "severe",
+        "sharp",
+        "stabbing"
+      ],
+      "excludes": []
+    },
+    "aggravating": {
+      "includes": [
+        "movement"
+      ],
+      "excludes": []
+    },
+    "relieving": {
+      "includes": [
+        "nothing relieves"
+      ],
+      "excludes": [
+        "position changes",
+        "medications"
+      ]
+    },
+    "timing": {
+      "includes": [
+        "constant",
+        "comes in waves"
+      ],
+      "excludes": []
+    },
+    "severity": {
+      "includes": [
+        "9-10/10",
+        "severe"
+      ],
+      "excludes": []
+    }
+  }
 }

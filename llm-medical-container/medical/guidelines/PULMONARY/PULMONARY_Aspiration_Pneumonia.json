@@ -13,7 +13,108 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: Sudden during or shortly after aspiration event. LOCATION: Dependent lung regions (right lower lobe most common). DURATION: Acute onset, can persist for days to weeks. CHARACTER: Dyspnea, cough, chest discomfort. AGGRAVATING: Lying flat, continued aspiration risk. RELIEVING: Upright positioning, suctioning, antibiotics. TIMING: Acute, often during eating or vomiting. SEVERITY: Moderate to severe (6-8/10). ASSOCIATED SYMPTOMS: Fever, productive cough (may be foul-smelling), dyspnea, chest pain, altered mental status (if hypoxic). KEY POSITIVES: Recent aspiration event, fever, productive cough, dyspnea. KEY NEGATIVES: No chest pain (unless severe), no wheezing (unless reactive airway disease)."
+    "classic_presentation": "ONSET: Sudden during or shortly after aspiration event. LOCATION: Dependent lung regions (right lower lobe most common). DURATION: Acute onset, can persist for days to weeks. CHARACTER: Dyspnea, cough, chest discomfort. AGGRAVATING: Lying flat, continued aspiration risk. RELIEVING: Upright positioning, suctioning, antibiotics. TIMING: Acute, often during eating or vomiting. SEVERITY: Moderate to severe (6-8/10). ASSOCIATED SYMPTOMS: Fever, productive cough (may be foul-smelling), dyspnea, chest pain, altered mental status (if hypoxic). KEY POSITIVES: Recent aspiration event, fever, productive cough, dyspnea. KEY NEGATIVES: No chest pain (unless severe), no wheezing (unless reactive airway disease).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden during or shortly after aspiration event",
+          "acute",
+          "immediate"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "dependent lung regions",
+          "right lower lobe most common",
+          "lung"
+        ],
+        "excludes": [
+          "unilateral",
+          "one side only",
+          "upper lobes"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "acute onset",
+          "can persist for days to weeks",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "dyspnea",
+          "cough",
+          "chest discomfort"
+        ],
+        "excludes": [
+          "no chest pain",
+          "no wheezing",
+          "mild"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "lying flat",
+          "continued aspiration risk",
+          "activity"
+        ],
+        "excludes": [
+          "upright positioning",
+          "suctioning",
+          "antibiotics"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "upright positioning",
+          "suctioning",
+          "antibiotics"
+        ],
+        "excludes": [
+          "lying flat",
+          "continued aspiration risk",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "acute",
+          "often during eating or vomiting",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "moderate to severe",
+          "6-8/10",
+          "6",
+          "7",
+          "8"
+        ],
+        "excludes": [
+          "mild",
+          "1-5/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe dyspnea or respiratory distress",

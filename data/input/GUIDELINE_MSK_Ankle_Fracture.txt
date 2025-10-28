@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: ANKLE FRACTURE
+================================================================================
+
+Condition: Ankle Fracture
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: S82.8
+SNOMED Code: 125614009
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • ankle pain
+  • ankle injury
+  • broken ankle
+  • ankle fracture
+  • ankle swelling
+  • can't walk on ankle
+  • ankle deformity
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset during trauma - fall, twisting, or direct blow. LOCATION: Lateral malleolus (most common), medial malleolus, or posterior malleolus. DURATION: Immediate severe pain that persists. CHARACTER: SEVERE, SHARP, CONSTANT pain. AGGRAVATING: ANY weight bearing, ankle movement. RELIEVING: IMMOBILIZATION, ice, elevation, NSAIDs. TIMING: Immediate severe pain that persists until immobilization. SEVERITY: 7-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SWELLING within hours, BRUISING develops over 24-48 hours, DEFORMITY, inability to bear weight, numbness/tingling in foot (peroneal nerve compression). May have audible 'snap' or 'crack' at injury. KEY POSITIVES: Bony tenderness over fracture site, deformity, swelling, limited range of motion, positive compression test. KEY NEGATIVES: No open wound (rules out open fracture), no crepitus unless severe.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, during trauma, fall, twisting, direct blow
+  Negative indicators: gradual, progressive, slow onset, days to weeks
+
+LOCATION:
+  Positive indicators: lateral malleolus, medial malleolus, posterior malleolus, ankle, outside ankle, inside ankle
+  Negative indicators: knee, hip, foot, calf
+
+DURATION:
+  Positive indicators: immediate, persists, constant, ongoing
+  Negative indicators: brief, minutes, hours, transient
+
+CHARACTER:
+  Positive indicators: severe, sharp, constant, unrelenting
+  Negative indicators: mild, dull, intermittent, aching
+
+AGGRAVATING:
+  Positive indicators: weight bearing, ankle movement, any movement, walking
+  Negative indicators: immobilization, ice, elevation, NSAIDs
+
+RELIEVING:
+  Positive indicators: immobilization, ice, elevation, NSAIDs, rest
+  Negative indicators: weight bearing, ankle movement, walking, activity
+
+TIMING:
+  Positive indicators: immediate, persists, constant, ongoing
+  Negative indicators: delayed, intermittent, variable, episodic
+
+SEVERITY:
+  Positive indicators: severe, 7-10/10, 7, 8, 9, 10, unrelenting
+  Negative indicators: mild, 1-3/10, moderate, 4-6/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Open wound with bone visible - open fracture, call 911
+
+  🚨 Severe deformity with neurovascular compromise - cold, pale, pulseless foot, call 911
+
+  🚨 Severe pain with numbness/tingling - possible compartment syndrome or nerve injury
+
+  🚨 Elderly patients with minimal trauma - possible pathological fracture, needs urgent evaluation
+
+  🚨 High-energy trauma - possible associated injuries, needs urgent evaluation
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Ankle Fracture
+================================================================================

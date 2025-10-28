@@ -1,0 +1,95 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: VENTRICULAR TACHYCARDIA (VENTRICULAR TACHYCARDIA (VT) / V-TACH)
+================================================================================
+
+Condition: Ventricular Tachycardia (ventricular tachycardia (VT) / V-Tach)
+Category: N/A
+Urgency Level: emergent
+Prevalence: rare
+ICD-10 Code: I47.2
+SNOMED Code: 25569003
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • palpitations
+  • racing heart
+  • chest pain
+  • lightheadedness
+  • syncope
+
+CLASSIC PRESENTATION:
+ONSET: Sudden, abrupt start. LOCATION: Chest (palpitations), generalized symptoms. DURATION: Sustained (>30 seconds) or non-sustained bursts. CHARACTER: Rapid, regular or slightly irregular palpitations. AGGRAVATING: Exertion, electrolyte abnormalities. RELIEVING: Cardioversion, antiarrhythmics. TIMING: Can be episodic or sustained. SEVERITY: Variable, can be asymptomatic to severe symptoms. KEY POSITIVES: Heart rate 120-250 bpm, wide QRS on electrocardiogram (ECG), history of myocardial infarction (MI) or cardiomyopathy, syncope, chest pain, dyspnea, altered mental status. KEY NEGATIVES: NOT narrow complex tachycardia (SVT).
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, abrupt start
+  Negative indicators: gradual, chronic, slow onset
+
+LOCATION:
+  Positive indicators: chest, palpitations, generalized symptoms
+  Negative indicators: localized, one area only, extremities
+
+DURATION:
+  Positive indicators: sustained, >30 seconds, non-sustained bursts
+  Negative indicators: brief, minutes only, intermittent
+
+CHARACTER:
+  Positive indicators: rapid, regular, slightly irregular palpitations
+  Negative indicators: slow, steady, no palpitations
+
+AGGRAVATING:
+  Positive indicators: exertion, electrolyte abnormalities
+  Negative indicators: cardioversion, antiarrhythmics, rest
+
+RELIEVING:
+  Positive indicators: cardioversion, antiarrhythmics
+  Negative indicators: exertion, electrolyte abnormalities, activity
+
+TIMING:
+  Positive indicators: episodic, sustained
+  Negative indicators: constant, unrelenting, continuous
+
+SEVERITY:
+  Positive indicators: variable, asymptomatic to severe, variable symptoms
+  Negative indicators: mild, moderate, constant
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Syncope or loss of consciousness
+
+  🚨 Hemodynamic instability
+
+  🚨 Chest pain
+
+  🚨 Severe dyspnea
+
+  🚨 Altered mental status
+
+  🚨 History of myocardial infarction (MI) or cardiomyopathy
+
+  🚨 History of sudden cardiac death in family
+
+  🚨 Pulselessness (V-Tach with no pulse = ventricular fibrillation )
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Ventricular Tachycardia (ventricular tachycardia (VT) / V-Tach)
+================================================================================

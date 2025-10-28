@@ -12,7 +12,103 @@
   "prevalence": "rare",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Can be acute (trauma, rupture) or subacute (effusion accumulation). LOCATION: Chest (retrosternal pressure), generalized dyspnea. DURATION: Progressive over hours to days. CHARACTER: Dyspnea, chest pressure, feeling of impending doom. AGGRAVATING: Lying flat. RELIEVING: Sitting up, leaning forward. TIMING: Progressive worsening. SEVERITY: Severe respiratory distress. KEY POSITIVES: Beck's triad (hypotension, muffled heart sounds, JVD), pulsus paradoxus, tachycardia, dyspnea, recent pericarditis or trauma or malignancy. KEY NEGATIVES: NOT pleuritic pain, NOT unilateral symptoms."
+    "classic_presentation": "ONSET: Can be acute (trauma, rupture) or subacute (effusion accumulation). LOCATION: Chest (retrosternal pressure), generalized dyspnea. DURATION: Progressive over hours to days. CHARACTER: Dyspnea, chest pressure, feeling of impending doom. AGGRAVATING: Lying flat. RELIEVING: Sitting up, leaning forward. TIMING: Progressive worsening. SEVERITY: Severe respiratory distress. KEY POSITIVES: Beck's triad (hypotension, muffled heart sounds, JVD), pulsus paradoxus, tachycardia, dyspnea, recent pericarditis or trauma or malignancy. KEY NEGATIVES: NOT pleuritic pain, NOT unilateral symptoms.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "acute",
+          "trauma",
+          "rupture",
+          "subacute",
+          "effusion accumulation"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "chest",
+          "retrosternal pressure",
+          "generalized dyspnea"
+        ],
+        "excludes": [
+          "pleuritic pain",
+          "unilateral symptoms",
+          "localized"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "progressive",
+          "over hours to days",
+          "worsening"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "dyspnea",
+          "chest pressure",
+          "feeling of impending doom"
+        ],
+        "excludes": [
+          "pleuritic pain",
+          "sharp",
+          "stabbing",
+          "no symptoms"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "lying flat"
+        ],
+        "excludes": [
+          "sitting up",
+          "leaning forward",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "sitting up",
+          "leaning forward"
+        ],
+        "excludes": [
+          "lying flat",
+          "activity",
+          "exertion"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "progressive worsening",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "severe respiratory distress",
+          "severe"
+        ],
+        "excludes": [
+          "mild",
+          "moderate",
+          "no symptoms"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Hypotension or shock",

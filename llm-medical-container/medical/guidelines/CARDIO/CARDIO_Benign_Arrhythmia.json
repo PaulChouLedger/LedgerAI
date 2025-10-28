@@ -12,7 +12,106 @@
   "prevalence": "common",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Intermittent, episodic. LOCATION: Chest, precordial area. DURATION: Brief, seconds per episode. CHARACTER: \"Skipped beat\", \"flip-flop\", brief flutter or pause. AGGRAVATING: Caffeine, alcohol, stress, fatigue, lack of sleep. RELIEVING: Relaxation, reducing stimulants. TIMING: Intermittent, random. SEVERITY: Mild discomfort, more bothersome than painful. KEY POSITIVES: Brief episodes, no syncope, no dyspnea, otherwise healthy, triggered by caffeine or stress. KEY NEGATIVES: NO sustained rapid heart rate, NO syncope, NO chest pain, NO dyspnea."
+    "classic_presentation": "ONSET: Intermittent, episodic. LOCATION: Chest, precordial area. DURATION: Brief, seconds per episode. CHARACTER: \"Skipped beat\", \"flip-flop\", brief flutter or pause. AGGRAVATING: Caffeine, alcohol, stress, fatigue, lack of sleep. RELIEVING: Relaxation, reducing stimulants. TIMING: Intermittent, random. SEVERITY: Mild discomfort, more bothersome than painful. KEY POSITIVES: Brief episodes, no syncope, no dyspnea, otherwise healthy, triggered by caffeine or stress. KEY NEGATIVES: NO sustained rapid heart rate, NO syncope, NO chest pain, NO dyspnea.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "intermittent",
+          "episodic"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "continuous"
+        ]
+      },
+      "location": {
+        "includes": [
+          "chest",
+          "precordial area"
+        ],
+        "excludes": [
+          "localized",
+          "one area only",
+          "extremities"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "brief",
+          "seconds per episode",
+          "short duration"
+        ],
+        "excludes": [
+          "continuous",
+          "unrelenting",
+          "hours"
+        ]
+      },
+      "character": {
+        "includes": [
+          "skipped beat",
+          "flip-flop",
+          "brief flutter",
+          "pause"
+        ],
+        "excludes": [
+          "sustained rapid heart rate",
+          "syncope",
+          "chest pain",
+          "dyspnea"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "caffeine",
+          "alcohol",
+          "stress",
+          "fatigue",
+          "lack of sleep"
+        ],
+        "excludes": [
+          "relaxation",
+          "reducing stimulants",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "relaxation",
+          "reducing stimulants"
+        ],
+        "excludes": [
+          "caffeine",
+          "alcohol",
+          "stress",
+          "fatigue"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "intermittent",
+          "random"
+        ],
+        "excludes": [
+          "constant",
+          "unrelenting",
+          "continuous"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "mild discomfort",
+          "more bothersome than painful",
+          "mild"
+        ],
+        "excludes": [
+          "severe",
+          "painful",
+          "moderate"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Syncope or near-syncope",

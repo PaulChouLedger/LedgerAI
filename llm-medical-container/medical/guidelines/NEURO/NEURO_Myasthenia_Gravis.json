@@ -15,7 +15,123 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL onset over days to weeks. LOCATION: BILATERAL weakness, usually starting with eyes. DURATION: Progressive over days to weeks. CHARACTER: PROGRESSIVE weakness, fatigue. AGGRAVATING: ACTIVITY, stress, fatigue. RELIEVING: CHOLINESTERASE inhibitors, immunosuppressants. TIMING: Progressive over days to weeks. SEVERITY: 4-8/10, moderate to severe. ASSOCIATED SYMPTOMS: PROGRESSIVE WEAKNESS, double vision, drooping eyelids, difficulty swallowing, breathing problems, fatigue. KEY POSITIVES: Progressive weakness, double vision, drooping eyelids, difficulty swallowing, breathing problems. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+    "classic_presentation": "ONSET: GRADUAL onset over days to weeks. LOCATION: BILATERAL weakness, usually starting with eyes. DURATION: Progressive over days to weeks. CHARACTER: PROGRESSIVE weakness, fatigue. AGGRAVATING: ACTIVITY, stress, fatigue. RELIEVING: CHOLINESTERASE inhibitors, immunosuppressants. TIMING: Progressive over days to weeks. SEVERITY: 4-8/10, moderate to severe. ASSOCIATED SYMPTOMS: PROGRESSIVE WEAKNESS, double vision, drooping eyelids, difficulty swallowing, breathing problems, fatigue. KEY POSITIVES: Progressive weakness, double vision, drooping eyelids, difficulty swallowing, breathing problems. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "days to weeks",
+          "progressive",
+          "slow onset"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "immediate",
+          "seconds"
+        ]
+      },
+      "location": {
+        "includes": [
+          "bilateral",
+          "eyes",
+          "both sides",
+          "generalized"
+        ],
+        "excludes": [
+          "unilateral",
+          "focal",
+          "localized"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "progressive",
+          "days to weeks",
+          "ongoing",
+          "persistent"
+        ],
+        "excludes": [
+          "brief",
+          "minutes",
+          "hours",
+          "transient"
+        ]
+      },
+      "character": {
+        "includes": [
+          "progressive weakness",
+          "fatigue",
+          "muscle weakness",
+          "exhaustion"
+        ],
+        "excludes": [
+          "sharp",
+          "stabbing",
+          "burning",
+          "numbness"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "activity",
+          "stress",
+          "fatigue",
+          "exertion"
+        ],
+        "excludes": [
+          "rest",
+          "medications",
+          "treatment",
+          "sleep"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "cholinesterase inhibitors",
+          "immunosuppressants",
+          "medications",
+          "treatment"
+        ],
+        "excludes": [
+          "activity",
+          "stress",
+          "fatigue",
+          "exertion"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "progressive",
+          "days to weeks",
+          "ongoing",
+          "persistent"
+        ],
+        "excludes": [
+          "sudden",
+          "brief",
+          "minutes",
+          "transient"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "moderate to severe",
+          "4-8/10",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8"
+        ],
+        "excludes": [
+          "mild",
+          "1-3/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe respiratory distress - possible respiratory failure, call 911",

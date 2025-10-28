@@ -1,0 +1,81 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: IMPETIGO
+================================================================================
+
+Condition: Impetigo
+Category: N/A
+Urgency Level: non-urgent
+Prevalence: common
+ICD-10 Code: L01.0
+SNOMED Code: 125622002
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • skin infection
+  • impetigo
+  • honey crusted rash
+  • skin sores
+  • contagious rash
+  • skin blisters
+  • school sores
+
+CLASSIC PRESENTATION:
+ONSET: GRADUAL onset over 2-3 days, often following minor skin trauma or insect bite. LOCATION: FACE (around nose, mouth), hands, or anywhere on body. DURATION: Develops over 2-3 days, may persist for 1-2 weeks without treatment. CHARACTER: VESICULAR (blistering) lesions that rupture and form HONEY-COLORED CRUSTS. AGGRAVATING: SCRATCHING, heat, sweating. RELIEVING: ANTIBIOTICS, keeping lesions clean and dry. TIMING: Develops over 2-3 days, peaks at 3-5 days. SEVERITY: 2-4/10 pain, mild to moderate. ASSOCIATED SYMPTOMS: MILD ITCHING (pruritus), honey-colored crusts, may have regional lymphadenopathy (swollen lymph nodes), may have fever (low-grade). KEY POSITIVES: Vesicular lesions, honey-colored crusts, positive bacterial culture. KEY NEGATIVES: No fever >102°F, no systemic symptoms, no deep tissue involvement.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: gradual, progressive, days, weeks
+  Negative indicators: sudden, immediate
+
+LOCATION:
+  Positive indicators: anywhere, generalized, face, hands
+
+DURATION:
+
+CHARACTER:
+  Positive indicators: erythematous, red, swollen, edematous
+
+AGGRAVATING:
+  Positive indicators: scratching, heat
+
+RELIEVING:
+
+TIMING:
+
+SEVERITY:
+  Positive indicators: moderate, mild
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Rash with fever >102°F - possible systemic infection, needs urgent evaluation
+
+  🚨 Rash with severe systemic symptoms - possible sepsis, call 911
+
+  🚨 Rash with signs of deep tissue involvement - cellulitis, needs urgent evaluation
+
+  🚨 Rash with signs of secondary infection - fever, pus, increasing pain - needs urgent evaluation
+
+  🚨 Rash involving >30% of body surface - severe infection, needs urgent evaluation
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Impetigo
+================================================================================

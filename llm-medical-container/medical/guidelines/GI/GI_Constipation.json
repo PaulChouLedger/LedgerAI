@@ -16,20 +16,117 @@
   "key_features": {
     "classic_presentation": "ONSET: GRADUAL over days to weeks (not acute or sudden). Chronic, progressive pattern. LOCATION: LOWER ABDOMEN, diffuse. Cramping throughout lower belly (not localized). DURATION: Symptoms persist for days to weeks. Cramping episodes last minutes to hours, come and go. CHARACTER: CRAMPY, ACHY abdominal discomfort. NOT sharp or stabbing. Dull, bloating sensation. AGGRAVATING: Eating may worsen bloating. Straining worsens discomfort. RELIEVING: Bowel movement or PASSING GAS provides significant relief. Fiber, hydration, laxatives help. TIMING: INTERMITTENT cramping that comes and goes. Better after defecation, worse when haven't gone for days. SEVERITY: 3-6/10, mild to moderate discomfort (not severe). ASSOCIATED SYMPTOMS: BLOATING, sensation of incomplete evacuation, straining, HARD PELLET-LIKE STOOLS, NO bowel movement for 3-7+ days. Usually NO fever, NO vomiting. KEY POSITIVES: Gradual onset, able to pass gas (unlike obstruction), pain relief after defecation, chronic pattern, poor fiber/water intake. KEY NEGATIVES: SUDDEN onset with inability to pass gas suggests obstruction. Vomiting uncommon. SEVERE pain suggests alternative.",
     "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "days to weeks",
+          "chronic",
+          "progressive pattern"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "hours",
+          "minutes"
+        ]
+      },
+      "location": {
+        "includes": [
+          "lower abdomen",
+          "diffuse",
+          "throughout lower belly",
+          "not localized"
+        ],
+        "excludes": [
+          "upper abdomen",
+          "localized",
+          "one quadrant",
+          "specific point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "days to weeks",
+          "minutes to hours",
+          "come and go",
+          "persist"
+        ],
+        "excludes": [
+          "constant",
+          "continuous",
+          "unrelenting"
+        ]
+      },
+      "character": {
+        "includes": [
+          "crampy",
+          "achy",
+          "discomfort",
+          "dull",
+          "bloating sensation"
+        ],
+        "excludes": [
+          "sharp",
+          "stabbing",
+          "severe",
+          "excruciating"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "eating",
+          "straining",
+          "bloating"
+        ],
+        "excludes": [
+          "bowel movement",
+          "passing gas",
+          "fiber",
+          "hydration"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "bowel movement",
+          "passing gas",
+          "fiber",
+          "hydration",
+          "laxatives",
+          "defecation"
+        ],
+        "excludes": [
+          "eating",
+          "straining"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "intermittent",
+          "comes and goes",
+          "better after defecation",
+          "worse when haven't gone"
+        ],
+        "excludes": [
+          "constant",
+          "continuous",
+          "unrelenting"
+        ]
+      },
       "severity": {
         "includes": [
-          "9",
-          "7",
-          "8",
-          "4",
-          "6",
-          "5",
-          "3",
-          "10",
+          "3-6/10",
           "mild",
           "moderate",
-          "3-6/10",
-          "severe"
+          "3",
+          "4",
+          "5",
+          "6",
+          "discomfort"
+        ],
+        "excludes": [
+          "severe",
+          "7-10/10",
+          "excruciating"
         ]
       }
     }

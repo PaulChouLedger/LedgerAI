@@ -15,7 +15,118 @@
   ],
   "urgency": "non-urgent",
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL onset over minutes to hours. LOCATION: BILATERAL or unilateral. DURATION: Lasts minutes to hours. CHARACTER: DULL, ACHING, PRESSURE-like pain. AGGRAVATING: STRESS, tension, poor posture. RELIEVING: REST, relaxation, medications. TIMING: Gradual onset, lasts minutes to hours. SEVERITY: 3-6/10, mild to moderate. ASSOCIATED SYMPTOMS: MILD nausea, may have neck tension, may have stress. KEY POSITIVES: Dull pain, bilateral distribution, stress triggers. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+    "classic_presentation": "ONSET: GRADUAL onset over minutes to hours. LOCATION: BILATERAL or unilateral. DURATION: Lasts minutes to hours. CHARACTER: DULL, ACHING, PRESSURE-like pain. AGGRAVATING: STRESS, tension, poor posture. RELIEVING: REST, relaxation, medications. TIMING: Gradual onset, lasts minutes to hours. SEVERITY: 3-6/10, mild to moderate. ASSOCIATED SYMPTOMS: MILD nausea, may have neck tension, may have stress. KEY POSITIVES: Dull pain, bilateral distribution, stress triggers. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "minutes to hours",
+          "slow onset",
+          "progressive"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "immediate",
+          "seconds"
+        ]
+      },
+      "location": {
+        "includes": [
+          "bilateral",
+          "unilateral",
+          "both sides",
+          "one side"
+        ],
+        "excludes": [
+          "localized",
+          "specific point",
+          "focal"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "minutes to hours",
+          "variable",
+          "intermittent"
+        ],
+        "excludes": [
+          "chronic",
+          "persistent",
+          "ongoing"
+        ]
+      },
+      "character": {
+        "includes": [
+          "dull",
+          "aching",
+          "pressure-like",
+          "mild"
+        ],
+        "excludes": [
+          "sharp",
+          "stabbing",
+          "severe",
+          "throbbing"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "stress",
+          "tension",
+          "poor posture",
+          "activity"
+        ],
+        "excludes": [
+          "rest",
+          "relaxation",
+          "medications",
+          "sleep"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "rest",
+          "relaxation",
+          "medications",
+          "sleep"
+        ],
+        "excludes": [
+          "stress",
+          "tension",
+          "poor posture",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "gradual onset",
+          "intermittent",
+          "variable"
+        ],
+        "excludes": [
+          "sudden",
+          "continuous",
+          "unrelenting"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "mild to moderate",
+          "3-6/10",
+          "3",
+          "4",
+          "5",
+          "6"
+        ],
+        "excludes": [
+          "severe",
+          "7-10/10",
+          "mild",
+          "1-2/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Sudden severe headache - possible subarachnoid hemorrhage, call 911",

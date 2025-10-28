@@ -1,0 +1,95 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: VASOVAGAL SYNCOPE (FAINTING)
+================================================================================
+
+Condition: Vasovagal Syncope (Fainting)
+Category: N/A
+Urgency Level: routine
+Prevalence: common
+ICD-10 Code: R55
+SNOMED Code: 398036000
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • fainted
+  • passed out
+  • lost consciousness
+  • syncope
+  • lightheadedness
+
+CLASSIC PRESENTATION:
+ONSET: Sudden, preceded by prodrome (warning signs). LOCATION: Generalized, loss of consciousness. DURATION: Seconds to 1-2 minutes, brief. CHARACTER: Lightheadedness, tunnel vision, nausea, sweating before fainting. AGGRAVATING: Prolonged standing, heat, dehydration, pain, emotional stress, sight of blood. RELIEVING: Lying down, recovery rapid once horizontal. TIMING: Single episode or rare episodes with clear triggers. SEVERITY: Complete LOC but brief. KEY POSITIVES: Prodrome (warning), rapid recovery, no confusion post-event, clear trigger, young patient. KEY NEGATIVES: NO exertional syncope (cardiac), NO chest pain, NO palpitations before event, NO seizure activity.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, preceded by prodrome, warning signs
+  Negative indicators: gradual, no warning, chronic
+
+LOCATION:
+  Positive indicators: generalized, loss of consciousness
+  Negative indicators: localized, one area only, chest
+
+DURATION:
+  Positive indicators: seconds to 1-2 minutes, brief, short
+  Negative indicators: prolonged, >5 minutes, hours
+
+CHARACTER:
+  Positive indicators: lightheadedness, tunnel vision, nausea, sweating before fainting
+  Negative indicators: chest pain, palpitations, seizure activity
+
+AGGRAVATING:
+  Positive indicators: prolonged standing, heat, dehydration, pain, emotional stress, sight of blood
+  Negative indicators: lying down, rest, medication
+
+RELIEVING:
+  Positive indicators: lying down, recovery rapid once horizontal
+  Negative indicators: prolonged standing, heat, dehydration
+
+TIMING:
+  Positive indicators: single episode, rare episodes, clear triggers
+  Negative indicators: frequent, unpredictable, no triggers
+
+SEVERITY:
+  Positive indicators: complete LOC, brief, rapid recovery
+  Negative indicators: prolonged, confusion post-event, severe
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Exertional syncope (suggests cardiac cause)
+
+  🚨 No prodrome (sudden without warning)
+
+  🚨 Prolonged loss of consciousness >5 minutes
+
+  🚨 Chest pain or palpitations before syncope
+
+  🚨 Family history of sudden cardiac death
+
+  🚨 Age >60 years
+
+  🚨 Injury from fall
+
+  🚨 Seizure-like activity
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Vasovagal Syncope (Fainting)
+================================================================================

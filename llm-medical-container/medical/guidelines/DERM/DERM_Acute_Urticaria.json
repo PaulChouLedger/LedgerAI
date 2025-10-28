@@ -15,7 +15,109 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within minutes to hours after exposure to trigger. LOCATION: ANYWHERE on body - face, trunk, extremities, may be localized or generalized. DURATION: Individual lesions last <24 hours, but new lesions may appear for days to weeks. CHARACTER: RAISED, WHEAL-LIKE lesions that are PRURITIC (itchy). AGGRAVATING: HEAT, stress, pressure, scratching. RELIEVING: COOL compresses, antihistamines, avoiding triggers. TIMING: Lesions appear and disappear within 24 hours, but new ones may continue. SEVERITY: 3-8/10 itching, moderate to severe. ASSOCIATED SYMPTOMS: SEVERE ITCHING (pruritus), raised wheals with central pallor and red borders, lesions may coalesce into larger areas, may have angioedema (swelling of lips, eyes, throat). KEY POSITIVES: Raised wheals, central pallor with red borders, severe pruritus, lesions <24 hours duration. KEY NEGATIVES: No fever, no systemic symptoms (unless anaphylaxis), no scaling or crusting."
+    "classic_presentation": "ONSET: SUDDEN onset within minutes to hours after exposure to trigger. LOCATION: ANYWHERE on body - face, trunk, extremities, may be localized or generalized. DURATION: Individual lesions last <24 hours, but new lesions may appear for days to weeks. CHARACTER: RAISED, WHEAL-LIKE lesions that are PRURITIC (itchy). AGGRAVATING: HEAT, stress, pressure, scratching. RELIEVING: COOL compresses, antihistamines, avoiding triggers. TIMING: Lesions appear and disappear within 24 hours, but new ones may continue. SEVERITY: 3-8/10 itching, moderate to severe. ASSOCIATED SYMPTOMS: SEVERE ITCHING (pruritus), raised wheals with central pallor and red borders, lesions may coalesce into larger areas, may have angioedema (swelling of lips, eyes, throat). KEY POSITIVES: Raised wheals, central pallor with red borders, severe pruritus, lesions <24 hours duration. KEY NEGATIVES: No fever, no systemic symptoms (unless anaphylaxis), no scaling or crusting.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "minutes to hours",
+          "after exposure to trigger"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "days"
+        ]
+      },
+      "location": {
+        "includes": [
+          "anywhere on body",
+          "face",
+          "trunk",
+          "extremities",
+          "localized",
+          "generalized"
+        ],
+        "excludes": [
+          "internal organs",
+          "specific organ systems"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "individual lesions <24 hours",
+          "new lesions for days to weeks"
+        ],
+        "excludes": [
+          "chronic lesions",
+          "permanent lesions"
+        ]
+      },
+      "character": {
+        "includes": [
+          "raised",
+          "wheal-like",
+          "pruritic",
+          "itchy",
+          "central pallor",
+          "red borders"
+        ],
+        "excludes": [
+          "flat",
+          "non-itchy",
+          "painful",
+          "scaly"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "heat",
+          "stress",
+          "pressure",
+          "scratching"
+        ],
+        "excludes": [
+          "cool",
+          "rest",
+          "avoiding triggers"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "cool compresses",
+          "antihistamines",
+          "avoiding triggers"
+        ],
+        "excludes": [
+          "heat",
+          "scratching",
+          "stress"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "lesions appear and disappear within 24 hours",
+          "new ones may continue"
+        ],
+        "excludes": [
+          "constant",
+          "chronic",
+          "permanent"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "3-8/10 itching",
+          "moderate",
+          "severe"
+        ],
+        "excludes": [
+          "mild",
+          "1-2/10",
+          "asymptomatic"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Difficulty breathing or swallowing - possible anaphylaxis, call 911",

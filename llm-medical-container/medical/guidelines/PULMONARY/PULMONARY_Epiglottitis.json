@@ -13,7 +13,107 @@
   ],
   "urgency": "emergent",
   "key_features": {
-    "classic_presentation": "ONSET: Rapid onset over hours. LOCATION: Supraglottic region. DURATION: Acute, hours to days. CHARACTER: Severe throat pain, dysphagia, dyspnea. AGGRAVATING: Swallowing, lying flat. RELIEVING: Sitting upright, humidified air, antibiotics. TIMING: Acute, progressive. SEVERITY: Severe (8-10/10). ASSOCIATED SYMPTOMS: High fever, drooling, stridor, dysphagia, muffled voice, tripod positioning, anxiety. KEY POSITIVES: High fever, drooling, stridor, dysphagia, tripod positioning. KEY NEGATIVES: No chest pain, no wheezing."
+    "classic_presentation": "ONSET: Rapid onset over hours. LOCATION: Supraglottic region. DURATION: Acute, hours to days. CHARACTER: Severe throat pain, dysphagia, dyspnea. AGGRAVATING: Swallowing, lying flat. RELIEVING: Sitting upright, humidified air, antibiotics. TIMING: Acute, progressive. SEVERITY: Severe (8-10/10). ASSOCIATED SYMPTOMS: High fever, drooling, stridor, dysphagia, muffled voice, tripod positioning, anxiety. KEY POSITIVES: High fever, drooling, stridor, dysphagia, tripod positioning. KEY NEGATIVES: No chest pain, no wheezing.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "rapid onset over hours",
+          "acute",
+          "immediate"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "supraglottic region",
+          "throat",
+          "upper airway"
+        ],
+        "excludes": [
+          "lower airway",
+          "chest",
+          "lungs"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "acute",
+          "hours to days",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "severe throat pain",
+          "dysphagia",
+          "dyspnea"
+        ],
+        "excludes": [
+          "no chest pain",
+          "no wheezing",
+          "mild"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "swallowing",
+          "lying flat",
+          "activity"
+        ],
+        "excludes": [
+          "sitting upright",
+          "humidified air",
+          "antibiotics"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "sitting upright",
+          "humidified air",
+          "antibiotics"
+        ],
+        "excludes": [
+          "swallowing",
+          "lying flat",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "acute",
+          "progressive",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "severe",
+          "8-10/10",
+          "8",
+          "9",
+          "10"
+        ],
+        "excludes": [
+          "mild",
+          "1-7/10",
+          "moderate"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Stridor or respiratory distress",

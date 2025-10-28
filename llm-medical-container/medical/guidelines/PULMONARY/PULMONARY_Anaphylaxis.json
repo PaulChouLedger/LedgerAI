@@ -14,7 +14,105 @@
   ],
   "urgency": "emergent",
   "key_features": {
-    "classic_presentation": "ONSET: RAPID onset within minutes of exposure to allergen. LOCATION: Systemic, affecting multiple organ systems. DURATION: Minutes to hours, can be life-threatening. CHARACTER: Severe, rapidly progressive. AGGRAVATING: Continued allergen exposure. RELIEVING: Epinephrine, antihistamines, steroids. TIMING: Acute, rapid progression. SEVERITY: Severe to life-threatening (8-10/10). ASSOCIATED SYMPTOMS: Respiratory: stridor, wheezing, dyspnea, throat tightness. Cutaneous: urticaria, angioedema, pruritus. Cardiovascular: hypotension, tachycardia, shock. GI: nausea, vomiting, diarrhea. Neurological: altered mental status, dizziness. KEY POSITIVES: Multi-system involvement, rapid onset, known allergen exposure. KEY NEGATIVES: No fever, no chest pain (unless secondary to respiratory distress)."
+    "classic_presentation": "ONSET: RAPID onset within minutes of exposure to allergen. LOCATION: Systemic, affecting multiple organ systems. DURATION: Minutes to hours, can be life-threatening. CHARACTER: Severe, rapidly progressive. AGGRAVATING: Continued allergen exposure. RELIEVING: Epinephrine, antihistamines, steroids. TIMING: Acute, rapid progression. SEVERITY: Severe to life-threatening (8-10/10). ASSOCIATED SYMPTOMS: Respiratory: stridor, wheezing, dyspnea, throat tightness. Cutaneous: urticaria, angioedema, pruritus. Cardiovascular: hypotension, tachycardia, shock. GI: nausea, vomiting, diarrhea. Neurological: altered mental status, dizziness. KEY POSITIVES: Multi-system involvement, rapid onset, known allergen exposure. KEY NEGATIVES: No fever, no chest pain (unless secondary to respiratory distress).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "rapid onset within minutes of exposure to allergen",
+          "acute",
+          "immediate"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "systemic",
+          "affecting multiple organ systems"
+        ],
+        "excludes": [
+          "localized",
+          "one side only",
+          "specific point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "minutes to hours",
+          "can be life-threatening",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "severe",
+          "rapidly progressive"
+        ],
+        "excludes": [
+          "no fever",
+          "no chest pain",
+          "mild"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "continued allergen exposure",
+          "activity",
+          "movement"
+        ],
+        "excludes": [
+          "epinephrine",
+          "antihistamines",
+          "steroids"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "epinephrine",
+          "antihistamines",
+          "steroids"
+        ],
+        "excludes": [
+          "continued allergen exposure",
+          "activity",
+          "movement"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "acute",
+          "rapid progression",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "severe to life-threatening",
+          "8-10/10",
+          "8",
+          "9",
+          "10"
+        ],
+        "excludes": [
+          "mild",
+          "1-7/10",
+          "moderate"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Stridor or hoarse voice",

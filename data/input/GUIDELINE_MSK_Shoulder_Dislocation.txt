@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: SHOULDER DISLOCATION
+================================================================================
+
+Condition: Shoulder Dislocation
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: S43.0
+SNOMED Code: 125607007
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • shoulder pain
+  • shoulder out of place
+  • dislocated shoulder
+  • shoulder injury
+  • can't move shoulder
+  • shoulder deformity
+  • shoulder popped out
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset during trauma - fall on outstretched arm, direct blow, or forceful abduction/external rotation. LOCATION: Anterior shoulder (95% anterior dislocations), posterior shoulder (5% posterior dislocations). DURATION: Immediate severe pain that persists until reduction. CHARACTER: SEVERE, SHARP, CONSTANT pain. AGGRAVATING: ANY shoulder movement, especially abduction and external rotation. RELIEVING: NOTHING relieves pain until reduction. Patient holds arm in protective position. TIMING: Immediate severe pain that persists until reduction. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: OBVIOUS DEFORMITY (squared-off shoulder, prominent acromion), arm held in abduction and external rotation, inability to move shoulder, numbness/tingling in arm (axillary nerve injury), 'dead arm' sensation. May have audible 'pop' at injury. KEY POSITIVES: Obvious deformity, positive apprehension test, positive relocation test, axillary nerve deficit, prominent acromion. KEY NEGATIVES: No bony tenderness over clavicle or humerus (rules out fracture), no crepitus.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, during trauma, fall on outstretched arm, direct blow, forceful abduction, external rotation
+  Negative indicators: gradual, progressive, slow onset, days to weeks
+
+LOCATION:
+  Positive indicators: anterior shoulder, posterior shoulder, shoulder, shoulder joint
+  Negative indicators: elbow, wrist, neck, chest
+
+DURATION:
+  Positive indicators: immediate, persists until reduction, constant, ongoing
+  Negative indicators: brief, minutes, hours, transient
+
+CHARACTER:
+  Positive indicators: severe, sharp, constant, unrelenting
+  Negative indicators: mild, dull, intermittent, aching
+
+AGGRAVATING:
+  Positive indicators: shoulder movement, abduction, external rotation, any movement
+  Negative indicators: reduction, immobilization, rest, treatment
+
+RELIEVING:
+  Positive indicators: reduction, immobilization, rest, treatment
+  Negative indicators: shoulder movement, abduction, external rotation, activity
+
+TIMING:
+  Positive indicators: immediate, persists until reduction, constant, ongoing
+  Negative indicators: delayed, intermittent, variable, episodic
+
+SEVERITY:
+  Positive indicators: severe, 8-10/10, 8, 9, 10, unrelenting
+  Negative indicators: mild, 1-3/10, moderate, 4-7/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Open wound with bone visible - open dislocation, call 911
+
+  🚨 Severe neurovascular compromise - cold, pale, pulseless arm, call 911
+
+  🚨 Associated fracture - humeral head or glenoid fracture, needs urgent orthopedic evaluation
+
+  🚨 Recurrent dislocations with minimal trauma - possible chronic instability
+
+  🚨 Elderly patients - higher risk of associated fractures and complications
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Shoulder Dislocation
+================================================================================

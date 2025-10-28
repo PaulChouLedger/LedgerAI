@@ -1,0 +1,83 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: GLOMERULONEPHRITIS
+================================================================================
+
+Condition: Glomerulonephritis
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: N05.9
+SNOMED Code: 125651001
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • glomerulonephritis
+  • kidney inflammation
+  • renal inflammation
+  • kidney disease
+  • hematuria
+  • proteinuria
+  • kidney problems
+
+CLASSIC PRESENTATION:
+ONSET: GRADUAL onset over days to weeks. LOCATION: BILATERAL kidney involvement. DURATION: Develops over days to weeks, may persist for weeks to months. CHARACTER: HEMATURIA, proteinuria, swelling. AGGRAVATING: DEHYDRATION, medications. RELIEVING: IMMUNOSUPPRESSANTS, supportive care. TIMING: Gradual onset, develops over days to weeks. SEVERITY: 5-8/10, moderate to severe. ASSOCIATED SYMPTOMS: HEMATURIA, proteinuria, swelling, may have hypertension, may have decreased urine output. KEY POSITIVES: Hematuria, proteinuria, swelling, elevated creatinine, elevated BUN. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: gradual, progressive, days, weeks
+  Negative indicators: sudden, immediate
+
+LOCATION:
+  Positive indicators: kidney, renal, bilateral
+
+DURATION:
+  Positive indicators: progressive
+
+CHARACTER:
+  Positive indicators: severe, decreased urine output, swelling
+
+AGGRAVATING:
+  Positive indicators: dehydration, medications
+
+RELIEVING:
+
+TIMING:
+  Positive indicators: progressive
+
+SEVERITY:
+  Positive indicators: moderate
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe fluid overload with respiratory distress - possible pulmonary edema, call 911
+
+  🚨 Signs of severe electrolyte imbalances - confusion, seizures, cardiac arrhythmias - call 911
+
+  🚨 Severe hypertension with neurological deficits - possible hypertensive crisis, call 911
+
+  🚨 Signs of uremia - confusion, seizures, coma - call 911
+
+  🚨 Signs of severe metabolic acidosis - deep breathing, confusion, coma - call 911
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Glomerulonephritis
+================================================================================

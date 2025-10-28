@@ -15,7 +15,122 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset after head trauma. LOCATION: GENERALIZED symptoms. DURATION: Symptoms may persist for days to weeks. CHARACTER: HEADACHE, dizziness, confusion. AGGRAVATING: LIGHT, sound, movement, cognitive tasks. RELIEVING: REST, avoiding triggers. TIMING: Immediate onset after trauma, may persist for days to weeks. SEVERITY: 4-8/10, moderate to severe. ASSOCIATED SYMPTOMS: HEADACHE, dizziness, confusion, memory problems, nausea, vomiting, sensitivity to light and sound. KEY POSITIVES: Headache, dizziness, confusion, memory problems, sensitivity to light and sound. KEY NEGATIVES: No focal neurological deficits, no signs of increased intracranial pressure."
+    "classic_presentation": "ONSET: SUDDEN onset after head trauma. LOCATION: GENERALIZED symptoms. DURATION: Symptoms may persist for days to weeks. CHARACTER: HEADACHE, dizziness, confusion. AGGRAVATING: LIGHT, sound, movement, cognitive tasks. RELIEVING: REST, avoiding triggers. TIMING: Immediate onset after trauma, may persist for days to weeks. SEVERITY: 4-8/10, moderate to severe. ASSOCIATED SYMPTOMS: HEADACHE, dizziness, confusion, memory problems, nausea, vomiting, sensitivity to light and sound. KEY POSITIVES: Headache, dizziness, confusion, memory problems, sensitivity to light and sound. KEY NEGATIVES: No focal neurological deficits, no signs of increased intracranial pressure.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "after head trauma",
+          "immediate",
+          "acute"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset",
+          "progressive"
+        ]
+      },
+      "location": {
+        "includes": [
+          "generalized",
+          "diffuse",
+          "whole head",
+          "bilateral"
+        ],
+        "excludes": [
+          "localized",
+          "focal",
+          "specific point",
+          "unilateral"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "days to weeks",
+          "persistent",
+          "prolonged",
+          "ongoing"
+        ],
+        "excludes": [
+          "minutes",
+          "hours",
+          "brief",
+          "transient"
+        ]
+      },
+      "character": {
+        "includes": [
+          "headache",
+          "dizziness",
+          "confusion",
+          "moderate to severe"
+        ],
+        "excludes": [
+          "mild",
+          "focal deficits",
+          "severe neurological",
+          "localized"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "light",
+          "sound",
+          "movement",
+          "cognitive tasks"
+        ],
+        "excludes": [
+          "rest",
+          "avoiding triggers",
+          "dark",
+          "quiet"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "rest",
+          "avoiding triggers",
+          "dark",
+          "quiet"
+        ],
+        "excludes": [
+          "light",
+          "sound",
+          "movement",
+          "cognitive tasks"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "immediate onset after trauma",
+          "persistent",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "moderate to severe",
+          "4-8/10",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8"
+        ],
+        "excludes": [
+          "mild",
+          "1-3/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe headache with vomiting - possible intracranial hemorrhage, call 911",

@@ -70,12 +70,12 @@ class RAGClient:
             return False
     
     def _initialize_cpu_rag(self):
-        """Initialize local CPU-based RAG system"""
+        """Initialize local CPU-based RAG system with auto-ingestion"""
         try:
             from sentence_transformers import SentenceTransformer
             import faiss
             
-            logger.info("[RAG Client] 🔧 Initializing CPU RAG system...")
+            logger.info("[RAG Client] 🔧 Initializing CPU RAG system with auto-ingestion...")
             
             # Use all-distilroberta-v1 (benchmarked as best performing model)
             self._embedding_model = SentenceTransformer('all-distilroberta-v1')
@@ -86,10 +86,13 @@ class RAGClient:
             self._cpu_chunks = []
             self._cpu_metadata = []
             
+            # Initialize auto-ingestion system
+            self._initialize_auto_ingestion()
+            
             # Try to load pre-existing index
             self._load_cpu_index()
             
-            logger.info("[RAG Client] ✅ CPU RAG system initialized")
+            logger.info("[RAG Client] ✅ CPU RAG system initialized with auto-ingestion")
             
         except ImportError as e:
             logger.error(f"[RAG Client] ❌ Failed to import CPU RAG dependencies: {e}")
@@ -130,6 +133,34 @@ class RAGClient:
             # Create empty index as fallback
             import faiss
             self._cpu_index = faiss.IndexFlatL2(self._embedding_dim)
+    
+    def _initialize_auto_ingestion(self):
+        """Initialize auto-ingestion system for CPU FAISS"""
+        try:
+            # Import the auto-ingestion system
+            import sys
+            sys.path.append('/app/scripts')
+            from cpu_faiss_auto_ingest import CPUFAISSAutoIngest
+            
+            # Initialize auto-ingestion
+            self._auto_ingest = CPUFAISSAutoIngest()
+            
+            # Load existing embeddings
+            if self._auto_ingest.load_existing_embeddings():
+                logger.info("[RAG Client] ✅ Loaded existing embeddings via auto-ingestion")
+            else:
+                logger.info("[RAG Client] ⚠️ No existing embeddings found, will process on first scan")
+            
+            # Start file watching
+            self._auto_ingest.start_watching()
+            logger.info("[RAG Client] 👀 Started auto-ingestion file watching")
+            
+        except ImportError as e:
+            logger.warning(f"[RAG Client] ⚠️ Auto-ingestion not available: {e}")
+            self._auto_ingest = None
+        except Exception as e:
+            logger.error(f"[RAG Client] ❌ Failed to initialize auto-ingestion: {e}")
+            self._auto_ingest = None
     
     def search(self, query: str, k: int = 5, threshold: float = 0.3) -> List[Dict]:
         """

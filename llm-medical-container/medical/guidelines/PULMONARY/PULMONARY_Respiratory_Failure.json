@@ -13,7 +13,105 @@
   ],
   "urgency": "emergent",
   "key_features": {
-    "classic_presentation": "ONSET: Rapid onset over hours. LOCATION: Diffuse, bilateral. DURATION: Acute, persistent. CHARACTER: Severe dyspnea, air hunger. AGGRAVATING: Any exertion. RELIEVING: Mechanical ventilation, oxygen. TIMING: Acute, progressive. SEVERITY: Severe to life-threatening (8-10/10). ASSOCIATED SYMPTOMS: Severe dyspnea, cyanosis, altered mental status, use of accessory muscles. KEY POSITIVES: Severe dyspnea, cyanosis, altered mental status. KEY NEGATIVES: No chest pain (unless secondary), no wheezing (unless reactive airway disease)."
+    "classic_presentation": "ONSET: Rapid onset over hours. LOCATION: Diffuse, bilateral. DURATION: Acute, persistent. CHARACTER: Severe dyspnea, air hunger. AGGRAVATING: Any exertion. RELIEVING: Mechanical ventilation, oxygen. TIMING: Acute, progressive. SEVERITY: Severe to life-threatening (8-10/10). ASSOCIATED SYMPTOMS: Severe dyspnea, cyanosis, altered mental status, use of accessory muscles. KEY POSITIVES: Severe dyspnea, cyanosis, altered mental status. KEY NEGATIVES: No chest pain (unless secondary), no wheezing (unless reactive airway disease).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "rapid onset over hours",
+          "acute",
+          "immediate"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "diffuse",
+          "bilateral"
+        ],
+        "excludes": [
+          "unilateral",
+          "one side only",
+          "localized"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "acute",
+          "persistent",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "severe dyspnea",
+          "air hunger"
+        ],
+        "excludes": [
+          "no chest pain",
+          "no wheezing",
+          "mild"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "any exertion",
+          "activity",
+          "movement"
+        ],
+        "excludes": [
+          "mechanical ventilation",
+          "oxygen",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "mechanical ventilation",
+          "oxygen",
+          "rest"
+        ],
+        "excludes": [
+          "any exertion",
+          "activity",
+          "movement"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "acute",
+          "progressive",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "severe to life-threatening",
+          "8-10/10",
+          "8",
+          "9",
+          "10"
+        ],
+        "excludes": [
+          "mild",
+          "1-7/10",
+          "moderate"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe dyspnea or respiratory distress",

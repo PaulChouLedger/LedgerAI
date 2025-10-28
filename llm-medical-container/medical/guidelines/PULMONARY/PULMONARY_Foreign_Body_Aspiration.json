@@ -13,7 +13,105 @@
   ],
   "urgency": "emergent",
   "key_features": {
-    "classic_presentation": "ONSET: Sudden during eating or playing. LOCATION: Upper airway or bronchial tree. DURATION: Acute, persistent until removed. CHARACTER: Sudden dyspnea, choking sensation. AGGRAVATING: Continued attempts to breathe. RELIEVING: Removal of foreign body, positioning. TIMING: Acute, sudden onset. SEVERITY: Severe to life-threatening (8-10/10). ASSOCIATED SYMPTOMS: Sudden dyspnea, choking, coughing, stridor, cyanosis, altered mental status. KEY POSITIVES: Witnessed choking event, sudden onset, stridor, dyspnea. KEY NEGATIVES: No fever, no chest pain (unless secondary)."
+    "classic_presentation": "ONSET: Sudden during eating or playing. LOCATION: Upper airway or bronchial tree. DURATION: Acute, persistent until removed. CHARACTER: Sudden dyspnea, choking sensation. AGGRAVATING: Continued attempts to breathe. RELIEVING: Removal of foreign body, positioning. TIMING: Acute, sudden onset. SEVERITY: Severe to life-threatening (8-10/10). ASSOCIATED SYMPTOMS: Sudden dyspnea, choking, coughing, stridor, cyanosis, altered mental status. KEY POSITIVES: Witnessed choking event, sudden onset, stridor, dyspnea. KEY NEGATIVES: No fever, no chest pain (unless secondary).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden during eating or playing",
+          "acute",
+          "immediate"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "upper airway",
+          "bronchial tree"
+        ],
+        "excludes": [
+          "lower airway",
+          "chest",
+          "lungs"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "acute",
+          "persistent until removed",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "sudden dyspnea",
+          "choking sensation"
+        ],
+        "excludes": [
+          "no fever",
+          "no chest pain",
+          "mild"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "continued attempts to breathe",
+          "activity",
+          "movement"
+        ],
+        "excludes": [
+          "removal of foreign body",
+          "positioning",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "removal of foreign body",
+          "positioning",
+          "rest"
+        ],
+        "excludes": [
+          "continued attempts to breathe",
+          "activity",
+          "movement"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "acute",
+          "sudden onset",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "severe to life-threatening",
+          "8-10/10",
+          "8",
+          "9",
+          "10"
+        ],
+        "excludes": [
+          "mild",
+          "1-7/10",
+          "moderate"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Complete airway obstruction",

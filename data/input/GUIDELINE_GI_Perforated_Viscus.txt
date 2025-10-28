@@ -1,0 +1,85 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: PERFORATED VISCUS (PERFORATED ULCER/BOWEL)
+================================================================================
+
+Condition: Perforated Viscus (Perforated Ulcer/Bowel)
+Category: N/A
+Urgency Level: emergent
+Prevalence: rare
+ICD-10 Code: K63.1
+SNOMED Code: 840580004
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • abdominal pain
+  • severe abdominal pain
+  • sudden severe pain
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN, DRAMATIC onset within minutes. Acute, catastrophic presentation. LOCATION: Initially EPIGASTRIC (perforated ulcer) or localized, then becomes DIFFUSE as peritonitis develops. May have shoulder pain (diaphragmatic irritation). DURATION: CONSTANT from onset. Unrelenting, persists continuously. CHARACTER: SUDDEN, SEVERE, SHARP pain described as 'STABBED' or 'KICKED'. Excruciating, worst pain imaginable. AGGRAVATING: ANY MOVEMENT worsens pain dramatically. Breathing, coughing, talking all worsen. Jarring or bumps unbearable. RELIEVING: NOTHING helps. Patient lies PERFECTLY STILL. Position doesn't relieve. Requires emergency surgery. TIMING: CONSTANT and unrelenting from onset. Progressive worsening as peritonitis spreads. SEVERITY: 10/10, maximal severity. Catastrophic pain. ASSOCIATED SYMPTOMS: Nausea, vomiting, inability to pass gas, fever develops after 6-12 hours. BOARD-LIKE RIGID ABDOMEN, absent bowel sounds. KEY POSITIVES: Rigid abdomen, severe rebound, patient perfectly still, sudden onset, prior ulcer/NSAID use. KEY NEGATIVES: SOFT abdomen rules out. Gradual onset suggests alternative. SURGICAL EMERGENCY - call 911.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, dramatic, minutes, acute, catastrophic
+  Negative indicators: gradual, chronic, hours, slow
+
+LOCATION:
+  Positive indicators: epigastric, initially localized, then diffuse, shoulder pain, diaphragmatic irritation
+  Negative indicators: constant location, one quadrant only
+
+DURATION:
+  Positive indicators: constant from onset, unrelenting, persists continuously
+  Negative indicators: intermittent, episodic, comes and goes
+
+CHARACTER:
+  Positive indicators: sudden, severe, sharp, stabbed, kicked, excruciating, worst pain imaginable
+  Negative indicators: mild, dull, crampy, moderate
+
+AGGRAVATING:
+  Positive indicators: any movement, breathing, coughing, talking, jarring, bumps
+  Negative indicators: lying still, rest, position changes
+
+RELIEVING:
+  Positive indicators: nothing helps, lying perfectly still
+  Negative indicators: position, medication, movement
+
+TIMING:
+  Positive indicators: constant, unrelenting, progressive worsening, from onset
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: 10/10, maximal, catastrophic, 10
+  Negative indicators: mild, moderate, 1-9/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 SURGICAL EMERGENCY - rigid abdomen with severe pain - call 911 immediately
+
+  🚨 Hypotension or tachycardia - septic shock from peritonitis
+
+  🚨 Free air under diaphragm on x-ray - confirmatory for perforation
+
+  🚨 ANY delay in treatment increases mortality - needs emergency surgery
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Perforated Viscus (Perforated Ulcer/Bowel)
+================================================================================

@@ -1,0 +1,94 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: PNEUMOTHORAX (COLLAPSED LUNG)
+================================================================================
+
+Condition: Pneumothorax (Collapsed Lung)
+Category: N/A
+Urgency Level: emergent
+Prevalence: uncommon
+ICD-10 Code: J93.9
+SNOMED Code: 36118008
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • sudden chest pain
+  • sudden shortness of breath
+  • difficulty breathing
+  • sharp chest pain
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset. LOCATION: UNILATERAL chest pain (left or right). DURATION: Continuous until treated. CHARACTER: SHARP, PLEURITIC (worse with breathing). AGGRAVATING: Deep inspiration, cough. RELIEVING: Shallow breathing, sitting upright. TIMING: Sudden onset, persistent. SEVERITY: 7-10/10 for pain and dyspnea. KEY POSITIVES: Tall, thin young male (spontaneous), recent trauma or procedure, decreased breath sounds on affected side, hyperresonance, dyspnea. KEY NEGATIVES: NOT bilateral, NOT gradual onset, NOT cardiac radiation pattern.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden onset, acute, immediate
+  Negative indicators: gradual, chronic, slow onset
+
+LOCATION:
+  Positive indicators: unilateral chest pain, left or right, one side
+  Negative indicators: bilateral, cardiac radiation pattern, both sides
+
+DURATION:
+  Positive indicators: continuous until treated, persistent
+  Negative indicators: intermittent, episodic, comes and goes
+
+CHARACTER:
+  Positive indicators: sharp, pleuritic, worse with breathing
+  Negative indicators: dull, pressure, crushing, not worse with breathing
+
+AGGRAVATING:
+  Positive indicators: deep inspiration, cough, breathing
+  Negative indicators: shallow breathing, sitting upright, rest
+
+RELIEVING:
+  Positive indicators: shallow breathing, sitting upright
+  Negative indicators: deep inspiration, cough, activity
+
+TIMING:
+  Positive indicators: sudden onset, persistent, continuous
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: 7-10/10, 7, 8, 9, 10, for pain and dyspnea
+  Negative indicators: mild, 1-6/10, moderate
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe dyspnea
+
+  🚨 Hypoxia
+
+  🚨 Hypotension (tension pneumothorax)
+
+  🚨 Tracheal deviation (tension)
+
+  🚨 Jugular venous distension (tension)
+
+  🚨 Recent trauma or central line placement
+
+  🚨 Mechanical ventilation
+
+  🚨 Absent breath sounds on one side
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Pneumothorax (Collapsed Lung)
+================================================================================

@@ -1,0 +1,89 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: ACUTE CHOLECYSTITIS
+================================================================================
+
+Condition: Acute Cholecystitis
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: K81.0
+SNOMED Code: 65275009
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • abdominal pain
+  • right upper abdominal pain
+  • right upper quadrant (RUQ) pain
+  • upper right side pain
+  • pain after eating
+  • gallbladder pain
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset within 12-48 hours, often 30 minutes to 2 hours AFTER A FATTY MEAL (fried foods, heavy meals). LOCATION: Right upper quadrant (RUQ), precisely localized just below right rib cage. RADIATES TO RIGHT SHOULDER OR SCAPULA (phrenic nerve referred pain). DURATION: CONSTANT pain lasting >6 hours (unlike biliary colic <6 hours). CHARACTER: SHARP or ACHING, CONSTANT (NOT colicky). AGGRAVATING: WORSE WITH DEEP BREATHING, movement, and fatty food intake. Trigger is fatty meals. RELIEVING: NOTHING relieves pain effectively. Position changes don't help. Pain persists despite rest. TIMING: CONSTANT (not episodic like biliary colic). Lasts >6 hours continuously. SEVERITY: 7-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: NAUSEA AND VOMITING very common, fever (100.5-102°F) within 12-24 hours, MURPHY'S SIGN (inspiratory arrest during right upper quadrant (RUQ) palpation), anorexia. May have jaundice if common bile duct involved. KEY POSITIVES: right upper quadrant (RUQ) tenderness, Murphy's sign, post-fatty meal onset, fever. KEY NEGATIVES: Diarrhea uncommon. Left-sided pain rules out. Pain resolving <1-2 hours suggests biliary colic not cholecystitis.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, acute, hours
+  Negative indicators: chronic, months, gradual
+
+LOCATION:
+  Positive indicators: right upper quadrant, RUQ, right subcostal, epigastric
+  Negative indicators: left side, lower abdomen, LLQ
+  Anatomical type: right_upper
+
+DURATION:
+  Positive indicators: constant, hours, persistent
+  Negative indicators: intermittent, minutes, episodic
+
+CHARACTER:
+  Positive indicators: sharp, stabbing, severe, colicky
+  Negative indicators: burning, crampy, dull
+
+AGGRAVATING:
+  Positive indicators: fatty foods, deep inspiration, movement
+  Negative indicators: fasting, rest
+
+RELIEVING:
+  Positive indicators: avoiding fatty foods, pain medication
+  Negative indicators: eating, movement
+
+TIMING:
+  Positive indicators: constant, after meals, progressive
+  Negative indicators: intermittent, unrelated to food
+
+SEVERITY:
+  Positive indicators: severe, 7, 8, 9, 10
+  Negative indicators: mild, 1, 2, 3
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 High fever >102.5°F with rigors - suggests gangrenous cholecystitis or ascending cholangitis
+
+  🚨 Jaundice with confusion or sepsis - ascending cholangitis, needs urgent ERCP
+
+  🚨 Severe right upper quadrant (RUQ) pain with hypotension - gallbladder perforation or septic shock, call 911
+
+  🚨 Elderly or diabetic patients - higher risk of gangrenous cholecystitis and perforation
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Acute Cholecystitis
+================================================================================

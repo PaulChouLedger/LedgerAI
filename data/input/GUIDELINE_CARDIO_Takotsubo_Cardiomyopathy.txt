@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: TAKOTSUBO CARDIOMYOPATHY (BROKEN HEART SYNDROME)
+================================================================================
+
+Condition: Takotsubo Cardiomyopathy (Broken Heart Syndrome)
+Category: N/A
+Urgency Level: urgent
+Prevalence: rare
+ICD-10 Code: I51.81
+SNOMED Code: 418304008
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • chest pain
+  • shortness of breath
+  • chest pain after stress
+
+CLASSIC PRESENTATION:
+ONSET: Acute, often after EMOTIONAL or PHYSICAL STRESS. LOCATION: Chest (retrosternal). RADIATES to arm, jaw. DURATION: Minutes to hours. CHARACTER: Chest pain, pressure, dyspnea mimicking myocardial infarction (MI). AGGRAVATING: Recent severe emotional stress (death of loved one, bad news, argument). RELIEVING: Supportive care. TIMING: Acute onset after stressor. SEVERITY: 7-9/10. KEY POSITIVES: Postmenopausal woman, recent severe stress or emotional event, electrocardiogram (ECG) mimics myocardial infarction (MI) (ST elevation or T-wave inversion), normal coronaries on angiography, apical ballooning on echo. KEY NEGATIVES: NO significant coronary artery disease (differentiates from true myocardial infarction ).
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: acute, often after emotional stress, often after physical stress
+  Negative indicators: gradual, chronic, slow onset
+
+LOCATION:
+  Positive indicators: chest, retrosternal, radiates to arm, radiates to jaw
+  Negative indicators: right side only, no radiation, localized point
+
+DURATION:
+  Positive indicators: minutes to hours, brief
+  Negative indicators: continuous, unrelenting, days
+
+CHARACTER:
+  Positive indicators: chest pain, pressure, dyspnea mimicking myocardial infarction
+  Negative indicators: sharp, stabbing, burning, no pain
+
+AGGRAVATING:
+  Positive indicators: recent severe emotional stress, death of loved one, bad news, argument
+  Negative indicators: supportive care, medication, rest
+
+RELIEVING:
+  Positive indicators: supportive care
+  Negative indicators: emotional stress, physical stress, activity
+
+TIMING:
+  Positive indicators: acute onset after stressor, sudden
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: 7-9/10, 7, 8, 9
+  Negative indicators: mild, 1-6/10, severe, 10/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe chest pain mimicking myocardial infarction (MI)
+
+  🚨 ST elevation on electrocardiogram (ECG)
+
+  🚨 Troponin elevation (mild)
+
+  🚨 Heart failure symptoms
+
+  🚨 Arrhythmias
+
+  🚨 Cardiogenic shock
+
+  🚨 Recent severe emotional stress
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Takotsubo Cardiomyopathy (Broken Heart Syndrome)
+================================================================================

@@ -15,7 +15,118 @@
   ],
   "urgency": "non-urgent",
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL onset over minutes to hours. LOCATION: UNILATERAL or bilateral. DURATION: Lasts 4-72 hours. CHARACTER: THROBBING, PULSATING pain. AGGRAVATING: LIGHT, sound, movement, stress. RELIEVING: DARK, quiet room, sleep, medications. TIMING: Gradual onset, lasts 4-72 hours. SEVERITY: 6-9/10, moderate to severe. ASSOCIATED SYMPTOMS: NAUSEA, vomiting, photophobia, phonophobia, may have aura (visual, sensory, motor). KEY POSITIVES: Throbbing pain, nausea, photophobia, phonophobia, aura. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+    "classic_presentation": "ONSET: GRADUAL onset over minutes to hours. LOCATION: UNILATERAL or bilateral. DURATION: Lasts 4-72 hours. CHARACTER: THROBBING, PULSATING pain. AGGRAVATING: LIGHT, sound, movement, stress. RELIEVING: DARK, quiet room, sleep, medications. TIMING: Gradual onset, lasts 4-72 hours. SEVERITY: 6-9/10, moderate to severe. ASSOCIATED SYMPTOMS: NAUSEA, vomiting, photophobia, phonophobia, may have aura (visual, sensory, motor). KEY POSITIVES: Throbbing pain, nausea, photophobia, phonophobia, aura. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "minutes to hours",
+          "slow onset",
+          "progressive"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "immediate",
+          "seconds"
+        ]
+      },
+      "location": {
+        "includes": [
+          "unilateral",
+          "bilateral",
+          "one side",
+          "both sides"
+        ],
+        "excludes": [
+          "localized",
+          "specific point",
+          "focal"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "4-72 hours",
+          "hours",
+          "prolonged"
+        ],
+        "excludes": [
+          "minutes",
+          "seconds",
+          "brief"
+        ]
+      },
+      "character": {
+        "includes": [
+          "throbbing",
+          "pulsating",
+          "moderate to severe",
+          "intense"
+        ],
+        "excludes": [
+          "dull",
+          "aching",
+          "mild",
+          "pressure-like"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "light",
+          "sound",
+          "movement",
+          "stress"
+        ],
+        "excludes": [
+          "dark",
+          "quiet room",
+          "sleep",
+          "medications"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "dark",
+          "quiet room",
+          "sleep",
+          "medications"
+        ],
+        "excludes": [
+          "light",
+          "sound",
+          "movement",
+          "stress"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "gradual onset",
+          "prolonged",
+          "episodic"
+        ],
+        "excludes": [
+          "sudden",
+          "continuous",
+          "unrelenting"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "moderate to severe",
+          "6-9/10",
+          "6",
+          "7",
+          "8",
+          "9"
+        ],
+        "excludes": [
+          "mild",
+          "1-5/10",
+          "severe",
+          "10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Sudden severe headache - possible subarachnoid hemorrhage, call 911",

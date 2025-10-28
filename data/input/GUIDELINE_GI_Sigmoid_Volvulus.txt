@@ -1,0 +1,75 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: SIGMOID VOLVULUS
+================================================================================
+
+Condition: Sigmoid Volvulus
+Category: N/A
+Urgency Level: emergent
+Prevalence: rare
+ICD-10 Code: K56.2
+SNOMED Code: 82403008
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • abdominal pain
+  • belly pain
+  • left lower abdominal pain
+  • lower left side pain
+  • severe constipation
+  • distended abdomen
+  • can't pass gas
+
+CLASSIC PRESENTATION:
+ONSET: ACUTE onset over hours to days. More common in elderly, institutionalized, or chronic constipation patients. LOCATION: Left lower quadrant (LLQ) or diffuse lower abdomen. DURATION: CONSTANT pain lasting hours to days. CHARACTER: CRAMPY, COLICKY pain initially, becoming CONSTANT and SEVERE if ischemia develops. AGGRAVATING: Eating or drinking worsens distension and pain. RELIEVING: NOTHING relieves pain. Vomiting may provide brief relief of distension. TIMING: Initially INTERMITTENT crampy pain, becomes CONSTANT as obstruction persists. SEVERITY: 6-9/10, moderate to severe. ASSOCIATED SYMPTOMS: Marked abdominal distension (asymmetric), absolute constipation (obstipation), inability to pass flatus, nausea and vomiting (may be feculent if prolonged). Tympanic distended abdomen. KEY POSITIVES: Massive asymmetric distension, obstipation, elderly patient, chronic constipation history. KEY NEGATIVES: Ability to pass large amounts of flatus or stool rules out complete obstruction.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+LOCATION:
+  Positive indicators: LLQ, left lower quadrant, left lower, everywhere, all over, diffuse
+
+DURATION:
+  Positive indicators: multiple days, hours, continuous, days, constant, persistent, several hours
+
+CHARACTER:
+  Positive indicators: cramp-like, spasmodic, crampy, unrelenting, constant, steady
+
+AGGRAVATING:
+  Positive indicators: meals, food, eating
+
+TIMING:
+  Positive indicators: all the time, comes and goes, episodic, continuous, intermittent, constant
+
+SEVERITY:
+  Positive indicators: 9, 7, 8, 6, 5, 10, 6-9/10, moderate, severe
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Sudden severe pain with rigid abdomen - perforation with peritonitis, call 911
+
+  🚨 Fever with severe pain - ischemic or necrotic bowel
+
+  🚨 Hypotension or altered mental status - septic shock, call 911
+
+  🚨 Bloody or dark red stools - mucosal ischemia
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Sigmoid Volvulus
+================================================================================

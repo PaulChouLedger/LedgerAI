@@ -11,7 +11,104 @@
   "prevalence": "common",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Gradual, discovered incidentally or with mild symptoms. LOCATION: Headache if present (frontal or occipital). DURATION: Ongoing, chronic. CHARACTER: Asymptomatic or mild headache. AGGRAVATING: Medication non-compliance, stress, salt intake. RELIEVING: Blood pressure reduction. TIMING: Chronic, stable. SEVERITY: Minimal symptoms despite elevated blood pressure (BP). KEY POSITIVES: Elevated blood pressure (BP) (>180/120) WITHOUT end-organ damage, asymptomatic or mild headache only, chronic hypertension history. KEY NEGATIVES: NO chest pain, NO altered mental status, NO vision changes, NO dyspnea (those are hypertensive EMERGENCY)."
+    "classic_presentation": "ONSET: Gradual, discovered incidentally or with mild symptoms. LOCATION: Headache if present (frontal or occipital). DURATION: Ongoing, chronic. CHARACTER: Asymptomatic or mild headache. AGGRAVATING: Medication non-compliance, stress, salt intake. RELIEVING: Blood pressure reduction. TIMING: Chronic, stable. SEVERITY: Minimal symptoms despite elevated blood pressure (BP). KEY POSITIVES: Elevated blood pressure (BP) (>180/120) WITHOUT end-organ damage, asymptomatic or mild headache only, chronic hypertension history. KEY NEGATIVES: NO chest pain, NO altered mental status, NO vision changes, NO dyspnea (those are hypertensive EMERGENCY).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "discovered incidentally",
+          "mild symptoms"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "minutes"
+        ]
+      },
+      "location": {
+        "includes": [
+          "headache if present",
+          "frontal",
+          "occipital"
+        ],
+        "excludes": [
+          "chest pain",
+          "vision changes",
+          "dyspnea"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "ongoing",
+          "chronic",
+          "persistent"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "asymptomatic",
+          "mild headache"
+        ],
+        "excludes": [
+          "chest pain",
+          "altered mental status",
+          "vision changes",
+          "dyspnea"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "medication non-compliance",
+          "stress",
+          "salt intake"
+        ],
+        "excludes": [
+          "blood pressure reduction",
+          "medication",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "blood pressure reduction",
+          "medication"
+        ],
+        "excludes": [
+          "medication non-compliance",
+          "stress",
+          "salt intake"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "chronic",
+          "stable",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "minimal symptoms",
+          "despite elevated blood pressure",
+          "mild"
+        ],
+        "excludes": [
+          "severe",
+          "moderate",
+          "constant"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe headache (suggests emergency)",

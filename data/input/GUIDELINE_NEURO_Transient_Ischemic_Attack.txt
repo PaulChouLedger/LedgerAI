@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: TRANSIENT ISCHEMIC ATTACK
+================================================================================
+
+Condition: Transient Ischemic Attack
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: G45.9
+SNOMED Code: 125627007
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • mini stroke
+  • TIA
+  • transient weakness
+  • temporary numbness
+  • speech difficulty
+  • vision problems
+  • dizziness
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset within minutes. LOCATION: UNILATERAL weakness, numbness, or paralysis. DURATION: SYMPTOMS RESOLVE within 24 hours (usually within minutes to hours). CHARACTER: SUDDEN, SEVERE weakness, numbness, or paralysis that RESOLVES. AGGRAVATING: MOVEMENT, speaking, swallowing. RELIEVING: SYMPTOMS RESOLVE spontaneously. TIMING: Sudden onset, symptoms resolve within 24 hours. SEVERITY: 6-8/10 during episode, then resolves. ASSOCIATED SYMPTOMS: FACIAL DROOP, arm weakness, speech difficulty, vision problems, dizziness, confusion, headache. KEY POSITIVES: Positive FAST test (Face, Arm, Speech, Time), unilateral weakness, facial droop, speech difficulty. KEY NEGATIVES: No fever, no neck stiffness, no photophobia.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, within minutes, immediate, acute
+  Negative indicators: gradual, chronic, slow onset, progressive
+
+LOCATION:
+  Positive indicators: unilateral weakness, numbness, paralysis, one side
+  Negative indicators: bilateral, both sides, generalized, diffuse
+
+DURATION:
+  Positive indicators: resolves within 24 hours, minutes to hours, transient, brief
+  Negative indicators: persistent, ongoing, chronic, permanent
+
+CHARACTER:
+  Positive indicators: sudden, severe weakness, numbness, paralysis that resolves
+  Negative indicators: mild, gradual, persistent, permanent
+
+AGGRAVATING:
+  Positive indicators: movement, speaking, swallowing, activity
+  Negative indicators: symptoms resolve spontaneously, rest, treatment, medications
+
+RELIEVING:
+  Positive indicators: symptoms resolve spontaneously, rest, treatment, medications
+  Negative indicators: movement, speaking, swallowing, activity
+
+TIMING:
+  Positive indicators: sudden onset, resolves within 24 hours, transient
+  Negative indicators: continuous, persistent, unrelenting
+
+SEVERITY:
+  Positive indicators: 6-8/10 during episode, 6, 7, 8, moderate to severe during episode
+  Negative indicators: mild, 1-5/10, severe, 9-10/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Symptoms lasting >24 hours - possible stroke, call 911
+
+  🚨 Severe neurological deficits with altered mental status - possible stroke, call 911
+
+  🚨 Signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911
+
+  🚨 Severe hypertension with neurological deficits - possible hypertensive crisis, call 911
+
+  🚨 Signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Transient Ischemic Attack
+================================================================================

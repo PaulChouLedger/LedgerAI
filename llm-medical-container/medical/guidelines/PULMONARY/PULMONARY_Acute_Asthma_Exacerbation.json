@@ -14,7 +14,111 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: Sudden or gradual worsening over hours to days. LOCATION: Diffuse chest tightness, bilateral. DURATION: Episodes lasting minutes to hours, can be persistent. CHARACTER: Chest tightness, pressure, 'can't get air in'. AGGRAVATING: Triggers (allergens, exercise, cold air, stress, infections). RELIEVING: Bronchodilators (albuterol), sitting upright, pursed-lip breathing. TIMING: Can be episodic or persistent. SEVERITY: Variable, can be mild to life-threatening. ASSOCIATED SYMPTOMS: Wheezing (audible or auscultated), cough (dry or productive), accessory muscle use, tripod positioning, inability to speak in full sentences, cyanosis (severe cases). KEY POSITIVES: Wheezing, chest tightness, dyspnea, cough, accessory muscle use. KEY NEGATIVES: No fever (unless infection trigger), no chest pain (unless severe)."
+    "classic_presentation": "ONSET: Sudden or gradual worsening over hours to days. LOCATION: Diffuse chest tightness, bilateral. DURATION: Episodes lasting minutes to hours, can be persistent. CHARACTER: Chest tightness, pressure, 'can't get air in'. AGGRAVATING: Triggers (allergens, exercise, cold air, stress, infections). RELIEVING: Bronchodilators (albuterol), sitting upright, pursed-lip breathing. TIMING: Can be episodic or persistent. SEVERITY: Variable, can be mild to life-threatening. ASSOCIATED SYMPTOMS: Wheezing (audible or auscultated), cough (dry or productive), accessory muscle use, tripod positioning, inability to speak in full sentences, cyanosis (severe cases). KEY POSITIVES: Wheezing, chest tightness, dyspnea, cough, accessory muscle use. KEY NEGATIVES: No fever (unless infection trigger), no chest pain (unless severe).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "gradual worsening",
+          "over hours to days"
+        ],
+        "excludes": [
+          "chronic",
+          "constant",
+          "unrelenting"
+        ]
+      },
+      "location": {
+        "includes": [
+          "diffuse chest tightness",
+          "bilateral"
+        ],
+        "excludes": [
+          "localized",
+          "one side only",
+          "specific point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "episodes lasting minutes to hours",
+          "can be persistent",
+          "variable"
+        ],
+        "excludes": [
+          "continuous",
+          "unrelenting",
+          "days only"
+        ]
+      },
+      "character": {
+        "includes": [
+          "chest tightness",
+          "pressure",
+          "can't get air in"
+        ],
+        "excludes": [
+          "no fever",
+          "no chest pain",
+          "sharp",
+          "stabbing"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "triggers",
+          "allergens",
+          "exercise",
+          "cold air",
+          "stress",
+          "infections"
+        ],
+        "excludes": [
+          "bronchodilators",
+          "albuterol",
+          "sitting upright",
+          "pursed-lip breathing"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "bronchodilators",
+          "albuterol",
+          "sitting upright",
+          "pursed-lip breathing"
+        ],
+        "excludes": [
+          "triggers",
+          "allergens",
+          "exercise",
+          "cold air"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "can be episodic",
+          "persistent",
+          "variable"
+        ],
+        "excludes": [
+          "constant",
+          "unrelenting",
+          "continuous"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "variable",
+          "can be mild to life-threatening",
+          "variable symptoms"
+        ],
+        "excludes": [
+          "mild",
+          "moderate",
+          "constant"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Inability to speak in full sentences",

@@ -19,5 +19,85 @@
     "Shoulder pain with abdominal pain in pregnant woman - ruptured ectopic with hemoperitoneum",
     "Positive pregnancy test + abdominal pain - ALWAYS get ultrasound to rule out ectopic",
     "ANY female of childbearing age with abdominal pain needs pregnancy test"
-  ]
+  ],
+  "structured_oldcarts": {
+    "onset": {
+      "includes": [
+        "sudden",
+        "acute",
+        "immediate",
+        "hours",
+        "days",
+        "weeks"
+      ],
+      "excludes": [
+        "gradual",
+        "chronic"
+      ]
+    },
+    "location": {
+      "includes": [
+        "pelvic",
+        "lower abdominal",
+        "unilateral",
+        "adnexal",
+        "vaginal"
+      ],
+      "excludes": []
+    },
+    "duration": {
+      "includes": [
+        "constant",
+        "intermittent"
+      ],
+      "excludes": [
+        "intermittent",
+        "episodic",
+        "constant",
+        "continuous"
+      ]
+    },
+    "character": {
+      "includes": [
+        "severe",
+        "sharp",
+        "stabbing",
+        "crampy",
+        "cramping"
+      ],
+      "excludes": []
+    },
+    "aggravating": {
+      "includes": [
+        "movement",
+        "physical activity",
+        "jarring movements"
+      ],
+      "excludes": []
+    },
+    "relieving": {
+      "includes": [
+        "nothing relieves",
+        "surgical intervention"
+      ],
+      "excludes": [
+        "position changes",
+        "medications"
+      ]
+    },
+    "timing": {
+      "includes": [
+        "constant",
+        "progressively worsening"
+      ],
+      "excludes": []
+    },
+    "severity": {
+      "includes": [
+        "9-10/10",
+        "severe"
+      ],
+      "excludes": []
+    }
+  }
 }

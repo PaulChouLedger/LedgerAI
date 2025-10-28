@@ -1,0 +1,95 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: PNEUMOTHORAX
+================================================================================
+
+Condition: Pneumothorax
+Category: N/A
+Urgency Level: urgent
+Prevalence: uncommon
+ICD-10 Code: J93.9
+SNOMED Code: 233604007
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • pneumothorax
+  • collapsed lung
+  • chest pain
+  • shortness of breath
+  • lung collapse
+
+CLASSIC PRESENTATION:
+ONSET: Sudden onset. LOCATION: Unilateral chest. DURATION: Acute, persistent until treated. CHARACTER: Sudden chest pain, dyspnea. AGGRAVATING: Exertion, lying flat. RELIEVING: Sitting upright, chest tube. TIMING: Acute, sudden. SEVERITY: Moderate to severe (6-8/10). ASSOCIATED SYMPTOMS: Sudden chest pain, dyspnea, cough, anxiety. KEY POSITIVES: Sudden onset, chest pain, dyspnea. KEY NEGATIVES: No fever, no wheezing.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden onset, acute, immediate
+  Negative indicators: gradual, chronic, slow onset
+
+LOCATION:
+  Positive indicators: unilateral chest, one side, affected side
+  Negative indicators: bilateral, both sides, diffuse
+
+DURATION:
+  Positive indicators: acute, persistent until treated, ongoing
+  Negative indicators: intermittent, episodic, comes and goes
+
+CHARACTER:
+  Positive indicators: sudden chest pain, dyspnea
+  Negative indicators: no fever, no wheezing, sharp, stabbing
+
+AGGRAVATING:
+  Positive indicators: exertion, lying flat, activity
+  Negative indicators: sitting upright, chest tube, rest
+
+RELIEVING:
+  Positive indicators: sitting upright, chest tube, rest
+  Negative indicators: exertion, lying flat, activity
+
+TIMING:
+  Positive indicators: acute, sudden, continuous
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: moderate to severe, 6-8/10, 6, 7, 8
+  Negative indicators: mild, 1-5/10, severe, 9-10/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe dyspnea or respiratory distress
+
+  🚨 Cyanosis or oxygen saturation <90%
+
+  🚨 Signs of tension pneumothorax
+
+  🚨 Altered mental status
+
+  🚨 Signs of respiratory failure
+
+  🚨 Severe chest pain
+
+  🚨 Signs of shock
+
+  🚨 Mediastinal shift
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Pneumothorax
+================================================================================

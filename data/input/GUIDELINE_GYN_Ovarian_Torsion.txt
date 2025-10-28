@@ -1,0 +1,49 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: OVARIAN TORSION
+================================================================================
+
+Condition: Ovarian Torsion
+Category: N/A
+Urgency Level: emergent
+Prevalence: rare
+ICD-10 Code: N83.51
+SNOMED Code: 51363008
+Sex: female
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • abdominal pain
+  • pelvic pain
+  • lower abdominal pain
+  • severe pelvic pain
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset within minutes to hours. Acute, dramatic presentation. Often associated with physical activity or position change. LOCATION: UNILATERAL LOWER ABDOMINAL/PELVIC PAIN. Adnexal region, one side (more common on RIGHT). Ipsilateral lower quadrant. DURATION: CONSTANT from onset. Pain persists and worsens without intervention. Lasts hours to days if not surgically addressed. CHARACTER: SUDDEN, SEVERE, SHARP pain often described as 'WORST PAIN EVER'. Stabbing or twisting sensation. Excruciating. AGGRAVATING: MOVEMENT worsens pain. Physical activity may precipitate torsion. Position changes intensify discomfort. Jarring unbearable. RELIEVING: NOTHING helps. Position doesn't relieve. Analgesics provide minimal relief. Requires surgical detorsion for relief. TIMING: CONSTANT and unrelenting from onset. Progressively worsens as ovarian ischemia progresses. Not episodic. SEVERITY: 8-10/10, very severe and debilitating. Patient in extreme distress. ASSOCIATED SYMPTOMS: NAUSEA AND VOMITING (70%), sometimes low-grade fever. Appears in severe distress. KEY POSITIVES: Severe unilateral tenderness, adnexal mass on exam, known cyst, pregnancy, nausea out of proportion. SURGICAL EMERGENCY. KEY NEGATIVES: Bilateral pain less likely. Gradual onset suggests alternative.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 SURGICAL EMERGENCY - delayed treatment leads to ovarian necrosis and loss of ovary
+
+  🚨 Sudden severe unilateral pelvic pain in woman - needs urgent ultrasound with Doppler
+
+  🚨 Pregnancy with ovarian torsion - corpus luteum cyst torsion, needs urgent surgery
+
+  🚨 ANY delay in diagnosis risks permanent ovarian damage
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Ovarian Torsion
+================================================================================

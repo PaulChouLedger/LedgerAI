@@ -1,0 +1,80 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: CECAL VOLVULUS
+================================================================================
+
+Condition: Cecal Volvulus
+Category: N/A
+Urgency Level: emergent
+Prevalence: rare
+ICD-10 Code: K56.2
+SNOMED Code: 235753000
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • abdominal pain
+  • belly pain
+  • right lower abdominal pain
+  • lower right side pain
+  • severe constipation
+  • distended abdomen
+
+CLASSIC PRESENTATION:
+ONSET: ACUTE onset over hours, may have intermittent episodes if chronic. LOCATION: Right lower quadrant (RLQ) or periumbilical, may become diffuse. DURATION: CONSTANT pain lasting hours. CHARACTER: SHARP, SEVERE, COLICKY pain initially, becoming CONSTANT if ischemia develops. AGGRAVATING: Eating or drinking worsens symptoms. RELIEVING: NOTHING relieves pain. TIMING: Initially INTERMITTENT crampy pain, becomes CONSTANT as ischemia progresses. SEVERITY: 7-10/10, severe. ASSOCIATED SYMPTOMS: Severe abdominal distension (dramatic), obstipation (no flatus or stool), nausea and vomiting, tympanic distended abdomen. History of chronic constipation or prior abdominal surgery. KEY POSITIVES: Massive abdominal distension, right lower quadrant (RLQ) tenderness, obstipation, sudden onset. KEY NEGATIVES: Ability to pass flatus or stool makes complete volvulus unlikely.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: years, recurrent, months, chronic
+
+LOCATION:
+  Positive indicators: everywhere, umbilical, all over, RLQ, diffuse, right lower quadrant, around navel, McBurney, periumbilical, right lower
+
+DURATION:
+  Positive indicators: hours, continuous, constant, persistent, several hours
+
+CHARACTER:
+  Positive indicators: stabbing, sharp, knife-like, unrelenting, constant, steady
+
+AGGRAVATING:
+  Positive indicators: meals, food, eating
+
+RELIEVING:
+  Positive indicators: nothing helps, no relief
+
+TIMING:
+  Positive indicators: all the time, comes and goes, episodic, continuous, intermittent, constant
+
+SEVERITY:
+  Positive indicators: 9, 7, 8, 7-10/10, 10, severe
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Sudden severe pain with peritonitis - bowel necrosis/perforation, call 911
+
+  🚨 Fever with severe distension - ischemic bowel
+
+  🚨 Hypotension or shock - perforation or sepsis, call 911
+
+  🚨 Bloody diarrhea - mucosal ischemia
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Cecal Volvulus
+================================================================================

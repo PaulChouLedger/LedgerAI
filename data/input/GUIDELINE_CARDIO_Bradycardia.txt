@@ -1,0 +1,95 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: SYMPTOMATIC BRADYCARDIA / HEART BLOCK
+================================================================================
+
+Condition: Symptomatic Bradycardia / Heart Block
+Category: N/A
+Urgency Level: urgent
+Prevalence: uncommon
+ICD-10 Code: R00.1
+SNOMED Code: 48867003
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • slow heartbeat
+  • lightheadedness
+  • fatigue
+  • syncope
+  • dizziness
+
+CLASSIC PRESENTATION:
+ONSET: Gradual or sudden depending on cause. LOCATION: Generalized symptoms. DURATION: Continuous while bradycardic. CHARACTER: Lightheadedness, fatigue, weakness, syncope. AGGRAVATING: Exertion (symptoms worsen with fixed low heart rate). RELIEVING: Increased heart rate (pacing, medications). TIMING: Can be constant or episodic. SEVERITY: Variable, from asymptomatic to syncope. KEY POSITIVES: Heart rate <60 bpm with symptoms, syncope or near-syncope, fatigue, dyspnea on exertion, elderly patient, medications (beta-blockers, calcium blockers), prolonged PR or AV block on electrocardiogram (ECG). KEY NEGATIVES: NOT tachycardia, NOT palpitations.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: gradual, sudden, depending on cause
+  Negative indicators: chronic, constant, unrelenting
+
+LOCATION:
+  Positive indicators: generalized symptoms
+  Negative indicators: localized, one area only, chest
+
+DURATION:
+  Positive indicators: continuous while bradycardic, persistent
+  Negative indicators: intermittent, episodic, comes and goes
+
+CHARACTER:
+  Positive indicators: lightheadedness, fatigue, weakness, syncope
+  Negative indicators: tachycardia, palpitations, chest pain
+
+AGGRAVATING:
+  Positive indicators: exertion, symptoms worsen with fixed low heart rate
+  Negative indicators: increased heart rate, pacing, medications
+
+RELIEVING:
+  Positive indicators: increased heart rate, pacing, medications
+  Negative indicators: exertion, activity, low heart rate
+
+TIMING:
+  Positive indicators: constant, episodic
+  Negative indicators: intermittent, comes and goes, unpredictable
+
+SEVERITY:
+  Positive indicators: variable, asymptomatic to syncope, variable symptoms
+  Negative indicators: mild, moderate, constant
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Syncope or near-syncope
+
+  🚨 Heart rate <40 bpm
+
+  🚨 Complete heart block (third-degree AV block)
+
+  🚨 Chest pain
+
+  🚨 Dyspnea
+
+  🚨 Altered mental status
+
+  🚨 Hypotension
+
+  🚨 Recent myocardial infarction (MI)
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Symptomatic Bradycardia / Heart Block
+================================================================================

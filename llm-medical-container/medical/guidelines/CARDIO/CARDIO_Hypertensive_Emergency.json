@@ -13,7 +13,109 @@
   "prevalence": "uncommon",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Acute, over hours. LOCATION: Headache (occipital or diffuse), chest (if cardiac involvement), generalized symptoms. DURATION: Continuous. CHARACTER: Severe headache, dyspnea, chest pain, vision changes, confusion. AGGRAVATING: Medication non-compliance, stress. RELIEVING: Blood pressure reduction. TIMING: Progressive. SEVERITY: 8-10/10 for headache or symptoms. KEY POSITIVES: Severe hypertension (blood pressure (BP) >180/120), end-organ damage (altered mental status, chest pain, dyspnea, vision changes, seizures), headache, nausea, vomiting. KEY NEGATIVES: NOT isolated elevated blood pressure (BP) without symptoms (that's hypertensive urgency)."
+    "classic_presentation": "ONSET: Acute, over hours. LOCATION: Headache (occipital or diffuse), chest (if cardiac involvement), generalized symptoms. DURATION: Continuous. CHARACTER: Severe headache, dyspnea, chest pain, vision changes, confusion. AGGRAVATING: Medication non-compliance, stress. RELIEVING: Blood pressure reduction. TIMING: Progressive. SEVERITY: 8-10/10 for headache or symptoms. KEY POSITIVES: Severe hypertension (blood pressure (BP) >180/120), end-organ damage (altered mental status, chest pain, dyspnea, vision changes, seizures), headache, nausea, vomiting. KEY NEGATIVES: NOT isolated elevated blood pressure (BP) without symptoms (that's hypertensive urgency).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "acute",
+          "over hours",
+          "sudden"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "headache",
+          "occipital",
+          "diffuse",
+          "chest",
+          "generalized symptoms"
+        ],
+        "excludes": [
+          "localized",
+          "one area only",
+          "extremities"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "continuous",
+          "persistent",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "severe headache",
+          "dyspnea",
+          "chest pain",
+          "vision changes",
+          "confusion"
+        ],
+        "excludes": [
+          "mild",
+          "moderate",
+          "no symptoms"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "medication non-compliance",
+          "stress"
+        ],
+        "excludes": [
+          "blood pressure reduction",
+          "medication",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "blood pressure reduction",
+          "medication"
+        ],
+        "excludes": [
+          "medication non-compliance",
+          "stress",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "progressive",
+          "continuous",
+          "worsening"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "8-10/10",
+          "severe",
+          "8",
+          "9",
+          "10"
+        ],
+        "excludes": [
+          "mild",
+          "moderate",
+          "1-7/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe blood pressure elevation (>180/120)",

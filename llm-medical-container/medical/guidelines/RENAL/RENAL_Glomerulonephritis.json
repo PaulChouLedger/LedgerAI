@@ -15,7 +15,66 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL onset over days to weeks. LOCATION: BILATERAL kidney involvement. DURATION: Develops over days to weeks, may persist for weeks to months. CHARACTER: HEMATURIA, proteinuria, swelling. AGGRAVATING: DEHYDRATION, medications. RELIEVING: IMMUNOSUPPRESSANTS, supportive care. TIMING: Gradual onset, develops over days to weeks. SEVERITY: 5-8/10, moderate to severe. ASSOCIATED SYMPTOMS: HEMATURIA, proteinuria, swelling, may have hypertension, may have decreased urine output. KEY POSITIVES: Hematuria, proteinuria, swelling, elevated creatinine, elevated BUN. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+    "classic_presentation": "ONSET: GRADUAL onset over days to weeks. LOCATION: BILATERAL kidney involvement. DURATION: Develops over days to weeks, may persist for weeks to months. CHARACTER: HEMATURIA, proteinuria, swelling. AGGRAVATING: DEHYDRATION, medications. RELIEVING: IMMUNOSUPPRESSANTS, supportive care. TIMING: Gradual onset, develops over days to weeks. SEVERITY: 5-8/10, moderate to severe. ASSOCIATED SYMPTOMS: HEMATURIA, proteinuria, swelling, may have hypertension, may have decreased urine output. KEY POSITIVES: Hematuria, proteinuria, swelling, elevated creatinine, elevated BUN. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "progressive",
+          "days",
+          "weeks"
+        ],
+        "excludes": [
+          "sudden",
+          "immediate"
+        ]
+      },
+      "location": {
+        "includes": [
+          "kidney",
+          "renal",
+          "bilateral"
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          "progressive"
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          "severe",
+          "decreased urine output",
+          "swelling"
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          "dehydration",
+          "medications"
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          "progressive"
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          "moderate"
+        ],
+        "excludes": []
+      }
+    }
   },
   "red_flags": [
     "Severe fluid overload with respiratory distress - possible pulmonary edema, call 911",

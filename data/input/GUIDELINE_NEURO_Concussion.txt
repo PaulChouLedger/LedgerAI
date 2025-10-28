@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: CONCUSSION
+================================================================================
+
+Condition: Concussion
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: S06.0
+SNOMED Code: 125631001
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • concussion
+  • head injury
+  • head trauma
+  • brain injury
+  • headache after fall
+  • dizziness after injury
+  • memory problems
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset after head trauma. LOCATION: GENERALIZED symptoms. DURATION: Symptoms may persist for days to weeks. CHARACTER: HEADACHE, dizziness, confusion. AGGRAVATING: LIGHT, sound, movement, cognitive tasks. RELIEVING: REST, avoiding triggers. TIMING: Immediate onset after trauma, may persist for days to weeks. SEVERITY: 4-8/10, moderate to severe. ASSOCIATED SYMPTOMS: HEADACHE, dizziness, confusion, memory problems, nausea, vomiting, sensitivity to light and sound. KEY POSITIVES: Headache, dizziness, confusion, memory problems, sensitivity to light and sound. KEY NEGATIVES: No focal neurological deficits, no signs of increased intracranial pressure.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, after head trauma, immediate, acute
+  Negative indicators: gradual, chronic, slow onset, progressive
+
+LOCATION:
+  Positive indicators: generalized, diffuse, whole head, bilateral
+  Negative indicators: localized, focal, specific point, unilateral
+
+DURATION:
+  Positive indicators: days to weeks, persistent, prolonged, ongoing
+  Negative indicators: minutes, hours, brief, transient
+
+CHARACTER:
+  Positive indicators: headache, dizziness, confusion, moderate to severe
+  Negative indicators: mild, focal deficits, severe neurological, localized
+
+AGGRAVATING:
+  Positive indicators: light, sound, movement, cognitive tasks
+  Negative indicators: rest, avoiding triggers, dark, quiet
+
+RELIEVING:
+  Positive indicators: rest, avoiding triggers, dark, quiet
+  Negative indicators: light, sound, movement, cognitive tasks
+
+TIMING:
+  Positive indicators: immediate onset after trauma, persistent, ongoing
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: moderate to severe, 4-8/10, 4, 5, 6, 7, 8
+  Negative indicators: mild, 1-3/10, severe, 9-10/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe headache with vomiting - possible intracranial hemorrhage, call 911
+
+  🚨 Altered mental status with focal neurological deficits - possible traumatic brain injury, call 911
+
+  🚨 Signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911
+
+  🚨 Severe hypertension with neurological deficits - possible hypertensive crisis, call 911
+
+  🚨 Signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Concussion
+================================================================================

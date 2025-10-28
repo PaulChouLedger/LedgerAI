@@ -12,7 +12,111 @@
   "prevalence": "common",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Gradual, often post-prandial (after eating). LOCATION: RETROSTERNAL, epigastric, can mimic cardiac pain. RADIATES upward to throat. DURATION: Minutes to hours. CHARACTER: BURNING, rising sensation from stomach. AGGRAVATING: Large meals, fatty foods, spicy foods, lying flat, bending over. RELIEVING: Antacids, sitting upright, PPIs. TIMING: Postprandial, worse at night when lying down. SEVERITY: 3-6/10. KEY POSITIVES: Sour taste, regurgitation, worse after meals, worse lying flat, chronic history, relieved by antacids. KEY NEGATIVES: NOT exertional, NOT radiating to arm/jaw (though can), NOT diaphoresis."
+    "classic_presentation": "ONSET: Gradual, often post-prandial (after eating). LOCATION: RETROSTERNAL, epigastric, can mimic cardiac pain. RADIATES upward to throat. DURATION: Minutes to hours. CHARACTER: BURNING, rising sensation from stomach. AGGRAVATING: Large meals, fatty foods, spicy foods, lying flat, bending over. RELIEVING: Antacids, sitting upright, PPIs. TIMING: Postprandial, worse at night when lying down. SEVERITY: 3-6/10. KEY POSITIVES: Sour taste, regurgitation, worse after meals, worse lying flat, chronic history, relieved by antacids. KEY NEGATIVES: NOT exertional, NOT radiating to arm/jaw (though can), NOT diaphoresis.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "post-prandial",
+          "after eating"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "minutes"
+        ]
+      },
+      "location": {
+        "includes": [
+          "retrosternal",
+          "epigastric",
+          "can mimic cardiac pain",
+          "radiates upward to throat"
+        ],
+        "excludes": [
+          "radiates to arm",
+          "radiates to jaw",
+          "radiates to back"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "minutes to hours",
+          "variable"
+        ],
+        "excludes": [
+          "continuous",
+          "unrelenting",
+          "days"
+        ]
+      },
+      "character": {
+        "includes": [
+          "burning",
+          "rising sensation from stomach"
+        ],
+        "excludes": [
+          "crushing",
+          "pressure",
+          "sharp",
+          "stabbing"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "large meals",
+          "fatty foods",
+          "spicy foods",
+          "lying flat",
+          "bending over"
+        ],
+        "excludes": [
+          "antacids",
+          "sitting upright",
+          "PPIs"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "antacids",
+          "sitting upright",
+          "PPIs"
+        ],
+        "excludes": [
+          "large meals",
+          "fatty foods",
+          "spicy foods",
+          "lying flat"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "postprandial",
+          "worse at night",
+          "worse lying down"
+        ],
+        "excludes": [
+          "exertional",
+          "at rest",
+          "unpredictable"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "3-6/10",
+          "3",
+          "4",
+          "5",
+          "6"
+        ],
+        "excludes": [
+          "mild",
+          "1-2/10",
+          "severe",
+          "7-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "New onset in older patient (rule out cardiac)",

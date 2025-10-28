@@ -1,0 +1,83 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: RENAL COLIC
+================================================================================
+
+Condition: Renal Colic
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: N23
+SNOMED Code: 125654004
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • renal colic
+  • kidney colic
+  • stone colic
+  • flank pain
+  • back pain
+  • urinary pain
+  • stone pain
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset within minutes to hours. LOCATION: UNILATERAL flank pain, may radiate to groin. DURATION: Lasts hours to days. CHARACTER: SEVERE, SHARP, COLIC pain. AGGRAVATING: MOVEMENT, urination. RELIEVING: PAIN medications, hydration. TIMING: Sudden onset, lasts hours to days. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE FLANK PAIN, may have nausea, vomiting, hematuria, may have fever if infected. KEY POSITIVES: Severe flank pain, hematuria, positive imaging. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, acute, immediate, minutes, hours, days
+  Negative indicators: gradual, chronic
+
+LOCATION:
+  Positive indicators: flank, unilateral
+
+DURATION:
+
+CHARACTER:
+  Positive indicators: severe, sharp
+
+AGGRAVATING:
+  Positive indicators: movement, urination, medications
+
+RELIEVING:
+  Positive indicators: pain medications
+
+TIMING:
+  Positive indicators: unrelenting
+
+SEVERITY:
+  Positive indicators: 8-10/10, severe
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe pain with fever - possible infected stone, call 911
+
+  🚨 Signs of severe infection - fever, chills, rigors - call 911
+
+  🚨 Severe hypertension with neurological deficits - possible hypertensive crisis, call 911
+
+  🚨 Signs of severe metabolic acidosis - deep breathing, confusion, coma - call 911
+
+  🚨 Signs of severe electrolyte imbalances - confusion, seizures, cardiac arrhythmias - call 911
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Renal Colic
+================================================================================

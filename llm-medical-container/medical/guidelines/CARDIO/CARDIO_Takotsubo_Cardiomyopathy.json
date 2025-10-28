@@ -11,7 +11,106 @@
   "prevalence": "rare",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Acute, often after EMOTIONAL or PHYSICAL STRESS. LOCATION: Chest (retrosternal). RADIATES to arm, jaw. DURATION: Minutes to hours. CHARACTER: Chest pain, pressure, dyspnea mimicking myocardial infarction (MI). AGGRAVATING: Recent severe emotional stress (death of loved one, bad news, argument). RELIEVING: Supportive care. TIMING: Acute onset after stressor. SEVERITY: 7-9/10. KEY POSITIVES: Postmenopausal woman, recent severe stress or emotional event, electrocardiogram (ECG) mimics myocardial infarction (MI) (ST elevation or T-wave inversion), normal coronaries on angiography, apical ballooning on echo. KEY NEGATIVES: NO significant coronary artery disease (differentiates from true myocardial infarction )."
+    "classic_presentation": "ONSET: Acute, often after EMOTIONAL or PHYSICAL STRESS. LOCATION: Chest (retrosternal). RADIATES to arm, jaw. DURATION: Minutes to hours. CHARACTER: Chest pain, pressure, dyspnea mimicking myocardial infarction (MI). AGGRAVATING: Recent severe emotional stress (death of loved one, bad news, argument). RELIEVING: Supportive care. TIMING: Acute onset after stressor. SEVERITY: 7-9/10. KEY POSITIVES: Postmenopausal woman, recent severe stress or emotional event, electrocardiogram (ECG) mimics myocardial infarction (MI) (ST elevation or T-wave inversion), normal coronaries on angiography, apical ballooning on echo. KEY NEGATIVES: NO significant coronary artery disease (differentiates from true myocardial infarction ).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "acute",
+          "often after emotional stress",
+          "often after physical stress"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "chest",
+          "retrosternal",
+          "radiates to arm",
+          "radiates to jaw"
+        ],
+        "excludes": [
+          "right side only",
+          "no radiation",
+          "localized point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "minutes to hours",
+          "brief"
+        ],
+        "excludes": [
+          "continuous",
+          "unrelenting",
+          "days"
+        ]
+      },
+      "character": {
+        "includes": [
+          "chest pain",
+          "pressure",
+          "dyspnea mimicking myocardial infarction"
+        ],
+        "excludes": [
+          "sharp",
+          "stabbing",
+          "burning",
+          "no pain"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "recent severe emotional stress",
+          "death of loved one",
+          "bad news",
+          "argument"
+        ],
+        "excludes": [
+          "supportive care",
+          "medication",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "supportive care"
+        ],
+        "excludes": [
+          "emotional stress",
+          "physical stress",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "acute onset after stressor",
+          "sudden"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "7-9/10",
+          "7",
+          "8",
+          "9"
+        ],
+        "excludes": [
+          "mild",
+          "1-6/10",
+          "severe",
+          "10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe chest pain mimicking myocardial infarction (MI)",

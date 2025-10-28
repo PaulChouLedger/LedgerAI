@@ -1,0 +1,50 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: KIDNEY STONE (NEPHROLITHIASIS/URETEROLITHIASIS)
+================================================================================
+
+Condition: Kidney Stone (Nephrolithiasis/Ureterolithiasis)
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: N20.0
+SNOMED Code: 95570007
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • abdominal pain
+  • flank pain
+  • back pain
+  • side pain
+  • kidney pain
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset within minutes to hours. Acute, dramatic presentation. LOCATION: Unilateral FLANK PAIN. RADIATES from flank→groin→testicle (males) or labia (females). Follows ureter path. DURATION: Waves last minutes, entire episode lasts hours. COLICKY (comes and goes in waves). CHARACTER: SEVERE COLICKY PAIN described as SHARP, STABBING, or 'WORST PAIN OF MY LIFE'. Intensity waxes and wanes. AGGRAVATING: NOTHING specifically worsens (spontaneous waves). Movement doesn't change intensity. Dehydration may precipitate. RELIEVING: NOTHING relieves during wave. Position changes don't help (patient RESTLESS, paces, cannot find comfort - unlike peritonitis where still). Narcotics needed. TIMING: COMES IN WAVES - intense for minutes, then slightly better, then intense again. Pattern repeats. Not constant. SEVERITY: 8-10/10, extremely severe and dramatic. ASSOCIATED SYMPTOMS: NAUSEA AND VOMITING (very common), HEMATURIA (blood in urine - 90%, gross or microscopic), urinary frequency, urgency. KEY POSITIVES: cerebrovascular accident (CVA) tenderness, hematuria, colicky waves, restlessness, flank→groin radiation. KEY NEGATIVES: Peritoneal signs (rigidity) suggest alternative. FEVER suggests pyelonephritis not stone. Bilateral pain unusual.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Fever with flank pain - infected stone (pyonephrosis), needs urgent urology intervention
+
+  🚨 Anuria (no urine output) - complete obstruction, needs urgent decompression
+
+  🚨 Single kidney with obstructing stone - urgent urology consult
+
+  🚨 Severe pain unresponsive to narcotics - may need urgent intervention
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Kidney Stone (Nephrolithiasis/Ureterolithiasis)
+================================================================================

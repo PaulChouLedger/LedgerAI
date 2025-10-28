@@ -12,7 +12,103 @@
   "prevalence": "uncommon",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN, abrupt start (\"like a switch flipped\"). LOCATION: Chest, palpitations. DURATION: Minutes to hours. CHARACTER: REGULAR, RAPID palpitations, \"racing\" heart. AGGRAVATING: Caffeine, stress, exertion. RELIEVING: Vagal maneuvers (bearing down, carotid massage), sometimes spontaneous. TIMING: Paroxysmal (sudden start and stop). SEVERITY: Uncomfortable but not painful typically. KEY POSITIVES: Heart rate 150-250 bpm, regular rhythm, lightheadedness, dyspnea, chest pressure, sudden onset and offset. KEY NEGATIVES: NOT irregularly irregular (AFib), NOT gradual onset."
+    "classic_presentation": "ONSET: SUDDEN, abrupt start (\"like a switch flipped\"). LOCATION: Chest, palpitations. DURATION: Minutes to hours. CHARACTER: REGULAR, RAPID palpitations, \"racing\" heart. AGGRAVATING: Caffeine, stress, exertion. RELIEVING: Vagal maneuvers (bearing down, carotid massage), sometimes spontaneous. TIMING: Paroxysmal (sudden start and stop). SEVERITY: Uncomfortable but not painful typically. KEY POSITIVES: Heart rate 150-250 bpm, regular rhythm, lightheadedness, dyspnea, chest pressure, sudden onset and offset. KEY NEGATIVES: NOT irregularly irregular (AFib), NOT gradual onset.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "abrupt start",
+          "like a switch flipped"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "chest",
+          "palpitations"
+        ],
+        "excludes": [
+          "localized",
+          "one area only",
+          "extremities"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "minutes to hours",
+          "variable"
+        ],
+        "excludes": [
+          "continuous",
+          "unrelenting",
+          "days"
+        ]
+      },
+      "character": {
+        "includes": [
+          "regular",
+          "rapid palpitations",
+          "racing heart"
+        ],
+        "excludes": [
+          "irregular",
+          "slow",
+          "steady"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "caffeine",
+          "stress",
+          "exertion"
+        ],
+        "excludes": [
+          "vagal maneuvers",
+          "bearing down",
+          "carotid massage"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "vagal maneuvers",
+          "bearing down",
+          "carotid massage",
+          "sometimes spontaneous"
+        ],
+        "excludes": [
+          "caffeine",
+          "stress",
+          "exertion"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "paroxysmal",
+          "sudden start and stop"
+        ],
+        "excludes": [
+          "constant",
+          "unrelenting",
+          "continuous"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "uncomfortable",
+          "not painful typically",
+          "moderate"
+        ],
+        "excludes": [
+          "severe",
+          "painful",
+          "mild"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Hemodynamic instability",

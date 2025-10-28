@@ -12,7 +12,117 @@
   ],
   "key_features": {
     "classic_presentation": "ONSET: SUDDEN, DRAMATIC onset within minutes. Acute, catastrophic presentation. LOCATION: Initially EPIGASTRIC (perforated ulcer) or localized, then becomes DIFFUSE as peritonitis develops. May have shoulder pain (diaphragmatic irritation). DURATION: CONSTANT from onset. Unrelenting, persists continuously. CHARACTER: SUDDEN, SEVERE, SHARP pain described as 'STABBED' or 'KICKED'. Excruciating, worst pain imaginable. AGGRAVATING: ANY MOVEMENT worsens pain dramatically. Breathing, coughing, talking all worsen. Jarring or bumps unbearable. RELIEVING: NOTHING helps. Patient lies PERFECTLY STILL. Position doesn't relieve. Requires emergency surgery. TIMING: CONSTANT and unrelenting from onset. Progressive worsening as peritonitis spreads. SEVERITY: 10/10, maximal severity. Catastrophic pain. ASSOCIATED SYMPTOMS: Nausea, vomiting, inability to pass gas, fever develops after 6-12 hours. BOARD-LIKE RIGID ABDOMEN, absent bowel sounds. KEY POSITIVES: Rigid abdomen, severe rebound, patient perfectly still, sudden onset, prior ulcer/NSAID use. KEY NEGATIVES: SOFT abdomen rules out. Gradual onset suggests alternative. SURGICAL EMERGENCY - call 911.",
-    "structured_oldcarts": {}
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "dramatic",
+          "minutes",
+          "acute",
+          "catastrophic"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "hours",
+          "slow"
+        ]
+      },
+      "location": {
+        "includes": [
+          "epigastric",
+          "initially localized",
+          "then diffuse",
+          "shoulder pain",
+          "diaphragmatic irritation"
+        ],
+        "excludes": [
+          "constant location",
+          "one quadrant only"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "constant from onset",
+          "unrelenting",
+          "persists continuously"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "sudden",
+          "severe",
+          "sharp",
+          "stabbed",
+          "kicked",
+          "excruciating",
+          "worst pain imaginable"
+        ],
+        "excludes": [
+          "mild",
+          "dull",
+          "crampy",
+          "moderate"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "any movement",
+          "breathing",
+          "coughing",
+          "talking",
+          "jarring",
+          "bumps"
+        ],
+        "excludes": [
+          "lying still",
+          "rest",
+          "position changes"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "nothing helps",
+          "lying perfectly still"
+        ],
+        "excludes": [
+          "position",
+          "medication",
+          "movement"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "constant",
+          "unrelenting",
+          "progressive worsening",
+          "from onset"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "10/10",
+          "maximal",
+          "catastrophic",
+          "10"
+        ],
+        "excludes": [
+          "mild",
+          "moderate",
+          "1-9/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "SURGICAL EMERGENCY - rigid abdomen with severe pain - call 911 immediately",

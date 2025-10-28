@@ -1,0 +1,96 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: ANAPHYLAXIS
+================================================================================
+
+Condition: Anaphylaxis
+Category: N/A
+Urgency Level: emergent
+Prevalence: uncommon
+ICD-10 Code: T78.40XA
+SNOMED Code: 39579001
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • allergic reaction
+  • anaphylaxis
+  • severe allergy
+  • throat closing
+  • can't breathe
+  • swelling
+
+CLASSIC PRESENTATION:
+ONSET: RAPID onset within minutes of exposure to allergen. LOCATION: Systemic, affecting multiple organ systems. DURATION: Minutes to hours, can be life-threatening. CHARACTER: Severe, rapidly progressive. AGGRAVATING: Continued allergen exposure. RELIEVING: Epinephrine, antihistamines, steroids. TIMING: Acute, rapid progression. SEVERITY: Severe to life-threatening (8-10/10). ASSOCIATED SYMPTOMS: Respiratory: stridor, wheezing, dyspnea, throat tightness. Cutaneous: urticaria, angioedema, pruritus. Cardiovascular: hypotension, tachycardia, shock. GI: nausea, vomiting, diarrhea. Neurological: altered mental status, dizziness. KEY POSITIVES: Multi-system involvement, rapid onset, known allergen exposure. KEY NEGATIVES: No fever, no chest pain (unless secondary to respiratory distress).
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: rapid onset within minutes of exposure to allergen, acute, immediate
+  Negative indicators: gradual, chronic, slow onset
+
+LOCATION:
+  Positive indicators: systemic, affecting multiple organ systems
+  Negative indicators: localized, one side only, specific point
+
+DURATION:
+  Positive indicators: minutes to hours, can be life-threatening, ongoing
+  Negative indicators: intermittent, episodic, comes and goes
+
+CHARACTER:
+  Positive indicators: severe, rapidly progressive
+  Negative indicators: no fever, no chest pain, mild
+
+AGGRAVATING:
+  Positive indicators: continued allergen exposure, activity, movement
+  Negative indicators: epinephrine, antihistamines, steroids
+
+RELIEVING:
+  Positive indicators: epinephrine, antihistamines, steroids
+  Negative indicators: continued allergen exposure, activity, movement
+
+TIMING:
+  Positive indicators: acute, rapid progression, continuous
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: severe to life-threatening, 8-10/10, 8, 9, 10
+  Negative indicators: mild, 1-7/10, moderate
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Stridor or hoarse voice
+
+  🚨 Swelling of face, lips, tongue
+
+  🚨 Difficulty swallowing or speaking
+
+  🚨 Severe dyspnea or wheezing
+
+  🚨 Hypotension or shock
+
+  🚨 Altered mental status
+
+  🚨 Nausea, vomiting, diarrhea
+
+  🚨 Generalized urticaria or rash
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Anaphylaxis
+================================================================================

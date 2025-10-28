@@ -18,5 +18,76 @@
     "Severe pain not improving or worsening - consider ovarian torsion instead",
     "Positive pregnancy test - must rule out ectopic pregnancy first",
     "Large amount of free fluid on ultrasound - hemorrhagic cyst, may need intervention"
-  ]
+  ],
+  "structured_oldcarts": {
+    "onset": {
+      "includes": [
+        "sudden",
+        "acute",
+        "immediate",
+        "minutes",
+        "hours"
+      ],
+      "excludes": [
+        "gradual",
+        "chronic"
+      ]
+    },
+    "location": {
+      "includes": [
+        "pelvic",
+        "lower abdominal",
+        "unilateral",
+        "adnexal",
+        "vaginal"
+      ],
+      "excludes": []
+    },
+    "duration": {
+      "includes": [
+        "constant"
+      ],
+      "excludes": [
+        "intermittent",
+        "episodic"
+      ]
+    },
+    "character": {
+      "includes": [
+        "severe",
+        "sharp",
+        "dull",
+        "aching",
+        "stabbing"
+      ],
+      "excludes": []
+    },
+    "aggravating": {
+      "includes": [
+        "movement",
+        "intercourse",
+        "dyspareunia"
+      ],
+      "excludes": []
+    },
+    "relieving": {
+      "includes": [
+        "rest"
+      ],
+      "excludes": []
+    },
+    "timing": {
+      "includes": [
+        "constant",
+        "progressively worsening"
+      ],
+      "excludes": []
+    },
+    "severity": {
+      "includes": [
+        "severe"
+      ],
+      "excludes": []
+    }
+  }
 }

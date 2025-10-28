@@ -1,0 +1,96 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: CARDIAC TAMPONADE
+================================================================================
+
+Condition: Cardiac Tamponade
+Category: N/A
+Urgency Level: emergent
+Prevalence: rare
+ICD-10 Code: I31.4
+SNOMED Code: 35304003
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • shortness of breath
+  • chest pressure
+  • difficulty breathing
+  • lightheadedness
+
+CLASSIC PRESENTATION:
+ONSET: Can be acute (trauma, rupture) or subacute (effusion accumulation). LOCATION: Chest (retrosternal pressure), generalized dyspnea. DURATION: Progressive over hours to days. CHARACTER: Dyspnea, chest pressure, feeling of impending doom. AGGRAVATING: Lying flat. RELIEVING: Sitting up, leaning forward. TIMING: Progressive worsening. SEVERITY: Severe respiratory distress. KEY POSITIVES: Beck's triad (hypotension, muffled heart sounds, JVD), pulsus paradoxus, tachycardia, dyspnea, recent pericarditis or trauma or malignancy. KEY NEGATIVES: NOT pleuritic pain, NOT unilateral symptoms.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: acute, trauma, rupture, subacute, effusion accumulation
+  Negative indicators: gradual, chronic, slow onset
+
+LOCATION:
+  Positive indicators: chest, retrosternal pressure, generalized dyspnea
+  Negative indicators: pleuritic pain, unilateral symptoms, localized
+
+DURATION:
+  Positive indicators: progressive, over hours to days, worsening
+  Negative indicators: intermittent, episodic, comes and goes
+
+CHARACTER:
+  Positive indicators: dyspnea, chest pressure, feeling of impending doom
+  Negative indicators: pleuritic pain, sharp, stabbing, no symptoms
+
+AGGRAVATING:
+  Positive indicators: lying flat
+  Negative indicators: sitting up, leaning forward, rest
+
+RELIEVING:
+  Positive indicators: sitting up, leaning forward
+  Negative indicators: lying flat, activity, exertion
+
+TIMING:
+  Positive indicators: progressive worsening, continuous
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: severe respiratory distress, severe
+  Negative indicators: mild, moderate, no symptoms
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Hypotension or shock
+
+  🚨 Muffled or distant heart sounds
+
+  🚨 Jugular venous distension (JVD)
+
+  🚨 Pulsus paradoxus
+
+  🚨 Tachycardia
+
+  🚨 Recent chest trauma
+
+  🚨 Recent cardiac procedure or catheterization
+
+  🚨 History of pericarditis or malignancy
+
+  🚨 Altered mental status
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Cardiac Tamponade
+================================================================================

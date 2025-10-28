@@ -14,11 +14,113 @@
   "key_features": {
     "classic_presentation": "ONSET: SUDDEN onset 30 minutes to 2 hours AFTER EATING fatty or greasy meals. RECURRENT pattern - patient usually has had similar prior episodes. LOCATION: Right upper quadrant (RUQ) or epigastric. May RADIATE TO RIGHT SHOULDER OR BACK. DURATION: Each episode lasts 30 minutes to 6 hours (shorter than cholecystitis >6 hours), then COMPLETELY RESOLVES. EPISODIC (not constant). CHARACTER: STEADY, SEVERE pain (NOT crampy). Described as intense pressure or aching. AGGRAVATING: Triggered by FATTY OR GREASY MEALS (fried foods, fatty meats, dairy). Eating worsens or precipitates attacks. RELIEVING: Pain SPONTANEOUSLY RESOLVES after 30min-6 hours. Patient is PAIN-FREE between episodes. Rest may help during episode. TIMING: EPISODIC attacks with complete resolution between. Comes and goes. Pattern repeats over weeks to months. SEVERITY: 7-10/10 during episodes, 0/10 between episodes. ASSOCIATED SYMPTOMS: Nausea (minimal or no vomiting), bloating, belching. NO FEVER (fever indicates cholecystitis). KEY POSITIVES: Food triggers, episodic pattern, pain-free intervals, right upper quadrant (RUQ) location. KEY NEGATIVES: CONSTANT pain suggests cholecystitis not colic. Fever rules out simple colic. Jaundice suggests bile duct stone.",
     "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "30 minutes after eating",
+          "2 hours after eating",
+          "after fatty meals",
+          "after greasy meals",
+          "recurrent"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "constant"
+        ]
+      },
+      "location": {
+        "includes": [
+          "right upper quadrant",
+          "RUQ",
+          "epigastric",
+          "radiates to right shoulder",
+          "radiates to back"
+        ],
+        "excludes": [
+          "left side",
+          "lower abdomen",
+          "diffuse"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "30 minutes",
+          "6 hours",
+          "episodic",
+          "completely resolves"
+        ],
+        "excludes": [
+          "constant",
+          "persistent",
+          "unrelenting"
+        ]
+      },
+      "character": {
+        "includes": [
+          "steady",
+          "severe",
+          "intense pressure",
+          "aching",
+          "not crampy"
+        ],
+        "excludes": [
+          "crampy",
+          "intermittent",
+          "mild"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "fatty meals",
+          "greasy meals",
+          "fried foods",
+          "fatty meats",
+          "dairy",
+          "eating"
+        ],
+        "excludes": [
+          "rest",
+          "fasting",
+          "water"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "spontaneously resolves",
+          "pain-free between episodes",
+          "rest"
+        ],
+        "excludes": [
+          "medication",
+          "constant pain"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "episodic",
+          "comes and goes",
+          "complete resolution between",
+          "recurrent pattern"
+        ],
+        "excludes": [
+          "constant",
+          "unrelenting",
+          "continuous"
+        ]
+      },
       "severity": {
         "includes": [
           "10",
           "7-10/10",
-          "7"
+          "7",
+          "severe during episodes",
+          "0 between episodes"
+        ],
+        "excludes": [
+          "mild",
+          "constant severe",
+          "1-5/10"
         ]
       }
     }

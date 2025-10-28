@@ -1,0 +1,95 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: CARDIOGENIC SHOCK
+================================================================================
+
+Condition: Cardiogenic Shock
+Category: N/A
+Urgency Level: emergent
+Prevalence: rare
+ICD-10 Code: R57.0
+SNOMED Code: 27942005
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • severe shortness of breath
+  • chest pain
+  • can't breathe
+  • confusion
+  • cold extremities
+
+CLASSIC PRESENTATION:
+ONSET: Acute, often following myocardial infarction (MI) or acute heart failure. LOCATION: Generalized, systemic hypoperfusion. DURATION: Continuous, life-threatening. CHARACTER: Severe dyspnea, chest pain (if myocardial infarction ), altered mental status, cold/clammy skin. AGGRAVATING: Reduced cardiac output. RELIEVING: Inotropic support, revascularization. TIMING: Acute decompensation. SEVERITY: Critical, life-threatening. KEY POSITIVES: Hypotension (systolic blood pressure (SBP) <90 mmHg), tachycardia, cold clammy extremities, altered mental status, oliguria (low urine output), pulmonary edema, recent myocardial infarction (MI), severe heart failure. KEY NEGATIVES: NOT septic shock (warm extremities), NOT hypovolemic shock (responds to fluids).
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: acute, following myocardial infarction, acute heart failure
+  Negative indicators: gradual, chronic, slow onset
+
+LOCATION:
+  Positive indicators: generalized, systemic hypoperfusion
+  Negative indicators: localized, one area only, chest
+
+DURATION:
+  Positive indicators: continuous, life-threatening, persistent
+  Negative indicators: intermittent, episodic, comes and goes
+
+CHARACTER:
+  Positive indicators: severe dyspnea, chest pain, altered mental status, cold clammy skin
+  Negative indicators: mild, moderate, warm extremities, no symptoms
+
+AGGRAVATING:
+  Positive indicators: reduced cardiac output
+  Negative indicators: inotropic support, revascularization, medication
+
+RELIEVING:
+  Positive indicators: inotropic support, revascularization
+  Negative indicators: reduced cardiac output, activity, exertion
+
+TIMING:
+  Positive indicators: acute decompensation, continuous
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: critical, life-threatening, severe
+  Negative indicators: mild, moderate, no symptoms
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Hypotension <90 mmHg systolic
+
+  🚨 Altered mental status or confusion
+
+  🚨 Cold, clammy skin
+
+  🚨 Oliguria or anuria
+
+  🚨 Pulmonary edema
+
+  🚨 Recent myocardial infarction (MI) or severe heart failure
+
+  🚨 Lactate elevation
+
+  🚨 Multi-organ failure
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Cardiogenic Shock
+================================================================================

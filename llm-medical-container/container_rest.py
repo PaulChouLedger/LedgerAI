@@ -53,6 +53,63 @@ def health_check():
             "error": str(e)
         }), 500
 
+# === CPU FAISS Auto-Ingestion Endpoints ===
+@app.route('/cpu-faiss/ingest', methods=['POST'])
+def cpu_faiss_ingest():
+    """Trigger CPU FAISS auto-ingestion manually"""
+    try:
+        # Get RAG client instance
+        from rag_client import get_rag_client
+        rag_client = get_rag_client()
+        
+        if not rag_client or not hasattr(rag_client, '_auto_ingest') or rag_client._auto_ingest is None:
+            return jsonify({'error': 'CPU FAISS auto-ingestion not available'}), 500
+        
+        # Trigger manual scan
+        result = rag_client._auto_ingest.scan_and_process()
+        
+        return jsonify({
+            'status': 'success',
+            'processed': result['processed'],
+            'skipped': result['skipped'],
+            'errors': result['errors'],
+            'total_chunks': result['total_chunks'],
+            'message': 'CPU FAISS auto-ingestion completed'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in CPU FAISS auto-ingestion: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/cpu-faiss/status', methods=['GET'])
+def cpu_faiss_status():
+    """Get CPU FAISS status"""
+    try:
+        # Get RAG client instance
+        from rag_client import get_rag_client
+        rag_client = get_rag_client()
+        
+        if not rag_client or not hasattr(rag_client, '_auto_ingest') or rag_client._auto_ingest is None:
+            return jsonify({'error': 'CPU FAISS auto-ingestion not available'}), 500
+        
+        auto_ingest = rag_client._auto_ingest
+        
+        return jsonify({
+            'status': 'active',
+            'watching': auto_ingest.watching,
+            'total_chunks': len(auto_ingest.chunks),
+            'processed_files': len(auto_ingest.state.get('processed_files', {})),
+            'input_directory': str(auto_ingest.input_dir),
+            'cpu_embeddings_directory': str(auto_ingest.cpu_embeddings_dir),
+            'model_name': auto_ingest.model_name
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting CPU FAISS status: {e}")
+        return jsonify({'error': str(e)}), 500
+
 # === Dual Model Config (Optimized for Orin NX) ===
 # Complex model (Mistral-7B) for diagnostic reasoning
 MODEL_PATH = os.getenv("MODEL_PATH", "/models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf")

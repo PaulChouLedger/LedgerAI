@@ -1,0 +1,97 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: HYPERTENSIVE EMERGENCY
+================================================================================
+
+Condition: Hypertensive Emergency
+Category: N/A
+Urgency Level: emergent
+Prevalence: uncommon
+ICD-10 Code: I16.9
+SNOMED Code: 371094000
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • severe headache
+  • chest pain
+  • vision changes
+  • shortness of breath
+  • high blood pressure
+
+CLASSIC PRESENTATION:
+ONSET: Acute, over hours. LOCATION: Headache (occipital or diffuse), chest (if cardiac involvement), generalized symptoms. DURATION: Continuous. CHARACTER: Severe headache, dyspnea, chest pain, vision changes, confusion. AGGRAVATING: Medication non-compliance, stress. RELIEVING: Blood pressure reduction. TIMING: Progressive. SEVERITY: 8-10/10 for headache or symptoms. KEY POSITIVES: Severe hypertension (blood pressure (BP) >180/120), end-organ damage (altered mental status, chest pain, dyspnea, vision changes, seizures), headache, nausea, vomiting. KEY NEGATIVES: NOT isolated elevated blood pressure (BP) without symptoms (that's hypertensive urgency).
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: acute, over hours, sudden
+  Negative indicators: gradual, chronic, slow onset
+
+LOCATION:
+  Positive indicators: headache, occipital, diffuse, chest, generalized symptoms
+  Negative indicators: localized, one area only, extremities
+
+DURATION:
+  Positive indicators: continuous, persistent, ongoing
+  Negative indicators: intermittent, episodic, comes and goes
+
+CHARACTER:
+  Positive indicators: severe headache, dyspnea, chest pain, vision changes, confusion
+  Negative indicators: mild, moderate, no symptoms
+
+AGGRAVATING:
+  Positive indicators: medication non-compliance, stress
+  Negative indicators: blood pressure reduction, medication, rest
+
+RELIEVING:
+  Positive indicators: blood pressure reduction, medication
+  Negative indicators: medication non-compliance, stress, activity
+
+TIMING:
+  Positive indicators: progressive, continuous, worsening
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: 8-10/10, severe, 8, 9, 10
+  Negative indicators: mild, moderate, 1-7/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe blood pressure elevation (>180/120)
+
+  🚨 Altered mental status or confusion
+
+  🚨 Severe headache
+
+  🚨 Vision changes or blurry vision
+
+  🚨 Chest pain
+
+  🚨 Shortness of breath
+
+  🚨 Seizures
+
+  🚨 Focal neurologic deficits
+
+  🚨 Nausea and vomiting
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Hypertensive Emergency
+================================================================================

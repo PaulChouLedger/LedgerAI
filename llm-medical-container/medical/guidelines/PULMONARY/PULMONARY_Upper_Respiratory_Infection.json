@@ -13,7 +13,107 @@
   ],
   "urgency": "routine",
   "key_features": {
-    "classic_presentation": "ONSET: Gradual over hours to days. LOCATION: Upper respiratory tract. DURATION: 3-7 days. CHARACTER: Nasal congestion, sore throat, cough. AGGRAVATING: Cold air, talking. RELIEVING: Rest, fluids, humidified air. TIMING: Acute, self-limiting. SEVERITY: Mild to moderate (3-6/10). ASSOCIATED SYMPTOMS: Nasal congestion, sore throat, cough, sneezing, fatigue, low-grade fever. KEY POSITIVES: Nasal congestion, sore throat, cough. KEY NEGATIVES: No chest pain, no wheezing (unless reactive airway disease)."
+    "classic_presentation": "ONSET: Gradual over hours to days. LOCATION: Upper respiratory tract. DURATION: 3-7 days. CHARACTER: Nasal congestion, sore throat, cough. AGGRAVATING: Cold air, talking. RELIEVING: Rest, fluids, humidified air. TIMING: Acute, self-limiting. SEVERITY: Mild to moderate (3-6/10). ASSOCIATED SYMPTOMS: Nasal congestion, sore throat, cough, sneezing, fatigue, low-grade fever. KEY POSITIVES: Nasal congestion, sore throat, cough. KEY NEGATIVES: No chest pain, no wheezing (unless reactive airway disease).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual over hours to days",
+          "progressive",
+          "slow onset"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "immediate"
+        ]
+      },
+      "location": {
+        "includes": [
+          "upper respiratory tract"
+        ],
+        "excludes": [
+          "lower respiratory tract",
+          "chest",
+          "lungs"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "3-7 days",
+          "acute",
+          "self-limiting"
+        ],
+        "excludes": [
+          "chronic",
+          "persistent",
+          "ongoing"
+        ]
+      },
+      "character": {
+        "includes": [
+          "nasal congestion",
+          "sore throat",
+          "cough"
+        ],
+        "excludes": [
+          "no chest pain",
+          "no wheezing",
+          "severe"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "cold air",
+          "talking",
+          "activity"
+        ],
+        "excludes": [
+          "rest",
+          "fluids",
+          "humidified air"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "rest",
+          "fluids",
+          "humidified air"
+        ],
+        "excludes": [
+          "cold air",
+          "talking",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "acute",
+          "self-limiting",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "mild to moderate",
+          "3-6/10",
+          "3",
+          "4",
+          "5",
+          "6"
+        ],
+        "excludes": [
+          "severe",
+          "7-10/10",
+          "mild",
+          "1-2/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "High fever >101.5°F",

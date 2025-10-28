@@ -1,0 +1,58 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: ACUTE GASTRITIS
+================================================================================
+
+Condition: Acute Gastritis
+Category: N/A
+Urgency Level: routine
+Prevalence: uncommon
+ICD-10 Code: K29.70
+SNOMED Code: 4556007
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • abdominal pain
+  • stomach pain
+  • epigastric pain
+  • nausea
+  • upper abdominal pain
+
+CLASSIC PRESENTATION:
+ONSET: ACUTE onset within hours to days. Triggered by NSAIDs, alcohol, or stress. LOCATION: EPIGASTRIC (upper mid-abdomen), diffuse. NO radiation. DURATION: Symptoms last hours to days. May persist if trigger continues. CHARACTER: GNAWING or BURNING quality. Discomfort more than severe pain. AGGRAVATING: WORSE WITH EATING (unlike duodenal ulcer). NSAIDs, alcohol, spicy foods worsen. RELIEVING: Antacids provide relief. Stopping NSAIDs helps. Empty stomach may feel better (opposite of duodenal ulcer). TIMING: Can be CONSTANT or EPISODIC. Often worse after meals. May persist for hours to days. SEVERITY: 4-7/10, mild to moderate discomfort. ASSOCIATED SYMPTOMS: NAUSEA (very common), vomiting, loss of appetite, bloating, early satiety. KEY POSITIVES: Recent NSAID/alcohol use, nausea worse with eating, diffuse epigastric tenderness, antacid relief. KEY NEGATIVES: Severe LOCALIZED pain suggests ulcer. Hematemesis or melena suggests bleeding needing urgent evaluation. Weight loss suggests malignancy.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+SEVERITY:
+  Positive indicators: 7, 4, 6, 5, mild, 3, moderate, 4-7/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Vomiting blood (hematemesis) or coffee-ground emesis - GI bleeding, needs urgent endoscopy
+
+  🚨 Black tarry stools (melena) - upper GI bleeding
+
+  🚨 Severe pain with peritoneal signs - concern for perforation
+
+  🚨 Persistent symptoms despite stopping NSAIDs and taking PPIs - needs endoscopy to rule out ulcer or malignancy
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Acute Gastritis
+================================================================================

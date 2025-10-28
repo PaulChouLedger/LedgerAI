@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: GUILLAIN-BARRÉ SYNDROME
+================================================================================
+
+Condition: Guillain-Barré Syndrome
+Category: N/A
+Urgency Level: urgent
+Prevalence: rare
+ICD-10 Code: G61.0
+SNOMED Code: 125633003
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • guillain barre
+  • paralysis
+  • muscle weakness
+  • numbness
+  • tingling
+  • difficulty walking
+  • breathing problems
+
+CLASSIC PRESENTATION:
+ONSET: GRADUAL onset over days to weeks. LOCATION: BILATERAL weakness, usually starting in legs. DURATION: Progressive over days to weeks. CHARACTER: PROGRESSIVE weakness, numbness, tingling. AGGRAVATING: MOVEMENT, breathing. RELIEVING: IMMUNOGLOBULIN, plasmapheresis. TIMING: Progressive over days to weeks. SEVERITY: 6-10/10, severe and progressive. ASSOCIATED SYMPTOMS: PROGRESSIVE WEAKNESS, numbness, tingling, difficulty walking, breathing problems, may have facial weakness. KEY POSITIVES: Progressive weakness, numbness, tingling, difficulty walking, breathing problems. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: gradual, days to weeks, slow onset, progressive
+  Negative indicators: sudden, acute, immediate, hours
+
+LOCATION:
+  Positive indicators: bilateral weakness, usually starting in legs, both sides, generalized
+  Negative indicators: unilateral, one side only, localized, focal
+
+DURATION:
+  Positive indicators: progressive over days to weeks, ongoing, persistent, worsening
+  Negative indicators: acute, brief, transient, intermittent
+
+CHARACTER:
+  Positive indicators: progressive weakness, numbness, tingling, severe and progressive
+  Negative indicators: mild, focal deficits, localized, acute
+
+AGGRAVATING:
+  Positive indicators: movement, breathing, activity, exertion
+  Negative indicators: immunoglobulin, plasmapheresis, rest, treatment
+
+RELIEVING:
+  Positive indicators: immunoglobulin, plasmapheresis, rest, treatment
+  Negative indicators: movement, breathing, activity, exertion
+
+TIMING:
+  Positive indicators: progressive over days to weeks, worsening, continuous
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: severe and progressive, 6-10/10, 6, 7, 8, 9, 10
+  Negative indicators: mild, 1-5/10, moderate, variable
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe respiratory distress - possible respiratory failure, call 911
+
+  🚨 Signs of respiratory failure - difficulty breathing, cyanosis, altered mental status - call 911
+
+  🚨 Severe hypertension with neurological deficits - possible hypertensive crisis, call 911
+
+  🚨 Signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911
+
+  🚨 Signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Guillain-Barré Syndrome
+================================================================================

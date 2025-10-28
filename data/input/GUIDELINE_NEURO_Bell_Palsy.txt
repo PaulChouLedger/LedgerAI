@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: BELL PALSY
+================================================================================
+
+Condition: Bell Palsy
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: G51.0
+SNOMED Code: 125632002
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • facial paralysis
+  • bell palsy
+  • facial weakness
+  • facial droop
+  • facial numbness
+  • facial pain
+  • facial twitching
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset within hours to days. LOCATION: UNILATERAL facial paralysis. DURATION: Develops over hours to days, may persist for weeks to months. CHARACTER: SUDDEN, SEVERE facial weakness or paralysis. AGGRAVATING: SPEAKING, eating, drinking. RELIEVING: STEROIDS, antiviral medications. TIMING: Sudden onset, develops over hours to days. SEVERITY: 6-9/10, moderate to severe. ASSOCIATED SYMPTOMS: FACIAL WEAKNESS, facial droop, difficulty speaking, eating, drinking, may have facial pain, may have taste changes. KEY POSITIVES: Unilateral facial weakness, facial droop, difficulty speaking, eating, drinking. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, within hours to days, immediate, acute
+  Negative indicators: gradual, chronic, slow onset, progressive
+
+LOCATION:
+  Positive indicators: unilateral facial paralysis, one side, facial, unilateral
+  Negative indicators: bilateral, both sides, generalized, diffuse
+
+DURATION:
+  Positive indicators: develops over hours to days, weeks to months, prolonged, persistent
+  Negative indicators: minutes, seconds, brief, transient
+
+CHARACTER:
+  Positive indicators: sudden, severe facial weakness, paralysis, moderate to severe
+  Negative indicators: mild, gradual, localized, focal
+
+AGGRAVATING:
+  Positive indicators: speaking, eating, drinking, facial movement
+  Negative indicators: steroids, antiviral medications, rest, treatment
+
+RELIEVING:
+  Positive indicators: steroids, antiviral medications, rest, treatment
+  Negative indicators: speaking, eating, drinking, facial movement
+
+TIMING:
+  Positive indicators: sudden onset, develops over hours to days, progressive
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: moderate to severe, 6-9/10, 6, 7, 8, 9
+  Negative indicators: mild, 1-5/10, severe, 10/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Bilateral facial weakness - possible Guillain-Barré syndrome, call 911
+
+  🚨 Facial weakness with other neurological deficits - possible stroke, call 911
+
+  🚨 Facial weakness with signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911
+
+  🚨 Facial weakness with severe hypertension - possible hypertensive crisis, call 911
+
+  🚨 Facial weakness with signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Bell Palsy
+================================================================================

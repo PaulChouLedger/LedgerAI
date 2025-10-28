@@ -13,7 +13,107 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: Gradual over days to weeks. LOCATION: Focal lung area, often dependent regions. DURATION: Weeks to months. CHARACTER: Productive cough, chest discomfort. AGGRAVATING: Lying flat, exertion. RELIEVING: Antibiotics, postural drainage. TIMING: Chronic, persistent. SEVERITY: Moderate to severe (6-8/10). ASSOCIATED SYMPTOMS: High fever, productive cough (often foul-smelling), chest pain, dyspnea, weight loss, fatigue. KEY POSITIVES: High fever, productive cough, chest pain, weight loss. KEY NEGATIVES: No wheezing (unless reactive airway disease)."
+    "classic_presentation": "ONSET: Gradual over days to weeks. LOCATION: Focal lung area, often dependent regions. DURATION: Weeks to months. CHARACTER: Productive cough, chest discomfort. AGGRAVATING: Lying flat, exertion. RELIEVING: Antibiotics, postural drainage. TIMING: Chronic, persistent. SEVERITY: Moderate to severe (6-8/10). ASSOCIATED SYMPTOMS: High fever, productive cough (often foul-smelling), chest pain, dyspnea, weight loss, fatigue. KEY POSITIVES: High fever, productive cough, chest pain, weight loss. KEY NEGATIVES: No wheezing (unless reactive airway disease).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual over days to weeks",
+          "progressive",
+          "slow onset"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "immediate"
+        ]
+      },
+      "location": {
+        "includes": [
+          "focal lung area",
+          "often dependent regions",
+          "lung"
+        ],
+        "excludes": [
+          "unilateral",
+          "one side only",
+          "specific point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "weeks to months",
+          "chronic",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "productive cough",
+          "chest discomfort"
+        ],
+        "excludes": [
+          "no wheezing",
+          "dry cough",
+          "mild"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "lying flat",
+          "exertion",
+          "activity"
+        ],
+        "excludes": [
+          "antibiotics",
+          "postural drainage",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "antibiotics",
+          "postural drainage",
+          "rest"
+        ],
+        "excludes": [
+          "lying flat",
+          "exertion",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "chronic",
+          "persistent",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "moderate to severe",
+          "6-8/10",
+          "6",
+          "7",
+          "8"
+        ],
+        "excludes": [
+          "mild",
+          "1-5/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe dyspnea or respiratory distress",

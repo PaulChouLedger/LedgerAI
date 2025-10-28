@@ -233,8 +233,8 @@ class GuidelineToRAGConverter:
     
     def convert_all_guidelines(self) -> int:
         """Convert all JSON guidelines to RAG text format"""
-        # Only convert GI guidelines for now since they have proper structured_oldcarts format
-        json_files = list(self.guidelines_dir.glob("GI/*.json"))
+        # Convert ALL guidelines now that they have structured_oldcarts data
+        json_files = list(self.guidelines_dir.glob("**/*.json"))
         
         if not json_files:
             print("[Converter] ⚠️ No JSON guideline files found")

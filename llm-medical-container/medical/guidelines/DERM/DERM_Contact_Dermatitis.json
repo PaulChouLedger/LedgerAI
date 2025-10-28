@@ -15,7 +15,74 @@
   ],
   "urgency": "non-urgent",
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL onset 24-48 hours after exposure to allergen/irritant. LOCATION: AREAS OF CONTACT with offending substance - hands, face, arms, legs. DURATION: Develops over 24-48 hours, may persist for days to weeks. CHARACTER: ERYTHEMATOUS (red), PRURITIC (itchy), may have VESICLES (small blisters). AGGRAVATING: SCRATCHING, heat, sweating. RELIEVING: AVOIDING trigger, cool compresses, topical steroids, antihistamines. TIMING: Develops 24-48 hours after exposure, peaks at 48-72 hours. SEVERITY: 4-7/10 itching, moderate to severe. ASSOCIATED SYMPTOMS: SEVERE ITCHING (pruritus), erythema, edema, may have vesicles or bullae, may have secondary infection from scratching. KEY POSITIVES: Erythema, pruritus, vesicles, linear pattern (poison ivy), contact history. KEY NEGATIVES: No fever, no systemic symptoms, no scaling or crusting (unless chronic)."
+    "classic_presentation": "ONSET: GRADUAL onset 24-48 hours after exposure to allergen/irritant. LOCATION: AREAS OF CONTACT with offending substance - hands, face, arms, legs. DURATION: Develops over 24-48 hours, may persist for days to weeks. CHARACTER: ERYTHEMATOUS (red), PRURITIC (itchy), may have VESICLES (small blisters). AGGRAVATING: SCRATCHING, heat, sweating. RELIEVING: AVOIDING trigger, cool compresses, topical steroids, antihistamines. TIMING: Develops 24-48 hours after exposure, peaks at 48-72 hours. SEVERITY: 4-7/10 itching, moderate to severe. ASSOCIATED SYMPTOMS: SEVERE ITCHING (pruritus), erythema, edema, may have vesicles or bullae, may have secondary infection from scratching. KEY POSITIVES: Erythema, pruritus, vesicles, linear pattern (poison ivy), contact history. KEY NEGATIVES: No fever, no systemic symptoms, no scaling or crusting (unless chronic).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "progressive",
+          "hours",
+          "days",
+          "weeks"
+        ],
+        "excludes": [
+          "sudden",
+          "immediate"
+        ]
+      },
+      "location": {
+        "includes": [
+          "face",
+          "hands"
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          "chronic"
+        ],
+        "excludes": [
+          "acute",
+          "short-term"
+        ]
+      },
+      "character": {
+        "includes": [
+          "erythematous",
+          "red",
+          "pruritic",
+          "itchy"
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          "scratching",
+          "heat"
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          "cool compresses",
+          "antihistamines",
+          "topical steroids",
+          "avoiding triggers"
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          "moderate",
+          "severe"
+        ],
+        "excludes": []
+      }
+    }
   },
   "red_flags": [
     "Rash involving >30% of body surface - severe allergic reaction, needs urgent evaluation",

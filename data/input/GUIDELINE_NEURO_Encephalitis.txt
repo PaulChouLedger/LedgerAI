@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: ENCEPHALITIS
+================================================================================
+
+Condition: Encephalitis
+Category: N/A
+Urgency Level: urgent
+Prevalence: rare
+ICD-10 Code: G04.9
+SNOMED Code: 125645005
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • encephalitis
+  • brain inflammation
+  • headache
+  • fever
+  • altered mental status
+  • seizures
+  • neurological symptoms
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset within hours to days. LOCATION: GENERALIZED symptoms. DURATION: Develops over hours to days. CHARACTER: SEVERE headache, fever, altered mental status. AGGRAVATING: LIGHT, sound, movement. RELIEVING: ANTIVIRALS, supportive care. TIMING: Sudden onset, develops over hours to days. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE HEADACHE, fever, altered mental status, seizures, may have focal neurological deficits. KEY POSITIVES: Severe headache, fever, altered mental status, seizures, may have focal neurological deficits. KEY NEGATIVES: No neck stiffness, no photophobia.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, within hours to days, immediate, acute
+  Negative indicators: gradual, chronic, slow onset, progressive
+
+LOCATION:
+  Positive indicators: generalized symptoms, diffuse, whole brain, bilateral
+  Negative indicators: localized, focal, specific area, unilateral
+
+DURATION:
+  Positive indicators: develops over hours to days, progressive, ongoing, persistent
+  Negative indicators: minutes, seconds, brief, transient
+
+CHARACTER:
+  Positive indicators: severe headache, fever, altered mental status, severe and unrelenting
+  Negative indicators: mild, localized, focal, moderate
+
+AGGRAVATING:
+  Positive indicators: light, sound, movement, stimuli
+  Negative indicators: antivirals, supportive care, dark, quiet
+
+RELIEVING:
+  Positive indicators: antivirals, supportive care, dark, quiet
+  Negative indicators: light, sound, movement, stimuli
+
+TIMING:
+  Positive indicators: sudden onset, develops over hours to days, progressive
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: severe and unrelenting, 8-10/10, 8, 9, 10
+  Negative indicators: mild, 1-7/10, moderate, variable
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe neurological deficits with altered mental status - possible severe encephalitis, call 911
+
+  🚨 Signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911
+
+  🚨 Severe hypertension with neurological deficits - possible hypertensive crisis, call 911
+
+  🚨 Signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911
+
+  🚨 Signs of respiratory failure - difficulty breathing, cyanosis, altered mental status - call 911
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Encephalitis
+================================================================================

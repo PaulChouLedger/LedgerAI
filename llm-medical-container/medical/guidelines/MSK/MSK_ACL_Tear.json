@@ -15,7 +15,127 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset during activity - pivoting, cutting, landing, or direct blow. Common in sports requiring sudden direction changes. LOCATION: Anterior knee, may radiate to posterior knee. DURATION: Immediate severe pain that may worsen over first 24-48 hours. CHARACTER: SHARP initial pain, then THROBBING and ACHING. AGGRAVATING: WEIGHT BEARING, walking, stairs, pivoting, cutting movements. RELIEVING: REST, ICE, elevation, NSAIDs. TIMING: Immediate pain, swelling develops over hours, stiffness increases over 24-48 hours. SEVERITY: 6-9/10, severe with activity. ASSOCIATED SYMPTOMS: SWELLING within hours (effusion), BRUISING develops over 24-48 hours, INSTABILITY (knee 'giving way'), difficulty walking or bearing weight, may have audible 'pop' at injury. KEY POSITIVES: Positive Lachman test, positive anterior drawer test, positive pivot shift test, joint effusion, positive McMurray test (if meniscus involved). KEY NEGATIVES: No bony tenderness over patella or tibial plateau (rules out fracture), no obvious deformity."
+    "classic_presentation": "ONSET: SUDDEN onset during activity - pivoting, cutting, landing, or direct blow. Common in sports requiring sudden direction changes. LOCATION: Anterior knee, may radiate to posterior knee. DURATION: Immediate severe pain that may worsen over first 24-48 hours. CHARACTER: SHARP initial pain, then THROBBING and ACHING. AGGRAVATING: WEIGHT BEARING, walking, stairs, pivoting, cutting movements. RELIEVING: REST, ICE, elevation, NSAIDs. TIMING: Immediate pain, swelling develops over hours, stiffness increases over 24-48 hours. SEVERITY: 6-9/10, severe with activity. ASSOCIATED SYMPTOMS: SWELLING within hours (effusion), BRUISING develops over 24-48 hours, INSTABILITY (knee 'giving way'), difficulty walking or bearing weight, may have audible 'pop' at injury. KEY POSITIVES: Positive Lachman test, positive anterior drawer test, positive pivot shift test, joint effusion, positive McMurray test (if meniscus involved). KEY NEGATIVES: No bony tenderness over patella or tibial plateau (rules out fracture), no obvious deformity.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "during activity",
+          "pivoting",
+          "cutting",
+          "landing",
+          "direct blow"
+        ],
+        "excludes": [
+          "gradual",
+          "progressive",
+          "slow onset",
+          "days to weeks"
+        ]
+      },
+      "location": {
+        "includes": [
+          "anterior knee",
+          "posterior knee",
+          "knee joint",
+          "front of knee"
+        ],
+        "excludes": [
+          "hip",
+          "ankle",
+          "thigh",
+          "calf"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "immediate",
+          "24-48 hours",
+          "hours",
+          "persistent"
+        ],
+        "excludes": [
+          "minutes",
+          "seconds",
+          "chronic",
+          "weeks to months"
+        ]
+      },
+      "character": {
+        "includes": [
+          "sharp",
+          "throbbing",
+          "aching",
+          "severe"
+        ],
+        "excludes": [
+          "dull",
+          "mild",
+          "burning",
+          "numbness"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "weight bearing",
+          "walking",
+          "stairs",
+          "pivoting",
+          "cutting movements"
+        ],
+        "excludes": [
+          "rest",
+          "ice",
+          "elevation",
+          "NSAIDs"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "rest",
+          "ice",
+          "elevation",
+          "NSAIDs",
+          "immobilization"
+        ],
+        "excludes": [
+          "weight bearing",
+          "walking",
+          "stairs",
+          "pivoting"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "immediate",
+          "hours",
+          "24-48 hours",
+          "progressive"
+        ],
+        "excludes": [
+          "delayed",
+          "days later",
+          "chronic",
+          "intermittent"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "severe",
+          "6-9/10",
+          "6",
+          "7",
+          "8",
+          "9"
+        ],
+        "excludes": [
+          "mild",
+          "1-3/10",
+          "moderate",
+          "4-5/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe pain with inability to bear weight - possible associated fracture or severe injury",

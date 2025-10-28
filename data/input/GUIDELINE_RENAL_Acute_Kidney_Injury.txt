@@ -1,0 +1,84 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: ACUTE KIDNEY INJURY
+================================================================================
+
+Condition: Acute Kidney Injury
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: N17.9
+SNOMED Code: 125646006
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • acute kidney injury
+  • kidney failure
+  • renal failure
+  • decreased urine output
+  • swelling
+  • fluid retention
+  • kidney problems
+
+CLASSIC PRESENTATION:
+ONSET: GRADUAL onset over hours to days. LOCATION: BILATERAL kidney involvement. DURATION: Develops over hours to days, may persist for days to weeks. CHARACTER: DECREASED urine output, swelling, fluid retention. AGGRAVATING: DEHYDRATION, medications, contrast agents. RELIEVING: FLUID management, dialysis if severe. TIMING: Gradual onset, develops over hours to days. SEVERITY: 6-9/10, moderate to severe. ASSOCIATED SYMPTOMS: DECREASED URINE OUTPUT, swelling, fluid retention, may have nausea, vomiting, confusion, may have electrolyte imbalances. KEY POSITIVES: Decreased urine output, swelling, fluid retention, elevated creatinine, elevated BUN. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: gradual, progressive, hours, days, weeks
+  Negative indicators: sudden, immediate
+
+LOCATION:
+  Positive indicators: kidney, renal, bilateral
+
+DURATION:
+  Positive indicators: progressive
+
+CHARACTER:
+  Positive indicators: severe, decreased urine output, swelling, fluid retention
+
+AGGRAVATING:
+  Positive indicators: dehydration, medications, contrast agents
+
+RELIEVING:
+  Positive indicators: fluid management, dialysis
+
+TIMING:
+  Positive indicators: progressive
+
+SEVERITY:
+  Positive indicators: 6-9/10, moderate to severe
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe fluid overload with respiratory distress - possible pulmonary edema, call 911
+
+  🚨 Signs of severe electrolyte imbalances - confusion, seizures, cardiac arrhythmias - call 911
+
+  🚨 Severe hypertension with neurological deficits - possible hypertensive crisis, call 911
+
+  🚨 Signs of uremia - confusion, seizures, coma - call 911
+
+  🚨 Signs of severe metabolic acidosis - deep breathing, confusion, coma - call 911
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Acute Kidney Injury
+================================================================================

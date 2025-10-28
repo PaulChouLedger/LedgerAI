@@ -15,7 +15,119 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within seconds. LOCATION: GENERALIZED or focal. DURATION: Lasts seconds to minutes. CHARACTER: INVOLUNTARY movements, jerking, convulsions. AGGRAVATING: STRESS, sleep deprivation, medication non-compliance. RELIEVING: ANTICONVULSANTS, supportive care. TIMING: Sudden onset, lasts seconds to minutes. SEVERITY: 8-10/10 during episode, then resolves. ASSOCIATED SYMPTOMS: LOSS OF CONSCIOUSNESS, jerking movements, tongue biting, incontinence, postictal confusion. KEY POSITIVES: Involuntary movements, loss of consciousness, postictal confusion, tongue biting. KEY NEGATIVES: No fever, no neck stiffness, no photophobia."
+    "classic_presentation": "ONSET: SUDDEN onset within seconds. LOCATION: GENERALIZED or focal. DURATION: Lasts seconds to minutes. CHARACTER: INVOLUNTARY movements, jerking, convulsions. AGGRAVATING: STRESS, sleep deprivation, medication non-compliance. RELIEVING: ANTICONVULSANTS, supportive care. TIMING: Sudden onset, lasts seconds to minutes. SEVERITY: 8-10/10 during episode, then resolves. ASSOCIATED SYMPTOMS: LOSS OF CONSCIOUSNESS, jerking movements, tongue biting, incontinence, postictal confusion. KEY POSITIVES: Involuntary movements, loss of consciousness, postictal confusion, tongue biting. KEY NEGATIVES: No fever, no neck stiffness, no photophobia.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "within seconds",
+          "immediate",
+          "acute"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset",
+          "progressive"
+        ]
+      },
+      "location": {
+        "includes": [
+          "generalized",
+          "focal",
+          "whole body",
+          "specific area"
+        ],
+        "excludes": [
+          "localized",
+          "specific point",
+          "unilateral only"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "seconds to minutes",
+          "brief",
+          "transient",
+          "short"
+        ],
+        "excludes": [
+          "hours",
+          "days",
+          "persistent",
+          "ongoing"
+        ]
+      },
+      "character": {
+        "includes": [
+          "involuntary movements",
+          "jerking",
+          "convulsions",
+          "severe during episode"
+        ],
+        "excludes": [
+          "voluntary",
+          "controlled",
+          "mild",
+          "localized"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "stress",
+          "sleep deprivation",
+          "medication non-compliance",
+          "triggers"
+        ],
+        "excludes": [
+          "anticonvulsants",
+          "supportive care",
+          "medication compliance",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "anticonvulsants",
+          "supportive care",
+          "medication compliance",
+          "rest"
+        ],
+        "excludes": [
+          "stress",
+          "sleep deprivation",
+          "medication non-compliance",
+          "triggers"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "sudden onset",
+          "episodic",
+          "intermittent"
+        ],
+        "excludes": [
+          "continuous",
+          "persistent",
+          "unrelenting"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "8-10/10 during episode",
+          "8",
+          "9",
+          "10",
+          "severe during episode"
+        ],
+        "excludes": [
+          "mild",
+          "1-7/10",
+          "moderate",
+          "constant"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Seizure lasting >5 minutes - status epilepticus, call 911",

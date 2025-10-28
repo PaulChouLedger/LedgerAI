@@ -13,7 +13,105 @@
   ],
   "urgency": "emergent",
   "key_features": {
-    "classic_presentation": "ONSET: Sudden or gradual over hours. LOCATION: Bilateral, diffuse. DURATION: Hours to days. CHARACTER: Severe dyspnea, 'drowning sensation'. AGGRAVATING: Lying flat, exertion. RELIEVING: Sitting upright, oxygen, diuretics. TIMING: Acute, progressive. SEVERITY: Severe (8-10/10). ASSOCIATED SYMPTOMS: Severe dyspnea, orthopnea, paroxysmal nocturnal dyspnea, pink frothy sputum, anxiety. KEY POSITIVES: Severe dyspnea, orthopnea, pink frothy sputum. KEY NEGATIVES: No chest pain (unless secondary), no wheezing (unless reactive airway disease)."
+    "classic_presentation": "ONSET: Sudden or gradual over hours. LOCATION: Bilateral, diffuse. DURATION: Hours to days. CHARACTER: Severe dyspnea, 'drowning sensation'. AGGRAVATING: Lying flat, exertion. RELIEVING: Sitting upright, oxygen, diuretics. TIMING: Acute, progressive. SEVERITY: Severe (8-10/10). ASSOCIATED SYMPTOMS: Severe dyspnea, orthopnea, paroxysmal nocturnal dyspnea, pink frothy sputum, anxiety. KEY POSITIVES: Severe dyspnea, orthopnea, pink frothy sputum. KEY NEGATIVES: No chest pain (unless secondary), no wheezing (unless reactive airway disease).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden or gradual over hours",
+          "acute",
+          "progressive"
+        ],
+        "excludes": [
+          "chronic",
+          "slow onset",
+          "gradual over days"
+        ]
+      },
+      "location": {
+        "includes": [
+          "bilateral",
+          "diffuse"
+        ],
+        "excludes": [
+          "unilateral",
+          "one side only",
+          "localized"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "hours to days",
+          "acute",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "severe dyspnea",
+          "drowning sensation"
+        ],
+        "excludes": [
+          "no chest pain",
+          "no wheezing",
+          "mild"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "lying flat",
+          "exertion",
+          "activity"
+        ],
+        "excludes": [
+          "sitting upright",
+          "oxygen",
+          "diuretics"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "sitting upright",
+          "oxygen",
+          "diuretics"
+        ],
+        "excludes": [
+          "lying flat",
+          "exertion",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "acute",
+          "progressive",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "severe",
+          "8-10/10",
+          "8",
+          "9",
+          "10"
+        ],
+        "excludes": [
+          "mild",
+          "1-7/10",
+          "moderate"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe dyspnea or respiratory distress",

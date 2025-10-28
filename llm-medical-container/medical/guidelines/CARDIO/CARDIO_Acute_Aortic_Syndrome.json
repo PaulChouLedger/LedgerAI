@@ -12,7 +12,108 @@
   "prevalence": "rare",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN, maximal at onset. LOCATION: Chest and/or BACK (interscapular). RADIATES along aortic path (chest→back→abdomen as dissection extends). DURATION: Continuous, persistent. CHARACTER: TEARING, RIPPING, or severe sharp pain. AGGRAVATING: Hypertension. RELIEVING: Nothing helps. TIMING: Sudden onset, unrelenting. SEVERITY: 10/10, catastrophic. KEY POSITIVES: Hypertension, pulse or blood pressure (BP) differential between extremities, Marfan syndrome, bicuspid aortic valve, aortic regurgitation murmur. KEY NEGATIVES: NOT gradual onset, NOT pressure (like myocardial infarction )."
+    "classic_presentation": "ONSET: SUDDEN, maximal at onset. LOCATION: Chest and/or BACK (interscapular). RADIATES along aortic path (chest→back→abdomen as dissection extends). DURATION: Continuous, persistent. CHARACTER: TEARING, RIPPING, or severe sharp pain. AGGRAVATING: Hypertension. RELIEVING: Nothing helps. TIMING: Sudden onset, unrelenting. SEVERITY: 10/10, catastrophic. KEY POSITIVES: Hypertension, pulse or blood pressure (BP) differential between extremities, Marfan syndrome, bicuspid aortic valve, aortic regurgitation murmur. KEY NEGATIVES: NOT gradual onset, NOT pressure (like myocardial infarction ).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "maximal at onset",
+          "catastrophic"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "chest",
+          "back",
+          "interscapular",
+          "radiates along aortic path",
+          "chest to back to abdomen"
+        ],
+        "excludes": [
+          "localized",
+          "one area only",
+          "no radiation"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "continuous",
+          "persistent",
+          "unrelenting"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "tearing",
+          "ripping",
+          "severe sharp",
+          "catastrophic"
+        ],
+        "excludes": [
+          "pressure",
+          "dull",
+          "crampy",
+          "mild"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "hypertension",
+          "high blood pressure"
+        ],
+        "excludes": [
+          "rest",
+          "medication",
+          "position"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "nothing helps",
+          "no relief"
+        ],
+        "excludes": [
+          "medication",
+          "position",
+          "rest"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "sudden onset",
+          "unrelenting",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "10/10",
+          "catastrophic",
+          "10",
+          "maximal"
+        ],
+        "excludes": [
+          "mild",
+          "moderate",
+          "1-9/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Sudden maximal pain",

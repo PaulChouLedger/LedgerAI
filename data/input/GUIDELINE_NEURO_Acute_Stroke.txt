@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: ACUTE STROKE
+================================================================================
+
+Condition: Acute Stroke
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: I64
+SNOMED Code: 125626006
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • stroke
+  • facial droop
+  • arm weakness
+  • speech difficulty
+  • sudden weakness
+  • numbness
+  • vision problems
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset within minutes to hours. LOCATION: UNILATERAL weakness, numbness, or paralysis. DURATION: Immediate onset, symptoms persist. CHARACTER: SUDDEN, SEVERE weakness, numbness, or paralysis. AGGRAVATING: MOVEMENT, speaking, swallowing. RELIEVING: IMMEDIATE medical intervention, thrombolytics if within window. TIMING: Sudden onset, symptoms persist. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: FACIAL DROOP, arm weakness, speech difficulty, vision problems, dizziness, confusion, headache. KEY POSITIVES: Positive FAST test (Face, Arm, Speech, Time), unilateral weakness, facial droop, speech difficulty. KEY NEGATIVES: No fever, no neck stiffness, no photophobia.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, minutes to hours, immediate, acute
+  Negative indicators: gradual, chronic, slow onset
+
+LOCATION:
+  Positive indicators: unilateral, one side, face, arm, leg, speech area
+  Negative indicators: bilateral, both sides, generalized
+
+DURATION:
+  Positive indicators: immediate onset, symptoms persist, continuous
+  Negative indicators: intermittent, episodic, comes and goes
+
+CHARACTER:
+  Positive indicators: sudden, severe, weakness, numbness, paralysis
+  Negative indicators: mild, gradual, intermittent
+
+AGGRAVATING:
+  Positive indicators: movement, speaking, swallowing, activity
+  Negative indicators: rest, medication, position
+
+RELIEVING:
+  Positive indicators: immediate medical intervention, thrombolytics, emergency treatment
+  Negative indicators: rest, home remedies, delayed treatment
+
+TIMING:
+  Positive indicators: sudden onset, symptoms persist, continuous
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: 8-10/10, severe, unrelenting, 8, 9, 10
+  Negative indicators: mild, moderate, 1-7/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Sudden severe headache with neck stiffness - possible hemorrhagic stroke, call 911
+
+  🚨 Severe neurological deficits with altered mental status - possible large stroke, call 911
+
+  🚨 Signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911
+
+  🚨 Severe hypertension with neurological deficits - possible hypertensive crisis, call 911
+
+  🚨 Signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Acute Stroke
+================================================================================

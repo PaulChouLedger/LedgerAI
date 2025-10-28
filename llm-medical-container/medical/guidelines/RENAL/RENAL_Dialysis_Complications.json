@@ -15,7 +15,67 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within minutes to hours. LOCATION: DIALYSIS access site or systemic. DURATION: Develops over minutes to hours, may persist for days to weeks. CHARACTER: ACCESS site problems, bleeding, clotting, infection. AGGRAVATING: DIALYSIS, movement. RELIEVING: ACCESS care, medications. TIMING: Sudden onset, develops over minutes to hours. SEVERITY: 6-9/10, moderate to severe. ASSOCIATED SYMPTOMS: ACCESS SITE PROBLEMS, bleeding, clotting, infection, may have fever, may have swelling. KEY POSITIVES: Access site problems, bleeding, clotting, infection, fever. KEY NEGATIVES: No neck stiffness, no focal neurological deficits."
+    "classic_presentation": "ONSET: SUDDEN onset within minutes to hours. LOCATION: DIALYSIS access site or systemic. DURATION: Develops over minutes to hours, may persist for days to weeks. CHARACTER: ACCESS site problems, bleeding, clotting, infection. AGGRAVATING: DIALYSIS, movement. RELIEVING: ACCESS care, medications. TIMING: Sudden onset, develops over minutes to hours. SEVERITY: 6-9/10, moderate to severe. ASSOCIATED SYMPTOMS: ACCESS SITE PROBLEMS, bleeding, clotting, infection, may have fever, may have swelling. KEY POSITIVES: Access site problems, bleeding, clotting, infection, fever. KEY NEGATIVES: No neck stiffness, no focal neurological deficits.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "acute",
+          "immediate",
+          "minutes",
+          "hours",
+          "days",
+          "weeks"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic"
+        ]
+      },
+      "location": {
+        "includes": [],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          "progressive"
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          "severe",
+          "swelling"
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          "movement",
+          "medications"
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          "dialysis"
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          "progressive"
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          "6-9/10",
+          "moderate to severe"
+        ],
+        "excludes": []
+      }
+    }
   },
   "red_flags": [
     "Severe bleeding from access site - possible arterial bleeding, call 911",

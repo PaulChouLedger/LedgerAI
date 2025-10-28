@@ -15,7 +15,120 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within hours to days. LOCATION: GENERALIZED symptoms. DURATION: Develops over hours to days. CHARACTER: SEVERE headache, fever, altered mental status. AGGRAVATING: LIGHT, sound, movement. RELIEVING: ANTIVIRALS, supportive care. TIMING: Sudden onset, develops over hours to days. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE HEADACHE, fever, altered mental status, seizures, may have focal neurological deficits. KEY POSITIVES: Severe headache, fever, altered mental status, seizures, may have focal neurological deficits. KEY NEGATIVES: No neck stiffness, no photophobia."
+    "classic_presentation": "ONSET: SUDDEN onset within hours to days. LOCATION: GENERALIZED symptoms. DURATION: Develops over hours to days. CHARACTER: SEVERE headache, fever, altered mental status. AGGRAVATING: LIGHT, sound, movement. RELIEVING: ANTIVIRALS, supportive care. TIMING: Sudden onset, develops over hours to days. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE HEADACHE, fever, altered mental status, seizures, may have focal neurological deficits. KEY POSITIVES: Severe headache, fever, altered mental status, seizures, may have focal neurological deficits. KEY NEGATIVES: No neck stiffness, no photophobia.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "within hours to days",
+          "immediate",
+          "acute"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset",
+          "progressive"
+        ]
+      },
+      "location": {
+        "includes": [
+          "generalized symptoms",
+          "diffuse",
+          "whole brain",
+          "bilateral"
+        ],
+        "excludes": [
+          "localized",
+          "focal",
+          "specific area",
+          "unilateral"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "develops over hours to days",
+          "progressive",
+          "ongoing",
+          "persistent"
+        ],
+        "excludes": [
+          "minutes",
+          "seconds",
+          "brief",
+          "transient"
+        ]
+      },
+      "character": {
+        "includes": [
+          "severe headache",
+          "fever",
+          "altered mental status",
+          "severe and unrelenting"
+        ],
+        "excludes": [
+          "mild",
+          "localized",
+          "focal",
+          "moderate"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "light",
+          "sound",
+          "movement",
+          "stimuli"
+        ],
+        "excludes": [
+          "antivirals",
+          "supportive care",
+          "dark",
+          "quiet"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "antivirals",
+          "supportive care",
+          "dark",
+          "quiet"
+        ],
+        "excludes": [
+          "light",
+          "sound",
+          "movement",
+          "stimuli"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "sudden onset",
+          "develops over hours to days",
+          "progressive"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "severe and unrelenting",
+          "8-10/10",
+          "8",
+          "9",
+          "10"
+        ],
+        "excludes": [
+          "mild",
+          "1-7/10",
+          "moderate",
+          "variable"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe neurological deficits with altered mental status - possible severe encephalitis, call 911",

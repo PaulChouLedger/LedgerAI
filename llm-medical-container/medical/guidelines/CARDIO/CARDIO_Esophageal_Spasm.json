@@ -11,7 +11,112 @@
   "prevalence": "uncommon",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Sudden, often during or after eating/drinking. LOCATION: RETROSTERNAL (midline chest behind breastbone). RADIATES to back occasionally. DURATION: Minutes, typically brief. CHARACTER: SQUEEZING, gripping, can mimic cardiac pain. AGGRAVATING: Swallowing (especially hot or cold liquids), eating. RELIEVING: Spontaneous resolution, nitroglycerin (can relieve, causing confusion with angina), calcium channel blockers. TIMING: Episodic, related to swallowing. SEVERITY: 5-8/10, can be severe. KEY POSITIVES: Dysphagia (difficulty swallowing), related to eating/drinking, relieved by nitrates (mimics angina!), no exertional pattern. KEY NEGATIVES: NOT exertional, NOT radiating to arm/jaw typically."
+    "classic_presentation": "ONSET: Sudden, often during or after eating/drinking. LOCATION: RETROSTERNAL (midline chest behind breastbone). RADIATES to back occasionally. DURATION: Minutes, typically brief. CHARACTER: SQUEEZING, gripping, can mimic cardiac pain. AGGRAVATING: Swallowing (especially hot or cold liquids), eating. RELIEVING: Spontaneous resolution, nitroglycerin (can relieve, causing confusion with angina), calcium channel blockers. TIMING: Episodic, related to swallowing. SEVERITY: 5-8/10, can be severe. KEY POSITIVES: Dysphagia (difficulty swallowing), related to eating/drinking, relieved by nitrates (mimics angina!), no exertional pattern. KEY NEGATIVES: NOT exertional, NOT radiating to arm/jaw typically.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "often during eating",
+          "after eating",
+          "after drinking"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "retrosternal",
+          "midline chest",
+          "behind breastbone",
+          "radiates to back occasionally"
+        ],
+        "excludes": [
+          "radiates to arm",
+          "radiates to jaw",
+          "left side only"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "minutes",
+          "typically brief",
+          "short duration"
+        ],
+        "excludes": [
+          "continuous",
+          "unrelenting",
+          "hours"
+        ]
+      },
+      "character": {
+        "includes": [
+          "squeezing",
+          "gripping",
+          "can mimic cardiac pain"
+        ],
+        "excludes": [
+          "sharp",
+          "stabbing",
+          "burning",
+          "no pain"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "swallowing",
+          "especially hot liquids",
+          "cold liquids",
+          "eating"
+        ],
+        "excludes": [
+          "spontaneous resolution",
+          "nitroglycerin",
+          "calcium channel blockers"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "spontaneous resolution",
+          "nitroglycerin",
+          "calcium channel blockers"
+        ],
+        "excludes": [
+          "swallowing",
+          "eating",
+          "hot liquids"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "episodic",
+          "related to swallowing"
+        ],
+        "excludes": [
+          "constant",
+          "unrelenting",
+          "continuous"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "5-8/10",
+          "5",
+          "6",
+          "7",
+          "8",
+          "can be severe"
+        ],
+        "excludes": [
+          "mild",
+          "1-4/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "New onset in elderly (rule out cardiac)",

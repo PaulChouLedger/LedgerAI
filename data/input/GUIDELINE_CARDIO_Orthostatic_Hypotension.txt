@@ -1,0 +1,89 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: ORTHOSTATIC HYPOTENSION
+================================================================================
+
+Condition: Orthostatic Hypotension
+Category: N/A
+Urgency Level: routine
+Prevalence: common
+ICD-10 Code: I95.1
+SNOMED Code: 28651003
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • lightheadedness when standing
+  • dizziness when standing up
+  • feeling faint when standing
+
+CLASSIC PRESENTATION:
+ONSET: Immediate, within seconds to minutes of standing. LOCATION: Generalized lightheadedness, dizziness. DURATION: Brief, seconds to minutes, resolves when sitting/lying down. CHARACTER: Lightheadedness, dizziness, blurred vision, weakness. AGGRAVATING: STANDING UP from sitting or lying, prolonged standing, hot environment, dehydration. RELIEVING: Sitting or lying down immediately. TIMING: Reproducible with postural changes. SEVERITY: Variable, can lead to syncope if severe. KEY POSITIVES: Occurs with postural change, elderly patient, medications (antihypertensives, diuretics), dehydration, rapid resolution when sitting. KEY NEGATIVES: NOT constant dizziness, NOT spinning vertigo (BPPV), NOT exertional.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: immediate, within seconds to minutes of standing, sudden
+  Negative indicators: gradual, chronic, slow onset
+
+LOCATION:
+  Positive indicators: generalized lightheadedness, dizziness
+  Negative indicators: localized, one area only, chest
+
+DURATION:
+  Positive indicators: brief, seconds to minutes, resolves when sitting lying down
+  Negative indicators: continuous, unrelenting, hours
+
+CHARACTER:
+  Positive indicators: lightheadedness, dizziness, blurred vision, weakness
+  Negative indicators: constant dizziness, spinning vertigo, exertional, chest pain
+
+AGGRAVATING:
+  Positive indicators: standing up from sitting, standing up from lying, prolonged standing, hot environment, dehydration
+  Negative indicators: sitting, lying down, rest, medication
+
+RELIEVING:
+  Positive indicators: sitting, lying down immediately, rest
+  Negative indicators: standing up, prolonged standing, hot environment
+
+TIMING:
+  Positive indicators: reproducible with postural changes, consistent
+  Negative indicators: unpredictable, random, continuous
+
+SEVERITY:
+  Positive indicators: variable, can lead to syncope if severe, variable symptoms
+  Negative indicators: mild, moderate, constant
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Syncope or actual loss of consciousness
+
+  🚨 Falls or injury from lightheadedness
+
+  🚨 Severe dehydration
+
+  🚨 GI bleeding or anemia
+
+  🚨 New medication (antihypertensive)
+
+  🚨 Autonomic neuropathy (diabetes)
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Orthostatic Hypotension
+================================================================================

@@ -12,7 +12,108 @@
   "prevalence": "rare",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN, instantaneous, maximal at onset (\"like a light switch\"). LOCATION: ANTERIOR CHEST (Type A) or INTERSCAPULAR BACK (Type B). RADIATES down back as dissection propagates, can radiate to abdomen. DURATION: Continuous, persistent. CHARACTER: TEARING, RIPPING, SHARP, most severe pain ever experienced. AGGRAVATING: None (unprovoked). RELIEVING: Nothing helps. TIMING: Sudden onset, persistent. SEVERITY: 10/10, catastrophic pain. KEY POSITIVES: Pulse differential (unequal pulses between arms), blood pressure differential (>20 mmHg between arms), neurologic deficits, hypertension history, Marfan syndrome. KEY NEGATIVES: NOT gradual onset, NOT pressure/squeezing like myocardial infarction (MI)."
+    "classic_presentation": "ONSET: SUDDEN, instantaneous, maximal at onset (\"like a light switch\"). LOCATION: ANTERIOR CHEST (Type A) or INTERSCAPULAR BACK (Type B). RADIATES down back as dissection propagates, can radiate to abdomen. DURATION: Continuous, persistent. CHARACTER: TEARING, RIPPING, SHARP, most severe pain ever experienced. AGGRAVATING: None (unprovoked). RELIEVING: Nothing helps. TIMING: Sudden onset, persistent. SEVERITY: 10/10, catastrophic pain. KEY POSITIVES: Pulse differential (unequal pulses between arms), blood pressure differential (>20 mmHg between arms), neurologic deficits, hypertension history, Marfan syndrome. KEY NEGATIVES: NOT gradual onset, NOT pressure/squeezing like myocardial infarction (MI).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "instantaneous",
+          "maximal at onset",
+          "like a light switch"
+        ],
+        "excludes": [
+          "gradual onset",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "anterior chest",
+          "Type A",
+          "interscapular back",
+          "Type B",
+          "radiates down back",
+          "can radiate to abdomen"
+        ],
+        "excludes": [
+          "localized",
+          "one area only",
+          "no radiation"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "continuous",
+          "persistent",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "tearing",
+          "ripping",
+          "sharp",
+          "most severe pain ever experienced"
+        ],
+        "excludes": [
+          "pressure",
+          "squeezing",
+          "like myocardial infarction",
+          "dull"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "none",
+          "unprovoked"
+        ],
+        "excludes": [
+          "nothing helps",
+          "medication",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "nothing helps"
+        ],
+        "excludes": [
+          "medication",
+          "rest",
+          "position"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "sudden onset",
+          "persistent",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "10/10",
+          "catastrophic pain",
+          "10"
+        ],
+        "excludes": [
+          "mild",
+          "moderate",
+          "1-9/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Sudden maximal pain at onset",

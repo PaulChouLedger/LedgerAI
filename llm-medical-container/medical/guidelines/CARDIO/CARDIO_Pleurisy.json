@@ -11,7 +11,111 @@
   "prevalence": "uncommon",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Gradual, over hours to days, often post-viral or post-pneumonia. LOCATION: Lateral chest wall, unilateral. DURATION: Days to weeks. CHARACTER: SHARP, STABBING, PLEURITIC (worse with breathing). AGGRAVATING: DEEP INSPIRATION, cough, chest movement. RELIEVING: Splinting chest, shallow breathing, lying on affected side. TIMING: Constant but fluctuates with breathing. SEVERITY: 5-8/10 with deep breath. KEY POSITIVES: Recent respiratory infection, pleural friction rub on exam, worse with breathing/cough, unilateral. KEY NEGATIVES: NOT cardiac radiation (arm/jaw), NOT exertional, NOT crushing pressure."
+    "classic_presentation": "ONSET: Gradual, over hours to days, often post-viral or post-pneumonia. LOCATION: Lateral chest wall, unilateral. DURATION: Days to weeks. CHARACTER: SHARP, STABBING, PLEURITIC (worse with breathing). AGGRAVATING: DEEP INSPIRATION, cough, chest movement. RELIEVING: Splinting chest, shallow breathing, lying on affected side. TIMING: Constant but fluctuates with breathing. SEVERITY: 5-8/10 with deep breath. KEY POSITIVES: Recent respiratory infection, pleural friction rub on exam, worse with breathing/cough, unilateral. KEY NEGATIVES: NOT cardiac radiation (arm/jaw), NOT exertional, NOT crushing pressure.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual",
+          "over hours to days",
+          "often post-viral",
+          "post-pneumonia"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "minutes"
+        ]
+      },
+      "location": {
+        "includes": [
+          "lateral chest wall",
+          "unilateral"
+        ],
+        "excludes": [
+          "cardiac radiation",
+          "arm",
+          "jaw",
+          "bilateral"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "days to weeks",
+          "persistent"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "sharp",
+          "stabbing",
+          "pleuritic",
+          "worse with breathing"
+        ],
+        "excludes": [
+          "crushing pressure",
+          "exertional",
+          "dull",
+          "not worse with breathing"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "deep inspiration",
+          "cough",
+          "chest movement",
+          "breathing"
+        ],
+        "excludes": [
+          "splinting chest",
+          "shallow breathing",
+          "lying on affected side"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "splinting chest",
+          "shallow breathing",
+          "lying on affected side"
+        ],
+        "excludes": [
+          "deep inspiration",
+          "cough",
+          "chest movement"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "constant but fluctuates with breathing",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "5-8/10",
+          "5",
+          "6",
+          "7",
+          "8",
+          "with deep breath"
+        ],
+        "excludes": [
+          "mild",
+          "1-4/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Fever >101°F (suggests pneumonia)",

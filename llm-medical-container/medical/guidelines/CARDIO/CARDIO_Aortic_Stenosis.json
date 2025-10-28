@@ -12,7 +12,109 @@
   "prevalence": "uncommon",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Progressive over months to years, acute decompensation possible. LOCATION: Chest (retrosternal angina), generalized dyspnea. DURATION: Progressive symptoms. CHARACTER: Exertional angina (pressure, squeezing), exertional dyspnea, exertional syncope (classic triad: angina, dyspnea, syncope). AGGRAVATING: EXERTION (angina and syncope), lying flat (dyspnea). RELIEVING: Rest. TIMING: Predictable with exertion. SEVERITY: Variable, 5-8/10 for angina. KEY POSITIVES: Elderly patient, harsh systolic ejection murmur (loudest at right upper sternal border), radiates to carotids, narrow pulse pressure, delayed carotid upstroke, history of bicuspid aortic valve. KEY NEGATIVES: NOT at rest typically."
+    "classic_presentation": "ONSET: Progressive over months to years, acute decompensation possible. LOCATION: Chest (retrosternal angina), generalized dyspnea. DURATION: Progressive symptoms. CHARACTER: Exertional angina (pressure, squeezing), exertional dyspnea, exertional syncope (classic triad: angina, dyspnea, syncope). AGGRAVATING: EXERTION (angina and syncope), lying flat (dyspnea). RELIEVING: Rest. TIMING: Predictable with exertion. SEVERITY: Variable, 5-8/10 for angina. KEY POSITIVES: Elderly patient, harsh systolic ejection murmur (loudest at right upper sternal border), radiates to carotids, narrow pulse pressure, delayed carotid upstroke, history of bicuspid aortic valve. KEY NEGATIVES: NOT at rest typically.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "progressive over months to years",
+          "acute decompensation possible",
+          "gradual"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "minutes"
+        ]
+      },
+      "location": {
+        "includes": [
+          "chest",
+          "retrosternal angina",
+          "generalized dyspnea"
+        ],
+        "excludes": [
+          "right side only",
+          "no radiation",
+          "localized point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "progressive symptoms",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "exertional angina",
+          "pressure",
+          "squeezing",
+          "exertional dyspnea",
+          "exertional syncope"
+        ],
+        "excludes": [
+          "at rest",
+          "sharp",
+          "stabbing",
+          "no symptoms"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "exertion",
+          "angina and syncope",
+          "lying flat",
+          "dyspnea"
+        ],
+        "excludes": [
+          "rest",
+          "medication",
+          "position"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "rest"
+        ],
+        "excludes": [
+          "exertion",
+          "activity",
+          "lying flat"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "predictable with exertion",
+          "consistent"
+        ],
+        "excludes": [
+          "unpredictable",
+          "at rest",
+          "random"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "variable",
+          "5-8/10",
+          "5",
+          "6",
+          "7",
+          "8"
+        ],
+        "excludes": [
+          "mild",
+          "1-4/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Syncope (especially exertional)",

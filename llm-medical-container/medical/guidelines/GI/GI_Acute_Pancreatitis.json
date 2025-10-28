@@ -15,6 +15,37 @@
   "key_features": {
     "classic_presentation": "ONSET: SUDDEN onset within hours to 1-2 days. Often triggered by ALCOHOL BINGE or HEAVY FATTY MEAL (gallstones). LOCATION: Epigastric (upper mid-abdomen) and periumbilical. RADIATES STRAIGHT THROUGH TO THE BACK in 'boring' or 'band-like' pattern - highly characteristic. May radiate to left upper quadrant. DURATION: CONSTANT pain lasting hours to days (not episodic). CHARACTER: DEEP ACHING or KNIFE-LIKE. Described as boring, penetrating, or band-like across upper abdomen. AGGRAVATING: WORSE WHEN LYING FLAT. Pain intensifies in supine position. RELIEVING: BETTER WHEN SITTING UP AND LEANING FORWARD. Patients assume 'fetal position' or lean forward for relief. TIMING: CONSTANT and unrelenting. Persists continuously (not waves). SEVERITY: 8-10/10, very severe and debilitating. ASSOCIATED SYMPTOMS: PERSISTENT NAUSEA AND VOMITING (severe, not relieved by vomiting), anorexia, low-grade fever, abdominal distension. KEY POSITIVES: Epigastric\u2192back radiation, relief with leaning forward, alcohol/fatty meal trigger, persistent vomiting. KEY NEGATIVES: Pain NOT radiating to back is atypical. Diarrhea uncommon initially. right lower quadrant (RLQ) pain suggests appendicitis not pancreatitis.",
     "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "hours",
+          "1-2 days",
+          "alcohol binge",
+          "heavy fatty meal",
+          "gallstones"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "epigastric",
+          "upper mid-abdomen",
+          "periumbilical",
+          "radiates to back",
+          "left upper quadrant",
+          "boring pattern",
+          "band-like"
+        ],
+        "excludes": [
+          "right lower quadrant",
+          "RLQ",
+          "localized point"
+        ]
+      },
       "duration": {
         "includes": [
           "multiple days",
@@ -31,13 +62,71 @@
           "comes and goes"
         ]
       },
+      "character": {
+        "includes": [
+          "deep aching",
+          "knife-like",
+          "boring",
+          "penetrating",
+          "band-like",
+          "severe"
+        ],
+        "excludes": [
+          "mild",
+          "crampy",
+          "dull"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "lying flat",
+          "supine position",
+          "lying down"
+        ],
+        "excludes": [
+          "sitting up",
+          "leaning forward",
+          "fetal position"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "sitting up",
+          "leaning forward",
+          "fetal position"
+        ],
+        "excludes": [
+          "lying flat",
+          "supine",
+          "medication"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "constant",
+          "unrelenting",
+          "persists continuously",
+          "not waves"
+        ],
+        "excludes": [
+          "waves",
+          "intermittent",
+          "episodic"
+        ]
+      },
       "severity": {
         "includes": [
           "9",
           "8",
           "10",
           "8-10/10",
-          "severe"
+          "severe",
+          "debilitating"
+        ],
+        "excludes": [
+          "mild",
+          "moderate",
+          "1-5/10"
         ]
       }
     }

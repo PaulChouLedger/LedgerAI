@@ -15,7 +15,120 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within seconds. LOCATION: UNILATERAL facial pain. DURATION: Lasts seconds to minutes. CHARACTER: SEVERE, SHARP, ELECTRIC-like pain. AGGRAVATING: TOUCH, speaking, eating, brushing teeth. RELIEVING: ANTICONVULSANTS, avoiding triggers. TIMING: Sudden onset, lasts seconds to minutes. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE FACIAL PAIN, may have facial twitching, may have difficulty speaking, eating. KEY POSITIVES: Severe facial pain, electric-like pain, trigger points. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits."
+    "classic_presentation": "ONSET: SUDDEN onset within seconds. LOCATION: UNILATERAL facial pain. DURATION: Lasts seconds to minutes. CHARACTER: SEVERE, SHARP, ELECTRIC-like pain. AGGRAVATING: TOUCH, speaking, eating, brushing teeth. RELIEVING: ANTICONVULSANTS, avoiding triggers. TIMING: Sudden onset, lasts seconds to minutes. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE FACIAL PAIN, may have facial twitching, may have difficulty speaking, eating. KEY POSITIVES: Severe facial pain, electric-like pain, trigger points. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "within seconds",
+          "immediate",
+          "acute"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset",
+          "progressive"
+        ]
+      },
+      "location": {
+        "includes": [
+          "unilateral facial pain",
+          "one side",
+          "facial",
+          "unilateral"
+        ],
+        "excludes": [
+          "bilateral",
+          "both sides",
+          "generalized",
+          "diffuse"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "seconds to minutes",
+          "brief",
+          "transient",
+          "short"
+        ],
+        "excludes": [
+          "hours",
+          "days",
+          "persistent",
+          "ongoing"
+        ]
+      },
+      "character": {
+        "includes": [
+          "severe",
+          "sharp",
+          "electric-like pain",
+          "severe and unrelenting"
+        ],
+        "excludes": [
+          "mild",
+          "dull",
+          "aching",
+          "moderate"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "touch",
+          "speaking",
+          "eating",
+          "brushing teeth"
+        ],
+        "excludes": [
+          "anticonvulsants",
+          "avoiding triggers",
+          "rest",
+          "treatment"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "anticonvulsants",
+          "avoiding triggers",
+          "rest",
+          "treatment"
+        ],
+        "excludes": [
+          "touch",
+          "speaking",
+          "eating",
+          "brushing teeth"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "sudden onset",
+          "episodic",
+          "intermittent"
+        ],
+        "excludes": [
+          "continuous",
+          "persistent",
+          "unrelenting"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "severe and unrelenting",
+          "8-10/10",
+          "8",
+          "9",
+          "10"
+        ],
+        "excludes": [
+          "mild",
+          "1-7/10",
+          "moderate",
+          "variable"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe facial pain with other neurological deficits - possible stroke, call 911",

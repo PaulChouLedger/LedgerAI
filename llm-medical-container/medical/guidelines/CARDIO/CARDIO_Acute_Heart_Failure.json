@@ -13,7 +13,108 @@
   "prevalence": "common",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Hours to days, progressive worsening. LOCATION: Chest (dyspnea), bilateral lower extremities (edema). DURATION: Progressive, continuous dyspnea. CHARACTER: Dyspnea, orthopnea (can't lie flat), paroxysmal nocturnal dyspnea (wake up gasping). AGGRAVATING: Lying flat, exertion, fluid intake. RELIEVING: Sitting upright, diuretics. TIMING: Progressive, worse at night. SEVERITY: Severe dyspnea, patient speaks in short phrases. KEY POSITIVES: Bilateral leg swelling, weight gain, pink frothy sputum, rales on lung exam, elevated JVP, S3 gallop. KEY NEGATIVES: NOT unilateral leg swelling (DVT), NOT pleuritic (PE)."
+    "classic_presentation": "ONSET: Hours to days, progressive worsening. LOCATION: Chest (dyspnea), bilateral lower extremities (edema). DURATION: Progressive, continuous dyspnea. CHARACTER: Dyspnea, orthopnea (can't lie flat), paroxysmal nocturnal dyspnea (wake up gasping). AGGRAVATING: Lying flat, exertion, fluid intake. RELIEVING: Sitting upright, diuretics. TIMING: Progressive, worse at night. SEVERITY: Severe dyspnea, patient speaks in short phrases. KEY POSITIVES: Bilateral leg swelling, weight gain, pink frothy sputum, rales on lung exam, elevated JVP, S3 gallop. KEY NEGATIVES: NOT unilateral leg swelling (DVT), NOT pleuritic (PE).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "hours to days",
+          "progressive worsening",
+          "gradual"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "minutes"
+        ]
+      },
+      "location": {
+        "includes": [
+          "chest",
+          "dyspnea",
+          "bilateral lower extremities",
+          "edema"
+        ],
+        "excludes": [
+          "unilateral leg swelling",
+          "localized",
+          "one area only"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "progressive",
+          "continuous dyspnea",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "dyspnea",
+          "orthopnea",
+          "can't lie flat",
+          "paroxysmal nocturnal dyspnea",
+          "wake up gasping"
+        ],
+        "excludes": [
+          "pleuritic",
+          "sharp",
+          "stabbing",
+          "no respiratory symptoms"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "lying flat",
+          "exertion",
+          "fluid intake"
+        ],
+        "excludes": [
+          "sitting upright",
+          "diuretics",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "sitting upright",
+          "diuretics"
+        ],
+        "excludes": [
+          "lying flat",
+          "exertion",
+          "fluid intake"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "progressive",
+          "worse at night",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "severe dyspnea",
+          "patient speaks in short phrases",
+          "severe"
+        ],
+        "excludes": [
+          "mild",
+          "moderate",
+          "no symptoms"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Unable to lie flat (orthopnea)",

@@ -12,7 +12,113 @@
   "prevalence": "uncommon",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset. LOCATION: Chest (pleuritic pain), often lateral or posterior. DURATION: Continuous dyspnea and pain. CHARACTER: PLEURITIC (sharp, worse with deep breath), dyspnea. AGGRAVATING: Deep inspiration, cough. RELIEVING: Shallow breathing. TIMING: Sudden onset, persistent. SEVERITY: Variable, 5-9/10 for pain. KEY POSITIVES: Dyspnea, tachycardia, tachypnea, hypoxia, unilateral leg swelling/pain (DVT), recent surgery/immobilization, hemoptysis (coughing blood). KEY NEGATIVES: NOT gradual onset, NOT reproducible with palpation."
+    "classic_presentation": "ONSET: SUDDEN onset. LOCATION: Chest (pleuritic pain), often lateral or posterior. DURATION: Continuous dyspnea and pain. CHARACTER: PLEURITIC (sharp, worse with deep breath), dyspnea. AGGRAVATING: Deep inspiration, cough. RELIEVING: Shallow breathing. TIMING: Sudden onset, persistent. SEVERITY: Variable, 5-9/10 for pain. KEY POSITIVES: Dyspnea, tachycardia, tachypnea, hypoxia, unilateral leg swelling/pain (DVT), recent surgery/immobilization, hemoptysis (coughing blood). KEY NEGATIVES: NOT gradual onset, NOT reproducible with palpation.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "acute",
+          "immediate"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "slow onset"
+        ]
+      },
+      "location": {
+        "includes": [
+          "chest",
+          "pleuritic pain",
+          "lateral",
+          "posterior"
+        ],
+        "excludes": [
+          "abdomen",
+          "extremities",
+          "head"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "continuous",
+          "persistent",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "pleuritic",
+          "sharp",
+          "worse with deep breath",
+          "dyspnea"
+        ],
+        "excludes": [
+          "dull",
+          "pressure",
+          "crushing",
+          "not worse with breathing"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "deep inspiration",
+          "cough",
+          "breathing",
+          "movement"
+        ],
+        "excludes": [
+          "rest",
+          "shallow breathing",
+          "medication"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "shallow breathing",
+          "rest"
+        ],
+        "excludes": [
+          "deep inspiration",
+          "cough",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "sudden onset",
+          "persistent",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "variable",
+          "5-9/10",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9"
+        ],
+        "excludes": [
+          "mild",
+          "1-4/10",
+          "severe",
+          "10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Sudden onset dyspnea",

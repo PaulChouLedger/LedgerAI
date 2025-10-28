@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: ALZHEIMER'S DISEASE
+================================================================================
+
+Condition: Alzheimer's Disease
+Category: N/A
+Urgency Level: non-urgent
+Prevalence: common
+ICD-10 Code: G30.9
+SNOMED Code: 125636006
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • alzheimers
+  • dementia
+  • memory problems
+  • confusion
+  • cognitive decline
+  • behavioral changes
+  • wandering
+
+CLASSIC PRESENTATION:
+ONSET: GRADUAL onset over months to years. LOCATION: GENERALIZED cognitive decline. DURATION: Chronic progressive condition. CHARACTER: MEMORY LOSS, confusion, cognitive decline. AGGRAVATING: STRESS, fatigue, medication changes. RELIEVING: CHOLINESTERASE inhibitors, supportive care. TIMING: Chronic progressive, symptoms worsen over time. SEVERITY: 3-7/10, mild to moderate. ASSOCIATED SYMPTOMS: MEMORY LOSS, confusion, cognitive decline, behavioral changes, may have wandering. KEY POSITIVES: Memory loss, confusion, cognitive decline, behavioral changes. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: gradual, months to years, slow onset, progressive
+  Negative indicators: sudden, acute, immediate, hours
+
+LOCATION:
+  Positive indicators: generalized cognitive decline, diffuse, whole brain, bilateral
+  Negative indicators: localized, focal, specific area, unilateral
+
+DURATION:
+  Positive indicators: chronic progressive, ongoing, persistent, worsening
+  Negative indicators: acute, brief, transient, intermittent
+
+CHARACTER:
+  Positive indicators: memory loss, confusion, cognitive decline, mild to moderate
+  Negative indicators: severe, focal deficits, localized, acute
+
+AGGRAVATING:
+  Positive indicators: stress, fatigue, medication changes, triggers
+  Negative indicators: cholinesterase inhibitors, supportive care, rest, treatment
+
+RELIEVING:
+  Positive indicators: cholinesterase inhibitors, supportive care, rest, treatment
+  Negative indicators: stress, fatigue, medication changes, triggers
+
+TIMING:
+  Positive indicators: chronic progressive, worsening over time, continuous
+  Negative indicators: intermittent, episodic, comes and goes
+
+SEVERITY:
+  Positive indicators: mild to moderate, 3-7/10, 3, 4, 5, 6, 7
+  Negative indicators: severe, 8-10/10, mild, 1-2/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe neurological deficits with altered mental status - possible severe Alzheimer's flare, call 911
+
+  🚨 Signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911
+
+  🚨 Severe hypertension with neurological deficits - possible hypertensive crisis, call 911
+
+  🚨 Signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911
+
+  🚨 Signs of respiratory failure - difficulty breathing, cyanosis, altered mental status - call 911
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Alzheimer's Disease
+================================================================================

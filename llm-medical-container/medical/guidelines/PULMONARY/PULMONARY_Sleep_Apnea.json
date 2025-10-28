@@ -13,7 +13,107 @@
   ],
   "urgency": "routine",
   "key_features": {
-    "classic_presentation": "ONSET: Gradual over months to years. LOCATION: Upper airway. DURATION: Chronic, persistent. CHARACTER: Episodic breathing cessation during sleep. AGGRAVATING: Supine position, alcohol, sedatives. RELIEVING: CPAP, weight loss, positioning. TIMING: Nocturnal, episodic. SEVERITY: Mild to moderate (3-6/10). ASSOCIATED SYMPTOMS: Loud snoring, witnessed apneas, daytime sleepiness, fatigue, morning headaches. KEY POSITIVES: Loud snoring, witnessed apneas, daytime sleepiness. KEY NEGATIVES: No chest pain, no wheezing."
+    "classic_presentation": "ONSET: Gradual over months to years. LOCATION: Upper airway. DURATION: Chronic, persistent. CHARACTER: Episodic breathing cessation during sleep. AGGRAVATING: Supine position, alcohol, sedatives. RELIEVING: CPAP, weight loss, positioning. TIMING: Nocturnal, episodic. SEVERITY: Mild to moderate (3-6/10). ASSOCIATED SYMPTOMS: Loud snoring, witnessed apneas, daytime sleepiness, fatigue, morning headaches. KEY POSITIVES: Loud snoring, witnessed apneas, daytime sleepiness. KEY NEGATIVES: No chest pain, no wheezing.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual over months to years",
+          "progressive",
+          "slow onset"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "immediate"
+        ]
+      },
+      "location": {
+        "includes": [
+          "upper airway"
+        ],
+        "excludes": [
+          "lower airway",
+          "chest",
+          "lungs"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "chronic",
+          "persistent",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "episodic breathing cessation during sleep",
+          "loud snoring",
+          "witnessed apneas"
+        ],
+        "excludes": [
+          "no chest pain",
+          "no wheezing",
+          "continuous"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "supine position",
+          "alcohol",
+          "sedatives"
+        ],
+        "excludes": [
+          "CPAP",
+          "weight loss",
+          "positioning"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "CPAP",
+          "weight loss",
+          "positioning"
+        ],
+        "excludes": [
+          "supine position",
+          "alcohol",
+          "sedatives"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "nocturnal",
+          "episodic",
+          "during sleep"
+        ],
+        "excludes": [
+          "continuous",
+          "daytime",
+          "awake"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "mild to moderate",
+          "3-6/10",
+          "3",
+          "4",
+          "5",
+          "6"
+        ],
+        "excludes": [
+          "severe",
+          "7-10/10",
+          "mild",
+          "1-2/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe daytime sleepiness",

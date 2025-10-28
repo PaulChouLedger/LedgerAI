@@ -1,0 +1,95 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: ATELECTASIS
+================================================================================
+
+Condition: Atelectasis
+Category: N/A
+Urgency Level: routine
+Prevalence: common
+ICD-10 Code: J98.11
+SNOMED Code: 19450001
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • shortness of breath
+  • chest pain
+  • collapsed lung
+  • atelectasis
+  • breathing problems after surgery
+
+CLASSIC PRESENTATION:
+ONSET: Gradual or sudden, often post-operative or bedridden. LOCATION: Focal or segmental lung areas. DURATION: Hours to days, can be persistent. CHARACTER: Mild dyspnea, chest discomfort. AGGRAVATING: Lying flat, shallow breathing. RELIEVING: Deep breathing, coughing, incentive spirometry, positioning. TIMING: Often worse in morning, improves with activity. SEVERITY: Mild to moderate (3-6/10). ASSOCIATED SYMPTOMS: Mild dyspnea, dry cough, chest discomfort, low-grade fever (if infection develops). KEY POSITIVES: Recent surgery, immobility, shallow breathing. KEY NEGATIVES: No severe dyspnea, no chest pain (unless severe), no wheezing.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: gradual or sudden, often post-operative or bedridden, variable
+  Negative indicators: chronic, persistent, ongoing
+
+LOCATION:
+  Positive indicators: focal or segmental lung areas, lung, chest
+  Negative indicators: unilateral, one side only, specific point
+
+DURATION:
+  Positive indicators: hours to days, can be persistent, variable
+  Negative indicators: intermittent, episodic, comes and goes
+
+CHARACTER:
+  Positive indicators: mild dyspnea, chest discomfort
+  Negative indicators: no severe dyspnea, no chest pain, severe
+
+AGGRAVATING:
+  Positive indicators: lying flat, shallow breathing, immobility
+  Negative indicators: deep breathing, coughing, incentive spirometry
+
+RELIEVING:
+  Positive indicators: deep breathing, coughing, incentive spirometry
+  Negative indicators: lying flat, shallow breathing, immobility
+
+TIMING:
+  Positive indicators: often worse in morning, improves with activity, variable
+  Negative indicators: continuous, persistent, ongoing
+
+SEVERITY:
+  Positive indicators: mild to moderate, 3-6/10, 3, 4, 5, 6
+  Negative indicators: severe, 7-10/10, mild, 1-2/10
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe dyspnea or respiratory distress
+
+  🚨 High fever >101.5°F
+
+  🚨 Chest pain with breathing
+
+  🚨 Cyanosis or oxygen saturation <90%
+
+  🚨 Hemoptysis
+
+  🚨 Signs of infection
+
+  🚨 Progressive respiratory failure
+
+  🚨 Altered mental status
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Atelectasis
+================================================================================

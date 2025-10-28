@@ -13,7 +13,113 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: Gradual over years, acute exacerbations. LOCATION: Bilateral, diffuse. DURATION: Chronic with acute exacerbations lasting days to weeks. CHARACTER: Dyspnea, chest tightness, productive cough. AGGRAVATING: Infections, cold air, exertion, smoking. RELIEVING: Bronchodilators, oxygen, steroids, antibiotics. TIMING: Chronic baseline with acute worsening. SEVERITY: Moderate to severe (5-9/10). ASSOCIATED SYMPTOMS: Chronic productive cough, dyspnea, wheezing, barrel chest, clubbing, weight loss, fatigue. KEY POSITIVES: Smoking history, chronic cough, dyspnea, wheezing. KEY NEGATIVES: No chest pain (unless pneumothorax), no fever (unless infection)."
+    "classic_presentation": "ONSET: Gradual over years, acute exacerbations. LOCATION: Bilateral, diffuse. DURATION: Chronic with acute exacerbations lasting days to weeks. CHARACTER: Dyspnea, chest tightness, productive cough. AGGRAVATING: Infections, cold air, exertion, smoking. RELIEVING: Bronchodilators, oxygen, steroids, antibiotics. TIMING: Chronic baseline with acute worsening. SEVERITY: Moderate to severe (5-9/10). ASSOCIATED SYMPTOMS: Chronic productive cough, dyspnea, wheezing, barrel chest, clubbing, weight loss, fatigue. KEY POSITIVES: Smoking history, chronic cough, dyspnea, wheezing. KEY NEGATIVES: No chest pain (unless pneumothorax), no fever (unless infection).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "gradual over years",
+          "acute exacerbations",
+          "progressive"
+        ],
+        "excludes": [
+          "sudden",
+          "acute",
+          "minutes"
+        ]
+      },
+      "location": {
+        "includes": [
+          "bilateral",
+          "diffuse"
+        ],
+        "excludes": [
+          "localized",
+          "one side only",
+          "specific point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "chronic with acute exacerbations",
+          "lasting days to weeks",
+          "ongoing"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "character": {
+        "includes": [
+          "dyspnea",
+          "chest tightness",
+          "productive cough"
+        ],
+        "excludes": [
+          "no chest pain",
+          "no fever",
+          "sharp",
+          "stabbing"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "infections",
+          "cold air",
+          "exertion",
+          "smoking"
+        ],
+        "excludes": [
+          "bronchodilators",
+          "oxygen",
+          "steroids",
+          "antibiotics"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "bronchodilators",
+          "oxygen",
+          "steroids",
+          "antibiotics"
+        ],
+        "excludes": [
+          "infections",
+          "cold air",
+          "exertion",
+          "smoking"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "chronic baseline with acute worsening",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "moderate to severe",
+          "5-9/10",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9"
+        ],
+        "excludes": [
+          "mild",
+          "1-4/10",
+          "severe",
+          "10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe dyspnea at rest",

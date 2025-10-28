@@ -21,5 +21,78 @@
     "Sudden severe testicular pain - ALWAYS emergent until proven otherwise",
     "Absent cremasteric reflex with testicular pain - high suspicion for torsion",
     "Nausea/vomiting with testicular pain - torsion until proven otherwise"
-  ]
+  ],
+  "structured_oldcarts": {
+    "onset": {
+      "includes": [
+        "sudden",
+        "acute",
+        "immediate",
+        "minutes",
+        "hours",
+        "days"
+      ],
+      "excludes": [
+        "gradual",
+        "chronic"
+      ]
+    },
+    "location": {
+      "includes": [
+        "testicle",
+        "testicular",
+        "scrotal",
+        "groin",
+        "lower abdomen"
+      ],
+      "excludes": []
+    },
+    "duration": {
+      "includes": [
+        "constant"
+      ],
+      "excludes": [
+        "intermittent",
+        "episodic"
+      ]
+    },
+    "character": {
+      "includes": [
+        "severe",
+        "sharp"
+      ],
+      "excludes": []
+    },
+    "aggravating": {
+      "includes": [
+        "movement",
+        "palpation"
+      ],
+      "excludes": []
+    },
+    "relieving": {
+      "includes": [
+        "nothing relieves",
+        "elevation"
+      ],
+      "excludes": [
+        "position changes",
+        "medications"
+      ]
+    },
+    "timing": {
+      "includes": [
+        "constant",
+        "progressively worsening"
+      ],
+      "excludes": []
+    },
+    "severity": {
+      "includes": [
+        "9-10/10",
+        "severe"
+      ],
+      "excludes": []
+    }
+  }
 }

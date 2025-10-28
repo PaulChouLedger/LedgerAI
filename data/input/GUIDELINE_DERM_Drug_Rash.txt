@@ -1,0 +1,82 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: DRUG RASH
+================================================================================
+
+Condition: Drug Rash
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: L27.0
+SNOMED Code: 125624004
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • drug rash
+  • medication reaction
+  • allergic drug reaction
+  • skin reaction to medicine
+  • drug allergy
+  • medication allergy
+  • drug hypersensitivity
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset within hours to days after starting new medication. LOCATION: GENERALIZED or localized to specific areas. DURATION: Develops over hours to days, may persist for days to weeks. CHARACTER: ERYTHEMATOUS (red), PRURITIC (itchy), may be MACULOPAPULAR (flat and raised) or VESICULAR (blistering). AGGRAVATING: SCRATCHING, heat, stress. RELIEVING: DISCONTINUING offending drug, antihistamines, topical steroids. TIMING: Develops within hours to days of drug exposure. SEVERITY: 4-8/10 itching, moderate to severe. ASSOCIATED SYMPTOMS: SEVERE ITCHING (pruritus), erythema, may have fever, may have systemic symptoms (nausea, vomiting, diarrhea). KEY POSITIVES: Erythema, pruritus, recent medication history, positive drug challenge. KEY NEGATIVES: No fever >102°F (rules out serious drug reaction), no systemic symptoms (unless severe).
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, immediate, hours, days, weeks
+  Negative indicators: gradual, chronic
+
+LOCATION:
+  Positive indicators: anywhere, generalized
+
+DURATION:
+
+CHARACTER:
+  Positive indicators: erythematous, red, pruritic, itchy, raised
+
+AGGRAVATING:
+  Positive indicators: scratching, heat, stress
+
+RELIEVING:
+  Positive indicators: antihistamines, topical steroids
+
+TIMING:
+
+SEVERITY:
+  Positive indicators: moderate, severe
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Rash with fever >102°F - possible serious drug reaction, call 911
+
+  🚨 Rash with severe systemic symptoms - possible anaphylaxis, call 911
+
+  🚨 Rash involving mucous membranes - eyes, mouth, genitals - Stevens-Johnson syndrome, call 911
+
+  🚨 Rash with difficulty breathing - possible anaphylaxis, call 911
+
+  🚨 Rash with signs of secondary infection - fever, pus, increasing pain - needs urgent evaluation
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Drug Rash
+================================================================================

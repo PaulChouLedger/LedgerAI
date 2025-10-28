@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: ATOPIC DERMATITIS FLARE
+================================================================================
+
+Condition: Atopic Dermatitis Flare
+Category: N/A
+Urgency Level: non-urgent
+Prevalence: common
+ICD-10 Code: L20.9
+SNOMED Code: 125618003
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • eczema
+  • atopic dermatitis
+  • skin flare
+  • itchy skin
+  • dry skin rash
+  • skin inflammation
+  • dermatitis flare
+
+CLASSIC PRESENTATION:
+ONSET: GRADUAL onset over days to weeks, often triggered by stress, weather, or irritants. LOCATION: FLEXURAL areas (elbows, knees, neck), face, hands, or generalized. DURATION: Chronic condition with acute flares lasting days to weeks. CHARACTER: ERYTHEMATOUS (red), PRURITIC (itchy), DRY, SCALY skin. AGGRAVATING: SCRATCHING, heat, stress, certain fabrics, soaps. RELIEVING: MOISTURIZERS, topical steroids, antihistamines, avoiding triggers. TIMING: Chronic with acute flares, worse at night. SEVERITY: 4-8/10 itching, moderate to severe. ASSOCIATED SYMPTOMS: SEVERE ITCHING (pruritus), dry skin, scaling, may have lichenification (thickened skin), may have secondary infection from scratching. KEY POSITIVES: Erythema, pruritus, scaling, lichenification, flexural distribution. KEY NEGATIVES: No fever, no systemic symptoms, no vesicles or bullae (unless secondary infection).
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: gradual, days to weeks, triggered by stress, weather, irritants
+  Negative indicators: sudden, immediate, chronic without flares
+
+LOCATION:
+  Positive indicators: flexural areas, elbows, knees, neck, face, hands, generalized
+  Negative indicators: internal organs, specific organ systems
+
+DURATION:
+  Positive indicators: chronic condition, acute flares, days to weeks
+  Negative indicators: acute only, permanent resolution
+
+CHARACTER:
+  Positive indicators: erythematous, red, pruritic, itchy, dry, scaly
+  Negative indicators: moist, non-itchy, smooth, normal skin
+
+AGGRAVATING:
+  Positive indicators: scratching, heat, stress, certain fabrics, soaps
+  Negative indicators: moisturizers, cool, avoiding triggers
+
+RELIEVING:
+  Positive indicators: moisturizers, topical steroids, antihistamines, avoiding triggers
+  Negative indicators: scratching, heat, stress, irritants
+
+TIMING:
+  Positive indicators: chronic with acute flares, worse at night
+  Negative indicators: constant, only during day, intermittent
+
+SEVERITY:
+  Positive indicators: 4-8/10 itching, moderate, severe
+  Negative indicators: mild, 1-3/10, asymptomatic
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Rash with fever and systemic symptoms - possible secondary infection, needs urgent evaluation
+
+  🚨 Rash with pus or increasing pain - secondary bacterial infection, needs urgent evaluation
+
+  🚨 Rash involving >30% of body surface - severe flare, needs urgent evaluation
+
+  🚨 Rash with signs of secondary infection - fever, pus, increasing pain - needs urgent evaluation
+
+  🚨 Rash with difficulty sleeping due to severe itching - severe flare, needs urgent evaluation
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Atopic Dermatitis Flare
+================================================================================

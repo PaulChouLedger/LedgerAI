@@ -15,7 +15,114 @@
   ],
   "key_features": {
     "classic_presentation": "ONSET: SUDDEN onset within 12-48 hours. Acute presentation. LOCATION: Periumbilical and diffuse (not localized to one quadrant). Cramping throughout mid-abdomen. DURATION: WAVES lasting minutes, repeating every 4-5 minutes. Entire episode lasts hours to days. CHARACTER: COLICKY CRAMPING (COMES AND GOES IN WAVES, not constant). Intermittent, wave-like quality. AGGRAVATING: EATING OR DRINKING worsens vomiting and cramping. Any oral intake intensifies symptoms. Movement during cramp worsens discomfort. RELIEVING: Vomiting provides TEMPORARY relief. Nothing to eat/drink reduces new vomiting. Position doesn't significantly help. TIMING: WAVE pattern - cramps every 4-5 minutes. Progressive worsening over time. Becomes more frequent. SEVERITY: 6-9/10 during cramps, less between waves. Moderate to severe. ASSOCIATED SYMPTOMS: BILIOUS (green/yellow) VOMITING progressively more frequent, ABSOLUTE CONSTIPATION (no stool OR GAS >12-24 hours), progressive abdominal DISTENSION. Tinkling bowel sounds. KEY POSITIVES: Wave-like cramps, bilious vomiting, inability to pass flatus, distension, prior surgery. KEY NEGATIVES: Diarrhea rules out complete obstruction. CONSTANT pain with peritoneal signs suggests strangulation (surgical emergency).",
-    "structured_oldcarts": {}
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "12-48 hours",
+          "acute"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "weeks"
+        ]
+      },
+      "location": {
+        "includes": [
+          "periumbilical",
+          "diffuse",
+          "mid-abdomen",
+          "not localized"
+        ],
+        "excludes": [
+          "localized",
+          "one quadrant",
+          "specific point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "waves lasting minutes",
+          "repeating every 4-5 minutes",
+          "hours to days",
+          "entire episode"
+        ],
+        "excludes": [
+          "constant",
+          "continuous",
+          "unrelenting"
+        ]
+      },
+      "character": {
+        "includes": [
+          "colicky",
+          "cramping",
+          "comes and goes in waves",
+          "intermittent",
+          "wave-like"
+        ],
+        "excludes": [
+          "constant",
+          "steady",
+          "unrelenting"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "eating",
+          "drinking",
+          "oral intake",
+          "movement during cramp"
+        ],
+        "excludes": [
+          "vomiting",
+          "nothing to eat",
+          "rest"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "vomiting",
+          "temporary relief",
+          "nothing to eat"
+        ],
+        "excludes": [
+          "eating",
+          "drinking",
+          "position"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "wave pattern",
+          "cramps every 4-5 minutes",
+          "progressive worsening",
+          "more frequent"
+        ],
+        "excludes": [
+          "constant",
+          "steady",
+          "unrelenting"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "6-9/10",
+          "moderate to severe",
+          "6",
+          "7",
+          "8",
+          "9",
+          "during cramps"
+        ],
+        "excludes": [
+          "mild",
+          "1-5/10",
+          "constant severe"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Severe constant pain with fever and peritoneal signs - strangulated bowel, call 911",

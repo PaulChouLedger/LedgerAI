@@ -1,0 +1,91 @@
+================================================================================
+DIAGNOSTIC GUIDELINE: TRIGEMINAL NEURALGIA
+================================================================================
+
+Condition: Trigeminal Neuralgia
+Category: N/A
+Urgency Level: urgent
+Prevalence: common
+ICD-10 Code: G50.0
+SNOMED Code: 125638008
+Sex: both
+
+--------------------------------------------------------------------------------
+
+CHIEF COMPLAINT TRIGGERS:
+This diagnosis should be considered when patient presents with:
+  • trigeminal neuralgia
+  • facial pain
+  • nerve pain
+  • facial neuralgia
+  • trigeminal nerve pain
+  • facial shooting pain
+  • facial electric pain
+
+CLASSIC PRESENTATION:
+ONSET: SUDDEN onset within seconds. LOCATION: UNILATERAL facial pain. DURATION: Lasts seconds to minutes. CHARACTER: SEVERE, SHARP, ELECTRIC-like pain. AGGRAVATING: TOUCH, speaking, eating, brushing teeth. RELIEVING: ANTICONVULSANTS, avoiding triggers. TIMING: Sudden onset, lasts seconds to minutes. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE FACIAL PAIN, may have facial twitching, may have difficulty speaking, eating. KEY POSITIVES: Severe facial pain, electric-like pain, trigger points. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.
+
+TYPICAL PATIENT DEMOGRAPHICS:
+N/A
+
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, within seconds, immediate, acute
+  Negative indicators: gradual, chronic, slow onset, progressive
+
+LOCATION:
+  Positive indicators: unilateral facial pain, one side, facial, unilateral
+  Negative indicators: bilateral, both sides, generalized, diffuse
+
+DURATION:
+  Positive indicators: seconds to minutes, brief, transient, short
+  Negative indicators: hours, days, persistent, ongoing
+
+CHARACTER:
+  Positive indicators: severe, sharp, electric-like pain, severe and unrelenting
+  Negative indicators: mild, dull, aching, moderate
+
+AGGRAVATING:
+  Positive indicators: touch, speaking, eating, brushing teeth
+  Negative indicators: anticonvulsants, avoiding triggers, rest, treatment
+
+RELIEVING:
+  Positive indicators: anticonvulsants, avoiding triggers, rest, treatment
+  Negative indicators: touch, speaking, eating, brushing teeth
+
+TIMING:
+  Positive indicators: sudden onset, episodic, intermittent
+  Negative indicators: continuous, persistent, unrelenting
+
+SEVERITY:
+  Positive indicators: severe and unrelenting, 8-10/10, 8, 9, 10
+  Negative indicators: mild, 1-7/10, moderate, variable
+
+----------------------------------------
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+⚠️  EMERGENCY WARNING SIGNS / RED FLAGS:
+If patient reports any of the following, urgent action required:
+
+  🚨 Severe facial pain with other neurological deficits - possible stroke, call 911
+
+  🚨 Facial pain with signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911
+
+  🚨 Facial pain with severe hypertension - possible hypertensive crisis, call 911
+
+  🚨 Facial pain with signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911
+
+  🚨 Facial pain with signs of respiratory failure - difficulty breathing, cyanosis, altered mental status - call 911
+
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF GUIDELINE: Trigeminal Neuralgia
+================================================================================

@@ -13,7 +13,120 @@
   "prevalence": "common",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Sudden or over minutes. LOCATION: RETROSTERNAL (behind breastbone), left-sided chest, or epigastric. RADIATES to left arm, jaw, neck, back, or both arms. DURATION: Continuous for >10-20 minutes, does NOT resolve with rest. CHARACTER: CRUSHING, pressure, squeezing, heaviness, \"elephant on chest\". NOT sharp or stabbing typically. AGGRAVATING: None (unprovoked, can occur at rest). RELIEVING: NOT relieved by position change, antacids, or nitroglycerin (if severe). TIMING: Persistent, progressive worsening. SEVERITY: 7-10/10, most severe pain patient has ever felt. KEY POSITIVES: Diaphoresis (sweating), nausea, vomiting, dyspnea (shortness of breath), sense of impending doom, pallor, weakness. KEY NEGATIVES: NOT sharp, NOT positional, NOT pleuritic (worse with breathing)."
+    "classic_presentation": "ONSET: Sudden or over minutes. LOCATION: RETROSTERNAL (behind breastbone), left-sided chest, or epigastric. RADIATES to left arm, jaw, neck, back, or both arms. DURATION: Continuous for >10-20 minutes, does NOT resolve with rest. CHARACTER: CRUSHING, pressure, squeezing, heaviness, \"elephant on chest\". NOT sharp or stabbing typically. AGGRAVATING: None (unprovoked, can occur at rest). RELIEVING: NOT relieved by position change, antacids, or nitroglycerin (if severe). TIMING: Persistent, progressive worsening. SEVERITY: 7-10/10, most severe pain patient has ever felt. KEY POSITIVES: Diaphoresis (sweating), nausea, vomiting, dyspnea (shortness of breath), sense of impending doom, pallor, weakness. KEY NEGATIVES: NOT sharp, NOT positional, NOT pleuritic (worse with breathing).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "over minutes",
+          "acute"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic",
+          "hours"
+        ]
+      },
+      "location": {
+        "includes": [
+          "retrosternal",
+          "behind breastbone",
+          "left-sided chest",
+          "epigastric",
+          "radiates to left arm",
+          "radiates to jaw",
+          "radiates to neck",
+          "radiates to back",
+          "radiates to both arms"
+        ],
+        "excludes": [
+          "right side only",
+          "no radiation",
+          "localized point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "continuous",
+          ">10-20 minutes",
+          "does not resolve with rest",
+          "persistent"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes",
+          "resolves with rest"
+        ]
+      },
+      "character": {
+        "includes": [
+          "crushing",
+          "pressure",
+          "squeezing",
+          "heaviness",
+          "elephant on chest"
+        ],
+        "excludes": [
+          "sharp",
+          "stabbing",
+          "burning",
+          "crampy"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "none",
+          "unprovoked",
+          "can occur at rest"
+        ],
+        "excludes": [
+          "movement",
+          "breathing",
+          "position"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "not relieved by position change",
+          "not relieved by antacids",
+          "not relieved by nitroglycerin"
+        ],
+        "excludes": [
+          "position change",
+          "antacids",
+          "nitroglycerin",
+          "rest"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "persistent",
+          "progressive worsening",
+          "continuous"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "comes and goes"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "7-10/10",
+          "most severe pain ever felt",
+          "7",
+          "8",
+          "9",
+          "10"
+        ],
+        "excludes": [
+          "mild",
+          "moderate",
+          "1-6/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Diaphoresis (profuse sweating)",

@@ -11,7 +11,111 @@
   "prevalence": "rare",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: Sudden, often at REST or during SLEEP. LOCATION: Retrosternal or left chest. RADIATES to arm, jaw, shoulder. DURATION: Brief, typically 5-15 minutes. CHARACTER: Squeezing, pressure, tightness. AGGRAVATING: Occurs at REST, often at NIGHT or EARLY MORNING (circadian pattern). NOT typically exertional. RELIEVING: Nitroglycerin (rapid response), calcium channel blockers. TIMING: Cyclic, often same time each day/night. SEVERITY: 6-8/10. KEY POSITIVES: Occurs at rest (especially 12am-8am), young to middle-aged, smoker, rapid relief with nitrates, ST elevation during episode that resolves. KEY NEGATIVES: NOT exertional angina, NOT persistent."
+    "classic_presentation": "ONSET: Sudden, often at REST or during SLEEP. LOCATION: Retrosternal or left chest. RADIATES to arm, jaw, shoulder. DURATION: Brief, typically 5-15 minutes. CHARACTER: Squeezing, pressure, tightness. AGGRAVATING: Occurs at REST, often at NIGHT or EARLY MORNING (circadian pattern). NOT typically exertional. RELIEVING: Nitroglycerin (rapid response), calcium channel blockers. TIMING: Cyclic, often same time each day/night. SEVERITY: 6-8/10. KEY POSITIVES: Occurs at rest (especially 12am-8am), young to middle-aged, smoker, rapid relief with nitrates, ST elevation during episode that resolves. KEY NEGATIVES: NOT exertional angina, NOT persistent.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "often at rest",
+          "during sleep"
+        ],
+        "excludes": [
+          "gradual",
+          "with exertion",
+          "chronic"
+        ]
+      },
+      "location": {
+        "includes": [
+          "retrosternal",
+          "left chest",
+          "radiates to arm",
+          "radiates to jaw",
+          "radiates to shoulder"
+        ],
+        "excludes": [
+          "right side only",
+          "no radiation",
+          "localized point"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "brief",
+          "5-15 minutes",
+          "short duration"
+        ],
+        "excludes": [
+          "prolonged",
+          ">20 minutes",
+          "continuous"
+        ]
+      },
+      "character": {
+        "includes": [
+          "squeezing",
+          "pressure",
+          "tightness"
+        ],
+        "excludes": [
+          "sharp",
+          "stabbing",
+          "burning",
+          "crushing"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "occurs at rest",
+          "often at night",
+          "early morning",
+          "circadian pattern"
+        ],
+        "excludes": [
+          "exertional",
+          "activity",
+          "daytime"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "nitroglycerin",
+          "rapid response",
+          "calcium channel blockers"
+        ],
+        "excludes": [
+          "exertion",
+          "activity",
+          "night time"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "cyclic",
+          "same time each day",
+          "same time each night"
+        ],
+        "excludes": [
+          "random",
+          "unpredictable",
+          "continuous"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "6-8/10",
+          "6",
+          "7",
+          "8"
+        ],
+        "excludes": [
+          "mild",
+          "1-5/10",
+          "severe",
+          "9-10/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Prolonged episode >20 minutes (may be myocardial infarction )",

@@ -15,7 +15,125 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset during trauma - fall, direct blow, or high-energy impact. Common in elderly with osteoporosis. LOCATION: Femoral neck, intertrochanteric, or subtrochanteric region. DURATION: Immediate severe pain that persists. CHARACTER: SEVERE, SHARP, CONSTANT pain. AGGRAVATING: ANY weight bearing, hip movement, leg movement. RELIEVING: NOTHING relieves pain until immobilization. Patient cannot bear weight. TIMING: Immediate severe pain that persists until surgical fixation. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: UNABLE TO BEAR WEIGHT, leg appears shortened and externally rotated, severe pain with any movement, may have audible 'snap' or 'crack' at injury. KEY POSITIVES: Bony tenderness over hip, deformity, inability to bear weight, positive log roll test, positive heel strike test. KEY NEGATIVES: No open wound (rules out open fracture), no crepitus unless severe."
+    "classic_presentation": "ONSET: SUDDEN onset during trauma - fall, direct blow, or high-energy impact. Common in elderly with osteoporosis. LOCATION: Femoral neck, intertrochanteric, or subtrochanteric region. DURATION: Immediate severe pain that persists. CHARACTER: SEVERE, SHARP, CONSTANT pain. AGGRAVATING: ANY weight bearing, hip movement, leg movement. RELIEVING: NOTHING relieves pain until immobilization. Patient cannot bear weight. TIMING: Immediate severe pain that persists until surgical fixation. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: UNABLE TO BEAR WEIGHT, leg appears shortened and externally rotated, severe pain with any movement, may have audible 'snap' or 'crack' at injury. KEY POSITIVES: Bony tenderness over hip, deformity, inability to bear weight, positive log roll test, positive heel strike test. KEY NEGATIVES: No open wound (rules out open fracture), no crepitus unless severe.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "during trauma",
+          "fall",
+          "direct blow",
+          "high-energy impact"
+        ],
+        "excludes": [
+          "gradual",
+          "progressive",
+          "slow onset",
+          "days to weeks"
+        ]
+      },
+      "location": {
+        "includes": [
+          "femoral neck",
+          "intertrochanteric",
+          "subtrochanteric",
+          "hip",
+          "hip joint"
+        ],
+        "excludes": [
+          "knee",
+          "ankle",
+          "thigh",
+          "pelvis"
+        ]
+      },
+      "duration": {
+        "includes": [
+          "immediate",
+          "persists",
+          "constant",
+          "ongoing"
+        ],
+        "excludes": [
+          "brief",
+          "minutes",
+          "hours",
+          "transient"
+        ]
+      },
+      "character": {
+        "includes": [
+          "severe",
+          "sharp",
+          "constant",
+          "unrelenting"
+        ],
+        "excludes": [
+          "mild",
+          "dull",
+          "intermittent",
+          "aching"
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          "weight bearing",
+          "hip movement",
+          "leg movement",
+          "any movement"
+        ],
+        "excludes": [
+          "immobilization",
+          "rest",
+          "surgical fixation",
+          "treatment"
+        ]
+      },
+      "relieving": {
+        "includes": [
+          "immobilization",
+          "surgical fixation",
+          "rest",
+          "treatment"
+        ],
+        "excludes": [
+          "weight bearing",
+          "hip movement",
+          "leg movement",
+          "activity"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "immediate",
+          "persists",
+          "constant",
+          "ongoing"
+        ],
+        "excludes": [
+          "delayed",
+          "intermittent",
+          "variable",
+          "episodic"
+        ]
+      },
+      "severity": {
+        "includes": [
+          "severe",
+          "8-10/10",
+          "8",
+          "9",
+          "10",
+          "unrelenting"
+        ],
+        "excludes": [
+          "mild",
+          "1-3/10",
+          "moderate",
+          "4-7/10"
+        ]
+      }
+    }
   },
   "red_flags": [
     "Open wound with bone visible - open fracture, call 911",

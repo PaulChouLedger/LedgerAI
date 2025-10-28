@@ -20,5 +20,78 @@
     "Sudden severe pain with peritonitis - ruptured abscess, call 911",
     "Pregnant with pelvic inflammatory disease (PID) symptoms - ectopic pregnancy must be ruled out",
     "Hypotension or sepsis - ruptured tubo-ovarian abscess, call 911"
-  ]
+  ],
+  "structured_oldcarts": {
+    "onset": {
+      "includes": [
+        "sudden",
+        "acute",
+        "immediate",
+        "days",
+        "weeks"
+      ],
+      "excludes": [
+        "gradual",
+        "chronic"
+      ]
+    },
+    "location": {
+      "includes": [
+        "pelvic",
+        "lower abdominal",
+        "unilateral",
+        "bilateral",
+        "adnexal",
+        "vaginal"
+      ],
+      "excludes": []
+    },
+    "duration": {
+      "includes": [
+        "constant"
+      ],
+      "excludes": [
+        "intermittent",
+        "episodic"
+      ]
+    },
+    "character": {
+      "includes": [
+        "severe",
+        "sharp",
+        "dull",
+        "aching"
+      ],
+      "excludes": []
+    },
+    "aggravating": {
+      "includes": [
+        "movement",
+        "intercourse",
+        "dyspareunia",
+        "jarring movements"
+      ],
+      "excludes": []
+    },
+    "relieving": {
+      "includes": [
+        "rest",
+        "antibiotics"
+      ],
+      "excludes": []
+    },
+    "timing": {
+      "includes": [
+        "constant"
+      ],
+      "excludes": []
+    },
+    "severity": {
+      "includes": [
+        "5-8/10",
+        "moderate to severe"
+      ],
+      "excludes": []
+    }
+  }
 }
