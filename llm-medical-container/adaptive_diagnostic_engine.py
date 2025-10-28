@@ -2331,7 +2331,7 @@ Normalized text:"""
         # Get enhanced similarity using Medical Rule Engine with raw answer
         result = self.medical_rule_engine.get_enhanced_similarity(
             user_answer, oldcarts_section, condition_name, 
-            organ_system=self._get_organ_system_from_condition(condition_name),
+            organ_system=self.current_category,
             oldcarts_element=oldcarts_element,
             structured_oldcarts=self._get_structured_oldcarts_for_condition(condition_name)
         )
@@ -2370,7 +2370,7 @@ Normalized text:"""
                 confidence=result['confidence'],
                 method=result['method'],
                 condition_name=condition_name,
-                organ_system=self._get_organ_system_from_condition(condition_name)
+                organ_system=self.current_category
             )
             
             # ML Progress Tracking - Performance
@@ -2378,7 +2378,7 @@ Normalized text:"""
             self._capture_debug(f"[Scoring]   📊 Prediction: {result['similarity']:.3f}")
             self._capture_debug(f"[Scoring]   🔄 Confidence: {result['confidence']}")
             self._capture_debug(f"[Scoring]   🎯 Method: {result['method']}")
-            self._capture_debug(f"[Scoring]   🏥 Organ System: {self.current_category if hasattr(self, 'current_category') else 'UNKNOWN'}")
+            self._capture_debug(f"[Scoring]   🏥 Organ System: {self.current_category}")
         
         return result['similarity']
     
@@ -2644,7 +2644,7 @@ Return only the 2 selected terms, separated by commas."""
                 user_rating=user_rating,
                 user_comment=user_comment,
                 condition_name=condition_name,
-                organ_system=self._get_organ_system_from_condition(condition_name)
+                organ_system=self.current_category
             )
         return False
     
@@ -2674,7 +2674,7 @@ Return only the 2 selected terms, separated by commas."""
                 actual_accuracy=actual_accuracy,
                 user_comment=user_comment,
                 condition_name=condition_name,
-                organ_system=self._get_organ_system_from_condition(condition_name)
+                organ_system=self.current_category
             )
         return False
     
