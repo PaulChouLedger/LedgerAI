@@ -527,8 +527,10 @@ class MedicalRuleEngine:
             
             # BOOST SIMILARITY FOR DIRECT WORD MATCHES
             word_match_boost = self._compute_word_match_boost(patient_text, guideline_text, organ_system, oldcarts_element, structured_oldcarts)
+            boost_applied = False
             if word_match_boost > 0:
                 similarity = min(1.0, similarity + word_match_boost)
+                boost_applied = True
                 print(f"[Embedding] 🎯 Word match boost: +{word_match_boost:.3f}")
             
             # Ensure similarity is between 0 and 1
@@ -568,7 +570,8 @@ class MedicalRuleEngine:
                 'similarity': similarity,
                 'method': method,
                 'confidence': confidence,
-                'reasoning': f'Embedding-based semantic similarity: {similarity:.3f}'
+                'reasoning': f'Embedding-based semantic similarity: {similarity:.3f}',
+                'word_match_boost_applied': boost_applied
             }
             
         except Exception as e:

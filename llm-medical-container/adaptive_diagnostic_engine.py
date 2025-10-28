@@ -2600,6 +2600,14 @@ Normalized text:"""
                             if word not in medical_to_category:
                                 medical_to_category[word] = []
                             medical_to_category[word].append((category, synonym_list))
+                    
+                    # IMPORTANT: Map each synonym back to itself to ensure all terms are accessible
+                    # This ensures "right upper quadrant" maps to "ruq_pain" category
+                    for synonym in synonym_list[:5]:  # Map first 5 synonyms for coverage
+                        synonym_lower = synonym.lower()
+                        if synonym_lower not in medical_to_category:
+                            medical_to_category[synonym_lower] = []
+                        medical_to_category[synonym_lower].append((category, synonym_list))
             
             # Now match missing terms to categories
             seen_categories = set()  # Track which categories we've already added
@@ -2625,14 +2633,18 @@ Normalized text:"""
                 # Try direct match in medical_to_category
                 if term_lower in medical_to_category:
                     categories = medical_to_category[term_lower]
+                    self._capture_debug(f"[Engine]   Direct match for '{term_lower}': {[c[0] for c in categories]}")
                     for category, synonym_list in categories:
                         if category not in seen_categories and synonym_list:
                             patient_friendly = synonym_list[0]  # Use first (most patient-friendly) option
                             if patient_friendly not in seen_options:
                                 patient_friendly_options.append(patient_friendly)
                                 seen_options.add(patient_friendly)
+                                self._capture_debug(f"[Engine]   Added option: '{patient_friendly}' from category '{category}'")
                             seen_categories.add(category)
                     continue
+                else:
+                    self._capture_debug(f"[Engine]   No direct match for '{term_lower}' in medical_to_category")
                 
                 # Try with underscores (e.g., "radiates to back" -> "radiates_to_back")
                 term_with_underscores = term_lower.replace(' ', '_')
@@ -4162,103 +4174,40 @@ Your question:"""
         # Codebase uses lowercase full names only
         element_name = oldcarts_element
         
-        # Filter guidelines by similarity score > 0.2 (only high-scoring matches)
-        high_scoring_guidelines = []
+        # Only include guidelines that received word_match_boost (actual word matches in structured_oldcarts)
+        # This ensures we only use guidelines with relevant location terms that actually matched
+        all_guidelines_with_match = []
         for guideline in self.active_guidelines:
             score = guideline.get('score', 0.0)
-            if score >= 0.2:  # Only use guidelines with similarity >= 0.2
-                high_scoring_guidelines.append(guideline)
-                self._capture_debug(f"[Engine] ✅ High-scoring guideline: {guideline['name']} (score: {score:.2f})")
+            boost_received = guideline.get('boost_applied', False) or guideline.get('word_match_boost_applied', False)
+            
+            if boost_received:
+                all_guidelines_with_match.append(guideline)
+                self._capture_debug(f"[Engine] ✅ Guideline with word match: {guideline['name']} (score: {score:.2f}, boost applied)")
             else:
-                self._capture_debug(f"[Engine] ❌ Low-scoring guideline: {guideline['name']} (score: {score:.2f}) - excluded")
+                self._capture_debug(f"[Engine] ❌ No word match: {guideline['name']} (score: {score:.2f}, no boost) - excluded")
         
-        if not high_scoring_guidelines:
-            self._capture_debug(f"[Engine] ⚠️ No high-scoring guidelines found (threshold: >=0.2)")
+        if not all_guidelines_with_match:
+            self._capture_debug(f"[Engine] ⚠️ No guidelines with word match found")
             # Fallback to top 3 guidelines regardless of score
-            high_scoring_guidelines = self.active_guidelines[:3]
+            all_guidelines_with_match = self.active_guidelines[:3]
             self._capture_debug(f"[Engine] 🔄 Fallback: Using top 3 guidelines regardless of score")
         
-        self._capture_debug(f"[Engine] 📊 Using {len(high_scoring_guidelines)} high-scoring guidelines for question generation")
-        
-        # Collect expected terms from high-scoring guidelines only
-        expected_terms = set()
-        
-        for guideline in high_scoring_guidelines:
-            data = guideline.get('data', {})
-            key_features = data.get('key_features', {})
-            structured = key_features.get('structured_oldcarts', {})
-            
-            if element_name in structured:
-                element_data = structured[element_name]
-                if isinstance(element_data, dict):
-                    # ONLY use includes terms for expected patterns
-                    # Excludes represent what the condition is NOT - don't use for question generation
-                    if 'includes' in element_data:
-                        includes = element_data['includes']
-                        for term in includes:
-                            expected_terms.add(term.lower())
-                    
-                    # NOT using excludes - these represent what the condition is NOT
-                    # Adding excludes to expected terms would confuse question generation
-        
-        self._capture_debug(f"[Engine]   Expected terms from high-scoring guidelines: {expected_terms}")
-        
-        # Check which expected terms are missing from patient answer
-        patient_words = set(normalized_answer.lower().split())
-        missing_terms = [term for term in expected_terms if term not in normalized_answer.lower()]
-        
-        self._capture_debug(f"[Engine]   Missing terms: {missing_terms}")
+        self._capture_debug(f"[Engine] 📊 Using {len(all_guidelines_with_match)} guidelines with word matches for question generation")
         
         # Analyze what specific information is missing to generate targeted questions
         # Use normalized answer for analysis since it contains standardized medical terms
-        missing_terms_from_analysis = self._analyze_missing_location_information(normalized_answer, high_scoring_guidelines, oldcarts_element)
+        missing_terms_from_analysis = self._analyze_missing_location_information(normalized_answer, all_guidelines_with_match, oldcarts_element)
         
         self._capture_debug(f"[Engine]   Missing terms: {missing_terms_from_analysis}")
         
         # Generate targeted question based on missing information from structured_oldcarts
-        if missing_terms:
-            # Generate targeted question based on missing terms from includes
-            if missing_terms_from_analysis:
-                targeted_options = self._generate_targeted_location_options(missing_terms_from_analysis, high_scoring_guidelines)
-                if targeted_options:
-                    options_str = ", ".join(targeted_options)
-                    self._capture_debug(f"[Engine] 🎯 Generated targeted question: {options_str}")
-                    return f"Can you be more specific? For example: {options_str}"
-            
-            # Fallback: Collect all includes terms from HIGH-SCORING GUIDELINES ONLY for this element
-            all_includes = set()
-            all_excludes = set()
-            
-            # Only use terms from the high-scoring guidelines
-            for guideline in high_scoring_guidelines:
-                data = guideline.get('data', {})
-                key_features = data.get('key_features', {})
-                structured = key_features.get('structured_oldcarts', {})
-                
-                if element_name in structured and isinstance(structured[element_name], dict):
-                    element_data = structured[element_name]
-                    if 'includes' in element_data:
-                        all_includes.update(element_data['includes'])
-                    if 'excludes' in element_data:
-                        all_excludes.update(element_data['excludes'])
-            
-            # Fallback to general question generation
-            # ONLY use includes terms - excludes represent what the condition is NOT (would confuse patients)
-            if all_includes:
-                self._capture_debug(f"[Engine] 🎯 Using terms from {len(high_scoring_guidelines)} high-scoring guidelines:")
-                self._capture_debug(f"[Engine]   Includes: {all_includes}")
-                self._capture_debug(f"[Engine]   Excludes: {all_excludes} (NOT used for question generation)")
-                
-                # Convert medical terms to patient-friendly language (ONLY includes)
-                patient_friendly_options = self._convert_medical_terms_to_patient_friendly(list(all_includes), oldcarts_element)
-                
-                # Limit to 3-4 options to avoid overwhelming the patient
-                options = patient_friendly_options[:4]
-                
-                if options:
-                    options_str = ", ".join(options)
-                    self._capture_debug(f"[Engine] 🎯 Generated question with patient-friendly options: {options_str}")
-                    return f"Can you be more specific? For example: {options_str}"
+        if missing_terms_from_analysis:
+            targeted_options = self._generate_targeted_location_options(missing_terms_from_analysis, all_guidelines_with_match)
+            if targeted_options:
+                options_str = ", ".join(targeted_options)
+                self._capture_debug(f"[Engine] 🎯 Generated targeted question: {options_str}")
+                return f"Can you be more specific? For example: {options_str}"
         
         # No structured data available - let it fail
         raise ValueError(f"Failed to generate clarifying question for {oldcarts_element} - missing data or logic error")
