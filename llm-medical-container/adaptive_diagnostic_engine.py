@@ -100,16 +100,28 @@ class AdaptiveDiagnosticEngine:
     We provide structure and keep it focused.
     """
     
-    def __init__(self, guidelines_dir: str = "/app/medical/guidelines", llm_chat_fn=None, embedding_model=None, llm_chat_simple_fn=None):
+    def __init__(self, guidelines_dir: str = None, llm_chat_fn=None, embedding_model=None, llm_chat_simple_fn=None):
         """
         Initialize diagnostic engine
         
         Args:
-            guidelines_dir: Path to JSON guidelines
+            guidelines_dir: Path to JSON guidelines (defaults to auto-detect)
             llm_chat_fn: LLM function for complex reasoning (Mistral-7B)
             embedding_model: Sentence transformer for semantic similarity
             llm_chat_simple_fn: Optional LLM for simple tasks (Llama-1B). If None, uses llm_chat_fn
         """
+        # Auto-detect guidelines directory
+        if guidelines_dir is None:
+            # Try container path first, then local path
+            if os.path.exists("/app/medical/guidelines"):
+                guidelines_dir = "/app/medical/guidelines"
+            elif os.path.exists("medical/guidelines"):
+                guidelines_dir = "medical/guidelines"
+            elif os.path.exists(os.path.join(os.path.dirname(__file__), "medical", "guidelines")):
+                guidelines_dir = os.path.join(os.path.dirname(__file__), "medical", "guidelines")
+            else:
+                raise RuntimeError("Could not find medical guidelines directory")
+        
         self.guidelines_dir = Path(guidelines_dir)
         self.llm_chat_fn = llm_chat_fn  # Mistral-7B for complex diagnostic questions
         self.llm_chat_simple_fn = llm_chat_simple_fn or llm_chat_fn  # Llama-1B for templates/validation
