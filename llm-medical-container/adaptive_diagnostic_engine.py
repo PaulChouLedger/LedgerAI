@@ -2397,75 +2397,36 @@ Normalized text:"""
         Analyze what specific information is missing from patient answer
         to generate targeted clarifying questions.
         
-        Uses synonym files and structured OLDCARTS data dynamically instead of hardcoded lists.
+        Directly extracts includes from structured_oldcarts of high-scoring guidelines
+        and determines missing terms (not using synonym categories).
         """
         if oldcarts_element != 'location':
             return []
         
+        # Extract ALL includes terms from high-scoring guidelines
+        all_includes = set()
+        for guideline in high_scoring_guidelines:
+            data = guideline.get('data', {})
+            key_features = data.get('key_features', {})
+            structured = key_features.get('structured_oldcarts', {})
+            
+            if 'location' in structured and isinstance(structured['location'], dict):
+                includes = structured['location'].get('includes', [])
+                for term in includes:
+                    all_includes.add(term.lower())
+        
+        self._capture_debug(f"[Engine] 📋 All includes from high-scoring guidelines: {all_includes}")
+        
+        # Normalize patient answer for comparison
         patient_lower = patient_answer.lower()
-        missing_categories = []
         
-        # Get organ system from high-scoring guidelines
-        organ_system = self._get_organ_system_from_guidelines(high_scoring_guidelines)
-        if not organ_system:
-            return []
+        # Determine which include terms are missing from patient answer
+        missing_terms = [term for term in all_includes if term not in patient_lower]
         
-        # Load appropriate synonym file
-        synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
-        synonym_path = os.path.join(os.path.dirname(__file__), synonym_file)
+        self._capture_debug(f"[Engine] 📋 Missing terms: {missing_terms}")
         
-        if not os.path.exists(synonym_path):
-            self._capture_debug(f"[Engine] ⚠️ Synonym file not found: {synonym_path}")
-            return []
-        
-        with open(synonym_path, 'r') as f:
-            synonyms = json.load(f)
-        
-        # Analyze what categories exist in the synonym file for this OLDCARTS element
-        available_categories = self._get_available_categories_from_synonyms(synonyms, oldcarts_element)
-        self._capture_debug(f"[Engine] 📋 Available categories in {organ_system} synonyms: {available_categories}")
-        
-        # FIRST: Determine which category the patient has already specified
-        patient_specified_category = None
-        for category in available_categories:
-            if not self._is_category_missing_from_patient_answer(patient_lower, category, synonyms[oldcarts_element]):
-                patient_specified_category = category
-                self._capture_debug(f"[Engine] ✅ Patient specified category: {category}")
-                break
-        
-        # SECOND: If patient has specified a category, check if they need sub-clarification
-        # Use synonym-based matching to determine if patient was specific enough
-        if patient_specified_category:
-            # Check if patient's answer matches ONLY this category (specific) or multiple categories (vague)
-            # Count how many categories the patient's answer could match
-            matching_categories = []
-            for category in available_categories:
-                if not self._is_category_missing_from_patient_answer(patient_lower, category, synonyms[oldcarts_element]):
-                    matching_categories.append(category)
-            
-            self._capture_debug(f"[Engine] 🔍 Matching categories: {matching_categories}")
-            
-            # If patient's answer matches ONLY ONE category, they were specific enough
-            if len(matching_categories) == 1:
-                # Patient was specific enough (e.g., unambiguously matched "right upper quadrant")
-                # Don't ask about competing categories - move to next OLDCARTS element
-                self._capture_debug(f"[Engine] ✅ Patient was specific ({patient_specified_category}) - no competing category clarification needed")
-                return []
-            else:
-                # Patient was vague (e.g., "right" matches both RUQ and RLQ)
-                # Need to clarify between competing sub-categories
-                self._capture_debug(f"[Engine] 🔍 Patient was vague (matched {len(matching_categories)} categories) - checking for sub-category clarification")
-                # Continue to check for missing categories below
-        
-        # THIRD: Patient hasn't specified a category yet - check what's missing
-        for category in available_categories:
-            if self._is_category_missing_from_patient_answer(patient_lower, category, synonyms[oldcarts_element]):
-                # Check if this category discriminates between high-scoring guidelines
-                if self._category_discriminates_between_guidelines(category, high_scoring_guidelines, oldcarts_element, synonyms):
-                    missing_categories.append(category)
-                    self._capture_debug(f"[Engine] ✅ Missing category '{category}' discriminates between guidelines")
-        
-        return missing_categories
+        # If there are missing terms, we need clarification
+        return missing_terms if missing_terms else []
     
     def _get_organ_system_from_guidelines(self, guidelines: list) -> str:
         """Get organ system from already-determined category"""
@@ -2567,13 +2528,14 @@ Normalized text:"""
         
         return False
     
-    def _generate_targeted_location_options(self, missing_categories: list, high_scoring_guidelines: list) -> list:
+    def _generate_targeted_location_options(self, missing_terms: list, high_scoring_guidelines: list) -> list:
         """
-        Generate targeted patient-friendly options based on missing location categories.
+        Generate targeted patient-friendly options based on missing location terms.
         
-        Uses synonym files to generate patient-friendly options dynamically.
+        Uses synonym files to convert missing includes terms to patient-friendly options.
         """
-        targeted_options = []
+        if not missing_terms:
+            return []
         
         # Get organ system and load synonyms
         organ_system = self._get_organ_system_from_guidelines(high_scoring_guidelines)
@@ -2589,21 +2551,33 @@ Normalized text:"""
         with open(synonym_path, 'r') as f:
             synonyms = json.load(f)
         
-        # Generate options for each missing category
-        for category in missing_categories:
-            if 'location' in synonyms and category in synonyms['location']:
-                # Get patient-friendly synonyms for this category
-                category_synonyms = synonyms['location'][category]
-                
-                # Select most patient-friendly options (avoid medical jargon)
-                patient_friendly_options = self._select_patient_friendly_options(category_synonyms)
-                targeted_options.extend(patient_friendly_options)
+        # Build a mapping of include terms to their patient-friendly synonyms
+        term_to_synonyms = {}
+        if 'location' in synonyms:
+            for category, synonym_list in synonyms['location'].items():
+                if isinstance(synonym_list, list):
+                    for synonym in synonym_list:
+                        # Map each synonym back to the medical term it represents
+                        term_to_synonyms[synonym.lower()] = synonym_list
         
-        # Remove duplicates and limit to 4 options
-        unique_options = list(dict.fromkeys(targeted_options))[:4]
+        # Convert medical terms to patient-friendly options using LLM
+        # Filter out common words and keep only meaningful location terms
+        stop_words = ['the', 'and', 'or', 'may', 'can', 'to', 'from', 'of', 'in', 'on', 'at', 'by', 'radiates']
+        meaningful_terms = [term for term in missing_terms if term not in stop_words and len(term) > 3]
         
-        self._capture_debug(f"[Engine] 🎯 Targeted options for missing categories {missing_categories}: {unique_options}")
-        return unique_options
+        # Get unique terms (limit to 8 for LLM processing)
+        unique_terms = list(set(meaningful_terms))[:8]
+        
+        self._capture_debug(f"[Engine] 🎯 Converting {len(unique_terms)} missing terms to patient-friendly")
+        
+        # Convert medical terms to patient-friendly options using LLM
+        patient_friendly_options = self._convert_medical_terms_to_patient_friendly(unique_terms, 'location')
+        
+        # Limit to 4 options to avoid overwhelming the patient
+        options = patient_friendly_options[:4]
+        
+        self._capture_debug(f"[Engine] 🎯 Generated targeted options: {options}")
+        return options
     
     def _select_patient_friendly_options(self, synonyms: list) -> list:
         """Select the most patient-friendly options from synonyms using LLM"""
@@ -4129,13 +4103,21 @@ Your question:"""
         
         # Analyze what specific information is missing to generate targeted questions
         # Use normalized answer for analysis since it contains standardized medical terms
-        missing_categories = self._analyze_missing_location_information(normalized_answer, high_scoring_guidelines, oldcarts_element)
+        missing_terms_from_analysis = self._analyze_missing_location_information(normalized_answer, high_scoring_guidelines, oldcarts_element)
         
-        self._capture_debug(f"[Engine]   Missing categories: {missing_categories}")
+        self._capture_debug(f"[Engine]   Missing terms: {missing_terms_from_analysis}")
         
         # Generate targeted question based on missing information from structured_oldcarts
         if missing_terms:
-            # Collect all includes and excludes terms from HIGH-SCORING GUIDELINES ONLY for this element
+            # Generate targeted question based on missing terms from includes
+            if missing_terms_from_analysis:
+                targeted_options = self._generate_targeted_location_options(missing_terms_from_analysis, high_scoring_guidelines)
+                if targeted_options:
+                    options_str = ", ".join(targeted_options)
+                    self._capture_debug(f"[Engine] 🎯 Generated targeted question: {options_str}")
+                    return f"Can you be more specific about the {oldcarts_element}? For example: {options_str}?"
+            
+            # Fallback: Collect all includes terms from HIGH-SCORING GUIDELINES ONLY for this element
             all_includes = set()
             all_excludes = set()
             
@@ -4151,14 +4133,6 @@ Your question:"""
                         all_includes.update(element_data['includes'])
                     if 'excludes' in element_data:
                         all_excludes.update(element_data['excludes'])
-            
-            # Generate targeted question based on missing categories
-            if missing_categories:
-                targeted_options = self._generate_targeted_location_options(missing_categories, high_scoring_guidelines)
-                if targeted_options:
-                    options_str = ", ".join(targeted_options)
-                    self._capture_debug(f"[Engine] 🎯 Generated targeted question: {options_str}")
-                    return f"Can you be more specific about the {oldcarts_element}? For example: {options_str}?"
             
             # Fallback to general question generation
             # ONLY use includes terms - excludes represent what the condition is NOT (would confuse patients)
