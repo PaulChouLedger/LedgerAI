@@ -2436,9 +2436,6 @@ Normalized text:"""
         # SECOND: If patient has specified a category, check if they need sub-clarification
         # Use synonym-based matching to determine if patient was specific enough
         if patient_specified_category:
-            # Get the category's synonyms
-            category_synonyms = synonyms[oldcarts_element][patient_specified_category]
-            
             # Check if patient's answer matches ONLY this category (specific) or multiple categories (vague)
             # Count how many categories the patient's answer could match
             matching_categories = []
@@ -2446,17 +2443,17 @@ Normalized text:"""
                 if not self._is_category_missing_from_patient_answer(patient_lower, category, synonyms[oldcarts_element]):
                     matching_categories.append(category)
             
-            # If patient's answer matches ONLY ONE specific category, they were specific enough
-            is_specific = len(matching_categories) == 1 and patient_specified_category in matching_categories
+            self._capture_debug(f"[Engine] 🔍 Matching categories: {matching_categories}")
             
-            if is_specific:
+            # If patient's answer matches ONLY ONE category, they were specific enough
+            if len(matching_categories) == 1:
                 # Patient was specific enough (e.g., unambiguously matched "right upper quadrant")
                 # Don't ask about competing categories - move to next OLDCARTS element
                 self._capture_debug(f"[Engine] ✅ Patient was specific ({patient_specified_category}) - no competing category clarification needed")
                 return []
             else:
                 # Patient was vague (e.g., "right" matches both RUQ and RLQ)
-                # Still need to clarify between competing sub-categories
+                # Need to clarify between competing sub-categories
                 self._capture_debug(f"[Engine] 🔍 Patient was vague (matched {len(matching_categories)} categories) - checking for sub-category clarification")
                 # Continue to check for missing categories below
         
@@ -4112,18 +4109,15 @@ Your question:"""
             if element_name in structured:
                 element_data = structured[element_name]
                 if isinstance(element_data, dict):
-                    # Use includes terms for expected patterns
+                    # ONLY use includes terms for expected patterns
+                    # Excludes represent what the condition is NOT - don't use for question generation
                     if 'includes' in element_data:
                         includes = element_data['includes']
                         for term in includes:
                             expected_terms.add(term.lower())
                     
-                    # Also use excludes terms as alternative patterns to consider
-                    if 'excludes' in element_data:
-                        excludes = element_data['excludes']
-                        # Add excludes as alternative patterns (for clarification options)
-                        for term in excludes:
-                            expected_terms.add(term.lower())
+                    # NOT using excludes - these represent what the condition is NOT
+                    # Adding excludes to expected terms would confuse question generation
         
         self._capture_debug(f"[Engine]   Expected terms from high-scoring guidelines: {expected_terms}")
         
@@ -4167,13 +4161,14 @@ Your question:"""
                     return f"Can you be more specific about the {oldcarts_element}? For example: {options_str}?"
             
             # Fallback to general question generation
-            if all_includes or all_excludes:
+            # ONLY use includes terms - excludes represent what the condition is NOT (would confuse patients)
+            if all_includes:
                 self._capture_debug(f"[Engine] 🎯 Using terms from {len(high_scoring_guidelines)} high-scoring guidelines:")
                 self._capture_debug(f"[Engine]   Includes: {all_includes}")
-                self._capture_debug(f"[Engine]   Excludes: {all_excludes}")
+                self._capture_debug(f"[Engine]   Excludes: {all_excludes} (NOT used for question generation)")
                 
-                # Convert medical terms to patient-friendly language
-                patient_friendly_options = self._convert_medical_terms_to_patient_friendly(list(all_includes) + list(all_excludes), oldcarts_element)
+                # Convert medical terms to patient-friendly language (ONLY includes)
+                patient_friendly_options = self._convert_medical_terms_to_patient_friendly(list(all_includes), oldcarts_element)
                 
                 # Limit to 3-4 options to avoid overwhelming the patient
                 options = patient_friendly_options[:4]
