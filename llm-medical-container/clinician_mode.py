@@ -186,9 +186,14 @@ class ClinicianSession:
                     llm_chat_simple_fn=self.llm_chat_simple_fn,
                     embedding_api=embedding_api
                 )
+                print(f"[Clinician] ✅ Adaptive engine initialized successfully")
                 # Note: Guidelines count and success message printed by singleton function
             except Exception as e:
-                print(f"[Clinician] ⚠️ Failed to initialize adaptive engine: {e}")
+                print(f"[Clinician] ❌ Failed to initialize adaptive engine: {e}")
+                print(f"[Clinician] 🔍 Error type: {type(e).__name__}")
+                import traceback
+                print(f"[Clinician] 📍 Error location: {traceback.format_exc()}")
+                self.adaptive_engine = None  # Explicitly set to None on failure
         
         # Assessment mode selection
         self.use_adaptive_engine = True  # Use new adaptive engine (not rigid triage)

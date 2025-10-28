@@ -175,14 +175,14 @@ class MedicalRuleEngine:
         semantic_score = semantic_result['similarity']
         
         # Return semantic score as-is - word-match boost already handled discrimination
-                return {
-                    'similarity': semantic_score,
-                    'method': 'semantic_similarity',
+        return {
+            'similarity': semantic_score,
+            'method': 'semantic_similarity',
             'confidence': 'high' if semantic_score >= 0.7 else 'medium' if semantic_score >= 0.3 else 'low',
             'reasoning': f'Semantic similarity with word-match boost: {semantic_result["reasoning"]}',
             'anatomical_type': 'unknown',  # No longer needed - handled by structured_oldcarts
-                    'semantic_score': semantic_score
-                }
+            'semantic_score': semantic_score
+        }
     
     def _compute_word_match_boost(self, patient_text: str, guideline_text: str, organ_system: str = None, oldcarts_element: str = None, structured_oldcarts: dict = None, condition_name: str = None) -> float:
         """
