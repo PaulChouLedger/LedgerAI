@@ -3028,6 +3028,91 @@ Return only the 2 selected terms, separated by commas."""
         # Combine active + reserve for scoring
         all_guidelines = self.active_guidelines + self.reserve_pool
         
+        # SIMPLE APPROACH: If location element, immediately rule out anatomically incompatible conditions
+        if oldcarts_element == 'location' and self.medical_rule_engine:
+            patient_words = set(answer.lower().split())
+            
+            # Extract ALL anatomical orientation terms
+            has_right = 'right' in patient_words
+            has_left = 'left' in patient_words
+            has_anterior = 'anterior' in patient_words or 'front' in patient_words
+            has_posterior = 'posterior' in patient_words or 'back' in patient_words
+            has_superior = 'upper' in patient_words or 'superior' in patient_words or 'top' in patient_words
+            has_inferior = 'lower' in patient_words or 'inferior' in patient_words or 'bottom' in patient_words
+            has_proximal = 'proximal' in patient_words or 'near' in patient_words
+            has_distal = 'distal' in patient_words or 'far' in patient_words
+            
+            if has_right or has_left or has_anterior or has_posterior or has_superior or has_inferior or has_proximal or has_distal:
+                # Map category to organ system
+                category_to_system = {
+                    'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
+                    'respiratory': 'PULMONARY', 'neurological': 'NEURO',
+                    'musculoskeletal': 'MSK', 'renal': 'RENAL',
+                    'genitourinary': 'GU', 'gynecological': 'GYN',
+                    'dermatological': 'DERM'
+                }
+                
+                to_remove = []
+                for g in all_guidelines:
+                    condition_name = g['data'].get('condition', g['name'])
+                    category = g['data'].get('category', '')
+                    organ_system = category_to_system.get(category)
+                    
+                    if organ_system:
+                        anatomical_type = self.medical_rule_engine._get_condition_anatomical_type(condition_name, organ_system)
+                        
+                        # IMMEDIATE RULE-OUT: Anatomically incompatible using medical_rules.json
+                        incompatible = False
+                        
+                        # Left/right rule-out using medical_rules.json
+                        if (has_right and anatomical_type == 'left_only') or (has_left and anatomical_type == 'right_only'):
+                            incompatible = True
+                            reason = f"Patient said '{answer}' but condition is {anatomical_type} in medical_rules.json"
+                        
+                        # Additional anatomical checks from guideline's structured_oldcarts
+                        if not incompatible:
+                            guideline_data = g.get('data', {})
+                            key_features = guideline_data.get('key_features', {})
+                            structured_oldcarts = key_features.get('structured_oldcarts', {})
+                            location_data = structured_oldcarts.get('location', {})
+                            location_includes = location_data.get('includes', [])
+                            
+                            # Check anterior/posterior conflicts
+                            if has_anterior:
+                                if any('posterior' in str(term).lower() or 'back' in str(term).lower() for term in location_includes):
+                                    if not any('anterior' in str(term).lower() or 'front' in str(term).lower() for term in location_includes):
+                                        incompatible = True
+                                        reason = "Patient said anterior/front, but guideline mentions posterior/back"
+                            
+                            if has_posterior:
+                                if any('anterior' in str(term).lower() or 'front' in str(term).lower() for term in location_includes):
+                                    if not any('posterior' in str(term).lower() or 'back' in str(term).lower() for term in location_includes):
+                                        incompatible = True
+                                        reason = "Patient said posterior/back, but guideline mentions anterior/front"
+                            
+                            if has_right and has_superior:  # e.g., "right upper quadrant"
+                                # Check if guideline has opposite orientation on right side
+                                if any('left' in str(term).lower() for term in location_includes) and not any('right' in str(term).lower() for term in location_includes):
+                                    incompatible = True
+                                    reason = "Patient said right upper, but guideline mentions left side"
+                            
+                            if has_left and has_superior:  # e.g., "left upper quadrant"
+                                # Check if guideline has opposite orientation on left side
+                                if any('right' in str(term).lower() for term in location_includes) and not any('left' in str(term).lower() for term in location_includes):
+                                    incompatible = True
+                                    reason = "Patient said left upper, but guideline mentions right side"
+                        
+                        if incompatible:
+                            self._capture_debug(f"[Engine] 🚫 IMMEDIATE ANATOMICAL RULE-OUT: {condition_name} ({anatomical_type})")
+                            self._capture_debug(f"[Engine]   Reason: {reason}")
+                            g['score'] = 0.0
+                            self.ruled_out.append(g)
+                            to_remove.append(g)
+                
+                # Remove ruled out guidelines from scoring
+                for g in to_remove:
+                    all_guidelines.remove(g)
+        
         for g in all_guidelines:
             classic = g['data'].get('key_features', {}).get('classic_presentation', '')
             
@@ -3251,9 +3336,11 @@ Return only the 2 selected terms, separated by commas."""
             oldcarts_result = {'has_competition': False, 'best_similarity': 1.0, 'competing_terms': []}  # Set dummy result
         # Use unified approach for ALL OTHER OLDCARTS elements (including location)
         else:  # Only process non-onset elements
-            # Get sections for this OLDCARTS element from guidelines that have some similarity to the current answer
-            matching_sections = []
+            # Get guidelines for competition detection
             all_matched_guidelines = self.active_guidelines + self.reserve_pool
+            
+            # STEP 2: Get sections for this OLDCARTS element from guidelines that have some similarity to the current answer
+            matching_sections = []
             
             # Filter guidelines that have some similarity to the current answer (above threshold)
             relevant_guidelines = []
@@ -4193,11 +4280,32 @@ Your question:"""
             includes = element_data.get('includes', [])
             
             # Check for word match
+            # Need semantic matching, not just substring match
+            # "right side" should match "right upper quadrant" and "right lower quadrant"
             has_word_match = False
+            normalized_answer_words = set(normalized_answer.split())
+            
             for term in includes:
                 # Normalize both for comparison
                 term_lower = term.lower()
+                
+                # Direct substring match
                 if term_lower in normalized_answer or normalized_answer in term_lower:
+                    has_word_match = True
+                    break
+                
+                # Semantic word overlap - if key words match
+                term_words = set(term_lower.split())
+                # Check if significant words overlap (more than 1 word in common)
+                if len(term_words.intersection(normalized_answer_words)) >= 2:
+                    has_word_match = True
+                    break
+                
+                # Check for "right" or "left" matching with quadrant terms
+                if 'right' in normalized_answer_words and 'right' in term_words:
+                    has_word_match = True
+                    break
+                if 'left' in normalized_answer_words and 'left' in term_words:
                     has_word_match = True
                     break
             
