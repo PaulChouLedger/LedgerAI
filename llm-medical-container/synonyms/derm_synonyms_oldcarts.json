@@ -1,4 +1,116 @@
 {
+  "chief_complaint": {
+    "rash": [
+      "rash",
+      "skin rash",
+      "eruption",
+      "skin lesions",
+      "spots",
+      "bumps",
+      "skin spots",
+      "skin bumps",
+      "skin patches",
+      "skin areas",
+      "skin changes",
+      "skin problems",
+      "skin issues",
+      "skin concerns",
+      "skin complaints",
+      "skin symptoms",
+      "skin signs",
+      "skin findings",
+      "skin abnormalities",
+      "skin irregularities"
+    ],
+    "itching": [
+      "itchy",
+      "itching",
+      "pruritus",
+      "scratching",
+      "itch",
+      "skin itch",
+      "feels itchy",
+      "skin feels itchy",
+      "skin itching",
+      "skin pruritus",
+      "skin scratching",
+      "skin itchiness",
+      "skin irritation",
+      "skin discomfort",
+      "skin annoyance",
+      "skin bother",
+      "skin nuisance",
+      "skin problem",
+      "skin issue",
+      "skin concern"
+    ],
+    "skin_changes": [
+      "skin changes",
+      "skin appearance",
+      "skin color changes",
+      "skin texture changes",
+      "skin thickness changes",
+      "skin surface changes",
+      "skin condition changes",
+      "skin state changes",
+      "skin status changes",
+      "skin situation changes",
+      "skin circumstance changes",
+      "skin environment changes",
+      "skin setting changes",
+      "skin context changes",
+      "skin background changes",
+      "skin foundation changes",
+      "skin base changes",
+      "skin core changes",
+      "skin essence changes",
+      "skin nature changes"
+    ],
+    "lesions": [
+      "lesions",
+      "skin lesions",
+      "skin sores",
+      "skin wounds",
+      "skin cuts",
+      "skin scrapes",
+      "skin abrasions",
+      "skin lacerations",
+      "skin punctures",
+      "skin tears",
+      "skin breaks",
+      "skin splits",
+      "skin cracks",
+      "skin fissures",
+      "skin ulcers",
+      "skin erosions",
+      "skin excoriations",
+      "skin macerations",
+      "skin denudations",
+      "skin exposures"
+    ],
+    "swelling": [
+      "swelling",
+      "swollen",
+      "puffy",
+      "inflamed",
+      "enlarged",
+      "swollen skin",
+      "puffy skin",
+      "inflamed skin",
+      "enlarged skin",
+      "skin swelling",
+      "skin puffiness",
+      "skin inflammation",
+      "skin enlargement",
+      "skin distension",
+      "skin expansion",
+      "skin dilation",
+      "skin stretching",
+      "skin ballooning",
+      "skin bulging",
+      "skin protrusion"
+    ]
+  },
   "onset": {
     "sudden": [
       "suddenly",
@@ -34,7 +146,110 @@
       "for some time"
     ]
   },
-  "location": {},
+  "location": {
+    "face": [
+      "face",
+      "facial",
+      "face area",
+      "facial area",
+      "on my face",
+      "face skin"
+    ],
+    "arms": [
+      "arms",
+      "arm area",
+      "upper arms",
+      "lower arms",
+      "arm skin",
+      "on my arms"
+    ],
+    "legs": [
+      "legs",
+      "leg area",
+      "upper legs",
+      "lower legs",
+      "leg skin",
+      "on my legs"
+    ],
+    "trunk": [
+      "trunk",
+      "torso",
+      "body",
+      "chest and back",
+      "trunk area",
+      "body skin"
+    ],
+    "hands": [
+      "hands",
+      "hand area",
+      "fingers",
+      "hand skin",
+      "on my hands",
+      "palm"
+    ],
+    "feet": [
+      "feet",
+      "foot area",
+      "toes",
+      "foot skin",
+      "on my feet",
+      "sole"
+    ],
+    "neck": [
+      "neck",
+      "neck area",
+      "neck skin",
+      "on my neck",
+      "cervical area"
+    ],
+    "scalp": [
+      "scalp",
+      "head",
+      "scalp area",
+      "head skin",
+      "on my head",
+      "crown"
+    ],
+    "genital": [
+      "genital area",
+      "private area",
+      "genital region",
+      "groin",
+      "genital skin"
+    ],
+    "bilateral": [
+      "both sides",
+      "both arms",
+      "both legs",
+      "symmetrical",
+      "both hands",
+      "both feet"
+    ],
+    "unilateral": [
+      "one side",
+      "single side",
+      "one arm",
+      "one leg",
+      "one hand",
+      "one foot"
+    ],
+    "diffuse": [
+      "all over",
+      "everywhere",
+      "generalized",
+      "widespread",
+      "body wide",
+      "systemic"
+    ],
+    "localized": [
+      "one spot",
+      "single area",
+      "localized",
+      "specific area",
+      "one place",
+      "isolated"
+    ]
+  },
   "duration": {
     "minutes": [
       "few minutes",
@@ -297,7 +512,121 @@
       "worst pain ever"
     ]
   },
-  "associated_symptoms": {},
+  "associated_symptoms": {
+    "itching": [
+      "itchy",
+      "itching",
+      "pruritus",
+      "scratching",
+      "itch",
+      "skin itch",
+      "feels itchy"
+    ],
+    "burning": [
+      "burning",
+      "burning sensation",
+      "hot feeling",
+      "fire-like",
+      "scorching",
+      "burning pain"
+    ],
+    "pain": [
+      "painful",
+      "pain",
+      "sore",
+      "tender",
+      "hurts",
+      "painful skin"
+    ],
+    "swelling": [
+      "swollen",
+      "swelling",
+      "puffy",
+      "inflamed",
+      "enlarged",
+      "swollen skin"
+    ],
+    "redness": [
+      "red",
+      "redness",
+      "erythema",
+      "inflamed",
+      "red skin",
+      "skin redness"
+    ],
+    "rash": [
+      "rash",
+      "skin rash",
+      "eruption",
+      "skin lesions",
+      "spots",
+      "bumps"
+    ],
+    "blisters": [
+      "blisters",
+      "blistering",
+      "vesicles",
+      "fluid-filled bumps",
+      "water blisters",
+      "skin blisters"
+    ],
+    "scaling": [
+      "scaling",
+      "flaking",
+      "peeling",
+      "dry skin",
+      "skin flakes",
+      "scaly skin"
+    ],
+    "crusting": [
+      "crusting",
+      "crusts",
+      "scabs",
+      "dried skin",
+      "skin crusts",
+      "crusty skin"
+    ],
+    "fever": [
+      "high temperature",
+      "hot",
+      "feverish",
+      "chills",
+      "sweating",
+      "temperature"
+    ],
+    "fatigue": [
+      "tired",
+      "exhausted",
+      "weak",
+      "lethargic",
+      "no energy",
+      "run down"
+    ],
+    "joint_pain": [
+      "joint pain",
+      "joint aches",
+      "joint stiffness",
+      "arthralgia",
+      "joint discomfort",
+      "joint swelling"
+    ],
+    "hair_loss": [
+      "hair loss",
+      "balding",
+      "thinning hair",
+      "alopecia",
+      "hair falling out",
+      "hair shedding"
+    ],
+    "nail_changes": [
+      "nail changes",
+      "nail problems",
+      "nail abnormalities",
+      "nail discoloration",
+      "nail pitting",
+      "nail ridges"
+    ]
+  },
   "specific_conditions": {
     "rash": [
       "skin eruption",

@@ -1,4 +1,138 @@
 {
+  "chief_complaint": {
+    "weight_changes": [
+      "weight changes",
+      "weight gain",
+      "weight loss",
+      "weight increase",
+      "weight decrease",
+      "weight fluctuation",
+      "weight variation",
+      "weight alteration",
+      "weight modification",
+      "weight adjustment",
+      "weight shift",
+      "weight movement",
+      "weight progression",
+      "weight regression",
+      "weight development",
+      "weight evolution",
+      "weight transformation",
+      "weight conversion",
+      "weight transition",
+      "weight change"
+    ],
+    "fatigue": [
+      "fatigue",
+      "tired",
+      "exhausted",
+      "weak",
+      "lethargic",
+      "no energy",
+      "run down",
+      "fatigued",
+      "tiredness",
+      "exhaustion",
+      "weakness",
+      "lethargy",
+      "energy loss",
+      "energy depletion",
+      "energy drain",
+      "energy exhaustion",
+      "energy fatigue",
+      "energy tiredness",
+      "energy weakness",
+      "energy lethargy"
+    ],
+    "mood_changes": [
+      "mood changes",
+      "mood swings",
+      "mood fluctuations",
+      "mood variations",
+      "mood alterations",
+      "mood modifications",
+      "mood adjustments",
+      "mood shifts",
+      "mood movements",
+      "mood progressions",
+      "mood regressions",
+      "mood developments",
+      "mood evolutions",
+      "mood transformations",
+      "mood conversions",
+      "mood transitions",
+      "mood changes",
+      "emotional changes",
+      "emotional swings",
+      "emotional fluctuations"
+    ],
+    "neck_swelling": [
+      "neck swelling",
+      "neck lump",
+      "neck mass",
+      "neck enlargement",
+      "neck growth",
+      "neck bulge",
+      "neck protrusion",
+      "neck distension",
+      "neck expansion",
+      "neck dilation",
+      "neck stretching",
+      "neck ballooning",
+      "neck bulging",
+      "neck swelling",
+      "neck inflammation",
+      "neck puffiness",
+      "neck distension",
+      "neck expansion",
+      "neck dilation",
+      "neck stretching"
+    ],
+    "thirst_changes": [
+      "thirst changes",
+      "increased thirst",
+      "decreased thirst",
+      "excessive thirst",
+      "thirst increase",
+      "thirst decrease",
+      "thirst fluctuation",
+      "thirst variation",
+      "thirst alteration",
+      "thirst modification",
+      "thirst adjustment",
+      "thirst shift",
+      "thirst movement",
+      "thirst progression",
+      "thirst regression",
+      "thirst development",
+      "thirst evolution",
+      "thirst transformation",
+      "thirst conversion",
+      "thirst transition"
+    ],
+    "urination_changes": [
+      "urination changes",
+      "urination increase",
+      "urination decrease",
+      "urination frequency changes",
+      "urination volume changes",
+      "urination pattern changes",
+      "urination habit changes",
+      "urination behavior changes",
+      "urination routine changes",
+      "urination schedule changes",
+      "urination timing changes",
+      "urination duration changes",
+      "urination intensity changes",
+      "urination severity changes",
+      "urination quality changes",
+      "urination character changes",
+      "urination nature changes",
+      "urination essence changes",
+      "urination core changes",
+      "urination base changes"
+    ]
+  },
   "onset": {
     "sudden": [
       "suddenly",
@@ -34,7 +168,112 @@
       "for some time"
     ]
   },
-  "location": {},
+  "location": {
+    "neck": [
+      "neck",
+      "neck area",
+      "neck swelling",
+      "neck lump",
+      "neck mass",
+      "neck enlargement"
+    ],
+    "thyroid": [
+      "thyroid area",
+      "front of neck",
+      "thyroid gland",
+      "neck front",
+      "thyroid region",
+      "neck center"
+    ],
+    "generalized": [
+      "all over",
+      "everywhere",
+      "generalized",
+      "widespread",
+      "body wide",
+      "systemic"
+    ],
+    "extremities": [
+      "arms and legs",
+      "hands and feet",
+      "limbs",
+      "extremities",
+      "arms",
+      "legs"
+    ],
+    "hands": [
+      "hands",
+      "hand area",
+      "fingers",
+      "hand swelling",
+      "hand enlargement",
+      "hand changes"
+    ],
+    "feet": [
+      "feet",
+      "foot area",
+      "toes",
+      "foot swelling",
+      "foot enlargement",
+      "foot changes"
+    ],
+    "face": [
+      "face",
+      "facial area",
+      "face swelling",
+      "face changes",
+      "facial features",
+      "face appearance"
+    ],
+    "eyes": [
+      "eyes",
+      "eye area",
+      "eye swelling",
+      "eye changes",
+      "eye appearance",
+      "eye problems"
+    ],
+    "abdomen": [
+      "abdomen",
+      "belly",
+      "stomach area",
+      "abdominal area",
+      "belly swelling",
+      "abdominal swelling"
+    ],
+    "chest": [
+      "chest",
+      "chest area",
+      "chest swelling",
+      "chest changes",
+      "chest enlargement",
+      "chest appearance"
+    ],
+    "back": [
+      "back",
+      "back area",
+      "back swelling",
+      "back changes",
+      "back enlargement",
+      "back appearance"
+    ],
+    "genital": [
+      "genital area",
+      "private area",
+      "genital region",
+      "genital changes",
+      "genital swelling",
+      "genital enlargement"
+    ],
+    "diffuse": [
+      "all over body",
+      "everywhere",
+      "generalized",
+      "widespread",
+      "body wide",
+      "systemic"
+    ]
+  },
   "duration": {
     "minutes": [
       "few minutes",

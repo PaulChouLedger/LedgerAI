@@ -3806,11 +3806,12 @@ Your question:"""
         
         # Generate targeted question based on missing information from structured_oldcarts
         if missing_terms:
-            # Collect all includes and excludes terms from guidelines for this element
+            # Collect all includes and excludes terms from ACTIVE GUIDELINES ONLY for this element
             all_includes = set()
             all_excludes = set()
             
-            for guideline in self.active_guidelines[:5]:
+            # Only use terms from the narrowed guidelines (active_guidelines), not all guidelines
+            for guideline in self.active_guidelines[:5]:  # Use active guidelines only
                 data = guideline.get('data', {})
                 key_features = data.get('key_features', {})
                 structured = key_features.get('structured_oldcarts', {})
@@ -3822,24 +3823,210 @@ Your question:"""
                     if 'excludes' in element_data:
                         all_excludes.update(element_data['excludes'])
             
-            # Generate question based on available terms
+            # Generate question based on available terms from narrowed guidelines
             if all_includes or all_excludes:
-                # Create options from includes and excludes
-                options = []
-                if all_includes:
-                    options.extend(list(all_includes)[:3])  # Limit to 3 includes
-                if all_excludes:
-                    options.extend(list(all_excludes)[:2])  # Limit to 2 excludes
+                self._capture_debug(f"[Engine] 🎯 Using terms from {len(self.active_guidelines)} narrowed guidelines:")
+                self._capture_debug(f"[Engine]   Includes: {all_includes}")
+                self._capture_debug(f"[Engine]   Excludes: {all_excludes}")
                 
-                # Remove duplicates and limit total options
-                options = list(set(options))[:4]
+                # Convert medical terms to patient-friendly language
+                patient_friendly_options = self._convert_medical_terms_to_patient_friendly(list(all_includes) + list(all_excludes), oldcarts_element)
+                
+                # Limit to 3-4 options to avoid overwhelming the patient
+                options = patient_friendly_options[:4]
                 
                 if options:
                     options_str = ", ".join(options)
+                    self._capture_debug(f"[Engine] 🎯 Generated question with patient-friendly options: {options_str}")
                     return f"Can you be more specific about the {oldcarts_element}? For example: {options_str}?"
         
         # No structured data available - let it fail
         raise ValueError(f"Failed to generate clarifying question for {oldcarts_element} - missing data or logic error")
+    
+    def _convert_medical_terms_to_patient_friendly(self, medical_terms: list, oldcarts_element: str) -> list:
+        """
+        Convert medical terms to patient-friendly language using synonym files
+        
+        Args:
+            medical_terms: List of medical terms from guidelines
+            oldcarts_element: The OLDCARTS element being clarified
+            
+        Returns:
+            List of patient-friendly terms
+        """
+        if not medical_terms:
+            return []
+        
+        # Remove duplicates and limit to avoid overwhelming the LLM
+        unique_terms = list(set(medical_terms))[:8]  # Max 8 terms
+        
+        # Get examples from synonym files based on OLDCARTS element
+        examples = self._get_synonym_examples_for_element(oldcarts_element)
+        
+        system_msg = "You are a medical assistant. Convert medical terms to simple, patient-friendly language. Output ONLY the converted terms, one per line, in the same order."
+        
+        user_msg = f"""Convert these medical terms for {oldcarts_element} to simple, patient-friendly language:
+
+Medical terms: {', '.join(unique_terms)}
+
+Examples from medical guidelines:
+{examples}
+
+Converted terms (one per line):"""
+
+        try:
+            response = self.llm_chat_simple_fn(
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=100,
+                temperature=0.3
+            )
+            
+            # Parse response - one term per line
+            converted_terms = []
+            for line in response.strip().split('\n'):
+                line = line.strip().strip('"\'')
+                if line and not line.startswith('-') and not line.startswith('•'):
+                    converted_terms.append(line)
+            
+            # Fallback if LLM fails
+            if not converted_terms:
+                converted_terms = unique_terms
+            
+            self._capture_debug(f"[Engine] 🧠 Medical → Patient-friendly conversion:")
+            self._capture_debug(f"[Engine]   Medical: {unique_terms}")
+            self._capture_debug(f"[Engine]   Patient-friendly: {converted_terms}")
+            
+            return converted_terms
+            
+        except Exception as e:
+            self._capture_debug(f"[Engine] ⚠️ Medical term conversion failed: {e}")
+            # Fallback to original terms
+            return unique_terms
+    
+    def _get_synonym_examples_for_element(self, oldcarts_element: str) -> str:
+        """
+        Get examples from synonym files for the given OLDCARTS element
+        
+        Args:
+            oldcarts_element: The OLDCARTS element (e.g., 'location', 'character', 'duration')
+            
+        Returns:
+            String of examples formatted for LLM prompt
+        """
+        import json
+        import os
+        
+        # Get the organ system from active guidelines to determine which synonym file to use
+        organ_system = self._get_organ_system_from_active_guidelines()
+        
+        # Map organ systems to synonym files
+        synonym_files = {
+            'GI': 'gi_synonyms_oldcarts.json',
+            'CARDIO': 'cardio_synonyms_oldcarts.json', 
+            'NEURO': 'neuro_synonyms_oldcarts.json',
+            'PULMONARY': 'resp_synonyms_oldcarts.json',
+            'MSK': 'gi_synonyms_oldcarts.json',  # Fallback to GI for MSK
+            'DERM': 'derm_synonyms_oldcarts.json',
+            'GU': 'gu_synonyms_oldcarts.json',
+            'GYN': 'gu_synonyms_oldcarts.json',  # Use GU for GYN
+            'RENAL': 'renal_synonyms_oldcarts.json',
+            'ENDOCRINE': 'endocrine_synonyms_oldcarts.json'
+        }
+        
+        synonym_file = synonym_files.get(organ_system, 'gi_synonyms_oldcarts.json')  # Default to GI
+        
+        # Load synonym file
+        synonyms_path = os.path.join('synonyms', synonym_file)
+        
+        try:
+            with open(synonyms_path, 'r') as f:
+                synonyms_data = json.load(f)
+            
+            # Get examples for the specific OLDCARTS element
+            element_data = synonyms_data.get(oldcarts_element, {})
+            
+            if not element_data:
+                # Fallback to basic examples if element not found
+                return self._get_fallback_examples(oldcarts_element)
+            
+            # Format examples for LLM prompt
+            examples = []
+            for category, terms in element_data.items():
+                if isinstance(terms, list) and terms:
+                    # Take first few terms as examples
+                    example_terms = terms[:3]
+                    examples.append(f"- {category}: {', '.join(example_terms)}")
+            
+            if examples:
+                return '\n'.join(examples[:5])  # Limit to 5 examples
+            else:
+                return self._get_fallback_examples(oldcarts_element)
+                
+        except Exception as e:
+            self._capture_debug(f"[Engine] ⚠️ Failed to load synonym file {synonym_file}: {e}")
+            return self._get_fallback_examples(oldcarts_element)
+    
+    def _get_organ_system_from_active_guidelines(self) -> str:
+        """
+        Determine organ system from active guidelines
+        
+        Returns:
+            Organ system string (e.g., 'GI', 'CARDIO', 'NEURO')
+        """
+        if not self.active_guidelines:
+            return 'GI'  # Default fallback
+        
+        # Check the first few active guidelines for organ system
+        for guideline in self.active_guidelines[:3]:
+            name = guideline.get('name', '')
+            if name.startswith('GI_'):
+                return 'GI'
+            elif name.startswith('CARDIO_'):
+                return 'CARDIO'
+            elif name.startswith('NEURO_'):
+                return 'NEURO'
+            elif name.startswith('PULMONARY_'):
+                return 'PULMONARY'
+            elif name.startswith('MSK_'):
+                return 'MSK'
+            elif name.startswith('DERM_'):
+                return 'DERM'
+            elif name.startswith('GU_'):
+                return 'GU'
+            elif name.startswith('GYN_'):
+                return 'GYN'
+            elif name.startswith('RENAL_'):
+                return 'RENAL'
+            elif name.startswith('ENDOCRINE_'):
+                return 'ENDOCRINE'
+        
+        return 'GI'  # Default fallback
+    
+    def _get_fallback_examples(self, oldcarts_element: str) -> str:
+        """
+        Get basic fallback examples when synonym files are not available
+        
+        Args:
+            oldcarts_element: The OLDCARTS element
+            
+        Returns:
+            String of basic examples
+        """
+        fallback_examples = {
+            'location': '- "RLQ" → "lower right side"\n- "RUQ" → "upper right side"\n- "LLQ" → "lower left side"\n- "epigastric" → "upper middle of stomach"',
+            'character': '- "sharp" → "sharp pain"\n- "dull" → "dull ache"\n- "burning" → "burning sensation"\n- "cramping" → "cramps"',
+            'duration': '- "acute" → "sudden onset"\n- "chronic" → "long-term"\n- "intermittent" → "comes and goes"\n- "constant" → "all the time"',
+            'aggravating': '- "eating" → "after eating"\n- "movement" → "when moving"\n- "breathing" → "when breathing"\n- "stress" → "when stressed"',
+            'relieving': '- "rest" → "when resting"\n- "heat" → "with heat"\n- "medication" → "with pain medicine"\n- "position" → "certain positions"',
+            'timing': '- "morning" → "in the morning"\n- "evening" → "in the evening"\n- "night" → "at night"\n- "after meals" → "after eating"',
+            'severity': '- "mild" → "not too bad"\n- "moderate" → "somewhat painful"\n- "severe" → "really painful"\n- "scale 1-3" → "1-3 out of 10"',
+            'onset': '- "sudden" → "all of a sudden"\n- "gradual" → "slowly"\n- "acute" → "quickly"\n- "chronic" → "over time"'
+        }
+        
+        return fallback_examples.get(oldcarts_element, '- "medical term" → "patient-friendly term"')
     
     def _is_user_asking_for_clarification(self, user_answer: str) -> bool:
         """
@@ -4087,7 +4274,7 @@ Be specific and offer concrete options. Don't use medical jargon. Keep it under 
             'severity': set()
         }
         
-        for guideline in guidelines_with_oldcarts[:5]:  # Check active guidelines only
+        for guideline in guidelines_with_oldcarts:  # Use all provided guidelines (already narrowed)
             structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
             
             for element, data in structured.items():

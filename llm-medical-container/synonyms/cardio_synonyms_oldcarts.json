@@ -1,4 +1,136 @@
 {
+  "chief_complaint": {
+    "chest_pain": [
+      "chest pain",
+      "chest discomfort",
+      "chest ache",
+      "chest pressure",
+      "chest tightness",
+      "chest burning",
+      "chest heaviness",
+      "chest squeezing",
+      "chest constriction",
+      "chest compression",
+      "chest hurt",
+      "chest sore",
+      "chest tender",
+      "chest throb",
+      "chest pang",
+      "chest twinge",
+      "chest spasm",
+      "chest cramp",
+      "chest sharp pain",
+      "chest dull pain"
+    ],
+    "heart_pain": [
+      "heart pain",
+      "heart ache",
+      "heart discomfort",
+      "heart pressure",
+      "heart tightness",
+      "heart burning",
+      "heart heaviness",
+      "heart squeezing",
+      "heart hurt",
+      "heart sore",
+      "heart tender",
+      "heart throb",
+      "heart pang",
+      "heart twinge",
+      "heart spasm",
+      "heart cramp",
+      "heart sharp pain",
+      "heart dull pain"
+    ],
+    "shortness_of_breath": [
+      "short of breath",
+      "breathing difficulty",
+      "trouble breathing",
+      "can't catch breath",
+      "breathless",
+      "out of breath",
+      "breathing problems",
+      "difficulty breathing",
+      "breathing trouble",
+      "breathing hard",
+      "breathing fast",
+      "breathing heavy",
+      "breathing shallow",
+      "breathing labored",
+      "breathing effort",
+      "breathing work",
+      "breathing struggle",
+      "breathing strain",
+      "breathing stress",
+      "breathing fatigue"
+    ],
+    "palpitations": [
+      "heart racing",
+      "heart pounding",
+      "heart beating fast",
+      "heart beating hard",
+      "heart beating irregular",
+      "heart skipping",
+      "heart fluttering",
+      "heart thumping",
+      "heart pounding",
+      "heart racing",
+      "heart beating",
+      "heart rhythm",
+      "heart beat",
+      "heart pulse",
+      "heart throb",
+      "heart palpitation",
+      "heart irregular",
+      "heart abnormal",
+      "heart strange",
+      "heart weird"
+    ],
+    "dizziness": [
+      "dizzy",
+      "lightheaded",
+      "feeling faint",
+      "dizziness",
+      "vertigo",
+      "spinning sensation",
+      "room spinning",
+      "world spinning",
+      "feeling woozy",
+      "feeling unsteady",
+      "feeling off balance",
+      "feeling shaky",
+      "feeling weak",
+      "feeling faint",
+      "feeling dizzy",
+      "feeling lightheaded",
+      "feeling vertigo",
+      "feeling spinning",
+      "feeling woozy",
+      "feeling unsteady"
+    ],
+    "syncope": [
+      "fainting",
+      "passing out",
+      "blacking out",
+      "losing consciousness",
+      "fainting spell",
+      "fainting episode",
+      "fainting attack",
+      "fainting fit",
+      "fainting seizure",
+      "fainting convulsion",
+      "fainting collapse",
+      "fainting fall",
+      "fainting drop",
+      "fainting sink",
+      "fainting swoon",
+      "fainting faint",
+      "fainting unconscious",
+      "fainting coma",
+      "fainting stupor",
+      "fainting trance"
+    ]
+  },
   "onset": {
     "sudden": [
       "suddenly",
@@ -34,7 +166,110 @@
       "for some time"
     ]
   },
-  "location": {},
+  "location": {
+    "chest_center": [
+      "center of chest",
+      "middle of chest",
+      "chest center",
+      "center chest",
+      "middle chest"
+    ],
+    "chest_left": [
+      "left side of chest",
+      "left chest",
+      "left side chest",
+      "left side of my chest",
+      "left chest area"
+    ],
+    "chest_right": [
+      "right side of chest",
+      "right chest",
+      "right side chest",
+      "right side of my chest",
+      "right chest area"
+    ],
+    "substernal": [
+      "behind breastbone",
+      "under breastbone",
+      "below breastbone",
+      "behind the breastbone",
+      "under the breastbone",
+      "below the breastbone",
+      "center of chest behind breastbone"
+    ],
+    "retrosternal": [
+      "behind breastbone",
+      "behind the breastbone",
+      "back of breastbone",
+      "behind my breastbone",
+      "center chest behind breastbone"
+    ],
+    "epigastric": [
+      "upper middle of stomach",
+      "top of stomach",
+      "upper abdomen",
+      "upper belly",
+      "top of belly",
+      "under breastbone",
+      "below breastbone"
+    ],
+    "left_arm": [
+      "left arm",
+      "left shoulder",
+      "left shoulder and arm",
+      "left side arm",
+      "left arm pain",
+      "pain in left arm"
+    ],
+    "right_arm": [
+      "right arm",
+      "right shoulder",
+      "right shoulder and arm",
+      "right side arm",
+      "right arm pain",
+      "pain in right arm"
+    ],
+    "jaw": [
+      "jaw pain",
+      "jaw area",
+      "lower jaw",
+      "jaw and neck",
+      "pain in jaw",
+      "jaw discomfort"
+    ],
+    "neck": [
+      "neck pain",
+      "neck area",
+      "back of neck",
+      "neck and shoulder",
+      "pain in neck",
+      "neck discomfort"
+    ],
+    "back": [
+      "back pain",
+      "upper back",
+      "back area",
+      "between shoulder blades",
+      "pain in back",
+      "back discomfort"
+    ],
+    "shoulder": [
+      "shoulder pain",
+      "shoulder area",
+      "left shoulder",
+      "right shoulder",
+      "pain in shoulder",
+      "shoulder discomfort"
+    ],
+    "diffuse_chest": [
+      "all over chest",
+      "whole chest",
+      "entire chest",
+      "general chest pain",
+      "widespread chest pain",
+      "chest all over"
+    ]
+  },
   "duration": {
     "minutes": [
       "few minutes",
