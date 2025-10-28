@@ -28,11 +28,33 @@ class LearningSuggestions:
         self.synonym_expansions_file = os.path.join(learning_dir, "synonym_expansions.jsonl")
         self.suggestions_file = os.path.join(learning_dir, "suggestions.json")
     
+    def record_prediction(self, condition: str, oldcarts_element: str, user_answer: str, 
+                          similarity_score: float, guideline_text: str, context: Dict):
+        """
+        Record prediction automatically during scoring
+        
+        This creates a baseline to detect patterns of low-scoring answers
+        that might indicate missing synonyms or includes terms
+        """
+        prediction = {
+            'timestamp': datetime.now().isoformat(),
+            'condition': condition,
+            'oldcarts_element': oldcarts_element,
+            'user_answer': user_answer,
+            'similarity_score': similarity_score,
+            'guideline_text': guideline_text[:100],  # Truncate for storage
+            'context': context
+        }
+        
+        with open(self.corrections_file, 'a') as f:
+            f.write(json.dumps(prediction) + '\n')
+    
     def record_correction(self, condition: str, oldcarts_element: str, user_answer: str, 
                          expected_term: str, actual_result: str, context: Dict):
-        """Record correction (called from main engine)"""
+        """Record correction (called when user provides explicit feedback)"""
         correction = {
             'timestamp': datetime.now().isoformat(),
+            'type': 'explicit_correction',
             'condition': condition,
             'oldcarts_element': oldcarts_element,
             'user_answer': user_answer,
@@ -59,9 +81,15 @@ class LearningSuggestions:
         with open(self.synonym_expansions_file, 'a') as f:
             f.write(json.dumps(expansion) + '\n')
     
-    def analyze_and_suggest(self, min_occurrences: int = 5) -> Dict[str, Any]:
+    def analyze_and_suggest(self, min_occurrences: int = 5, low_score_threshold: float = 0.4) -> Dict[str, Any]:
         """
         Analyze learning data and generate suggestions for user review
+        
+        Detects patterns from both automatic predictions and explicit corrections
+        
+        Args:
+            min_occurrences: Minimum times a pattern must appear
+            low_score_threshold: Similarity scores below this are considered "low"
         
         Returns:
             Dictionary with suggestions for manual review
@@ -73,35 +101,51 @@ class LearningSuggestions:
             'summary': {}
         }
         
-        # Analyze corrections
+        # Analyze predictions and corrections
         if os.path.exists(self.corrections_file):
-            corrections_by_condition = defaultdict(lambda: defaultdict(list))
+            patterns_by_condition = defaultdict(lambda: defaultdict(list))
+            low_scores_by_condition = defaultdict(lambda: defaultdict(list))
             
             with open(self.corrections_file, 'r') as f:
                 for line in f:
-                    correction = json.loads(line)
-                    key = f"{correction['condition']}:{correction['oldcarts_element']}"
-                    corrections_by_condition[key].append(correction)
+                    record = json.loads(line)
+                    key = f"{record['condition']}:{record['oldcarts_element']}"
+                    
+                    # Categorize by type
+                    if record.get('type') == 'explicit_correction':
+                        patterns_by_condition[key].append(record)
+                    elif 'similarity_score' in record:
+                        # Automatic prediction - check for low scores
+                        if record['similarity_score'] < low_score_threshold:
+                            low_scores_by_condition[key].append(record)
             
-            # Generate suggestions for patterns with sufficient occurrences
-            for key, corrections in corrections_by_condition.items():
-                if len(corrections) >= min_occurrences:
+            # Generate suggestions from low-scoring patterns (automatic detection)
+            all_patterns = dict(patterns_by_condition)
+            all_patterns.update(low_scores_by_condition)
+            
+            for key, records in all_patterns.items():
+                if len(records) >= min_occurrences:
                     condition, element = key.split(':')
                     
-                    # Extract common patterns
-                    user_answers = [c['user_answer'] for c in corrections]
-                    expected_terms = list(set([c['expected_term'] for c in corrections]))
+                    # Extract common user answers
+                    user_answers = [r['user_answer'] for r in records]
+                    avg_score = sum(r.get('similarity_score', 0) for r in records if 'similarity_score' in r) / len([r for r in records if 'similarity_score' in r]) if any('similarity_score' in r for r in records) else 0
+                    
+                    # Determine reason
+                    is_low_score = any('similarity_score' in r for r in records)
+                    reason = f"Low similarity scores ({len(low_scores_by_condition[key])} occurrences)" if is_low_score else f"Explicit corrections ({len(patterns_by_condition[key])} occurrences)"
                     
                     # Suggest adding to includes
                     suggestions['structured_oldcarts_updates'][f"{condition}_{element}"] = {
                         'condition': condition,
                         'element': element,
-                        'frequency': len(corrections),
+                        'frequency': len(records),
+                        'avg_similarity_score': avg_score,
                         'suggested_adds_to_includes': self._extract_key_terms(user_answers),
-                        'current_expected_terms': expected_terms,
-                        'reason': f"Patients used these terms {len(corrections)} times but system didn't recognize them",
-                        'confidence': min(0.95, len(corrections) / 20),
-                        'examples': user_answers[:5]
+                        'reason': reason,
+                        'confidence': min(0.95, len(records) / 20),
+                        'examples': user_answers[:5],
+                        'detection_method': 'automatic' if is_low_score else 'explicit'
                     }
         
         # Analyze synonym expansions

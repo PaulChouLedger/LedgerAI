@@ -168,41 +168,16 @@ class AdaptiveDiagnosticEngine:
             except ImportError as e2:
                 self._capture_debug(f"[Engine] ❌ Medical Rule Engine failed both paths: {e2}")
         
-        # Initialize Learning Data Collector for continuous improvement
+        # Initialize Learning System for manual review suggestions
         try:
-            from ml.learning_data_collector import LearningDataCollector
-            self.learning_collector = LearningDataCollector()
-            self._capture_debug(f"[Engine] 📊 Learning Data Collector initialized")
+            from ml.learning_suggestions import LearningSuggestions
+            self.learner = LearningSuggestions()
+            self._capture_debug(f"[Engine] 📊 Active Learning: ENABLED (manual review mode)")
+            self._capture_debug(f"[Engine]   💡 Run 'python ml/learning_suggestions.py --analyze' to generate suggestions")
+            self._capture_debug(f"[Engine]   💡 Run 'python ml/learning_suggestions.py --show' to view suggestions")
         except ImportError:
-            self.learning_collector = None
-            self._capture_debug(f"[Engine] ⚠️ Learning Data Collector not available")
-        
-        # Initialize Continuous Learning System
-        try:
-            from ml.continuous_learning import ContinuousLearning
-            self.continuous_learning = ContinuousLearning()
-            self._capture_debug(f"[Engine] 🧠 Continuous Learning initialized")
-        except ImportError:
-            self.continuous_learning = None
-            self._capture_debug(f"[Engine] ⚠️ Continuous Learning not available")
-        
-        # Initialize Performance Monitor
-        try:
-            from ml.performance_monitor import PerformanceMonitor
-            self.performance_monitor = PerformanceMonitor()
-            self._capture_debug(f"[Engine] 📈 Performance Monitor initialized")
-        except ImportError:
-            self.performance_monitor = None
-            self._capture_debug(f"[Engine] ⚠️ Performance Monitor not available")
-        
-        # Initialize User Feedback Interface
-        try:
-            from ml.user_feedback_interface import UserFeedbackInterface
-            self.user_feedback = UserFeedbackInterface()
-            self._capture_debug(f"[Engine] 💬 User Feedback Interface initialized")
-        except ImportError:
-            self.user_feedback = None
-            self._capture_debug(f"[Engine] ⚠️ User Feedback Interface not available")
+            self.learner = None
+            self._capture_debug(f"[Engine] 📊 Active Learning: DISABLED (import failed)")
         
         # Initialize fuzzy medical matcher for typo correction
         self.fuzzy_matcher = FuzzyMedicalMatcher()
@@ -2356,7 +2331,23 @@ Normalized text:"""
         self._capture_debug(f"[Engine]   🏥 Anatomical Type: {result['anatomical_type']}")
         
         # Collect learning data if available
-        if self.learning_collector:
+        if self.learner:
+            # Automatically record prediction for learning analysis
+            # System learns by detecting patterns of low-scoring answers
+            try:
+                self.learner.record_prediction(
+                    condition=condition_name,
+                    oldcarts_element=oldcarts_element,
+                    user_answer=user_answer,
+                    similarity_score=result['similarity'],
+                    guideline_text=oldcarts_section[:100],  # Truncate
+                    context={'method': result['method']}
+                )
+            except Exception as e:
+                # Don't fail on learning errors
+                pass
+        elif self.learning_collector:
+            # Legacy learning collector
             self.learning_collector.collect_prediction(
                 patient_text=user_answer,
                 guideline_text=oldcarts_section,
@@ -2378,22 +2369,6 @@ Normalized text:"""
             self._capture_debug(f"[Scoring]   🔄 Confidence: {result['confidence']}")
         
         # Track performance metrics if available
-        if self.performance_monitor:
-            self.performance_monitor.track_prediction(
-                prediction=result['similarity'],
-                confidence=result['confidence'],
-                method=result['method'],
-                condition_name=condition_name,
-                organ_system=self.current_category
-            )
-            
-            # ML Progress Tracking - Performance
-            self._capture_debug(f"[Scoring] 📈 Performance tracked:")
-            self._capture_debug(f"[Scoring]   📊 Prediction: {result['similarity']:.3f}")
-            self._capture_debug(f"[Scoring]   🔄 Confidence: {result['confidence']}")
-            self._capture_debug(f"[Scoring]   🎯 Method: {result['method']}")
-            self._capture_debug(f"[Scoring]   🏥 Organ System: {self.current_category}")
-        
         return result['similarity']
     
     
@@ -2711,11 +2686,11 @@ Normalized text:"""
             
             # Take up to 4 options, ensuring variety
             prioritized = []
-            seen_terms = set()
+            seen_terms = set()  # Store frozensets of word sets (hashable)
             
             for opt in options:
                 # Check if this option is similar to one already added
-                opt_words = set(opt.lower().split())
+                opt_words = frozenset(opt.lower().split())  # Use frozenset (hashable)
                 is_duplicate = any(len(opt_words.intersection(seen_words)) > 1 for seen_words in seen_terms)
                 
                 if not is_duplicate:
@@ -2793,15 +2768,7 @@ Return only the 2 selected terms, separated by commas."""
         Returns:
             bool: True if feedback collected successfully
         """
-        if self.user_feedback:
-            return self.user_feedback.collect_prediction_rating(
-                prediction_id=prediction_id,
-                prediction=prediction,
-                user_rating=user_rating,
-                user_comment=user_comment,
-                condition_name=condition_name,
-                organ_system=self.current_category
-            )
+        # User feedback collection not implemented yet
         return False
     
     def collect_accuracy_feedback(self, 
@@ -2823,15 +2790,7 @@ Return only the 2 selected terms, separated by commas."""
         Returns:
             bool: True if feedback collected successfully
         """
-        if self.user_feedback:
-            return self.user_feedback.collect_accuracy_feedback(
-                prediction_id=prediction_id,
-                predicted_accuracy=predicted_accuracy,
-                actual_accuracy=actual_accuracy,
-                user_comment=user_comment,
-                condition_name=condition_name,
-                organ_system=self.current_category
-            )
+        # User feedback collection not implemented yet
         return False
     
     def get_learning_status(self) -> Dict[str, Any]:
@@ -2839,28 +2798,18 @@ Return only the 2 selected terms, separated by commas."""
         status = {
             'medical_rule_engine': self.medical_rule_engine is not None,
             'learning_collector': self.learning_collector is not None,
-            'continuous_learning': self.continuous_learning is not None,
-            'performance_monitor': self.performance_monitor is not None,
-            'user_feedback': self.user_feedback is not None
+            'active_learning': self.learner is not None
         }
         
         # Get detailed status from components
-        if self.continuous_learning:
-            status['continuous_learning_status'] = self.continuous_learning.get_learning_status()
-        
-        if self.performance_monitor:
-            status['performance_summary'] = self.performance_monitor.get_performance_summary()
-        
-        if self.user_feedback:
-            status['feedback_summary'] = self.user_feedback.get_feedback_summary()
+        if self.learner:
+            status['active_learning_status'] = 'Enabled (manual review mode)'
         
         # ML Progress Tracking - Learning Status
         self._capture_debug(f"[Scoring] 📊 Learning system status:")
         self._capture_debug(f"[Scoring]   🧠 Medical Rule Engine: {'Active' if self.medical_rule_engine else 'Inactive'}")
         self._capture_debug(f"[Scoring]   📝 Learning Collector: {'Active' if self.learning_collector else 'Inactive'}")
-        self._capture_debug(f"[Scoring]   🔄 Continuous Learning: {'Active' if self.continuous_learning else 'Inactive'}")
-        self._capture_debug(f"[Scoring]   📈 Performance Monitor: {'Active' if self.performance_monitor else 'Inactive'}")
-        self._capture_debug(f"[Scoring]   💬 User Feedback: {'Active' if self.user_feedback else 'Inactive'}")
+        self._capture_debug(f"[Scoring]   📊 Active Learning: {'Active' if self.learner else 'Inactive'}")
         
         return status
     
