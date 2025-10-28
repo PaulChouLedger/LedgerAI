@@ -1348,11 +1348,21 @@ class AdaptiveDiagnosticEngine:
         
         # Apply comprehensive synonym normalization
         normalized_complaint = complaint_lower
+        normalization_changes = []
+        
         for category, synonyms in all_synonyms.items():
             for standard_term, synonym_list in synonyms.items():
                 for synonym in synonym_list:
                     if synonym in normalized_complaint:
+                        old_text = normalized_complaint
                         normalized_complaint = normalized_complaint.replace(synonym, standard_term)
+                        if old_text != normalized_complaint:
+                            normalization_changes.append(f"'{synonym}' → '{standard_term}'")
+        
+        if normalization_changes:
+            self._capture_debug(f"[Engine] 🔄 Synonym normalization changes: {normalization_changes}")
+        else:
+            self._capture_debug(f"[Engine] 🔄 No synonym normalization needed")
         
         self._capture_debug(f"[Engine] 🔄 Synonym normalization: '{complaint_lower}' → '{normalized_complaint}'")
         return normalized_complaint
@@ -2679,7 +2689,9 @@ Normalized text:"""
                 continue  # Skip this guideline instead of crashing
             
             # ENHANCED OLDCARTS SIMILARITY: Use existing method - let it fail if broken
-            similarity = self._compute_enhanced_oldcarts_similarity(answer, oldcarts_section, oldcarts_element, g['name'])
+            # Use condition name from guideline data, not file name
+            condition_name = g['data'].get('condition', g['name'])
+            similarity = self._compute_enhanced_oldcarts_similarity(answer, oldcarts_section, oldcarts_element, condition_name)
             self._capture_debug(f"[Engine]   {g['name']}: Enhanced {oldcarts_element} similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
             
             # Update score using semantic similarity
@@ -3769,13 +3781,35 @@ Your question:"""
         self._capture_debug(f"[Engine] 🎯 Generating targeted clarifying question for {oldcarts_element}")
         self._capture_debug(f"[Engine]   Patient answer: '{patient_answer}'")
         
+        # Add normalization debug
+        normalized_answer = self._normalize_complaint_with_synonyms(patient_answer)
+        self._capture_debug(f"[Engine] 🔄 Normalization: '{patient_answer}' → '{normalized_answer}'")
+        
         # Codebase uses lowercase full names only
         element_name = oldcarts_element
         
-        # Collect expected terms from all active guidelines for this element
+        # Filter guidelines by similarity score > 0.2 (only high-scoring matches)
+        high_scoring_guidelines = []
+        for guideline in self.active_guidelines:
+            score = guideline.get('score', 0.0)
+            if score >= 0.2:  # Only use guidelines with similarity >= 0.2
+                high_scoring_guidelines.append(guideline)
+                self._capture_debug(f"[Engine] ✅ High-scoring guideline: {guideline['name']} (score: {score:.2f})")
+            else:
+                self._capture_debug(f"[Engine] ❌ Low-scoring guideline: {guideline['name']} (score: {score:.2f}) - excluded")
+        
+        if not high_scoring_guidelines:
+            self._capture_debug(f"[Engine] ⚠️ No high-scoring guidelines found (threshold: >=0.2)")
+            # Fallback to top 3 guidelines regardless of score
+            high_scoring_guidelines = self.active_guidelines[:3]
+            self._capture_debug(f"[Engine] 🔄 Fallback: Using top 3 guidelines regardless of score")
+        
+        self._capture_debug(f"[Engine] 📊 Using {len(high_scoring_guidelines)} high-scoring guidelines for question generation")
+        
+        # Collect expected terms from high-scoring guidelines only
         expected_terms = set()
         
-        for guideline in self.active_guidelines[:5]:  # Check top 5
+        for guideline in high_scoring_guidelines:
             data = guideline.get('data', {})
             key_features = data.get('key_features', {})
             structured = key_features.get('structured_oldcarts', {})
@@ -3796,22 +3830,22 @@ Your question:"""
                         for term in excludes:
                             expected_terms.add(term.lower())
         
-        self._capture_debug(f"[Engine]   Expected terms from guidelines: {expected_terms}")
+        self._capture_debug(f"[Engine]   Expected terms from high-scoring guidelines: {expected_terms}")
         
         # Check which expected terms are missing from patient answer
-        patient_words = set(patient_answer.lower().split())
-        missing_terms = [term for term in expected_terms if term not in patient_answer.lower()]
+        patient_words = set(normalized_answer.lower().split())
+        missing_terms = [term for term in expected_terms if term not in normalized_answer.lower()]
         
         self._capture_debug(f"[Engine]   Missing terms: {missing_terms}")
         
         # Generate targeted question based on missing information from structured_oldcarts
         if missing_terms:
-            # Collect all includes and excludes terms from ACTIVE GUIDELINES ONLY for this element
+            # Collect all includes and excludes terms from HIGH-SCORING GUIDELINES ONLY for this element
             all_includes = set()
             all_excludes = set()
             
-            # Only use terms from the narrowed guidelines (active_guidelines), not all guidelines
-            for guideline in self.active_guidelines[:5]:  # Use active guidelines only
+            # Only use terms from the high-scoring guidelines
+            for guideline in high_scoring_guidelines:
                 data = guideline.get('data', {})
                 key_features = data.get('key_features', {})
                 structured = key_features.get('structured_oldcarts', {})
@@ -3823,9 +3857,9 @@ Your question:"""
                     if 'excludes' in element_data:
                         all_excludes.update(element_data['excludes'])
             
-            # Generate question based on available terms from narrowed guidelines
+            # Generate question based on available terms from high-scoring guidelines
             if all_includes or all_excludes:
-                self._capture_debug(f"[Engine] 🎯 Using terms from {len(self.active_guidelines)} narrowed guidelines:")
+                self._capture_debug(f"[Engine] 🎯 Using terms from {len(high_scoring_guidelines)} high-scoring guidelines:")
                 self._capture_debug(f"[Engine]   Includes: {all_includes}")
                 self._capture_debug(f"[Engine]   Excludes: {all_excludes}")
                 
