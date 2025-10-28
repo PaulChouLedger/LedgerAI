@@ -33,7 +33,6 @@ COPY ml/ /app/ml/
 COPY medical/guidelines/ /app/medical/guidelines/
 COPY ml/location_ml_model.pkl .
 COPY ml/location_ml_data.csv .
-COPY config/medical_rules.json .
 COPY config/medical_term_mappings.json .
 COPY oldcarts_keywords.json .
 
