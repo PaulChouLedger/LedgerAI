@@ -2603,7 +2603,7 @@ Normalized text:"""
                     
                     # IMPORTANT: Map each synonym back to itself to ensure all terms are accessible
                     # This ensures "right upper quadrant" maps to "ruq_pain" category
-                    for synonym in synonym_list[:5]:  # Map first 5 synonyms for coverage
+                    for synonym in synonym_list:  # Map ALL synonyms for complete coverage
                         synonym_lower = synonym.lower()
                         if synonym_lower not in medical_to_category:
                             medical_to_category[synonym_lower] = []
@@ -4175,23 +4175,41 @@ Your question:"""
         element_name = oldcarts_element
         
         # Only include guidelines that received word_match_boost (actual word matches in structured_oldcarts)
-        # This ensures we only use guidelines with relevant location terms that actually matched
+        # Re-check word matches for clarifying question generation
+        # We need to check if patient answer matches structured OLDCARTS data
         all_guidelines_with_match = []
+        
         for guideline in self.active_guidelines:
             score = guideline.get('score', 0.0)
-            boost_received = guideline.get('boost_applied', False) or guideline.get('word_match_boost_applied', False)
             
-            if boost_received:
+            # Check if this guideline has structured OLDCARTS data for this element
+            structured_oldcarts = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            if oldcarts_element not in structured_oldcarts:
+                self._capture_debug(f"[Engine] ❌ No structured OLDCARTS for '{oldcarts_element}': {guideline['name']} (score: {score:.2f}) - excluded")
+                continue
+            
+            # Check if normalized answer matches any includes terms
+            element_data = structured_oldcarts[oldcarts_element]
+            includes = element_data.get('includes', [])
+            
+            # Check for word match
+            has_word_match = False
+            for term in includes:
+                # Normalize both for comparison
+                term_lower = term.lower()
+                if term_lower in normalized_answer or normalized_answer in term_lower:
+                    has_word_match = True
+                    break
+            
+            if has_word_match:
                 all_guidelines_with_match.append(guideline)
-                self._capture_debug(f"[Engine] ✅ Guideline with word match: {guideline['name']} (score: {score:.2f}, boost applied)")
+                self._capture_debug(f"[Engine] ✅ Guideline with word match: {guideline['name']} (score: {score:.2f}, matched term)")
             else:
-                self._capture_debug(f"[Engine] ❌ No word match: {guideline['name']} (score: {score:.2f}, no boost) - excluded")
+                self._capture_debug(f"[Engine] ❌ No word match: {guideline['name']} (score: {score:.2f}, no term match) - excluded")
         
         if not all_guidelines_with_match:
-            self._capture_debug(f"[Engine] ⚠️ No guidelines with word match found")
-            # Fallback to top 3 guidelines regardless of score
-            all_guidelines_with_match = self.active_guidelines[:3]
-            self._capture_debug(f"[Engine] 🔄 Fallback: Using top 3 guidelines regardless of score")
+            self._capture_debug(f"[Engine] ❌ No guidelines with word match found - cannot generate clarifying question")
+            raise ValueError(f"No guidelines with word match found - cannot generate clarifying question for {oldcarts_element}")
         
         self._capture_debug(f"[Engine] 📊 Using {len(all_guidelines_with_match)} guidelines with word matches for question generation")
         
@@ -4205,9 +4223,16 @@ Your question:"""
         if missing_terms_from_analysis:
             targeted_options = self._generate_targeted_location_options(missing_terms_from_analysis, all_guidelines_with_match)
             if targeted_options:
-                options_str = ", ".join(targeted_options)
-                self._capture_debug(f"[Engine] 🎯 Generated targeted question: {options_str}")
-                return f"Can you be more specific? For example: {options_str}"
+                # Format options as a natural list
+                if len(targeted_options) == 1:
+                    options_str = targeted_options[0]
+                elif len(targeted_options) == 2:
+                    options_str = f"{targeted_options[0]} or {targeted_options[1]}"
+                else:
+                    options_str = ", ".join(targeted_options[:-1]) + f", or {targeted_options[-1]}"
+                
+                self._capture_debug(f"[Engine] 🎯 Generated targeted question with options: {options_str}")
+                return f"Can you be more specific? For example, is it {options_str}?"
         
         # No structured data available - let it fail
         raise ValueError(f"Failed to generate clarifying question for {oldcarts_element} - missing data or logic error")
