@@ -138,9 +138,7 @@ class RAGClient:
         """Initialize auto-ingestion system for CPU FAISS"""
         try:
             # Import the auto-ingestion system
-            import sys
-            sys.path.append('/app/scripts')
-            from cpu_faiss_auto_ingest import CPUFAISSAutoIngest
+            from .cpu_faiss_auto_ingest import CPUFAISSAutoIngest
             
             # Initialize auto-ingestion
             self._auto_ingest = CPUFAISSAutoIngest()

@@ -19,7 +19,7 @@ import requests
 from clinician_mode import ClinicianSession, is_clinician_trigger, get_clinician_session, handle_clinician_response
 
 # Import modular RAG client (supports both GPU and CPU modes)
-from rag_client import get_rag_client
+from rag import get_rag_client
 
 app = Flask(__name__)
 load_dotenv()
@@ -59,7 +59,7 @@ def cpu_faiss_ingest():
     """Trigger CPU FAISS auto-ingestion manually"""
     try:
         # Get RAG client instance
-        from rag_client import get_rag_client
+        from rag import get_rag_client
         rag_client = get_rag_client()
         
         if not rag_client or not hasattr(rag_client, '_auto_ingest') or rag_client._auto_ingest is None:
@@ -88,7 +88,7 @@ def cpu_faiss_status():
     """Get CPU FAISS status"""
     try:
         # Get RAG client instance
-        from rag_client import get_rag_client
+        from rag import get_rag_client
         rag_client = get_rag_client()
         
         if not rag_client or not hasattr(rag_client, '_auto_ingest') or rag_client._auto_ingest is None:
