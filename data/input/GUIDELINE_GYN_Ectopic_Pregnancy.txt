@@ -25,6 +25,38 @@ ONSET: GRADUAL onset 6-8 weeks after last menstrual period. Initially mild, beco
 TYPICAL PATIENT DEMOGRAPHICS:
 N/A
 
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, acute, immediate, hours, days, weeks
+  Negative indicators: gradual, chronic
+
+LOCATION:
+  Positive indicators: pelvic, lower abdominal, unilateral, adnexal, vaginal
+
+DURATION:
+  Positive indicators: constant, intermittent
+  Negative indicators: intermittent, episodic, constant, continuous
+
+CHARACTER:
+  Positive indicators: severe, sharp, stabbing, crampy, cramping
+
+AGGRAVATING:
+  Positive indicators: movement, physical activity, jarring movements
+
+RELIEVING:
+  Positive indicators: nothing relieves, surgical intervention
+  Negative indicators: position changes, medications
+
+TIMING:
+  Positive indicators: constant, progressively worsening
+
+SEVERITY:
+  Positive indicators: 9-10/10, severe
+
+----------------------------------------
+
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------

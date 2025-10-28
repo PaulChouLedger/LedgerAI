@@ -41,7 +41,7 @@ from typing import List, Dict, Any, Optional
 from thinking_fillers import get_filler
 
 # Import modular RAG client (supports both GPU and CPU modes)
-from rag_client import get_rag_client
+from rag import get_rag_client
 import numpy as np
 
 # Import fuzzy medical matcher for typo correction
@@ -1811,165 +1811,116 @@ class AdaptiveDiagnosticEngine:
 
     def _match_to_guidelines_rag(self, complaint: str) -> List[Dict]:
         """
-        Match chief complaint to guidelines using RAG API with category-based filtering
+        Match chief complaint to guidelines using RAG API for semantic search
         
         Strategy:
-        1. Category-based filtering (performance optimization)
-        2. Exact/subset matching first (fast string operations)
-        3. RAG API semantic search for remaining candidates (GPU-accelerated)
-        4. Character overlap as final filter
+        1. Use RAG client for semantic similarity search
+        2. Extract guideline names from RAG results
+        3. Fallback to category filtering if RAG fails
         
         Returns:
             List of matched guidelines with initial scores
         """
         complaint_lower = complaint.lower()
         
-        # PERFORMANCE OPTIMIZATION: Synonym normalization + substring matching
-        normalized_complaint = self._normalize_complaint_with_synonyms(complaint)
-        category = self._categorize_complaint_by_substring(normalized_complaint)
-        relevant_guidelines = self._get_guidelines_by_category(category)
-        
-        self._capture_debug(f"[Engine] 🎯 Category filtering: {category} → {len(relevant_guidelines)}/{len(self.all_guidelines)} guidelines")
-        
         # Apply smart normalization (LLM or synonyms) to normalize patient language
         complaint_expanded = self._smart_oldcarts_normalization(complaint_lower)
         self._capture_debug(f"[Engine] 🔄 Smart normalization: '{complaint_lower}' → '{complaint_expanded}'")
         
-        # Use normalized complaint directly for both phases
-        core_symptom = complaint_expanded
-        self._capture_debug(f"[Engine] 📋 Using normalized complaint: '{core_symptom}'")
-        
         matched = []
-        matched_guideline_names = set()  # Track which guidelines already matched
+        matched_guideline_names = set()
         
-        self._capture_debug(f"\n[Engine] 🔍 MATCHING TO GUIDELINES (RAG API MODE)...")
-        self._capture_debug(f"[Engine] 🎯 Strategy: category_filter > exact > subset > RAG semantic > char_overlap")
+        self._capture_debug(f"\n[Engine] 🔍 MATCHING TO GUIDELINES (RAG SEARCH MODE)...")
+        self._capture_debug(f"[Engine] 🎯 Strategy: RAG semantic search → category fallback")
         self._capture_debug(f"[Engine] ---")
         
-        # PHASE 1: Fast exact/subset matching (filtered by category)
-        for name, guideline in relevant_guidelines.items():
-            triggers = guideline.get('chief_complaint_triggers', [])
-            
-            for trigger in triggers:
-                trigger_lower = trigger.lower()
+        # PHASE 1: RAG semantic search
+        try:
+            if self.rag_api and self.use_rag_api:
+                # Create search query for medical guidelines
+                search_query = f"DIAGNOSTIC GUIDELINE {complaint_expanded}"
+                self._capture_debug(f"[Engine] 🔍 RAG search query: '{search_query}'")
                 
-                # Exact match
-                if trigger_lower in complaint_lower:
-                    if name not in matched_guideline_names:
-                        prevalence = guideline.get('prevalence', 'uncommon')
-                        prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
-                        initial_score = prevalence_scores.get(prevalence, 0.50)
-                        matched.append({'name': name, 'score': initial_score, 'data': guideline})
-                        matched_guideline_names.add(name)
-                        self._capture_debug(f"[Engine]   ✓ {name} (trigger: '{trigger}', match: exact, prevalence: {prevalence})")
-                    break
+                # Use RAG client for semantic search
+                rag_client = get_rag_client()
+                rag_results = rag_client.search(
+                    query=search_query,
+                    k=30,  # Get more results for better coverage
+                    threshold=0.2  # Lower threshold for broader matching
+                )
                 
-                # Subset match
-                if core_symptom in trigger_lower:
-                    if name not in matched_guideline_names:
-                        prevalence = guideline.get('prevalence', 'uncommon')
-                        prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
-                        initial_score = prevalence_scores.get(prevalence, 0.50)
-                        matched.append({'name': name, 'score': initial_score, 'data': guideline})
-                        matched_guideline_names.add(name)
-                        self._capture_debug(f"[Engine]   ✓ {name} (trigger: '{trigger}', match: subset, prevalence: {prevalence})")
-                    break
-        
-        # PERFORMANCE OPTIMIZATION: Early termination check
-        if len(matched) >= 5:
-            self._capture_debug(f"[Engine] ⚡ Early termination: {len(matched)} matches found, skipping semantic search")
-            return self._rank_by_prevalence(matched)
-        
-        # PHASE 2: Semantic search for remaining guidelines (Simple toggle)
-        if len(matched) < 3:  # Only if we need more matches
-            if self.rag_mode == 'GPU':
-                self._capture_debug(f"\n[Engine] 🚀 GPU RAG API semantic search (GPU-accelerated)...")
-                self._perform_gpu_semantic_search(complaint, core_symptom, matched, matched_guideline_names)
-            else:  # CPU mode (default)
-                self._capture_debug(f"\n[Engine] 🧠 CPU FAISS semantic search (local processing)...")
-                self._perform_cpu_semantic_search(complaint, core_symptom, matched, matched_guideline_names)
-            
-            try:
-                # Get all triggers for guidelines not yet matched
-                remaining_triggers = []
-                trigger_to_guideline = []
-                
-                for name, guideline in self.all_guidelines.items():
-                    if name not in matched_guideline_names:
-                        triggers = guideline.get('chief_complaint_triggers', [])
-                        for trigger in triggers:
-                            remaining_triggers.append(trigger)
-                            trigger_to_guideline.append({
-                                'guideline_name': name,
-                                'trigger': trigger,
-                                'guideline_data': guideline
-                            })
-                
-                if remaining_triggers:
-                    self._capture_debug(f"[Engine] 📊 Searching {len(remaining_triggers)} remaining triggers...")
+                if rag_results:
+                    self._capture_debug(f"[Engine] 📚 RAG returned {len(rag_results)} chunks")
                     
-                    # Use RAG API or local embedding model
-                    if self.rag_api:
-                        # RAG API mode
-                        all_texts = [core_symptom] + remaining_triggers
-                        embeddings = self.rag_api.encode(all_texts)
-                    else:
-                        # Local embedding mode
-                        all_texts = [core_symptom] + remaining_triggers
-                        embeddings = self.embedding_model.encode(all_texts)
+                    # Extract guideline names from RAG results
+                    rag_guideline_names = set()
+                    for result in rag_results:
+                        if 'guideline_name' in result:
+                            rag_guideline_names.add(result['guideline_name'])
                     
-                    # Get query embedding (first one)
-                    query_embedding = embeddings[0]
+                    self._capture_debug(f"[Engine] 📋 RAG found {len(rag_guideline_names)} unique guidelines")
                     
-                    # Compute cosine similarities with remaining triggers
-                    for i, trigger_embedding in enumerate(embeddings[1:], 0):
-                        # Compute cosine similarity
-                        similarity = np.dot(query_embedding, trigger_embedding) / (
-                            np.linalg.norm(query_embedding) * np.linalg.norm(trigger_embedding)
-                        )
-                        
-                        metadata = trigger_to_guideline[i]
-                        guideline_name = metadata['guideline_name']
-                        trigger = metadata['trigger']
-                        guideline_data = metadata['guideline_data']
-                        
-                        # Skip if already matched by exact/subset
-                        if guideline_name in matched_guideline_names:
-                            continue
-                        
-                        # Apply threshold
-                        if similarity > 0.85:  # Same threshold as before
-                            prevalence = guideline_data.get('prevalence', 'uncommon')
+                    # Add RAG matches with scores based on prevalence
+                    for name in rag_guideline_names:
+                        if name in self.all_guidelines:
+                            guideline = self.all_guidelines[name]
+                            prevalence = guideline.get('prevalence', 'uncommon')
                             prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
                             initial_score = prevalence_scores.get(prevalence, 0.50)
-                            matched.append({'name': guideline_name, 'score': initial_score, 'data': guideline_data})
-                            matched_guideline_names.add(guideline_name)
-                            self._capture_debug(f"[Engine]   ✓ {guideline_name} (trigger: '{trigger}', match: rag_semantic ({similarity:.2f}), prevalence: {prevalence})")
-                        else:
-                            # Log first few rejections for visibility
-                            if i < 5:
-                                self._capture_debug(f"[Engine]   ✗ {guideline_name}: '{trigger}' (similarity={similarity:.2f} < 0.85)")
+                            matched.append({'name': name, 'score': initial_score, 'data': guideline})
+                            matched_guideline_names.add(name)
+                            self._capture_debug(f"[Engine]   ✓ {name} (RAG semantic match, prevalence: {prevalence})")
+                else:
+                    self._capture_debug(f"[Engine] ⚠️ RAG search returned no results")
+            else:
+                self._capture_debug(f"[Engine] ⚠️ RAG API not available, using fallback")
                 
-            except Exception as e:
-                self._capture_debug(f"[Engine] ❌ RAG API semantic search failed: {e}")
-                self._capture_debug(f"[Engine] 🔄 Falling back to brute-force matching")
+        except Exception as e:
+            self._capture_debug(f"[Engine] ❌ RAG search failed: {e}")
         
-        self._capture_debug(f"\n[Engine] 📊 RAG API matching complete: {len(matched)} guidelines matched")
+        self._capture_debug(f"[Engine] 📊 Phase 1 (RAG semantic): {len(matched)} matches")
         
-        # Store matching metadata for debug
-        self.matching_metadata = {
-            'mode': 'RAG_API',
-            'strategy': 'exact > subset > RAG semantic',
-            'thresholds': {
-                'char_overlap': 0.75,
-                'semantic': 0.85
-            },
-            'matched_count': len(matched),
-            'filtered_count': len(self.all_guidelines) - len(matched)
-        }
+        # PHASE 2: Category-based fallback if RAG didn't find enough
+        if len(matched) < 3:
+            self._capture_debug(f"[Engine] 🔍 Phase 2: Category-based fallback...")
+            
+            # PERFORMANCE OPTIMIZATION: Synonym normalization + substring matching
+            normalized_complaint = self._normalize_complaint_with_synonyms(complaint)
+            category = self._categorize_complaint_by_substring(normalized_complaint)
+            relevant_guidelines = self._get_guidelines_by_category(category)
+            
+            self._capture_debug(f"[Engine] 🎯 Category filtering: {category} → {len(relevant_guidelines)}/{len(self.all_guidelines)} guidelines")
+            
+            # Add category-based matches that weren't already found by RAG
+            for name, guideline in relevant_guidelines.items():
+                if name not in matched_guideline_names:
+                    triggers = guideline.get('chief_complaint_triggers', [])
+                    
+                    # Check for trigger matches
+                    for trigger in triggers:
+                        trigger_lower = trigger.lower()
+                        
+                        # Exact or subset match
+                        if trigger_lower in complaint_lower or complaint_lower in trigger_lower:
+                            prevalence = guideline.get('prevalence', 'uncommon')
+                            prevalence_scores = {'common': 0.60, 'uncommon': 0.50, 'rare': 0.40}
+                            initial_score = prevalence_scores.get(prevalence, 0.50)
+                            matched.append({'name': name, 'score': initial_score, 'data': guideline})
+                            matched_guideline_names.add(name)
+                            self._capture_debug(f"[Engine]   ✓ {name} (category fallback, trigger: '{trigger}', prevalence: {prevalence})")
+                            break  # Found match, move to next guideline
+            
+            self._capture_debug(f"[Engine] 📊 Phase 2 (category fallback): {len(matched)} total matches")
+        
+        # Sort by score (prevalence-based) and return top matches
+        matched.sort(key=lambda x: x['score'], reverse=True)
+        
+        self._capture_debug(f"[Engine] ✅ Final result: {len(matched)} guidelines matched")
+        for i, match in enumerate(matched[:5]):  # Show top 5
+            self._capture_debug(f"[Engine]   {i+1}. {match['name']} (score: {match['score']:.2f})")
         
         return matched
-    
+
     def test_hybrid_matching(self, complaint: str, guidelines: List[Dict] = None) -> List[Dict]:
         """
         Test method for hybrid similarity matching - used by test scripts

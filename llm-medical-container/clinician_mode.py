@@ -26,7 +26,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 
 # Import modular RAG client (supports both GPU and CPU modes)
-from rag_client import get_rag_client
+from rag import get_rag_client
 
 MEDICAL_RAG_AVAILABLE = True  # RAG available via modular client
 print("[Clinician] ✅ Medical RAG available via modular client")

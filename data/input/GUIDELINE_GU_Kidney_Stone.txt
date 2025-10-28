@@ -26,6 +26,38 @@ ONSET: SUDDEN onset within minutes to hours. Acute, dramatic presentation. LOCAT
 TYPICAL PATIENT DEMOGRAPHICS:
 N/A
 
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, acute, immediate, minutes, hours
+  Negative indicators: gradual, chronic
+
+LOCATION:
+  Positive indicators: testicle, testicular, scrotal, flank, groin
+
+DURATION:
+  Positive indicators: constant, colicky
+  Negative indicators: intermittent, episodic
+
+CHARACTER:
+  Positive indicators: severe, sharp, stabbing
+
+AGGRAVATING:
+  Positive indicators: movement
+
+RELIEVING:
+  Positive indicators: nothing relieves
+  Negative indicators: position changes, medications
+
+TIMING:
+  Positive indicators: constant, comes in waves
+
+SEVERITY:
+  Positive indicators: 9-10/10, severe
+
+----------------------------------------
+
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------

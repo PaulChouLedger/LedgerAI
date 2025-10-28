@@ -38,42 +38,31 @@ def fix_guideline_format(file_path):
         return False
 
 def main():
-    """Main function to fix DERM and RENAL guideline formats"""
+    """Main function to fix guideline formats for all organ systems"""
     print("\n" + "="*80)
-    print("  🔧 FIXING DERM AND RENAL GUIDELINE FORMATS")
+    print("  🔧 FIXING GUIDELINE FORMATS")
     print("="*80)
     
-    # Fix DERM guidelines
-    derm_dir = Path("llm-medical-container/medical/guidelines/DERM")
-    if derm_dir.exists():
-        print(f"\n📚 Fixing DERM guidelines...")
-        derm_files = list(derm_dir.glob("*.json"))
-        fixed_count = 0
-        
-        for file_path in derm_files:
-            try:
-                if fix_guideline_format(file_path):
-                    fixed_count += 1
-            except Exception as e:
-                print(f"  ❌ Error fixing {file_path.name}: {e}")
-        
-        print(f"✅ Fixed {fixed_count}/{len(derm_files)} DERM guidelines")
+    guidelines_dir = Path("llm-medical-container/medical/guidelines")
     
-    # Fix RENAL guidelines
-    renal_dir = Path("llm-medical-container/medical/guidelines/RENAL")
-    if renal_dir.exists():
-        print(f"\n📚 Fixing RENAL guidelines...")
-        renal_files = list(renal_dir.glob("*.json"))
-        fixed_count = 0
-        
-        for file_path in renal_files:
-            try:
-                if fix_guideline_format(file_path):
-                    fixed_count += 1
-            except Exception as e:
-                print(f"  ❌ Error fixing {file_path.name}: {e}")
-        
-        print(f"✅ Fixed {fixed_count}/{len(renal_files)} RENAL guidelines")
+    # Process all organ systems that might have format issues
+    organ_systems = ["DERM", "RENAL", "GU", "GYN"]
+    
+    for organ_system in organ_systems:
+        organ_dir = guidelines_dir / organ_system
+        if organ_dir.exists():
+            print(f"\n📚 Fixing {organ_system} guidelines...")
+            organ_files = list(organ_dir.glob("*.json"))
+            fixed_count = 0
+            
+            for file_path in organ_files:
+                try:
+                    if fix_guideline_format(file_path):
+                        fixed_count += 1
+                except Exception as e:
+                    print(f"  ❌ Error fixing {file_path.name}: {e}")
+            
+            print(f"✅ Fixed {fixed_count}/{len(organ_files)} {organ_system} guidelines")
     
     print("="*80 + "\n")
 

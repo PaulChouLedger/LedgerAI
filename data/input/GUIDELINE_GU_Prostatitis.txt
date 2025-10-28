@@ -28,6 +28,36 @@ ONSET: ACUTE onset over hours to days. More common in men 30-50 years. LOCATION:
 TYPICAL PATIENT DEMOGRAPHICS:
 N/A
 
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: hours, days
+
+LOCATION:
+  Positive indicators: perineum, perineal, pelvic, suprapubic
+
+DURATION:
+  Positive indicators: constant
+  Negative indicators: intermittent, episodic
+
+CHARACTER:
+  Positive indicators: severe, sharp, dull, aching
+
+AGGRAVATING:
+  Positive indicators: urination, dysuria, movement, prolonged sitting
+
+RELIEVING:
+  Positive indicators: lying down
+
+TIMING:
+  Positive indicators: constant
+
+SEVERITY:
+  Positive indicators: 6-8/10, moderate to severe
+
+----------------------------------------
+
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------

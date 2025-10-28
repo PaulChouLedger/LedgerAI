@@ -12,92 +12,92 @@
   ],
   "urgency": "emergent",
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL onset 6-8 weeks after last menstrual period. Initially mild, becomes SUDDEN SEVERE if rupture. LOCATION: UNILATERAL LOWER ABDOMINAL/PELVIC PAIN. Adnexal region (one side). Shoulder pain if ruptured (hemoperitoneum). DURATION: Initially intermittent cramping over days. Becomes CONSTANT if rupture occurs. Pain progresses over hours to days. CHARACTER: Initially CRAMPY, becomes SHARP and SEVERE if rupture. Stabbing pain with rupture. AGGRAVATING: MOVEMENT may worsen. Physical activity can precipitate rupture. Jarring intensifies if ruptured. RELIEVING: NOTHING relieves effectively. Position doesn't help significantly. Requires surgical intervention (salpingectomy/salpingostomy). TIMING: Initially INTERMITTENT cramping. Becomes CONSTANT and severe with rupture. Progressive worsening. SEVERITY: 4-7/10 initially, 9-10/10 if ruptured. Catastrophic with rupture. ASSOCIATED SYMPTOMS: MISSED PERIOD, vaginal spotting (lighter than period), dizziness, lightheadedness. If ruptured: syncope, peritoneal signs. PREGNANCY TEST POSITIVE. KEY POSITIVES: Positive pregnancy test + unilateral pelvic pain + vaginal bleeding. Prior ectopic, pelvic inflammatory disease (PID), IUD use. KEY NEGATIVES: NEGATIVE pregnancy test essentially rules out."
+    "classic_presentation": "ONSET: GRADUAL onset 6-8 weeks after last menstrual period. Initially mild, becomes SUDDEN SEVERE if rupture. LOCATION: UNILATERAL LOWER ABDOMINAL/PELVIC PAIN. Adnexal region (one side). Shoulder pain if ruptured (hemoperitoneum). DURATION: Initially intermittent cramping over days. Becomes CONSTANT if rupture occurs. Pain progresses over hours to days. CHARACTER: Initially CRAMPY, becomes SHARP and SEVERE if rupture. Stabbing pain with rupture. AGGRAVATING: MOVEMENT may worsen. Physical activity can precipitate rupture. Jarring intensifies if ruptured. RELIEVING: NOTHING relieves effectively. Position doesn't help significantly. Requires surgical intervention (salpingectomy/salpingostomy). TIMING: Initially INTERMITTENT cramping. Becomes CONSTANT and severe with rupture. Progressive worsening. SEVERITY: 4-7/10 initially, 9-10/10 if ruptured. Catastrophic with rupture. ASSOCIATED SYMPTOMS: MISSED PERIOD, vaginal spotting (lighter than period), dizziness, lightheadedness. If ruptured: syncope, peritoneal signs. PREGNANCY TEST POSITIVE. KEY POSITIVES: Positive pregnancy test + unilateral pelvic pain + vaginal bleeding. Prior ectopic, pelvic inflammatory disease (PID), IUD use. KEY NEGATIVES: NEGATIVE pregnancy test essentially rules out.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "acute",
+          "immediate",
+          "hours",
+          "days",
+          "weeks"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic"
+        ]
+      },
+      "location": {
+        "includes": [
+          "pelvic",
+          "lower abdominal",
+          "unilateral",
+          "adnexal",
+          "vaginal"
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          "constant",
+          "intermittent"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic",
+          "constant",
+          "continuous"
+        ]
+      },
+      "character": {
+        "includes": [
+          "severe",
+          "sharp",
+          "stabbing",
+          "crampy",
+          "cramping"
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          "movement",
+          "physical activity",
+          "jarring movements"
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          "nothing relieves",
+          "surgical intervention"
+        ],
+        "excludes": [
+          "position changes",
+          "medications"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "constant",
+          "progressively worsening"
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          "9-10/10",
+          "severe"
+        ],
+        "excludes": []
+      }
+    }
   },
   "red_flags": [
     "LIFE-THREATENING if ruptured - sudden severe pain with hypotension/syncope - call 911",
     "Shoulder pain with abdominal pain in pregnant woman - ruptured ectopic with hemoperitoneum",
     "Positive pregnancy test + abdominal pain - ALWAYS get ultrasound to rule out ectopic",
     "ANY female of childbearing age with abdominal pain needs pregnancy test"
-  ],
-  "structured_oldcarts": {
-    "onset": {
-      "includes": [
-        "sudden",
-        "acute",
-        "immediate",
-        "hours",
-        "days",
-        "weeks"
-      ],
-      "excludes": [
-        "gradual",
-        "chronic"
-      ]
-    },
-    "location": {
-      "includes": [
-        "pelvic",
-        "lower abdominal",
-        "unilateral",
-        "adnexal",
-        "vaginal"
-      ],
-      "excludes": []
-    },
-    "duration": {
-      "includes": [
-        "constant",
-        "intermittent"
-      ],
-      "excludes": [
-        "intermittent",
-        "episodic",
-        "constant",
-        "continuous"
-      ]
-    },
-    "character": {
-      "includes": [
-        "severe",
-        "sharp",
-        "stabbing",
-        "crampy",
-        "cramping"
-      ],
-      "excludes": []
-    },
-    "aggravating": {
-      "includes": [
-        "movement",
-        "physical activity",
-        "jarring movements"
-      ],
-      "excludes": []
-    },
-    "relieving": {
-      "includes": [
-        "nothing relieves",
-        "surgical intervention"
-      ],
-      "excludes": [
-        "position changes",
-        "medications"
-      ]
-    },
-    "timing": {
-      "includes": [
-        "constant",
-        "progressively worsening"
-      ],
-      "excludes": []
-    },
-    "severity": {
-      "includes": [
-        "9-10/10",
-        "severe"
-      ],
-      "excludes": []
-    }
-  }
+  ]
 }

@@ -24,6 +24,37 @@ ONSET: SUDDEN onset within minutes. Acute, sharp presentation. Often associated 
 TYPICAL PATIENT DEMOGRAPHICS:
 N/A
 
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, acute, immediate, minutes, hours
+  Negative indicators: gradual, chronic
+
+LOCATION:
+  Positive indicators: pelvic, lower abdominal, unilateral, adnexal, vaginal
+
+DURATION:
+  Positive indicators: constant
+  Negative indicators: intermittent, episodic
+
+CHARACTER:
+  Positive indicators: severe, sharp, dull, aching, stabbing
+
+AGGRAVATING:
+  Positive indicators: movement, intercourse, dyspareunia
+
+RELIEVING:
+  Positive indicators: rest
+
+TIMING:
+  Positive indicators: constant, progressively worsening
+
+SEVERITY:
+  Positive indicators: severe
+
+----------------------------------------
+
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------

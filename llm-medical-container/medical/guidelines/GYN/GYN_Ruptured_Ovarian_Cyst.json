@@ -11,83 +11,83 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within minutes. Acute, sharp presentation. Often associated with intercourse, exercise, or pelvic exam. Mid-cycle or just before menses timing. LOCATION: UNILATERAL LOWER ABDOMINAL/PELVIC PAIN. Adnexal region, one side. Lower quadrant on affected side. DURATION: Initially severe for hours, then gradually resolves over 24-48 hours. Self-limited course. CHARACTER: Initially SHARP, STABBING pain (7-9/10), then becomes DULL/ACHING as resolves. Sudden sharp onset, gradual dull resolution. AGGRAVATING: Initial rupture moment is most painful. Movement may worsen initially. Activity precipitated rupture. RELIEVING: Pain GRADUALLY IMPROVES OVER 24-48 HOURS spontaneously (key differentiator from torsion which worsens). Rest helps. Analgesics reduce pain. TIMING: SUDDEN onset, then IMPROVES progressively over 24-48 hours. Initial severe sharp pain, then gradual dull ache that fades. NOT constant or worsening. SEVERITY: Initially 7-9/10, decreases to 2-4/10 over 24-48 hours. Progressive improvement. ASSOCIATED SYMPTOMS: Mild nausea, vaginal spotting, pressure sensation. Usually BENIGN and SELF-LIMITED. KEY POSITIVES: Sudden onset, unilateral, IMPROVES over 24-48 hours, mid-cycle timing, known cysts, free fluid on ultrasound. KEY NEGATIVES: WORSENING pain suggests torsion. Hypotension suggests hemorrhagic cyst with blood loss."
+    "classic_presentation": "ONSET: SUDDEN onset within minutes. Acute, sharp presentation. Often associated with intercourse, exercise, or pelvic exam. Mid-cycle or just before menses timing. LOCATION: UNILATERAL LOWER ABDOMINAL/PELVIC PAIN. Adnexal region, one side. Lower quadrant on affected side. DURATION: Initially severe for hours, then gradually resolves over 24-48 hours. Self-limited course. CHARACTER: Initially SHARP, STABBING pain (7-9/10), then becomes DULL/ACHING as resolves. Sudden sharp onset, gradual dull resolution. AGGRAVATING: Initial rupture moment is most painful. Movement may worsen initially. Activity precipitated rupture. RELIEVING: Pain GRADUALLY IMPROVES OVER 24-48 HOURS spontaneously (key differentiator from torsion which worsens). Rest helps. Analgesics reduce pain. TIMING: SUDDEN onset, then IMPROVES progressively over 24-48 hours. Initial severe sharp pain, then gradual dull ache that fades. NOT constant or worsening. SEVERITY: Initially 7-9/10, decreases to 2-4/10 over 24-48 hours. Progressive improvement. ASSOCIATED SYMPTOMS: Mild nausea, vaginal spotting, pressure sensation. Usually BENIGN and SELF-LIMITED. KEY POSITIVES: Sudden onset, unilateral, IMPROVES over 24-48 hours, mid-cycle timing, known cysts, free fluid on ultrasound. KEY NEGATIVES: WORSENING pain suggests torsion. Hypotension suggests hemorrhagic cyst with blood loss.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "acute",
+          "immediate",
+          "minutes",
+          "hours"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic"
+        ]
+      },
+      "location": {
+        "includes": [
+          "pelvic",
+          "lower abdominal",
+          "unilateral",
+          "adnexal",
+          "vaginal"
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          "constant"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic"
+        ]
+      },
+      "character": {
+        "includes": [
+          "severe",
+          "sharp",
+          "dull",
+          "aching",
+          "stabbing"
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          "movement",
+          "intercourse",
+          "dyspareunia"
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          "rest"
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          "constant",
+          "progressively worsening"
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          "severe"
+        ],
+        "excludes": []
+      }
+    }
   },
   "red_flags": [
     "Hypotension or syncope - hemorrhagic cyst with significant blood loss, needs urgent surgery",
     "Severe pain not improving or worsening - consider ovarian torsion instead",
     "Positive pregnancy test - must rule out ectopic pregnancy first",
     "Large amount of free fluid on ultrasound - hemorrhagic cyst, may need intervention"
-  ],
-  "structured_oldcarts": {
-    "onset": {
-      "includes": [
-        "sudden",
-        "acute",
-        "immediate",
-        "minutes",
-        "hours"
-      ],
-      "excludes": [
-        "gradual",
-        "chronic"
-      ]
-    },
-    "location": {
-      "includes": [
-        "pelvic",
-        "lower abdominal",
-        "unilateral",
-        "adnexal",
-        "vaginal"
-      ],
-      "excludes": []
-    },
-    "duration": {
-      "includes": [
-        "constant"
-      ],
-      "excludes": [
-        "intermittent",
-        "episodic"
-      ]
-    },
-    "character": {
-      "includes": [
-        "severe",
-        "sharp",
-        "dull",
-        "aching",
-        "stabbing"
-      ],
-      "excludes": []
-    },
-    "aggravating": {
-      "includes": [
-        "movement",
-        "intercourse",
-        "dyspareunia"
-      ],
-      "excludes": []
-    },
-    "relieving": {
-      "includes": [
-        "rest"
-      ],
-      "excludes": []
-    },
-    "timing": {
-      "includes": [
-        "constant",
-        "progressively worsening"
-      ],
-      "excludes": []
-    },
-    "severity": {
-      "includes": [
-        "severe"
-      ],
-      "excludes": []
-    }
-  }
+  ]
 }

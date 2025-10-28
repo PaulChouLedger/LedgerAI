@@ -14,85 +14,85 @@
   ],
   "urgency": "emergent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN, ACUTE onset within minutes to hours. Bimodal distribution: neonates and adolescents (12-18 years peak). May occur after trauma or during sleep. LOCATION: Affected testicle, may radiate to lower abdomen or groin. DURATION: CONSTANT pain since onset, progressively worsening. CHARACTER: SEVERE, SHARP, CONSTANT pain. AGGRAVATING: Movement, palpation of testicle. RELIEVING: NOTHING relieves pain. Lying still may decrease intensity slightly. TIMING: CONSTANT and unrelenting, worsens over time. Salvage rate <10% after 24 hours. SEVERITY: 9-10/10, SEVERE (patient often writhing in pain). ASSOCIATED SYMPTOMS: Nausea and vomiting (50%), high-riding testicle, horizontal lie of testicle, absent cremasteric reflex, scrotal swelling and erythema. NO relief with testicular elevation (negative Prehn's sign). KEY POSITIVES: Sudden severe testicular pain, adolescent male, nausea, high-riding testicle, absent cremasteric reflex. KEY NEGATIVES: Gradual onset over days suggests epididymitis. Relief with elevation suggests epididymitis."
+    "classic_presentation": "ONSET: SUDDEN, ACUTE onset within minutes to hours. Bimodal distribution: neonates and adolescents (12-18 years peak). May occur after trauma or during sleep. LOCATION: Affected testicle, may radiate to lower abdomen or groin. DURATION: CONSTANT pain since onset, progressively worsening. CHARACTER: SEVERE, SHARP, CONSTANT pain. AGGRAVATING: Movement, palpation of testicle. RELIEVING: NOTHING relieves pain. Lying still may decrease intensity slightly. TIMING: CONSTANT and unrelenting, worsens over time. Salvage rate <10% after 24 hours. SEVERITY: 9-10/10, SEVERE (patient often writhing in pain). ASSOCIATED SYMPTOMS: Nausea and vomiting (50%), high-riding testicle, horizontal lie of testicle, absent cremasteric reflex, scrotal swelling and erythema. NO relief with testicular elevation (negative Prehn's sign). KEY POSITIVES: Sudden severe testicular pain, adolescent male, nausea, high-riding testicle, absent cremasteric reflex. KEY NEGATIVES: Gradual onset over days suggests epididymitis. Relief with elevation suggests epididymitis.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          "sudden",
+          "acute",
+          "immediate",
+          "minutes",
+          "hours",
+          "days"
+        ],
+        "excludes": [
+          "gradual",
+          "chronic"
+        ]
+      },
+      "location": {
+        "includes": [
+          "testicle",
+          "testicular",
+          "scrotal",
+          "groin",
+          "lower abdomen"
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          "constant"
+        ],
+        "excludes": [
+          "intermittent",
+          "episodic"
+        ]
+      },
+      "character": {
+        "includes": [
+          "severe",
+          "sharp"
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          "movement",
+          "palpation"
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          "nothing relieves",
+          "elevation"
+        ],
+        "excludes": [
+          "position changes",
+          "medications"
+        ]
+      },
+      "timing": {
+        "includes": [
+          "constant",
+          "progressively worsening"
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          "9-10/10",
+          "severe"
+        ],
+        "excludes": []
+      }
+    }
   },
   "red_flags": [
     "Any testicular pain >6 hours - irreversible ischemia developing, IMMEDIATE ER",
     "Sudden severe testicular pain - ALWAYS emergent until proven otherwise",
     "Absent cremasteric reflex with testicular pain - high suspicion for torsion",
     "Nausea/vomiting with testicular pain - torsion until proven otherwise"
-  ],
-  "structured_oldcarts": {
-    "onset": {
-      "includes": [
-        "sudden",
-        "acute",
-        "immediate",
-        "minutes",
-        "hours",
-        "days"
-      ],
-      "excludes": [
-        "gradual",
-        "chronic"
-      ]
-    },
-    "location": {
-      "includes": [
-        "testicle",
-        "testicular",
-        "scrotal",
-        "groin",
-        "lower abdomen"
-      ],
-      "excludes": []
-    },
-    "duration": {
-      "includes": [
-        "constant"
-      ],
-      "excludes": [
-        "intermittent",
-        "episodic"
-      ]
-    },
-    "character": {
-      "includes": [
-        "severe",
-        "sharp"
-      ],
-      "excludes": []
-    },
-    "aggravating": {
-      "includes": [
-        "movement",
-        "palpation"
-      ],
-      "excludes": []
-    },
-    "relieving": {
-      "includes": [
-        "nothing relieves",
-        "elevation"
-      ],
-      "excludes": [
-        "position changes",
-        "medications"
-      ]
-    },
-    "timing": {
-      "includes": [
-        "constant",
-        "progressively worsening"
-      ],
-      "excludes": []
-    },
-    "severity": {
-      "includes": [
-        "9-10/10",
-        "severe"
-      ],
-      "excludes": []
-    }
-  }
+  ]
 }

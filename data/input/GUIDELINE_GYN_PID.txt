@@ -26,6 +26,37 @@ ONSET: SUBACUTE onset over days to weeks. More common in sexually active women <
 TYPICAL PATIENT DEMOGRAPHICS:
 N/A
 
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, acute, immediate, days, weeks
+  Negative indicators: gradual, chronic
+
+LOCATION:
+  Positive indicators: pelvic, lower abdominal, unilateral, bilateral, adnexal, vaginal
+
+DURATION:
+  Positive indicators: constant
+  Negative indicators: intermittent, episodic
+
+CHARACTER:
+  Positive indicators: severe, sharp, dull, aching
+
+AGGRAVATING:
+  Positive indicators: movement, intercourse, dyspareunia, jarring movements
+
+RELIEVING:
+  Positive indicators: rest, antibiotics
+
+TIMING:
+  Positive indicators: constant
+
+SEVERITY:
+  Positive indicators: 5-8/10, moderate to severe
+
+----------------------------------------
+
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------

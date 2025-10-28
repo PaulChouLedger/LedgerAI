@@ -25,6 +25,38 @@ ONSET: SUDDEN onset within minutes to hours. Acute, dramatic presentation. Often
 TYPICAL PATIENT DEMOGRAPHICS:
 N/A
 
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, acute, immediate, minutes, hours, days
+  Negative indicators: gradual, chronic
+
+LOCATION:
+  Positive indicators: pelvic, lower abdominal, unilateral, bilateral, adnexal
+
+DURATION:
+  Positive indicators: constant, persistent
+  Negative indicators: intermittent, episodic
+
+CHARACTER:
+  Positive indicators: severe, sharp, stabbing, twisting
+
+AGGRAVATING:
+  Positive indicators: movement, physical activity, position changes, jarring movements
+
+RELIEVING:
+  Positive indicators: nothing relieves, surgical intervention
+  Negative indicators: position changes, medications
+
+TIMING:
+  Positive indicators: constant, unrelenting, episodic
+
+SEVERITY:
+  Positive indicators: 8-10/10, very severe
+
+----------------------------------------
+
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------

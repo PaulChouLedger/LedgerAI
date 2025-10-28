@@ -27,6 +27,38 @@ ONSET: SUDDEN, ACUTE onset within minutes to hours. Bimodal distribution: neonat
 TYPICAL PATIENT DEMOGRAPHICS:
 N/A
 
+STRUCTURED OLDCARTS ASSESSMENT:
+Use this structured data for dynamic questioning:
+
+ONSET:
+  Positive indicators: sudden, acute, immediate, minutes, hours, days
+  Negative indicators: gradual, chronic
+
+LOCATION:
+  Positive indicators: testicle, testicular, scrotal, groin, lower abdomen
+
+DURATION:
+  Positive indicators: constant
+  Negative indicators: intermittent, episodic
+
+CHARACTER:
+  Positive indicators: severe, sharp
+
+AGGRAVATING:
+  Positive indicators: movement, palpation
+
+RELIEVING:
+  Positive indicators: nothing relieves, elevation
+  Negative indicators: position changes, medications
+
+TIMING:
+  Positive indicators: constant, progressively worsening
+
+SEVERITY:
+  Positive indicators: 9-10/10, severe
+
+----------------------------------------
+
 --------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
