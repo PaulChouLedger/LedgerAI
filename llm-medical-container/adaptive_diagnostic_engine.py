@@ -2395,6 +2395,109 @@ Normalized text:"""
         
         return {}
     
+    def _analyze_missing_location_information(self, patient_answer: str, high_scoring_guidelines: list, oldcarts_element: str) -> list:
+        """
+        Analyze what specific location information is missing from patient answer
+        to generate targeted clarifying questions.
+        
+        Example: "right side" -> missing "upper vs lower" information
+        """
+        if oldcarts_element != 'location':
+            return []
+        
+        patient_lower = patient_answer.lower()
+        missing_categories = []
+        
+        # Analyze high-scoring guidelines to determine what discriminates between them
+        location_patterns = {
+            'upper_vs_lower': {'upper': [], 'lower': []},
+            'left_vs_right': {'left': [], 'right': []},
+            'specific_points': {'specific': []},
+            'radiation': {'radiation': []}
+        }
+        
+        for guideline in high_scoring_guidelines:
+            data = guideline.get('data', {})
+            key_features = data.get('key_features', {})
+            structured = key_features.get('structured_oldcarts', {})
+            
+            if 'location' in structured and isinstance(structured['location'], dict):
+                includes = structured['location'].get('includes', [])
+                
+                for term in includes:
+                    term_lower = term.lower()
+                    
+                    # Categorize terms
+                    if any(word in term_lower for word in ['upper', 'ruq', 'luq', 'epigastric', 'subcostal']):
+                        location_patterns['upper_vs_lower']['upper'].append(term)
+                    elif any(word in term_lower for word in ['lower', 'rlq', 'llq', 'pelvic']):
+                        location_patterns['upper_vs_lower']['lower'].append(term)
+                    
+                    if any(word in term_lower for word in ['left', 'llq', 'luq']):
+                        location_patterns['left_vs_right']['left'].append(term)
+                    elif any(word in term_lower for word in ['right', 'rlq', 'ruq']):
+                        location_patterns['left_vs_right']['right'].append(term)
+                    
+                    if any(word in term_lower for word in ['mcburney', 'point', 'specific']):
+                        location_patterns['specific_points']['specific'].append(term)
+                    
+                    if any(word in term_lower for word in ['radiates', 'radiation', 'spreads']):
+                        location_patterns['radiation']['radiation'].append(term)
+        
+        # Determine what's missing based on normalized patient answer
+        if 'right' in patient_lower or 'left' in patient_lower or 'right_side' in patient_lower or 'left_side' in patient_lower:
+            # Patient specified side, check if upper/lower is missing
+            # Look for both medical terms AND normalized synonym terms
+            upper_indicators = ['upper', 'ruq', 'luq', 'epigastric', 'subcostal', 'top', 'ribs', 'under ribs', 'above', 'towards the top', 'ruq_pain', 'luq_pain']
+            lower_indicators = ['lower', 'rlq', 'llq', 'pelvic', 'below', 'bottom', 'towards the bottom', 'groin', 'rlq_pain', 'llq_pain']
+            
+            has_upper = any(word in patient_lower for word in upper_indicators)
+            has_lower = any(word in patient_lower for word in lower_indicators)
+            
+            if not (has_upper or has_lower):
+                if location_patterns['upper_vs_lower']['upper'] and location_patterns['upper_vs_lower']['lower']:
+                    missing_categories.append('upper_vs_lower')
+        
+        if not any(word in patient_lower for word in ['left', 'right', 'luq', 'ruq', 'llq', 'rlq']):
+            # Patient didn't specify side
+            if location_patterns['left_vs_right']['left'] and location_patterns['left_vs_right']['right']:
+                missing_categories.append('left_vs_right')
+        
+        if not any(word in patient_lower for word in ['radiates', 'radiation', 'spreads']):
+            # Patient didn't mention radiation
+            if location_patterns['radiation']['radiation']:
+                missing_categories.append('radiation')
+        
+        return missing_categories
+    
+    def _generate_targeted_location_options(self, missing_categories: list, high_scoring_guidelines: list) -> list:
+        """
+        Generate targeted patient-friendly options based on missing location categories.
+        
+        Example: If 'upper_vs_lower' is missing, generate options like "upper right", "lower right"
+        """
+        targeted_options = []
+        
+        for category in missing_categories:
+            if category == 'upper_vs_lower':
+                # Patient specified side but not upper/lower
+                targeted_options.extend(['upper right', 'lower right', 'upper left', 'lower left'])
+            elif category == 'left_vs_right':
+                # Patient didn't specify side
+                targeted_options.extend(['right side', 'left side'])
+            elif category == 'radiation':
+                # Patient didn't mention radiation
+                targeted_options.extend(['radiates to shoulder', 'radiates to back', 'stays in one spot'])
+            elif category == 'specific_points':
+                # Patient didn't mention specific anatomical points
+                targeted_options.extend(['specific point', 'general area'])
+        
+        # Remove duplicates and limit to 4 options
+        unique_options = list(dict.fromkeys(targeted_options))[:4]
+        
+        self._capture_debug(f"[Engine] 🎯 Targeted options for missing categories {missing_categories}: {unique_options}")
+        return unique_options
+    
     def collect_user_feedback(self, 
                                prediction_id: str,
                                prediction: Dict[str, Any],
@@ -3848,6 +3951,12 @@ Your question:"""
         
         self._capture_debug(f"[Engine]   Missing terms: {missing_terms}")
         
+        # Analyze what specific information is missing to generate targeted questions
+        # Use normalized answer for analysis since it contains standardized medical terms
+        missing_categories = self._analyze_missing_location_information(normalized_answer, high_scoring_guidelines, oldcarts_element)
+        
+        self._capture_debug(f"[Engine]   Missing categories: {missing_categories}")
+        
         # Generate targeted question based on missing information from structured_oldcarts
         if missing_terms:
             # Collect all includes and excludes terms from HIGH-SCORING GUIDELINES ONLY for this element
@@ -3867,7 +3976,15 @@ Your question:"""
                     if 'excludes' in element_data:
                         all_excludes.update(element_data['excludes'])
             
-            # Generate question based on available terms from high-scoring guidelines
+            # Generate targeted question based on missing categories
+            if missing_categories:
+                targeted_options = self._generate_targeted_location_options(missing_categories, high_scoring_guidelines)
+                if targeted_options:
+                    options_str = ", ".join(targeted_options)
+                    self._capture_debug(f"[Engine] 🎯 Generated targeted question: {options_str}")
+                    return f"Can you be more specific about the {oldcarts_element}? For example: {options_str}?"
+            
+            # Fallback to general question generation
             if all_includes or all_excludes:
                 self._capture_debug(f"[Engine] 🎯 Using terms from {len(high_scoring_guidelines)} high-scoring guidelines:")
                 self._capture_debug(f"[Engine]   Includes: {all_includes}")
