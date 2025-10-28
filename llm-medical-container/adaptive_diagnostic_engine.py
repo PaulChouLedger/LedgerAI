@@ -2397,10 +2397,10 @@ Normalized text:"""
     
     def _analyze_missing_location_information(self, patient_answer: str, high_scoring_guidelines: list, oldcarts_element: str) -> list:
         """
-        Analyze what specific location information is missing from patient answer
+        Analyze what specific information is missing from patient answer
         to generate targeted clarifying questions.
         
-        Example: "right side" -> missing "upper vs lower" information
+        Uses synonym files and structured OLDCARTS data dynamically instead of hardcoded lists.
         """
         if oldcarts_element != 'location':
             return []
@@ -2408,95 +2408,218 @@ Normalized text:"""
         patient_lower = patient_answer.lower()
         missing_categories = []
         
-        # Analyze high-scoring guidelines to determine what discriminates between them
-        location_patterns = {
-            'upper_vs_lower': {'upper': [], 'lower': []},
-            'left_vs_right': {'left': [], 'right': []},
-            'specific_points': {'specific': []},
-            'radiation': {'radiation': []}
-        }
+        # Get organ system from high-scoring guidelines
+        organ_system = self._get_organ_system_from_guidelines(high_scoring_guidelines)
+        if not organ_system:
+            return []
         
-        for guideline in high_scoring_guidelines:
+        # Load appropriate synonym file
+        synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+        synonym_path = os.path.join(os.path.dirname(__file__), synonym_file)
+        
+        if not os.path.exists(synonym_path):
+            self._capture_debug(f"[Engine] ⚠️ Synonym file not found: {synonym_path}")
+            return []
+        
+        with open(synonym_path, 'r') as f:
+            synonyms = json.load(f)
+        
+        # Analyze what categories exist in the synonym file for this OLDCARTS element
+        available_categories = self._get_available_categories_from_synonyms(synonyms, oldcarts_element)
+        self._capture_debug(f"[Engine] 📋 Available categories in {organ_system} synonyms: {available_categories}")
+        
+        # Check what the patient has provided vs what's available
+        for category in available_categories:
+            if self._is_category_missing_from_patient_answer(patient_lower, category, synonyms[oldcarts_element]):
+                # Check if this category discriminates between high-scoring guidelines
+                if self._category_discriminates_between_guidelines(category, high_scoring_guidelines, oldcarts_element, synonyms):
+                    missing_categories.append(category)
+                    self._capture_debug(f"[Engine] ✅ Missing category '{category}' discriminates between guidelines")
+        
+        return missing_categories
+    
+    def _get_organ_system_from_guidelines(self, guidelines: list) -> str:
+        """Extract organ system from high-scoring guidelines"""
+        if not guidelines:
+            return None
+        
+        # Get organ system from first guideline
+        first_guideline = guidelines[0]
+        condition_name = first_guideline.get('data', {}).get('condition', first_guideline['name'])
+        return self._get_organ_system_from_condition(condition_name)
+    
+    def _get_available_categories_from_synonyms(self, synonyms: dict, oldcarts_element: str) -> list:
+        """Get available categories from synonym file for specific OLDCARTS element"""
+        if oldcarts_element not in synonyms:
+            return []
+        
+        return list(synonyms[oldcarts_element].keys())
+    
+    def _is_category_missing_from_patient_answer(self, patient_lower: str, category: str, element_synonyms: dict) -> bool:
+        """Check if a specific category is missing from patient answer"""
+        if category not in element_synonyms:
+            return False
+        
+        # Check if any synonym from this category appears in patient answer
+        category_synonyms = element_synonyms[category]
+        for synonym in category_synonyms:
+            if synonym.lower() in patient_lower:
+                return False  # Category is present
+        
+        return True  # Category is missing
+    
+    def _category_discriminates_between_guidelines(self, category: str, guidelines: list, oldcarts_element: str, synonyms: dict) -> bool:
+        """Check if a category helps discriminate between high-scoring guidelines using synonym files"""
+        
+        # Get synonyms for this category
+        if oldcarts_element not in synonyms or category not in synonyms[oldcarts_element]:
+            return False
+        
+        category_synonyms = synonyms[oldcarts_element][category]
+        matching_guidelines = set()
+        
+        # Check which guidelines match this category
+        for guideline in guidelines:
             data = guideline.get('data', {})
             key_features = data.get('key_features', {})
             structured = key_features.get('structured_oldcarts', {})
             
-            if 'location' in structured and isinstance(structured['location'], dict):
-                includes = structured['location'].get('includes', [])
+            if oldcarts_element in structured and isinstance(structured[oldcarts_element], dict):
+                includes = structured[oldcarts_element].get('includes', [])
                 
+                # Check if any include term matches any synonym in this category
                 for term in includes:
                     term_lower = term.lower()
-                    
-                    # Categorize terms
-                    if any(word in term_lower for word in ['upper', 'ruq', 'luq', 'epigastric', 'subcostal']):
-                        location_patterns['upper_vs_lower']['upper'].append(term)
-                    elif any(word in term_lower for word in ['lower', 'rlq', 'llq', 'pelvic']):
-                        location_patterns['upper_vs_lower']['lower'].append(term)
-                    
-                    if any(word in term_lower for word in ['left', 'llq', 'luq']):
-                        location_patterns['left_vs_right']['left'].append(term)
-                    elif any(word in term_lower for word in ['right', 'rlq', 'ruq']):
-                        location_patterns['left_vs_right']['right'].append(term)
-                    
-                    if any(word in term_lower for word in ['mcburney', 'point', 'specific']):
-                        location_patterns['specific_points']['specific'].append(term)
-                    
-                    if any(word in term_lower for word in ['radiates', 'radiation', 'spreads']):
-                        location_patterns['radiation']['radiation'].append(term)
+                    for synonym in category_synonyms:
+                        if synonym.lower() in term_lower or term_lower in synonym.lower():
+                            matching_guidelines.add(guideline['name'])
+                            break
         
-        # Determine what's missing based on normalized patient answer
-        if 'right' in patient_lower or 'left' in patient_lower or 'right_side' in patient_lower or 'left_side' in patient_lower:
-            # Patient specified side, check if upper/lower is missing
-            # Look for both medical terms AND normalized synonym terms
-            upper_indicators = ['upper', 'ruq', 'luq', 'epigastric', 'subcostal', 'top', 'ribs', 'under ribs', 'above', 'towards the top', 'ruq_pain', 'luq_pain']
-            lower_indicators = ['lower', 'rlq', 'llq', 'pelvic', 'below', 'bottom', 'towards the bottom', 'groin', 'rlq_pain', 'llq_pain']
+        # A category discriminates if:
+        # 1. It matches at least one guideline (so it's relevant)
+        # 2. There are other competing categories that match different guidelines
+        if len(matching_guidelines) == 0:
+            return False  # Not relevant to any guideline
+        
+        # Check if there are competing categories
+        return self._has_competing_categories(category, guidelines, oldcarts_element, synonyms)
+    
+    def _has_competing_categories(self, target_category: str, guidelines: list, oldcarts_element: str, synonyms: dict) -> bool:
+        """Check if there are other categories that compete with the target category"""
+        if oldcarts_element not in synonyms:
+            return False
+        
+        # Get all categories except the target
+        all_categories = list(synonyms[oldcarts_element].keys())
+        competing_categories = [cat for cat in all_categories if cat != target_category]
+        
+        # Check if any competing category matches different guidelines
+        for competing_category in competing_categories:
+            competing_synonyms = synonyms[oldcarts_element][competing_category]
+            competing_guidelines = set()
             
-            has_upper = any(word in patient_lower for word in upper_indicators)
-            has_lower = any(word in patient_lower for word in lower_indicators)
+            for guideline in guidelines:
+                data = guideline.get('data', {})
+                key_features = data.get('key_features', {})
+                structured = key_features.get('structured_oldcarts', {})
+                
+                if oldcarts_element in structured and isinstance(structured[oldcarts_element], dict):
+                    includes = structured[oldcarts_element].get('includes', [])
+                    
+                    for term in includes:
+                        term_lower = term.lower()
+                        for synonym in competing_synonyms:
+                            if synonym.lower() in term_lower or term_lower in synonym.lower():
+                                competing_guidelines.add(guideline['name'])
+                                break
             
-            if not (has_upper or has_lower):
-                if location_patterns['upper_vs_lower']['upper'] and location_patterns['upper_vs_lower']['lower']:
-                    missing_categories.append('upper_vs_lower')
+            # If competing category matches different guidelines, we have competition
+            if len(competing_guidelines) > 0:
+                return True
         
-        if not any(word in patient_lower for word in ['left', 'right', 'luq', 'ruq', 'llq', 'rlq']):
-            # Patient didn't specify side
-            if location_patterns['left_vs_right']['left'] and location_patterns['left_vs_right']['right']:
-                missing_categories.append('left_vs_right')
-        
-        if not any(word in patient_lower for word in ['radiates', 'radiation', 'spreads']):
-            # Patient didn't mention radiation
-            if location_patterns['radiation']['radiation']:
-                missing_categories.append('radiation')
-        
-        return missing_categories
+        return False
     
     def _generate_targeted_location_options(self, missing_categories: list, high_scoring_guidelines: list) -> list:
         """
         Generate targeted patient-friendly options based on missing location categories.
         
-        Example: If 'upper_vs_lower' is missing, generate options like "upper right", "lower right"
+        Uses synonym files to generate patient-friendly options dynamically.
         """
         targeted_options = []
         
+        # Get organ system and load synonyms
+        organ_system = self._get_organ_system_from_guidelines(high_scoring_guidelines)
+        if not organ_system:
+            return []
+        
+        synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+        synonym_path = os.path.join(os.path.dirname(__file__), synonym_file)
+        
+        if not os.path.exists(synonym_path):
+            return []
+        
+        with open(synonym_path, 'r') as f:
+            synonyms = json.load(f)
+        
+        # Generate options for each missing category
         for category in missing_categories:
-            if category == 'upper_vs_lower':
-                # Patient specified side but not upper/lower
-                targeted_options.extend(['upper right', 'lower right', 'upper left', 'lower left'])
-            elif category == 'left_vs_right':
-                # Patient didn't specify side
-                targeted_options.extend(['right side', 'left side'])
-            elif category == 'radiation':
-                # Patient didn't mention radiation
-                targeted_options.extend(['radiates to shoulder', 'radiates to back', 'stays in one spot'])
-            elif category == 'specific_points':
-                # Patient didn't mention specific anatomical points
-                targeted_options.extend(['specific point', 'general area'])
+            if 'location' in synonyms and category in synonyms['location']:
+                # Get patient-friendly synonyms for this category
+                category_synonyms = synonyms['location'][category]
+                
+                # Select most patient-friendly options (avoid medical jargon)
+                patient_friendly_options = self._select_patient_friendly_options(category_synonyms)
+                targeted_options.extend(patient_friendly_options)
         
         # Remove duplicates and limit to 4 options
         unique_options = list(dict.fromkeys(targeted_options))[:4]
         
         self._capture_debug(f"[Engine] 🎯 Targeted options for missing categories {missing_categories}: {unique_options}")
         return unique_options
+    
+    def _select_patient_friendly_options(self, synonyms: list) -> list:
+        """Select the most patient-friendly options from synonyms using LLM"""
+        if not synonyms:
+            return []
+        
+        # Use LLM to select the most patient-friendly options
+        system_msg = "You are a medical assistant helping patients understand their symptoms. Select the most patient-friendly terms that avoid medical jargon."
+        
+        user_msg = f"""From these medical terms, select the 2 most patient-friendly options that a regular person would understand:
+
+Medical terms: {', '.join(synonyms)}
+
+Select 2 terms that are:
+- Simple and clear
+- Avoid medical jargon (like RUQ, RLQ, quadrant, epigastric)
+- Use everyday language
+- Easy for patients to understand
+
+Return only the 2 selected terms, separated by commas."""
+
+        try:
+            response = self.simple_llm.chat_completion(
+                system_message=system_msg,
+                user_message=user_msg,
+                temperature=0.1
+            )
+            
+            # Parse response
+            selected_terms = [term.strip() for term in response.split(',')]
+            
+            # Validate that selected terms are actually in the original list
+            valid_terms = [term for term in selected_terms if term in synonyms]
+            
+            if valid_terms:
+                return valid_terms[:2]
+            else:
+                # Fallback to first 2 synonyms if LLM response is invalid
+                return synonyms[:2]
+                
+        except Exception as e:
+            self._capture_debug(f"[Engine] ⚠️ LLM selection failed: {e}")
+            # Fallback to first 2 synonyms
+            return synonyms[:2]
     
     def collect_user_feedback(self, 
                                prediction_id: str,
