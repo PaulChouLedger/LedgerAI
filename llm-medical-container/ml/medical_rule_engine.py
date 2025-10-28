@@ -84,24 +84,6 @@ class MedicalRuleEngine:
             print(f"[MedicalRules] Using empty rules dict")
             return {}
     
-    def get_anatomical_type(self, condition_name: str, organ_system: str = None) -> str:
-        """
-        Get anatomical type for condition using hardcoded rules first
-        """
-        # Check hardcoded rules first
-        if organ_system and organ_system in self.medical_rules:
-            for anatomical_type, conditions in self.medical_rules[organ_system].items():
-                if condition_name in conditions:
-                    return anatomical_type
-        
-        # Check all organ systems if no specific system provided
-        for system, rules in self.medical_rules.items():
-            for anatomical_type, conditions in rules.items():
-                if condition_name in conditions:
-                    return anatomical_type
-        
-        return 'unknown'
-    
     def get_enhanced_similarity(self, patient_text: str, guideline_text: str, 
                               condition_name: str, organ_system: str = None, oldcarts_element: str = None, structured_oldcarts: dict = None) -> Dict[str, Any]:
         """
@@ -115,278 +97,22 @@ class MedicalRuleEngine:
         # No need for synonym normalization - embeddings understand "below ribs" = "upper quadrant" etc.
         patient_text_for_scoring = patient_text.lower()
         
-        # 1. COMPUTE SEMANTIC SIMILARITY FIRST (Primary scoring method)
-        # Use embedding model for deep semantic similarity
+        # COMPUTE SEMANTIC SIMILARITY WITH WORD-MATCH BOOST
+        # Word-match boost handles ALL anatomical discrimination via structured_oldcarts:
+        # - Includes terms → match → boost (+0.3, +0.2, or +0.1)
+        # - Excludes terms → match → penalty (-0.3)
+        # - Example: "right side" + Diverticulitis (excludes: "right side") → -0.3 penalty
         semantic_result = self._compute_embedding_similarity(patient_text_for_scoring, guideline_text, organ_system, oldcarts_element, structured_oldcarts)
         semantic_score = semantic_result['similarity']
         
-        # 2. Get anatomical type for validation/modification
-        anatomical_type = self.get_anatomical_type(condition_name, organ_system)
-        
-        # 3. HIGH SEMANTIC SIMILARITY - Don't let anatomical rules override perfect matches
-        if semantic_score >= 0.7:  # High semantic similarity (70%+)
-            # For high similarity, only check for anatomical opposites as a safety check
-            if anatomical_type in ['right_only', 'left_only'] and self._is_anatomical_opposite(patient_text, guideline_text):
-                return {
-                    'similarity': 0.0,
-                    'method': 'anatomical_override',
-                    'confidence': 'high', 
-                    'reasoning': f'High semantic similarity ({semantic_score:.2f}) overridden by anatomical opposite',
-                    'anatomical_type': anatomical_type,
-                    'semantic_score': semantic_score
-                }
-            else:
-                # Use semantic similarity for high matches
-                return {
-                    'similarity': semantic_score,
-                    'method': 'semantic_similarity',
-                    'confidence': 'high',
-                    'reasoning': f'High semantic similarity: {semantic_result["reasoning"]}',
-                    'anatomical_type': anatomical_type,
-                    'semantic_score': semantic_score
-                }
-        
-        # 4. MEDIUM SEMANTIC SIMILARITY - Blend with anatomical rules
-        elif semantic_score >= 0.3:  # Medium semantic similarity (30-70%)
-            
-            # Check for anatomical opposites first (overrides everything)
-            if anatomical_type in ['right_only', 'left_only'] and self._is_anatomical_opposite(patient_text, guideline_text):
-                return {
-                    'similarity': 0.0,
-                    'method': 'anatomical_opposite',
-                    'confidence': 'high',
-                    'reasoning': 'Anatomical opposite detected',
-                    'anatomical_type': anatomical_type,
-                    'semantic_score': semantic_score
-                }
-            
-            # Blend semantic similarity with anatomical rules
-            if anatomical_type == 'bilateral':
-                # For bilateral conditions, average semantic similarity with bilateral bonus
-                blended_score = (semantic_score * 0.7) + (0.5 * 0.3)  # Weight semantic 70%, anatomical 30%
-                return {
-                    'similarity': min(blended_score, 0.8),  # Cap at 80% for medium semantic
-                    'method': 'semantic_bilateral_blend',
-                    'confidence': 'high',
-                    'reasoning': f'Semantic ({semantic_score:.2f}) blended with bilateral rule',
-                    'anatomical_type': anatomical_type,
-                    'semantic_score': semantic_score
-                }
-            
-            elif anatomical_type == 'midline':
-                # For midline conditions, average semantic similarity with midline bonus
-                blended_score = (semantic_score * 0.8) + (0.4 * 0.2)  # Weight semantic 80%, anatomical 20%  
-                return {
-                    'similarity': min(blended_score, 0.7),  # Cap at 70% for medium semantic
-                    'method': 'semantic_midline_blend',
-                    'confidence': 'high',
-                    'reasoning': f'Semantic ({semantic_score:.2f}) blended with midline rule',
-                    'anatomical_type': anatomical_type,
-                    'semantic_score': semantic_score
-                }
-            
-            elif anatomical_type in ['right_only', 'left_only']:
-                # For unilateral conditions, use semantic similarity with slight boost for same side
-                boosted_score = min(semantic_score * 1.1, 0.75)  # 10% boost, cap at 75%
-                return {
-                    'similarity': boosted_score,
-                    'method': 'semantic_same_side',
-                    'confidence': 'medium',
-                    'reasoning': f'Semantic similarity ({semantic_score:.2f}) with same-side boost',
-                    'anatomical_type': anatomical_type,
-                    'semantic_score': semantic_score
-                }
-            
-            else:
-                # Unknown anatomical type - use semantic similarity directly
-                return {
-                    'similarity': semantic_score,
-                    'method': 'semantic_similarity',
-                    'confidence': 'medium',
-                    'reasoning': f'Semantic similarity: {semantic_result["reasoning"]}',
-                    'anatomical_type': anatomical_type,
-                    'semantic_score': semantic_score
-                }
-        
-        # 5. LOW SEMANTIC SIMILARITY - Use anatomical rules as fallback
-        else:  # semantic_score < 0.3
-            
-            # Check for anatomical opposites (should be 0%)
-            if anatomical_type in ['right_only', 'left_only'] and self._is_anatomical_opposite(patient_text, guideline_text):
-                return {
-                    'similarity': 0.0,
-                    'method': 'anatomical_opposite',
-                    'confidence': 'high',
-                    'reasoning': 'Anatomical opposite detected',
-                    'anatomical_type': anatomical_type,
-                    'semantic_score': semantic_score
-                }
-            
-            # For low semantic similarity, use anatomical rules as fallback
-            if anatomical_type == 'bilateral':
-                return {
-                    'similarity': 0.5,
-                    'method': 'bilateral_rule_fallback',
-                    'confidence': 'medium',
-                    'reasoning': f'Low semantic ({semantic_score:.2f}) - bilateral fallback',
-                    'anatomical_type': anatomical_type,
-                    'semantic_score': semantic_score
-                }
-            
-            elif anatomical_type == 'midline':
-                return {
-                    'similarity': 0.4,
-                    'method': 'midline_rule_fallback', 
-                    'confidence': 'medium',
-                    'reasoning': f'Low semantic ({semantic_score:.2f}) - midline fallback',
-                    'anatomical_type': anatomical_type,
-                    'semantic_score': semantic_score
-                }
-            
-            elif anatomical_type in ['right_only', 'left_only']:
-                # Check if patient's side matches condition's side
-                patient_lower = patient_text_for_scoring.lower()
-                guideline_lower = guideline_text.lower()
-                
-                # Check basic side match (embedding similarity handles quadrant matching)
-                patient_has_left = any(term in patient_lower for term in ['left', 'llq', 'luq'])
-                patient_has_right = any(term in patient_lower for term in ['right', 'rlq', 'ruq'])
-                
-                if anatomical_type == 'left_only' and patient_has_left:
-                    # Patient mentions left, condition is left-only → Same side match
-                    # Use semantic score (embedding already captured quadrant specificity)
-                    return {
-                        'similarity': max(semantic_score, 0.3),
-                        'method': 'same_side_fallback',
-                        'confidence': 'medium',
-                        'reasoning': f'Low semantic ({semantic_score:.2f}) - same side fallback (left)',
-                        'anatomical_type': anatomical_type,
-                        'semantic_score': semantic_score
-                    }
-                elif anatomical_type == 'right_only' and patient_has_right:
-                    # Patient mentions right, condition is right-only → Same side match
-                    # Use semantic score (embedding already captured quadrant specificity)
-                    return {
-                        'similarity': max(semantic_score, 0.3),
-                        'method': 'same_side_fallback',
-                        'confidence': 'medium',
-                        'reasoning': f'Low semantic ({semantic_score:.2f}) - same side fallback (right)',
-                        'anatomical_type': anatomical_type,
-                        'semantic_score': semantic_score
-                    }
-                elif (anatomical_type == 'left_only' and patient_has_right) or (anatomical_type == 'right_only' and patient_has_left):
-                    # Clear anatomical mismatch → Very low score
-                    return {
-                        'similarity': 0.05,
-                        'method': 'anatomical_mismatch',
-                        'confidence': 'high',
-                        'reasoning': f'Low semantic ({semantic_score:.2f}) + anatomical mismatch ({anatomical_type} vs patient side)',
-                        'anatomical_type': anatomical_type,
-                        'semantic_score': semantic_score
-                    }
-                else:
-                    # No clear anatomical information from patient → Use semantic similarity
-                    return {
-                        'similarity': semantic_score,
-                        'method': 'semantic_only',
-                        'confidence': 'low',
-                        'reasoning': f'Low semantic ({semantic_score:.2f}) - no clear anatomical info from patient',
-                        'anatomical_type': anatomical_type,
-                        'semantic_score': semantic_score
-                    }
-            
-            # 6. Use ML prediction if available (for unknown anatomical type)
-            if self.ml_model:
-                ml_result = self._get_ml_prediction(patient_text, guideline_text, condition_name, organ_system)
-                return {
-                    'similarity': ml_result['similarity'],
-                    'method': 'ml_prediction_fallback',
-                    'confidence': 'medium',
-                    'reasoning': f"Low semantic ({semantic_score:.2f}) - ML fallback: {ml_result['predicted_type']}",
-                    'anatomical_type': ml_result['predicted_type'],
-                    'semantic_score': semantic_score
-                }
-            
-            # 7. Final fallback - use low semantic similarity
-            return {
-                'similarity': max(semantic_score, 0.1),  # Minimum 10%
-                'method': 'semantic_low',
-                'confidence': 'low',
-                'reasoning': f'Low semantic similarity: {semantic_result["reasoning"]}',
-                'anatomical_type': 'unknown',
-                'semantic_score': semantic_score
-            }
-    
-    def _is_anatomical_opposite(self, patient_text: str, guideline_text: str) -> bool:
-        """
-        Check for anatomical opposites - only true opposites, not same-side matches
-        """
-        patient_lower = patient_text.lower()
-        guideline_lower = guideline_text.lower()
-        
-        # First check for same-side matches (should NOT be opposites)
-        same_side_matches = [
-            ('left', 'left'), ('right', 'right'),
-            ('upper', 'upper'), ('lower', 'lower'),
-            ('anterior', 'anterior'), ('posterior', 'posterior')
-        ]
-        
-        for patient_term, guideline_term in same_side_matches:
-            if patient_term in patient_lower and guideline_term in guideline_lower:
-                return False  # Same side = NOT opposite
-        
-        # Then check for true opposites only
-        opposites = [
-            ('left', 'right'), ('right', 'left'),
-            ('upper', 'lower'), ('lower', 'upper'),
-            ('anterior', 'posterior'), ('posterior', 'anterior')
-        ]
-        
-        for patient_term, guideline_term in opposites:
-            if patient_term in patient_lower and guideline_term in guideline_lower:
-                return True
-        
-        return False
-    
-    def _get_ml_prediction(self, patient_text: str, guideline_text: str, 
-                          condition_name: str, organ_system: str) -> Dict:
-        """
-        Get ML prediction for anatomical type
-        """
-        # If ML trainer is not available, return default prediction
-        if not self.ml_trainer or not self.ml_model:
-            return {
-                'predicted_type': 'unilateral',
-                'confidence': 0.5,
-                'similarity_score': 0.5
-            }
-        
-        # Extract anatomical features from guideline text
-        anatomical_features = self._extract_anatomical_features(guideline_text)
-        
-        # Get ML prediction
-        prediction = self.ml_trainer.predict_anatomical_type(
-            self.ml_model, guideline_text, organ_system, anatomical_features
-        )
-        
-        # Convert prediction to similarity score
-        if prediction['predicted_type'] == 'bilateral':
-            similarity = 0.5
-        elif prediction['predicted_type'] == 'midline':
-            similarity = 0.4
-        elif prediction['predicted_type'] in ['right_only', 'left_only']:
-            # Check for opposites
-            if self._is_anatomical_opposite(patient_text, guideline_text):
-                similarity = 0.0
-            else:
-                similarity = 0.3
-        else:
-            similarity = 0.2  # Unknown type
-        
+        # Return semantic score as-is - word-match boost already handled discrimination
         return {
-            'predicted_type': prediction['predicted_type'],
-            'confidence': prediction['confidence'],
-            'similarity': similarity
+            'similarity': semantic_score,
+            'method': 'semantic_similarity',
+            'confidence': 'high' if semantic_score >= 0.7 else 'medium' if semantic_score >= 0.3 else 'low',
+            'reasoning': f'Semantic similarity with word-match boost: {semantic_result["reasoning"]}',
+            'anatomical_type': 'unknown',  # No longer needed - handled by structured_oldcarts
+            'semantic_score': semantic_score
         }
     
     def _compute_word_match_boost(self, patient_text: str, guideline_text: str, organ_system: str = None, oldcarts_element: str = None, structured_oldcarts: dict = None) -> float:
@@ -433,21 +159,31 @@ class MedicalRuleEngine:
                 print(f"[WordMatch] ⚠️ Invalid structured data format for {oldcarts_element}")
                 return self._simple_word_match_boost(patient_text, guideline_text)
             
-            # Only use includes terms for boost - excludes would contradict the condition
             includes_terms = element_data.get('includes', [])
+            excludes_terms = element_data.get('excludes', [])
             
             print(f"[WordMatch] 📋 Includes terms: {includes_terms}")
+            print(f"[WordMatch] 📋 Excludes terms: {excludes_terms}")
             
-            # Check for exact match in includes terms
             normalized_lower = normalized_answer.lower().strip()
+            normalized_words = normalized_answer.lower().replace('_', ' ').split()
+            
+            # CRITICAL: Check excludes FIRST - opposite matches should get PENALTY
+            for term in excludes_terms:
+                term_lower = term.lower()
+                # Check if patient answer matches an exclude term (opposite side)
+                if any(word in term_lower for word in normalized_words):
+                    print(f"[WordMatch] ⛔ EXCLUDE MATCH: '{normalized_answer}' matches exclude term '{term}'")
+                    print(f"[WordMatch]   Applying penalty: -0.3")
+                    return -0.3  # PENALTY for opposite side
+            
+            # Check for match in includes terms
             for term in includes_terms:
                 if normalized_lower in term.lower() or term.lower() in normalized_lower:
                     print(f"[WordMatch] ✅ Exact match found: '{normalized_answer}' ↔ '{term}'")
                     return 0.3  # Strong boost for exact match
             
             # Check for partial word matches using normalized words
-            normalized_words = normalized_answer.lower().replace('_', ' ').split()
-            
             best_match_ratio = 0.0
             best_matching_term = None
             

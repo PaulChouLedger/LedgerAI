@@ -2574,10 +2574,9 @@ Normalized text:"""
                                 # After reorganization, index 1 should always be patient-friendly
                                 
                                 if len(synonym_list) >= 2:
-                                    medical_term = synonym_list[0]  # Medical term
+                                    # Just use the patient-friendly term (index 1), not the medical jargon
                                     patient_friendly = synonym_list[1]  # Patient-friendly description (reorganized)
-                                    combined = f"{medical_term} ({patient_friendly})"
-                                    patient_friendly_options.append(combined)
+                                    patient_friendly_options.append(patient_friendly)
                                 elif len(synonym_list) == 1:
                                     # Only medical term available
                                     patient_friendly_options.append(synonym_list[0])
@@ -3218,12 +3217,20 @@ Return only the 2 selected terms, separated by commas."""
                     self._capture_debug(f"[Engine]   📊 Dynamic MAX_CLARIFICATIONS_PER_ELEMENT: {MAX_CLARIFICATIONS_PER_ELEMENT} (based on {num_competing_patterns} competing patterns)")
                 else:
                     # Check if there's competition - if multiple guidelines with similar similarity, need clarification
-                    # Even if similarity is >= 30%, if there are multiple competing patterns, clarification is needed
-                    if oldcarts_result['has_competition']:
-                        # Multiple competing guidelines - need clarification despite >= 30% similarity
+                    # EXCEPTION: If similarity is VERY high (>=70%), accept answer even with multiple patterns
+                    if oldcarts_result['best_similarity'] >= 0.7:
+                        # Very high similarity - accept answer even with competition
+                        # High similarity means patient's description matches multiple guidelines closely (e.g., "right upper" matches RUQ conditions)
+                        needs_clarification_for_specificity = False
+                        is_clear_answer = True
+                        missing_specificity_terms = []
+                        self._capture_debug(f"[Engine] ✅ OLDCARTS ANSWER ACCEPTED ({oldcarts_element}):")
+                        self._capture_debug(f"[Engine]   Containment {oldcarts_result['best_similarity']:.0%} >= 70% - very high similarity, accepting despite competition")
+                    elif oldcarts_result['has_competition']:
+                        # Multiple competing guidelines - need clarification
                         needs_clarification_for_specificity = True
                         is_clear_answer = False
-                        missing_specificity_terms = oldcarts_result['competing_terms']  # Fixed: using correct key name
+                        missing_specificity_terms = oldcarts_result['competing_terms']
                         
                         num_competing_patterns = len(oldcarts_result['competing_terms'])
                         MAX_CLARIFICATIONS_PER_ELEMENT = max(1, num_competing_patterns)
@@ -4129,7 +4136,7 @@ Your question:"""
                 if targeted_options:
                     options_str = ", ".join(targeted_options)
                     self._capture_debug(f"[Engine] 🎯 Generated targeted question: {options_str}")
-                    return f"Can you be more specific about the {oldcarts_element}? For example: {options_str}?"
+                    return f"Can you be more specific? For example: {options_str}"
             
             # Fallback: Collect all includes terms from HIGH-SCORING GUIDELINES ONLY for this element
             all_includes = set()
@@ -4164,7 +4171,7 @@ Your question:"""
                 if options:
                     options_str = ", ".join(options)
                     self._capture_debug(f"[Engine] 🎯 Generated question with patient-friendly options: {options_str}")
-                    return f"Can you be more specific about the {oldcarts_element}? For example: {options_str}?"
+                    return f"Can you be more specific? For example: {options_str}"
         
         # No structured data available - let it fail
         raise ValueError(f"Failed to generate clarifying question for {oldcarts_element} - missing data or logic error")
