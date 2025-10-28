@@ -7,6 +7,7 @@ Combines hardcoded rules with ML predictions for anatomical relationships
 import json
 import joblib
 import re
+import os
 import numpy as np
 from typing import Dict, Any, List
 
@@ -102,7 +103,7 @@ class MedicalRuleEngine:
         return 'unknown'
     
     def get_enhanced_similarity(self, patient_text: str, guideline_text: str, 
-                              condition_name: str, organ_system: str = None, oldcarts_element: str = None) -> Dict[str, Any]:
+                              condition_name: str, organ_system: str = None, oldcarts_element: str = None, structured_oldcarts: dict = None) -> Dict[str, Any]:
         """
         Enhanced similarity with SEMANTIC SIMILARITY FIRST, anatomical rules as modifiers
         
@@ -116,7 +117,7 @@ class MedicalRuleEngine:
         
         # 1. COMPUTE SEMANTIC SIMILARITY FIRST (Primary scoring method)
         # Use embedding model for deep semantic similarity
-        semantic_result = self._compute_embedding_similarity(patient_text_for_scoring, guideline_text)
+        semantic_result = self._compute_embedding_similarity(patient_text_for_scoring, guideline_text, organ_system, oldcarts_element, structured_oldcarts)
         semantic_score = semantic_result['similarity']
         
         # 2. Get anatomical type for validation/modification
@@ -388,6 +389,137 @@ class MedicalRuleEngine:
             'similarity': similarity
         }
     
+    def _compute_word_match_boost(self, patient_text: str, guideline_text: str, organ_system: str = None, oldcarts_element: str = None, structured_oldcarts: dict = None) -> float:
+        """
+        Compute word-based similarity boost for direct matches
+        
+        Normalizes patient answer using appropriate synonym file and section,
+        then checks if normalized answer appears in structured OLDCARTS data.
+        
+        Example: "right side of my belly" -> normalized to "right side" -> match in includes array
+        """
+        if not organ_system or not oldcarts_element or not structured_oldcarts:
+            # Fallback to simple word matching if no context provided
+            return self._simple_word_match_boost(patient_text, guideline_text)
+        
+        try:
+            # Load appropriate synonym file
+            synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+            synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
+            
+            if not os.path.exists(synonym_path):
+                print(f"[WordMatch] ⚠️ Synonym file not found: {synonym_path}")
+                return self._simple_word_match_boost(patient_text, guideline_text)
+            
+            with open(synonym_path, 'r') as f:
+                synonyms = json.load(f)
+            
+            # Normalize patient answer using synonym file
+            normalized_answer = self._normalize_with_synonyms(patient_text, synonyms, oldcarts_element)
+            
+            print(f"[WordMatch] 🔄 Normalization: '{patient_text}' → '{normalized_answer}'")
+            
+            # Get structured OLDCARTS data for this element
+            if oldcarts_element not in structured_oldcarts:
+                print(f"[WordMatch] ⚠️ No structured data for {oldcarts_element}")
+                return self._simple_word_match_boost(patient_text, guideline_text)
+            
+            element_data = structured_oldcarts[oldcarts_element]
+            if not isinstance(element_data, dict):
+                print(f"[WordMatch] ⚠️ Invalid structured data format for {oldcarts_element}")
+                return self._simple_word_match_boost(patient_text, guideline_text)
+            
+            # Only use includes terms for boost - excludes would contradict the condition
+            includes_terms = element_data.get('includes', [])
+            
+            print(f"[WordMatch] 📋 Includes terms: {includes_terms}")
+            
+            # Check for exact match in includes terms
+            normalized_lower = normalized_answer.lower().strip()
+            for term in includes_terms:
+                if normalized_lower in term.lower() or term.lower() in normalized_lower:
+                    print(f"[WordMatch] ✅ Exact match found: '{normalized_answer}' ↔ '{term}'")
+                    return 0.3  # Strong boost for exact match
+            
+            # Check for partial word matches using normalized words
+            normalized_words = normalized_answer.lower().replace('_', ' ').split()
+            
+            best_match_ratio = 0.0
+            best_matching_term = None
+            
+            for term in includes_terms:
+                term_words = term.lower().split()
+                matches = sum(1 for word in normalized_words if word in term_words)
+                total_words = len(normalized_words)
+                
+                if total_words > 0:
+                    match_ratio = matches / total_words
+                    if match_ratio > best_match_ratio:
+                        best_match_ratio = match_ratio
+                        best_matching_term = term
+            
+            if best_match_ratio >= 0.5:  # At least half the words match
+                print(f"[WordMatch] ✅ Partial match: {best_match_ratio:.1%} with '{best_matching_term}'")
+                print(f"[WordMatch]   Normalized words: {normalized_words}")
+                return 0.2  # Medium boost for partial match
+            elif best_match_ratio >= 0.25:  # At least a quarter match
+                print(f"[WordMatch] 🔍 Weak match: {best_match_ratio:.1%} with '{best_matching_term}'")
+                print(f"[WordMatch]   Normalized words: {normalized_words}")
+                return 0.1  # Small boost for weak match
+            
+            print(f"[WordMatch] ❌ No significant word matches found")
+            print(f"[WordMatch]   Normalized words: {normalized_words}")
+            print(f"[WordMatch]   Available includes terms: {includes_terms}")
+            return 0.0
+            
+        except Exception as e:
+            print(f"[WordMatch] ❌ Error in synonym-based matching: {e}")
+            return self._simple_word_match_boost(patient_text, guideline_text)
+    
+    def _normalize_with_synonyms(self, patient_text: str, synonyms: dict, oldcarts_element: str) -> str:
+        """Normalize patient text using synonym file for specific OLDCARTS element"""
+        if oldcarts_element not in synonyms:
+            return patient_text.lower().strip()
+        
+        patient_lower = patient_text.lower()
+        element_synonyms = synonyms[oldcarts_element]
+        
+        # Find the best matching synonym category
+        for standard_term, synonym_list in element_synonyms.items():
+            for synonym in synonym_list:
+                if synonym in patient_lower:
+                    print(f"[WordMatch] 🔄 Synonym match: '{synonym}' → '{standard_term}'")
+                    return standard_term
+        
+        # No synonym match found, return original text
+        return patient_text.lower().strip()
+    
+    def _simple_word_match_boost(self, patient_text: str, guideline_text: str) -> float:
+        """Simple word matching fallback without synonym normalization"""
+        patient_lower = patient_text.lower().strip()
+        guideline_lower = guideline_text.lower()
+        
+        # Direct word match boost
+        if patient_lower in guideline_lower:
+            return 0.3  # Strong boost for exact match
+        
+        # Check for partial matches (patient words in guideline)
+        patient_words = patient_lower.split()
+        guideline_words = guideline_lower.split()
+        
+        # Count how many patient words appear in guideline
+        matches = sum(1 for word in patient_words if word in guideline_words)
+        total_words = len(patient_words)
+        
+        if total_words > 0:
+            match_ratio = matches / total_words
+            if match_ratio >= 0.5:  # At least half the words match
+                return 0.2  # Medium boost for partial match
+            elif match_ratio >= 0.25:  # At least a quarter match
+                return 0.1  # Small boost for weak match
+        
+        return 0.0  # No boost
+    
     def _extract_anatomical_features(self, text: str) -> Dict:
         """
         Extract anatomical features from text
@@ -619,7 +751,7 @@ class MedicalRuleEngine:
         
         return 0.0
     
-    def _compute_embedding_similarity(self, patient_text: str, guideline_text: str) -> Dict[str, Any]:
+    def _compute_embedding_similarity(self, patient_text: str, guideline_text: str, organ_system: str = None, oldcarts_element: str = None, structured_oldcarts: dict = None) -> Dict[str, Any]:
         """
         Compute semantic similarity using embedding model
         This provides deep semantic understanding without needing synonym lists
@@ -632,8 +764,12 @@ class MedicalRuleEngine:
             Dictionary with similarity score and metadata
         """
         if not self.embedding_model:
-            # Fallback to traditional semantic similarity
-            return self._compute_semantic_similarity(patient_text, guideline_text)
+            # Fallback to simple similarity calculation
+            return {
+                'similarity': 0.2,  # Low similarity fallback
+                'reasoning': 'No embedding model available - using fallback',
+                'method': 'fallback'
+            }
         
         try:
             # SPECIAL HANDLING FOR DURATION: Extract and normalize time references
@@ -648,6 +784,12 @@ class MedicalRuleEngine:
             
             # Compute cosine similarity
             similarity = float(np.dot(patient_emb, guideline_emb) / (np.linalg.norm(patient_emb) * np.linalg.norm(guideline_emb)))
+            
+            # BOOST SIMILARITY FOR DIRECT WORD MATCHES
+            word_match_boost = self._compute_word_match_boost(patient_text, guideline_text, organ_system, oldcarts_element, structured_oldcarts)
+            if word_match_boost > 0:
+                similarity = min(1.0, similarity + word_match_boost)
+                print(f"[Embedding] 🎯 Word match boost: +{word_match_boost:.3f}")
             
             # Ensure similarity is between 0 and 1
             similarity = max(0.0, min(1.0, similarity))

@@ -2317,7 +2317,8 @@ Normalized text:"""
         result = self.medical_rule_engine.get_enhanced_similarity(
             user_answer, oldcarts_section, condition_name, 
             organ_system=self._get_organ_system_from_condition(condition_name),
-            oldcarts_element=oldcarts_element
+            oldcarts_element=oldcarts_element,
+            structured_oldcarts=self._get_structured_oldcarts_for_condition(condition_name)
         )
         
         # Log the result
@@ -2384,6 +2385,15 @@ Normalized text:"""
             return 'GYN'
         else:
             return 'UNKNOWN'
+    
+    def _get_structured_oldcarts_for_condition(self, condition_name: str) -> dict:
+        """Get structured OLDCARTS data for a specific condition"""
+        # Find the guideline that matches this condition
+        for guideline in self.active_guidelines:
+            if guideline.get('data', {}).get('condition', guideline['name']) == condition_name:
+                return guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+        
+        return {}
     
     def collect_user_feedback(self, 
                                prediction_id: str,
