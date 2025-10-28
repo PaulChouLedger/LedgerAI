@@ -17,6 +17,7 @@ RUN pip3 install \
     joblib \
     fuzzywuzzy \
     python-Levenshtein \
+    watchdog \
     --index-url https://pypi.org/simple
 
 # Pre-download sentence transformer model (cached layer)
@@ -31,8 +32,8 @@ COPY models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf /models/Mistral-7B-Instruct-v0.
 COPY synonyms/ /app/synonyms/
 COPY ml/ /app/ml/
 COPY medical/guidelines/ /app/medical/guidelines/
+COPY config/ /app/config/
 # ML files (location_ml_model.pkl, location_ml_data.csv) - kept for future ML training but not actively used
-# config/medical_term_mappings.json - deprecated, all data now in synonyms/
 # oldcarts_keywords.json - kept for compatibility
 
 # === CLINICIAN MODE ARCHITECTURE ===

@@ -31,15 +31,25 @@ class MedicalRuleEngine:
     
     def _get_condition_anatomical_type(self, condition_name: str, organ_system: str) -> str:
         """Get anatomical type from medical_rules.json for a condition"""
-        if not self.medical_rules or organ_system not in self.medical_rules:
+        if not self.medical_rules:
+            print(f"[MedicalRules] ⚠️ No medical rules loaded")
+            return None
+            
+        if organ_system not in self.medical_rules:
+            print(f"[MedicalRules] ⚠️ Organ system '{organ_system}' not found in medical rules")
             return None
         
         organ_rules = self.medical_rules[organ_system]
+        print(f"[MedicalRules] 🔍 Looking for '{condition_name}' in {organ_system} rules")
+        print(f"[MedicalRules] 📋 Available anatomical types: {list(organ_rules.keys())}")
         
         for anatomical_type, condition_list in organ_rules.items():
             if condition_name in condition_list:
+                print(f"[MedicalRules] ✅ Found in {anatomical_type}: {condition_name}")
                 return anatomical_type
         
+        print(f"[MedicalRules] ❌ '{condition_name}' not found in medical rules")
+        print(f"[MedicalRules] 📋 Condition list sample (first 3): {[c[:30] for c in condition_list[:3]] if condition_list else 'empty'}")
         return None
     
     def _check_anatomical_compatibility(self, patient_text: str, exclude_term: str, condition_name: str, organ_system: str) -> bool:
@@ -115,6 +125,15 @@ class MedicalRuleEngine:
         config_dir = current_file.parent.parent / 'config'
         json_path = config_dir / 'medical_rules.json'
         
+        # Debug path resolution
+        print(f"[MedicalRules] 🔍 Current file: {current_file}")
+        print(f"[MedicalRules] 🔍 Config dir: {config_dir}")
+        print(f"[MedicalRules] 🔍 JSON path: {json_path}")
+        print(f"[MedicalRules] 🔍 Exists: {json_path.exists()}")
+        print(f"[MedicalRules] 🔍 Config dir exists: {config_dir.exists()}")
+        if config_dir.exists():
+            print(f"[MedicalRules] 🔍 Config dir contents: {list(config_dir.iterdir())}")
+        
         try:
             with open(json_path, 'r') as f:
                 rules = json.load(f)
@@ -156,14 +175,14 @@ class MedicalRuleEngine:
         semantic_score = semantic_result['similarity']
         
         # Return semantic score as-is - word-match boost already handled discrimination
-        return {
-            'similarity': semantic_score,
-            'method': 'semantic_similarity',
+                return {
+                    'similarity': semantic_score,
+                    'method': 'semantic_similarity',
             'confidence': 'high' if semantic_score >= 0.7 else 'medium' if semantic_score >= 0.3 else 'low',
             'reasoning': f'Semantic similarity with word-match boost: {semantic_result["reasoning"]}',
             'anatomical_type': 'unknown',  # No longer needed - handled by structured_oldcarts
-            'semantic_score': semantic_score
-        }
+                    'semantic_score': semantic_score
+                }
     
     def _compute_word_match_boost(self, patient_text: str, guideline_text: str, organ_system: str = None, oldcarts_element: str = None, structured_oldcarts: dict = None, condition_name: str = None) -> float:
         """

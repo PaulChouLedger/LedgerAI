@@ -4283,14 +4283,16 @@ Your question:"""
             # Need semantic matching, not just substring match
             # "right side" should match "right upper quadrant" and "right lower quadrant"
             has_word_match = False
-            normalized_answer_words = set(normalized_answer.split())
+            # Handle underscores in normalized answer (e.g., "right_side" -> "right side")
+            normalized_answer_with_spaces = normalized_answer.replace('_', ' ')
+            normalized_answer_words = set(normalized_answer_with_spaces.split())
             
             for term in includes:
                 # Normalize both for comparison
                 term_lower = term.lower()
                 
                 # Direct substring match
-                if term_lower in normalized_answer or normalized_answer in term_lower:
+                if term_lower in normalized_answer_with_spaces or normalized_answer_with_spaces in term_lower:
                     has_word_match = True
                     break
                 
@@ -4308,6 +4310,12 @@ Your question:"""
                 if 'left' in normalized_answer_words and 'left' in term_words:
                     has_word_match = True
                     break
+                
+                # Check for single word match if it's a directional term
+                if len(normalized_answer_words) == 1 and len(term_words) == 1:
+                    if normalized_answer_words == term_words:
+                        has_word_match = True
+                        break
             
             if has_word_match:
                 all_guidelines_with_match.append(guideline)
