@@ -832,7 +832,8 @@ class AdaptiveDiagnosticEngine:
             'onset': "When did the pain start?",
             'duration': "How long have you had this pain?",
             'timing': "When does the pain occur?",
-            'severity': "How severe is the pain on a scale of 1-10?"
+            'severity': "How severe is the pain on a scale of 1-10?",
+            'radiation': "Does the pain radiate anywhere? For example: to your back, shoulder, or elsewhere?"
         }
         
         return question_templates.get(component, f"Tell me more about the {component} of your symptoms.")
@@ -1998,8 +1999,22 @@ class AdaptiveDiagnosticEngine:
         if hasattr(self, 'oldcarts_analysis') and self.oldcarts_analysis:
             missing_components = self.oldcarts_analysis.get('missing_components', [])
             if missing_components:
-                # Ask next missing OLDCARTS component
+                # Check if we should ask about radiation before the next component
+                # Radiation should be asked after location is complete, before duration
                 next_component = missing_components[0]
+                
+                # Track which components have been asked
+                asked_components = []
+                for item in self.conversation_history:
+                    if item.get('type') == 'question' and item.get('oldcarts'):
+                        asked_components.append(item['oldcarts'])
+                
+                # Check if location is done and radiation should be asked
+                if 'location' in asked_components and 'radiation' not in asked_components:
+                    if self._has_radiation_component(self.active_guidelines):
+                        next_component = 'radiation'
+                        self._capture_debug(f"[Engine] 🎯 Inserting radiation question after location completion")
+                
                 question = self._generate_oldcarts_question_for_component(next_component)
                 self._capture_debug(f"[Engine] ✅ Next structured question: '{question}'")
                 
@@ -2528,6 +2543,33 @@ Normalized text:"""
         
         return False
     
+    def _has_radiation_component(self, guidelines: list) -> bool:
+        """
+        Check if any of the active guidelines mention radiation in their location section.
+        
+        Returns True if radiation should be asked about.
+        """
+        radiation_patterns = ['radiates', 'radiate to', 'radiation', 'goes to', 'spreads to', 'travels to']
+        
+        for guideline in guidelines:
+            data = guideline.get('data', {})
+            key_features = data.get('key_features', {})
+            structured = key_features.get('structured_oldcarts', {})
+            
+            if 'location' in structured:
+                location_data = structured['location']
+                if isinstance(location_data, dict) and 'includes' in location_data:
+                    includes = location_data['includes']
+                    for term in includes:
+                        term_lower = str(term).lower()
+                        # Check if any includes term mentions radiation
+                        if any(pattern in term_lower for pattern in radiation_patterns):
+                            self._capture_debug(f"[Engine] ✅ Radiation detected in guideline: {guideline['name']}")
+                            return True
+        
+        self._capture_debug(f"[Engine] ❌ No radiation component found in active guidelines")
+        return False
+    
     def _generate_targeted_location_options(self, missing_terms: list, high_scoring_guidelines: list) -> list:
         """
         Generate targeted patient-friendly options based on missing location terms.
@@ -2556,38 +2598,134 @@ Normalized text:"""
         patient_friendly_options = []
         
         if 'location' in synonyms:
+            # Build a comprehensive mapping of medical terms to categories
+            medical_to_category = {}
+            
+            for category, synonym_list in synonyms['location'].items():
+                if isinstance(synonym_list, list):
+                    category_lower = category.lower()
+                    
+                    # Extract key medical terms from category name (e.g., "ruq_pain" -> ["ruq", "pain"])
+                    category_base = category_lower.replace('_pain', '').replace('_discomfort', '').replace('_tenderness', '').replace('_ache', '')
+                    
+                    # Add direct mapping from category base to synonym list (e.g., "mcburney_pain" -> "mcburney")
+                    if category_base not in medical_to_category:
+                        medical_to_category[category_base] = []
+                    medical_to_category[category_base].append((category, synonym_list))
+                    
+                    # Also map with underscores converted to spaces (e.g., "radiates_to_back" -> "radiates to back")
+                    category_base_with_spaces = category_base.replace('_', ' ')
+                    if category_base_with_spaces not in medical_to_category:
+                        medical_to_category[category_base_with_spaces] = []
+                    medical_to_category[category_base_with_spaces].append((category, synonym_list))
+                    
+                    # Also map individual words from the category
+                    for word in category_lower.split('_'):
+                        if word not in ['pain', 'discomfort', 'tenderness', 'ache']:  # Skip generic pain words
+                            if word not in medical_to_category:
+                                medical_to_category[word] = []
+                            medical_to_category[word].append((category, synonym_list))
+            
+            # Now match missing terms to categories
+            seen_categories = set()  # Track which categories we've already added
+            seen_options = set()  # Track options to avoid duplicates
+            
+            # Filter out radiation terms - these are not anatomical locations for location clarification
+            radiation_patterns = ['radiates', 'goes to', 'spreads to', 'travels to', 'moves to', 
+                                 'radiates to', 'radiate to', 'radiation']
+            
+            def is_radiation_term(term):
+                """Check if term describes radiation pattern rather than location"""
+                term_lower = term.lower()
+                return any(pattern in term_lower for pattern in radiation_patterns)
+            
             for missing_term in missing_terms:
-                term_lower = missing_term.lower()
+                term_lower = missing_term.lower().strip()
                 
-                # Try to find this term in the synonym categories
+                # Skip radiation terms for location clarification
+                if is_radiation_term(missing_term):
+                    self._capture_debug(f"[Engine]   Skipping radiation term: {missing_term}")
+                    continue
+                
+                # Try direct match in medical_to_category
+                if term_lower in medical_to_category:
+                    categories = medical_to_category[term_lower]
+                    for category, synonym_list in categories:
+                        if category not in seen_categories and synonym_list:
+                            patient_friendly = synonym_list[0]  # Use first (most patient-friendly) option
+                            if patient_friendly not in seen_options:
+                                patient_friendly_options.append(patient_friendly)
+                                seen_options.add(patient_friendly)
+                            seen_categories.add(category)
+                    continue
+                
+                # Try with underscores (e.g., "radiates to back" -> "radiates_to_back")
+                term_with_underscores = term_lower.replace(' ', '_')
+                if term_with_underscores in medical_to_category:
+                    categories = medical_to_category[term_with_underscores]
+                    for category, synonym_list in categories:
+                        if category not in seen_categories and synonym_list:
+                            patient_friendly = synonym_list[0]
+                            if patient_friendly not in seen_options:
+                                patient_friendly_options.append(patient_friendly)
+                                seen_options.add(patient_friendly)
+                            seen_categories.add(category)
+                    continue
+                
+                # Try matching against category names (e.g., "right upper quadrant" matches "ruq_pain")
                 for category, synonym_list in synonyms['location'].items():
-                    if isinstance(synonym_list, list):
-                        # Check if the missing term appears in this synonym list
-                        for synonym in synonym_list:
-                            synonym_lower = synonym.lower()
-                            # Check for match (either exact or partial)
-                            if (term_lower == synonym_lower or 
-                                term_lower in synonym_lower or 
-                                synonym_lower in term_lower):
-                                # Found a match - get patient-friendly options from this category
-                                # Format: "medical term (patient-friendly description)"
-                                # After reorganization, index 1 should always be patient-friendly
-                                
-                                if len(synonym_list) >= 2:
-                                    # Just use the patient-friendly term (index 1), not the medical jargon
-                                    patient_friendly = synonym_list[1]  # Patient-friendly description (reorganized)
-                                    patient_friendly_options.append(patient_friendly)
-                                elif len(synonym_list) == 1:
-                                    # Only medical term available
-                                    patient_friendly_options.append(synonym_list[0])
-                                break
+                    if isinstance(synonym_list, list) and category not in seen_categories and synonym_list:
+                        category_lower = category.lower()
                         
-                        # Check if we already found a match for this term
-                        if patient_friendly_options and patient_friendly_options[-1] in synonym_list:
+                        # Check if the missing term relates to this category
+                        if term_lower in category_lower or category_lower in term_lower:
+                            patient_friendly = synonym_list[0]
+                            if patient_friendly not in seen_options:
+                                patient_friendly_options.append(patient_friendly)
+                                seen_options.add(patient_friendly)
+                            seen_categories.add(category)
+                            break
+                        
+                        # Check for word overlap (helps with multi-word terms)
+                        term_words = set(term_lower.split())
+                        category_words = set(category_lower.replace('_', ' ').split())
+                        
+                        # Significant overlap suggests a match
+                        if term_words.intersection(category_words) and len(term_words.intersection(category_words)) > 0:
+                            patient_friendly = synonym_list[0]
+                            if patient_friendly not in seen_options:
+                                patient_friendly_options.append(patient_friendly)
+                                seen_options.add(patient_friendly)
+                            seen_categories.add(category)
                             break
         
-        # Remove duplicates and limit to 4 options
-        options = list(dict.fromkeys(patient_friendly_options))[:4]
+        # Remove duplicates while preserving order
+        options = list(dict.fromkeys(patient_friendly_options))
+        
+        # Prioritize options that help differentiate between competing conditions
+        # Group similar options and pick the most specific one
+        if len(options) > 4:
+            # If we have too many options, prioritize based on specificity and relevance
+            # Sort by length (longer descriptions are usually more specific and helpful)
+            options = sorted(options, key=lambda x: len(x), reverse=True)
+            
+            # Take up to 4 options, ensuring variety
+            prioritized = []
+            seen_terms = set()
+            
+            for opt in options:
+                # Check if this option is similar to one already added
+                opt_words = set(opt.lower().split())
+                is_duplicate = any(len(opt_words.intersection(seen_words)) > 1 for seen_words in seen_terms)
+                
+                if not is_duplicate:
+                    prioritized.append(opt)
+                    seen_terms.add(opt_words)
+                
+                if len(prioritized) >= 4:
+                    break
+            
+            options = prioritized
         
         self._capture_debug(f"[Engine] 🎯 Generated targeted options from {len(missing_terms)} missing terms: {options}")
         return options

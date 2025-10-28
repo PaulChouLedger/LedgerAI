@@ -34,7 +34,8 @@
       "location": {
         "includes": [
           "flank",
-          "unilateral"
+          "unilateral",
+          "radiates to groin"
         ],
         "excludes": []
       },

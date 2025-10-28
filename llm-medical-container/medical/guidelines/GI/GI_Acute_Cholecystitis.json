@@ -33,7 +33,9 @@
           "right upper quadrant",
           "RUQ",
           "right subcostal",
-          "epigastric"
+          "epigastric",
+          "radiates to right shoulder",
+          "radiates to scapula"
         ],
         "excludes": [
           "left side",

@@ -155,7 +155,12 @@
       "heartburn pain",
       "stomach ulcer pain",
       "indigestion pain",
-      "epigastrium pain"
+      "epigastrium pain",
+      "upper middle stomach",
+      "below breastbone",
+      "top of stomach",
+      "middle upper abdomen",
+      "epigastric area"
     ],
     "suprapubic_pain": [
       "pain below belly button",
@@ -170,7 +175,55 @@
       "whole stomach pain",
       "all over stomach ache",
       "general stomach cramps",
-      "widespread abdominal pain"
+      "widespread abdominal pain",
+      "all over",
+      "everywhere",
+      "throughout abdomen"
+    ],
+    "periumbilical_pain": [
+      "around the belly button",
+      "around navel",
+      "around my belly button",
+      "near belly button",
+      "near navel",
+      "by belly button",
+      "by navel",
+      "around the navel"
+    ],
+    "umbilical_pain": [
+      "belly button",
+      "around navel",
+      "middle of belly",
+      "at belly button",
+      "on belly button",
+      "navel area",
+      "umbilical area"
+    ],
+    "mcburney_pain": [
+      "lower right near hip",
+      "appendix area",
+      "lower right abdomen",
+      "right lower near hip bone",
+      "right lower abdominal area",
+      "mcburney point"
+    ],
+    "radiates_to_back": [
+      "goes to my back",
+      "spreads to back",
+      "radiates to back",
+      "travels to back",
+      "moves to back",
+      "pain goes to back",
+      "pain spreads to back"
+    ],
+    "radiates_to_shoulder": [
+      "goes to right shoulder",
+      "travels to shoulder",
+      "radiates to right shoulder",
+      "spreads to shoulder",
+      "pain goes to shoulder",
+      "shoulder pain",
+      "right shoulder pain"
     ],
     "chest": [
       "chest pain",
