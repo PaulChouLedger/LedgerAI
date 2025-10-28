@@ -398,6 +398,10 @@ class MedicalRuleEngine:
         
         Example: "right side of my belly" -> normalized to "right side" -> match in includes array
         """
+        # Skip normalization for demographics
+        if oldcarts_element in ['age', 'sex', 'biological_sex']:
+            return 0.0
+        
         if not organ_system or not oldcarts_element or not structured_oldcarts:
             # Fallback to simple word matching if no context provided
             return self._simple_word_match_boost(patient_text, guideline_text)

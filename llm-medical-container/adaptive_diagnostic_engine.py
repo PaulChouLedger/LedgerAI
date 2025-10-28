@@ -2325,10 +2325,9 @@ Normalized text:"""
         if not self.medical_rule_engine:
             raise RuntimeError("Medical Rule Engine not available - ML system required")
         
-        # Use raw user answer - embeddings handle natural language natively
-        # No synonym normalization needed - embeddings understand "right side towards the top" = "RUQ"
-        
-        # Get enhanced similarity using Medical Rule Engine with raw answer
+        # Compute similarity with raw answer (embeddings handle natural language)
+        # Word match boost will normalize inside medical_rule_engine (except for demographics)
+        # The medical_rule_engine._compute_word_match_boost handles normalization internally
         result = self.medical_rule_engine.get_enhanced_similarity(
             user_answer, oldcarts_section, condition_name, 
             organ_system=self.current_category,
@@ -2434,27 +2433,32 @@ Normalized text:"""
                 self._capture_debug(f"[Engine] ✅ Patient specified category: {category}")
                 break
         
-        # SECOND: If patient has specified a category, only check for sub-information within that category
-        # (e.g., radiation, specific points) rather than checking for OTHER categories
+        # SECOND: If patient has specified a category, check if they need sub-clarification
+        # Use synonym-based matching to determine if patient was specific enough
         if patient_specified_category:
-            # Get structured OLDCARTS data from high-scoring guidelines to find sub-details
-            for guideline in high_scoring_guidelines:
-                data = guideline.get('data', {})
-                key_features = data.get('key_features', {})
-                structured = key_features.get('structured_oldcarts', {})
-                
-                if 'location' in structured and isinstance(structured['location'], dict):
-                    includes = structured['location'].get('includes', [])
-                    
-                    # Check for radiation or other descriptive sub-categories
-                    for term in includes:
-                        if 'radiates' in term.lower() or 'radiation' in term.lower():
-                            if not any(word in patient_lower for word in ['radiates', 'radiation', 'spread', 'goes to']):
-                                self._capture_debug(f"[Engine] ✅ Sub-category 'radiation' is missing from patient answer")
-                                # Don't add as a category, but we'll handle this differently
-                                break
-            # If patient specified a category, don't ask about competing categories
-            return []
+            # Get the category's synonyms
+            category_synonyms = synonyms[oldcarts_element][patient_specified_category]
+            
+            # Check if patient's answer matches ONLY this category (specific) or multiple categories (vague)
+            # Count how many categories the patient's answer could match
+            matching_categories = []
+            for category in available_categories:
+                if not self._is_category_missing_from_patient_answer(patient_lower, category, synonyms[oldcarts_element]):
+                    matching_categories.append(category)
+            
+            # If patient's answer matches ONLY ONE specific category, they were specific enough
+            is_specific = len(matching_categories) == 1 and patient_specified_category in matching_categories
+            
+            if is_specific:
+                # Patient was specific enough (e.g., unambiguously matched "right upper quadrant")
+                # Don't ask about competing categories - move to next OLDCARTS element
+                self._capture_debug(f"[Engine] ✅ Patient was specific ({patient_specified_category}) - no competing category clarification needed")
+                return []
+            else:
+                # Patient was vague (e.g., "right" matches both RUQ and RLQ)
+                # Still need to clarify between competing sub-categories
+                self._capture_debug(f"[Engine] 🔍 Patient was vague (matched {len(matching_categories)} categories) - checking for sub-category clarification")
+                # Continue to check for missing categories below
         
         # THIRD: Patient hasn't specified a category yet - check what's missing
         for category in available_categories:
@@ -2957,11 +2961,20 @@ Return only the 2 selected terms, separated by commas."""
             similarity = self._compute_enhanced_oldcarts_similarity(answer, oldcarts_section, oldcarts_element, condition_name)
             self._capture_debug(f"[Engine]   {g['name']}: Enhanced {oldcarts_element} similarity = {similarity:.3f} ('{answer}' vs '{oldcarts_section[:50]}...')")
             
-            # Update score using semantic similarity
+            # Update score using rolling average (weighted average of all OLDCARTS answers)
             old_score = g['score']
             
-            # SEMANTIC SIMILARITY SCORING: Use similarity directly as the score
-            new_score = similarity
+            # ROLLING AVERAGE SCORING: Average current similarity with prior scores
+            # This gives equal weight to each OLDCARTS element as we collect more information
+            # Formula: (old_score * 0.7) + (similarity * 0.3)
+            # This means new answers contribute 30% while prior answers contribute 70%
+            # Example: If we've answered 3 OLDCARTS questions and this is #4:
+            # - 1st answer: 0.50 → 0.35 (weighted)
+            # - 2nd answer: 0.70 → 0.49 (weighted)
+            # - 3rd answer: 0.60 → 0.42 (weighted)
+            # - 4th answer: 0.90 → 0.63 (weighted)
+            # Final score reflects all answers, not just the last one
+            new_score = (old_score * 0.7) + (similarity * 0.3)
             g['score'] = new_score
             change = "↑" if new_score > old_score else "↓" if new_score < old_score else "="
             self._capture_debug(f"[Engine]   {g['name']}: {old_score:.0%} → {new_score:.0%} {change} (semantic)")
@@ -4044,8 +4057,27 @@ Your question:"""
         self._capture_debug(f"[Engine] 🎯 Generating targeted clarifying question for {oldcarts_element}")
         self._capture_debug(f"[Engine]   Patient answer: '{patient_answer}'")
         
-        # Add normalization debug
-        normalized_answer = self._normalize_complaint_with_synonyms(patient_answer)
+        # Normalize using element-specific synonyms (same as scoring)
+        normalized_answer = patient_answer.lower()
+        if hasattr(self, 'current_category') and self.current_category:
+            # Load appropriate synonym file for normalization
+            synonym_file = f"synonyms/{self.current_category.lower()}_synonyms_oldcarts.json"
+            synonym_path = os.path.join(os.path.dirname(__file__), synonym_file)
+            
+            if os.path.exists(synonym_path):
+                with open(synonym_path, 'r') as f:
+                    synonyms = json.load(f)
+                
+                # Normalize using this element's synonyms
+                if oldcarts_element in synonyms:
+                    element_synonyms = synonyms[oldcarts_element]
+                    for category, synonym_list in element_synonyms.items():
+                        if isinstance(synonym_list, list):
+                            for synonym in synonym_list:
+                                if synonym.lower() in normalized_answer:
+                                    normalized_answer = normalized_answer.replace(synonym.lower(), category)
+                                    break
+        
         self._capture_debug(f"[Engine] 🔄 Normalization: '{patient_answer}' → '{normalized_answer}'")
         
         # Codebase uses lowercase full names only
