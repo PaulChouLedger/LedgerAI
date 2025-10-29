@@ -35,6 +35,7 @@ def health_check():
         # Check if models are loaded
         complex_loaded = llm is not None
         simple_loaded = llm_simple is not None
+        using_simple_only = llm is None and llm_simple is not None
         
         return jsonify({
             "status": "ok",
@@ -42,7 +43,8 @@ def health_check():
             "models": {
                 "complex_loaded": complex_loaded,
                 "simple_loaded": simple_loaded,
-                "complex_path": MODEL_PATH,
+                "using_simple_only": using_simple_only,
+                "complex_path": MODEL_PATH if complex_loaded else None,
                 "simple_path": SIMPLE_MODEL_PATH
             }
         })
@@ -590,7 +592,11 @@ def llm_chat(messages, max_tokens=100, temperature=None, stream=False, **kwargs)
     """
     # Apply centralized speed optimizations
     if temperature is None:
-        temperature = float(os.environ["LLM_TEMPERATURE_COMPLEX"])
+        # Use simple model temperature if complex model not available
+        if llm is None:
+            temperature = float(os.environ["LLM_TEMPERATURE_SIMPLE"])
+        else:
+            temperature = float(os.environ["LLM_TEMPERATURE_COMPLEX"])
     
     generation_params = {
         "messages": messages,
@@ -605,7 +611,12 @@ def llm_chat(messages, max_tokens=100, temperature=None, stream=False, **kwargs)
     
     with llm_lock:
         try:
-            response = llm.create_chat_completion(**generation_params)
+            # Use simple model if complex model is not available
+            model_to_use = llm if llm is not None else llm_simple
+            if model_to_use is None:
+                raise RuntimeError("No LLM model available (neither complex nor simple model loaded)")
+            
+            response = model_to_use.create_chat_completion(**generation_params)
             # If streaming, return the generator directly
             if stream:
                 return response
@@ -668,45 +679,9 @@ def llm_chat_once(messages, **kwargs):
 if __name__ == "__main__":
     # Load models ONLY when running as main script (prevents double loading on import)
     
-    print(f"[LLM] 🚀 Loading COMPLEX model: {MODEL_PATH}")
-    print(f"[LLM] ⚙️  Config: n_ctx={N_CTX}, format={CHAT_FORMAT}")
-    
-    # Check if model file exists and get file info
-    if not os.path.exists(MODEL_PATH):
-        print(f"[LLM] ❌ Model file not found: {MODEL_PATH}")
-        print(f"[LLM] 📁 Available files in /models/:")
-        try:
-            for f in os.listdir("/models/"):
-                print(f"[LLM]   - {f}")
-        except:
-            print(f"[LLM]   - Could not list /models/ directory")
-        exit(1)
-    else:
-        # Get file size and modification time
-        file_stat = os.stat(MODEL_PATH)
-        file_size_mb = file_stat.st_size / (1024 * 1024)
-        mod_time = time.ctime(file_stat.st_mtime)
-        print(f"[LLM] 📁 Model file found locally: {file_size_mb:.1f}MB, modified: {mod_time}")
-        print(f"[LLM] 🔍 File path: {MODEL_PATH}")
-    
-    print(f"[LLM] 🧠 Initializing Llama model (this may take a while for large models)...")
-    start_time = time.time()
-    llm = Llama(
-        model_path=MODEL_PATH,
-        n_ctx=N_CTX,
-        n_gpu_layers=32,  # Limit to 32 layers for Orin GPU memory
-        n_threads=6,
-        chat_format=CHAT_FORMAT,
-        use_mlock=True,
-        use_mmap=True,
-        verbose=False,
-        temperature=float(os.environ["LLM_TEMPERATURE_COMPLEX"]),
-        top_p=float(os.getenv("LLM_TOP_P", "0.85")),
-        top_k=int(os.getenv("LLM_TOP_K", "30")),
-        repeat_penalty=float(os.getenv("LLM_REPEAT_PENALTY", "1.15"))
-    )
-    load_time = time.time() - start_time
-    print(f"[LLM] ✅ Complex model loaded: {MODEL_PATH} (took {load_time:.1f}s)")
+    # Skip complex model - using simple model only
+    print(f"[LLM] ⚠️ Complex model disabled - using simple model only")
+    llm = None
     
     print(f"[LLM] 🚀 Loading SIMPLE model: {SIMPLE_MODEL_PATH}")
     print(f"[LLM] ⚙️  Config: n_ctx={SIMPLE_N_CTX}, format={SIMPLE_CHAT_FORMAT}")
@@ -728,7 +703,7 @@ if __name__ == "__main__":
     llm_simple = Llama(
         model_path=SIMPLE_MODEL_PATH,
         n_ctx=SIMPLE_N_CTX,
-        n_gpu_layers=32,  # Use fewer layers for simple model on Orin
+        n_gpu_layers=16,  # Use fewer layers for simple model on Orin32
         n_threads=6,
         chat_format=SIMPLE_CHAT_FORMAT,
         use_mlock=True,
@@ -743,11 +718,11 @@ if __name__ == "__main__":
     print(f"[LLM] ✅ Simple model loaded: {SIMPLE_MODEL_PATH} (took {load_time:.1f}s)")
     
     print("[Aura-LLM] 🚀 Starting Aura LLM Container (Modular Architecture)")
-    print("[Aura-LLM] 📋 Available modes:")
+    print("[Aura-LLM] 📋 Configuration:")
     print("  - CLINICIAN: Intelligent medical assistant with adaptive diagnostic engine")
     print("    • Handles casual greetings, medical knowledge queries, and symptom assessment")
     print("    • Uses GPU-accelerated RAG for medical knowledge and guideline matching")
-    print("    • Dual LLM support: Llama-1B for simple tasks, Mistral-7B for complex reasoning")
+    print("    • Using Llama-3.2-1B model only (complex model disabled)")
 
     app.run(host='0.0.0.0', port=11434, debug=False)
 
