@@ -897,8 +897,22 @@ class AdaptiveDiagnosticEngine:
         
         # Handle statement responses (empathetic statement doesn't need user response)
         if last_q and last_q.get('type') == 'statement':
-            # Statement was shown, now ask age question
-            return self._generate_ml_first_question_with_demographics()
+            # Statement was shown, now ask age question (skip statement check since we already showed it)
+            if 'age' not in self.demographics:
+                question = "How old are you?"
+                self.conversation_history.append({
+                    'type': 'question',
+                    'question': question,
+                    'focus': 'age'
+                })
+                return {
+                    'success': True,
+                    'question': question,
+                    'status': 'questioning'
+                }
+            else:
+                # Age already collected, continue with next demographic
+                return self._generate_ml_first_question_with_demographics()
         
         # Handle demographics
         if last_q and last_q.get('focus') == 'age':
@@ -952,31 +966,52 @@ class AdaptiveDiagnosticEngine:
                 return {'success': False, 'message': 'Sex validation not available'}
         
         if last_q and last_q.get('focus') == 'chronicity':
-            # Let LLM validate and extract chronicity
+            # Simple keyword matching first (more reliable than LLM)
+            user_answer_lower = user_answer.lower().strip()
+            
+            # Check for button callbacks first
+            if user_answer == 'chronicity_new':
+                self.demographics['chronicity'] = 'new'
+                return self._generate_ml_first_question_with_demographics()
+            elif user_answer == 'chronicity_recurring':
+                self.demographics['chronicity'] = 'recurring'
+                return self._generate_ml_first_question_with_demographics()
+            
+            # Simple keyword matching
+            if any(word in user_answer_lower for word in ['new', 'recent', 'today', 'yesterday', 'this week', 'sudden', 'acute']):
+                self.demographics['chronicity'] = 'new'
+                return self._generate_ml_first_question_with_demographics()
+            elif any(word in user_answer_lower for word in ['ongoing', 'recurring', 'chronic', 'months', 'years', 'always', 'frequent', 'often']):
+                self.demographics['chronicity'] = 'recurring'
+                return self._generate_ml_first_question_with_demographics()
+            
+            # Fallback to LLM if simple matching fails
             if self.llm_chat_simple_fn:
                 system_msg = "You are a medical assistant. Determine if the patient's problem is new or recurring. Return ONLY 'new', 'recurring', or 'invalid'."
                 user_msg = f"Patient said: '{user_answer}'\n\nIs this a new problem or recurring/ongoing? (new/recurring):"
                 
-                response = self.llm_chat_simple_fn(
-                    [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
-                    max_tokens=10,
-                    temperature=0.1
-                )
-                
-                chronicity_str = response.strip().lower()
-                if chronicity_str in ['new', 'recurring']:
-                    self.demographics['chronicity'] = chronicity_str
-                    return self._generate_ml_first_question_with_demographics()
-                elif user_answer == 'chronicity_new':
-                    self.demographics['chronicity'] = 'new'
-                    return self._generate_ml_first_question_with_demographics()
-                elif user_answer == 'chronicity_recurring':
-                    self.demographics['chronicity'] = 'recurring'
-                    return self._generate_ml_first_question_with_demographics()
-                
-                return {'success': False, 'message': 'Please specify if this is a new problem or ongoing issue'}
-            else:
-                return {'success': False, 'message': 'Chronicity validation not available'}
+                try:
+                    response = self.llm_chat_simple_fn(
+                        [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+                        max_tokens=10,
+                        temperature=0.1
+                    )
+                    
+                    chronicity_str = response.strip().lower()
+                    if chronicity_str in ['new', 'recurring']:
+                        self.demographics['chronicity'] = chronicity_str
+                        return self._generate_ml_first_question_with_demographics()
+                    elif 'new' in chronicity_str:
+                        self.demographics['chronicity'] = 'new'
+                        return self._generate_ml_first_question_with_demographics()
+                    elif 'recurring' in chronicity_str or 'ongoing' in chronicity_str:
+                        self.demographics['chronicity'] = 'recurring'
+                        return self._generate_ml_first_question_with_demographics()
+                except Exception as e:
+                    # LLM failed, fall through to error message
+                    pass
+            
+            return {'success': False, 'message': 'Please specify if this is a new problem or ongoing issue'}
         
         # Handle clinical answers
         return self._process_clinical_answer(user_answer)
