@@ -26,7 +26,6 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceT
 
 # Copy models (cached - these are large and rarely change)
 COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K_M.gguf
-COPY models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf /models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf
 
 # Copy static files (cached - these change less frequently than Python code)
 COPY synonyms/ /app/synonyms/
@@ -43,7 +42,7 @@ COPY config/ /app/config/
 # - Smart LLM-based age extraction for natural language processing
 # - Fuzzy medical matching for typo correction and robust input handling
 # - RAG API integration for semantic similarity and medical knowledge
-# - Dual LLM support (Llama-1B for simple tasks, Mistral-7B for complex reasoning)
+# - Single LLM support (Llama-3.2-1B for all tasks)
 # - Complete session management with proper reset functionality
 
 # Copy all Python application files in one layer (frequently changed - no caching)
@@ -58,9 +57,9 @@ COPY rag/ /app/rag/
 # Models already copied above (cached layer)
 
 # === Environment defaults (can be overridden by .env or -e) ===
-ENV MODEL_PATH=/models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf
-ENV CHAT_FORMAT=mistral-instruct
-ENV N_CTX=8192
+ENV SIMPLE_MODEL_PATH=/models/Llama-3.2-1B-Instruct-Q4_K_M.gguf
+ENV SIMPLE_CHAT_FORMAT=llama-3
+ENV SIMPLE_N_CTX=2048
 
 # Expose port for API
 EXPOSE 11434

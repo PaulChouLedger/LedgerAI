@@ -32,19 +32,14 @@ llm_lock = threading.Lock()
 def health_check():
     """Health check endpoint to verify models are loaded"""
     try:
-        # Check if models are loaded
-        complex_loaded = llm is not None
+        # Check if model is loaded
         simple_loaded = llm_simple is not None
-        using_simple_only = llm is None and llm_simple is not None
         
         return jsonify({
             "status": "ok",
             "service": "aura-llm",
             "models": {
-                "complex_loaded": complex_loaded,
                 "simple_loaded": simple_loaded,
-                "using_simple_only": using_simple_only,
-                "complex_path": MODEL_PATH if complex_loaded else None,
                 "simple_path": SIMPLE_MODEL_PATH
             }
         })
@@ -112,24 +107,16 @@ def cpu_faiss_status():
         logger.error(f"Error getting CPU FAISS status: {e}")
         return jsonify({'error': str(e)}), 500
 
-# === Dual Model Config (Optimized for Orin NX) ===
-# Complex model (Mistral-7B) for diagnostic reasoning
-MODEL_PATH = os.getenv("MODEL_PATH", "/models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf")
-N_CTX = int(os.getenv("N_CTX", "8192"))
-CHAT_FORMAT = os.getenv("CHAT_FORMAT", "mistral-instruct")
-
-# Simple model (Llama-1B) for templates/validation
+# === Model Config ===
+# Single model (Llama-3.2-1B) for all tasks
 SIMPLE_MODEL_PATH = os.getenv("SIMPLE_MODEL_PATH", "/models/Llama-3.2-1B-Instruct-Q4_K_M.gguf")
 SIMPLE_N_CTX = int(os.getenv("SIMPLE_N_CTX", "2048"))
 SIMPLE_CHAT_FORMAT = os.getenv("SIMPLE_CHAT_FORMAT", "llama-3")
-
-# Model configuration now uses direct environment variable access
 
 # Models will be loaded in __main__ block to prevent double loading
 import os
 import time
 
-llm = None
 llm_simple = None
 
 # Note: TRIAGE_DEFS is loaded automatically by triage.py when imported
@@ -377,12 +364,12 @@ def chat_tts():
         try:
             print("[Container] 🔄 Using dynamic medical assessment for CLINICIAN")
             
-            # Check if this will be a simple operation (Llama-1B) or complex operation (Mistral-7B/RAG)
+            # Check if this will be a simple operation (no filler needed)
             def will_use_simple_llm(prompt_text):
-                """Predict if the operation will use Llama-1B (simple) or Mistral-7B (complex)"""
+                """Predict if the operation will use simple patterns (no filler needed)"""
                 prompt_lower = prompt_text.lower().strip()
                 
-                # Simple operations that use Llama-1B:
+                # Simple operations (no filler needed):
                 # - Age answers: "35", "35 years old", "thirty five"
                 # - Sex answers: "male", "female", "man", "woman"
                 # - Simple clarifications
@@ -414,21 +401,21 @@ def chat_tts():
                     if re.match(pattern, prompt_lower):
                         return True
                 
-                # Default to complex operation (Mistral-7B/RAG)
+                # Default to complex operation (needs filler)
                 return False
             
-            # Determine if we need a filler based on predicted LLM usage
+            # Determine if we need a filler based on predicted operation complexity
             will_use_simple = will_use_simple_llm(prompt)
             
             if will_use_simple:
-                # Simple operation (Llama-1B) - no filler needed
-                print(f"[Container] ⚡ Simple operation (Llama-1B) - no filler needed")
+                # Simple operation - no filler needed
+                print(f"[Container] ⚡ Simple operation - no filler needed")
             else:
-                # Complex operation (Mistral-7B/RAG) - use filler
+                # Complex operation - use filler
                 from thinking_fillers import get_filler
                 immediate_filler = get_filler('question_generation', use_audio=True)
                 filler_text = immediate_filler['text']
-                print(f"[Container] 💬 IMMEDIATE filler for complex operation (Mistral-7B/RAG): '{filler_text}'")
+                print(f"[Container] 💬 IMMEDIATE filler for complex operation: '{filler_text}'")
                 
                 # Stream filler immediately
                 yield "<sentence_start>\n"
@@ -592,11 +579,7 @@ def llm_chat(messages, max_tokens=100, temperature=None, stream=False, **kwargs)
     """
     # Apply centralized speed optimizations
     if temperature is None:
-        # Use simple model temperature if complex model not available
-        if llm is None:
-            temperature = float(os.environ["LLM_TEMPERATURE_SIMPLE"])
-        else:
-            temperature = float(os.environ["LLM_TEMPERATURE_COMPLEX"])
+        temperature = float(os.environ["LLM_TEMPERATURE_SIMPLE"])
     
     generation_params = {
         "messages": messages,
@@ -611,12 +594,10 @@ def llm_chat(messages, max_tokens=100, temperature=None, stream=False, **kwargs)
     
     with llm_lock:
         try:
-            # Use simple model if complex model is not available
-            model_to_use = llm if llm is not None else llm_simple
-            if model_to_use is None:
-                raise RuntimeError("No LLM model available (neither complex nor simple model loaded)")
+            if llm_simple is None:
+                raise RuntimeError("No LLM model available (simple model not loaded)")
             
-            response = model_to_use.create_chat_completion(**generation_params)
+            response = llm_simple.create_chat_completion(**generation_params)
             # If streaming, return the generator directly
             if stream:
                 return response
@@ -677,13 +658,9 @@ def llm_chat_once(messages, **kwargs):
 # === Server Startup ===
 
 if __name__ == "__main__":
-    # Load models ONLY when running as main script (prevents double loading on import)
+    # Load model ONLY when running as main script (prevents double loading on import)
     
-    # Skip complex model - using simple model only
-    print(f"[LLM] ⚠️ Complex model disabled - using simple model only")
-    llm = None
-    
-    print(f"[LLM] 🚀 Loading SIMPLE model: {SIMPLE_MODEL_PATH}")
+    print(f"[LLM] 🚀 Loading model: {SIMPLE_MODEL_PATH}")
     print(f"[LLM] ⚙️  Config: n_ctx={SIMPLE_N_CTX}, format={SIMPLE_CHAT_FORMAT}")
     
     # Check if model file exists and get file info
@@ -703,7 +680,7 @@ if __name__ == "__main__":
     llm_simple = Llama(
         model_path=SIMPLE_MODEL_PATH,
         n_ctx=SIMPLE_N_CTX,
-        n_gpu_layers=16,  # Use fewer layers for simple model on Orin32
+        n_gpu_layers=32,  # Use fewer layers for simple model on Orin32
         n_threads=6,
         chat_format=SIMPLE_CHAT_FORMAT,
         use_mlock=True,
@@ -722,7 +699,7 @@ if __name__ == "__main__":
     print("  - CLINICIAN: Intelligent medical assistant with adaptive diagnostic engine")
     print("    • Handles casual greetings, medical knowledge queries, and symptom assessment")
     print("    • Uses GPU-accelerated RAG for medical knowledge and guideline matching")
-    print("    • Using Llama-3.2-1B model only (complex model disabled)")
+    print("    • Using Llama-3.2-1B model for all tasks")
 
     app.run(host='0.0.0.0', port=11434, debug=False)
 
