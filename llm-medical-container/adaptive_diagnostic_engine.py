@@ -607,29 +607,21 @@ class AdaptiveDiagnosticEngine:
     
     def _generate_ml_first_question_with_demographics(self) -> Dict[str, Any]:
         """Generate first question with demographics and empathetic statement"""
-        # STEP 1: Empathetic statement (only on first question - before any questions)
+        # STEP 1: Empathetic statement (only on first question - completely separate)
         if not [item for item in self.conversation_history if item.get('type') == 'question']:
             empathetic_msg = self._generate_empathetic_statement()
             self.conversation_history.append({
                 'type': 'statement',
                 'message': empathetic_msg
             })
-            # Return statement + age question (with pause indicator)
-            age_question = "How old are you?"
-            self.conversation_history.append({
-                'type': 'question',
-                'question': age_question,
-                'focus': 'age'
-            })
-        return {
-            'success': True,
+            return {
+                'success': True,
                 'message': empathetic_msg,
-                'question': age_question,
                 'status': 'questioning',
-                'has_pause': True  # Pause between statement and question
+                'has_pause': True  # Pause before next question
             }
         
-        # STEP 2: Age question
+        # STEP 2: Age question (separate from empathetic statement)
         if 'age' not in self.demographics:
             question = "How old are you?"
             self.conversation_history.append({
@@ -686,25 +678,22 @@ class AdaptiveDiagnosticEngine:
     def _generate_empathetic_statement(self) -> str:
         """Generate empathetic opening statement"""
         if self.llm_chat_simple_fn:
-            try:
-                system_msg = "You are a compassionate medical assistant. Generate a brief, empathetic statement acknowledging the patient's chief complaint."
-                user_msg = f"Patient says: '{self.chief_complaint}'\n\nGenerate a brief, empathetic statement (1-2 sentences) that acknowledges their concern and shows you're here to help."
-                
-                response = self.llm_chat_simple_fn(
-                    [
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_msg}
-                    ],
-                    max_tokens=60,
-                    temperature=0.7
-                )
-                if response and response.strip():
-                    return response.strip()
-            except Exception as e:
-                self._capture_debug(f"[Engine] ⚠️ Failed to generate empathetic statement: {e}")
+            system_msg = "You are a compassionate medical assistant. Generate a brief, empathetic statement acknowledging the patient's chief complaint."
+            user_msg = f"Patient says: '{self.chief_complaint}'\n\nGenerate a brief, empathetic statement (1-2 sentences) that acknowledges their concern and shows you're here to help."
+            
+            response = self.llm_chat_simple_fn(
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=60,
+                temperature=0.7
+            )
+            if response and response.strip():
+                return response.strip()
         
-        # Fallback - always return something
-        return f"I understand you're experiencing {self.chief_complaint}. I'm here to help figure out what's going on."
+        # No fallback - let it fail if LLM unavailable
+        raise Exception("LLM not available for empathetic statement generation")
     
     def process_answer(self, user_answer: str) -> Dict[str, Any]:
         """Process user answer and continue assessment"""
@@ -732,26 +721,81 @@ class AdaptiveDiagnosticEngine:
         
         # Handle demographics
         if last_q and last_q.get('focus') == 'age':
-            try:
-                age = int(''.join(filter(str.isdigit, user_answer)))
-                self.demographics['age'] = age
-                return self._generate_ml_first_question_with_demographics()
-            except:
-                return {'success': False, 'message': 'Please provide a valid age'}
+            # Let LLM validate and extract age
+            if self.llm_chat_simple_fn:
+                system_msg = "You are a medical assistant. Extract the patient's age from their response. Return ONLY a number between 0-150, or 'invalid' if not a valid age."
+                user_msg = f"Patient said: '{user_answer}'\n\nExtract age as a number only:"
+                
+                response = self.llm_chat_simple_fn(
+                    [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+                    max_tokens=10,
+                    temperature=0.1
+                )
+                
+                age_str = response.strip()
+                if age_str.isdigit():
+                    age = int(age_str)
+                    if 0 <= age <= 150:
+                        self.demographics['age'] = age
+                        return self._generate_ml_first_question_with_demographics()
+                
+                return {'success': False, 'message': 'Please provide your age as a number (e.g., 25, thirty-five, etc.)'}
+            else:
+                return {'success': False, 'message': 'Age validation not available'}
         
         if last_q and last_q.get('focus') == 'sex':
-            if 'male' in user_answer.lower() or user_answer == 'sex_male':
-                self.demographics['sex'] = 'male'
-            elif 'female' in user_answer.lower() or user_answer == 'sex_female':
-                self.demographics['sex'] = 'female'
-            return self._generate_ml_first_question_with_demographics()
+            # Let LLM validate and extract sex
+            if self.llm_chat_simple_fn:
+                system_msg = "You are a medical assistant. Extract the patient's biological sex from their response. Return ONLY 'male', 'female', or 'invalid'."
+                user_msg = f"Patient said: '{user_answer}'\n\nExtract biological sex (male/female) only:"
+                
+                response = self.llm_chat_simple_fn(
+                    [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+                    max_tokens=10,
+                    temperature=0.1
+                )
+                
+                sex_str = response.strip().lower()
+                if sex_str in ['male', 'female']:
+                    self.demographics['sex'] = sex_str
+                    return self._generate_ml_first_question_with_demographics()
+                elif user_answer == 'sex_male':
+                    self.demographics['sex'] = 'male'
+                    return self._generate_ml_first_question_with_demographics()
+                elif user_answer == 'sex_female':
+                    self.demographics['sex'] = 'female'
+                    return self._generate_ml_first_question_with_demographics()
+                
+                return {'success': False, 'message': 'Please specify your biological sex (male or female)'}
+            else:
+                return {'success': False, 'message': 'Sex validation not available'}
         
         if last_q and last_q.get('focus') == 'chronicity':
-            if 'new' in user_answer.lower() or user_answer == 'chronicity_new':
-                self.demographics['chronicity'] = 'new'
-            elif 'ongoing' in user_answer.lower() or 'recurring' in user_answer.lower() or user_answer == 'chronicity_recurring':
-                self.demographics['chronicity'] = 'recurring'
-            return self._generate_ml_first_question_with_demographics()
+            # Let LLM validate and extract chronicity
+            if self.llm_chat_simple_fn:
+                system_msg = "You are a medical assistant. Determine if the patient's problem is new or recurring. Return ONLY 'new', 'recurring', or 'invalid'."
+                user_msg = f"Patient said: '{user_answer}'\n\nIs this a new problem or recurring/ongoing? (new/recurring):"
+                
+                response = self.llm_chat_simple_fn(
+                    [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+                    max_tokens=10,
+                    temperature=0.1
+                )
+                
+                chronicity_str = response.strip().lower()
+                if chronicity_str in ['new', 'recurring']:
+                    self.demographics['chronicity'] = chronicity_str
+                    return self._generate_ml_first_question_with_demographics()
+                elif user_answer == 'chronicity_new':
+                    self.demographics['chronicity'] = 'new'
+                    return self._generate_ml_first_question_with_demographics()
+                elif user_answer == 'chronicity_recurring':
+                    self.demographics['chronicity'] = 'recurring'
+                    return self._generate_ml_first_question_with_demographics()
+                
+                return {'success': False, 'message': 'Please specify if this is a new problem or ongoing issue'}
+            else:
+                return {'success': False, 'message': 'Chronicity validation not available'}
         
         # Handle clinical answers
         return self._process_clinical_answer(user_answer)
