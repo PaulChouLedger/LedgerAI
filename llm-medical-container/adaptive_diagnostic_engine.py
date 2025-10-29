@@ -2318,12 +2318,14 @@ Normalized text:"""
         # Compute similarity with raw answer (embeddings handle natural language)
         # Word match boost will normalize inside medical_rule_engine (except for demographics)
         # The medical_rule_engine._compute_word_match_boost handles normalization internally
+        self._capture_debug(f"[Engine] 🔢 SCORING PHASE: Computing similarity for '{user_answer}' ({oldcarts_element})")
         result = self.medical_rule_engine.get_enhanced_similarity(
             user_answer, oldcarts_section, condition_name, 
             organ_system=self.current_category,
             oldcarts_element=oldcarts_element,
             structured_oldcarts=self._get_structured_oldcarts_for_condition(condition_name)
         )
+        self._capture_debug(f"[Engine] 📊 FINAL SCORE: {result['similarity']:.3f} (raw + word boost applied)")
         
         # Log the result
         self._capture_debug(f"[Engine]   🎯 Enhanced {oldcarts_element} similarity: {result['similarity']:.3f} (method: {result['method']})")
@@ -2645,6 +2647,10 @@ Normalized text:"""
                     continue
                 else:
                     self._capture_debug(f"[Engine]   No direct match for '{term_lower}' in medical_to_category")
+                    # Debug: Show what keys are available
+                    available_keys = [k for k in medical_to_category.keys() if 'right upper' in k or 'ruq' in k]
+                    if available_keys:
+                        self._capture_debug(f"[Engine]   Available similar keys: {available_keys[:5]}")
                 
                 # Try with underscores (e.g., "radiates to back" -> "radiates_to_back")
                 term_with_underscores = term_lower.replace(' ', '_')
@@ -3412,6 +3418,36 @@ Return only the 2 selected terms, separated by commas."""
                         missing_specificity_terms = []
                         self._capture_debug(f"[Engine] ✅ OLDCARTS ANSWER ACCEPTED ({oldcarts_element}):")
                         self._capture_debug(f"[Engine]   Containment {oldcarts_result['best_similarity']:.0%} >= 70% - very high similarity, accepting despite competition")
+                    # Also accept if it's a follow-up clarification AND similarity increased significantly
+                    elif clarification_count > 0 and oldcarts_result['best_similarity'] >= 0.5:
+                        # Check if this is a significant improvement from the initial answer
+                        # Only accept if similarity is >= 0.55 or if it's higher than before
+                        # This prevents accepting vague follow-up answers like "right side" -> "right side" again
+                        
+                        # Get previous similarity from the last answer (if available)
+                        previous_similarity = self.last_answer_scores.get(oldcarts_element, 0.0)
+                        
+                        if oldcarts_result['best_similarity'] >= 0.55:
+                            # High similarity - accept it
+                            needs_clarification_for_specificity = False
+                            is_clear_answer = True
+                            missing_specificity_terms = []
+                            self._capture_debug(f"[Engine] ✅ OLDCARTS ANSWER ACCEPTED ({oldcarts_element}):")
+                            self._capture_debug(f"[Engine]   Follow-up answer with {oldcarts_result['best_similarity']:.0%} similarity >= 55% - accepting")
+                        elif oldcarts_result['best_similarity'] > previous_similarity + 0.05:
+                            # Similarity improved by at least 5% - accept it
+                            needs_clarification_for_specificity = False
+                            is_clear_answer = True
+                            missing_specificity_terms = []
+                            self._capture_debug(f"[Engine] ✅ OLDCARTS ANSWER ACCEPTED ({oldcarts_element}):")
+                            self._capture_debug(f"[Engine]   Follow-up answer improved from {previous_similarity:.0%} to {oldcarts_result['best_similarity']:.0%} - accepting improvement")
+                        else:
+                            # Similarity didn't improve enough - continue clarifying
+                            needs_clarification_for_specificity = True
+                            is_clear_answer = False
+                            missing_specificity_terms = oldcarts_result['competing_terms']
+                            self._capture_debug(f"[Engine] ⚠️ Follow-up answer not specific enough ({oldcarts_result['best_similarity']:.0%} vs previous {previous_similarity:.0%})")
+                            self._capture_debug(f"[Engine]   Asking for more clarification")
                     elif oldcarts_result['has_competition']:
                         # Multiple competing guidelines - need clarification
                         needs_clarification_for_specificity = True
@@ -4249,14 +4285,21 @@ Your question:"""
                 # Normalize using this element's synonyms
                 if oldcarts_element in synonyms:
                     element_synonyms = synonyms[oldcarts_element]
-                    for category, synonym_list in element_synonyms.items():
+                    # Sort by length (longest first) to prefer more specific matches
+                    sorted_categories = sorted(element_synonyms.items(), key=lambda x: max(len(s) for s in x[1]) if isinstance(x[1], list) else 0, reverse=True)
+                    
+                    for category, synonym_list in sorted_categories:
                         if isinstance(synonym_list, list):
                             for synonym in synonym_list:
-                                if synonym.lower() in normalized_answer:
+                                # Use word boundary matching to avoid partial matches
+                                import re
+                                pattern = r'\b' + re.escape(synonym.lower()) + r'\b'
+                                if re.search(pattern, normalized_answer):
                                     normalized_answer = normalized_answer.replace(synonym.lower(), category)
-                                    break
+                                    # Don't break - continue to find longer/more specific matches
         
         self._capture_debug(f"[Engine] 🔄 Normalization: '{patient_answer}' → '{normalized_answer}'")
+        self._capture_debug(f"[Engine] 📍 Clarification normalization (no scoring here - just for question generation)")
         
         # Codebase uses lowercase full names only
         element_name = oldcarts_element

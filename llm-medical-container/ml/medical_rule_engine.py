@@ -281,7 +281,8 @@ class MedicalRuleEngine:
                 # Exact match: normalized answer matches term exactly or as substring
                 if normalized_lower == term_lower or normalized_lower in term_lower or term_lower in normalized_lower:
                     print(f"[WordMatch] ✅ Exact match found: '{normalized_answer}' ↔ '{term}'")
-                    return 0.3  # Boost for exact match
+                    print(f"[WordMatch]   Progressive boost: +0.5 (exact match)")
+                    return 0.5  # Highest boost for exact match
                 
                 # Check word overlap: see if any word from normalized answer appears in term
                 term_words = set(term_lower.split())
@@ -289,9 +290,13 @@ class MedicalRuleEngine:
                 matching_words = normalized_words_set.intersection(term_words)
                 
                 if len(matching_words) >= 1:  # Any word match
+                    # Progressive boost based on number of matching words
+                    # 1 word = 0.2, 2 words = 0.3, 3+ words = 0.4
+                    boost = min(0.2 * len(matching_words), 0.4)
                     print(f"[WordMatch] ✅ Word match ({len(matching_words)} words): '{normalized_answer}' ↔ '{term}'")
                     print(f"[WordMatch]   Matching words: {matching_words}")
-                    return 0.3  # Boost for word match
+                    print(f"[WordMatch]   Progressive boost: +{boost:.2f}")
+                    return boost
             
             print(f"[WordMatch] ❌ No word matches found")
             print(f"[WordMatch]   Normalized: '{normalized_answer}'")
