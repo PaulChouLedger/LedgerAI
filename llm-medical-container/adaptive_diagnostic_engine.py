@@ -89,7 +89,7 @@ class AdaptiveDiagnosticEngine:
                 from medical_rule_engine import MedicalRuleEngine
                 self.medical_rule_engine = MedicalRuleEngine(embedding_model=self.embedding_model)
                 self._capture_debug(f"[Engine] ✅ Medical Rule Engine initialized (alternative path)")
-        except ImportError:
+            except ImportError:
                 self.medical_rule_engine = None
                 self._capture_debug(f"[Engine] ⚠️ Medical Rule Engine not available")
         
@@ -342,7 +342,7 @@ class AdaptiveDiagnosticEngine:
         
         for element, expected_terms in all_includes.items():
             for term in expected_terms:
-                        term_lower = term.lower()
+                term_lower = term.lower()
                 # Skip single generic words that cause false positives
                 if term_lower in exclude_words:
                     continue
@@ -354,8 +354,8 @@ class AdaptiveDiagnosticEngine:
                     if element not in answered_components:
                         answered_components[element] = []
                     answered_components[element].append(term)
-                            break
-                        
+                    break
+        
         all_elements = ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
         answered_elements = list(answered_components.keys())
         missing_elements = [element for element in all_elements if element not in answered_elements]
@@ -413,13 +413,13 @@ class AdaptiveDiagnosticEngine:
         
         # STEP 1: Filter guidelines using medical_rules.json (location only)
         category = self.current_category or 'gastrointestinal'
-                category_to_system = {
-                    'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
-                    'respiratory': 'PULMONARY', 'neurological': 'NEURO',
-                    'musculoskeletal': 'MSK', 'renal': 'RENAL',
-                    'genitourinary': 'GU', 'gynecological': 'GYN',
-                    'dermatological': 'DERM'
-                }
+        category_to_system = {
+            'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
+            'respiratory': 'PULMONARY', 'neurological': 'NEURO',
+            'musculoskeletal': 'MSK', 'renal': 'RENAL',
+            'genitourinary': 'GU', 'gynecological': 'GYN',
+            'dermatological': 'DERM'
+        }
         organ_system = category_to_system.get(category, 'GI')
         
         if oldcarts_element == 'location' and self.medical_rule_engine:
@@ -485,7 +485,7 @@ class AdaptiveDiagnosticEngine:
                         'oldcarts': oldcarts_element,
                         'is_clarification': True
                     })
-            return {
+                    return {
                         'success': True,
                         'question': question,
                         'status': 'questioning'
@@ -690,17 +690,17 @@ class AdaptiveDiagnosticEngine:
                 system_msg = "You are a compassionate medical assistant. Generate a brief, empathetic statement acknowledging the patient's chief complaint."
                 user_msg = f"Patient says: '{self.chief_complaint}'\n\nGenerate a brief, empathetic statement (1-2 sentences) that acknowledges their concern and shows you're here to help."
                 
-            response = self.llm_chat_simple_fn(
-                [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg}
-                ],
+                response = self.llm_chat_simple_fn(
+                    [
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_msg}
+                    ],
                     max_tokens=60,
                     temperature=0.7
                 )
                 if response and response.strip():
                     return response.strip()
-        except Exception as e:
+            except Exception as e:
                 self._capture_debug(f"[Engine] ⚠️ Failed to generate empathetic statement: {e}")
         
         # Fallback - always return something
