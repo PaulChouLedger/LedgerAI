@@ -2547,11 +2547,16 @@ Normalized text:"""
         self._capture_debug(f"[Engine] ❌ No radiation component found in active guidelines")
         return False
     
-    def _generate_targeted_location_options(self, missing_terms: list, high_scoring_guidelines: list) -> list:
+    def _generate_targeted_location_options(self, missing_terms: list, high_scoring_guidelines: list, patient_answer: str = '') -> list:
         """
         Generate targeted patient-friendly options based on missing location terms.
         
         Uses synonym files to convert missing includes terms to patient-friendly options.
+        
+        Args:
+            missing_terms: List of missing location terms from guidelines
+            high_scoring_guidelines: High-scoring guidelines being considered
+            patient_answer: Original patient answer (to detect "right side", "left side", etc.)
         """
         if not missing_terms:
             return []
@@ -2624,6 +2629,74 @@ Normalized text:"""
                 term_lower = term.lower()
                 return any(pattern in term_lower for pattern in radiation_patterns)
             
+            def is_similar_option(new_option, existing_options):
+                """Check if new option is too similar to existing options (universal deduplication)"""
+                new_lower = new_option.lower().strip()
+                # Check for exact duplicates
+                if new_lower in [opt.lower().strip() for opt in existing_options]:
+                    return True
+                
+                # Extract core words from new option (remove common words like "the", "a", "around", "near")
+                stop_words = {'the', 'a', 'an', 'around', 'near', 'by', 'at', 'on', 'in', 'my', 'me'}
+                new_words = set(word for word in new_lower.split() if word not in stop_words)
+                
+                # Check if core words overlap significantly with existing options
+                for opt in existing_options:
+                    opt_lower = opt.lower().strip()
+                    opt_words = set(word for word in opt_lower.split() if word not in stop_words)
+                    # If most core words overlap (80%+), consider them duplicates
+                    if new_words and opt_words:
+                        overlap = len(new_words.intersection(opt_words))
+                        overlap_ratio = overlap / max(len(new_words), len(opt_words))
+                        if overlap_ratio >= 0.8:
+                            return True
+                
+                return False
+            
+            # Universal approach: Detect vague directional terms and include all matching location categories
+            patient_answer_lower = patient_answer.lower() if patient_answer else ''
+            
+            # Extract directional terms from patient answer
+            directional_words = {'right', 'left', 'upper', 'lower', 'middle', 'center', 'top', 'bottom'}
+            patient_directions = {word for word in directional_words if word in patient_answer_lower}
+            
+            # If patient gave vague directional terms (e.g., "right side", "left", "upper"), 
+            # include ALL location categories that match those directions
+            if patient_directions and 'location' in synonyms:
+                for category, synonym_list in synonyms['location'].items():
+                    if isinstance(synonym_list, list) and category not in seen_categories:
+                        category_lower = category.lower()
+                        
+                        # Check if this category matches any of the patient's directional terms
+                        # Check both category name AND synonyms (e.g., "rlq_pain" category has "right lower quadrant" in synonyms)
+                        category_matches_direction = False
+                        
+                        # First check category name
+                        for direction in patient_directions:
+                            if direction in category_lower:
+                                category_matches_direction = True
+                                break
+                        
+                        # Also check synonyms (e.g., "rlq_pain" synonyms include "right lower quadrant")
+                        if not category_matches_direction:
+                            for synonym in synonym_list[:3]:  # Check first few synonyms
+                                synonym_lower = str(synonym).lower()
+                                for direction in patient_directions:
+                                    if direction in synonym_lower:
+                                        category_matches_direction = True
+                                        break
+                                if category_matches_direction:
+                                    break
+                        
+                        # If category matches patient's directions, include it
+                        if category_matches_direction and synonym_list:
+                            patient_friendly = synonym_list[0]
+                            if not is_similar_option(patient_friendly, patient_friendly_options):
+                                patient_friendly_options.append(patient_friendly)
+                                seen_options.add(patient_friendly)
+                                seen_categories.add(category)
+                                self._capture_debug(f"[Engine]   Added matching option: '{patient_friendly}' from category '{category}' (matches: {patient_directions})")
+            
             for missing_term in missing_terms:
                 term_lower = missing_term.lower().strip()
                 
@@ -2639,7 +2712,7 @@ Normalized text:"""
                     for category, synonym_list in categories:
                         if category not in seen_categories and synonym_list:
                             patient_friendly = synonym_list[0]  # Use first (most patient-friendly) option
-                            if patient_friendly not in seen_options:
+                            if not is_similar_option(patient_friendly, patient_friendly_options):
                                 patient_friendly_options.append(patient_friendly)
                                 seen_options.add(patient_friendly)
                                 self._capture_debug(f"[Engine]   Added option: '{patient_friendly}' from category '{category}'")
@@ -2659,7 +2732,7 @@ Normalized text:"""
                     for category, synonym_list in categories:
                         if category not in seen_categories and synonym_list:
                             patient_friendly = synonym_list[0]
-                            if patient_friendly not in seen_options:
+                            if not is_similar_option(patient_friendly, patient_friendly_options):
                                 patient_friendly_options.append(patient_friendly)
                                 seen_options.add(patient_friendly)
                             seen_categories.add(category)
@@ -2673,7 +2746,7 @@ Normalized text:"""
                         # Check if the missing term relates to this category
                         if term_lower in category_lower or category_lower in term_lower:
                             patient_friendly = synonym_list[0]
-                            if patient_friendly not in seen_options:
+                            if not is_similar_option(patient_friendly, patient_friendly_options):
                                 patient_friendly_options.append(patient_friendly)
                                 seen_options.add(patient_friendly)
                             seen_categories.add(category)
@@ -2686,14 +2759,22 @@ Normalized text:"""
                         # Significant overlap suggests a match
                         if term_words.intersection(category_words) and len(term_words.intersection(category_words)) > 0:
                             patient_friendly = synonym_list[0]
-                            if patient_friendly not in seen_options:
+                            if not is_similar_option(patient_friendly, patient_friendly_options):
                                 patient_friendly_options.append(patient_friendly)
                                 seen_options.add(patient_friendly)
                             seen_categories.add(category)
                             break
         
-        # Remove duplicates while preserving order
+        # Remove exact duplicates while preserving order
         options = list(dict.fromkeys(patient_friendly_options))
+        
+        # Also remove semantic duplicates (e.g., "belly button" and "around the belly button")
+        final_options = []
+        for opt in options:
+            if not is_similar_option(opt, final_options):
+                final_options.append(opt)
+        
+        options = final_options
         
         # Prioritize options that help differentiate between competing conditions
         # Group similar options and pick the most specific one
@@ -4394,7 +4475,7 @@ Your question:"""
         
         # Generate targeted question based on missing information from structured_oldcarts
         if missing_terms_from_analysis:
-            targeted_options = self._generate_targeted_location_options(missing_terms_from_analysis, all_guidelines_with_match)
+            targeted_options = self._generate_targeted_location_options(missing_terms_from_analysis, all_guidelines_with_match, patient_answer)
             if targeted_options:
                 # Format options as a natural list
                 if len(targeted_options) == 1:
