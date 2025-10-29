@@ -316,21 +316,32 @@ class AdaptiveDiagnosticEngine:
         if not guidelines:
             return {
                 'answered_components': {},
-                'missing_components': ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
+                'missing_components': ['onset', 'onset_quality', 'timing', 'location', 'duration', 'character', 'aggravating', 'relieving', 'severity']
             }
         
         # Collect all 'includes' terms from guidelines
         all_includes = {
-            'onset': set(), 'location': set(), 'duration': set(), 'character': set(),
-            'aggravating': set(), 'relieving': set(), 'timing': set(), 'severity': set()
+            'onset': set(), 'onset_quality': set(), 'timing': set(), 'location': set(), 
+            'duration': set(), 'character': set(),
+            'aggravating': set(), 'relieving': set(), 'severity': set()
         }
         
         for guideline in guidelines:
             structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
             for element, data in structured.items():
                 if isinstance(data, dict) and 'includes' in data:
-                    for term in data['includes']:
-                        all_includes[element].add(term.lower())
+                    # Map 'onset' includes to both 'onset' and 'onset_quality'
+                    if element == 'onset':
+                        for term in data['includes']:
+                            term_lower = term.lower()
+                            # Separate timing-related terms from quality terms
+                            if any(word in term_lower for word in ['sudden', 'gradual', 'acute', 'chronic']):
+                                all_includes['onset_quality'].add(term_lower)
+                            else:
+                                all_includes['onset'].add(term_lower)
+                    elif element in all_includes:
+                        for term in data['includes']:
+                            all_includes[element].add(term.lower())
         
         # Detect which elements are present in prompt (using whole word matching)
         answered_components = {}
@@ -355,9 +366,14 @@ class AdaptiveDiagnosticEngine:
                     answered_components[element].append(term)
                     break
         
-        all_elements = ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
+        all_elements = ['onset', 'onset_quality', 'timing', 'location', 'duration', 'character', 'aggravating', 'relieving', 'severity']
         answered_elements = list(answered_components.keys())
         missing_elements = [element for element in all_elements if element not in answered_elements]
+        
+        # Remove 'onset_quality' from missing if 'onset' is missing (they're linked)
+        if 'onset' in missing_elements and 'onset_quality' in missing_elements:
+            # Keep both - we'll handle separately in _ask_next_clinical_question
+            pass
         
         return {
             'answered_components': answered_components,
@@ -399,9 +415,28 @@ class AdaptiveDiagnosticEngine:
                 }
             return self._ask_next_clinical_question()
         
-        # Handle onset (documentation only)
+        # Handle onset (documentation only - split into two questions)
         if oldcarts_element == 'onset':
+            # Don't mark as covered yet - wait for onset_quality
+            # Update missing_components to remove onset but keep onset_quality
+            if self.oldcarts_analysis:
+                missing = self.oldcarts_analysis.get('missing_components', [])
+                if 'onset' in missing:
+                    missing.remove('onset')
+                if 'onset_quality' not in missing:
+                    missing.insert(0, 'onset_quality')  # Ask quality next
+                self.oldcarts_analysis['missing_components'] = missing
+            return self._ask_next_clinical_question()
+        
+        if oldcarts_element == 'onset_quality':
+            # Mark onset as covered after both questions answered
             self.oldcarts_covered['O'] = True
+            # Update missing_components
+            if self.oldcarts_analysis:
+                missing = self.oldcarts_analysis.get('missing_components', [])
+                if 'onset_quality' in missing:
+                    missing.remove('onset_quality')
+                self.oldcarts_analysis['missing_components'] = missing
             return self._ask_next_clinical_question()
         
         # Score guidelines
@@ -565,7 +600,7 @@ class AdaptiveDiagnosticEngine:
             return f"Can you be more specific? For example, {options}?"
     
     def _ask_next_clinical_question(self) -> Dict[str, Any]:
-        """Ask next OLDCARTS question"""
+        """Ask next OLDCARTS question - reorganized flow"""
         if not hasattr(self, 'oldcarts_analysis') or not self.oldcarts_analysis:
             return {'success': False, 'message': 'No OLDCARTS analysis available'}
         
@@ -573,7 +608,35 @@ class AdaptiveDiagnosticEngine:
         if not missing:
             return {'success': True, 'status': 'completed', 'message': 'Assessment complete'}
         
+        # Check if we've asked onset but not onset_quality yet
+        asked_oldcarts = [item.get('oldcarts') for item in self.conversation_history if item.get('oldcarts')]
+        
+        # If onset was asked but onset_quality not asked, ask onset_quality next
+        if 'onset' in asked_oldcarts and 'onset_quality' not in asked_oldcarts:
+            next_element = 'onset_quality'
+            question = self._generate_oldcarts_question_for_component(next_element)
+            self.conversation_history.append({
+                'type': 'question',
+                'question': question,
+                'oldcarts': next_element,
+                'focus': 'clinical'
+            })
+            return {
+                'success': True,
+                'question': question,
+                'status': 'questioning'
+            }
+        
+        # Otherwise, get next element from missing list
         next_element = missing[0]
+        
+        # If next is onset and we've already asked it, skip to next
+        if next_element == 'onset' and 'onset' in asked_oldcarts:
+            if len(missing) > 1:
+                next_element = missing[1]
+            else:
+                return {'success': True, 'status': 'completed', 'message': 'Assessment complete'}
+        
         question = self._generate_oldcarts_question_for_component(next_element)
         
         self.conversation_history.append({
@@ -590,21 +653,46 @@ class AdaptiveDiagnosticEngine:
         }
     
     def _generate_oldcarts_question_for_component(self, component: str) -> str:
-        """Generate question for OLDCARTS component"""
+        """Generate question for OLDCARTS component - reorganized flow"""
         questions = {
-            'onset': "When did this start? Was it sudden or gradual?",
+            # Split onset into two questions for better flow
+            'onset': "When did this start?",  # Just asking when
+            'onset_quality': "Was it sudden or gradual?",  # Separate question for quality
             'location': "Where exactly is the pain located?",
             'duration': "How long does it last?",
             'character': "How would you describe the pain?",
             'aggravating': "What makes it worse?",
             'relieving': "What makes it better?",
-            'timing': "When does it occur?",
+            'timing': "When does it occur? Is it constant or does it come and go?",  # Enhanced
             'severity': "On a scale of 1-10, how severe is it?"
         }
         return questions.get(component, f"Tell me about {component}")
     
     def _generate_ml_first_question_with_demographics(self) -> Dict[str, Any]:
-        """Generate first question with demographics"""
+        """Generate first question with demographics and empathetic statement"""
+        # STEP 1: Empathetic statement (only on first question - before any questions)
+        if not [item for item in self.conversation_history if item.get('type') == 'question']:
+            empathetic_msg = self._generate_empathetic_statement()
+            self.conversation_history.append({
+                'type': 'statement',
+                'message': empathetic_msg
+            })
+            # Return statement + age question (with pause indicator)
+            age_question = "How old are you?"
+            self.conversation_history.append({
+                'type': 'question',
+                'question': age_question,
+                'focus': 'age'
+            })
+            return {
+                'success': True,
+                'message': empathetic_msg,
+                'question': age_question,
+                'status': 'questioning',
+                'has_pause': True  # Pause between statement and question
+            }
+        
+        # STEP 2: Age question
         if 'age' not in self.demographics:
             question = "How old are you?"
             self.conversation_history.append({
@@ -618,7 +706,67 @@ class AdaptiveDiagnosticEngine:
                 'status': 'questioning'
             }
         
+        # STEP 3: Sex question
+        if 'sex' not in self.demographics:
+            question = "What is your biological sex?"
+            self.conversation_history.append({
+                'type': 'question',
+                'question': question,
+                'oldcarts': 'demographics',
+                'focus': 'sex'
+            })
+            return {
+                'success': True,
+                'question': question,
+                'status': 'questioning',
+                'buttons': [
+                    {'text': 'Male', 'callback_data': 'sex_male'},
+                    {'text': 'Female', 'callback_data': 'sex_female'}
+                ]
+            }
+        
+        # STEP 4: Chronicity question
+        if 'chronicity' not in self.demographics:
+            question = "Is this a new problem or an ongoing issue?"
+            self.conversation_history.append({
+                'type': 'question',
+                'question': question,
+                'focus': 'chronicity'
+            })
+            return {
+                'success': True,
+                'question': question,
+                'status': 'questioning',
+                'buttons': [
+                    {'text': 'New Problem', 'callback_data': 'chronicity_new'},
+                    {'text': 'Ongoing Issue', 'callback_data': 'chronicity_recurring'}
+                ]
+            }
+        
+        # All demographics collected, start OLDCARTS
         return self._ask_next_clinical_question()
+    
+    def _generate_empathetic_statement(self) -> str:
+        """Generate empathetic opening statement"""
+        if self.llm_chat_fn:
+            try:
+                system_msg = "You are a compassionate medical assistant. Generate a brief, empathetic statement acknowledging the patient's chief complaint."
+                user_msg = f"Patient says: '{self.chief_complaint}'\n\nGenerate a brief, empathetic statement (1-2 sentences) that acknowledges their concern and shows you're here to help."
+                
+                response = self.llm_chat_simple_fn(
+                    [
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_msg}
+                    ],
+                    max_tokens=60,
+                    temperature=0.7
+                )
+                return response.strip()
+            except Exception:
+                pass
+        
+        # Fallback
+        return f"I understand you're experiencing {self.chief_complaint}. I'm here to help figure out what's going on."
     
     def process_answer(self, user_answer: str) -> Dict[str, Any]:
         """Process user answer and continue assessment"""
@@ -635,9 +783,14 @@ class AdaptiveDiagnosticEngine:
         # Get last question
         last_q = None
         for item in reversed(self.conversation_history):
-            if item['type'] == 'question':
+            if item['type'] == 'question' or item['type'] == 'statement':
                 last_q = item
                 break
+        
+        # Handle statement responses (empathetic statement doesn't need user response)
+        if last_q and last_q.get('type') == 'statement':
+            # Statement was shown, now ask age question
+            return self._generate_ml_first_question_with_demographics()
         
         # Handle demographics
         if last_q and last_q.get('focus') == 'age':
@@ -653,7 +806,14 @@ class AdaptiveDiagnosticEngine:
                 self.demographics['sex'] = 'male'
             elif 'female' in user_answer.lower() or user_answer == 'sex_female':
                 self.demographics['sex'] = 'female'
-            return self._ask_next_clinical_question()
+            return self._generate_ml_first_question_with_demographics()
+        
+        if last_q and last_q.get('focus') == 'chronicity':
+            if 'new' in user_answer.lower() or user_answer == 'chronicity_new':
+                self.demographics['chronicity'] = 'new'
+            elif 'ongoing' in user_answer.lower() or 'recurring' in user_answer.lower() or user_answer == 'chronicity_recurring':
+                self.demographics['chronicity'] = 'recurring'
+            return self._generate_ml_first_question_with_demographics()
         
         # Handle clinical answers
         return self._process_clinical_answer(user_answer)
