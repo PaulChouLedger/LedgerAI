@@ -89,7 +89,7 @@ class AdaptiveDiagnosticEngine:
                 from medical_rule_engine import MedicalRuleEngine
                 self.medical_rule_engine = MedicalRuleEngine(embedding_model=self.embedding_model)
                 self._capture_debug(f"[Engine] ✅ Medical Rule Engine initialized (alternative path)")
-            except ImportError:
+        except ImportError:
                 self.medical_rule_engine = None
                 self._capture_debug(f"[Engine] ⚠️ Medical Rule Engine not available")
         
@@ -123,7 +123,7 @@ class AdaptiveDiagnosticEngine:
                     self.all_guidelines[name] = guideline
             except Exception as e:
                 self._capture_debug(f"[Engine] ⚠️ Failed to load {json_file.name}: {e}")
-    
+        
     def _capture_debug(self, message: str):
         """Capture debug output"""
         self._captured_debug_output.append(message)
@@ -314,32 +314,22 @@ class AdaptiveDiagnosticEngine:
     def _parse_prompt_against_structured_oldcarts(self, prompt: str, guidelines: List[Dict]) -> Dict[str, Any]:
         """Parse prompt against structured OLDCARTS to determine what's already answered"""
         if not guidelines:
-            return {
+                return {
                 'answered_components': {},
-                'missing_components': ['onset', 'onset_quality', 'timing', 'location', 'duration', 'character', 'aggravating', 'relieving', 'severity']
+                'missing_components': ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
             }
         
         # Collect all 'includes' terms from guidelines
         all_includes = {
-            'onset': set(), 'onset_quality': set(), 'timing': set(), 'location': set(), 
-            'duration': set(), 'character': set(),
-            'aggravating': set(), 'relieving': set(), 'severity': set()
+            'onset': set(), 'location': set(), 'duration': set(), 'character': set(),
+            'aggravating': set(), 'relieving': set(), 'timing': set(), 'severity': set()
         }
         
         for guideline in guidelines:
             structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
             for element, data in structured.items():
                 if isinstance(data, dict) and 'includes' in data:
-                    # Map 'onset' includes to both 'onset' and 'onset_quality'
-                    if element == 'onset':
-                        for term in data['includes']:
-                            term_lower = term.lower()
-                            # Separate timing-related terms from quality terms
-                            if any(word in term_lower for word in ['sudden', 'gradual', 'acute', 'chronic']):
-                                all_includes['onset_quality'].add(term_lower)
-                            else:
-                                all_includes['onset'].add(term_lower)
-                    elif element in all_includes:
+                    if element in all_includes:
                         for term in data['includes']:
                             all_includes[element].add(term.lower())
         
@@ -352,7 +342,7 @@ class AdaptiveDiagnosticEngine:
         
         for element, expected_terms in all_includes.items():
             for term in expected_terms:
-                term_lower = term.lower()
+                        term_lower = term.lower()
                 # Skip single generic words that cause false positives
                 if term_lower in exclude_words:
                     continue
@@ -364,16 +354,11 @@ class AdaptiveDiagnosticEngine:
                     if element not in answered_components:
                         answered_components[element] = []
                     answered_components[element].append(term)
-                    break
-        
-        all_elements = ['onset', 'onset_quality', 'timing', 'location', 'duration', 'character', 'aggravating', 'relieving', 'severity']
+                            break
+                        
+        all_elements = ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
         answered_elements = list(answered_components.keys())
         missing_elements = [element for element in all_elements if element not in answered_elements]
-        
-        # Remove 'onset_quality' from missing if 'onset' is missing (they're linked)
-        if 'onset' in missing_elements and 'onset_quality' in missing_elements:
-            # Keep both - we'll handle separately in _ask_next_clinical_question
-            pass
         
         return {
             'answered_components': answered_components,
@@ -413,30 +398,11 @@ class AdaptiveDiagnosticEngine:
                         {'text': 'Female', 'callback_data': 'sex_female'}
                     ]
                 }
-            return self._ask_next_clinical_question()
+                return self._ask_next_clinical_question()
         
-        # Handle onset (documentation only - split into two questions)
+        # Handle onset (documentation only)
         if oldcarts_element == 'onset':
-            # Don't mark as covered yet - wait for onset_quality
-            # Update missing_components to remove onset but keep onset_quality
-            if self.oldcarts_analysis:
-                missing = self.oldcarts_analysis.get('missing_components', [])
-                if 'onset' in missing:
-                    missing.remove('onset')
-                if 'onset_quality' not in missing:
-                    missing.insert(0, 'onset_quality')  # Ask quality next
-                self.oldcarts_analysis['missing_components'] = missing
-            return self._ask_next_clinical_question()
-        
-        if oldcarts_element == 'onset_quality':
-            # Mark onset as covered after both questions answered
             self.oldcarts_covered['O'] = True
-            # Update missing_components
-            if self.oldcarts_analysis:
-                missing = self.oldcarts_analysis.get('missing_components', [])
-                if 'onset_quality' in missing:
-                    missing.remove('onset_quality')
-                self.oldcarts_analysis['missing_components'] = missing
             return self._ask_next_clinical_question()
         
         # Score guidelines
@@ -447,13 +413,13 @@ class AdaptiveDiagnosticEngine:
         
         # STEP 1: Filter guidelines using medical_rules.json (location only)
         category = self.current_category or 'gastrointestinal'
-        category_to_system = {
-            'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
-            'respiratory': 'PULMONARY', 'neurological': 'NEURO',
-            'musculoskeletal': 'MSK', 'renal': 'RENAL',
-            'genitourinary': 'GU', 'gynecological': 'GYN',
-            'dermatological': 'DERM'
-        }
+                category_to_system = {
+                    'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
+                    'respiratory': 'PULMONARY', 'neurological': 'NEURO',
+                    'musculoskeletal': 'MSK', 'renal': 'RENAL',
+                    'genitourinary': 'GU', 'gynecological': 'GYN',
+                    'dermatological': 'DERM'
+                }
         organ_system = category_to_system.get(category, 'GI')
         
         if oldcarts_element == 'location' and self.medical_rule_engine:
@@ -519,7 +485,7 @@ class AdaptiveDiagnosticEngine:
                         'oldcarts': oldcarts_element,
                         'is_clarification': True
                     })
-                    return {
+            return {
                         'success': True,
                         'question': question,
                         'status': 'questioning'
@@ -600,7 +566,7 @@ class AdaptiveDiagnosticEngine:
             return f"Can you be more specific? For example, {options}?"
     
     def _ask_next_clinical_question(self) -> Dict[str, Any]:
-        """Ask next OLDCARTS question - reorganized flow"""
+        """Ask next OLDCARTS question - standard order"""
         if not hasattr(self, 'oldcarts_analysis') or not self.oldcarts_analysis:
             return {'success': False, 'message': 'No OLDCARTS analysis available'}
         
@@ -608,35 +574,8 @@ class AdaptiveDiagnosticEngine:
         if not missing:
             return {'success': True, 'status': 'completed', 'message': 'Assessment complete'}
         
-        # Check if we've asked onset but not onset_quality yet
-        asked_oldcarts = [item.get('oldcarts') for item in self.conversation_history if item.get('oldcarts')]
-        
-        # If onset was asked but onset_quality not asked, ask onset_quality next
-        if 'onset' in asked_oldcarts and 'onset_quality' not in asked_oldcarts:
-            next_element = 'onset_quality'
-            question = self._generate_oldcarts_question_for_component(next_element)
-            self.conversation_history.append({
-                'type': 'question',
-                'question': question,
-                'oldcarts': next_element,
-                'focus': 'clinical'
-            })
-            return {
-                'success': True,
-                'question': question,
-                'status': 'questioning'
-            }
-        
-        # Otherwise, get next element from missing list
+        # Standard OLDCARTS order
         next_element = missing[0]
-        
-        # If next is onset and we've already asked it, skip to next
-        if next_element == 'onset' and 'onset' in asked_oldcarts:
-            if len(missing) > 1:
-                next_element = missing[1]
-            else:
-                return {'success': True, 'status': 'completed', 'message': 'Assessment complete'}
-        
         question = self._generate_oldcarts_question_for_component(next_element)
         
         self.conversation_history.append({
@@ -653,17 +592,15 @@ class AdaptiveDiagnosticEngine:
         }
     
     def _generate_oldcarts_question_for_component(self, component: str) -> str:
-        """Generate question for OLDCARTS component - reorganized flow"""
+        """Generate question for OLDCARTS component - standard OLDCARTS"""
         questions = {
-            # Split onset into two questions for better flow
-            'onset': "When did this start?",  # Just asking when
-            'onset_quality': "Was it sudden or gradual?",  # Separate question for quality
+            'onset': "When did this start? Was it sudden or gradual?",
             'location': "Where exactly is the pain located?",
             'duration': "How long does it last?",
             'character': "How would you describe the pain?",
             'aggravating': "What makes it worse?",
             'relieving': "What makes it better?",
-            'timing': "When does it occur? Is it constant or does it come and go?",  # Enhanced
+            'timing': "When does it occur?",
             'severity': "On a scale of 1-10, how severe is it?"
         }
         return questions.get(component, f"Tell me about {component}")
@@ -684,8 +621,8 @@ class AdaptiveDiagnosticEngine:
                 'question': age_question,
                 'focus': 'age'
             })
-            return {
-                'success': True,
+        return {
+            'success': True,
                 'message': empathetic_msg,
                 'question': age_question,
                 'status': 'questioning',
@@ -748,24 +685,25 @@ class AdaptiveDiagnosticEngine:
     
     def _generate_empathetic_statement(self) -> str:
         """Generate empathetic opening statement"""
-        if self.llm_chat_fn:
+        if self.llm_chat_simple_fn:
             try:
                 system_msg = "You are a compassionate medical assistant. Generate a brief, empathetic statement acknowledging the patient's chief complaint."
                 user_msg = f"Patient says: '{self.chief_complaint}'\n\nGenerate a brief, empathetic statement (1-2 sentences) that acknowledges their concern and shows you're here to help."
                 
-                response = self.llm_chat_simple_fn(
-                    [
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_msg}
-                    ],
+            response = self.llm_chat_simple_fn(
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
                     max_tokens=60,
                     temperature=0.7
                 )
-                return response.strip()
-            except Exception:
-                pass
+                if response and response.strip():
+                    return response.strip()
+        except Exception as e:
+                self._capture_debug(f"[Engine] ⚠️ Failed to generate empathetic statement: {e}")
         
-        # Fallback
+        # Fallback - always return something
         return f"I understand you're experiencing {self.chief_complaint}. I'm here to help figure out what's going on."
     
     def process_answer(self, user_answer: str) -> Dict[str, Any]:

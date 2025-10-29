@@ -290,8 +290,27 @@ def chat_tg():
                     else:
                         print(f"[Container] ⚠️ No engine_debug_output key in debug info")
                 
+                # Format response for Telegram
+                # Handle empathetic statement + question (with pause indicator)
+                response_text = ""
+                if response.get('message'):
+                    response_text = response['message']
+                
+                if response.get('question'):
+                    if response_text:
+                        # Add pause indicator if both message and question exist
+                        if response.get('has_pause'):
+                            response_text += "\n\n"  # Extra spacing for pause
+                        else:
+                            response_text += "\n"
+                    response_text += response['question']
+                
+                # Fallback if neither exists
+                if not response_text:
+                    response_text = response.get('question', response.get('message', ''))
+                
                 telegram_response = {
-                    "response": response.get('question', response.get('message', '')),
+                    "response": response_text,
                     "debug": debug_info  # Include debug info if available
                 }
                 return jsonify(telegram_response)
@@ -428,12 +447,41 @@ def chat_tts():
             print(f"[Container] ✅ Got response from unified medical session")
             
             # Check if response includes filler (dict) or is simple text (str)
-            if isinstance(response, dict) and 'question' in response:
-                # Stream the actual question as SEPARATE sentence
-                question_text = response.get('question', '')
-                yield "<sentence_start>\n"
-                yield f"{question_text}\n"
-                yield "<sentence_end>\n"
+            if isinstance(response, dict):
+                # Handle empathetic statement + question (with pause)
+                if response.get('message') and response.get('question'):
+                    # Stream empathetic statement first
+                    message_text = response.get('message', '')
+                    yield "<sentence_start>\n"
+                    yield f"{message_text}\n"
+                    yield "<sentence_end>\n"
+                    
+                    # Add pause if indicated
+                    if response.get('has_pause'):
+                        yield "<pause>\n"  # Pause marker for TTS
+                    
+                    # Then stream question
+                    question_text = response.get('question', '')
+                    yield "<sentence_start>\n"
+                    yield f"{question_text}\n"
+                    yield "<sentence_end>\n"
+                elif response.get('question'):
+                    # Just question
+                    question_text = response.get('question', '')
+                    yield "<sentence_start>\n"
+                    yield f"{question_text}\n"
+                    yield "<sentence_end>\n"
+                elif response.get('message'):
+                    # Just message
+                    message_text = response.get('message', '')
+                    yield "<sentence_start>\n"
+                    yield f"{message_text}\n"
+                    yield "<sentence_end>\n"
+                else:
+                    # Fallback
+                    yield "<sentence_start>\n"
+                    yield "I'm processing your response...\n"
+                    yield "<sentence_end>\n"
             elif isinstance(response, str):
                 # Simple text response (no filler)
                 yield "<sentence_start>\n"
