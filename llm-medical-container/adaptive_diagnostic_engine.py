@@ -826,11 +826,45 @@ class AdaptiveDiagnosticEngine:
             'status': 'questioning'
         }
     
-    def _generate_oldcarts_question_for_component(self, component: str) -> str:
-        """Generate question for OLDCARTS component using LLM for natural variation"""
+    def _generate_confirmation_message(self, user_answer: str) -> str:
+        """Generate a confirmation/paraphrase message to show we understand what the patient said"""
         if self.llm_chat_simple_fn:
-            system_msg = "You are a medical assistant. Generate a natural, conversational question to ask about a specific aspect of a patient's symptoms."
-            user_msg = f"Generate a natural question to ask about the {component} of the patient's symptoms. Make it conversational and empathetic. Return only the question, no other text."
+            # Get context about chief complaint
+            chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}"
+            if hasattr(self, 'conversation_history') and self.conversation_history:
+                # Include recent conversation context
+                recent_msgs = [item.get('message', item.get('question', item.get('answer', ''))) 
+                             for item in self.conversation_history[-3:] if item.get('type') in ['statement', 'question', 'answer']]
+                context = " ".join(recent_msgs[-2:])  # Last 2 messages
+            else:
+                context = ""
+            
+            system_msg = "You are a medical assistant. Generate a brief confirmation message paraphrasing what the patient just told you to show you understand."
+            user_msg = f"{chief_complaint_context}\n\nPatient just said: '{user_answer}'\n\nGenerate a brief confirmation message (1-2 sentences) that paraphrases what they told you to confirm understanding. Make it natural and empathetic. Return only the confirmation message, no other text."
+            
+            response = self.llm_chat_simple_fn(
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=60,
+                temperature=self.temperature
+            )
+            if response and response.strip():
+                return response.strip()
+        
+        # Fallback
+        return f"I understand you're experiencing {user_answer.lower()}."
+    
+    def _generate_oldcarts_question_for_component(self, component: str) -> str:
+        """Generate question for OLDCARTS component using LLM with proper context"""
+        if self.llm_chat_simple_fn:
+            # Provide context: chief complaint and what we already know
+            chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}"
+            covered_info = "Already covered: " + ", ".join([k for k, v in self.oldcarts_covered.items() if v])
+            
+            system_msg = "You are a medical assistant. Generate a natural, conversational question to ask about a specific aspect of a patient's symptoms. Base your question ONLY on what the patient has actually told you - do NOT make up symptoms."
+            user_msg = f"{chief_complaint_context}\n{covered_info}\n\nGenerate a natural question to ask about the {component} of the patient's symptoms related to their chief complaint. Make it conversational and empathetic. ONLY ask about the chief complaint and what they've told you - do NOT mention symptoms they haven't mentioned. Return only the question, no other text."
             
             response = self.llm_chat_simple_fn(
                 [
@@ -1045,30 +1079,20 @@ class AdaptiveDiagnosticEngine:
                     
                     self._capture_debug(f"[Engine]   ✅ {element} marked as covered from symptom response")
             
-            # Transition to demographics with a natural message using LLM
-            if self.llm_chat_simple_fn:
-                system_msg = "You are a medical assistant. Generate a natural, appreciative transition message before asking demographic questions."
-                user_msg = "Generate a brief, natural message thanking the patient for sharing symptom information and transitioning to asking demographic questions. Make it conversational and professional. Return only the message, no other text."
-                
-                response = self.llm_chat_simple_fn(
-                    [
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_msg}
-                    ],
-                    max_tokens=40,
-                    temperature=self.temperature
-                )
-                transition_msg = response.strip() if response and response.strip() else "Thank you for sharing that information. Let me ask you some questions to better assist you."
-            else:
-                transition_msg = "Thank you for sharing that information. Let me ask you some questions to better assist you."
-            
+            # STEP 1: Generate confirmation/paraphrase of what we heard (tell me what I heard)
+            confirmation_msg = self._generate_confirmation_message(user_answer)
             self.conversation_history.append({
                 'type': 'statement',
-                'message': transition_msg
+                'message': confirmation_msg
             })
             
-            # Now ask for demographics
-            return self._generate_ml_first_question_with_demographics()
+            # STEP 2: Return confirmation message first, then next call will get demographics
+            return {
+                'success': True,
+                'message': confirmation_msg,
+                'status': 'questioning',
+                'has_pause': True  # Pause before next question
+            }
         
         # Handle statement responses (empathetic statement doesn't need user response)
         if last_q and last_q.get('type') == 'statement':
