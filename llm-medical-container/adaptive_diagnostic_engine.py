@@ -82,6 +82,9 @@ class AdaptiveDiagnosticEngine:
             from ml.medical_rule_engine import MedicalRuleEngine
             self.medical_rule_engine = MedicalRuleEngine(embedding_model=self.embedding_model)
             self._capture_debug(f"[Engine] ✅ Medical Rule Engine initialized")
+            
+            # Build FAISS anatomical index for fast medical_rules.json lookup
+            self._build_anatomical_faiss_index()
         except ImportError:
             try:
                 import sys
@@ -89,6 +92,9 @@ class AdaptiveDiagnosticEngine:
                 from medical_rule_engine import MedicalRuleEngine
                 self.medical_rule_engine = MedicalRuleEngine(embedding_model=self.embedding_model)
                 self._capture_debug(f"[Engine] ✅ Medical Rule Engine initialized (alternative path)")
+                
+                # Build FAISS anatomical index for fast medical_rules.json lookup
+                self._build_anatomical_faiss_index()
             except ImportError:
                 self.medical_rule_engine = None
                 self._capture_debug(f"[Engine] ⚠️ Medical Rule Engine not available")
@@ -103,6 +109,11 @@ class AdaptiveDiagnosticEngine:
         # Load guidelines
         self.all_guidelines = {}
         self._load_guidelines()
+        
+        # FAISS anatomical index for fast medical_rules.json lookup
+        self.anatomical_faiss_index = None
+        self.anatomical_terms = []
+        self.anatomical_conditions = {}
         
         # Initialize assessment state
         self.reset_assessment()
@@ -198,8 +209,34 @@ class AdaptiveDiagnosticEngine:
         # Store OLDCARTS analysis for use in questioning
         self.oldcarts_analysis = oldcarts_analysis
         
-        # Don't process detected elements here - just ask first question
-        # Processing will happen when user answers each question
+        # Process any detected OLDCARTS elements from the initial prompt
+        answered_components = oldcarts_analysis.get('answered_components', {})
+        if answered_components:
+            self._capture_debug(f"[Engine] 🔄 Processing {len(answered_components)} detected elements from initial prompt")
+            for element, detected_terms in answered_components.items():
+                self._capture_debug(f"[Engine] 📊 Processing {element}: {detected_terms}")
+                # Create a fake question entry for this element so _process_clinical_answer knows which element to process
+                self.conversation_history.append({
+                    'type': 'question',
+                    'question': f"Tell me about {element}",
+                    'oldcarts': element,
+                    'focus': 'clinical'
+                })
+                # Store the RAW answer for context (full prompt, not just detected terms)
+                self.conversation_history.append({
+                    'type': 'answer',
+                    'answer': chief_complaint,  # Store full raw text
+                    'oldcarts': element
+                })
+                # Process the element using FULL raw text with unified function
+                try:
+                    result = self._process_clinical_answer(chief_complaint)  # Pass full raw text
+                    if result.get('status') == 'questioning':
+                        self._capture_debug(f"[Engine]   ✅ {element} processed from initial prompt")
+                except Exception as e:
+                    self._capture_debug(f"[Engine]   ⚠️ Error processing {element}: {e}")
+        
+        # Start with demographics
         return self._generate_ml_first_question_with_demographics()
     
     def _match_chief_complaint_to_category(self, chief_complaint: str) -> str:
@@ -312,13 +349,55 @@ class AdaptiveDiagnosticEngine:
         return filtered
     
     def _parse_prompt_against_structured_oldcarts(self, prompt: str, guidelines: List[Dict]) -> Dict[str, Any]:
-        """Parse prompt against structured OLDCARTS to determine what's already answered"""
+        """Parse prompt against structured OLDCARTS using FAISS term matching + medical_rules.json"""
         if not guidelines:
-                return {
+            return {
                 'answered_components': {},
-                'missing_components': ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
+                'missing_components': ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity'],
+                'anatomical_analysis': {}
             }
         
+        # STEP 1: Extract anatomical information using medical_rules.json
+        anatomical_analysis = self._analyze_prompt_anatomy(prompt)
+        self._capture_debug(f"[Engine] 🏥 Anatomical analysis: {anatomical_analysis}")
+        
+        # STEP 2: Use FAISS-based term matching if available
+        answered_components = {}
+        if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
+            all_elements = ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
+            
+            for element in all_elements:
+                # Use FAISS to find matching terms
+                matching_terms = self.medical_rule_engine.find_matching_terms_faiss(prompt, element, threshold=0.65)
+                if matching_terms:
+                    answered_components[element] = matching_terms
+                    self._capture_debug(f"[Engine] 📍 {element}: {matching_terms}")
+        
+        # STEP 3: Enhanced location analysis using medical_rules.json + anatomical direction
+        if anatomical_analysis.get('direction'):
+            # If we detected anatomical direction but no location matches, create location matches
+            if 'location' not in answered_components:
+                location_terms = self._generate_anatomical_location_terms(anatomical_analysis['direction'])
+                if location_terms:
+                    answered_components['location'] = location_terms
+                    self._capture_debug(f"[Engine] 🏥 Generated location terms from anatomical analysis: {location_terms}")
+            
+            # Enhance existing location matches with anatomical terms
+            location_analysis = self._enhance_location_analysis(prompt, answered_components.get('location', []), anatomical_analysis)
+            answered_components['location'] = location_analysis.get('enhanced_terms', answered_components.get('location', []))
+            anatomical_analysis['location_enhancement'] = location_analysis
+        
+        answered_elements = list(answered_components.keys())
+        missing_elements = [element for element in ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity'] if element not in answered_elements]
+        
+        return {
+            'answered_components': answered_components,
+            'missing_components': missing_elements,
+            'anatomical_analysis': anatomical_analysis
+        }
+    
+    def _parse_prompt_against_structured_oldcarts_regex(self, prompt: str, guidelines: List[Dict]) -> Dict[str, Any]:
+        """Fallback regex-based parsing"""
         # Collect all 'includes' terms from guidelines
         all_includes = {
             'onset': set(), 'location': set(), 'duration': set(), 'character': set(),
@@ -355,7 +434,7 @@ class AdaptiveDiagnosticEngine:
                         answered_components[element] = []
                     answered_components[element].append(term)
                     break
-        
+                        
         all_elements = ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
         answered_elements = list(answered_components.keys())
         missing_elements = [element for element in all_elements if element not in answered_elements]
@@ -474,10 +553,16 @@ class AdaptiveDiagnosticEngine:
                                  if item.get('oldcarts') == oldcarts_element 
                                  and item.get('is_clarification'))
         
+        clarification_needed = False
         if clarification_count < 2 and self.active_guidelines:
             try:
                 missing_terms = self._analyze_missing_information(answer, oldcarts_element)
+                # Only need clarification if there are missing terms AND no terms are satisfied
                 if missing_terms:
+                    # Check if any terms are satisfied (exact or semantic match)
+                    satisfied_terms = self._get_satisfied_terms(answer, oldcarts_element)
+                    if not satisfied_terms:
+                        clarification_needed = True
                     question = self._generate_clarifying_question(oldcarts_element, answer, clarification_count, missing_terms)
                     self.conversation_history.append({
                         'type': 'question',
@@ -493,11 +578,19 @@ class AdaptiveDiagnosticEngine:
             except Exception as e:
                 self._capture_debug(f"[Engine] ⚠️ Clarification check failed: {e}")
         
-        # Mark element as covered
-        element_map = {'onset': 'O', 'location': 'L', 'duration': 'D', 'character': 'C',
-                      'aggravating': 'A', 'relieving': 'R', 'timing': 'T', 'severity': 'S'}
-        if oldcarts_element in element_map:
-            self.oldcarts_covered[element_map[oldcarts_element]] = True
+        # Only mark element as covered if NO clarification needed
+        if not clarification_needed:
+            element_map = {'onset': 'O', 'location': 'L', 'duration': 'D', 'character': 'C',
+                          'aggravating': 'A', 'relieving': 'R', 'timing': 'T', 'severity': 'S'}
+            if oldcarts_element in element_map:
+                self.oldcarts_covered[element_map[oldcarts_element]] = True
+                # Update missing_components list to remove this element
+                if self.oldcarts_analysis and 'missing_components' in self.oldcarts_analysis:
+                    if oldcarts_element in self.oldcarts_analysis['missing_components']:
+                        self.oldcarts_analysis['missing_components'].remove(oldcarts_element)
+                self._capture_debug(f"[Engine] ✅ {oldcarts_element} marked as complete")
+        else:
+            self._capture_debug(f"[Engine] ⏳ {oldcarts_element} needs clarification - not marked complete")
         
         # Continue to next question
         return self._ask_next_clinical_question()
@@ -532,7 +625,7 @@ class AdaptiveDiagnosticEngine:
             return 0.05
     
     def _analyze_missing_information(self, answer: str, oldcarts_element: str) -> List[str]:
-        """Analyze what information is missing from answer"""
+        """Analyze what information is missing using unified function with FAISS semantic matching"""
         if not self.active_guidelines:
             return []
         
@@ -545,11 +638,96 @@ class AdaptiveDiagnosticEngine:
                 includes = element_data.get('includes', [])
                 all_includes.update(t.lower() for t in includes)
         
-        # Check which terms are missing from answer
+        if not all_includes:
+            return []
+        
+        # Use unified function to check which terms are satisfied
+        satisfied_terms = set()
         answer_lower = answer.lower()
-        missing = [term for term in all_includes if term not in answer_lower]
+        
+        # Check each term using the same logic as unified function
+        for term in all_includes:
+            term_satisfied = False
+            
+            # 1. Exact/substring matching (fast path)
+            if term in answer_lower or answer_lower in term:
+                term_satisfied = True
+            else:
+                # 2. Use FAISS semantic matching (same as unified function)
+                if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
+                    semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, oldcarts_element, threshold=0.7)
+                    if term in [t.lower() for t in semantic_matches]:
+                        term_satisfied = True
+                    else:
+                        # 3. Direct semantic similarity check (same as unified function)
+                        if self.embedding_model:
+                            try:
+                                embeddings = self.embedding_model.encode([answer_lower, term])
+                                similarity = float(np.dot(embeddings[0], embeddings[1]) / 
+                                                 (np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])))
+                                if similarity >= 0.7:  # Same threshold as FAISS
+                                    term_satisfied = True
+                            except Exception:
+                                pass
+            
+            if term_satisfied:
+                satisfied_terms.add(term)
+        
+        # Terms are missing if they're not satisfied
+        missing = [term for term in all_includes if term not in satisfied_terms]
         
         return missing[:5]  # Limit to 5
+    
+    def _get_satisfied_terms(self, answer: str, oldcarts_element: str) -> set:
+        """Get terms that are satisfied using unified function logic"""
+        if not self.active_guidelines:
+            return set()
+        
+        # Collect all includes terms from active guidelines
+        all_includes = set()
+        for g in self.active_guidelines:
+            structured = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            element_data = structured.get(oldcarts_element, {})
+            if isinstance(element_data, dict):
+                includes = element_data.get('includes', [])
+                all_includes.update(t.lower() for t in includes)
+        
+        if not all_includes:
+            return set()
+        
+        # Use unified function to check which terms are satisfied
+        satisfied_terms = set()
+        answer_lower = answer.lower()
+        
+        # Check each term using the same logic as unified function
+        for term in all_includes:
+            term_satisfied = False
+            
+            # 1. Exact/substring matching (fast path)
+            if term in answer_lower or answer_lower in term:
+                term_satisfied = True
+            else:
+                # 2. Use FAISS semantic matching (same as unified function)
+                if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
+                    semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, oldcarts_element, threshold=0.7)
+                    if term in [t.lower() for t in semantic_matches]:
+                        term_satisfied = True
+                    else:
+                        # 3. Direct semantic similarity check (same as unified function)
+                        if self.embedding_model:
+                            try:
+                                embeddings = self.embedding_model.encode([answer_lower, term])
+                                similarity = float(np.dot(embeddings[0], embeddings[1]) / 
+                                                 (np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])))
+                                if similarity >= 0.7:  # Same threshold as FAISS
+                                    term_satisfied = True
+                            except Exception:
+                                pass
+            
+            if term_satisfied:
+                satisfied_terms.add(term)
+        
+        return satisfied_terms
     
     def _generate_clarifying_question(self, oldcarts_element: str, patient_answer: str, 
                                      clarification_count: int, missing_terms: list) -> str:
@@ -620,7 +798,7 @@ class AdaptiveDiagnosticEngine:
                 'status': 'questioning',
                 'has_pause': True  # Pause before next question
             }
-        
+            
         # STEP 2: Age question (separate from empathetic statement)
         if 'age' not in self.demographics:
             question = "How old are you?"
@@ -725,7 +903,7 @@ class AdaptiveDiagnosticEngine:
             if self.llm_chat_simple_fn:
                 system_msg = "You are a medical assistant. Extract the patient's age from their response. Return ONLY a number between 0-150, or 'invalid' if not a valid age."
                 user_msg = f"Patient said: '{user_answer}'\n\nExtract age as a number only:"
-                
+        
                 response = self.llm_chat_simple_fn(
                     [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
                     max_tokens=10,
@@ -901,3 +1079,191 @@ Response:"""
                 'message': f"I understand you have a question. Let me clarify: {last_question or 'Please answer the question I asked.'}",
                 'status': 'questioning'
             }
+    
+    def _build_anatomical_faiss_index(self):
+        """Build FAISS index for fast anatomical analysis using medical_rules.json"""
+        if not self.medical_rule_engine or not self.embedding_model:
+            return
+        
+        try:
+            import faiss
+            import numpy as np
+            
+            # Load medical_rules.json
+            medical_rules = self.medical_rule_engine.medical_rules
+            if not medical_rules:
+                return
+            
+            # Collect all anatomical terms and their conditions
+            anatomical_terms = []
+            anatomical_conditions = {}
+            
+            for organ_system, anatomical_types in medical_rules.items():
+                for anatomical_type, conditions in anatomical_types.items():
+                    # Create terms for each anatomical type
+                    if anatomical_type == 'right_only':
+                        terms = ['right', 'right side', 'right sided', 'ruq', 'rlq', 'right upper quadrant', 'right lower quadrant']
+                    elif anatomical_type == 'left_only':
+                        terms = ['left', 'left side', 'left sided', 'luq', 'llq', 'left upper quadrant', 'left lower quadrant']
+                    elif anatomical_type == 'bilateral':
+                        terms = ['bilateral', 'both sides', 'both', 'symmetrical', 'all over', 'everywhere']
+                    elif anatomical_type == 'midline':
+                        terms = ['midline', 'center', 'central', 'middle', 'epigastric', 'suprapubic', 'periumbilical']
+                    else:
+                        continue
+                    
+                    for term in terms:
+                        anatomical_terms.append(term)
+                        if term not in anatomical_conditions:
+                            anatomical_conditions[term] = []
+                        anatomical_conditions[term].extend([(organ_system, anatomical_type, condition) for condition in conditions])
+            
+            if not anatomical_terms:
+                return
+            
+            # Build FAISS index
+            embeddings = self.embedding_model.encode(anatomical_terms)
+            embeddings = embeddings.astype('float32')
+            
+            # Normalize for cosine similarity
+            faiss.normalize_L2(embeddings)
+            
+            # Create index
+            index = faiss.IndexFlatIP(embeddings.shape[1])
+            index.add(embeddings)
+            
+            self.anatomical_faiss_index = index
+            self.anatomical_terms = anatomical_terms
+            self.anatomical_conditions = anatomical_conditions
+            
+            self._capture_debug(f"[FAISS] 🏥 Built anatomical index: {len(anatomical_terms)} terms")
+            
+        except Exception as e:
+            self._capture_debug(f"[FAISS] ⚠️ Error building anatomical index: {e}")
+    
+    def _analyze_prompt_anatomy(self, prompt: str) -> Dict[str, Any]:
+        """Fast anatomical analysis using FAISS + medical_rules.json"""
+        if not self.anatomical_faiss_index or not self.embedding_model:
+            return self._analyze_prompt_anatomy_fallback(prompt)
+        
+        try:
+            import faiss
+            import numpy as np
+            
+            # Encode prompt
+            prompt_embedding = self.embedding_model.encode([prompt])
+            prompt_embedding = prompt_embedding.astype('float32')
+            faiss.normalize_L2(prompt_embedding)
+            
+            # Search FAISS index
+            scores, indices = self.anatomical_faiss_index.search(prompt_embedding, k=5)
+            
+            # Analyze results
+            direction = None
+            organ_system = None
+            compatible_conditions = set()
+            incompatible_conditions = set()
+            
+            for score, idx in zip(scores[0], indices[0]):
+                if score >= 0.7:  # High confidence threshold
+                    term = self.anatomical_terms[idx]
+                    conditions = self.anatomical_conditions.get(term, [])
+                    
+                    # Extract direction and organ system
+                    for sys, anat_type, condition in conditions:
+                        if not organ_system:
+                            organ_system = sys
+                        
+                        if not direction:
+                            if anat_type == 'right_only':
+                                direction = 'right'
+                            elif anat_type == 'left_only':
+                                direction = 'left'
+                            elif anat_type == 'bilateral':
+                                direction = 'bilateral'
+                            elif anat_type == 'midline':
+                                direction = 'midline'
+                        
+                        # Categorize conditions
+                        if anat_type in ['right_only', 'left_only', 'bilateral', 'midline']:
+                            compatible_conditions.add(condition)
+                        else:
+                            incompatible_conditions.add(condition)
+            
+            return {
+                'direction': direction,
+                'organ_system': organ_system,
+                'compatible_conditions': list(compatible_conditions),
+                'incompatible_conditions': list(incompatible_conditions),
+                'confidence': float(max(scores[0])) if len(scores[0]) > 0 else 0.0
+            }
+            
+        except Exception as e:
+            self._capture_debug(f"[FAISS] ⚠️ Error in anatomical analysis: {e}")
+            return self._analyze_prompt_anatomy_fallback(prompt)
+    
+    def _analyze_prompt_anatomy_fallback(self, prompt: str) -> Dict[str, Any]:
+        """Fallback anatomical analysis using simple keyword matching"""
+        prompt_lower = prompt.lower()
+        
+        # Simple keyword matching
+        if any(word in prompt_lower for word in ['right', 'ruq', 'rlq']):
+            direction = 'right'
+        elif any(word in prompt_lower for word in ['left', 'luq', 'llq']):
+            direction = 'left'
+        elif any(word in prompt_lower for word in ['bilateral', 'both sides', 'both']):
+            direction = 'bilateral'
+        elif any(word in prompt_lower for word in ['midline', 'center', 'central', 'middle', 'epigastric']):
+            direction = 'midline'
+        else:
+            direction = None
+        
+        return {
+            'direction': direction,
+            'organ_system': None,
+            'compatible_conditions': [],
+            'incompatible_conditions': [],
+            'confidence': 0.5 if direction else 0.0
+        }
+    
+    def _enhance_location_analysis(self, prompt: str, faiss_matches: List[str], anatomical_analysis: Dict) -> Dict[str, Any]:
+        """Enhance location analysis using anatomical information"""
+        enhanced_terms = faiss_matches.copy()
+        
+        # Add anatomical terms if not already present
+        direction = anatomical_analysis.get('direction')
+        if direction:
+            if direction == 'right':
+                anatomical_terms = ['right', 'right side', 'right sided']
+            elif direction == 'left':
+                anatomical_terms = ['left', 'left side', 'left sided']
+            elif direction == 'bilateral':
+                anatomical_terms = ['bilateral', 'both sides', 'both']
+            elif direction == 'midline':
+                anatomical_terms = ['midline', 'center', 'central', 'middle']
+            else:
+                anatomical_terms = []
+            
+            # Add anatomical terms that aren't already in FAISS matches
+            for term in anatomical_terms:
+                if not any(term.lower() in match.lower() for match in enhanced_terms):
+                    enhanced_terms.append(term)
+        
+        return {
+            'enhanced_terms': enhanced_terms,
+            'anatomical_direction': direction,
+            'confidence': anatomical_analysis.get('confidence', 0.0)
+        }
+    
+    def _generate_anatomical_location_terms(self, direction: str) -> List[str]:
+        """Generate location terms based on anatomical direction - ONLY vague terms, not specific anatomical locations"""
+        if direction == 'right':
+            return ['right', 'right side', 'right sided']  # Vague terms only
+        elif direction == 'left':
+            return ['left', 'left side', 'left sided']  # Vague terms only
+        elif direction == 'bilateral':
+            return ['bilateral', 'both sides', 'both', 'symmetrical', 'all over', 'everywhere']
+        elif direction == 'midline':
+            return ['midline', 'center', 'central', 'middle']  # Vague terms only
+        else:
+            return []

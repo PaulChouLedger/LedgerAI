@@ -7,6 +7,8 @@ Uses medical_rules.json and unified similarity function for all scoring
 import json
 import os
 import numpy as np
+import faiss
+from sentence_transformers import SentenceTransformer
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 
@@ -20,6 +22,8 @@ class MedicalRuleEngine:
     def __init__(self, embedding_model=None):
         self.embedding_model = embedding_model
         self.medical_rules = self._load_medical_rules()
+        self.term_embeddings = {}
+        self._build_term_indexes()
     
     def _load_medical_rules(self) -> Dict:
         """Load medical_rules.json"""
@@ -34,6 +38,126 @@ class MedicalRuleEngine:
         except Exception as e:
             print(f"[MedicalRules] ⚠️ Error loading rules: {e}")
             return {}
+    
+    def _build_term_indexes(self):
+        """Build FAISS indexes for all OLDCARTS terms from guidelines."""
+        if not self.embedding_model:
+            print("[FAISS] ⚠️ No embedding model available, skipping term index building")
+            return
+        
+        print("[FAISS] 🔨 Building term indexes...")
+        
+        # Collect all terms from guidelines
+        all_terms = {
+            'onset': set(), 'location': set(), 'duration': set(), 'character': set(),
+            'aggravating': set(), 'relieving': set(), 'timing': set(), 'severity': set()
+        }
+        
+        # Load guidelines and extract terms
+        guidelines_path = os.path.join(os.path.dirname(__file__), '..', 'medical', 'guidelines')
+        if not os.path.exists(guidelines_path):
+            print(f"[FAISS] ⚠️ Guidelines path does not exist: {guidelines_path}")
+            return
+        
+        guideline_count = 0
+        for root, dirs, files in os.walk(guidelines_path):
+            for file in files:
+                if file.endswith('.json'):
+                    try:
+                        with open(os.path.join(root, file), 'r') as f:
+                            guideline = json.load(f)
+                            # Try both possible structures
+                            structured = guideline.get('key_features', {}).get('structured_oldcarts', {})
+                            if not structured:
+                                structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+                            
+                            if structured:
+                                guideline_count += 1
+                                for element, data in structured.items():
+                                    if isinstance(data, dict) and 'includes' in data and element in all_terms:
+                                        for term in data['includes']:
+                                            all_terms[element].add(term.lower())
+                    except Exception as e:
+                        print(f"[FAISS] ⚠️ Could not load guideline {file}: {e}")
+        
+        print(f"[FAISS] 📚 Loaded {guideline_count} guidelines")
+        
+        # Build FAISS indexes for each element
+        for element, terms in all_terms.items():
+            if terms:
+                terms_list = list(terms)
+                try:
+                    embeddings = self.embedding_model.encode(terms_list)
+                    embeddings = embeddings.astype('float32')
+                    
+                    # Normalize embeddings for cosine similarity (required for IndexFlatIP)
+                    faiss.normalize_L2(embeddings)
+                    
+                    # Create FAISS index
+                    index = faiss.IndexFlatIP(embeddings.shape[1])  # Inner product for cosine similarity
+                    index.add(embeddings)
+                    
+                    self.term_embeddings[element] = {
+                        'terms': terms_list,
+                        'embeddings': embeddings,
+                        'index': index
+                    }
+                    
+                    print(f"[FAISS] ✅ Built index for {element}: {len(terms_list)} terms")
+                except Exception as e:
+                    print(f"[FAISS] ⚠️ Error building index for {element}: {e}")
+                    import traceback
+                    traceback.print_exc()
+    
+    def find_matching_terms_faiss(self, prompt: str, element: str, threshold: float = 0.65) -> List[str]:
+        """Find matching terms using FAISS similarity search with exact matching fallback."""
+        if element not in self.term_embeddings or not self.embedding_model:
+            return []
+        
+        matches = []
+        prompt_lower = prompt.lower()
+        
+        # STEP 1: Exact/substring matching (fast path, highest priority)
+        for term in self.term_embeddings[element]['terms']:
+            term_lower = term.lower()
+            # Exact match or substring match
+            if (term_lower == prompt_lower or 
+                term_lower in prompt_lower or 
+                prompt_lower in term_lower):
+                if term not in matches:
+                    matches.append(term)
+        
+        # If we found exact matches, return them (high confidence)
+        if matches:
+            return matches
+        
+        # STEP 2: FAISS semantic matching (fallback for semantic similarity)
+        try:
+            # Encode prompt
+            prompt_embedding = self.embedding_model.encode([prompt])
+            prompt_embedding = prompt_embedding.astype('float32')
+            
+            # Normalize for cosine similarity (required for IndexFlatIP)
+            faiss.normalize_L2(prompt_embedding)
+            
+            # Search FAISS index
+            scores, indices = self.term_embeddings[element]['index'].search(
+                prompt_embedding, k=10
+            )
+            
+            # Filter by threshold and return matching terms
+            for score, idx in zip(scores[0], indices[0]):
+                if score >= threshold:
+                    term = self.term_embeddings[element]['terms'][idx]
+                    if term not in matches:
+                        matches.append(term)
+            
+            return matches
+        except Exception as e:
+            print(f"[FAISS] ⚠️ Error in term matching: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
     
     def _get_condition_anatomical_type(self, condition_name: str, organ_system: str) -> Optional[str]:
         """Get anatomical type from medical_rules.json"""
@@ -180,7 +304,7 @@ class MedicalRuleEngine:
                                   oldcarts_element: str, structured_oldcarts: dict,
                                   condition_name: str) -> float:
         """
-        Compute word match boost using medical_rules.json and structured_oldcarts
+        Compute word match boost using FAISS and medical_rules.json
         """
         if oldcarts_element not in structured_oldcarts:
             return 0.0
@@ -209,17 +333,39 @@ class MedicalRuleEngine:
                         return -0.3  # Penalty
                 # bilateral and midline: base_boost stays 0.0 (compatible)
         
-        # STEP 2: Check excludes
+        # STEP 2: FAISS-based term matching (only for the specific OLDCARTS element)
+        if oldcarts_element in self.term_embeddings:
+            # Get matches for THIS specific element only
+            all_faiss_matches = self.find_matching_terms_faiss(patient_text, oldcarts_element, threshold=0.7)
+            
+            # Filter to only includes/excludes from THIS guideline
+            excludes_lower = [term.lower() for term in excludes_terms]
+            includes_lower = [term.lower() for term in includes_terms]
+            
+            # Check excludes (must be in both FAISS matches AND this guideline's excludes)
+            matching_excludes = [term for term in all_faiss_matches if term.lower() in excludes_lower]
+            if matching_excludes:
+                return -0.3  # Penalty for exclude matches
+            
+            # Check includes (must be in both FAISS matches AND this guideline's includes)
+            matching_includes = [term for term in all_faiss_matches if term.lower() in includes_lower]
+            if matching_includes:
+                # Calculate boost based on number of matches
+                match_boost = min(0.1 * len(matching_includes), 0.4)
+                return min(base_boost + match_boost, 0.5)
+        
+        # STEP 3: Fallback to exact matching if FAISS not available
         normalized_lower = normalized_text.lower()
         patient_lower = patient_text.lower()
         
+        # Check excludes
         for term in excludes_terms:
             term_lower = term.lower()
             if (term_lower in normalized_lower or normalized_lower in term_lower or
                 term_lower in patient_lower or patient_lower in term_lower):
                 return -0.3  # Penalty
         
-        # STEP 3: Check includes
+        # Check includes
         for term in includes_terms:
             term_lower = term.lower()
             
@@ -237,58 +383,58 @@ class MedicalRuleEngine:
                 match_boost = min(0.2 * len(matching_words), 0.4)
                 return min(base_boost + match_boost, 0.5)
         
-        # STEP 4: Semantic matching fallback
-        if self.embedding_model and includes_terms:
-            try:
-                all_texts = [normalized_lower] + [term.lower() for term in includes_terms]
-                embeddings = self.embedding_model.encode(all_texts)
-                normalized_emb = embeddings[0]
-                
-                best_similarity = 0.0
-                for i, term in enumerate(includes_terms):
-                    term_emb = embeddings[i + 1]
-                    similarity = float(np.dot(normalized_emb, term_emb) / 
-                                     (np.linalg.norm(normalized_emb) * np.linalg.norm(term_emb)))
-                    if similarity > best_similarity:
-                        best_similarity = similarity
-                
-                if best_similarity >= 0.65:
-                    match_boost = min(0.2 + (best_similarity - 0.65) * 0.5, 0.4)
-                    return min(base_boost + match_boost, 0.5)
-            except Exception as e:
-                pass
-        
         # Return base_boost if any (from medical_rules.json)
         return base_boost
     
     def filter_guidelines_by_location(self, patient_answer: str, guidelines: List[Dict], 
                                      organ_system: str) -> List[Dict]:
         """
-        Filter guidelines using medical_rules.json based on location
+        UNIVERSAL: Filter guidelines using FAISS + medical_rules.json for ALL organ systems
+        
+        Flow:
+        1. Use FAISS to find location matches across all medical conditions
+        2. Extract direction from FAISS-matched terms
+        3. Apply medical_rules.json filtering universally:
+           - right → show right_only + bilateral + midline, rule out left_only
+           - left → show left_only + bilateral + midline, rule out right_only
+           - bilateral/midline → show all (compatible with any direction)
         
         Returns:
-            Filtered guidelines (boost matches, rule out opposites, keep vague/bilateral intact)
+            Filtered guidelines based on anatomical compatibility
         """
         if not organ_system or not self.medical_rules:
             return guidelines
         
-        # Normalize patient answer
-        synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
-        synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
+        # STEP 1: Use FAISS to find location matches (universal across all organ systems)
+        patient_direction = None
+        if 'location' in self.term_embeddings:
+            # Find matching location terms using FAISS
+            location_matches = self.find_matching_terms_faiss(patient_answer, 'location', threshold=0.65)
+            
+            if location_matches:
+                # Extract direction from FAISS-matched terms
+                patient_direction = self._extract_directional_component_from_terms(location_matches, patient_answer)
         
-        normalized_answer = patient_answer.lower()
-        if os.path.exists(synonym_path):
-            try:
-                with open(synonym_path, 'r') as f:
-                    synonyms = json.load(f)
-                normalized_answer = self._normalize_with_synonyms(patient_answer, synonyms, 'location')
-            except Exception as e:
-                pass
+        # Fallback to simple keyword extraction if FAISS didn't find matches
+        if not patient_direction:
+            normalized_answer = patient_answer.lower()
+            synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+            synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
+            
+            if os.path.exists(synonym_path):
+                try:
+                    with open(synonym_path, 'r') as f:
+                        synonyms = json.load(f)
+                    normalized_answer = self._normalize_with_synonyms(patient_answer, synonyms, 'location')
+                except Exception:
+                    pass
+            
+            patient_direction = self._extract_directional_component(normalized_answer, patient_answer)
         
-        patient_direction = self._extract_directional_component(normalized_answer, patient_answer)
         if not patient_direction:
             return guidelines  # No direction found, keep all
         
+        # STEP 2: Apply medical_rules.json filtering UNIVERSALLY across all organ systems
         filtered = []
         for guideline in guidelines:
             condition_name = guideline.get('data', {}).get('condition', guideline.get('name', ''))
@@ -298,15 +444,59 @@ class MedicalRuleEngine:
                 filtered.append(guideline)  # Unknown type, keep it
                 continue
             
-            # Check compatibility
+            # UNIVERSAL medical_rules.json logic for ALL organ systems:
+            # GI, CARDIO, PULMONARY, MSK, DERM, NEURO, RENAL, GU, GYN
             if anatomical_type == 'right_only':
                 if patient_direction == 'left':
-                    continue  # Rule out
+                    continue  # Rule out left_only when patient says "right"
+                # Keep: right matches right_only, bilateral, midline, vague
             elif anatomical_type == 'left_only':
                 if patient_direction == 'right':
-                    continue  # Rule out
+                    continue  # Rule out left_only when patient says "right"
+                # Keep: left matches left_only, bilateral, midline, vague
+            # bilateral and midline: always keep (compatible with all directions)
+            # This works for ALL organ systems: GI, CARDIO, PULMONARY, MSK, DERM, NEURO, RENAL, GU, GYN
             
-            # Keep: matches, bilateral, midline, vague
             filtered.append(guideline)
         
         return filtered
+    
+    def _extract_directional_component_from_terms(self, matched_terms: List[str], raw_text: str = None) -> Optional[str]:
+        """
+        UNIVERSAL: Extract directional component from FAISS-matched location terms
+        
+        Works across ALL organ systems and medical conditions by analyzing
+        the actual matched terms (e.g., "right side", "right lower quadrant", "left chest")
+        to determine anatomical direction.
+        
+        Args:
+            matched_terms: List of terms found by FAISS (e.g., ["right side", "right lower quadrant"])
+            raw_text: Original patient text for additional context
+            
+        Returns:
+            Direction: 'right', 'left', 'bilateral', 'midline', or None
+        """
+        combined_text = ' '.join(matched_terms).lower()
+        if raw_text:
+            combined_text += ' ' + raw_text.lower()
+        
+        # UNIVERSAL directional detection across ALL organ systems:
+        # GI, CARDIO, PULMONARY, MSK, DERM, NEURO, RENAL, GU, GYN
+        
+        # Right-sided indicators
+        if any(word in combined_text for word in ['right', 'ruq', 'rlq', 'right side', 'right sided']):
+            return 'right'
+        
+        # Left-sided indicators  
+        elif any(word in combined_text for word in ['left', 'luq', 'llq', 'left side', 'left sided']):
+            return 'left'
+        
+        # Bilateral indicators
+        elif any(word in combined_text for word in ['bilateral', 'both sides', 'both', 'symmetrical', 'all over', 'everywhere']):
+            return 'bilateral'
+        
+        # Midline indicators
+        elif any(word in combined_text for word in ['midline', 'center', 'central', 'middle', 'epigastric', 'suprapubic', 'periumbilical']):
+            return 'midline'
+        
+        return None
