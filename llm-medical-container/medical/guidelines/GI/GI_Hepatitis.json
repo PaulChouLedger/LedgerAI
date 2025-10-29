@@ -29,13 +29,8 @@
       "location": {
         "includes": [
           "right upper quadrant",
-          "RUQ",
-          "liver area",
-          "right upper quadrant (RUQ)",
-          "right upper",
-          "under ribs right",
-          "below rib right",
-          "right side upper"
+          "epigastric",
+          "liver area"
         ],
         "excludes": [
           "left side",
