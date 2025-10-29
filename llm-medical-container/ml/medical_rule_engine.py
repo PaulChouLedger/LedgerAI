@@ -52,42 +52,132 @@ class MedicalRuleEngine:
         print(f"[MedicalRules] 📋 Condition list sample (first 3): {[c[:30] for c in condition_list[:3]] if condition_list else 'empty'}")
         return None
     
-    def _check_anatomical_compatibility(self, patient_text: str, exclude_term: str, condition_name: str, organ_system: str) -> bool:
+    def _extract_directional_component(self, normalized_text: str, raw_text: str = None) -> str:
         """
-        Check if patient text and exclude term are anatomically compatible
-        Returns True if they are compatible (no penalty), False if incompatible (penalty applies)
+        Extract directional component from normalized text
+        Returns: 'right', 'left', 'bilateral', 'midline', or None
         
-        Uses medical_rules.json to determine anatomical types:
-        - right_only condition + patient says "left" → incompatible (but opposite sides already handled)
-        - left_only condition + patient says "right" → incompatible
+        Uses both normalized and raw text to catch directional terms
         """
-        patient_lower = patient_text.lower()
-        exclude_lower = exclude_term.lower()
+        text_to_check = normalized_text.lower()
+        if raw_text:
+            text_to_check += " " + raw_text.lower()
         
-        # Extract sides from both
-        patient_has_right = 'right' in patient_lower
-        patient_has_left = 'left' in patient_lower
-        exclude_has_right = 'right' in exclude_lower
-        exclude_has_left = 'left' in exclude_lower
+        # Check for specific directional indicators
+        if any(word in text_to_check for word in ['right', 'ruq', 'rlq']):
+            return 'right'
+        elif any(word in text_to_check for word in ['left', 'luq', 'llq']):
+            return 'left'
+        elif any(word in text_to_check for word in ['bilateral', 'both sides', 'both']):
+            return 'bilateral'
+        elif any(word in text_to_check for word in ['midline', 'center', 'central', 'middle']):
+            return 'midline'
         
-        # Get condition's anatomical type
+        return None
+    
+    def _check_location_compatibility_with_medical_rules(self, patient_text: str, normalized_text: str, 
+                                                        condition_name: str, organ_system: str) -> Dict[str, Any]:
+        """
+        Use medical_rules.json to check if patient location matches condition's anatomical type
+        
+        Returns:
+            Dict with:
+            - 'compatible': bool (True if should include, False if should exclude)
+            - 'boost': float (boost value if compatible, penalty if not)
+            - 'reasoning': str (explanation)
+        """
+        # Get condition's anatomical type from medical_rules.json
         anatomical_type = self._get_condition_anatomical_type(condition_name, organ_system)
         
-        print(f"[WordMatch] 🔍 Anatomical check: condition='{condition_name}', type='{anatomical_type}'")
-        print(f"[WordMatch]   Patient: right={patient_has_right}, left={patient_has_left}")
-        print(f"[WordMatch]   Exclude: right={exclude_has_right}, left={exclude_has_left}")
+        if not anatomical_type:
+            # No anatomical type found - use neutral/no boost
+            return {
+                'compatible': True,
+                'boost': 0.0,
+                'reasoning': f'No anatomical type found for {condition_name} in medical_rules.json'
+            }
         
-        # If condition is right_only and patient says left, they're talking about opposite side
-        # This shouldn't match anyway (opposite side), so skip penalty
-        if anatomical_type == 'right_only' and patient_has_left and exclude_has_left:
-            print(f"[WordMatch] ⏭️  SKIP: Condition is right_only, patient/exclude both mention left")
-            return True
+        # Extract directional component from patient answer
+        patient_direction = self._extract_directional_component(normalized_text, patient_text)
         
-        if anatomical_type == 'left_only' and patient_has_right and exclude_has_right:
-            print(f"[WordMatch] ⏭️  SKIP: Condition is left_only, patient/exclude both mention right")
-            return True
+        if not patient_direction:
+            # No clear directional component - use neutral/no boost
+            return {
+                'compatible': True,
+                'boost': 0.0,
+                'reasoning': f'No directional component found in patient answer'
+            }
         
-        return False  # Compatible for semantic check
+        # Check compatibility based on anatomical type
+        if anatomical_type == 'right_only':
+            if patient_direction == 'right':
+                return {
+                    'compatible': True,
+                    'boost': 0.3,  # Boost for matching right-only condition
+                    'reasoning': f'Patient says "{patient_direction}", condition is {anatomical_type} - MATCH'
+                }
+            elif patient_direction == 'left':
+                return {
+                    'compatible': False,
+                    'boost': -0.3,  # Penalty for opposite side
+                    'reasoning': f'Patient says "{patient_direction}", condition is {anatomical_type} - OPPOSITE SIDE'
+                }
+            else:  # bilateral or midline
+                return {
+                    'compatible': True,
+                    'boost': 0.0,
+                    'reasoning': f'Patient says "{patient_direction}", condition is {anatomical_type} - compatible'
+                }
+        
+        elif anatomical_type == 'left_only':
+            if patient_direction == 'left':
+                return {
+                    'compatible': True,
+                    'boost': 0.3,  # Boost for matching left-only condition
+                    'reasoning': f'Patient says "{patient_direction}", condition is {anatomical_type} - MATCH'
+                }
+            elif patient_direction == 'right':
+                return {
+                    'compatible': False,
+                    'boost': -0.3,  # Penalty for opposite side
+                    'reasoning': f'Patient says "{patient_direction}", condition is {anatomical_type} - OPPOSITE SIDE'
+                }
+            else:  # bilateral or midline
+                return {
+                    'compatible': True,
+                    'boost': 0.0,
+                    'reasoning': f'Patient says "{patient_direction}", condition is {anatomical_type} - compatible'
+                }
+        
+        elif anatomical_type == 'bilateral':
+            # Bilateral conditions accept any side
+            if patient_direction in ['right', 'left', 'bilateral']:
+                return {
+                    'compatible': True,
+                    'boost': 0.1,  # Small boost for matching
+                    'reasoning': f'Patient says "{patient_direction}", condition is {anatomical_type} - compatible'
+                }
+            else:  # midline
+                return {
+                    'compatible': True,
+                    'boost': 0.0,
+                    'reasoning': f'Patient says "{patient_direction}", condition is {anatomical_type} - compatible'
+                }
+        
+        elif anatomical_type == 'midline':
+            # Midline conditions accept any side (midline can be left or right)
+            return {
+                'compatible': True,
+                'boost': 0.0,
+                'reasoning': f'Patient says "{patient_direction}", condition is {anatomical_type} - compatible'
+            }
+        
+        # Unknown anatomical type
+        return {
+            'compatible': True,
+            'boost': 0.0,
+            'reasoning': f'Unknown anatomical type: {anatomical_type}'
+        }
     
     def __init__(self, ml_model_path: str = "ml/location_ml_model.pkl", embedding_model=None):
         self.ml_model = None
@@ -339,11 +429,34 @@ class MedicalRuleEngine:
             print(f"[WordMatch] 📋 Includes terms: {includes_terms}")
             print(f"[WordMatch] 📋 Excludes terms: {excludes_terms}")
             
+            # STEP 1: PRIMARY CHECK - Use medical_rules.json for location-based filtering
+            # This is simpler and more reliable than complex word matching
+            if oldcarts_element == 'location' and condition_name and organ_system:
+                location_compatibility = self._check_location_compatibility_with_medical_rules(
+                    patient_text, normalized_answer, condition_name, organ_system
+                )
+                
+                print(f"[WordMatch] 🏥 Medical Rules Check: {location_compatibility['reasoning']}")
+                print(f"[WordMatch]   Compatible: {location_compatibility['compatible']}, Boost: {location_compatibility['boost']:.2f}")
+                
+                # If incompatible (opposite side), return penalty immediately
+                if not location_compatibility['compatible']:
+                    return location_compatibility['boost']  # -0.3 penalty
+                
+                # If compatible with boost, use that boost (but still check includes for additional matches)
+                base_boost = location_compatibility['boost']  # Store for later combination
+            
             # normalized_answer already set above (from pre_normalized_text or normalization)
             normalized_lower = normalized_answer.lower().strip()
             normalized_words = normalized_answer.lower().replace('_', ' ').split()
             
-            # Check excludes FIRST using normalized text (consistent with includes)
+            # Also prepare raw patient text words for includes matching
+            patient_text_lower = patient_text.lower()
+            patient_raw_words = set(patient_text_lower.split())
+            
+            # STEP 2: Check excludes using structured_oldcarts excludes (SECONDARY CHECK)
+            # This is for specific exclude terms that aren't covered by anatomical type
+            # Directional logic already handled by medical_rules.json in STEP 1, so only check exact matches here
             if excludes_terms:
                 for term in excludes_terms:
                     term_lower = term.lower()
@@ -354,69 +467,63 @@ class MedicalRuleEngine:
                         print(f"[WordMatch]   Applying penalty: -0.3")
                         return -0.3  # PENALTY for excluded term
                     
-                    # Check 2: Word overlap - see if any word from normalized answer appears in exclude term
-                    term_words = set(term_lower.split())
-                    normalized_words_set = set(normalized_words)
-                    matching_words = normalized_words_set.intersection(term_words)
-                    
-                    if len(matching_words) >= 1:
-                        print(f"[WordMatch] ⛔ EXCLUDE MATCH (word overlap): '{normalized_answer}' has matching words '{matching_words}' with exclude term '{term}'")
+                    # Check 2: Exact match using raw patient text (catches cases like "right side" exclude matching "right side" patient)
+                    if patient_text_lower == term_lower or term_lower in patient_text_lower or patient_text_lower in term_lower:
+                        print(f"[WordMatch] ⛔ EXCLUDE MATCH (exact/substring - raw text): '{patient_text}' matches exclude term '{term}'")
                         print(f"[WordMatch]   Applying penalty: -0.3")
                         return -0.3  # PENALTY for excluded term
-                    
-                    # Check 3: Semantic similarity with embedding model (use medical_rules.json for compatibility)
-                    if self.embedding_model and condition_name and organ_system:
-                        try:
-                            # Check anatomical compatibility using medical_rules.json
-                            is_compatible = self._check_anatomical_compatibility(patient_text, term, condition_name, organ_system)
-                            if is_compatible:
-                                print(f"[WordMatch] ⏭️  SKIP: Anatomically incompatible (using medical_rules.json) - no penalty")
-                                continue
-                            
-                            # Proceed with semantic similarity check (using normalized text for consistency)
-                            embeddings = self.embedding_model.encode([normalized_answer.lower(), term])
-                            similarity = float(np.dot(embeddings[0], embeddings[1]) / (np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])))
-                            
-                            print(f"[WordMatch] 🔍 Exclude check (semantic): '{normalized_answer}' vs '{term}' = {similarity:.2f}")
-                            
-                            # Penalize if semantic similarity exceeds threshold
-                            if similarity > 0.4:
-                                print(f"[WordMatch] ⛔ EXCLUDE MATCH (semantic): '{normalized_answer}' has similarity ({similarity:.2f}) with exclude term '{term}'")
-                                print(f"[WordMatch]   Applying penalty: -0.3")
-                                return -0.3  # PENALTY for excluded term
-                        except Exception as e:
-                            print(f"[WordMatch] ⚠️ Error computing exclude similarity: {e}")
             
-            # NOW check includes using normalized text
+            # STEP 3: Check includes and combine with medical_rules boost
+            # Includes terms provide additional matching beyond anatomical type
+            # Combine with base_boost from medical_rules if available
+            base_boost = base_boost if 'base_boost' in locals() else 0.0
             
-            # Check for match in includes terms (using normalized text)
-            found_match = False
+            # Get synonyms for normalized category (if it's a category key like "rlq_pain")
+            # Use synonyms already loaded above if available
+            normalized_category_synonyms = []
+            if normalized_answer and oldcarts_element in synonyms and normalized_answer in synonyms.get(oldcarts_element, {}):
+                normalized_category_synonyms = synonyms[oldcarts_element][normalized_answer]
+                print(f"[WordMatch] 📚 Found {len(normalized_category_synonyms)} synonyms for normalized category '{normalized_answer}'")
+            
             for term in includes_terms:
                 term_lower = term.lower()
                 
                 # Exact match: normalized answer matches term exactly or as substring
                 if normalized_lower == term_lower or normalized_lower in term_lower or term_lower in normalized_lower:
                     print(f"[WordMatch] ✅ Exact match found: '{normalized_answer}' ↔ '{term}'")
-                    print(f"[WordMatch]   Progressive boost: +0.5 (exact match)")
-                    return 0.5  # Highest boost for exact match
+                    match_boost = 0.5  # Highest boost for exact match
+                    final_boost = base_boost + match_boost
+                    print(f"[WordMatch]   Progressive boost: +{match_boost:.2f} (exact match) + base {base_boost:.2f} = {final_boost:.2f}")
+                    return min(final_boost, 0.5)  # Cap at 0.5
                 
-                # Check word overlap: see if any word from normalized answer appears in term
+                # Check if term matches any synonym of normalized category
+                if normalized_category_synonyms:
+                    for synonym in normalized_category_synonyms:
+                        synonym_lower = synonym.lower()
+                        if term_lower in synonym_lower or synonym_lower in term_lower:
+                            print(f"[WordMatch] ✅ Synonym match found: '{normalized_answer}' (via synonym '{synonym}') ↔ '{term}'")
+                            match_boost = 0.5  # High boost for synonym match
+                            final_boost = base_boost + match_boost
+                            print(f"[WordMatch]   Progressive boost: +{match_boost:.2f} (synonym match) + base {base_boost:.2f} = {final_boost:.2f}")
+                            return min(final_boost, 0.5)  # Cap at 0.5
+                
+                # Check 3: Simple word overlap (non-directional matching)
+                # Directional logic already handled by medical_rules.json in STEP 1
                 term_words = set(term_lower.split())
                 normalized_words_set = set(normalized_words)
                 matching_words = normalized_words_set.intersection(term_words)
                 
-                if len(matching_words) >= 1:  # Any word match
-                    # Progressive boost based on number of matching words
-                    # 1 word = 0.2, 2 words = 0.3, 3+ words = 0.4
-                    boost = min(0.2 * len(matching_words), 0.4)
+                if len(matching_words) >= 2:  # Need at least 2 word matches for non-directional terms
+                    match_boost = min(0.2 * len(matching_words), 0.4)
+                    final_boost = base_boost + match_boost
                     print(f"[WordMatch] ✅ Word match ({len(matching_words)} words): '{normalized_answer}' ↔ '{term}'")
                     print(f"[WordMatch]   Matching words: {matching_words}")
-                    print(f"[WordMatch]   Progressive boost: +{boost:.2f}")
-                    return boost
+                    print(f"[WordMatch]   Progressive boost: +{match_boost:.2f} (word match) + base {base_boost:.2f} = {final_boost:.2f}")
+                    return min(final_boost, 0.5)  # Cap at 0.5
             
             # STEP 3: Fallback to semantic matching if no exact/word match found
-            # This handles cases where normalized term (e.g., "ruq_pain") semantically matches includes term (e.g., "right upper quadrant")
-            if self.embedding_model and not found_match and includes_terms:
+            # This handles cases where normalized term semantically matches includes term
+            if self.embedding_model and includes_terms:
                 best_similarity = 0.0
                 best_term = None
                 semantic_threshold = 0.65
@@ -438,12 +545,18 @@ class MedicalRuleEngine:
                     
                     if best_similarity >= semantic_threshold:
                         # Progressive boost based on similarity
-                        boost = min(0.2 + (best_similarity - semantic_threshold) * 0.5, 0.4)
+                        match_boost = min(0.2 + (best_similarity - semantic_threshold) * 0.5, 0.4)
+                        final_boost = base_boost + match_boost
                         print(f"[WordMatch] ✅ Semantic match found: '{normalized_answer}' ↔ '{best_term}' (similarity: {best_similarity:.3f})")
-                        print(f"[WordMatch]   Progressive boost: +{boost:.2f}")
-                        return boost
+                        print(f"[WordMatch]   Progressive boost: +{match_boost:.2f} (semantic match) + base {base_boost:.2f} = {final_boost:.2f}")
+                        return min(final_boost, 0.5)  # Cap at 0.5
                 except Exception as e:
                     print(f"[WordMatch] ⚠️ Error in semantic matching: {e}")
+            
+            # If no includes match found, return base_boost from medical_rules (if any)
+            if base_boost > 0:
+                print(f"[WordMatch] 📊 No includes match, but medical_rules boost applies: {base_boost:.2f}")
+                return base_boost
             
             print(f"[WordMatch] ❌ No word matches found")
             print(f"[WordMatch]   Normalized: '{normalized_answer}'")
