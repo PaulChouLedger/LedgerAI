@@ -70,8 +70,7 @@ class AdaptiveDiagnosticEngine:
         self.embedding_model = embedding_model
         
         # Configuration
-        self.temperature_simple = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.7'))
-        self.temperature_complex = float(os.environ.get('LLM_TEMPERATURE_COMPLEX', '0.7'))
+        self.temperature = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.2'))
         
         # Initialize debug capture
         self._captured_debug_output = []
@@ -228,16 +227,66 @@ class AdaptiveDiagnosticEngine:
                     'answer': chief_complaint,  # Store full raw text
                     'oldcarts': element
                 })
-                # Process the element using FULL raw text with unified function
-                try:
-                    result = self._process_clinical_answer(chief_complaint)  # Pass full raw text
-                    if result.get('status') == 'questioning':
-                        self._capture_debug(f"[Engine]   ✅ {element} processed from initial prompt")
-                except Exception as e:
-                    self._capture_debug(f"[Engine]   ⚠️ Error processing {element}: {e}")
+                # Just mark the element as covered without processing through _process_clinical_answer
+                # This prevents the function from returning a result that overrides the empathetic statement
+                if element == 'onset':
+                    self.oldcarts_covered['O'] = True
+                elif element == 'location':
+                    self.oldcarts_covered['L'] = True
+                elif element == 'duration':
+                    self.oldcarts_covered['D'] = True
+                elif element == 'character':
+                    self.oldcarts_covered['C'] = True
+                elif element == 'aggravating':
+                    self.oldcarts_covered['A'] = True
+                elif element == 'relieving':
+                    self.oldcarts_covered['R'] = True
+                elif element == 'timing':
+                    self.oldcarts_covered['T'] = True
+                elif element == 'severity':
+                    self.oldcarts_covered['S'] = True
+                
+                self._capture_debug(f"[Engine]   ✅ {element} marked as covered from initial prompt")
         
-        # Start with demographics
-        return self._generate_ml_first_question_with_demographics()
+        # Start with empathetic statement + symptom gathering question
+        has_shown_statement = any(item.get('type') == 'statement' for item in self.conversation_history)
+        if not has_shown_statement:
+            empathetic_msg = self._generate_empathetic_statement()
+            
+            # Generate symptom gathering question using LLM
+            if self.llm_chat_simple_fn:
+                system_msg = "You are a medical assistant. Generate a natural, empathetic question to ask the patient to describe more about their symptoms."
+                user_msg = "Generate a natural question to ask the patient to tell you more about their symptoms. Make it empathetic and conversational. Return only the question, no other text."
+                
+                response = self.llm_chat_simple_fn(
+                    [
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_msg}
+                    ],
+                    max_tokens=40,
+                    temperature=self.temperature
+                )
+                symptom_question = response.strip() if response and response.strip() else "Tell me more about your symptoms so I can better understand what you're experiencing."
+            else:
+                symptom_question = "Tell me more about your symptoms so I can better understand what you're experiencing."
+            
+            self.conversation_history.append({
+                'type': 'statement',
+                'message': empathetic_msg
+            })
+            self.conversation_history.append({
+                'type': 'question',
+                'question': symptom_question,
+                'focus': 'symptom_gathering'
+            })
+            return {
+                'success': True,
+                'message': f"{empathetic_msg}\n\n{symptom_question}",
+                'status': 'questioning'
+            }
+        else:
+            # Statement already shown, proceed to demographics
+            return self._generate_ml_first_question_with_demographics()
     
     def _match_chief_complaint_to_category(self, chief_complaint: str) -> str:
         """Use unified function with chief complaint synonyms → match category"""
@@ -361,13 +410,15 @@ class AdaptiveDiagnosticEngine:
         anatomical_analysis = self._analyze_prompt_anatomy(prompt)
         self._capture_debug(f"[Engine] 🏥 Anatomical analysis: {anatomical_analysis}")
         
-        # STEP 2: Use FAISS-based term matching if available
+        # STEP 2: Use FAISS-based term matching with extensive synonyms
         answered_components = {}
+        
+        # Use FAISS to find matching terms - relies on extensive synonym files
         if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
             all_elements = ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
             
             for element in all_elements:
-                # Use FAISS to find matching terms
+                # Use FAISS to find matching terms with semantic similarity
                 matching_terms = self.medical_rule_engine.find_matching_terms_faiss(prompt, element, threshold=0.65)
                 if matching_terms:
                     answered_components[element] = matching_terms
@@ -470,7 +521,7 @@ class AdaptiveDiagnosticEngine:
                 })
                 return {
                     'success': True,
-                    'question': question,
+                    'message': question,
                     'status': 'questioning',
                     'buttons': [
                         {'text': 'Male', 'callback_data': 'sex_male'},
@@ -481,7 +532,13 @@ class AdaptiveDiagnosticEngine:
         
         # Handle onset (documentation only)
         if oldcarts_element == 'onset':
+            # Mark onset as covered and store the answer
             self.oldcarts_covered['O'] = True
+            # Update missing_components list to remove onset
+            if self.oldcarts_analysis and 'missing_components' in self.oldcarts_analysis:
+                if 'onset' in self.oldcarts_analysis['missing_components']:
+                    self.oldcarts_analysis['missing_components'].remove('onset')
+            self._capture_debug(f"[Engine] ✅ onset marked as complete")
             return self._ask_next_clinical_question()
         
         # Score guidelines
@@ -765,13 +822,29 @@ class AdaptiveDiagnosticEngine:
         
         return {
             'success': True,
-            'question': question,
+            'message': question,
             'status': 'questioning'
         }
     
     def _generate_oldcarts_question_for_component(self, component: str) -> str:
-        """Generate question for OLDCARTS component - standard OLDCARTS"""
-        questions = {
+        """Generate question for OLDCARTS component using LLM for natural variation"""
+        if self.llm_chat_simple_fn:
+            system_msg = "You are a medical assistant. Generate a natural, conversational question to ask about a specific aspect of a patient's symptoms."
+            user_msg = f"Generate a natural question to ask about the {component} of the patient's symptoms. Make it conversational and empathetic. Return only the question, no other text."
+            
+            response = self.llm_chat_simple_fn(
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                max_tokens=50,
+                temperature=self.temperature
+            )
+            if response and response.strip():
+                return response.strip()
+        
+        # Fallback questions
+        fallback_questions = {
             'onset': "When did this start? Was it sudden or gradual?",
             'location': "Where exactly is the pain located?",
             'duration': "How long does it last?",
@@ -781,7 +854,7 @@ class AdaptiveDiagnosticEngine:
             'timing': "When does it occur?",
             'severity': "On a scale of 1-10, how severe is it?"
         }
-        return questions.get(component, f"Tell me about {component}")
+        return fallback_questions.get(component, f"Tell me about {component}")
     
     def _generate_ml_first_question_with_demographics(self) -> Dict[str, Any]:
         """Generate first question with demographics and empathetic statement"""
@@ -804,7 +877,22 @@ class AdaptiveDiagnosticEngine:
             
         # STEP 2: Age question (separate from empathetic statement)
         if 'age' not in self.demographics:
-            question = "How old are you?"
+            if self.llm_chat_simple_fn:
+                system_msg = "You are a medical assistant. Generate a natural, conversational question to ask for the patient's age."
+                user_msg = "Generate a natural question to ask for the patient's age. Make it conversational and professional. Return only the question, no other text."
+                
+                response = self.llm_chat_simple_fn(
+                    [
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_msg}
+                    ],
+                    max_tokens=30,
+                    temperature=self.temperature
+                )
+                question = response.strip() if response and response.strip() else "How old are you?"
+            else:
+                question = "How old are you?"
+            
             self.conversation_history.append({
                 'type': 'question',
                 'question': question,
@@ -812,13 +900,28 @@ class AdaptiveDiagnosticEngine:
             })
             return {
                 'success': True,
-                'question': question,
+                'message': question,
                 'status': 'questioning'
             }
         
         # STEP 3: Sex question
         if 'sex' not in self.demographics:
-            question = "What is your biological sex?"
+            if self.llm_chat_simple_fn:
+                system_msg = "You are a medical assistant. Generate a natural, conversational question to ask for the patient's biological sex."
+                user_msg = "Generate a natural question to ask for the patient's biological sex. Make it conversational and professional. Return only the question, no other text."
+                
+                response = self.llm_chat_simple_fn(
+                    [
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_msg}
+                    ],
+                    max_tokens=30,
+                    temperature=self.temperature
+                )
+                question = response.strip() if response and response.strip() else "What is your biological sex?"
+            else:
+                question = "What is your biological sex?"
+            
             self.conversation_history.append({
                 'type': 'question',
                 'question': question,
@@ -827,7 +930,7 @@ class AdaptiveDiagnosticEngine:
             })
             return {
                 'success': True,
-                'question': question,
+                'message': question,
                 'status': 'questioning',
                 'buttons': [
                     {'text': 'Male', 'callback_data': 'sex_male'},
@@ -837,7 +940,22 @@ class AdaptiveDiagnosticEngine:
         
         # STEP 4: Chronicity question
         if 'chronicity' not in self.demographics:
-            question = "Is this a new problem or an ongoing issue?"
+            if self.llm_chat_simple_fn:
+                system_msg = "You are a medical assistant. Generate a natural, conversational question to ask if the patient's problem is new or ongoing."
+                user_msg = "Generate a natural question to ask if this is a new problem or ongoing issue. Make it conversational and professional. Return only the question, no other text."
+                
+                response = self.llm_chat_simple_fn(
+                    [
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_msg}
+                    ],
+                    max_tokens=40,
+                    temperature=self.temperature
+                )
+                question = response.strip() if response and response.strip() else "Is this a new problem or an ongoing issue?"
+            else:
+                question = "Is this a new problem or an ongoing issue?"
+            
             self.conversation_history.append({
                 'type': 'question',
                 'question': question,
@@ -845,7 +963,7 @@ class AdaptiveDiagnosticEngine:
             })
             return {
                 'success': True,
-                'question': question,
+                'message': question,
                 'status': 'questioning',
                 'buttons': [
                     {'text': 'New Problem', 'callback_data': 'chronicity_new'},
@@ -857,7 +975,7 @@ class AdaptiveDiagnosticEngine:
         return self._ask_next_clinical_question()
     
     def _generate_empathetic_statement(self) -> str:
-        """Generate empathetic opening statement"""
+        """Generate empathetic opening statement using LLM"""
         if self.llm_chat_simple_fn:
             system_msg = "You are a compassionate medical assistant. Generate a brief, empathetic statement acknowledging the patient's chief complaint."
             user_msg = f"Patient says: '{self.chief_complaint}'\n\nGenerate a brief, empathetic statement (1-2 sentences) that acknowledges their concern and shows you're here to help."
@@ -868,13 +986,13 @@ class AdaptiveDiagnosticEngine:
                     {"role": "user", "content": user_msg}
                 ],
                 max_tokens=60,
-                temperature=0.7
+                temperature=self.temperature
             )
             if response and response.strip():
                 return response.strip()
         
-        # No fallback - let it fail if LLM unavailable
-        raise Exception("LLM not available for empathetic statement generation")
+        # Fallback template
+        return f"I'm so sorry to hear that you're experiencing {self.chief_complaint}. Please know that I'm here for you and will do my best to help you feel more comfortable during your visit."
     
     def process_answer(self, user_answer: str) -> Dict[str, Any]:
         """Process user answer and continue assessment"""
@@ -895,6 +1013,63 @@ class AdaptiveDiagnosticEngine:
                 last_q = item
                 break
         
+        # Handle symptom gathering response
+        if last_q and last_q.get('focus') == 'symptom_gathering':
+            # Analyze the symptom response for additional OLDCARTS information
+            self._capture_debug(f"[Engine] 🔍 Analyzing symptom response: '{user_answer}'")
+            
+            # Parse the response for additional OLDCARTS elements
+            additional_oldcarts = self._parse_prompt_against_structured_oldcarts(user_answer, list(self.all_guidelines.values()))
+            answered_components = additional_oldcarts.get('answered_components', {})
+            
+            if answered_components:
+                self._capture_debug(f"[Engine] 📊 Found additional OLDCARTS elements: {answered_components}")
+                for element, detected_terms in answered_components.items():
+                    # Mark as covered
+                    if element == 'onset':
+                        self.oldcarts_covered['O'] = True
+                    elif element == 'location':
+                        self.oldcarts_covered['L'] = True
+                    elif element == 'duration':
+                        self.oldcarts_covered['D'] = True
+                    elif element == 'character':
+                        self.oldcarts_covered['C'] = True
+                    elif element == 'aggravating':
+                        self.oldcarts_covered['A'] = True
+                    elif element == 'relieving':
+                        self.oldcarts_covered['R'] = True
+                    elif element == 'timing':
+                        self.oldcarts_covered['T'] = True
+                    elif element == 'severity':
+                        self.oldcarts_covered['S'] = True
+                    
+                    self._capture_debug(f"[Engine]   ✅ {element} marked as covered from symptom response")
+            
+            # Transition to demographics with a natural message using LLM
+            if self.llm_chat_simple_fn:
+                system_msg = "You are a medical assistant. Generate a natural, appreciative transition message before asking demographic questions."
+                user_msg = "Generate a brief, natural message thanking the patient for sharing symptom information and transitioning to asking demographic questions. Make it conversational and professional. Return only the message, no other text."
+                
+                response = self.llm_chat_simple_fn(
+                    [
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_msg}
+                    ],
+                    max_tokens=40,
+                    temperature=self.temperature
+                )
+                transition_msg = response.strip() if response and response.strip() else "Thank you for sharing that information. Let me ask you some questions to better assist you."
+            else:
+                transition_msg = "Thank you for sharing that information. Let me ask you some questions to better assist you."
+            
+            self.conversation_history.append({
+                'type': 'statement',
+                'message': transition_msg
+            })
+            
+            # Now ask for demographics
+            return self._generate_ml_first_question_with_demographics()
+        
         # Handle statement responses (empathetic statement doesn't need user response)
         if last_q and last_q.get('type') == 'statement':
             # Statement was shown, now ask age question (skip statement check since we already showed it)
@@ -907,7 +1082,7 @@ class AdaptiveDiagnosticEngine:
                 })
                 return {
                     'success': True,
-                    'question': question,
+                    'message': question,
                     'status': 'questioning'
                 }
             else:
@@ -916,7 +1091,15 @@ class AdaptiveDiagnosticEngine:
         
         # Handle demographics
         if last_q and last_q.get('focus') == 'age':
-            # Let LLM validate and extract age
+            # Simple age validation - accept direct numeric answers
+            age_str = user_answer.strip()
+            if age_str.isdigit():
+                age = int(age_str)
+                if 0 <= age <= 150:
+                    self.demographics['age'] = age
+                    return self._generate_ml_first_question_with_demographics()
+            
+            # Fallback to LLM if simple validation fails
             if self.llm_chat_simple_fn:
                 system_msg = "You are a medical assistant. Extract the patient's age from their response. Return ONLY a number between 0-150, or 'invalid' if not a valid age."
                 user_msg = f"Patient said: '{user_answer}'\n\nExtract age as a number only:"
@@ -924,7 +1107,7 @@ class AdaptiveDiagnosticEngine:
                 response = self.llm_chat_simple_fn(
                     [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
                     max_tokens=10,
-                    temperature=0.1
+                    temperature=self.temperature
                 )
                 
                 age_str = response.strip()
@@ -933,13 +1116,25 @@ class AdaptiveDiagnosticEngine:
                     if 0 <= age <= 150:
                         self.demographics['age'] = age
                         return self._generate_ml_first_question_with_demographics()
-                
-                return {'success': False, 'message': 'Please provide your age as a number (e.g., 25, thirty-five, etc.)'}
-            else:
-                return {'success': False, 'message': 'Age validation not available'}
+            
+            return {'success': False, 'message': 'Please provide your age as a number (e.g., 25, thirty-five, etc.)'}
         
         if last_q and last_q.get('focus') == 'sex':
-            # Let LLM validate and extract sex
+            # Simple sex validation - accept direct answers
+            sex_str = user_answer.strip().lower()
+            if sex_str in ['male', 'female', 'm', 'f']:
+                if sex_str in ['m', 'f']:
+                    sex_str = 'male' if sex_str == 'm' else 'female'
+                self.demographics['sex'] = sex_str
+                return self._generate_ml_first_question_with_demographics()
+            elif user_answer == 'sex_male':
+                self.demographics['sex'] = 'male'
+                return self._generate_ml_first_question_with_demographics()
+            elif user_answer == 'sex_female':
+                self.demographics['sex'] = 'female'
+                return self._generate_ml_first_question_with_demographics()
+            
+            # Fallback to LLM if simple validation fails
             if self.llm_chat_simple_fn:
                 system_msg = "You are a medical assistant. Extract the patient's biological sex from their response. Return ONLY 'male', 'female', or 'invalid'."
                 user_msg = f"Patient said: '{user_answer}'\n\nExtract biological sex (male/female) only:"
@@ -947,23 +1142,15 @@ class AdaptiveDiagnosticEngine:
                 response = self.llm_chat_simple_fn(
                     [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
                     max_tokens=10,
-                    temperature=0.1
+                    temperature=self.temperature
                 )
                 
                 sex_str = response.strip().lower()
                 if sex_str in ['male', 'female']:
                     self.demographics['sex'] = sex_str
                     return self._generate_ml_first_question_with_demographics()
-                elif user_answer == 'sex_male':
-                    self.demographics['sex'] = 'male'
-                    return self._generate_ml_first_question_with_demographics()
-                elif user_answer == 'sex_female':
-                    self.demographics['sex'] = 'female'
-                    return self._generate_ml_first_question_with_demographics()
-                
-                return {'success': False, 'message': 'Please specify your biological sex (male or female)'}
-            else:
-                return {'success': False, 'message': 'Sex validation not available'}
+            
+            return {'success': False, 'message': 'Please specify your biological sex (male or female)'}
         
         if last_q and last_q.get('focus') == 'chronicity':
             # Simple keyword matching first (more reliable than LLM)
@@ -994,7 +1181,7 @@ class AdaptiveDiagnosticEngine:
                     response = self.llm_chat_simple_fn(
                         [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
                         max_tokens=10,
-                        temperature=0.1
+                        temperature=self.temperature
                     )
                     
                     chronicity_str = response.strip().lower()
@@ -1093,7 +1280,7 @@ Response:"""
                     {"role": "user", "content": user_msg}
                 ],
                 max_tokens=150,
-                temperature=0.7
+                temperature=self.temperature
             )
             
             # Record the explanation as a response (not a question)
