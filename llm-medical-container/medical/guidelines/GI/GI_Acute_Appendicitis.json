@@ -33,8 +33,6 @@
       "location": {
         "includes": [
           "right lower quadrant",
-          "RLQ",
-          "McBurney point",
           "periumbilical migration"
         ],
         "excludes": [

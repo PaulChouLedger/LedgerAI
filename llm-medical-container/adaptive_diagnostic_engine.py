@@ -2706,17 +2706,31 @@ Normalized text:"""
             prioritized = []
             seen_terms = set()  # Store frozensets of word sets (hashable)
             
+            # Prioritize options with anatomical location terms (quadrant, upper, lower, etc.)
+            # These are most helpful for discrimination
+            location_keywords = ['quadrant', 'upper', 'lower', 'left', 'right', 'side', 'epigastric', 'umbilical', 'belly button', 'middle']
+            
+            # Separate options into location-specific and general
+            location_options = []
+            general_options = []
+            
             for opt in options:
-                # Check if this option is similar to one already added
-                opt_words = frozenset(opt.lower().split())  # Use frozenset (hashable)
-                is_duplicate = any(len(opt_words.intersection(seen_words)) > 1 for seen_words in seen_terms)
-                
-                if not is_duplicate:
-                    prioritized.append(opt)
-                    seen_terms.add(opt_words)
-                
+                if any(keyword in opt.lower() for keyword in location_keywords):
+                    location_options.append(opt)
+                else:
+                    general_options.append(opt)
+            
+            # Add location options first (these are most discriminative)
+            for opt in location_options:
                 if len(prioritized) >= 4:
                     break
+                prioritized.append(opt)
+            
+            # Then add general options if we have room
+            for opt in general_options:
+                if len(prioritized) >= 4:
+                    break
+                prioritized.append(opt)
             
             options = prioritized
         
