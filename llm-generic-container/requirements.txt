@@ -1,0 +1,25 @@
+flask
+numpy
+requests
+
+# TensorRT-LLM dependencies (already in base image)
+# tensorrt-llm  # Included in dustynv/tensorrt_llm base image
+
+# RAG dependencies (supports both GPU and CPU modes)
+sentence-transformers  # For embeddings (both GPU and CPU modes)
+faiss-cpu  # For local FAISS operations when RAG container is disabled (CPU mode)
+watchdog  # For auto-ingestion file watching (CPU mode)
+
+# Fuzzy matching dependencies
+fuzzywuzzy  # For fuzzy string matching
+python-Levenshtein  # Fast string distance computation (required by fuzzywuzzy)
+
+# Model download dependencies
+huggingface-hub  # For downloading models
+transformers  # For model utilities
+accelerate  # For model loading
+safetensors  # For safe model loading
+
+# Note: TensorRT-LLM base image includes CUDA and TensorRT
+# Models should be pre-converted to TensorRT engine format
+# Fallback to llama.cpp if TensorRT-LLM models not available

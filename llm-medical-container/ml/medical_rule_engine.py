@@ -153,43 +153,137 @@ class MedicalRuleEngine:
             print(f"[MedicalRules] Using empty rules dict")
             return {}
     
+    def compute_unified_similarity(self, patient_text: str, guideline_text: str, 
+                                   condition_name: str, organ_system: str = None, 
+                                   oldcarts_element: str = None, structured_oldcarts: dict = None,
+                                   return_word_match_only: bool = False, pre_normalized_text: str = None) -> Dict[str, Any]:
+        """
+        UNIFIED similarity computation used in ALL cases (scoring, clarification, etc.)
+        
+        Flow:
+        1. Raw semantic similarity (embeddings)
+        2. Normalization (with semantic fallback if exact match fails)
+        3. Word match boost (normalized text vs structured_oldcarts)
+        
+        Args:
+            patient_text: Raw patient answer
+            guideline_text: Guideline text for semantic similarity
+            condition_name: Condition name
+            organ_system: Organ system (e.g., "gi")
+            oldcarts_element: OLDCARTS element (e.g., "location")
+            structured_oldcarts: Structured OLDCARTS dict
+            return_word_match_only: If True, only return word_match_boost (for clarification matching)
+            pre_normalized_text: If provided, skip normalization step (optimization)
+        
+        Returns:
+            Dict with similarity, word_match_boost, normalized_text, etc.
+        """
+        # STEP 1: Raw semantic similarity (only if needed for scoring)
+        raw_similarity = 0.0
+        if not return_word_match_only and self.embedding_model:
+            try:
+                embeddings = self.embedding_model.encode([patient_text.lower(), guideline_text])
+                raw_similarity = float(np.dot(embeddings[0], embeddings[1]) / (np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])))
+            except Exception as e:
+                print(f"[Unified] ⚠️ Error computing raw semantic similarity: {e}")
+        
+        # STEP 2: Normalization (with semantic fallback) - skip if pre-normalized provided
+        if pre_normalized_text:
+            normalized_text = pre_normalized_text
+        else:
+            normalized_text = patient_text.lower()
+            if organ_system and oldcarts_element:
+                synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+                synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
+                
+                if os.path.exists(synonym_path):
+                    try:
+                        with open(synonym_path, 'r') as f:
+                            synonyms = json.load(f)
+                        normalized_text = self._normalize_with_synonyms(patient_text, synonyms, oldcarts_element)
+                    except Exception as e:
+                        print(f"[Unified] ⚠️ Error in normalization: {e}")
+        
+        # STEP 3: Word match boost (normalized text vs structured_oldcarts)
+        # Pass normalized_text to avoid duplicate normalization inside _compute_word_match_boost
+        word_match_boost = 0.0
+        if structured_oldcarts and oldcarts_element:
+            word_match_boost = self._compute_word_match_boost(
+                patient_text,  # Raw text (for backward compatibility)
+                guideline_text,
+                organ_system,
+                oldcarts_element,
+                structured_oldcarts,
+                condition_name,
+                pre_normalized_text=normalized_text  # Pass pre-normalized text to avoid duplicate work
+            )
+        
+        # STEP 4: Combine results
+        if return_word_match_only:
+            # For clarification matching, only return word_match_boost
+            return {
+                'word_match_boost': word_match_boost,
+                'normalized_text': normalized_text,
+                'has_match': word_match_boost > 0
+            }
+        
+        # For scoring, combine raw similarity + word match boost
+        final_similarity = raw_similarity + word_match_boost
+        final_similarity = max(0.0, min(1.0, final_similarity))  # Clamp to 0-1
+        
+        return {
+            'similarity': final_similarity,
+            'raw_similarity': raw_similarity,
+            'word_match_boost': word_match_boost,
+            'normalized_text': normalized_text,
+            'method': 'unified_similarity',
+            'confidence': 'high' if final_similarity >= 0.7 else 'medium' if final_similarity >= 0.3 else 'low',
+            'reasoning': f'Raw semantic ({raw_similarity:.3f}) + word match boost ({word_match_boost:.3f}) = {final_similarity:.3f}',
+            'anatomical_type': 'unknown'
+        }
+    
     def get_enhanced_similarity(self, patient_text: str, guideline_text: str, 
                               condition_name: str, organ_system: str = None, oldcarts_element: str = None, structured_oldcarts: dict = None) -> Dict[str, Any]:
         """
-        Enhanced similarity with SEMANTIC SIMILARITY FIRST, anatomical rules as modifiers
-        
-        CRITICAL FIX: Use semantic similarity as PRIMARY scoring method,
-        anatomical rules only as fallbacks or modifiers for inconclusive cases
+        Enhanced similarity - now uses unified computation
         """
+        return self.compute_unified_similarity(
+            patient_text, guideline_text, condition_name,
+            organ_system, oldcarts_element, structured_oldcarts,
+            return_word_match_only=False
+        )
+    
+    def _compute_embedding_similarity(self, patient_text: str, guideline_text: str, organ_system: str = None, oldcarts_element: str = None, structured_oldcarts: dict = None, condition_name: str = None) -> Dict[str, Any]:
+        """
+        DEPRECATED: Use compute_unified_similarity() instead
+        Kept for backward compatibility - internally calls unified function
+        """
+        # Delegate to unified function
+        result = self.compute_unified_similarity(
+            patient_text, guideline_text, condition_name or "",
+            organ_system, oldcarts_element, structured_oldcarts,
+            return_word_match_only=False
+        )
         
-        # Use patient text directly - semantic similarity handles all variations naturally
-        # No need for synonym normalization - embeddings understand "below ribs" = "upper quadrant" etc.
-        patient_text_for_scoring = patient_text.lower()
-        
-        # COMPUTE SEMANTIC SIMILARITY WITH WORD-MATCH BOOST
-        # Word-match boost handles ALL anatomical discrimination via structured_oldcarts:
-        # - Includes terms → match → boost (+0.3, +0.2, or +0.1)
-        # - Excludes terms → match → penalty (-0.3)
-        # - Example: "right side" + Diverticulitis (excludes: "right side") → -0.3 penalty
-        semantic_result = self._compute_embedding_similarity(patient_text_for_scoring, guideline_text, organ_system, oldcarts_element, structured_oldcarts, condition_name)
-        semantic_score = semantic_result['similarity']
-        
-        # Return semantic score as-is - word-match boost already handled discrimination
+        # Return in expected format for backward compatibility
         return {
-            'similarity': semantic_score,
-            'method': 'semantic_similarity',
-            'confidence': 'high' if semantic_score >= 0.7 else 'medium' if semantic_score >= 0.3 else 'low',
-            'reasoning': f'Semantic similarity with word-match boost: {semantic_result["reasoning"]}',
-            'anatomical_type': 'unknown',  # No longer needed - handled by structured_oldcarts
-            'semantic_score': semantic_score
+            'similarity': result['similarity'],
+            'method': result['method'],
+            'confidence': result['confidence'],
+            'reasoning': result['reasoning'],
+            'anatomical_type': result['anatomical_type'],
+            'semantic_score': result['raw_similarity']
         }
     
-    def _compute_word_match_boost(self, patient_text: str, guideline_text: str, organ_system: str = None, oldcarts_element: str = None, structured_oldcarts: dict = None, condition_name: str = None) -> float:
+    def _compute_word_match_boost(self, patient_text: str, guideline_text: str, organ_system: str = None, oldcarts_element: str = None, structured_oldcarts: dict = None, condition_name: str = None, pre_normalized_text: str = None) -> float:
         """
         Compute word-based similarity boost for direct matches
         
         Normalizes patient answer using appropriate synonym file and section,
         then checks if normalized answer appears in structured OLDCARTS data.
+        
+        Args:
+            pre_normalized_text: If provided, use this instead of normalizing again (optimization)
         
         Example: "right side of my belly" -> normalized to "right side" -> match in includes array
         """
@@ -202,18 +296,34 @@ class MedicalRuleEngine:
             return self._simple_word_match_boost(patient_text, guideline_text)
         
         try:
-            # Load appropriate synonym file
-            synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
-            synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
+            # Use pre-normalized text if provided (optimization to avoid duplicate normalization)
+            if pre_normalized_text:
+                normalized_answer = pre_normalized_text
+            else:
+                # Load appropriate synonym file and normalize
+                synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+                synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
+                
+                if not os.path.exists(synonym_path):
+                    print(f"[WordMatch] ⚠️ Synonym file not found: {synonym_path}")
+                    return self._simple_word_match_boost(patient_text, guideline_text)
+                
+                with open(synonym_path, 'r') as f:
+                    synonyms = json.load(f)
+                
+                normalized_answer = self._normalize_with_synonyms(patient_text, synonyms, oldcarts_element)
             
-            if not os.path.exists(synonym_path):
-                print(f"[WordMatch] ⚠️ Synonym file not found: {synonym_path}")
-                return self._simple_word_match_boost(patient_text, guideline_text)
+            print(f"[WordMatch] 🔄 Normalization: '{patient_text}' → '{normalized_answer}'")
             
-            with open(synonym_path, 'r') as f:
-                synonyms = json.load(f)
+            # Load synonyms if needed (for excludes semantic check - only if not pre-normalized)
+            # Synonyms already loaded above if not pre-normalized, so only load if pre-normalized
+            if pre_normalized_text:
+                synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+                synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
+                if os.path.exists(synonym_path):
+                    with open(synonym_path, 'r') as f:
+                        synonyms = json.load(f)
             
-            # Get structured OLDCARTS data for this element BEFORE normalizing
             if oldcarts_element not in structured_oldcarts:
                 print(f"[WordMatch] ⚠️ No structured data for {oldcarts_element}")
                 return self._simple_word_match_boost(patient_text, guideline_text)
@@ -229,21 +339,32 @@ class MedicalRuleEngine:
             print(f"[WordMatch] 📋 Includes terms: {includes_terms}")
             print(f"[WordMatch] 📋 Excludes terms: {excludes_terms}")
             
-            # CRITICAL: Check excludes FIRST using RAW patient text (before normalization)
-            # Apply penalty if user response semantically matches OR anatomically conflicts with an exclude term
+            # normalized_answer already set above (from pre_normalized_text or normalization)
+            normalized_lower = normalized_answer.lower().strip()
+            normalized_words = normalized_answer.lower().replace('_', ' ').split()
+            
+            # Check excludes FIRST using normalized text (consistent with includes)
             if excludes_terms:
-                patient_lower = patient_text.lower()
-                
                 for term in excludes_terms:
                     term_lower = term.lower()
                     
-                    # Check 1: Exact or substring match (e.g., "right side" matches exclude "right side")
-                    if patient_lower == term_lower or term_lower in patient_lower or patient_lower in term_lower:
-                        print(f"[WordMatch] ⛔ EXCLUDE MATCH (exact/substring): '{patient_text}' matches exclude term '{term}'")
+                    # Check 1: Exact or substring match using normalized text
+                    if normalized_lower == term_lower or term_lower in normalized_lower or normalized_lower in term_lower:
+                        print(f"[WordMatch] ⛔ EXCLUDE MATCH (exact/substring): '{normalized_answer}' matches exclude term '{term}'")
                         print(f"[WordMatch]   Applying penalty: -0.3")
-                        return -0.3  # PENALTY for excluded location
+                        return -0.3  # PENALTY for excluded term
                     
-                    # Check 2: Semantic similarity with embedding model (use medical_rules.json for compatibility)
+                    # Check 2: Word overlap - see if any word from normalized answer appears in exclude term
+                    term_words = set(term_lower.split())
+                    normalized_words_set = set(normalized_words)
+                    matching_words = normalized_words_set.intersection(term_words)
+                    
+                    if len(matching_words) >= 1:
+                        print(f"[WordMatch] ⛔ EXCLUDE MATCH (word overlap): '{normalized_answer}' has matching words '{matching_words}' with exclude term '{term}'")
+                        print(f"[WordMatch]   Applying penalty: -0.3")
+                        return -0.3  # PENALTY for excluded term
+                    
+                    # Check 3: Semantic similarity with embedding model (use medical_rules.json for compatibility)
                     if self.embedding_model and condition_name and organ_system:
                         try:
                             # Check anatomical compatibility using medical_rules.json
@@ -252,29 +373,24 @@ class MedicalRuleEngine:
                                 print(f"[WordMatch] ⏭️  SKIP: Anatomically incompatible (using medical_rules.json) - no penalty")
                                 continue
                             
-                            # Proceed with semantic similarity check
-                            embeddings = self.embedding_model.encode([patient_text.lower(), term])
+                            # Proceed with semantic similarity check (using normalized text for consistency)
+                            embeddings = self.embedding_model.encode([normalized_answer.lower(), term])
                             similarity = float(np.dot(embeddings[0], embeddings[1]) / (np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])))
                             
-                            print(f"[WordMatch] 🔍 Exclude check (semantic): '{patient_text}' vs '{term}' = {similarity:.2f}")
+                            print(f"[WordMatch] 🔍 Exclude check (semantic): '{normalized_answer}' vs '{term}' = {similarity:.2f}")
                             
                             # Penalize if semantic similarity exceeds threshold
                             if similarity > 0.4:
-                                print(f"[WordMatch] ⛔ EXCLUDE MATCH (semantic): '{patient_text}' has similarity ({similarity:.2f}) with exclude term '{term}'")
+                                print(f"[WordMatch] ⛔ EXCLUDE MATCH (semantic): '{normalized_answer}' has similarity ({similarity:.2f}) with exclude term '{term}'")
                                 print(f"[WordMatch]   Applying penalty: -0.3")
-                                return -0.3  # PENALTY for excluded location
+                                return -0.3  # PENALTY for excluded term
                         except Exception as e:
                             print(f"[WordMatch] ⚠️ Error computing exclude similarity: {e}")
             
-            # NOW normalize for includes checking
-            normalized_answer = self._normalize_with_synonyms(patient_text, synonyms, oldcarts_element)
-            
-            print(f"[WordMatch] 🔄 Normalization: '{patient_text}' → '{normalized_answer}'")
-            
-            normalized_lower = normalized_answer.lower().strip()
-            normalized_words = normalized_answer.lower().replace('_', ' ').split()
+            # NOW check includes using normalized text
             
             # Check for match in includes terms (using normalized text)
+            found_match = False
             for term in includes_terms:
                 term_lower = term.lower()
                 
@@ -298,6 +414,37 @@ class MedicalRuleEngine:
                     print(f"[WordMatch]   Progressive boost: +{boost:.2f}")
                     return boost
             
+            # STEP 3: Fallback to semantic matching if no exact/word match found
+            # This handles cases where normalized term (e.g., "ruq_pain") semantically matches includes term (e.g., "right upper quadrant")
+            if self.embedding_model and not found_match and includes_terms:
+                best_similarity = 0.0
+                best_term = None
+                semantic_threshold = 0.65
+                
+                try:
+                    # Batch encode: normalized answer + all includes terms (more efficient)
+                    all_texts = [normalized_lower] + [term.lower() for term in includes_terms]
+                    embeddings = self.embedding_model.encode(all_texts)
+                    normalized_emb = embeddings[0]
+                    
+                    # Compare against all includes terms semantically
+                    for i, term in enumerate(includes_terms):
+                        term_emb = embeddings[i + 1]
+                        similarity = float(np.dot(normalized_emb, term_emb) / (np.linalg.norm(normalized_emb) * np.linalg.norm(term_emb)))
+                        
+                        if similarity > best_similarity:
+                            best_similarity = similarity
+                            best_term = term
+                    
+                    if best_similarity >= semantic_threshold:
+                        # Progressive boost based on similarity
+                        boost = min(0.2 + (best_similarity - semantic_threshold) * 0.5, 0.4)
+                        print(f"[WordMatch] ✅ Semantic match found: '{normalized_answer}' ↔ '{best_term}' (similarity: {best_similarity:.3f})")
+                        print(f"[WordMatch]   Progressive boost: +{boost:.2f}")
+                        return boost
+                except Exception as e:
+                    print(f"[WordMatch] ⚠️ Error in semantic matching: {e}")
+            
             print(f"[WordMatch] ❌ No word matches found")
             print(f"[WordMatch]   Normalized: '{normalized_answer}'")
             print(f"[WordMatch]   Available includes terms: {includes_terms}")
@@ -308,21 +455,63 @@ class MedicalRuleEngine:
             return self._simple_word_match_boost(patient_text, guideline_text)
     
     def _normalize_with_synonyms(self, patient_text: str, synonyms: dict, oldcarts_element: str) -> str:
-        """Normalize patient text using synonym file for specific OLDCARTS element"""
+        """
+        Normalize patient text using synonym file for specific OLDCARTS element
+        Uses exact substring matching first, then semantic matching as fallback
+        """
         if oldcarts_element not in synonyms:
             return patient_text.lower().strip()
         
         patient_lower = patient_text.lower()
         element_synonyms = synonyms[oldcarts_element]
         
-        # Find the best matching synonym category
+        # STEP 1: Try exact substring matching first (faster)
         for standard_term, synonym_list in element_synonyms.items():
             for synonym in synonym_list:
                 if synonym in patient_lower:
-                    print(f"[WordMatch] 🔄 Synonym match: '{synonym}' → '{standard_term}'")
+                    print(f"[WordMatch] 🔄 Synonym match (exact): '{synonym}' → '{standard_term}'")
                     return standard_term
         
-        # No synonym match found, return original text
+        # STEP 2: Fallback to semantic matching if no exact match found
+        if self.embedding_model:
+            best_match = None
+            best_similarity = 0.0
+            similarity_threshold = 0.65  # Threshold for semantic match
+            
+            # Collect all synonyms for semantic comparison
+            all_synonyms = []
+            synonym_texts = []
+            for standard_term, synonym_list in element_synonyms.items():
+                for synonym in synonym_list:
+                    all_synonyms.append((standard_term, synonym))
+                    synonym_texts.append(synonym.lower())
+            
+            if all_synonyms:
+                try:
+                    # Batch encode: patient text + all synonyms
+                    all_texts = [patient_lower] + synonym_texts
+                    embeddings = self.embedding_model.encode(all_texts)
+                    patient_emb = embeddings[0]
+                    
+                    # Compare against all synonyms
+                    for i, (standard_term, synonym) in enumerate(all_synonyms):
+                        synonym_emb = embeddings[i + 1]
+                        similarity = float(np.dot(patient_emb, synonym_emb) / (np.linalg.norm(patient_emb) * np.linalg.norm(synonym_emb)))
+                        
+                        if similarity > best_similarity:
+                            best_similarity = similarity
+                            best_match = standard_term
+                    
+                    if best_similarity >= similarity_threshold:
+                        print(f"[WordMatch] 🔄 Synonym match (semantic): '{patient_text}' → '{best_match}' (similarity: {best_similarity:.3f})")
+                        return best_match
+                    else:
+                        print(f"[WordMatch] ⚠️ No semantic match found (best: {best_similarity:.3f} < {similarity_threshold})")
+                except Exception as e:
+                    print(f"[WordMatch] ⚠️ Error in semantic normalization: {e}")
+        
+        # No synonym match found (exact or semantic), return original text
+        print(f"[WordMatch] ⚠️ No synonym match found for: '{patient_text}'")
         return patient_text.lower().strip()
     
     def _simple_word_match_boost(self, patient_text: str, guideline_text: str) -> float:
@@ -351,212 +540,6 @@ class MedicalRuleEngine:
         
         return 0.0  # No boost
     
-    def _compute_duration_similarity(self, patient_text: str, guideline_text: str) -> Dict[str, Any]:
-        """
-        Special handling for duration/time-based similarity
-        
-        Args:
-            patient_text: Patient's duration response (e.g., "1 day", "2 hours", "constant")
-            guideline_text: Guideline text containing duration information
-            
-        Returns:
-            Duration-specific similarity result or None if not applicable
-        """
-        # Check if this looks like a duration question
-        duration_indicators = ['day', 'hour', 'minute', 'week', 'month', 'constant', 'intermittent', 'episodic', 'persistent']
-        patient_lower = patient_text.lower()
-        guideline_lower = guideline_text.lower()
-        
-        # Only apply duration logic if patient text contains time references
-        if not any(indicator in patient_lower for indicator in duration_indicators):
-            return None
-        
-        # Extract time references from patient text
-        patient_time = self._extract_time_reference(patient_text)
-        if not patient_time:
-            return None
-        
-        # Extract time references from guideline text
-        guideline_times = self._extract_guideline_times(guideline_text)
-        if not guideline_times:
-            return None
-        
-        # Compute duration similarity
-        similarity = self._match_duration_times(patient_time, guideline_times)
-        
-        return {
-            'similarity': similarity,
-            'method': 'duration_specialized',
-            'confidence': 'high' if similarity > 0.7 else 'medium',
-            'reasoning': f'Duration match: {patient_time} vs {guideline_times}',
-            'anatomical_type': 'duration',
-            'semantic_score': similarity
-        }
-    
-    def _extract_time_reference(self, text: str) -> Dict[str, Any]:
-        """Extract time reference from patient text"""
-        text_lower = text.lower().strip()
-        
-        # Parse various time formats
-        time_patterns = [
-            (r'(\d+)\s*days?', 'days'),
-            (r'(\d+)\s*hours?', 'hours'), 
-            (r'(\d+)\s*minutes?', 'minutes'),
-            (r'(\d+)\s*weeks?', 'weeks'),
-            (r'(\d+)\s*months?', 'months'),
-            (r'constant', 'constant'),
-            (r'intermittent', 'intermittent'),
-            (r'episodic', 'episodic'),
-            (r'persistent', 'persistent')
-        ]
-        
-        for pattern, unit in time_patterns:
-            match = re.search(pattern, text_lower)
-            if match:
-                if unit in ['constant', 'intermittent', 'episodic', 'persistent']:
-                    return {'type': 'qualitative', 'value': unit, 'text': text}
-                else:
-                    return {'type': 'quantitative', 'value': int(match.group(1)), 'unit': unit, 'text': text}
-        
-        return None
-    
-    def _extract_guideline_times(self, text: str) -> List[Dict[str, Any]]:
-        """Extract time references from guideline text"""
-        text_lower = text.lower()
-        times = []
-        
-        # Look for specific duration patterns in medical text
-        duration_patterns = [
-            (r'(\d+)\s*to\s*(\d+)\s*hours?', 'hours_range'),
-            (r'(\d+)\s*-\s*(\d+)\s*hours?', 'hours_range'),
-            (r'(\d+)\s*to\s*(\d+)\s*days?', 'days_range'),
-            (r'(\d+)\s*-\s*(\d+)\s*days?', 'days_range'),
-            (r'(\d+)\s*to\s*(\d+)\s*minutes?', 'minutes_range'),
-            (r'(\d+)\s*-\s*(\d+)\s*minutes?', 'minutes_range'),
-            (r'(\d+)\s*hours?', 'hours'),
-            (r'(\d+)\s*days?', 'days'),
-            (r'(\d+)\s*minutes?', 'minutes'),
-            (r'(\d+)\s*weeks?', 'weeks'),
-            (r'(\d+)\s*months?', 'months'),
-            (r'constant', 'constant'),
-            (r'intermittent', 'intermittent'),
-            (r'episodic', 'episodic'),
-            (r'persistent', 'persistent'),
-            (r'lasting\s*(\d+)\s*hours?', 'hours'),
-            (r'lasting\s*(\d+)\s*days?', 'days'),
-            (r'lasting\s*(\d+)\s*minutes?', 'minutes')
-        ]
-        
-        for pattern, unit in duration_patterns:
-            matches = re.finditer(pattern, text_lower)
-            for match in matches:
-                if 'range' in unit:
-                    # Handle ranges like "6-12 hours"
-                    start_val = int(match.group(1))
-                    end_val = int(match.group(2))
-                    times.append({
-                        'type': 'range',
-                        'start': start_val,
-                        'end': end_val,
-                        'unit': unit.replace('_range', ''),
-                        'text': match.group(0)
-                    })
-                else:
-                    # Handle single values
-                    value = int(match.group(1)) if match.group(1) else 0
-                    times.append({
-                        'type': 'single',
-                        'value': value,
-                        'unit': unit,
-                        'text': match.group(0)
-                    })
-        
-        return times
-    
-    def _match_duration_times(self, patient_time: Dict[str, Any], guideline_times: List[Dict[str, Any]]) -> float:
-        """Match patient time against guideline times"""
-        if not patient_time or not guideline_times:
-            return 0.0
-        
-        # Convert patient time to hours for comparison
-        patient_hours = self._convert_to_hours(patient_time)
-        if patient_hours is None:
-            return 0.0
-        
-        best_match = 0.0
-        
-        for guideline_time in guideline_times:
-            if guideline_time['type'] == 'range':
-                # Check if patient time falls within range
-                guideline_start = self._convert_to_hours(guideline_time)
-                guideline_end = self._convert_to_hours(guideline_time)
-                
-                if guideline_start <= patient_hours <= guideline_end:
-                    # Perfect match within range
-                    match_score = 1.0
-                elif patient_hours < guideline_start:
-                    # Patient time is shorter - partial match
-                    match_score = max(0.0, 1.0 - (guideline_start - patient_hours) / guideline_start)
-                else:
-                    # Patient time is longer - partial match
-                    match_score = max(0.0, 1.0 - (patient_hours - guideline_end) / guideline_end)
-                
-                best_match = max(best_match, match_score)
-                
-            elif guideline_time['type'] == 'single':
-                # Check single value match
-                guideline_hours = self._convert_to_hours(guideline_time)
-                if guideline_hours is not None:
-                    if patient_hours == guideline_hours:
-                        match_score = 1.0
-                    else:
-                        # Calculate similarity based on ratio
-                        ratio = min(patient_hours, guideline_hours) / max(patient_hours, guideline_hours)
-                        match_score = ratio
-                    
-                    best_match = max(best_match, match_score)
-        
-        return best_match
-    
-    def _convert_to_hours(self, time_ref: Dict[str, Any]) -> float:
-        """Convert time reference to hours for comparison"""
-        if time_ref['type'] == 'qualitative':
-            # Handle qualitative terms
-            if time_ref['value'] == 'constant':
-                return 24.0  # Assume constant means all day
-            elif time_ref['value'] in ['intermittent', 'episodic']:
-                return 0.5  # Short episodes
-            elif time_ref['value'] == 'persistent':
-                return 12.0  # Persistent but not necessarily constant
-            else:
-                return 0.0
-        
-        elif time_ref['type'] == 'quantitative':
-            # Convert to hours
-            value = time_ref['value']
-            unit = time_ref['unit']
-            
-            if unit == 'hours':
-                return float(value)
-            elif unit == 'days':
-                return float(value * 24)
-            elif unit == 'minutes':
-                return float(value) / 60.0
-            elif unit == 'weeks':
-                return float(value * 24 * 7)
-            elif unit == 'months':
-                return float(value * 24 * 30)  # Approximate
-            else:
-                return 0.0
-        
-        elif time_ref['type'] == 'range':
-            # For ranges, return the midpoint
-            start_hours = self._convert_to_hours({'type': 'quantitative', 'value': time_ref['start'], 'unit': time_ref['unit']})
-            end_hours = self._convert_to_hours({'type': 'quantitative', 'value': time_ref['end'], 'unit': time_ref['unit']})
-            return (start_hours + end_hours) / 2.0
-        
-        return 0.0
-    
     def _compute_embedding_similarity(self, patient_text: str, guideline_text: str, organ_system: str = None, oldcarts_element: str = None, structured_oldcarts: dict = None, condition_name: str = None) -> Dict[str, Any]:
         """
         Compute semantic similarity using embedding model
@@ -578,12 +561,8 @@ class MedicalRuleEngine:
             }
         
         try:
-            # SPECIAL HANDLING FOR DURATION: Extract and normalize time references
-            duration_similarity = self._compute_duration_similarity(patient_text, guideline_text)
-            if duration_similarity is not None:
-                return duration_similarity
-            
             # Encode both texts into embeddings
+            # Duration uses same word-match boost logic as location (via structured_oldcarts.includes/excludes)
             embeddings = self.embedding_model.encode([patient_text, guideline_text])
             patient_emb = embeddings[0]
             guideline_emb = embeddings[1]

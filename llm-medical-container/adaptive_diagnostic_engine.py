@@ -4366,44 +4366,29 @@ Your question:"""
         self._capture_debug(f"[Engine] 🎯 Generating targeted clarifying question for {oldcarts_element}")
         self._capture_debug(f"[Engine]   Patient answer: '{patient_answer}'")
         
-        # Normalize using element-specific synonyms (same as scoring)
-        normalized_answer = patient_answer.lower()
-        if hasattr(self, 'current_category') and self.current_category:
-            # Load appropriate synonym file for normalization
-            synonym_file = f"synonyms/{self.current_category.lower()}_synonyms_oldcarts.json"
-            synonym_path = os.path.join(os.path.dirname(__file__), synonym_file)
-            
-            if os.path.exists(synonym_path):
-                with open(synonym_path, 'r') as f:
-                    synonyms = json.load(f)
-                
-                # Normalize using this element's synonyms
-                if oldcarts_element in synonyms:
-                    element_synonyms = synonyms[oldcarts_element]
-                    # Sort by length (longest first) to prefer more specific matches
-                    sorted_categories = sorted(element_synonyms.items(), key=lambda x: max(len(s) for s in x[1]) if isinstance(x[1], list) else 0, reverse=True)
-                    
-                    for category, synonym_list in sorted_categories:
-                        if isinstance(synonym_list, list):
-                            for synonym in synonym_list:
-                                # Use word boundary matching to avoid partial matches
-                                import re
-                                pattern = r'\b' + re.escape(synonym.lower()) + r'\b'
-                                if re.search(pattern, normalized_answer):
-                                    normalized_answer = normalized_answer.replace(synonym.lower(), category)
-                                    # Don't break - continue to find longer/more specific matches
-        
-        self._capture_debug(f"[Engine] 🔄 Normalization: '{patient_answer}' → '{normalized_answer}'")
-        self._capture_debug(f"[Engine] 📍 Clarification normalization (no scoring here - just for question generation)")
-        
-        # Codebase uses lowercase full names only
-        element_name = oldcarts_element
-        
-        # Only include guidelines that received word_match_boost (actual word matches in structured_oldcarts)
-        # Re-check word matches for clarifying question generation
-        # We need to check if patient answer matches structured OLDCARTS data
+        # Use unified similarity computation - OPTIMIZED: normalize once, batch process guidelines
+        # This ensures consistency: raw semantic → normalization → word match boost
         all_guidelines_with_match = []
         
+        # STEP 1: Normalize ONCE (reused for all guidelines)
+        normalized_answer = patient_answer.lower()
+        if self.medical_rule_engine and self.current_category:
+            # Get normalized text using unified function (normalization only)
+            norm_result = self.medical_rule_engine.compute_unified_similarity(
+                patient_text=patient_answer,
+                guideline_text="",  # Not needed for normalization
+                condition_name="",
+                organ_system=self.current_category,
+                oldcarts_element=oldcarts_element,
+                structured_oldcarts={},  # Empty - just need normalization
+                return_word_match_only=True
+            )
+            normalized_answer = norm_result['normalized_text']
+        
+        self._capture_debug(f"[Engine] 🔄 Normalization: '{patient_answer}' → '{normalized_answer}'")
+        self._capture_debug(f"[Engine] 📍 Clarification normalization (using unified similarity)")
+        
+        # STEP 2: Process all guidelines with pre-normalized text (batch optimization)
         for guideline in self.active_guidelines:
             score = guideline.get('score', 0.0)
             
@@ -4413,53 +4398,27 @@ Your question:"""
                 self._capture_debug(f"[Engine] ❌ No structured OLDCARTS for '{oldcarts_element}': {guideline['name']} (score: {score:.2f}) - excluded")
                 continue
             
-            # Check if normalized answer matches any includes terms
-            element_data = structured_oldcarts[oldcarts_element]
-            includes = element_data.get('includes', [])
-            
-            # Check for word match
-            # Need semantic matching, not just substring match
-            # "right side" should match "right upper quadrant" and "right lower quadrant"
-            has_word_match = False
-            # Handle underscores in normalized answer (e.g., "right_side" -> "right side")
-            normalized_answer_with_spaces = normalized_answer.replace('_', ' ')
-            normalized_answer_words = set(normalized_answer_with_spaces.split())
-            
-            for term in includes:
-                # Normalize both for comparison
-                term_lower = term.lower()
+            # Use unified similarity computation with pre-normalized text (optimization)
+            if self.medical_rule_engine:
+                result = self.medical_rule_engine.compute_unified_similarity(
+                    patient_text=patient_answer,
+                    guideline_text=guideline.get('data', {}).get('classic_presentation', ''),
+                    condition_name=guideline['name'],
+                    organ_system=self.current_category,
+                    oldcarts_element=oldcarts_element,
+                    structured_oldcarts=structured_oldcarts,
+                    return_word_match_only=True,  # Only care about word match for clarification
+                    pre_normalized_text=normalized_answer  # Pass pre-normalized text to avoid duplicate normalization
+                )
                 
-                # Direct substring match
-                if term_lower in normalized_answer_with_spaces or normalized_answer_with_spaces in term_lower:
-                    has_word_match = True
-                    break
-                
-                # Semantic word overlap - if key words match
-                term_words = set(term_lower.split())
-                # Check if significant words overlap (more than 1 word in common)
-                if len(term_words.intersection(normalized_answer_words)) >= 2:
-                    has_word_match = True
-                    break
-                
-                # Check for "right" or "left" matching with quadrant terms
-                if 'right' in normalized_answer_words and 'right' in term_words:
-                    has_word_match = True
-                    break
-                if 'left' in normalized_answer_words and 'left' in term_words:
-                    has_word_match = True
-                    break
-                
-                # Check for single word match if it's a directional term
-                if len(normalized_answer_words) == 1 and len(term_words) == 1:
-                    if normalized_answer_words == term_words:
-                        has_word_match = True
-                        break
-            
-            if has_word_match:
-                all_guidelines_with_match.append(guideline)
-                self._capture_debug(f"[Engine] ✅ Guideline with word match: {guideline['name']} (score: {score:.2f}, matched term)")
+                # Check if word match found (for clarification, we only care about includes matches)
+                if result['has_match']:
+                    all_guidelines_with_match.append(guideline)
+                    self._capture_debug(f"[Engine] ✅ Guideline with word match: {guideline['name']} (score: {score:.2f}, boost: {result['word_match_boost']:.3f})")
+                else:
+                    self._capture_debug(f"[Engine] ❌ No word match: {guideline['name']} (score: {score:.2f}, boost: {result['word_match_boost']:.3f}) - excluded")
             else:
-                self._capture_debug(f"[Engine] ❌ No word match: {guideline['name']} (score: {score:.2f}, no term match) - excluded")
+                self._capture_debug(f"[Engine] ⚠️ Medical rule engine not available - skipping guideline")
         
         if not all_guidelines_with_match:
             self._capture_debug(f"[Engine] ❌ No guidelines with word match found - cannot generate clarifying question")
