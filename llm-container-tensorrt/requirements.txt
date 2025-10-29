@@ -1,0 +1,21 @@
+# TensorRT-LLM Container Requirements
+# Additional dependencies for LedgerAI integration
+# Note: tensorrt-llm and tensorrt are already included in dustynv/tensorrt_llm base image
+
+# Web framework and API
+flask>=2.3.0
+requests>=2.31.0
+
+# Model handling (already in base image but specifying versions)
+transformers>=4.30.0
+huggingface-hub>=0.16.0
+tokenizers>=0.13.0
+
+# Utilities
+numpy>=1.24.0
+tqdm>=4.65.0
+
+# Development and debugging
+pytest>=7.4.0
+black>=23.0.0
+flake8>=6.0.0
