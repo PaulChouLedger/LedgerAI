@@ -694,7 +694,7 @@ if __name__ == "__main__":
     llm = Llama(
         model_path=MODEL_PATH,
         n_ctx=N_CTX,
-        n_gpu_layers=-1,
+        n_gpu_layers=32,  # Limit to 32 layers for Orin GPU memory
         n_threads=6,
         chat_format=CHAT_FORMAT,
         use_mlock=True,
@@ -728,8 +728,8 @@ if __name__ == "__main__":
     llm_simple = Llama(
         model_path=SIMPLE_MODEL_PATH,
         n_ctx=SIMPLE_N_CTX,
-        n_gpu_layers=-1,
-        n_threads=4,
+        n_gpu_layers=32,  # Use fewer layers for simple model on Orin
+        n_threads=6,
         chat_format=SIMPLE_CHAT_FORMAT,
         use_mlock=True,
         use_mmap=True,
