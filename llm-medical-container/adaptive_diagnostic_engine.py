@@ -13,6 +13,7 @@ UNIVERSAL FLOW:
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from thinking_fillers import get_filler
@@ -116,6 +117,9 @@ class AdaptiveDiagnosticEngine:
                 with open(json_file, 'r') as f:
                     guideline = json.load(f)
                     name = guideline.get('condition', json_file.stem)
+                    # Store organ system from directory structure
+                    organ_system = json_file.parent.name if json_file.parent != self.guidelines_dir else "Other"
+                    guideline['organ_system'] = organ_system  # Store for filtering
                     self.all_guidelines[name] = guideline
             except Exception as e:
                 self._capture_debug(f"[Engine] ⚠️ Failed to load {json_file.name}: {e}")
@@ -191,25 +195,11 @@ class AdaptiveDiagnosticEngine:
         self.active_guidelines = matched_guidelines[:self.MAX_ACTIVE]
         self.reserve_pool = matched_guidelines[self.MAX_ACTIVE:]
         
-        # STEP 4: Process each detected OLDCARTS element individually
-        answered_components = oldcarts_analysis.get('answered_components', {})
-        if answered_components:
-            self._capture_debug(f"[Engine] 🔄 Processing {len(answered_components)} detected elements")
-            for element, detected_terms in answered_components.items():
-                self._capture_debug(f"[Engine] 📊 Processing {element}")
-                self.conversation_history.append({
-                    'type': 'question',
-                    'question': f"Tell me about {element}",
-                    'oldcarts': element
-                })
-                try:
-                    result = self._process_clinical_answer(chief_complaint)
-                    if result.get('status') == 'questioning':
-                        self._capture_debug(f"[Engine]   ✅ {element} processed")
-                except Exception as e:
-                    self._capture_debug(f"[Engine]   ⚠️ Error processing {element}: {e}")
-        
+        # Store OLDCARTS analysis for use in questioning
         self.oldcarts_analysis = oldcarts_analysis
+        
+        # Don't process detected elements here - just ask first question
+        # Processing will happen when user answers each question
         return self._generate_ml_first_question_with_demographics()
     
     def _match_chief_complaint_to_category(self, chief_complaint: str) -> str:
@@ -289,7 +279,7 @@ class AdaptiveDiagnosticEngine:
         return matched_guidelines
     
     def _get_guidelines_by_category(self, category: str) -> Dict:
-        """Get guidelines filtered by category"""
+        """Get guidelines filtered by category using directory structure"""
         if category == 'ALL':
             return self.all_guidelines
         
@@ -305,15 +295,21 @@ class AdaptiveDiagnosticEngine:
             'dermatological': 'DERM'
         }
         
-        prefix = category_map.get(category.lower(), category.upper())
+        target_organ = category_map.get(category.lower(), category.upper())
         filtered = {}
         
         for name, guideline in self.all_guidelines.items():
-            guideline_category = guideline.get('category', '')
-            if prefix in guideline_category.upper() or category.lower() in guideline_category.lower():
+            organ_system = guideline.get('organ_system', '')
+            # Match by directory name (e.g., 'GI', 'CARDIO', etc.)
+            if organ_system == target_organ or target_organ in organ_system.upper():
                 filtered[name] = guideline
         
-        return filtered if filtered else self.all_guidelines
+        if not filtered:
+            self._capture_debug(f"[Engine] ⚠️ No guidelines found for {category}, using all guidelines")
+            return self.all_guidelines
+        
+        self._capture_debug(f"[Engine] ✅ Filtered {len(self.all_guidelines)} → {len(filtered)} guidelines for {category}")
+        return filtered
     
     def _parse_prompt_against_structured_oldcarts(self, prompt: str, guidelines: List[Dict]) -> Dict[str, Any]:
         """Parse prompt against structured OLDCARTS to determine what's already answered"""
@@ -336,13 +332,24 @@ class AdaptiveDiagnosticEngine:
                     for term in data['includes']:
                         all_includes[element].add(term.lower())
         
-        # Detect which elements are present in prompt
+        # Detect which elements are present in prompt (using whole word matching)
         answered_components = {}
         prompt_lower = prompt.lower()
         
+        # Common words to exclude (too generic, cause false positives)
+        exclude_words = {'pain', 'ache', 'hurt', 'sore'}
+        
         for element, expected_terms in all_includes.items():
             for term in expected_terms:
-                if term in prompt_lower:
+                term_lower = term.lower()
+                # Skip single generic words that cause false positives
+                if term_lower in exclude_words:
+                    continue
+                
+                # Use whole word matching (more specific)
+                # Check if term appears as whole word/phrase, not substring
+                pattern = r'\b' + re.escape(term_lower) + r'\b'
+                if re.search(pattern, prompt_lower):
                     if element not in answered_components:
                         answered_components[element] = []
                     answered_components[element].append(term)
