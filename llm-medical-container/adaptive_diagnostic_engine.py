@@ -786,7 +786,10 @@ class AdaptiveDiagnosticEngine:
     def _generate_ml_first_question_with_demographics(self) -> Dict[str, Any]:
         """Generate first question with demographics and empathetic statement"""
         # STEP 1: Empathetic statement (only on first question - completely separate)
-        if not [item for item in self.conversation_history if item.get('type') == 'question']:
+        # Show empathetic statement only once per assessment before any questions
+        has_shown_statement = any(item.get('type') == 'statement' for item in self.conversation_history)
+        has_asked_any_question = any(item.get('type') == 'question' for item in self.conversation_history)
+        if not has_shown_statement and not has_asked_any_question:
             empathetic_msg = self._generate_empathetic_statement()
             self.conversation_history.append({
                 'type': 'statement',
