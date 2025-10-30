@@ -79,6 +79,13 @@ show_all_settings() {
     echo "  Model:         $(get_config_value 'SIMPLE_MODEL_PATH' | sed 's|.*/||')"
     echo "  Context:       $(get_config_value 'SIMPLE_N_CTX')"
     echo "  Temperature:   $(get_config_value 'LLM_TEMPERATURE_SIMPLE')"
+    echo "  Top P:         $(get_config_value 'LLM_TOP_P')"
+    echo "  Top K:         $(get_config_value 'LLM_TOP_K')"
+    echo "  Repeat Penalty:$(get_config_value 'LLM_REPEAT_PENALTY')"
+    echo "  Presence Pen.: $(get_config_value 'LLM_PRESENCE_PENALTY')"
+    echo "  Frequency Pen.:$(get_config_value 'LLM_FREQUENCY_PENALTY')"
+    echo "  Num Predict:   $(get_config_value 'LLM_NUM_PREDICT')"
+    echo "  Stop (CSV):    $(get_config_value 'LLM_STOP')"
     echo ""
     
     echo -e "${BOLD}📚 RAG SEARCH${NC}"
@@ -228,9 +235,16 @@ configure_llm() {
     echo "1) Change model path"
     echo "2) Change context size"
     echo "3) Adjust temperature"
-    echo "4) Back to main menu"
+    echo "4) Set top_p"
+    echo "5) Set top_k"
+    echo "6) Set repeat_penalty"
+    echo "7) Set presence_penalty"
+    echo "8) Set frequency_penalty"
+    echo "9) Set num_predict (max tokens)"
+    echo "10) Set stop sequences (CSV)"
+    echo "11) Back to main menu"
     echo ""
-    read -p "Choice [1-4]: " choice
+    read -p "Choice [1-11]: " choice
     
     case $choice in
         1)
@@ -250,7 +264,28 @@ configure_llm() {
             set_config_value "LLM_TEMPERATURE_SIMPLE" "$temp"
             show_restart_message
             ;;
-        4) return ;;
+        4)
+            read -p "Enter top_p (0.0-1.0): " v
+            set_config_value "LLM_TOP_P" "$v"; show_restart_message ;;
+        5)
+            read -p "Enter top_k (integer): " v
+            set_config_value "LLM_TOP_K" "$v"; show_restart_message ;;
+        6)
+            read -p "Enter repeat_penalty (>=1.0): " v
+            set_config_value "LLM_REPEAT_PENALTY" "$v"; show_restart_message ;;
+        7)
+            read -p "Enter presence_penalty: " v
+            set_config_value "LLM_PRESENCE_PENALTY" "$v"; show_restart_message ;;
+        8)
+            read -p "Enter frequency_penalty: " v
+            set_config_value "LLM_FREQUENCY_PENALTY" "$v"; show_restart_message ;;
+        9)
+            read -p "Enter num_predict (max tokens): " v
+            set_config_value "LLM_NUM_PREDICT" "$v"; show_restart_message ;;
+        10)
+            read -p "Enter stop sequences as CSV (e.g., \\n\\n,###): " v
+            set_config_value "LLM_STOP" "$v"; show_restart_message ;;
+        11) return ;;
     esac
 }
 
