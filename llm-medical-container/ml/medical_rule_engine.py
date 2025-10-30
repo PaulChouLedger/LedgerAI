@@ -76,7 +76,13 @@ class MedicalRuleEngine:
                                 for element, data in structured.items():
                                     if isinstance(data, dict) and 'includes' in data and element in all_terms:
                                         for term in data['includes']:
-                                            all_terms[element].add(term.lower())
+                                            # Support new structure where terms can be dicts {medical, patient_friendly}
+                                            if isinstance(term, dict):
+                                                medical = term.get('medical')
+                                                if isinstance(medical, str) and medical.strip():
+                                                    all_terms[element].add(medical.lower())
+                                            elif isinstance(term, str):
+                                                all_terms[element].add(term.lower())
                     except Exception as e:
                         print(f"[FAISS] ⚠️ Could not load guideline {file}: {e}")
         
@@ -108,6 +114,18 @@ class MedicalRuleEngine:
                     print(f"[FAISS] ⚠️ Error building index for {element}: {e}")
                     import traceback
                     traceback.print_exc()
+    
+    def _normalize_term_list(self, terms: List[Any]) -> List[str]:
+        """Normalize guideline term lists that may contain strings or {medical, patient_friendly} dicts."""
+        normalized: List[str] = []
+        for term in terms or []:
+            if isinstance(term, dict):
+                medical = term.get('medical')
+                if isinstance(medical, str) and medical.strip():
+                    normalized.append(medical.strip().lower())
+            elif isinstance(term, str):
+                normalized.append(term.strip().lower())
+        return normalized
     
     def find_matching_terms_faiss(self, prompt: str, element: str, threshold: float = 0.65) -> List[str]:
         """Find matching terms using FAISS similarity search with exact matching fallback."""
@@ -339,8 +357,8 @@ class MedicalRuleEngine:
             all_faiss_matches = self.find_matching_terms_faiss(patient_text, oldcarts_element, threshold=0.7)
             
             # Filter to only includes/excludes from THIS guideline
-            excludes_lower = [term.lower() for term in excludes_terms]
-            includes_lower = [term.lower() for term in includes_terms]
+            excludes_lower = self._normalize_term_list(excludes_terms)
+            includes_lower = self._normalize_term_list(includes_terms)
             
             # Check excludes (must be in both FAISS matches AND this guideline's excludes)
             matching_excludes = [term for term in all_faiss_matches if term.lower() in excludes_lower]
@@ -359,15 +377,15 @@ class MedicalRuleEngine:
         patient_lower = patient_text.lower()
         
         # Check excludes
-        for term in excludes_terms:
-            term_lower = term.lower()
+        for term in self._normalize_term_list(excludes_terms):
+            term_lower = term
             if (term_lower in normalized_lower or normalized_lower in term_lower or
                 term_lower in patient_lower or patient_lower in term_lower):
                 return -0.3  # Penalty
         
         # Check includes
-        for term in includes_terms:
-            term_lower = term.lower()
+        for term in self._normalize_term_list(includes_terms):
+            term_lower = term
             
             # Exact match
             if (term_lower == normalized_lower or term_lower in normalized_lower or 
