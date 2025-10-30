@@ -776,18 +776,38 @@ class AdaptiveDiagnosticEngine:
         # Use unified function to check which terms are satisfied
         satisfied_terms = set()
         answer_lower = answer.lower()
+        # Normalize with synonyms (align with unified similarity)
+        try:
+            category_to_system = {
+                'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
+                'respiratory': 'PULMONARY', 'neurological': 'NEURO',
+                'musculoskeletal': 'MSK', 'renal': 'RENAL',
+                'genitourinary': 'GU', 'gynecological': 'GYN',
+                'dermatological': 'DERM'
+            }
+            organ_system = category_to_system.get(self.current_category or 'gastrointestinal', 'GI')
+            synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+            synonym_path = os.path.join(os.path.dirname(__file__), synonym_file)
+            normalized_for_match = answer_lower
+            if os.path.exists(synonym_path) and self.medical_rule_engine:
+                with open(synonym_path, 'r') as f:
+                    synonyms = json.load(f)
+                normalized_for_match = self.medical_rule_engine._normalize_with_synonyms(answer, synonyms, oldcarts_element)
+        except Exception:
+            normalized_for_match = answer_lower
         
         # Check each term using the same logic as unified function
         for term in all_includes:
             term_satisfied = False
             
             # 1. Exact/substring matching (fast path)
-            if term in answer_lower or answer_lower in term:
+            if (term in answer_lower or answer_lower in term or
+                term in normalized_for_match or normalized_for_match in term):
                 term_satisfied = True
             else:
                 # 2. Use FAISS semantic matching (same as unified function)
                 if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
-                    semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, oldcarts_element, threshold=0.7)
+                    semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, oldcarts_element, threshold=0.6)
                     if term in [t.lower() for t in semantic_matches]:
                         term_satisfied = True
                     else:
@@ -797,7 +817,7 @@ class AdaptiveDiagnosticEngine:
                                 embeddings = self.embedding_model.encode([answer_lower, term])
                                 similarity = float(np.dot(embeddings[0], embeddings[1]) / 
                                                  (np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])))
-                                if similarity >= 0.7:  # Same threshold as FAISS
+                                if similarity >= 0.6:
                                     term_satisfied = True
                             except Exception:
                                 pass
@@ -839,18 +859,38 @@ class AdaptiveDiagnosticEngine:
         # Use unified function to check which terms are satisfied
         satisfied_terms = set()
         answer_lower = answer.lower()
+        # Normalize with synonyms
+        try:
+            category_to_system = {
+                'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
+                'respiratory': 'PULMONARY', 'neurological': 'NEURO',
+                'musculoskeletal': 'MSK', 'renal': 'RENAL',
+                'genitourinary': 'GU', 'gynecological': 'GYN',
+                'dermatological': 'DERM'
+            }
+            organ_system = category_to_system.get(self.current_category or 'gastrointestinal', 'GI')
+            synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+            synonym_path = os.path.join(os.path.dirname(__file__), synonym_file)
+            normalized_for_match = answer_lower
+            if os.path.exists(synonym_path) and self.medical_rule_engine:
+                with open(synonym_path, 'r') as f:
+                    synonyms = json.load(f)
+                normalized_for_match = self.medical_rule_engine._normalize_with_synonyms(answer, synonyms, oldcarts_element)
+        except Exception:
+            normalized_for_match = answer_lower
         
         # Check each term using the same logic as unified function
         for term in all_includes:
             term_satisfied = False
             
             # 1. Exact/substring matching (fast path)
-            if term in answer_lower or answer_lower in term:
+            if (term in answer_lower or answer_lower in term or
+                term in normalized_for_match or normalized_for_match in term):
                 term_satisfied = True
             else:
                 # 2. Use FAISS semantic matching (same as unified function)
                 if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
-                    semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, oldcarts_element, threshold=0.7)
+                    semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, oldcarts_element, threshold=0.6)
                     if term in [t.lower() for t in semantic_matches]:
                         term_satisfied = True
                     else:
@@ -860,7 +900,7 @@ class AdaptiveDiagnosticEngine:
                                 embeddings = self.embedding_model.encode([answer_lower, term])
                                 similarity = float(np.dot(embeddings[0], embeddings[1]) / 
                                                  (np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])))
-                                if similarity >= 0.7:  # Same threshold as FAISS
+                                if similarity >= 0.6:
                                     term_satisfied = True
                             except Exception:
                                 pass
