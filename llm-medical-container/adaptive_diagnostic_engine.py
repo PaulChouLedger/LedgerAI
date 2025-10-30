@@ -82,8 +82,7 @@ class AdaptiveDiagnosticEngine:
             self.medical_rule_engine = MedicalRuleEngine(embedding_model=self.embedding_model)
             self._capture_debug(f"[Engine] ✅ Medical Rule Engine initialized")
             
-            # Build FAISS anatomical index for fast medical_rules.json lookup
-            self._build_anatomical_faiss_index()
+            # No need for separate anatomical FAISS index - medical_rules.json handles this
         except ImportError:
             try:
                 import sys
@@ -92,8 +91,7 @@ class AdaptiveDiagnosticEngine:
                 self.medical_rule_engine = MedicalRuleEngine(embedding_model=self.embedding_model)
                 self._capture_debug(f"[Engine] ✅ Medical Rule Engine initialized (alternative path)")
                 
-                # Build FAISS anatomical index for fast medical_rules.json lookup
-                self._build_anatomical_faiss_index()
+                # No need for separate anatomical FAISS index - medical_rules.json handles this
             except ImportError:
                 self.medical_rule_engine = None
                 self._capture_debug(f"[Engine] ⚠️ Medical Rule Engine not available")
@@ -109,10 +107,7 @@ class AdaptiveDiagnosticEngine:
         self.all_guidelines = {}
         self._load_guidelines()
         
-        # FAISS anatomical index for fast medical_rules.json lookup
-        self.anatomical_faiss_index = None
-        self.anatomical_terms = []
-        self.anatomical_conditions = {}
+        # No separate anatomical FAISS index needed - medical_rules.json + OLDCARTS synonyms handle this
         
         # Initialize assessment state
         self.reset_assessment()
@@ -193,6 +188,7 @@ class AdaptiveDiagnosticEngine:
         # STEP 2: Narrow down guidelines
         matched_guidelines = self._get_all_guidelines_in_category(category)
         self._capture_debug(f"[Engine] 📊 Found {len(matched_guidelines)} guidelines")
+        self._capture_debug(f"[Guideline Load] 📚 Conditions: {[g.get('name', 'Unknown') for g in matched_guidelines[:10]]}")
         
         # STEP 3: Parse prompt to detect answered OLDCARTS elements
         oldcarts_analysis = self._parse_prompt_against_structured_oldcarts(chief_complaint, matched_guidelines)
@@ -204,6 +200,9 @@ class AdaptiveDiagnosticEngine:
         self.status = "questioning"
         self.active_guidelines = matched_guidelines[:self.MAX_ACTIVE]
         self.reserve_pool = matched_guidelines[self.MAX_ACTIVE:]
+        
+        self._capture_debug(f"[Initial Pool] 🎯 Active: {len(self.active_guidelines)}, Reserve: {len(self.reserve_pool)}")
+        self._capture_debug(f"[Initial Pool] 🏆 Active: {[g.get('name', 'Unknown') for g in self.active_guidelines]}")
         
         # Store OLDCARTS analysis for use in questioning
         self.oldcarts_analysis = oldcarts_analysis
@@ -406,11 +405,7 @@ class AdaptiveDiagnosticEngine:
                 'anatomical_analysis': {}
             }
         
-        # STEP 1: Extract anatomical information using medical_rules.json
-        anatomical_analysis = self._analyze_prompt_anatomy(prompt)
-        self._capture_debug(f"[Engine] 🏥 Anatomical analysis: {anatomical_analysis}")
-        
-        # STEP 2: Use FAISS-based term matching with extensive synonyms
+        # Use FAISS-based term matching with extensive synonyms
         answered_components = {}
         
         # Use FAISS to find matching terms - relies on extensive synonym files
@@ -424,27 +419,13 @@ class AdaptiveDiagnosticEngine:
                     answered_components[element] = matching_terms
                     self._capture_debug(f"[Engine] 📍 {element}: {matching_terms}")
         
-        # STEP 3: Enhanced location analysis using medical_rules.json + anatomical direction
-        if anatomical_analysis.get('direction'):
-            # If we detected anatomical direction but no location matches, create location matches
-            if 'location' not in answered_components:
-                location_terms = self._generate_anatomical_location_terms(anatomical_analysis['direction'])
-                if location_terms:
-                    answered_components['location'] = location_terms
-                    self._capture_debug(f"[Engine] 🏥 Generated location terms from anatomical analysis: {location_terms}")
-            
-            # Enhance existing location matches with anatomical terms
-            location_analysis = self._enhance_location_analysis(prompt, answered_components.get('location', []), anatomical_analysis)
-            answered_components['location'] = location_analysis.get('enhanced_terms', answered_components.get('location', []))
-            anatomical_analysis['location_enhancement'] = location_analysis
-        
         answered_elements = list(answered_components.keys())
         missing_elements = [element for element in ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity'] if element not in answered_elements]
         
         return {
             'answered_components': answered_components,
             'missing_components': missing_elements,
-            'anatomical_analysis': anatomical_analysis
+            'anatomical_analysis': {}
         }
     
     def _parse_prompt_against_structured_oldcarts_regex(self, prompt: str, guidelines: List[Dict]) -> Dict[str, Any]:
@@ -563,6 +544,9 @@ class AdaptiveDiagnosticEngine:
             all_guidelines = self.medical_rule_engine.filter_guidelines_by_location(answer, all_guidelines, organ_system)
         
         # STEP 2: Score all guidelines using unified function
+        self._capture_debug(f"[Scoring] 🔍 Scoring {len(all_guidelines)} guidelines for element: {oldcarts_element}")
+        self._capture_debug(f"[Scoring] 📝 Patient answer: '{answer}'")
+        
         for g in all_guidelines:
             classic = g['data'].get('key_features', {}).get('classic_presentation', '')
             oldcarts_section = self._extract_oldcarts_section(classic, oldcarts_element)
@@ -581,29 +565,44 @@ class AdaptiveDiagnosticEngine:
                     oldcarts_element, {oldcarts_element: element_data} if element_data else None
                 )
                 similarity = similarity_result['similarity']
+                word_matches = similarity_result.get('word_matches', [])
+                boost = similarity_result.get('boost', 0.0)
             else:
                 similarity = 0.5
+                word_matches = []
+                boost = 0.0
             
             # Update score
             old_score = g['score']
             new_score = (old_score * 0.7) + (similarity * 0.3)
             g['score'] = new_score
+            
+            self._capture_debug(f"[Scoring] 📊 {condition_name}: old={old_score:.3f}, similarity={similarity:.3f} (matches={word_matches}, boost={boost:.3f}), new={new_score:.3f}")
         
         # Re-rank
         all_guidelines.sort(key=lambda x: x['score'], reverse=True)
+        self._capture_debug(f"[Ranking] 🎯 Top 5 after scoring: {[(g['data'].get('condition', g['name']), round(g['score'], 3)) for g in all_guidelines[:5]]}")
         
         # Rule out low scores
         remaining = []
+        ruled_out_count = 0
         for g in all_guidelines:
             threshold = self._get_dynamic_threshold(g['score'])
             if g['score'] >= threshold:
                 remaining.append(g)
             else:
                 self.ruled_out.append(g)
+                ruled_out_count += 1
+                self._capture_debug(f"[Rule Out] ❌ {g['data'].get('condition', g['name'])}: score={g['score']:.3f} < threshold={threshold:.3f}")
+        
+        self._capture_debug(f"[Rule Out] 📉 Ruled out {ruled_out_count} guidelines, {len(remaining)} remaining")
         
         remaining.sort(key=lambda x: x['score'], reverse=True)
         self.active_guidelines = remaining[:self.MAX_ACTIVE]
         self.reserve_pool = remaining[self.MAX_ACTIVE:]
+        
+        self._capture_debug(f"[Pool Status] 🎯 Active: {len(self.active_guidelines)}, Reserve: {len(self.reserve_pool)}, Ruled Out: {len(self.ruled_out)}")
+        self._capture_debug(f"[Pool Status] 🏆 Active pool: {[g['data'].get('condition', g['name']) for g in self.active_guidelines]}")
         
         # Check if clarification needed
         clarification_count = sum(1 for item in self.conversation_history 
@@ -695,7 +694,11 @@ class AdaptiveDiagnosticEngine:
                 includes = element_data.get('includes', [])
                 all_includes.update(t.lower() for t in includes)
         
+        self._capture_debug(f"[Location Analysis] 📍 All includes terms from {len(self.active_guidelines)} guidelines: {sorted(all_includes)}")
+        self._capture_debug(f"[Location Analysis] 📝 Patient answer: '{answer}'")
+        
         if not all_includes:
+            self._capture_debug(f"[Location Analysis] ⚠️ No includes terms found for {oldcarts_element}")
             return []
         
         # Use unified function to check which terms are satisfied
@@ -732,6 +735,9 @@ class AdaptiveDiagnosticEngine:
         
         # Terms are missing if they're not satisfied
         missing = [term for term in all_includes if term not in satisfied_terms]
+        
+        self._capture_debug(f"[Location Analysis] ✅ Satisfied terms: {sorted(satisfied_terms)}")
+        self._capture_debug(f"[Location Analysis] ❌ Missing terms: {missing[:5]}")
         
         return missing[:5]  # Limit to 5
     
@@ -940,21 +946,8 @@ class AdaptiveDiagnosticEngine:
         
         # STEP 3: Sex question
         if 'sex' not in self.demographics:
-            if self.llm_chat_simple_fn:
-                system_msg = "You are a medical assistant. Generate a natural, conversational question to ask for the patient's biological sex."
-                user_msg = "Generate a natural question to ask for the patient's biological sex. Make it conversational and professional. Return only the question, no other text."
-                
-                response = self.llm_chat_simple_fn(
-                    [
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_msg}
-                    ],
-                    max_tokens=30,
-                    temperature=self.temperature
-                )
-                question = response.strip() if response and response.strip() else "What is your biological sex?"
-            else:
-                question = "What is your biological sex?"
+            # Use simple, direct question instead of LLM for consistency
+            question = "What is your biological sex?"
             
             self.conversation_history.append({
                 'type': 'question',
@@ -1329,190 +1322,4 @@ Response:"""
                 'status': 'questioning'
             }
     
-    def _build_anatomical_faiss_index(self):
-        """Build FAISS index for fast anatomical analysis using medical_rules.json"""
-        if not self.medical_rule_engine or not self.embedding_model:
-            return
-        
-        try:
-            import faiss
-            import numpy as np
-            
-            # Load medical_rules.json
-            medical_rules = self.medical_rule_engine.medical_rules
-            if not medical_rules:
-                return
-            
-            # Collect all anatomical terms and their conditions
-            anatomical_terms = []
-            anatomical_conditions = {}
-            
-            for organ_system, anatomical_types in medical_rules.items():
-                for anatomical_type, conditions in anatomical_types.items():
-                    # Create terms for each anatomical type
-                    if anatomical_type == 'right_only':
-                        terms = ['right', 'right side', 'right sided', 'ruq', 'rlq', 'right upper quadrant', 'right lower quadrant']
-                    elif anatomical_type == 'left_only':
-                        terms = ['left', 'left side', 'left sided', 'luq', 'llq', 'left upper quadrant', 'left lower quadrant']
-                    elif anatomical_type == 'bilateral':
-                        terms = ['bilateral', 'both sides', 'both', 'symmetrical', 'all over', 'everywhere']
-                    elif anatomical_type == 'midline':
-                        terms = ['midline', 'center', 'central', 'middle', 'epigastric', 'suprapubic', 'periumbilical']
-                    else:
-                        continue
-                    
-                    for term in terms:
-                        anatomical_terms.append(term)
-                        if term not in anatomical_conditions:
-                            anatomical_conditions[term] = []
-                        anatomical_conditions[term].extend([(organ_system, anatomical_type, condition) for condition in conditions])
-            
-            if not anatomical_terms:
-                return
-            
-            # Build FAISS index
-            embeddings = self.embedding_model.encode(anatomical_terms)
-            embeddings = embeddings.astype('float32')
-            
-            # Normalize for cosine similarity
-            faiss.normalize_L2(embeddings)
-            
-            # Create index
-            index = faiss.IndexFlatIP(embeddings.shape[1])
-            index.add(embeddings)
-            
-            self.anatomical_faiss_index = index
-            self.anatomical_terms = anatomical_terms
-            self.anatomical_conditions = anatomical_conditions
-            
-            self._capture_debug(f"[FAISS] 🏥 Built anatomical index: {len(anatomical_terms)} terms")
-            
-        except Exception as e:
-            self._capture_debug(f"[FAISS] ⚠️ Error building anatomical index: {e}")
-    
-    def _analyze_prompt_anatomy(self, prompt: str) -> Dict[str, Any]:
-        """Fast anatomical analysis using FAISS + medical_rules.json"""
-        if not self.anatomical_faiss_index or not self.embedding_model:
-            return self._analyze_prompt_anatomy_fallback(prompt)
-        
-        try:
-            import faiss
-            import numpy as np
-            
-            # Encode prompt
-            prompt_embedding = self.embedding_model.encode([prompt])
-            prompt_embedding = prompt_embedding.astype('float32')
-            faiss.normalize_L2(prompt_embedding)
-            
-            # Search FAISS index
-            scores, indices = self.anatomical_faiss_index.search(prompt_embedding, k=5)
-            
-            # Analyze results
-            direction = None
-            organ_system = None
-            compatible_conditions = set()
-            incompatible_conditions = set()
-            
-            for score, idx in zip(scores[0], indices[0]):
-                if score >= 0.7:  # High confidence threshold
-                    term = self.anatomical_terms[idx]
-                    conditions = self.anatomical_conditions.get(term, [])
-                    
-                    # Extract direction and organ system
-                    for sys, anat_type, condition in conditions:
-                        if not organ_system:
-                            organ_system = sys
-                        
-                        if not direction:
-                            if anat_type == 'right_only':
-                                direction = 'right'
-                            elif anat_type == 'left_only':
-                                direction = 'left'
-                            elif anat_type == 'bilateral':
-                                direction = 'bilateral'
-                            elif anat_type == 'midline':
-                                direction = 'midline'
-                        
-                        # Categorize conditions
-                        if anat_type in ['right_only', 'left_only', 'bilateral', 'midline']:
-                            compatible_conditions.add(condition)
-                        else:
-                            incompatible_conditions.add(condition)
-            
-            return {
-                'direction': direction,
-                'organ_system': organ_system,
-                'compatible_conditions': list(compatible_conditions),
-                'incompatible_conditions': list(incompatible_conditions),
-                'confidence': float(max(scores[0])) if len(scores[0]) > 0 else 0.0
-            }
-            
-        except Exception as e:
-            self._capture_debug(f"[FAISS] ⚠️ Error in anatomical analysis: {e}")
-            return self._analyze_prompt_anatomy_fallback(prompt)
-    
-    def _analyze_prompt_anatomy_fallback(self, prompt: str) -> Dict[str, Any]:
-        """Fallback anatomical analysis using simple keyword matching"""
-        prompt_lower = prompt.lower()
-        
-        # Simple keyword matching
-        if any(word in prompt_lower for word in ['right', 'ruq', 'rlq']):
-            direction = 'right'
-        elif any(word in prompt_lower for word in ['left', 'luq', 'llq']):
-            direction = 'left'
-        elif any(word in prompt_lower for word in ['bilateral', 'both sides', 'both']):
-            direction = 'bilateral'
-        elif any(word in prompt_lower for word in ['midline', 'center', 'central', 'middle', 'epigastric']):
-            direction = 'midline'
-        else:
-            direction = None
-        
-        return {
-            'direction': direction,
-            'organ_system': None,
-            'compatible_conditions': [],
-            'incompatible_conditions': [],
-            'confidence': 0.5 if direction else 0.0
-        }
-    
-    def _enhance_location_analysis(self, prompt: str, faiss_matches: List[str], anatomical_analysis: Dict) -> Dict[str, Any]:
-        """Enhance location analysis using anatomical information"""
-        enhanced_terms = faiss_matches.copy()
-        
-        # Add anatomical terms if not already present
-        direction = anatomical_analysis.get('direction')
-        if direction:
-            if direction == 'right':
-                anatomical_terms = ['right', 'right side', 'right sided']
-            elif direction == 'left':
-                anatomical_terms = ['left', 'left side', 'left sided']
-            elif direction == 'bilateral':
-                anatomical_terms = ['bilateral', 'both sides', 'both']
-            elif direction == 'midline':
-                anatomical_terms = ['midline', 'center', 'central', 'middle']
-            else:
-                anatomical_terms = []
-            
-            # Add anatomical terms that aren't already in FAISS matches
-            for term in anatomical_terms:
-                if not any(term.lower() in match.lower() for match in enhanced_terms):
-                    enhanced_terms.append(term)
-        
-        return {
-            'enhanced_terms': enhanced_terms,
-            'anatomical_direction': direction,
-            'confidence': anatomical_analysis.get('confidence', 0.0)
-        }
-    
-    def _generate_anatomical_location_terms(self, direction: str) -> List[str]:
-        """Generate location terms based on anatomical direction - ONLY vague terms, not specific anatomical locations"""
-        if direction == 'right':
-            return ['right', 'right side', 'right sided']  # Vague terms only
-        elif direction == 'left':
-            return ['left', 'left side', 'left sided']  # Vague terms only
-        elif direction == 'bilateral':
-            return ['bilateral', 'both sides', 'both', 'symmetrical', 'all over', 'everywhere']
-        elif direction == 'midline':
-            return ['midline', 'center', 'central', 'middle']  # Vague terms only
-        else:
-            return []
+    # Removed redundant anatomical analysis functions - medical_rules.json + OLDCARTS synonyms handle this
