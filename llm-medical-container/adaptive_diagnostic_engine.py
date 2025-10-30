@@ -584,7 +584,10 @@ class AdaptiveDiagnosticEngine:
             self._capture_debug(f"[Engine] ✅ onset marked as complete")
             return self._ask_next_clinical_question()
         
-        # Score guidelines (proceed even without embeddings using rule/keyword paths)
+        # Score guidelines (strict: require embeddings, no fallbacks)
+        if not self.embedding_model:
+            return {'success': False, 'message': 'Embedding model not available'}
+        
         all_guidelines = self.active_guidelines + self.reserve_pool
         
         # STEP 1: Filter guidelines using medical_rules.json (location only)
@@ -748,14 +751,20 @@ class AdaptiveDiagnosticEngine:
         if not self.active_guidelines:
             return []
         
-        # Collect all includes terms from active guidelines
+        # Collect all includes terms from active guidelines (normalize dicts)
         all_includes = set()
         for g in self.active_guidelines:
             structured = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
             element_data = structured.get(oldcarts_element, {})
             if isinstance(element_data, dict):
                 includes = element_data.get('includes', [])
-                all_includes.update(t.lower() for t in includes)
+                for t in includes:
+                    if isinstance(t, dict):
+                        med = t.get('medical')
+                        if isinstance(med, str) and med.strip():
+                            all_includes.add(med.strip().lower())
+                    elif isinstance(t, str):
+                        all_includes.add(t.strip().lower())
         
         self._capture_debug(f"[Location Analysis] 📍 All includes terms from {len(self.active_guidelines)} guidelines: {sorted(all_includes)}")
         self._capture_debug(f"[Location Analysis] 📝 Patient answer: '{answer}'")
@@ -809,14 +818,20 @@ class AdaptiveDiagnosticEngine:
         if not self.active_guidelines:
             return set()
         
-        # Collect all includes terms from active guidelines
+        # Collect all includes terms from active guidelines (normalize dicts)
         all_includes = set()
         for g in self.active_guidelines:
             structured = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
             element_data = structured.get(oldcarts_element, {})
             if isinstance(element_data, dict):
                 includes = element_data.get('includes', [])
-                all_includes.update(t.lower() for t in includes)
+                for t in includes:
+                    if isinstance(t, dict):
+                        med = t.get('medical')
+                        if isinstance(med, str) and med.strip():
+                            all_includes.add(med.strip().lower())
+                    elif isinstance(t, str):
+                        all_includes.add(t.strip().lower())
         
         if not all_includes:
             return set()

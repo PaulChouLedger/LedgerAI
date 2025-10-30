@@ -93,8 +93,8 @@ class MedicalRuleEngine:
             if terms:
                 terms_list = list(terms)
                 try:
-                    embeddings = self.embedding_model.encode(terms_list)
-                    embeddings = embeddings.astype('float32')
+                    embeddings = self.embedding_model.encode(terms_list, convert_to_numpy=True)
+                    embeddings = np.asarray(embeddings, dtype='float32')
                     
                     # Normalize embeddings for cosine similarity (required for IndexFlatIP)
                     faiss.normalize_L2(embeddings)
@@ -152,8 +152,8 @@ class MedicalRuleEngine:
         # STEP 2: FAISS semantic matching (fallback for semantic similarity)
         try:
             # Encode prompt
-            prompt_embedding = self.embedding_model.encode([prompt])
-            prompt_embedding = prompt_embedding.astype('float32')
+            prompt_embedding = self.embedding_model.encode([prompt], convert_to_numpy=True)
+            prompt_embedding = np.asarray(prompt_embedding, dtype='float32')
             
             # Normalize for cosine similarity (required for IndexFlatIP)
             faiss.normalize_L2(prompt_embedding)
@@ -238,7 +238,7 @@ class MedicalRuleEngine:
             if all_synonyms:
                 try:
                     all_texts = [patient_lower] + synonym_texts
-                    embeddings = self.embedding_model.encode(all_texts)
+                    embeddings = self.embedding_model.encode(all_texts, convert_to_numpy=True)
                     patient_emb = embeddings[0]
                     
                     for i, (standard_term, synonym) in enumerate(all_synonyms):
@@ -273,7 +273,7 @@ class MedicalRuleEngine:
         raw_similarity = 0.0
         if self.embedding_model:
             try:
-                embeddings = self.embedding_model.encode([patient_text.lower(), guideline_text])
+                embeddings = self.embedding_model.encode([patient_text.lower(), guideline_text], convert_to_numpy=True)
                 raw_similarity = float(np.dot(embeddings[0], embeddings[1]) / 
                                       (np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])))
             except Exception as e:
