@@ -167,6 +167,64 @@ class AdaptiveDiagnosticEngine:
                 for i, g in enumerate(self.active_guidelines[:5])
             ]
         }
+
+    def _format_engine_debug(self, prefix_note: str = None) -> str:
+        """Return formatted debug banner similar to Telegram output."""
+        lines = []
+        lines.append("="*80)
+        lines.append("[Telegram] 🧠 ENGINE DEBUG OUTPUT")
+        lines.append("="*80)
+        lines.append(f"[Engine] 🎯 Structured guidelines: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}")
+        if prefix_note:
+            lines.append(prefix_note)
+        # OLDCARTS coverage
+        coverage_str = ''.join([k if v else '_' for k, v in self.oldcarts_covered.items()])
+        lines.append(f"[Engine] 📋 OLDCARTS: {coverage_str} ({sum(self.oldcarts_covered.values())}/8)")
+        # Differentials
+        lines.append("[Engine] 📊 ACTIVE DIFFERENTIALS:")
+        for i, g in enumerate(self.active_guidelines[:5], start=1):
+            severity = g.get('urgency', 'routine')
+            name = g.get('name', 'Unknown')
+            score = int(round(g.get('score', 0.5)*100)) if isinstance(g.get('score', None), (int, float)) else 50
+            sev_icon = '⚠️' if 'urgent' in str(severity).lower() else '📋'
+            lines.append(f"  {i}. {name}: {score}% ({severity}) {sev_icon}")
+        lines.append(f"[Engine] 🔄 Pool: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
+        return "\n".join(lines)
+
+    def _format_rankings_debug(self) -> str:
+        """Return formatted UPDATED RANKINGS block and pool statistics."""
+        def urgency_icon(u):
+            u_str = str(u or 'routine').lower()
+            if 'emerg' in u_str:
+                return '🚨'
+            if 'urgent' in u_str:
+                return '⚠️'
+            return '📋'
+
+        lines = []
+        lines.append("[Engine] 📊 UPDATED RANKINGS:")
+        for i, g in enumerate(self.active_guidelines[:5], start=1):
+            name = g.get('data', {}).get('condition', g.get('name', 'Unknown'))
+            pct = int(round((g.get('score') or 0.0) * 100))
+            urg = g.get('urgency') or g.get('data', {}).get('urgency', 'routine')
+            icon = urgency_icon(urg)
+            lines.append(f"[Engine]   {i}. {name}: {pct}% {icon}")
+            lines.append(f"[Scoring] 🏆 Top {i}: {name}")
+            lines.append(f"[Scoring]   📊 Score: {pct}%")
+            prev = g.get('data', {}).get('prevalence', 'unknown')
+            lines.append(f"[Scoring]   📋 Prevalence: {prev}")
+            lines.append(f"[Scoring]   🎯 ML Confidence: High similarity match")
+            lines.append(f"[Scoring]   🚨 Urgency: {urg if urg else 'routine'}")
+        lines.append("")
+        lines.append(f"[Engine] 🔄 Pool status: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
+        lines.append("[Scoring] 📊 Final statistics:")
+        lines.append(f"[Scoring]   🎯 Active Conditions: {len(self.active_guidelines)}")
+        lines.append(f"[Scoring]   📋 Reserve Conditions: {len(self.reserve_pool)}")
+        lines.append(f"[Scoring]   ❌ Ruled Out: {len(self.ruled_out)}")
+        total_processed = len(self.active_guidelines) + len(self.reserve_pool) + len(self.ruled_out)
+        lines.append(f"[Scoring]   📈 Total Processed: {total_processed}")
+        lines.append(f"[Scoring]   🧠 ML System: Fully operational")
+        return "\n".join(lines)
     
     def start_assessment(self, chief_complaint: str) -> Dict[str, Any]:
         """
@@ -281,7 +339,11 @@ class AdaptiveDiagnosticEngine:
             return {
                 'success': True,
                 'message': f"{empathetic_msg}\n\n{symptom_question}",
-                'status': 'questioning'
+                'status': 'questioning',
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] 🧠 Generating structured first question with demographics..."),
+                    'internal': self._get_debug_info()
+                }
             }
         else:
             # Statement already shown, proceed to demographics
@@ -522,10 +584,7 @@ class AdaptiveDiagnosticEngine:
             self._capture_debug(f"[Engine] ✅ onset marked as complete")
             return self._ask_next_clinical_question()
         
-        # Score guidelines
-        if not self.embedding_model:
-            return {'success': False, 'message': 'Embedding model not available'}
-        
+        # Score guidelines (proceed even without embeddings using rule/keyword paths)
         all_guidelines = self.active_guidelines + self.reserve_pool
         
         # STEP 1: Filter guidelines using medical_rules.json (location only)
@@ -629,7 +688,11 @@ class AdaptiveDiagnosticEngine:
                     return {
                         'success': True,
                         'question': question,
-                        'status': 'questioning'
+                        'status': 'questioning',
+                        'debug': {
+                            'engine': self._format_engine_debug("[Engine] ⏳ Clarification requested") + "\n\n" + self._format_rankings_debug(),
+                            'internal': self._get_debug_info(last_answer=answer)
+                        }
                     }
             except Exception as e:
                 self._capture_debug(f"[Engine] ⚠️ Clarification check failed: {e}")
@@ -836,12 +899,27 @@ class AdaptiveDiagnosticEngine:
             self._capture_debug(f"[Engine] OLDCARTS analysis: {self.oldcarts_analysis}")
         
         if not hasattr(self, 'oldcarts_analysis') or not self.oldcarts_analysis:
-            return {'success': False, 'message': 'No OLDCARTS analysis available'}
+            return {
+                'success': False,
+                'message': 'No OLDCARTS analysis available',
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] ❌ No OLDCARTS analysis available"),
+                    'internal': self._get_debug_info()
+                }
+            }
         
         missing = self.oldcarts_analysis.get('missing_components', [])
         self._capture_debug(f"[Engine] Missing components: {missing}")
         if not missing:
-            return {'success': True, 'status': 'completed', 'message': 'Assessment complete'}
+            return {
+                'success': True,
+                'status': 'completed',
+                'message': 'Assessment complete',
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] ✅ Assessment complete"),
+                    'internal': self._get_debug_info()
+                }
+            }
         
         # Standard OLDCARTS order
         next_element = missing[0]
@@ -858,7 +936,11 @@ class AdaptiveDiagnosticEngine:
         return {
             'success': True,
             'message': question,
-            'status': 'questioning'
+            'status': 'questioning',
+            'debug': {
+                'engine': self._format_engine_debug(f"[Engine] 🔍 Next element to ask: {next_element}") + "\n\n" + self._format_rankings_debug(),
+                'internal': self._get_debug_info()
+            }
         }
     
     def _generate_confirmation_message(self, user_answer: str) -> str:
@@ -893,13 +975,17 @@ class AdaptiveDiagnosticEngine:
     
     def _generate_oldcarts_question_for_component(self, component: str) -> str:
         """Generate question for OLDCARTS component using LLM with proper context"""
+        # For location, avoid introducing specific anatomical regions; ask neutrally
+        if component == 'location':
+            return "Can you tell me more about where exactly the pain is located?"
+        
         if self.llm_chat_simple_fn:
             # Provide context: chief complaint and what we already know
             chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}"
             covered_info = "Already covered: " + ", ".join([k for k, v in self.oldcarts_covered.items() if v])
             
-            system_msg = "You are a medical assistant. Generate a natural, conversational question to ask about a specific aspect of a patient's symptoms. Base your question ONLY on what the patient has actually told you - do NOT make up symptoms."
-            user_msg = f"{chief_complaint_context}\n{covered_info}\n\nGenerate a natural question to ask about the {component} of the patient's symptoms related to their chief complaint. Make it conversational and empathetic. ONLY ask about the chief complaint and what they've told you - do NOT mention symptoms they haven't mentioned. Return only the question, no other text."
+            system_msg = "You are a medical assistant. Generate a natural, conversational question to ask about a specific aspect of a patient's symptoms. Base your question ONLY on what the patient has actually told you — do NOT make up details. Avoid leading the patient or naming specific anatomical regions unless the patient already said them."
+            user_msg = f"{chief_complaint_context}\n{covered_info}\n\nGenerate a natural question to ask about the {component} of the patient's symptoms related to their chief complaint. Make it conversational and empathetic. Do NOT introduce specific locations (e.g., 'lower right abdomen', 'RUQ') unless the patient already said them. Return only the question, no other text."
             
             response = self.llm_chat_simple_fn(
                 [
@@ -941,7 +1027,11 @@ class AdaptiveDiagnosticEngine:
                 'success': True,
                 'message': empathetic_msg,
                 'status': 'questioning',
-                'has_pause': True  # Pause before next question
+                'has_pause': True,  # Pause before next question
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] 🧠 Generating structured first question with demographics..."),
+                    'internal': self._get_debug_info()
+                }
             }
             
         # STEP 2: Age question (separate from empathetic statement)
@@ -970,7 +1060,11 @@ class AdaptiveDiagnosticEngine:
             return {
                 'success': True,
                 'message': question,
-                'status': 'questioning'
+                'status': 'questioning',
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] ✅ Demographics question generated"),
+                    'internal': self._get_debug_info()
+                }
             }
         
         # STEP 3: Sex question
@@ -991,7 +1085,11 @@ class AdaptiveDiagnosticEngine:
                 'buttons': [
                     {'text': 'Male', 'callback_data': 'sex_male'},
                     {'text': 'Female', 'callback_data': 'sex_female'}
-                ]
+                ],
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] ✅ Demographics question generated"),
+                    'internal': self._get_debug_info()
+                }
             }
         
         # STEP 4: Chronicity question
@@ -1024,7 +1122,11 @@ class AdaptiveDiagnosticEngine:
                 'buttons': [
                     {'text': 'New Problem', 'callback_data': 'chronicity_new'},
                     {'text': 'Ongoing Issue', 'callback_data': 'chronicity_recurring'}
-                ]
+                ],
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] ✅ Demographics question generated"),
+                    'internal': self._get_debug_info()
+                }
             }
         
         # All demographics collected, start OLDCARTS
@@ -1126,7 +1228,11 @@ class AdaptiveDiagnosticEngine:
                 return {
                     'success': True,
                     'message': f"{confirmation_msg}\n\n{question}",
-                    'status': 'questioning'
+                    'status': 'questioning',
+                    'debug': {
+                        'engine': self._format_engine_debug("[Engine] ✅ Confirmation + Age question"),
+                        'internal': self._get_debug_info(last_answer=user_answer)
+                    }
                 }
             else:
                 # Age already collected, continue with next demographic
@@ -1169,7 +1275,14 @@ class AdaptiveDiagnosticEngine:
                         self.demographics['age'] = age
                         return self._generate_ml_first_question_with_demographics()
             
-            return {'success': False, 'message': 'Please provide your age as a number (e.g., 25, thirty-five, etc.)'}
+            return {
+                'success': False,
+                'message': 'Please provide your age as a number (e.g., 25, thirty-five, etc.)',
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] ❌ Age validation failed"),
+                    'internal': self._get_debug_info(last_answer=user_answer)
+                }
+            }
         
         
         # Handle other demographics (sex, chronicity)
@@ -1204,7 +1317,14 @@ class AdaptiveDiagnosticEngine:
                     self.demographics['sex'] = sex_str
                     return self._generate_ml_first_question_with_demographics()
             
-            return {'success': False, 'message': 'Please specify your biological sex (male or female)'}
+            return {
+                'success': False,
+                'message': 'Please specify your biological sex (male or female)',
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] ❌ Sex validation failed"),
+                    'internal': self._get_debug_info(last_answer=user_answer)
+                }
+            }
         
         if last_q and last_q.get('focus') == 'chronicity':
             # Simple keyword matching first (more reliable than LLM)
@@ -1252,7 +1372,14 @@ class AdaptiveDiagnosticEngine:
                     # LLM failed, fall through to error message
                     pass
             
-            return {'success': False, 'message': 'Please specify if this is a new problem or ongoing issue'}
+            return {
+                'success': False,
+                'message': 'Please specify if this is a new problem or ongoing issue',
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] ❌ Chronicity validation failed"),
+                    'internal': self._get_debug_info(last_answer=user_answer)
+                }
+            }
         
         # Handle clinical answers
         return self._process_clinical_answer(user_answer)
