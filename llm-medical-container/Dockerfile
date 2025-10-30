@@ -20,6 +20,9 @@ RUN pip3 install \
     watchdog \
     --index-url https://pypi.org/simple
 
+# Ensure latest llama-cpp-python for GGUF compatibility
+RUN pip3 install --upgrade llama-cpp-python
+
 # Pre-download sentence transformer model (cached layer)
 RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-distilroberta-v1')" && \
     echo "✅ all-distilroberta-v1 model pre-downloaded into image"
