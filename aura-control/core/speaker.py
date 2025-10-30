@@ -32,7 +32,14 @@ client = ElevenLabs(api_key=ELEVEN_API_KEY)
 PCM_SAMPLE_RATE = 22050
 PCM_FORMAT = "pcm_22050"
 VOLUME_SET = False
-TTS_VOLUME = 100 # percent
+
+# Require TTS volume from .env (no default)
+tts_volume_raw = os.getenv("TTS_VOLUME")
+if tts_volume_raw is None or not tts_volume_raw.strip().isdigit() or not (0 <= int(tts_volume_raw) <= 100):
+    raise RuntimeError(
+        "❌ Missing or invalid TTS_VOLUME. Set it in .env via aura_config.sh → TTS, then restart."
+    )
+TTS_VOLUME = int(tts_volume_raw)  # percent
 
 # Device identification
 DEVICE_NAME = "UACDemoV1.0"   # part of the USB device name from `aplay -l`

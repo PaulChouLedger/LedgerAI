@@ -97,6 +97,7 @@ show_all_settings() {
     local api_key=$(get_config_value 'ELEVENLABS_API_KEY')
     local voice_id=$(get_config_value 'ELEVENLABS_VOICE_ID')
     local tts_limit=$(get_config_value 'TTS_TOKEN_LIMIT')
+    local tts_volume=$(get_config_value 'TTS_VOLUME')
     if [ -n "$api_key" ] && [ "$api_key" != "your_elevenlabs_api_key_here" ]; then
         echo -e "  ${GREEN}✅ API Key configured${NC}"
         if [ -n "$voice_id" ] && [ "$voice_id" != "default" ]; then
@@ -111,6 +112,11 @@ show_all_settings() {
         echo "  Token limit:  $tts_limit"
     else
         echo "  Token limit:  (not set)"
+    fi
+    if [ -n "$tts_volume" ]; then
+        echo "  Volume:       $tts_volume%"
+    else
+        echo "  Volume:       (not set)"
     fi
     echo ""
     
@@ -358,10 +364,11 @@ configure_tts() {
     echo "1) Set ElevenLabs API key"
     echo "2) Set voice ID (optional)"
     echo "3) Set TTS token limit (tokens per chunk)"
-    echo "4) Clear API key"
-    echo "5) Back to main menu"
+    echo "4) Set TTS volume (0-100%)"
+    echo "5) Clear API key"
+    echo "6) Back to main menu"
     echo ""
-    read -p "Choice [1-5]: " choice
+    read -p "Choice [1-6]: " choice
     
     case $choice in
         1)
@@ -406,11 +413,24 @@ configure_tts() {
             fi
             ;;
         4)
+            echo ""
+            echo "Current volume: ${tts_volume:-not set}"
+            read -p "Enter TTS volume (0-100): " tts_volume_new
+            if [[ "$tts_volume_new" =~ ^[0-9]+$ ]] && [ "$tts_volume_new" -ge 0 ] && [ "$tts_volume_new" -le 100 ]; then
+                set_config_value "TTS_VOLUME" "$tts_volume_new"
+                echo -e "${GREEN}✅ TTS volume saved${NC}"
+                echo ""
+                echo "Note: Restart speaker service to apply"
+            else
+                echo -e "${RED}Invalid value. Please enter an integer 0-100.${NC}"
+            fi
+            ;;
+        5)
             set_config_value "ELEVENLABS_API_KEY" "your_elevenlabs_api_key_here"
             echo ""
             echo -e "${GREEN}✅ API key cleared${NC}"
             ;;
-        5) return ;;
+        6) return ;;
     esac
 }
 
