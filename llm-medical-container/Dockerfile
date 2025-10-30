@@ -1,5 +1,5 @@
 # Use pre-built dustynv llama.cpp image
-FROM dustynv/llama_cpp:0.3.9-r36.4.0-cu128-24.04
+FROM dustynv/llama_cpp:b5283-r36.4-cu128-24.04
 
 # Set working directory
 WORKDIR /app
@@ -20,8 +20,6 @@ RUN pip3 install \
     watchdog \
     --index-url https://pypi.org/simple
 
-# Ensure latest llama-cpp-python for GGUF compatibility
-RUN pip3 install --upgrade llama-cpp-python
 
 # Pre-download sentence transformer model (cached layer)
 RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-distilroberta-v1')" && \
