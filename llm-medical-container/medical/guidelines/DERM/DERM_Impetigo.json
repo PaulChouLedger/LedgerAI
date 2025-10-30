@@ -15,26 +15,56 @@
   ],
   "urgency": "non-urgent",
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL onset over 2-3 days, often following minor skin trauma or insect bite. LOCATION: FACE (around nose, mouth), hands, or anywhere on body. DURATION: Develops over 2-3 days, may persist for 1-2 weeks without treatment. CHARACTER: VESICULAR (blistering) lesions that rupture and form HONEY-COLORED CRUSTS. AGGRAVATING: SCRATCHING, heat, sweating. RELIEVING: ANTIBIOTICS, keeping lesions clean and dry. TIMING: Develops over 2-3 days, peaks at 3-5 days. SEVERITY: 2-4/10 pain, mild to moderate. ASSOCIATED SYMPTOMS: MILD ITCHING (pruritus), honey-colored crusts, may have regional lymphadenopathy (swollen lymph nodes), may have fever (low-grade). KEY POSITIVES: Vesicular lesions, honey-colored crusts, positive bacterial culture. KEY NEGATIVES: No fever >102°F, no systemic symptoms, no deep tissue involvement.",
+    "classic_presentation": "ONSET: GRADUAL onset over 2-3 days, often following minor skin trauma or insect bite. LOCATION: FACE (around nose, mouth), hands, or anywhere on body. DURATION: Develops over 2-3 days, may persist for 1-2 weeks without treatment. CHARACTER: VESICULAR (blistering) lesions that rupture and form HONEY-COLORED CRUSTS. AGGRAVATING: SCRATCHING, heat, sweating. RELIEVING: ANTIBIOTICS, keeping lesions clean and dry. TIMING: Develops over 2-3 days, peaks at 3-5 days. SEVERITY: 2-4/10 pain, mild to moderate. ASSOCIATED SYMPTOMS: MILD ITCHING (pruritus), honey-colored crusts, may have regional lymphadenopathy (swollen lymph nodes), may have fever (low-grade). KEY POSITIVES: Vesicular lesions, honey-colored crusts, positive bacterial culture. KEY NEGATIVES: No fever >102\u00b0F, no systemic symptoms, no deep tissue involvement.",
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "gradual",
-          "progressive",
-          "days",
-          "weeks"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          },
+          {
+            "medical": "weeks",
+            "patient_friendly": "for several weeks"
+          }
         ],
         "excludes": [
-          "sudden",
-          "immediate"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          }
         ]
       },
       "location": {
         "includes": [
-          "anywhere",
-          "generalized",
-          "face",
-          "hands"
+          {
+            "medical": "anywhere",
+            "patient_friendly": "anywhere"
+          },
+          {
+            "medical": "generalized",
+            "patient_friendly": "generalized"
+          },
+          {
+            "medical": "face",
+            "patient_friendly": "face"
+          },
+          {
+            "medical": "hands",
+            "patient_friendly": "hands"
+          }
         ],
         "excludes": []
       },
@@ -44,17 +74,35 @@
       },
       "character": {
         "includes": [
-          "erythematous",
-          "red",
-          "swollen",
-          "edematous"
+          {
+            "medical": "erythematous",
+            "patient_friendly": "erythematous"
+          },
+          {
+            "medical": "red",
+            "patient_friendly": "red"
+          },
+          {
+            "medical": "swollen",
+            "patient_friendly": "swollen"
+          },
+          {
+            "medical": "edematous",
+            "patient_friendly": "edematous"
+          }
         ],
         "excludes": []
       },
       "aggravating": {
         "includes": [
-          "scratching",
-          "heat"
+          {
+            "medical": "scratching",
+            "patient_friendly": "scratching"
+          },
+          {
+            "medical": "heat",
+            "patient_friendly": "applying heat"
+          }
         ],
         "excludes": []
       },
@@ -68,15 +116,21 @@
       },
       "severity": {
         "includes": [
-          "moderate",
-          "mild"
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          }
         ],
         "excludes": []
       }
     }
   },
   "red_flags": [
-    "Rash with fever >102°F - possible systemic infection, needs urgent evaluation",
+    "Rash with fever >102\u00b0F - possible systemic infection, needs urgent evaluation",
     "Rash with severe systemic symptoms - possible sepsis, call 911",
     "Rash with signs of deep tissue involvement - cellulitis, needs urgent evaluation",
     "Rash with signs of secondary infection - fever, pus, increasing pain - needs urgent evaluation",

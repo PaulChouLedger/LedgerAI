@@ -15,70 +15,151 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "acute",
-          "immediate",
-          "minutes",
-          "hours"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
         ]
       },
       "location": {
         "includes": [
-          "pelvic",
-          "lower abdominal",
-          "unilateral",
-          "adnexal",
-          "vaginal"
+          {
+            "medical": "pelvic",
+            "patient_friendly": "pelvic area"
+          },
+          {
+            "medical": "lower abdominal",
+            "patient_friendly": "lower abdominal"
+          },
+          {
+            "medical": "unilateral",
+            "patient_friendly": "unilateral"
+          },
+          {
+            "medical": "adnexal",
+            "patient_friendly": "adnexal"
+          },
+          {
+            "medical": "vaginal",
+            "patient_friendly": "vaginal"
+          }
         ],
         "excludes": []
       },
       "duration": {
         "includes": [
-          "constant"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "severe",
-          "sharp",
-          "dull",
-          "aching",
-          "stabbing"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "dull",
+            "patient_friendly": "dull or achy"
+          },
+          {
+            "medical": "aching",
+            "patient_friendly": "achy or sore"
+          },
+          {
+            "medical": "stabbing",
+            "patient_friendly": "sharp or stabbing"
+          }
         ],
         "excludes": []
       },
       "aggravating": {
         "includes": [
-          "movement",
-          "intercourse",
-          "dyspareunia"
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "intercourse",
+            "patient_friendly": "intercourse"
+          },
+          {
+            "medical": "dyspareunia",
+            "patient_friendly": "dyspareunia"
+          }
         ],
         "excludes": []
       },
       "relieving": {
         "includes": [
-          "rest"
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          }
         ],
         "excludes": []
       },
       "timing": {
         "includes": [
-          "constant",
-          "progressively worsening"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "progressively worsening",
+            "patient_friendly": "progressively worsening"
+          }
         ],
         "excludes": []
       },
       "severity": {
         "includes": [
-          "severe"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
         ],
         "excludes": []
       }

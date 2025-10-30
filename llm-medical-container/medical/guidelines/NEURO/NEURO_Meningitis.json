@@ -19,113 +19,302 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "within hours to days",
-          "immediate",
-          "acute"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "within hours to days",
+            "patient_friendly": "within hours to days"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "slow onset",
-          "progressive"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ]
       },
       "location": {
         "includes": [
-          "generalized",
-          "diffuse",
-          "whole head",
-          "neck"
+          {
+            "medical": "generalized",
+            "patient_friendly": "generalized"
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "diffuse"
+          },
+          {
+            "medical": "whole head",
+            "patient_friendly": "whole head"
+          },
+          {
+            "medical": "neck",
+            "patient_friendly": "neck area"
+          }
         ],
         "excludes": [
-          "localized",
-          "focal",
-          "specific point",
-          "unilateral"
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "focal",
+            "patient_friendly": "focal"
+          },
+          {
+            "medical": "specific point",
+            "patient_friendly": "specific point"
+          },
+          {
+            "medical": "unilateral",
+            "patient_friendly": "unilateral"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "develops over hours to days",
-          "progressive",
-          "ongoing",
-          "persistent"
+          {
+            "medical": "develops over hours to days",
+            "patient_friendly": "develops over hours to days"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          },
+          {
+            "medical": "ongoing",
+            "patient_friendly": "ongoing"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
         ],
         "excludes": [
-          "minutes",
-          "seconds",
-          "brief",
-          "transient"
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          },
+          {
+            "medical": "seconds",
+            "patient_friendly": "seconds"
+          },
+          {
+            "medical": "brief",
+            "patient_friendly": "for a short time"
+          },
+          {
+            "medical": "transient",
+            "patient_friendly": "transient"
+          }
         ]
       },
       "character": {
         "includes": [
-          "severe headache",
-          "neck stiffness",
-          "fever",
-          "severe and unrelenting"
+          {
+            "medical": "severe headache",
+            "patient_friendly": "severe headache"
+          },
+          {
+            "medical": "neck stiffness",
+            "patient_friendly": "neck stiffness"
+          },
+          {
+            "medical": "fever",
+            "patient_friendly": "high temperature"
+          },
+          {
+            "medical": "severe and unrelenting",
+            "patient_friendly": "severe and unrelenting"
+          }
         ],
         "excludes": [
-          "mild",
-          "focal deficits",
-          "localized",
-          "moderate"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "focal deficits",
+            "patient_friendly": "focal deficits"
+          },
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "light",
-          "sound",
-          "movement",
-          "stimuli"
+          {
+            "medical": "light",
+            "patient_friendly": "light"
+          },
+          {
+            "medical": "sound",
+            "patient_friendly": "sound"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "stimuli",
+            "patient_friendly": "stimuli"
+          }
         ],
         "excludes": [
-          "antibiotics",
-          "supportive care",
-          "dark",
-          "quiet"
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "antibiotics"
+          },
+          {
+            "medical": "supportive care",
+            "patient_friendly": "supportive care"
+          },
+          {
+            "medical": "dark",
+            "patient_friendly": "dark"
+          },
+          {
+            "medical": "quiet",
+            "patient_friendly": "quiet"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "antibiotics",
-          "supportive care",
-          "dark",
-          "quiet"
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "antibiotics"
+          },
+          {
+            "medical": "supportive care",
+            "patient_friendly": "supportive care"
+          },
+          {
+            "medical": "dark",
+            "patient_friendly": "dark"
+          },
+          {
+            "medical": "quiet",
+            "patient_friendly": "quiet"
+          }
         ],
         "excludes": [
-          "light",
-          "sound",
-          "movement",
-          "stimuli"
+          {
+            "medical": "light",
+            "patient_friendly": "light"
+          },
+          {
+            "medical": "sound",
+            "patient_friendly": "sound"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "stimuli",
+            "patient_friendly": "stimuli"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "sudden onset",
-          "progressive",
-          "continuous"
+          {
+            "medical": "sudden onset",
+            "patient_friendly": "sudden onset"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "severe and unrelenting",
-          "8-10/10",
-          "8",
-          "9",
-          "10"
+          {
+            "medical": "severe and unrelenting",
+            "patient_friendly": "severe and unrelenting"
+          },
+          {
+            "medical": "8-10/10",
+            "patient_friendly": "8-10/10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "9",
+            "patient_friendly": "9 out of 10"
+          },
+          {
+            "medical": "10",
+            "patient_friendly": "10 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-7/10",
-          "moderate",
-          "variable"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-7/10",
+            "patient_friendly": "1-7/10"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "variable",
+            "patient_friendly": "variable"
+          }
         ]
       }
     }

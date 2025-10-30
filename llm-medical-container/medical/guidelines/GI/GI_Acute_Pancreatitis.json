@@ -17,116 +17,314 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "hours",
-          "1-2 days",
-          "alcohol binge",
-          "heavy fatty meal",
-          "gallstones"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "1-2 days",
+            "patient_friendly": "1-2 days"
+          },
+          {
+            "medical": "alcohol binge",
+            "patient_friendly": "alcohol binge"
+          },
+          {
+            "medical": "heavy fatty meal",
+            "patient_friendly": "heavy fatty meal"
+          },
+          {
+            "medical": "gallstones",
+            "patient_friendly": "gallstones"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "slow onset"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          }
         ]
       },
       "location": {
         "includes": [
-          "epigastric",
-          "upper mid-abdomen",
-          "periumbilical",
-          "radiates to back",
-          "left upper quadrant",
-          "boring pattern",
-          "band-like"
+          {
+            "medical": "epigastric",
+            "patient_friendly": "upper middle part of your belly"
+          },
+          {
+            "medical": "upper mid-abdomen",
+            "patient_friendly": "upper mid-abdomen"
+          },
+          {
+            "medical": "periumbilical",
+            "patient_friendly": "around your belly button"
+          },
+          {
+            "medical": "radiates to back",
+            "patient_friendly": "spreads to your back"
+          },
+          {
+            "medical": "left upper quadrant",
+            "patient_friendly": "top left side near your ribs"
+          },
+          {
+            "medical": "boring pattern",
+            "patient_friendly": "boring pattern"
+          },
+          {
+            "medical": "band-like",
+            "patient_friendly": "band-like"
+          }
         ],
         "excludes": [
-          "right lower quadrant",
-          "RLQ",
-          "localized point"
+          {
+            "medical": "right lower quadrant",
+            "patient_friendly": "lower right side near your groin"
+          },
+          {
+            "medical": "RLQ",
+            "patient_friendly": "RLQ"
+          },
+          {
+            "medical": "localized point",
+            "patient_friendly": "localized point"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "multiple days",
-          "hours",
-          "continuous",
-          "days",
-          "constant",
-          "persistent",
-          "several hours"
+          {
+            "medical": "multiple days",
+            "patient_friendly": "multiple days"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "several hours",
+            "patient_friendly": "several hours"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "deep aching",
-          "knife-like",
-          "boring",
-          "penetrating",
-          "band-like",
-          "severe"
+          {
+            "medical": "deep aching",
+            "patient_friendly": "deep aching"
+          },
+          {
+            "medical": "knife-like",
+            "patient_friendly": "knife-like"
+          },
+          {
+            "medical": "boring",
+            "patient_friendly": "boring"
+          },
+          {
+            "medical": "penetrating",
+            "patient_friendly": "penetrating"
+          },
+          {
+            "medical": "band-like",
+            "patient_friendly": "band-like"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
         ],
         "excludes": [
-          "mild",
-          "crampy",
-          "dull"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "crampy",
+            "patient_friendly": "crampy or cramping"
+          },
+          {
+            "medical": "dull",
+            "patient_friendly": "dull or achy"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "lying flat",
-          "supine position",
-          "lying down"
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying flat"
+          },
+          {
+            "medical": "supine position",
+            "patient_friendly": "supine position"
+          },
+          {
+            "medical": "lying down",
+            "patient_friendly": "lying down"
+          }
         ],
         "excludes": [
-          "sitting up",
-          "leaning forward",
-          "fetal position"
+          {
+            "medical": "sitting up",
+            "patient_friendly": "sitting up"
+          },
+          {
+            "medical": "leaning forward",
+            "patient_friendly": "leaning forward"
+          },
+          {
+            "medical": "fetal position",
+            "patient_friendly": "fetal position"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "sitting up",
-          "leaning forward",
-          "fetal position"
+          {
+            "medical": "sitting up",
+            "patient_friendly": "sitting up"
+          },
+          {
+            "medical": "leaning forward",
+            "patient_friendly": "leaning forward"
+          },
+          {
+            "medical": "fetal position",
+            "patient_friendly": "fetal position"
+          }
         ],
         "excludes": [
-          "lying flat",
-          "supine",
-          "medication"
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying flat"
+          },
+          {
+            "medical": "supine",
+            "patient_friendly": "supine"
+          },
+          {
+            "medical": "medication",
+            "patient_friendly": "medication"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "constant",
-          "unrelenting",
-          "persists continuously",
-          "not waves"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "persists continuously",
+            "patient_friendly": "persists continuously"
+          },
+          {
+            "medical": "not waves",
+            "patient_friendly": "not waves"
+          }
         ],
         "excludes": [
-          "waves",
-          "intermittent",
-          "episodic"
+          {
+            "medical": "waves",
+            "patient_friendly": "waves"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "9",
-          "8",
-          "10",
-          "8-10/10",
-          "severe",
-          "debilitating"
+          {
+            "medical": "9",
+            "patient_friendly": "9 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "10",
+            "patient_friendly": "10 out of 10"
+          },
+          {
+            "medical": "8-10/10",
+            "patient_friendly": "8-10/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "debilitating",
+            "patient_friendly": "debilitating"
+          }
         ],
         "excludes": [
-          "mild",
-          "moderate",
-          "1-5/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "1-5/10",
+            "patient_friendly": "1-5/10"
+          }
         ]
       }
     }

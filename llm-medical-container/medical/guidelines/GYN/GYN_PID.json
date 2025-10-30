@@ -17,72 +17,159 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "acute",
-          "immediate",
-          "days",
-          "weeks"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          },
+          {
+            "medical": "weeks",
+            "patient_friendly": "for several weeks"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
         ]
       },
       "location": {
         "includes": [
-          "pelvic",
-          "lower abdominal",
-          "unilateral",
-          "bilateral",
-          "adnexal",
-          "vaginal"
+          {
+            "medical": "pelvic",
+            "patient_friendly": "pelvic area"
+          },
+          {
+            "medical": "lower abdominal",
+            "patient_friendly": "lower abdominal"
+          },
+          {
+            "medical": "unilateral",
+            "patient_friendly": "unilateral"
+          },
+          {
+            "medical": "bilateral",
+            "patient_friendly": "on both sides"
+          },
+          {
+            "medical": "adnexal",
+            "patient_friendly": "adnexal"
+          },
+          {
+            "medical": "vaginal",
+            "patient_friendly": "vaginal"
+          }
         ],
         "excludes": []
       },
       "duration": {
         "includes": [
-          "constant"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "severe",
-          "sharp",
-          "dull",
-          "aching"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "dull",
+            "patient_friendly": "dull or achy"
+          },
+          {
+            "medical": "aching",
+            "patient_friendly": "achy or sore"
+          }
         ],
         "excludes": []
       },
       "aggravating": {
         "includes": [
-          "movement",
-          "intercourse",
-          "dyspareunia",
-          "jarring movements"
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "intercourse",
+            "patient_friendly": "intercourse"
+          },
+          {
+            "medical": "dyspareunia",
+            "patient_friendly": "dyspareunia"
+          },
+          {
+            "medical": "jarring movements",
+            "patient_friendly": "jarring movements"
+          }
         ],
         "excludes": []
       },
       "relieving": {
         "includes": [
-          "rest",
-          "antibiotics"
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "antibiotics"
+          }
         ],
         "excludes": []
       },
       "timing": {
         "includes": [
-          "constant"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
         ],
         "excludes": []
       },
       "severity": {
         "includes": [
-          "5-8/10",
-          "moderate to severe"
+          {
+            "medical": "5-8/10",
+            "patient_friendly": "5-8/10"
+          },
+          {
+            "medical": "moderate to severe",
+            "patient_friendly": "moderate to severe"
+          }
         ],
         "excludes": []
       }

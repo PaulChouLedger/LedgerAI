@@ -15,101 +15,254 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "immediate",
-          "within seconds to minutes of standing",
-          "sudden"
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          },
+          {
+            "medical": "within seconds to minutes of standing",
+            "patient_friendly": "within seconds to minutes of standing"
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "slow onset"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          }
         ]
       },
       "location": {
         "includes": [
-          "generalized lightheadedness",
-          "dizziness"
+          {
+            "medical": "generalized lightheadedness",
+            "patient_friendly": "generalized lightheadedness"
+          },
+          {
+            "medical": "dizziness",
+            "patient_friendly": "feeling dizzy or lightheaded"
+          }
         ],
         "excludes": [
-          "localized",
-          "one area only",
-          "chest"
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "one area only",
+            "patient_friendly": "one area only"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "chest area"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "brief",
-          "seconds to minutes",
-          "resolves when sitting lying down"
+          {
+            "medical": "brief",
+            "patient_friendly": "for a short time"
+          },
+          {
+            "medical": "seconds to minutes",
+            "patient_friendly": "seconds to minutes"
+          },
+          {
+            "medical": "resolves when sitting lying down",
+            "patient_friendly": "resolves when sitting lying down"
+          }
         ],
         "excludes": [
-          "continuous",
-          "unrelenting",
-          "hours"
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          }
         ]
       },
       "character": {
         "includes": [
-          "lightheadedness",
-          "dizziness",
-          "blurred vision",
-          "weakness"
+          {
+            "medical": "lightheadedness",
+            "patient_friendly": "lightheadedness"
+          },
+          {
+            "medical": "dizziness",
+            "patient_friendly": "feeling dizzy or lightheaded"
+          },
+          {
+            "medical": "blurred vision",
+            "patient_friendly": "blurred vision"
+          },
+          {
+            "medical": "weakness",
+            "patient_friendly": "feeling weak"
+          }
         ],
         "excludes": [
-          "constant dizziness",
-          "spinning vertigo",
-          "exertional",
-          "chest pain"
+          {
+            "medical": "constant dizziness",
+            "patient_friendly": "constant dizziness"
+          },
+          {
+            "medical": "spinning vertigo",
+            "patient_friendly": "spinning vertigo"
+          },
+          {
+            "medical": "exertional",
+            "patient_friendly": "exertional"
+          },
+          {
+            "medical": "chest pain",
+            "patient_friendly": "chest pain"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "standing up from sitting",
-          "standing up from lying",
-          "prolonged standing",
-          "hot environment",
-          "dehydration"
+          {
+            "medical": "standing up from sitting",
+            "patient_friendly": "standing up from sitting"
+          },
+          {
+            "medical": "standing up from lying",
+            "patient_friendly": "standing up from lying"
+          },
+          {
+            "medical": "prolonged standing",
+            "patient_friendly": "prolonged standing"
+          },
+          {
+            "medical": "hot environment",
+            "patient_friendly": "hot environment"
+          },
+          {
+            "medical": "dehydration",
+            "patient_friendly": "dehydration"
+          }
         ],
         "excludes": [
-          "sitting",
-          "lying down",
-          "rest",
-          "medication"
+          {
+            "medical": "sitting",
+            "patient_friendly": "sitting down"
+          },
+          {
+            "medical": "lying down",
+            "patient_friendly": "lying down"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "medication",
+            "patient_friendly": "medication"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "sitting",
-          "lying down immediately",
-          "rest"
+          {
+            "medical": "sitting",
+            "patient_friendly": "sitting down"
+          },
+          {
+            "medical": "lying down immediately",
+            "patient_friendly": "lying down immediately"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          }
         ],
         "excludes": [
-          "standing up",
-          "prolonged standing",
-          "hot environment"
+          {
+            "medical": "standing up",
+            "patient_friendly": "standing up"
+          },
+          {
+            "medical": "prolonged standing",
+            "patient_friendly": "prolonged standing"
+          },
+          {
+            "medical": "hot environment",
+            "patient_friendly": "hot environment"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "reproducible with postural changes",
-          "consistent"
+          {
+            "medical": "reproducible with postural changes",
+            "patient_friendly": "reproducible with postural changes"
+          },
+          {
+            "medical": "consistent",
+            "patient_friendly": "consistent"
+          }
         ],
         "excludes": [
-          "unpredictable",
-          "random",
-          "continuous"
+          {
+            "medical": "unpredictable",
+            "patient_friendly": "unpredictable"
+          },
+          {
+            "medical": "random",
+            "patient_friendly": "random"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "variable",
-          "can lead to syncope if severe",
-          "variable symptoms"
+          {
+            "medical": "variable",
+            "patient_friendly": "variable"
+          },
+          {
+            "medical": "can lead to syncope if severe",
+            "patient_friendly": "can lead to syncope if severe"
+          },
+          {
+            "medical": "variable symptoms",
+            "patient_friendly": "variable symptoms"
+          }
         ],
         "excludes": [
-          "mild",
-          "moderate",
-          "constant"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
         ]
       }
     }
@@ -123,4 +276,3 @@
     "Autonomic neuropathy (diabetes)"
   ]
 }
-

@@ -17,100 +17,250 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "gradual over months to years",
-          "progressive",
-          "slow onset"
+          {
+            "medical": "gradual over months to years",
+            "patient_friendly": "gradual over months to years"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          }
         ],
         "excludes": [
-          "sudden",
-          "acute",
-          "immediate"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          }
         ]
       },
       "location": {
         "includes": [
-          "upper airway"
+          {
+            "medical": "upper airway",
+            "patient_friendly": "upper airway"
+          }
         ],
         "excludes": [
-          "lower airway",
-          "chest",
-          "lungs"
+          {
+            "medical": "lower airway",
+            "patient_friendly": "lower airway"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "chest area"
+          },
+          {
+            "medical": "lungs",
+            "patient_friendly": "lung area"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "chronic",
-          "persistent",
-          "ongoing"
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "ongoing",
+            "patient_friendly": "ongoing"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "episodic breathing cessation during sleep",
-          "loud snoring",
-          "witnessed apneas"
+          {
+            "medical": "episodic breathing cessation during sleep",
+            "patient_friendly": "episodic breathing cessation during sleep"
+          },
+          {
+            "medical": "loud snoring",
+            "patient_friendly": "loud snoring"
+          },
+          {
+            "medical": "witnessed apneas",
+            "patient_friendly": "witnessed apneas"
+          }
         ],
         "excludes": [
-          "no chest pain",
-          "no wheezing",
-          "continuous"
+          {
+            "medical": "no chest pain",
+            "patient_friendly": "no chest pain"
+          },
+          {
+            "medical": "no wheezing",
+            "patient_friendly": "no wheezing"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "supine position",
-          "alcohol",
-          "sedatives"
+          {
+            "medical": "supine position",
+            "patient_friendly": "supine position"
+          },
+          {
+            "medical": "alcohol",
+            "patient_friendly": "alcohol"
+          },
+          {
+            "medical": "sedatives",
+            "patient_friendly": "sedatives"
+          }
         ],
         "excludes": [
-          "CPAP",
-          "weight loss",
-          "positioning"
+          {
+            "medical": "CPAP",
+            "patient_friendly": "CPAP"
+          },
+          {
+            "medical": "weight loss",
+            "patient_friendly": "losing weight"
+          },
+          {
+            "medical": "positioning",
+            "patient_friendly": "positioning"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "CPAP",
-          "weight loss",
-          "positioning"
+          {
+            "medical": "CPAP",
+            "patient_friendly": "CPAP"
+          },
+          {
+            "medical": "weight loss",
+            "patient_friendly": "losing weight"
+          },
+          {
+            "medical": "positioning",
+            "patient_friendly": "positioning"
+          }
         ],
         "excludes": [
-          "supine position",
-          "alcohol",
-          "sedatives"
+          {
+            "medical": "supine position",
+            "patient_friendly": "supine position"
+          },
+          {
+            "medical": "alcohol",
+            "patient_friendly": "alcohol"
+          },
+          {
+            "medical": "sedatives",
+            "patient_friendly": "sedatives"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "nocturnal",
-          "episodic",
-          "during sleep"
+          {
+            "medical": "nocturnal",
+            "patient_friendly": "nocturnal"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "during sleep",
+            "patient_friendly": "while sleeping"
+          }
         ],
         "excludes": [
-          "continuous",
-          "daytime",
-          "awake"
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "daytime",
+            "patient_friendly": "daytime"
+          },
+          {
+            "medical": "awake",
+            "patient_friendly": "awake"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "mild to moderate",
-          "3-6/10",
-          "3",
-          "4",
-          "5",
-          "6"
+          {
+            "medical": "mild to moderate",
+            "patient_friendly": "mild to moderate"
+          },
+          {
+            "medical": "3-6/10",
+            "patient_friendly": "3-6/10"
+          },
+          {
+            "medical": "3",
+            "patient_friendly": "3 out of 10"
+          },
+          {
+            "medical": "4",
+            "patient_friendly": "4 out of 10"
+          },
+          {
+            "medical": "5",
+            "patient_friendly": "5 out of 10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          }
         ],
         "excludes": [
-          "severe",
-          "7-10/10",
-          "mild",
-          "1-2/10"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "7-10/10",
+            "patient_friendly": "7-10/10"
+          },
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-2/10",
+            "patient_friendly": "1-2/10"
+          }
         ]
       }
     }

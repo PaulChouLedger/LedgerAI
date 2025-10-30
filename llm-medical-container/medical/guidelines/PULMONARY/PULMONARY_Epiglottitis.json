@@ -17,100 +17,250 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "rapid onset over hours",
-          "acute",
-          "immediate"
+          {
+            "medical": "rapid onset over hours",
+            "patient_friendly": "rapid onset over hours"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "slow onset"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          }
         ]
       },
       "location": {
         "includes": [
-          "supraglottic region",
-          "throat",
-          "upper airway"
+          {
+            "medical": "supraglottic region",
+            "patient_friendly": "supraglottic region"
+          },
+          {
+            "medical": "throat",
+            "patient_friendly": "throat"
+          },
+          {
+            "medical": "upper airway",
+            "patient_friendly": "upper airway"
+          }
         ],
         "excludes": [
-          "lower airway",
-          "chest",
-          "lungs"
+          {
+            "medical": "lower airway",
+            "patient_friendly": "lower airway"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "chest area"
+          },
+          {
+            "medical": "lungs",
+            "patient_friendly": "lung area"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "acute",
-          "hours to days",
-          "ongoing"
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "hours to days",
+            "patient_friendly": "hours to days"
+          },
+          {
+            "medical": "ongoing",
+            "patient_friendly": "ongoing"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "severe throat pain",
-          "dysphagia",
-          "dyspnea"
+          {
+            "medical": "severe throat pain",
+            "patient_friendly": "severe throat pain"
+          },
+          {
+            "medical": "dysphagia",
+            "patient_friendly": "dysphagia"
+          },
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "dyspnea"
+          }
         ],
         "excludes": [
-          "no chest pain",
-          "no wheezing",
-          "mild"
+          {
+            "medical": "no chest pain",
+            "patient_friendly": "no chest pain"
+          },
+          {
+            "medical": "no wheezing",
+            "patient_friendly": "no wheezing"
+          },
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "swallowing",
-          "lying flat",
-          "activity"
+          {
+            "medical": "swallowing",
+            "patient_friendly": "swallowing"
+          },
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying flat on your back"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          }
         ],
         "excludes": [
-          "sitting upright",
-          "humidified air",
-          "antibiotics"
+          {
+            "medical": "sitting upright",
+            "patient_friendly": "sitting upright"
+          },
+          {
+            "medical": "humidified air",
+            "patient_friendly": "humidified air"
+          },
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "antibiotics"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "sitting upright",
-          "humidified air",
-          "antibiotics"
+          {
+            "medical": "sitting upright",
+            "patient_friendly": "sitting upright"
+          },
+          {
+            "medical": "humidified air",
+            "patient_friendly": "humidified air"
+          },
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "antibiotics"
+          }
         ],
         "excludes": [
-          "swallowing",
-          "lying flat",
-          "activity"
+          {
+            "medical": "swallowing",
+            "patient_friendly": "swallowing"
+          },
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying flat on your back"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "acute",
-          "progressive",
-          "continuous"
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "severe",
-          "8-10/10",
-          "8",
-          "9",
-          "10"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "8-10/10",
+            "patient_friendly": "8-10/10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "9",
+            "patient_friendly": "9 out of 10"
+          },
+          {
+            "medical": "10",
+            "patient_friendly": "10 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-7/10",
-          "moderate"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-7/10",
+            "patient_friendly": "1-7/10"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          }
         ]
       }
     }
@@ -118,7 +268,7 @@
   "red_flags": [
     "Stridor or respiratory distress",
     "Drooling or inability to swallow",
-    "High fever >102°F",
+    "High fever >102\u00b0F",
     "Tripod positioning",
     "Muffled voice or 'hot potato' voice",
     "Cyanosis",

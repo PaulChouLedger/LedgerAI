@@ -19,113 +19,302 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "within seconds",
-          "immediate",
-          "acute"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "within seconds",
+            "patient_friendly": "within seconds"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "slow onset",
-          "progressive"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ]
       },
       "location": {
         "includes": [
-          "unilateral facial pain",
-          "one side",
-          "facial",
-          "unilateral"
+          {
+            "medical": "unilateral facial pain",
+            "patient_friendly": "unilateral facial pain"
+          },
+          {
+            "medical": "one side",
+            "patient_friendly": "one side"
+          },
+          {
+            "medical": "facial",
+            "patient_friendly": "facial"
+          },
+          {
+            "medical": "unilateral",
+            "patient_friendly": "unilateral"
+          }
         ],
         "excludes": [
-          "bilateral",
-          "both sides",
-          "generalized",
-          "diffuse"
+          {
+            "medical": "bilateral",
+            "patient_friendly": "on both sides"
+          },
+          {
+            "medical": "both sides",
+            "patient_friendly": "both sides"
+          },
+          {
+            "medical": "generalized",
+            "patient_friendly": "generalized"
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "diffuse"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "seconds to minutes",
-          "brief",
-          "transient",
-          "short"
+          {
+            "medical": "seconds to minutes",
+            "patient_friendly": "seconds to minutes"
+          },
+          {
+            "medical": "brief",
+            "patient_friendly": "for a short time"
+          },
+          {
+            "medical": "transient",
+            "patient_friendly": "transient"
+          },
+          {
+            "medical": "short",
+            "patient_friendly": "short"
+          }
         ],
         "excludes": [
-          "hours",
-          "days",
-          "persistent",
-          "ongoing"
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "ongoing",
+            "patient_friendly": "ongoing"
+          }
         ]
       },
       "character": {
         "includes": [
-          "severe",
-          "sharp",
-          "electric-like pain",
-          "severe and unrelenting"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "electric-like pain",
+            "patient_friendly": "electric-like pain"
+          },
+          {
+            "medical": "severe and unrelenting",
+            "patient_friendly": "severe and unrelenting"
+          }
         ],
         "excludes": [
-          "mild",
-          "dull",
-          "aching",
-          "moderate"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "dull",
+            "patient_friendly": "dull or achy"
+          },
+          {
+            "medical": "aching",
+            "patient_friendly": "achy or sore"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "touch",
-          "speaking",
-          "eating",
-          "brushing teeth"
+          {
+            "medical": "touch",
+            "patient_friendly": "touch"
+          },
+          {
+            "medical": "speaking",
+            "patient_friendly": "speaking"
+          },
+          {
+            "medical": "eating",
+            "patient_friendly": "eating food"
+          },
+          {
+            "medical": "brushing teeth",
+            "patient_friendly": "brushing teeth"
+          }
         ],
         "excludes": [
-          "anticonvulsants",
-          "avoiding triggers",
-          "rest",
-          "treatment"
+          {
+            "medical": "anticonvulsants",
+            "patient_friendly": "anticonvulsants"
+          },
+          {
+            "medical": "avoiding triggers",
+            "patient_friendly": "avoiding triggers"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "treatment",
+            "patient_friendly": "treatment"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "anticonvulsants",
-          "avoiding triggers",
-          "rest",
-          "treatment"
+          {
+            "medical": "anticonvulsants",
+            "patient_friendly": "anticonvulsants"
+          },
+          {
+            "medical": "avoiding triggers",
+            "patient_friendly": "avoiding triggers"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "treatment",
+            "patient_friendly": "treatment"
+          }
         ],
         "excludes": [
-          "touch",
-          "speaking",
-          "eating",
-          "brushing teeth"
+          {
+            "medical": "touch",
+            "patient_friendly": "touch"
+          },
+          {
+            "medical": "speaking",
+            "patient_friendly": "speaking"
+          },
+          {
+            "medical": "eating",
+            "patient_friendly": "eating food"
+          },
+          {
+            "medical": "brushing teeth",
+            "patient_friendly": "brushing teeth"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "sudden onset",
-          "episodic",
-          "intermittent"
+          {
+            "medical": "sudden onset",
+            "patient_friendly": "sudden onset"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          }
         ],
         "excludes": [
-          "continuous",
-          "persistent",
-          "unrelenting"
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "severe and unrelenting",
-          "8-10/10",
-          "8",
-          "9",
-          "10"
+          {
+            "medical": "severe and unrelenting",
+            "patient_friendly": "severe and unrelenting"
+          },
+          {
+            "medical": "8-10/10",
+            "patient_friendly": "8-10/10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "9",
+            "patient_friendly": "9 out of 10"
+          },
+          {
+            "medical": "10",
+            "patient_friendly": "10 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-7/10",
-          "moderate",
-          "variable"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-7/10",
+            "patient_friendly": "1-7/10"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "variable",
+            "patient_friendly": "variable"
+          }
         ]
       }
     }

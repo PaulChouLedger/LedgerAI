@@ -17,94 +17,226 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "gradual",
-          "sudden",
-          "depending on cause"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "depending on cause",
+            "patient_friendly": "depending on cause"
+          }
         ],
         "excludes": [
-          "chronic",
-          "constant",
-          "unrelenting"
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          }
         ]
       },
       "location": {
         "includes": [
-          "generalized symptoms"
+          {
+            "medical": "generalized symptoms",
+            "patient_friendly": "generalized symptoms"
+          }
         ],
         "excludes": [
-          "localized",
-          "one area only",
-          "chest"
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "one area only",
+            "patient_friendly": "one area only"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "chest area"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "continuous while bradycardic",
-          "persistent"
+          {
+            "medical": "continuous while bradycardic",
+            "patient_friendly": "continuous while bradycardic"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "lightheadedness",
-          "fatigue",
-          "weakness",
-          "syncope"
+          {
+            "medical": "lightheadedness",
+            "patient_friendly": "lightheadedness"
+          },
+          {
+            "medical": "fatigue",
+            "patient_friendly": "feeling very tired"
+          },
+          {
+            "medical": "weakness",
+            "patient_friendly": "feeling weak"
+          },
+          {
+            "medical": "syncope",
+            "patient_friendly": "syncope"
+          }
         ],
         "excludes": [
-          "tachycardia",
-          "palpitations",
-          "chest pain"
+          {
+            "medical": "tachycardia",
+            "patient_friendly": "tachycardia"
+          },
+          {
+            "medical": "palpitations",
+            "patient_friendly": "palpitations"
+          },
+          {
+            "medical": "chest pain",
+            "patient_friendly": "chest pain"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "exertion",
-          "symptoms worsen with fixed low heart rate"
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          },
+          {
+            "medical": "symptoms worsen with fixed low heart rate",
+            "patient_friendly": "symptoms worsen with fixed low heart rate"
+          }
         ],
         "excludes": [
-          "increased heart rate",
-          "pacing",
-          "medications"
+          {
+            "medical": "increased heart rate",
+            "patient_friendly": "increased heart rate"
+          },
+          {
+            "medical": "pacing",
+            "patient_friendly": "pacing"
+          },
+          {
+            "medical": "medications",
+            "patient_friendly": "medications"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "increased heart rate",
-          "pacing",
-          "medications"
+          {
+            "medical": "increased heart rate",
+            "patient_friendly": "increased heart rate"
+          },
+          {
+            "medical": "pacing",
+            "patient_friendly": "pacing"
+          },
+          {
+            "medical": "medications",
+            "patient_friendly": "medications"
+          }
         ],
         "excludes": [
-          "exertion",
-          "activity",
-          "low heart rate"
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          },
+          {
+            "medical": "low heart rate",
+            "patient_friendly": "low heart rate"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "constant",
-          "episodic"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "comes and goes",
-          "unpredictable"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "unpredictable",
+            "patient_friendly": "unpredictable"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "variable",
-          "asymptomatic to syncope",
-          "variable symptoms"
+          {
+            "medical": "variable",
+            "patient_friendly": "variable"
+          },
+          {
+            "medical": "asymptomatic to syncope",
+            "patient_friendly": "asymptomatic to syncope"
+          },
+          {
+            "medical": "variable symptoms",
+            "patient_friendly": "variable symptoms"
+          }
         ],
         "excludes": [
-          "mild",
-          "moderate",
-          "constant"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
         ]
       }
     }
@@ -120,4 +252,3 @@
     "Recent myocardial infarction (MI)"
   ]
 }
-

@@ -19,19 +19,40 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "gradual",
-          "progressive"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ],
         "excludes": [
-          "sudden",
-          "immediate"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          }
         ]
       },
       "location": {
         "includes": [
-          "kidney",
-          "renal",
-          "bilateral"
+          {
+            "medical": "kidney",
+            "patient_friendly": "kidney area"
+          },
+          {
+            "medical": "renal",
+            "patient_friendly": "renal"
+          },
+          {
+            "medical": "bilateral",
+            "patient_friendly": "on both sides"
+          }
         ],
         "excludes": []
       },
@@ -41,23 +62,44 @@
       },
       "character": {
         "includes": [
-          "severe",
-          "swelling",
-          "fluid retention"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "swelling",
+            "patient_friendly": "swelling or puffiness"
+          },
+          {
+            "medical": "fluid retention",
+            "patient_friendly": "fluid retention"
+          }
         ],
         "excludes": []
       },
       "aggravating": {
         "includes": [
-          "dehydration",
-          "medications"
+          {
+            "medical": "dehydration",
+            "patient_friendly": "dehydration"
+          },
+          {
+            "medical": "medications",
+            "patient_friendly": "medications"
+          }
         ],
         "excludes": []
       },
       "relieving": {
         "includes": [
-          "fluid management",
-          "dialysis"
+          {
+            "medical": "fluid management",
+            "patient_friendly": "fluid management"
+          },
+          {
+            "medical": "dialysis",
+            "patient_friendly": "dialysis"
+          }
         ],
         "excludes": []
       },
@@ -67,8 +109,14 @@
       },
       "severity": {
         "includes": [
-          "6-9/10",
-          "moderate to severe"
+          {
+            "medical": "6-9/10",
+            "patient_friendly": "6-9/10"
+          },
+          {
+            "medical": "moderate to severe",
+            "patient_friendly": "moderate to severe"
+          }
         ],
         "excludes": []
       }

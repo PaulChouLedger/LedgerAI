@@ -19,113 +19,302 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "within minutes",
-          "immediate",
-          "acute"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "within minutes",
+            "patient_friendly": "within minutes"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "slow onset",
-          "progressive"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ]
       },
       "location": {
         "includes": [
-          "unilateral weakness",
-          "numbness",
-          "paralysis",
-          "one side"
+          {
+            "medical": "unilateral weakness",
+            "patient_friendly": "unilateral weakness"
+          },
+          {
+            "medical": "numbness",
+            "patient_friendly": "feeling numb"
+          },
+          {
+            "medical": "paralysis",
+            "patient_friendly": "paralysis"
+          },
+          {
+            "medical": "one side",
+            "patient_friendly": "one side"
+          }
         ],
         "excludes": [
-          "bilateral",
-          "both sides",
-          "generalized",
-          "diffuse"
+          {
+            "medical": "bilateral",
+            "patient_friendly": "on both sides"
+          },
+          {
+            "medical": "both sides",
+            "patient_friendly": "both sides"
+          },
+          {
+            "medical": "generalized",
+            "patient_friendly": "generalized"
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "diffuse"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "resolves within 24 hours",
-          "minutes to hours",
-          "transient",
-          "brief"
+          {
+            "medical": "resolves within 24 hours",
+            "patient_friendly": "resolves within 24 hours"
+          },
+          {
+            "medical": "minutes to hours",
+            "patient_friendly": "minutes to hours"
+          },
+          {
+            "medical": "transient",
+            "patient_friendly": "transient"
+          },
+          {
+            "medical": "brief",
+            "patient_friendly": "for a short time"
+          }
         ],
         "excludes": [
-          "persistent",
-          "ongoing",
-          "chronic",
-          "permanent"
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "ongoing",
+            "patient_friendly": "ongoing"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "permanent",
+            "patient_friendly": "permanent"
+          }
         ]
       },
       "character": {
         "includes": [
-          "sudden",
-          "severe weakness",
-          "numbness",
-          "paralysis that resolves"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "severe weakness",
+            "patient_friendly": "severe weakness"
+          },
+          {
+            "medical": "numbness",
+            "patient_friendly": "feeling numb"
+          },
+          {
+            "medical": "paralysis that resolves",
+            "patient_friendly": "paralysis that resolves"
+          }
         ],
         "excludes": [
-          "mild",
-          "gradual",
-          "persistent",
-          "permanent"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "permanent",
+            "patient_friendly": "permanent"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "movement",
-          "speaking",
-          "swallowing",
-          "activity"
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "speaking",
+            "patient_friendly": "speaking"
+          },
+          {
+            "medical": "swallowing",
+            "patient_friendly": "swallowing"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          }
         ],
         "excludes": [
-          "symptoms resolve spontaneously",
-          "rest",
-          "treatment",
-          "medications"
+          {
+            "medical": "symptoms resolve spontaneously",
+            "patient_friendly": "symptoms resolve spontaneously"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "treatment",
+            "patient_friendly": "treatment"
+          },
+          {
+            "medical": "medications",
+            "patient_friendly": "medications"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "symptoms resolve spontaneously",
-          "rest",
-          "treatment",
-          "medications"
+          {
+            "medical": "symptoms resolve spontaneously",
+            "patient_friendly": "symptoms resolve spontaneously"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "treatment",
+            "patient_friendly": "treatment"
+          },
+          {
+            "medical": "medications",
+            "patient_friendly": "medications"
+          }
         ],
         "excludes": [
-          "movement",
-          "speaking",
-          "swallowing",
-          "activity"
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "speaking",
+            "patient_friendly": "speaking"
+          },
+          {
+            "medical": "swallowing",
+            "patient_friendly": "swallowing"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "sudden onset",
-          "resolves within 24 hours",
-          "transient"
+          {
+            "medical": "sudden onset",
+            "patient_friendly": "sudden onset"
+          },
+          {
+            "medical": "resolves within 24 hours",
+            "patient_friendly": "resolves within 24 hours"
+          },
+          {
+            "medical": "transient",
+            "patient_friendly": "transient"
+          }
         ],
         "excludes": [
-          "continuous",
-          "persistent",
-          "unrelenting"
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "6-8/10 during episode",
-          "6",
-          "7",
-          "8",
-          "moderate to severe during episode"
+          {
+            "medical": "6-8/10 during episode",
+            "patient_friendly": "6-8/10 during episode"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "moderate to severe during episode",
+            "patient_friendly": "moderate to severe during episode"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-5/10",
-          "severe",
-          "9-10/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-5/10",
+            "patient_friendly": "1-5/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "9-10/10",
+            "patient_friendly": "9-10/10"
+          }
         ]
       }
     }

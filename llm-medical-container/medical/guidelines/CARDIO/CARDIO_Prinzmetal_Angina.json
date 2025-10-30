@@ -15,104 +15,266 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "often at rest",
-          "during sleep"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "often at rest",
+            "patient_friendly": "often at rest"
+          },
+          {
+            "medical": "during sleep",
+            "patient_friendly": "while sleeping"
+          }
         ],
         "excludes": [
-          "gradual",
-          "with exertion",
-          "chronic"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "with exertion",
+            "patient_friendly": "with exertion"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
         ]
       },
       "location": {
         "includes": [
-          "retrosternal",
-          "left chest",
-          "radiates to arm",
-          "radiates to jaw",
-          "radiates to shoulder"
+          {
+            "medical": "retrosternal",
+            "patient_friendly": "retrosternal"
+          },
+          {
+            "medical": "left chest",
+            "patient_friendly": "left side of your chest"
+          },
+          {
+            "medical": "radiates to arm",
+            "patient_friendly": "spreads to your arm"
+          },
+          {
+            "medical": "radiates to jaw",
+            "patient_friendly": "spreads to your jaw"
+          },
+          {
+            "medical": "radiates to shoulder",
+            "patient_friendly": "spreads to your shoulder"
+          }
         ],
         "excludes": [
-          "right side only",
-          "no radiation",
-          "localized point"
+          {
+            "medical": "right side only",
+            "patient_friendly": "right side only"
+          },
+          {
+            "medical": "no radiation",
+            "patient_friendly": "no radiation"
+          },
+          {
+            "medical": "localized point",
+            "patient_friendly": "localized point"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "brief",
-          "5-15 minutes",
-          "short duration"
+          {
+            "medical": "brief",
+            "patient_friendly": "for a short time"
+          },
+          {
+            "medical": "5-15 minutes",
+            "patient_friendly": "5-15 minutes"
+          },
+          {
+            "medical": "short duration",
+            "patient_friendly": "short duration"
+          }
         ],
         "excludes": [
-          "prolonged",
-          ">20 minutes",
-          "continuous"
+          {
+            "medical": "prolonged",
+            "patient_friendly": "for a long time"
+          },
+          {
+            "medical": ">20 minutes",
+            "patient_friendly": ">20 minutes"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ]
       },
       "character": {
         "includes": [
-          "squeezing",
-          "pressure",
-          "tightness"
+          {
+            "medical": "squeezing",
+            "patient_friendly": "squeezing or crushing"
+          },
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure or heaviness"
+          },
+          {
+            "medical": "tightness",
+            "patient_friendly": "tightness"
+          }
         ],
         "excludes": [
-          "sharp",
-          "stabbing",
-          "burning",
-          "crushing"
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "stabbing",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "burning",
+            "patient_friendly": "burning sensation"
+          },
+          {
+            "medical": "crushing",
+            "patient_friendly": "crushing or squeezing"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "occurs at rest",
-          "often at night",
-          "early morning",
-          "circadian pattern"
+          {
+            "medical": "occurs at rest",
+            "patient_friendly": "occurs at rest"
+          },
+          {
+            "medical": "often at night",
+            "patient_friendly": "often at night"
+          },
+          {
+            "medical": "early morning",
+            "patient_friendly": "early morning"
+          },
+          {
+            "medical": "circadian pattern",
+            "patient_friendly": "circadian pattern"
+          }
         ],
         "excludes": [
-          "exertional",
-          "activity",
-          "daytime"
+          {
+            "medical": "exertional",
+            "patient_friendly": "exertional"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          },
+          {
+            "medical": "daytime",
+            "patient_friendly": "daytime"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "nitroglycerin",
-          "rapid response",
-          "calcium channel blockers"
+          {
+            "medical": "nitroglycerin",
+            "patient_friendly": "heart medicine"
+          },
+          {
+            "medical": "rapid response",
+            "patient_friendly": "rapid response"
+          },
+          {
+            "medical": "calcium channel blockers",
+            "patient_friendly": "calcium channel blockers"
+          }
         ],
         "excludes": [
-          "exertion",
-          "activity",
-          "night time"
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          },
+          {
+            "medical": "night time",
+            "patient_friendly": "night time"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "cyclic",
-          "same time each day",
-          "same time each night"
+          {
+            "medical": "cyclic",
+            "patient_friendly": "cyclic"
+          },
+          {
+            "medical": "same time each day",
+            "patient_friendly": "same time each day"
+          },
+          {
+            "medical": "same time each night",
+            "patient_friendly": "same time each night"
+          }
         ],
         "excludes": [
-          "random",
-          "unpredictable",
-          "continuous"
+          {
+            "medical": "random",
+            "patient_friendly": "random"
+          },
+          {
+            "medical": "unpredictable",
+            "patient_friendly": "unpredictable"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "6-8/10",
-          "6",
-          "7",
-          "8"
+          {
+            "medical": "6-8/10",
+            "patient_friendly": "6-8/10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-5/10",
-          "severe",
-          "9-10/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-5/10",
+            "patient_friendly": "1-5/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "9-10/10",
+            "patient_friendly": "9-10/10"
+          }
         ]
       }
     }
@@ -126,4 +288,3 @@
     "Hemodynamic instability"
   ]
 }
-

@@ -18,101 +18,251 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "acute",
-          "hours"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "within a few hours"
+          }
         ],
         "excludes": [
-          "chronic",
-          "months",
-          "gradual"
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "months",
+            "patient_friendly": "for months"
+          },
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          }
         ]
       },
       "location": {
         "includes": [
-          "right upper quadrant",
-          "right subcostal",
-          "epigastric",
-          "radiates to right shoulder",
-          "radiates to scapula"
+          {
+            "medical": "right upper quadrant",
+            "patient_friendly": "top right side near your ribs"
+          },
+          {
+            "medical": "right subcostal",
+            "patient_friendly": "right side under your ribs"
+          },
+          {
+            "medical": "epigastric",
+            "patient_friendly": "upper middle part of your belly"
+          },
+          {
+            "medical": "radiates to right shoulder",
+            "patient_friendly": "spreads to your right shoulder"
+          },
+          {
+            "medical": "radiates to scapula",
+            "patient_friendly": "spreads to your shoulder blade"
+          }
         ],
         "excludes": [
-          "left side",
-          "lower abdomen",
-          "LLQ"
+          {
+            "medical": "left side",
+            "patient_friendly": "left side"
+          },
+          {
+            "medical": "lower abdomen",
+            "patient_friendly": "lower part of your belly"
+          },
+          {
+            "medical": "LLQ",
+            "patient_friendly": "left lower side"
+          }
         ],
         "anatomical_type": "right_upper"
       },
       "duration": {
         "includes": [
-          "constant",
-          "hours",
-          "persistent"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "minutes",
-          "episodic"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "sharp",
-          "stabbing",
-          "severe",
-          "colicky"
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "stabbing",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "colicky",
+            "patient_friendly": "comes and goes in waves"
+          }
         ],
         "excludes": [
-          "burning",
-          "crampy",
-          "dull"
+          {
+            "medical": "burning",
+            "patient_friendly": "burning sensation"
+          },
+          {
+            "medical": "crampy",
+            "patient_friendly": "crampy or cramping"
+          },
+          {
+            "medical": "dull",
+            "patient_friendly": "dull or achy"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "fatty foods",
-          "deep inspiration",
-          "movement"
+          {
+            "medical": "fatty foods",
+            "patient_friendly": "greasy or fatty foods"
+          },
+          {
+            "medical": "deep inspiration",
+            "patient_friendly": "taking deep breaths"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          }
         ],
         "excludes": [
-          "fasting",
-          "rest"
+          {
+            "medical": "fasting",
+            "patient_friendly": "not eating"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "avoiding fatty foods",
-          "pain medication"
+          {
+            "medical": "avoiding fatty foods",
+            "patient_friendly": "staying away from greasy foods"
+          },
+          {
+            "medical": "pain medication",
+            "patient_friendly": "pain medicine"
+          }
         ],
         "excludes": [
-          "eating",
-          "movement"
+          {
+            "medical": "eating",
+            "patient_friendly": "eating food"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "constant",
-          "after meals",
-          "progressive"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "after meals",
+            "patient_friendly": "after eating"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "unrelated to food"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "unrelated to food",
+            "patient_friendly": "not connected to eating"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "severe",
-          "7",
-          "8",
-          "9",
-          "10"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "9",
+            "patient_friendly": "9 out of 10"
+          },
+          {
+            "medical": "10",
+            "patient_friendly": "10 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1",
-          "2",
-          "3"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1",
+            "patient_friendly": "1 out of 10"
+          },
+          {
+            "medical": "2",
+            "patient_friendly": "2 out of 10"
+          },
+          {
+            "medical": "3",
+            "patient_friendly": "3 out of 10"
+          }
         ]
       }
     }

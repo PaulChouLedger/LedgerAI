@@ -18,108 +18,282 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "12-48 hours",
-          "acute"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "12-48 hours",
+            "patient_friendly": "12-48 hours"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "weeks"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "weeks",
+            "patient_friendly": "weeks"
+          }
         ]
       },
       "location": {
         "includes": [
-          "periumbilical",
-          "diffuse",
-          "mid-abdomen",
-          "not localized"
+          {
+            "medical": "periumbilical",
+            "patient_friendly": "around your belly button"
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "diffuse"
+          },
+          {
+            "medical": "mid-abdomen",
+            "patient_friendly": "mid-abdomen"
+          },
+          {
+            "medical": "not localized",
+            "patient_friendly": "not localized"
+          }
         ],
         "excludes": [
-          "localized",
-          "one quadrant",
-          "specific point"
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "one quadrant",
+            "patient_friendly": "one quadrant"
+          },
+          {
+            "medical": "specific point",
+            "patient_friendly": "specific point"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "waves lasting minutes",
-          "repeating every 4-5 minutes",
-          "hours to days",
-          "entire episode"
+          {
+            "medical": "waves lasting minutes",
+            "patient_friendly": "waves lasting minutes"
+          },
+          {
+            "medical": "repeating every 4-5 minutes",
+            "patient_friendly": "repeating every 4-5 minutes"
+          },
+          {
+            "medical": "hours to days",
+            "patient_friendly": "hours to days"
+          },
+          {
+            "medical": "entire episode",
+            "patient_friendly": "entire episode"
+          }
         ],
         "excludes": [
-          "constant",
-          "continuous",
-          "unrelenting"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          }
         ]
       },
       "character": {
         "includes": [
-          "colicky",
-          "cramping",
-          "comes and goes in waves",
-          "intermittent",
-          "wave-like"
+          {
+            "medical": "colicky",
+            "patient_friendly": "comes and goes in waves"
+          },
+          {
+            "medical": "cramping",
+            "patient_friendly": "crampy or cramping"
+          },
+          {
+            "medical": "comes and goes in waves",
+            "patient_friendly": "comes and goes in waves"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "wave-like",
+            "patient_friendly": "wave-like"
+          }
         ],
         "excludes": [
-          "constant",
-          "steady",
-          "unrelenting"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "steady",
+            "patient_friendly": "steady"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "eating",
-          "drinking",
-          "oral intake",
-          "movement during cramp"
+          {
+            "medical": "eating",
+            "patient_friendly": "eating food"
+          },
+          {
+            "medical": "drinking",
+            "patient_friendly": "drinking"
+          },
+          {
+            "medical": "oral intake",
+            "patient_friendly": "oral intake"
+          },
+          {
+            "medical": "movement during cramp",
+            "patient_friendly": "movement during cramp"
+          }
         ],
         "excludes": [
-          "vomiting",
-          "nothing to eat",
-          "rest"
+          {
+            "medical": "vomiting",
+            "patient_friendly": "vomiting"
+          },
+          {
+            "medical": "nothing to eat",
+            "patient_friendly": "nothing to eat"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "vomiting",
-          "temporary relief",
-          "nothing to eat"
+          {
+            "medical": "vomiting",
+            "patient_friendly": "vomiting"
+          },
+          {
+            "medical": "temporary relief",
+            "patient_friendly": "temporary relief"
+          },
+          {
+            "medical": "nothing to eat",
+            "patient_friendly": "nothing to eat"
+          }
         ],
         "excludes": [
-          "eating",
-          "drinking",
-          "position"
+          {
+            "medical": "eating",
+            "patient_friendly": "eating food"
+          },
+          {
+            "medical": "drinking",
+            "patient_friendly": "drinking"
+          },
+          {
+            "medical": "position",
+            "patient_friendly": "position"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "wave pattern",
-          "cramps every 4-5 minutes",
-          "progressive worsening",
-          "more frequent"
+          {
+            "medical": "wave pattern",
+            "patient_friendly": "wave pattern"
+          },
+          {
+            "medical": "cramps every 4-5 minutes",
+            "patient_friendly": "cramps every 4-5 minutes"
+          },
+          {
+            "medical": "progressive worsening",
+            "patient_friendly": "progressive worsening"
+          },
+          {
+            "medical": "more frequent",
+            "patient_friendly": "more frequent"
+          }
         ],
         "excludes": [
-          "constant",
-          "steady",
-          "unrelenting"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "steady",
+            "patient_friendly": "steady"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "6-9/10",
-          "moderate to severe",
-          "6",
-          "7",
-          "8",
-          "9",
-          "during cramps"
+          {
+            "medical": "6-9/10",
+            "patient_friendly": "6-9/10"
+          },
+          {
+            "medical": "moderate to severe",
+            "patient_friendly": "moderate to severe"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "9",
+            "patient_friendly": "9 out of 10"
+          },
+          {
+            "medical": "during cramps",
+            "patient_friendly": "during cramps"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-5/10",
-          "constant severe"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-5/10",
+            "patient_friendly": "1-5/10"
+          },
+          {
+            "medical": "constant severe",
+            "patient_friendly": "constant severe"
+          }
         ]
       }
     }

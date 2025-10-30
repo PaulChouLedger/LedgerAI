@@ -15,17 +15,83 @@
   "key_features": {
     "classic_presentation": "ONSET: ACUTE onset within hours to days. Triggered by NSAIDs, alcohol, or stress. LOCATION: EPIGASTRIC (upper mid-abdomen), diffuse. NO radiation. DURATION: Symptoms last hours to days. May persist if trigger continues. CHARACTER: GNAWING or BURNING quality. Discomfort more than severe pain. AGGRAVATING: WORSE WITH EATING (unlike duodenal ulcer). NSAIDs, alcohol, spicy foods worsen. RELIEVING: Antacids provide relief. Stopping NSAIDs helps. Empty stomach may feel better (opposite of duodenal ulcer). TIMING: Can be CONSTANT or EPISODIC. Often worse after meals. May persist for hours to days. SEVERITY: 4-7/10, mild to moderate discomfort. ASSOCIATED SYMPTOMS: NAUSEA (very common), vomiting, loss of appetite, bloating, early satiety. KEY POSITIVES: Recent NSAID/alcohol use, nausea worse with eating, diffuse epigastric tenderness, antacid relief. KEY NEGATIVES: Severe LOCALIZED pain suggests ulcer. Hematemesis or melena suggests bleeding needing urgent evaluation. Weight loss suggests malignancy.",
     "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          { "medical": "acute", "patient_friendly": "sudden and severe" },
+          { "medical": "hours", "patient_friendly": "within hours" },
+          { "medical": "days", "patient_friendly": "within a few days" }
+        ],
+        "excludes": [
+          { "medical": "chronic", "patient_friendly": "ongoing for a long time" },
+          { "medical": "gradual", "patient_friendly": "slowly over time" }
+        ]
+      },
+      "location": {
+        "includes": [
+          { "medical": "epigastric", "patient_friendly": "upper middle part of your belly" },
+          { "medical": "upper abdomen", "patient_friendly": "upper part of your belly" }
+        ],
+        "excludes": [
+          { "medical": "right upper quadrant", "patient_friendly": "top right side near your ribs" },
+          { "medical": "right lower quadrant", "patient_friendly": "lower right side near your groin" },
+          { "medical": "left lower quadrant", "patient_friendly": "lower left side near your groin" }
+        ]
+      },
+      "duration": {
+        "includes": [
+          { "medical": "hours", "patient_friendly": "for several hours" },
+          { "medical": "days", "patient_friendly": "for several days" }
+        ],
+        "excludes": [
+          { "medical": "minutes", "patient_friendly": "just a few minutes" }
+        ]
+      },
+      "character": {
+        "includes": [
+          { "medical": "gnawing", "patient_friendly": "gnawing discomfort" },
+          { "medical": "burning", "patient_friendly": "burning sensation" },
+          { "medical": "discomfort", "patient_friendly": "more discomfort than pain" }
+        ],
+        "excludes": [
+          { "medical": "sharp", "patient_friendly": "sharp or stabbing" },
+          { "medical": "tearing", "patient_friendly": "tearing or ripping" }
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          { "medical": "eating", "patient_friendly": "eating food" },
+          { "medical": "NSAIDs", "patient_friendly": "pain relievers like ibuprofen" },
+          { "medical": "alcohol", "patient_friendly": "drinking alcohol" },
+          { "medical": "spicy foods", "patient_friendly": "spicy foods" }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          { "medical": "antacids", "patient_friendly": "antacid medicine" },
+          { "medical": "fasting", "patient_friendly": "empty stomach or not eating" },
+          { "medical": "stop NSAIDs", "patient_friendly": "stopping pain relievers like ibuprofen" }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          { "medical": "after meals", "patient_friendly": "after eating" },
+          { "medical": "constant", "patient_friendly": "continuous without stopping" },
+          { "medical": "episodic", "patient_friendly": "comes and goes" }
+        ],
+        "excludes": []
+      },
       "severity": {
         "includes": [
-          "7",
-          "4",
-          "6",
-          "5",
-          "mild",
-          "3",
-          "moderate",
-          "4-7/10"
-        ]
+          { "medical": "mild", "patient_friendly": "not too bad" },
+          { "medical": "moderate", "patient_friendly": "somewhat bad" },
+          { "medical": "4", "patient_friendly": "4 out of 10" },
+          { "medical": "5", "patient_friendly": "5 out of 10" },
+          { "medical": "6", "patient_friendly": "6 out of 10" },
+          { "medical": "7", "patient_friendly": "7 out of 10" }
+        ],
+        "excludes": []
       }
     }
   },

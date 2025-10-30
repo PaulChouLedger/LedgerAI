@@ -1,5 +1,5 @@
 {
-  "condition": "Guillain-Barré Syndrome",
+  "condition": "Guillain-Barr\u00e9 Syndrome",
   "icd10": "G61.0",
   "snomed": "125633003",
   "sex": "both",
@@ -19,115 +19,310 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "gradual",
-          "days to weeks",
-          "slow onset",
-          "progressive"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "days to weeks",
+            "patient_friendly": "days to weeks"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ],
         "excludes": [
-          "sudden",
-          "acute",
-          "immediate",
-          "hours"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          }
         ]
       },
       "location": {
         "includes": [
-          "bilateral weakness",
-          "usually starting in legs",
-          "both sides",
-          "generalized"
+          {
+            "medical": "bilateral weakness",
+            "patient_friendly": "bilateral weakness"
+          },
+          {
+            "medical": "usually starting in legs",
+            "patient_friendly": "usually starting in legs"
+          },
+          {
+            "medical": "both sides",
+            "patient_friendly": "both sides"
+          },
+          {
+            "medical": "generalized",
+            "patient_friendly": "generalized"
+          }
         ],
         "excludes": [
-          "unilateral",
-          "one side only",
-          "localized",
-          "focal"
+          {
+            "medical": "unilateral",
+            "patient_friendly": "unilateral"
+          },
+          {
+            "medical": "one side only",
+            "patient_friendly": "one side only"
+          },
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "focal",
+            "patient_friendly": "focal"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "progressive over days to weeks",
-          "ongoing",
-          "persistent",
-          "worsening"
+          {
+            "medical": "progressive over days to weeks",
+            "patient_friendly": "progressive over days to weeks"
+          },
+          {
+            "medical": "ongoing",
+            "patient_friendly": "ongoing"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "worsening",
+            "patient_friendly": "worsening"
+          }
         ],
         "excludes": [
-          "acute",
-          "brief",
-          "transient",
-          "intermittent"
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "brief",
+            "patient_friendly": "for a short time"
+          },
+          {
+            "medical": "transient",
+            "patient_friendly": "transient"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "progressive weakness",
-          "numbness",
-          "tingling",
-          "severe and progressive"
+          {
+            "medical": "progressive weakness",
+            "patient_friendly": "progressive weakness"
+          },
+          {
+            "medical": "numbness",
+            "patient_friendly": "feeling numb"
+          },
+          {
+            "medical": "tingling",
+            "patient_friendly": "feeling tingly or pins and needles"
+          },
+          {
+            "medical": "severe and progressive",
+            "patient_friendly": "severe and progressive"
+          }
         ],
         "excludes": [
-          "mild",
-          "focal deficits",
-          "localized",
-          "acute"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "focal deficits",
+            "patient_friendly": "focal deficits"
+          },
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "movement",
-          "breathing",
-          "activity",
-          "exertion"
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "breathing",
+            "patient_friendly": "breathing"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          },
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          }
         ],
         "excludes": [
-          "immunoglobulin",
-          "plasmapheresis",
-          "rest",
-          "treatment"
+          {
+            "medical": "immunoglobulin",
+            "patient_friendly": "immunoglobulin"
+          },
+          {
+            "medical": "plasmapheresis",
+            "patient_friendly": "plasmapheresis"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "treatment",
+            "patient_friendly": "treatment"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "immunoglobulin",
-          "plasmapheresis",
-          "rest",
-          "treatment"
+          {
+            "medical": "immunoglobulin",
+            "patient_friendly": "immunoglobulin"
+          },
+          {
+            "medical": "plasmapheresis",
+            "patient_friendly": "plasmapheresis"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "treatment",
+            "patient_friendly": "treatment"
+          }
         ],
         "excludes": [
-          "movement",
-          "breathing",
-          "activity",
-          "exertion"
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "breathing",
+            "patient_friendly": "breathing"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          },
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "progressive over days to weeks",
-          "worsening",
-          "continuous"
+          {
+            "medical": "progressive over days to weeks",
+            "patient_friendly": "progressive over days to weeks"
+          },
+          {
+            "medical": "worsening",
+            "patient_friendly": "worsening"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "severe and progressive",
-          "6-10/10",
-          "6",
-          "7",
-          "8",
-          "9",
-          "10"
+          {
+            "medical": "severe and progressive",
+            "patient_friendly": "severe and progressive"
+          },
+          {
+            "medical": "6-10/10",
+            "patient_friendly": "6-10/10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "9",
+            "patient_friendly": "9 out of 10"
+          },
+          {
+            "medical": "10",
+            "patient_friendly": "10 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-5/10",
-          "moderate",
-          "variable"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-5/10",
+            "patient_friendly": "1-5/10"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "variable",
+            "patient_friendly": "variable"
+          }
         ]
       }
     }

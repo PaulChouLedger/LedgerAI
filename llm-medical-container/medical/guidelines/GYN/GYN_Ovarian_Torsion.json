@@ -16,78 +16,180 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "acute",
-          "immediate",
-          "minutes",
-          "hours",
-          "days"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
         ]
       },
       "location": {
         "includes": [
-          "pelvic",
-          "lower abdominal",
-          "unilateral",
-          "bilateral",
-          "adnexal"
+          {
+            "medical": "pelvic",
+            "patient_friendly": "pelvic area"
+          },
+          {
+            "medical": "lower abdominal",
+            "patient_friendly": "lower abdominal"
+          },
+          {
+            "medical": "unilateral",
+            "patient_friendly": "unilateral"
+          },
+          {
+            "medical": "bilateral",
+            "patient_friendly": "on both sides"
+          },
+          {
+            "medical": "adnexal",
+            "patient_friendly": "adnexal"
+          }
         ],
         "excludes": []
       },
       "duration": {
         "includes": [
-          "constant",
-          "persistent"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "severe",
-          "sharp",
-          "stabbing",
-          "twisting"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "stabbing",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "twisting",
+            "patient_friendly": "twisting"
+          }
         ],
         "excludes": []
       },
       "aggravating": {
         "includes": [
-          "movement",
-          "physical activity",
-          "position changes",
-          "jarring movements"
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "physical activity",
+            "patient_friendly": "physical activity"
+          },
+          {
+            "medical": "position changes",
+            "patient_friendly": "changing how you sit or lie"
+          },
+          {
+            "medical": "jarring movements",
+            "patient_friendly": "jarring movements"
+          }
         ],
         "excludes": []
       },
       "relieving": {
         "includes": [
-          "nothing relieves",
-          "surgical intervention"
+          {
+            "medical": "nothing relieves",
+            "patient_friendly": "nothing relieves"
+          },
+          {
+            "medical": "surgical intervention",
+            "patient_friendly": "surgical intervention"
+          }
         ],
         "excludes": [
-          "position changes",
-          "medications"
+          {
+            "medical": "position changes",
+            "patient_friendly": "changing how you sit or lie"
+          },
+          {
+            "medical": "medications",
+            "patient_friendly": "medications"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "constant",
-          "unrelenting",
-          "episodic"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          }
         ],
         "excludes": []
       },
       "severity": {
         "includes": [
-          "8-10/10",
-          "very severe"
+          {
+            "medical": "8-10/10",
+            "patient_friendly": "8-10/10"
+          },
+          {
+            "medical": "very severe",
+            "patient_friendly": "very severe"
+          }
         ],
         "excludes": []
       }

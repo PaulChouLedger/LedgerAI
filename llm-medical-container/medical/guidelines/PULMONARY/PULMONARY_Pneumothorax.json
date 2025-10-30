@@ -17,101 +17,254 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden onset",
-          "acute",
-          "immediate"
+          {
+            "medical": "sudden onset",
+            "patient_friendly": "sudden onset"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "slow onset"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          }
         ]
       },
       "location": {
         "includes": [
-          "unilateral chest",
-          "one side",
-          "affected side"
+          {
+            "medical": "unilateral chest",
+            "patient_friendly": "unilateral chest"
+          },
+          {
+            "medical": "one side",
+            "patient_friendly": "one side"
+          },
+          {
+            "medical": "affected side",
+            "patient_friendly": "affected side"
+          }
         ],
         "excludes": [
-          "bilateral",
-          "both sides",
-          "diffuse"
+          {
+            "medical": "bilateral",
+            "patient_friendly": "on both sides"
+          },
+          {
+            "medical": "both sides",
+            "patient_friendly": "both sides"
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "diffuse"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "acute",
-          "persistent until treated",
-          "ongoing"
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "persistent until treated",
+            "patient_friendly": "persistent until treated"
+          },
+          {
+            "medical": "ongoing",
+            "patient_friendly": "ongoing"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "sudden chest pain",
-          "dyspnea"
+          {
+            "medical": "sudden chest pain",
+            "patient_friendly": "sudden chest pain"
+          },
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "dyspnea"
+          }
         ],
         "excludes": [
-          "no fever",
-          "no wheezing",
-          "sharp",
-          "stabbing"
+          {
+            "medical": "no fever",
+            "patient_friendly": "no fever"
+          },
+          {
+            "medical": "no wheezing",
+            "patient_friendly": "no wheezing"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "stabbing",
+            "patient_friendly": "sharp or stabbing"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "exertion",
-          "lying flat",
-          "activity"
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          },
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying flat on your back"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          }
         ],
         "excludes": [
-          "sitting upright",
-          "chest tube",
-          "rest"
+          {
+            "medical": "sitting upright",
+            "patient_friendly": "sitting upright"
+          },
+          {
+            "medical": "chest tube",
+            "patient_friendly": "chest tube"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "sitting upright",
-          "chest tube",
-          "rest"
+          {
+            "medical": "sitting upright",
+            "patient_friendly": "sitting upright"
+          },
+          {
+            "medical": "chest tube",
+            "patient_friendly": "chest tube"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          }
         ],
         "excludes": [
-          "exertion",
-          "lying flat",
-          "activity"
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          },
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying flat on your back"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "acute",
-          "sudden",
-          "continuous"
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "moderate to severe",
-          "6-8/10",
-          "6",
-          "7",
-          "8"
+          {
+            "medical": "moderate to severe",
+            "patient_friendly": "moderate to severe"
+          },
+          {
+            "medical": "6-8/10",
+            "patient_friendly": "6-8/10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-5/10",
-          "severe",
-          "9-10/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-5/10",
+            "patient_friendly": "1-5/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "9-10/10",
+            "patient_friendly": "9-10/10"
+          }
         ]
       }
     }

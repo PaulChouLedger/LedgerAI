@@ -16,111 +16,294 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "new onset",
-          "change in pattern",
-          "more frequent",
-          "longer",
-          "lower threshold"
+          {
+            "medical": "new onset",
+            "patient_friendly": "new onset"
+          },
+          {
+            "medical": "change in pattern",
+            "patient_friendly": "change in pattern"
+          },
+          {
+            "medical": "more frequent",
+            "patient_friendly": "more frequent"
+          },
+          {
+            "medical": "longer",
+            "patient_friendly": "longer"
+          },
+          {
+            "medical": "lower threshold",
+            "patient_friendly": "lower threshold"
+          }
         ],
         "excludes": [
-          "stable pattern",
-          "predictable",
-          "unchanged"
+          {
+            "medical": "stable pattern",
+            "patient_friendly": "stable pattern"
+          },
+          {
+            "medical": "predictable",
+            "patient_friendly": "predictable"
+          },
+          {
+            "medical": "unchanged",
+            "patient_friendly": "unchanged"
+          }
         ]
       },
       "location": {
         "includes": [
-          "retrosternal",
-          "left chest",
-          "diffuse",
-          "radiates to left arm",
-          "radiates to jaw",
-          "radiates to neck",
-          "radiates to shoulder"
+          {
+            "medical": "retrosternal",
+            "patient_friendly": "retrosternal"
+          },
+          {
+            "medical": "left chest",
+            "patient_friendly": "left side of your chest"
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "diffuse"
+          },
+          {
+            "medical": "radiates to left arm",
+            "patient_friendly": "spreads to your left arm"
+          },
+          {
+            "medical": "radiates to jaw",
+            "patient_friendly": "spreads to your jaw"
+          },
+          {
+            "medical": "radiates to neck",
+            "patient_friendly": "spreads to your neck"
+          },
+          {
+            "medical": "radiates to shoulder",
+            "patient_friendly": "spreads to your shoulder"
+          }
         ],
         "excludes": [
-          "right side only",
-          "no radiation",
-          "localized point"
+          {
+            "medical": "right side only",
+            "patient_friendly": "right side only"
+          },
+          {
+            "medical": "no radiation",
+            "patient_friendly": "no radiation"
+          },
+          {
+            "medical": "localized point",
+            "patient_friendly": "localized point"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "usually <20 minutes",
-          "may be prolonged",
-          "variable"
+          {
+            "medical": "usually <20 minutes",
+            "patient_friendly": "usually <20 minutes"
+          },
+          {
+            "medical": "may be prolonged",
+            "patient_friendly": "may be prolonged"
+          },
+          {
+            "medical": "variable",
+            "patient_friendly": "variable"
+          }
         ],
         "excludes": [
-          "brief",
-          "2-10 minutes",
-          "consistent duration"
+          {
+            "medical": "brief",
+            "patient_friendly": "for a short time"
+          },
+          {
+            "medical": "2-10 minutes",
+            "patient_friendly": "2-10 minutes"
+          },
+          {
+            "medical": "consistent duration",
+            "patient_friendly": "consistent duration"
+          }
         ]
       },
       "character": {
         "includes": [
-          "pressure",
-          "tightness",
-          "squeezing",
-          "heaviness"
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure or heaviness"
+          },
+          {
+            "medical": "tightness",
+            "patient_friendly": "tightness"
+          },
+          {
+            "medical": "squeezing",
+            "patient_friendly": "squeezing or crushing"
+          },
+          {
+            "medical": "heaviness",
+            "patient_friendly": "heaviness"
+          }
         ],
         "excludes": [
-          "sharp",
-          "stabbing",
-          "burning",
-          "crushing"
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "stabbing",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "burning",
+            "patient_friendly": "burning sensation"
+          },
+          {
+            "medical": "crushing",
+            "patient_friendly": "crushing or squeezing"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "occurs at rest",
-          "minimal exertion",
-          "unlike stable angina"
+          {
+            "medical": "occurs at rest",
+            "patient_friendly": "occurs at rest"
+          },
+          {
+            "medical": "minimal exertion",
+            "patient_friendly": "minimal exertion"
+          },
+          {
+            "medical": "unlike stable angina",
+            "patient_friendly": "unlike stable angina"
+          }
         ],
         "excludes": [
-          "only with exertion",
-          "predictable triggers",
-          "stable pattern"
+          {
+            "medical": "only with exertion",
+            "patient_friendly": "only with exertion"
+          },
+          {
+            "medical": "predictable triggers",
+            "patient_friendly": "predictable triggers"
+          },
+          {
+            "medical": "stable pattern",
+            "patient_friendly": "stable pattern"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "may respond to nitroglycerin",
-          "may not respond to nitroglycerin",
-          "rest may help"
+          {
+            "medical": "may respond to nitroglycerin",
+            "patient_friendly": "may respond to nitroglycerin"
+          },
+          {
+            "medical": "may not respond to nitroglycerin",
+            "patient_friendly": "may not respond to nitroglycerin"
+          },
+          {
+            "medical": "rest may help",
+            "patient_friendly": "rest may help"
+          }
         ],
         "excludes": [
-          "always responds to nitroglycerin",
-          "always responds to rest",
-          "predictable relief"
+          {
+            "medical": "always responds to nitroglycerin",
+            "patient_friendly": "always responds to nitroglycerin"
+          },
+          {
+            "medical": "always responds to rest",
+            "patient_friendly": "always responds to rest"
+          },
+          {
+            "medical": "predictable relief",
+            "patient_friendly": "predictable relief"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "crescendo pattern",
-          "increasing frequency",
-          "increasing severity",
-          "worsening over days"
+          {
+            "medical": "crescendo pattern",
+            "patient_friendly": "crescendo pattern"
+          },
+          {
+            "medical": "increasing frequency",
+            "patient_friendly": "increasing frequency"
+          },
+          {
+            "medical": "increasing severity",
+            "patient_friendly": "increasing severity"
+          },
+          {
+            "medical": "worsening over days",
+            "patient_friendly": "worsening over days"
+          }
         ],
         "excludes": [
-          "stable pattern",
-          "predictable",
-          "consistent"
+          {
+            "medical": "stable pattern",
+            "patient_friendly": "stable pattern"
+          },
+          {
+            "medical": "predictable",
+            "patient_friendly": "predictable"
+          },
+          {
+            "medical": "consistent",
+            "patient_friendly": "consistent"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "5-8/10",
-          "worsening over days",
-          "5",
-          "6",
-          "7",
-          "8"
+          {
+            "medical": "5-8/10",
+            "patient_friendly": "5-8/10"
+          },
+          {
+            "medical": "worsening over days",
+            "patient_friendly": "worsening over days"
+          },
+          {
+            "medical": "5",
+            "patient_friendly": "5 out of 10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-4/10",
-          "severe",
-          "9-10/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-4/10",
+            "patient_friendly": "1-4/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "9-10/10",
+            "patient_friendly": "9-10/10"
+          }
         ]
       }
     }
@@ -135,4 +318,3 @@
     "Diabetes or multiple cardiac risk factors"
   ]
 }
-

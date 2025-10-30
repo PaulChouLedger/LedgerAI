@@ -16,91 +16,214 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "subacute",
-          "over days to weeks",
-          "gradual"
+          {
+            "medical": "subacute",
+            "patient_friendly": "subacute"
+          },
+          {
+            "medical": "over days to weeks",
+            "patient_friendly": "over days to weeks"
+          },
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          }
         ],
         "excludes": [
-          "acute onset",
-          "sudden",
-          "minutes"
+          {
+            "medical": "acute onset",
+            "patient_friendly": "acute onset"
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          }
         ]
       },
       "location": {
         "includes": [
-          "generalized systemic symptoms"
+          {
+            "medical": "generalized systemic symptoms",
+            "patient_friendly": "generalized systemic symptoms"
+          }
         ],
         "excludes": [
-          "localized",
-          "one area only",
-          "chest"
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "one area only",
+            "patient_friendly": "one area only"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "chest area"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "continuous over weeks",
-          "persistent"
+          {
+            "medical": "continuous over weeks",
+            "patient_friendly": "continuous over weeks"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "fever",
-          "fatigue",
-          "malaise",
-          "night sweats"
+          {
+            "medical": "fever",
+            "patient_friendly": "high temperature"
+          },
+          {
+            "medical": "fatigue",
+            "patient_friendly": "feeling very tired"
+          },
+          {
+            "medical": "malaise",
+            "patient_friendly": "feeling unwell"
+          },
+          {
+            "medical": "night sweats",
+            "patient_friendly": "night sweats"
+          }
         ],
         "excludes": [
-          "isolated chest pain",
-          "no fever",
-          "no systemic symptoms"
+          {
+            "medical": "isolated chest pain",
+            "patient_friendly": "isolated chest pain"
+          },
+          {
+            "medical": "no fever",
+            "patient_friendly": "no fever"
+          },
+          {
+            "medical": "no systemic symptoms",
+            "patient_friendly": "no systemic symptoms"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "none specific"
+          {
+            "medical": "none specific",
+            "patient_friendly": "none specific"
+          }
         ],
         "excludes": [
-          "antibiotics",
-          "medication",
-          "rest"
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "antibiotics"
+          },
+          {
+            "medical": "medication",
+            "patient_friendly": "medication"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "antibiotics"
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "antibiotics"
+          }
         ],
         "excludes": [
-          "activity",
-          "exertion",
-          "stress"
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          },
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "progressive",
-          "worsening",
-          "continuous"
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          },
+          {
+            "medical": "worsening",
+            "patient_friendly": "worsening"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "variable systemic illness",
-          "variable"
+          {
+            "medical": "variable systemic illness",
+            "patient_friendly": "variable systemic illness"
+          },
+          {
+            "medical": "variable",
+            "patient_friendly": "variable"
+          }
         ],
         "excludes": [
-          "mild",
-          "moderate",
-          "constant"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
         ]
       }
     }
@@ -117,4 +240,3 @@
     "Septic shock"
   ]
 }
-

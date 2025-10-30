@@ -17,99 +17,246 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "gradual",
-          "paroxysmal",
-          "comes and goes"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "paroxysmal",
+            "patient_friendly": "paroxysmal"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ],
         "excludes": [
-          "chronic",
-          "constant",
-          "unrelenting"
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          }
         ]
       },
       "location": {
         "includes": [
-          "chest",
-          "palpitations",
-          "generalized"
+          {
+            "medical": "chest",
+            "patient_friendly": "chest area"
+          },
+          {
+            "medical": "palpitations",
+            "patient_friendly": "palpitations"
+          },
+          {
+            "medical": "generalized",
+            "patient_friendly": "generalized"
+          }
         ],
         "excludes": [
-          "localized",
-          "one area only",
-          "extremities"
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "one area only",
+            "patient_friendly": "one area only"
+          },
+          {
+            "medical": "extremities",
+            "patient_friendly": "extremities"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "variable",
-          "minutes to persistent",
-          "episodic"
+          {
+            "medical": "variable",
+            "patient_friendly": "variable"
+          },
+          {
+            "medical": "minutes to persistent",
+            "patient_friendly": "minutes to persistent"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          }
         ],
         "excludes": [
-          "constant",
-          "unrelenting",
-          "hours only"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "hours only",
+            "patient_friendly": "hours only"
+          }
         ]
       },
       "character": {
         "includes": [
-          "irregular",
-          "rapid palpitations",
-          "fluttering",
-          "quivering"
+          {
+            "medical": "irregular",
+            "patient_friendly": "happens irregularly"
+          },
+          {
+            "medical": "rapid palpitations",
+            "patient_friendly": "rapid palpitations"
+          },
+          {
+            "medical": "fluttering",
+            "patient_friendly": "fluttering"
+          },
+          {
+            "medical": "quivering",
+            "patient_friendly": "quivering"
+          }
         ],
         "excludes": [
-          "regular",
-          "slow",
-          "steady"
+          {
+            "medical": "regular",
+            "patient_friendly": "regular"
+          },
+          {
+            "medical": "slow",
+            "patient_friendly": "slow"
+          },
+          {
+            "medical": "steady",
+            "patient_friendly": "steady"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "caffeine",
-          "alcohol",
-          "stress",
-          "dehydration"
+          {
+            "medical": "caffeine",
+            "patient_friendly": "caffeine"
+          },
+          {
+            "medical": "alcohol",
+            "patient_friendly": "alcohol"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          },
+          {
+            "medical": "dehydration",
+            "patient_friendly": "dehydration"
+          }
         ],
         "excludes": [
-          "rest",
-          "medication",
-          "spontaneous"
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "medication",
+            "patient_friendly": "medication"
+          },
+          {
+            "medical": "spontaneous",
+            "patient_friendly": "spontaneous"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "rest",
-          "sometimes spontaneous"
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "sometimes spontaneous",
+            "patient_friendly": "sometimes spontaneous"
+          }
         ],
         "excludes": [
-          "caffeine",
-          "alcohol",
-          "stress"
+          {
+            "medical": "caffeine",
+            "patient_friendly": "caffeine"
+          },
+          {
+            "medical": "alcohol",
+            "patient_friendly": "alcohol"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "paroxysmal",
-          "episodic",
-          "persistent"
+          {
+            "medical": "paroxysmal",
+            "patient_friendly": "paroxysmal"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
         ],
         "excludes": [
-          "constant",
-          "unrelenting",
-          "comes and goes"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "variable discomfort",
-          "variable"
+          {
+            "medical": "variable discomfort",
+            "patient_friendly": "variable discomfort"
+          },
+          {
+            "medical": "variable",
+            "patient_friendly": "variable"
+          }
         ],
         "excludes": [
-          "severe",
-          "mild",
-          "constant"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
         ]
       }
     }
@@ -125,4 +272,3 @@
     "Active chest pain"
   ]
 }
-

@@ -19,109 +19,286 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "gradual",
-          "days to weeks",
-          "triggered by stress",
-          "weather",
-          "irritants"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "days to weeks",
+            "patient_friendly": "days to weeks"
+          },
+          {
+            "medical": "triggered by stress",
+            "patient_friendly": "triggered by stress"
+          },
+          {
+            "medical": "weather",
+            "patient_friendly": "weather"
+          },
+          {
+            "medical": "irritants",
+            "patient_friendly": "irritants"
+          }
         ],
         "excludes": [
-          "sudden",
-          "immediate",
-          "chronic without flares"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          },
+          {
+            "medical": "chronic without flares",
+            "patient_friendly": "chronic without flares"
+          }
         ]
       },
       "location": {
         "includes": [
-          "flexural areas",
-          "elbows",
-          "knees",
-          "neck",
-          "face",
-          "hands",
-          "generalized"
+          {
+            "medical": "flexural areas",
+            "patient_friendly": "flexural areas"
+          },
+          {
+            "medical": "elbows",
+            "patient_friendly": "elbows"
+          },
+          {
+            "medical": "knees",
+            "patient_friendly": "knees"
+          },
+          {
+            "medical": "neck",
+            "patient_friendly": "neck area"
+          },
+          {
+            "medical": "face",
+            "patient_friendly": "face"
+          },
+          {
+            "medical": "hands",
+            "patient_friendly": "hands"
+          },
+          {
+            "medical": "generalized",
+            "patient_friendly": "generalized"
+          }
         ],
         "excludes": [
-          "internal organs",
-          "specific organ systems"
+          {
+            "medical": "internal organs",
+            "patient_friendly": "internal organs"
+          },
+          {
+            "medical": "specific organ systems",
+            "patient_friendly": "specific organ systems"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "chronic condition",
-          "acute flares",
-          "days to weeks"
+          {
+            "medical": "chronic condition",
+            "patient_friendly": "chronic condition"
+          },
+          {
+            "medical": "acute flares",
+            "patient_friendly": "acute flares"
+          },
+          {
+            "medical": "days to weeks",
+            "patient_friendly": "days to weeks"
+          }
         ],
         "excludes": [
-          "acute only",
-          "permanent resolution"
+          {
+            "medical": "acute only",
+            "patient_friendly": "acute only"
+          },
+          {
+            "medical": "permanent resolution",
+            "patient_friendly": "permanent resolution"
+          }
         ]
       },
       "character": {
         "includes": [
-          "erythematous",
-          "red",
-          "pruritic",
-          "itchy",
-          "dry",
-          "scaly"
+          {
+            "medical": "erythematous",
+            "patient_friendly": "erythematous"
+          },
+          {
+            "medical": "red",
+            "patient_friendly": "red"
+          },
+          {
+            "medical": "pruritic",
+            "patient_friendly": "pruritic"
+          },
+          {
+            "medical": "itchy",
+            "patient_friendly": "itchy"
+          },
+          {
+            "medical": "dry",
+            "patient_friendly": "dry"
+          },
+          {
+            "medical": "scaly",
+            "patient_friendly": "scaly"
+          }
         ],
         "excludes": [
-          "moist",
-          "non-itchy",
-          "smooth",
-          "normal skin"
+          {
+            "medical": "moist",
+            "patient_friendly": "moist"
+          },
+          {
+            "medical": "non-itchy",
+            "patient_friendly": "non-itchy"
+          },
+          {
+            "medical": "smooth",
+            "patient_friendly": "smooth"
+          },
+          {
+            "medical": "normal skin",
+            "patient_friendly": "normal skin"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "scratching",
-          "heat",
-          "stress",
-          "certain fabrics",
-          "soaps"
+          {
+            "medical": "scratching",
+            "patient_friendly": "scratching"
+          },
+          {
+            "medical": "heat",
+            "patient_friendly": "applying heat"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          },
+          {
+            "medical": "certain fabrics",
+            "patient_friendly": "certain fabrics"
+          },
+          {
+            "medical": "soaps",
+            "patient_friendly": "soaps"
+          }
         ],
         "excludes": [
-          "moisturizers",
-          "cool",
-          "avoiding triggers"
+          {
+            "medical": "moisturizers",
+            "patient_friendly": "moisturizers"
+          },
+          {
+            "medical": "cool",
+            "patient_friendly": "cool"
+          },
+          {
+            "medical": "avoiding triggers",
+            "patient_friendly": "avoiding triggers"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "moisturizers",
-          "topical steroids",
-          "antihistamines",
-          "avoiding triggers"
+          {
+            "medical": "moisturizers",
+            "patient_friendly": "moisturizers"
+          },
+          {
+            "medical": "topical steroids",
+            "patient_friendly": "topical steroids"
+          },
+          {
+            "medical": "antihistamines",
+            "patient_friendly": "antihistamines"
+          },
+          {
+            "medical": "avoiding triggers",
+            "patient_friendly": "avoiding triggers"
+          }
         ],
         "excludes": [
-          "scratching",
-          "heat",
-          "stress",
-          "irritants"
+          {
+            "medical": "scratching",
+            "patient_friendly": "scratching"
+          },
+          {
+            "medical": "heat",
+            "patient_friendly": "applying heat"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          },
+          {
+            "medical": "irritants",
+            "patient_friendly": "irritants"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "chronic with acute flares",
-          "worse at night"
+          {
+            "medical": "chronic with acute flares",
+            "patient_friendly": "chronic with acute flares"
+          },
+          {
+            "medical": "worse at night",
+            "patient_friendly": "worse at night"
+          }
         ],
         "excludes": [
-          "constant",
-          "only during day",
-          "intermittent"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "only during day",
+            "patient_friendly": "only during day"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "4-8/10 itching",
-          "moderate",
-          "severe"
+          {
+            "medical": "4-8/10 itching",
+            "patient_friendly": "4-8/10 itching"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-3/10",
-          "asymptomatic"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-3/10",
+            "patient_friendly": "1-3/10"
+          },
+          {
+            "medical": "asymptomatic",
+            "patient_friendly": "asymptomatic"
+          }
         ]
       }
     }

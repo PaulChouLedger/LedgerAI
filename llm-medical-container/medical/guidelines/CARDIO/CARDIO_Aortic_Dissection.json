@@ -16,101 +16,254 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "instantaneous",
-          "maximal at onset",
-          "like a light switch"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "instantaneous",
+            "patient_friendly": "instantaneous"
+          },
+          {
+            "medical": "maximal at onset",
+            "patient_friendly": "maximal at onset"
+          },
+          {
+            "medical": "like a light switch",
+            "patient_friendly": "like a light switch"
+          }
         ],
         "excludes": [
-          "gradual onset",
-          "chronic",
-          "slow onset"
+          {
+            "medical": "gradual onset",
+            "patient_friendly": "gradual onset"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          }
         ]
       },
       "location": {
         "includes": [
-          "anterior chest",
-          "Type A",
-          "interscapular back",
-          "Type B",
-          "radiates down back",
-          "can radiate to abdomen"
+          {
+            "medical": "anterior chest",
+            "patient_friendly": "anterior chest"
+          },
+          {
+            "medical": "Type A",
+            "patient_friendly": "Type A"
+          },
+          {
+            "medical": "interscapular back",
+            "patient_friendly": "interscapular back"
+          },
+          {
+            "medical": "Type B",
+            "patient_friendly": "Type B"
+          },
+          {
+            "medical": "radiates down back",
+            "patient_friendly": "radiates down back"
+          },
+          {
+            "medical": "can radiate to abdomen",
+            "patient_friendly": "can radiate to abdomen"
+          }
         ],
         "excludes": [
-          "localized",
-          "one area only",
-          "no radiation"
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "one area only",
+            "patient_friendly": "one area only"
+          },
+          {
+            "medical": "no radiation",
+            "patient_friendly": "no radiation"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "continuous",
-          "persistent",
-          "ongoing"
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "ongoing",
+            "patient_friendly": "ongoing"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "tearing",
-          "ripping",
-          "sharp",
-          "most severe pain ever experienced"
+          {
+            "medical": "tearing",
+            "patient_friendly": "tearing or ripping"
+          },
+          {
+            "medical": "ripping",
+            "patient_friendly": "tearing or ripping"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "most severe pain ever experienced",
+            "patient_friendly": "most severe pain ever experienced"
+          }
         ],
         "excludes": [
-          "pressure",
-          "squeezing",
-          "like myocardial infarction",
-          "dull"
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure or heaviness"
+          },
+          {
+            "medical": "squeezing",
+            "patient_friendly": "squeezing or crushing"
+          },
+          {
+            "medical": "like myocardial infarction",
+            "patient_friendly": "like myocardial infarction"
+          },
+          {
+            "medical": "dull",
+            "patient_friendly": "dull or achy"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "none",
-          "unprovoked"
+          {
+            "medical": "none",
+            "patient_friendly": "none"
+          },
+          {
+            "medical": "unprovoked",
+            "patient_friendly": "unprovoked"
+          }
         ],
         "excludes": [
-          "nothing helps",
-          "medication",
-          "rest"
+          {
+            "medical": "nothing helps",
+            "patient_friendly": "nothing helps"
+          },
+          {
+            "medical": "medication",
+            "patient_friendly": "medication"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "nothing helps"
+          {
+            "medical": "nothing helps",
+            "patient_friendly": "nothing helps"
+          }
         ],
         "excludes": [
-          "medication",
-          "rest",
-          "position"
+          {
+            "medical": "medication",
+            "patient_friendly": "medication"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "position",
+            "patient_friendly": "position"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "sudden onset",
-          "persistent",
-          "continuous"
+          {
+            "medical": "sudden onset",
+            "patient_friendly": "sudden onset"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "10/10",
-          "catastrophic pain",
-          "10"
+          {
+            "medical": "10/10",
+            "patient_friendly": "10/10"
+          },
+          {
+            "medical": "catastrophic pain",
+            "patient_friendly": "catastrophic pain"
+          },
+          {
+            "medical": "10",
+            "patient_friendly": "10 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "moderate",
-          "1-9/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "1-9/10",
+            "patient_friendly": "1-9/10"
+          }
         ]
       }
     }
@@ -127,4 +280,3 @@
     "Aortic regurgitation murmur"
   ]
 }
-

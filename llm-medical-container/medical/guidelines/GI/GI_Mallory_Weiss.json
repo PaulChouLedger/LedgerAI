@@ -15,31 +15,87 @@
   "key_features": {
     "classic_presentation": "ONSET: ACUTE onset AFTER forceful or prolonged vomiting or retching. Classic history: vomiting non-bloody contents first, then HEMATEMESIS (blood) after repeated episodes. LOCATION: Epigastric (upper mid-abdomen) or lower chest discomfort. DURATION: Pain brief, seconds to minutes with each retch. BLEEDING typically self-limited. CHARACTER: SHARP retrosternal or epigastric pain during retching, then hematemesis. AGGRAVATING: Continued vomiting or retching worsens bleeding. RELIEVING: Cessation of vomiting allows healing. TIMING: Occurs DURING or IMMEDIATELY AFTER vomiting episodes. SEVERITY: 4-7/10, moderate. ASSOCIATED SYMPTOMS: Bright red blood or coffee-ground emesis, history of alcohol use (50%), recent gastroenteritis, pregnancy with hyperemesis. KEY POSITIVES: Hematemesis AFTER non-bloody vomiting, history of forceful retching. KEY NEGATIVES: Spontaneous hematemesis without vomiting suggests other cause (ulcer, varices).",
     "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          { "medical": "acute", "patient_friendly": "all at once or very quickly" },
+          { "medical": "after vomiting", "patient_friendly": "right after vomiting or retching" }
+        ]
+      },
       "location": {
         "includes": [
-          "upper mid",
-          "epigastric",
-          "upper abdomen"
+          {
+            "medical": "upper mid",
+            "patient_friendly": "upper mid"
+          },
+          {
+            "medical": "epigastric",
+            "patient_friendly": "upper middle part of your belly"
+          },
+          {
+            "medical": "upper abdomen",
+            "patient_friendly": "upper abdomen"
+          }
         ]
       },
       "character": {
         "includes": [
-          "knife-like",
-          "stabbing",
-          "sharp"
+          {
+            "medical": "knife-like",
+            "patient_friendly": "knife-like"
+          },
+          {
+            "medical": "stabbing",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          }
         ]
       },
-      "aggravating": {},
-      "relieving": {},
-      "timing": {},
+      "aggravating": {
+        "includes": [
+          { "medical": "continued vomiting", "patient_friendly": "keeping on vomiting" },
+          { "medical": "retching", "patient_friendly": "retching" }
+        ]
+      },
+      "relieving": {
+        "includes": [
+          { "medical": "cessation of vomiting", "patient_friendly": "stopping the vomiting" }
+        ]
+      },
+      "timing": {
+        "includes": [
+          { "medical": "during vomiting", "patient_friendly": "during vomiting" },
+          { "medical": "immediately after vomiting", "patient_friendly": "right after vomiting" }
+        ]
+      },
       "severity": {
         "includes": [
-          "7",
-          "4",
-          "6",
-          "5",
-          "moderate",
-          "4-7/10"
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "4",
+            "patient_friendly": "4 out of 10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "5",
+            "patient_friendly": "5 out of 10"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "4-7/10",
+            "patient_friendly": "4-7/10"
+          }
         ]
       }
     }

@@ -17,99 +17,246 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "often triggered by stress or anxiety",
-          "acute"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "often triggered by stress or anxiety",
+            "patient_friendly": "often triggered by stress or anxiety"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "slow onset"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          }
         ]
       },
       "location": {
         "includes": [
-          "diffuse chest"
+          {
+            "medical": "diffuse chest",
+            "patient_friendly": "diffuse chest"
+          }
         ],
         "excludes": [
-          "localized",
-          "one side only",
-          "specific point"
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "one side only",
+            "patient_friendly": "one side only"
+          },
+          {
+            "medical": "specific point",
+            "patient_friendly": "specific point"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "minutes to hours",
-          "episodic",
-          "variable"
+          {
+            "medical": "minutes to hours",
+            "patient_friendly": "minutes to hours"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "variable",
+            "patient_friendly": "variable"
+          }
         ],
         "excludes": [
-          "chronic",
-          "persistent",
-          "ongoing"
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "ongoing",
+            "patient_friendly": "ongoing"
+          }
         ]
       },
       "character": {
         "includes": [
-          "dyspnea",
-          "chest tightness",
-          "can't get enough air"
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "dyspnea"
+          },
+          {
+            "medical": "chest tightness",
+            "patient_friendly": "tightness in your chest"
+          },
+          {
+            "medical": "can't get enough air",
+            "patient_friendly": "can't get enough air"
+          }
         ],
         "excludes": [
-          "no fever",
-          "no chest pain",
-          "no wheezing"
+          {
+            "medical": "no fever",
+            "patient_friendly": "no fever"
+          },
+          {
+            "medical": "no chest pain",
+            "patient_friendly": "no chest pain"
+          },
+          {
+            "medical": "no wheezing",
+            "patient_friendly": "no wheezing"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "stress",
-          "anxiety",
-          "panic"
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          },
+          {
+            "medical": "anxiety",
+            "patient_friendly": "anxiety"
+          },
+          {
+            "medical": "panic",
+            "patient_friendly": "panic"
+          }
         ],
         "excludes": [
-          "breathing exercises",
-          "paper bag breathing",
-          "reassurance"
+          {
+            "medical": "breathing exercises",
+            "patient_friendly": "breathing exercises"
+          },
+          {
+            "medical": "paper bag breathing",
+            "patient_friendly": "paper bag breathing"
+          },
+          {
+            "medical": "reassurance",
+            "patient_friendly": "reassurance"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "breathing exercises",
-          "paper bag breathing",
-          "reassurance"
+          {
+            "medical": "breathing exercises",
+            "patient_friendly": "breathing exercises"
+          },
+          {
+            "medical": "paper bag breathing",
+            "patient_friendly": "paper bag breathing"
+          },
+          {
+            "medical": "reassurance",
+            "patient_friendly": "reassurance"
+          }
         ],
         "excludes": [
-          "stress",
-          "anxiety",
-          "panic"
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          },
+          {
+            "medical": "anxiety",
+            "patient_friendly": "anxiety"
+          },
+          {
+            "medical": "panic",
+            "patient_friendly": "panic"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "episodic",
-          "often during stress",
-          "intermittent"
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "often during stress",
+            "patient_friendly": "often during stress"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          }
         ],
         "excludes": [
-          "continuous",
-          "persistent",
-          "ongoing"
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "ongoing",
+            "patient_friendly": "ongoing"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "moderate",
-          "5-7/10",
-          "5",
-          "6",
-          "7"
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "5-7/10",
+            "patient_friendly": "5-7/10"
+          },
+          {
+            "medical": "5",
+            "patient_friendly": "5 out of 10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-4/10",
-          "severe",
-          "8-10/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-4/10",
+            "patient_friendly": "1-4/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "8-10/10",
+            "patient_friendly": "8-10/10"
+          }
         ]
       }
     }

@@ -19,23 +19,56 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "acute",
-          "immediate",
-          "minutes",
-          "hours",
-          "days"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
         ]
       },
       "location": {
         "includes": [
-          "flank",
-          "unilateral",
-          "radiates to groin"
+          {
+            "medical": "flank",
+            "patient_friendly": "side of your back"
+          },
+          {
+            "medical": "unilateral",
+            "patient_friendly": "unilateral"
+          },
+          {
+            "medical": "radiates to groin",
+            "patient_friendly": "radiates to groin"
+          }
         ],
         "excludes": []
       },
@@ -45,35 +78,62 @@
       },
       "character": {
         "includes": [
-          "severe",
-          "sharp"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          }
         ],
         "excludes": []
       },
       "aggravating": {
         "includes": [
-          "movement",
-          "urination",
-          "medications"
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "urination",
+            "patient_friendly": "urination"
+          },
+          {
+            "medical": "medications",
+            "patient_friendly": "medications"
+          }
         ],
         "excludes": []
       },
       "relieving": {
         "includes": [
-          "pain medications"
+          {
+            "medical": "pain medications",
+            "patient_friendly": "pain medications"
+          }
         ],
         "excludes": []
       },
       "timing": {
         "includes": [
-          "unrelenting"
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          }
         ],
         "excludes": []
       },
       "severity": {
         "includes": [
-          "8-10/10",
-          "severe"
+          {
+            "medical": "8-10/10",
+            "patient_friendly": "8-10/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
         ],
         "excludes": []
       }

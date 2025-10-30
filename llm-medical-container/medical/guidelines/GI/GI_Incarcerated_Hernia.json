@@ -18,111 +18,294 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "acute",
-          "worsening over hours",
-          "sudden change",
-          "previously reducible"
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "worsening over hours",
+            "patient_friendly": "worsening over hours"
+          },
+          {
+            "medical": "sudden change",
+            "patient_friendly": "sudden change"
+          },
+          {
+            "medical": "previously reducible",
+            "patient_friendly": "previously reducible"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "slow onset"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          }
         ]
       },
       "location": {
         "includes": [
-          "groin",
-          "inguinal",
-          "femoral",
-          "lower abdominal",
-          "hernia site"
+          {
+            "medical": "groin",
+            "patient_friendly": "groin"
+          },
+          {
+            "medical": "inguinal",
+            "patient_friendly": "inguinal"
+          },
+          {
+            "medical": "femoral",
+            "patient_friendly": "femoral"
+          },
+          {
+            "medical": "lower abdominal",
+            "patient_friendly": "lower abdominal"
+          },
+          {
+            "medical": "hernia site",
+            "patient_friendly": "hernia site"
+          }
         ],
         "excludes": [
-          "upper abdomen",
-          "chest",
-          "back"
+          {
+            "medical": "upper abdomen",
+            "patient_friendly": "upper abdomen"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "chest"
+          },
+          {
+            "medical": "back",
+            "patient_friendly": "back"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "constant",
-          "persistent",
-          "continuous",
-          "since irreducible"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "since irreducible",
+            "patient_friendly": "since irreducible"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "stabbing",
-          "sharp",
-          "knife-like",
-          "unrelenting",
-          "constant",
-          "steady",
-          "severe if strangulation"
+          {
+            "medical": "stabbing",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "knife-like",
+            "patient_friendly": "knife-like"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "steady",
+            "patient_friendly": "steady"
+          },
+          {
+            "medical": "severe if strangulation",
+            "patient_friendly": "severe if strangulation"
+          }
         ],
         "excludes": [
-          "mild",
-          "dull",
-          "crampy"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "dull",
+            "patient_friendly": "dull or achy"
+          },
+          {
+            "medical": "crampy",
+            "patient_friendly": "crampy or cramping"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "standing",
-          "straining",
-          "coughing",
-          "movement"
+          {
+            "medical": "standing",
+            "patient_friendly": "standing"
+          },
+          {
+            "medical": "straining",
+            "patient_friendly": "pushing or straining"
+          },
+          {
+            "medical": "coughing",
+            "patient_friendly": "coughing"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          }
         ],
         "excludes": [
-          "lying down",
-          "rest",
-          "reducing hernia"
+          {
+            "medical": "lying down",
+            "patient_friendly": "lying down"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "reducing hernia",
+            "patient_friendly": "reducing hernia"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "lying down",
-          "slight decrease"
+          {
+            "medical": "lying down",
+            "patient_friendly": "lying down"
+          },
+          {
+            "medical": "slight decrease",
+            "patient_friendly": "slight decrease"
+          }
         ],
         "excludes": [
-          "nothing fully relieves",
-          "hernia remains out",
-          "cannot reduce"
+          {
+            "medical": "nothing fully relieves",
+            "patient_friendly": "nothing fully relieves"
+          },
+          {
+            "medical": "hernia remains out",
+            "patient_friendly": "hernia remains out"
+          },
+          {
+            "medical": "cannot reduce",
+            "patient_friendly": "cannot reduce"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "all the time",
-          "continuous",
-          "progressive",
-          "worsening",
-          "getting worse",
-          "constant"
+          {
+            "medical": "all the time",
+            "patient_friendly": "all the time"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          },
+          {
+            "medical": "worsening",
+            "patient_friendly": "worsening"
+          },
+          {
+            "medical": "getting worse",
+            "patient_friendly": "getting worse"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "9",
-          "6-9/10",
-          "9-10/10",
-          "severe",
-          "if strangulated"
+          {
+            "medical": "9",
+            "patient_friendly": "9 out of 10"
+          },
+          {
+            "medical": "6-9/10",
+            "patient_friendly": "6-9/10"
+          },
+          {
+            "medical": "9-10/10",
+            "patient_friendly": "9-10/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "if strangulated",
+            "patient_friendly": "if strangulated"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-5/10",
-          "moderate"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-5/10",
+            "patient_friendly": "1-5/10"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          }
         ]
       }
     }

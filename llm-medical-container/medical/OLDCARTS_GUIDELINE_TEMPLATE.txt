@@ -28,6 +28,181 @@ KEY NEGATIVES: [Findings that argue against this diagnosis]. [Alternative diagno
 
 ---
 
+## Structured OLDCARTS Format (NEW)
+
+Each OLDCARTS element now includes both medical terms and patient-friendly terms:
+
+```json
+"structured_oldcarts": {
+  "onset": {
+    "includes": [
+      {
+        "medical": "sudden",
+        "patient_friendly": "all at once or very quickly"
+      },
+      {
+        "medical": "acute",
+        "patient_friendly": "sudden and severe"
+      }
+    ],
+    "excludes": [
+      {
+        "medical": "gradual",
+        "patient_friendly": "slowly over time"
+      }
+    ]
+  },
+  "location": {
+    "includes": [
+      {
+        "medical": "right upper quadrant",
+        "patient_friendly": "top right side near your ribs"
+      },
+      {
+        "medical": "periumbilical",
+        "patient_friendly": "around your belly button"
+      },
+      {
+        "medical": "radiates to right shoulder",
+        "patient_friendly": "spreads to your right shoulder"
+      }
+    ],
+    "excludes": [
+      {
+        "medical": "left side",
+        "patient_friendly": "left side"
+      }
+    ],
+    "anatomical_type": "right_upper"
+  },
+  "duration": {
+    "includes": [
+      {
+        "medical": "constant",
+        "patient_friendly": "continuous without stopping"
+      },
+      {
+        "medical": "hours",
+        "patient_friendly": "for several hours"
+      }
+    ],
+    "excludes": [
+      {
+        "medical": "intermittent",
+        "patient_friendly": "comes and goes"
+      }
+    ]
+  },
+  "character": {
+    "includes": [
+      {
+        "medical": "sharp",
+        "patient_friendly": "sharp or stabbing"
+      },
+      {
+        "medical": "severe",
+        "patient_friendly": "very bad or intense"
+      },
+      {
+        "medical": "colicky",
+        "patient_friendly": "comes and goes in waves"
+      }
+    ],
+    "excludes": [
+      {
+        "medical": "dull",
+        "patient_friendly": "dull or achy"
+      }
+    ]
+  },
+  "aggravating": {
+    "includes": [
+      {
+        "medical": "fatty foods",
+        "patient_friendly": "greasy or fatty foods"
+      },
+      {
+        "medical": "deep inspiration",
+        "patient_friendly": "taking deep breaths"
+      },
+      {
+        "medical": "movement",
+        "patient_friendly": "moving around"
+      }
+    ],
+    "excludes": [
+      {
+        "medical": "fasting",
+        "patient_friendly": "not eating"
+      }
+    ]
+  },
+  "relieving": {
+    "includes": [
+      {
+        "medical": "rest",
+        "patient_friendly": "lying still or resting"
+      },
+      {
+        "medical": "heat",
+        "patient_friendly": "applying heat"
+      }
+    ],
+    "excludes": [
+      {
+        "medical": "movement",
+        "patient_friendly": "moving around"
+      }
+    ]
+  },
+  "timing": {
+    "includes": [
+      {
+        "medical": "constant",
+        "patient_friendly": "continuous without stopping"
+      },
+      {
+        "medical": "intermittent",
+        "patient_friendly": "comes and goes"
+      }
+    ],
+    "excludes": [
+      {
+        "medical": "episodic",
+        "patient_friendly": "happens in episodes"
+      }
+    ]
+  },
+  "severity": {
+    "includes": [
+      {
+        "medical": "severe",
+        "patient_friendly": "very bad or intense"
+      },
+      {
+        "medical": "moderate",
+        "patient_friendly": "somewhat bad"
+      }
+    ],
+    "excludes": [
+      {
+        "medical": "mild",
+        "patient_friendly": "not too bad"
+      }
+    ]
+  }
+}
+```
+
+## Patient-Friendly Term Guidelines
+
+- Use simple, everyday language
+- Avoid medical jargon
+- Use "you" and "your" for personal connection
+- Keep anatomical descriptions clear and relatable
+- Use common body part references (belly, ribs, groin, etc.)
+- Make pain descriptions relatable (sharp, dull, achy, etc.)
+
 ## Example: Acute Appendicitis (OLDCARTS-Structured)
 
 ONSET: SUDDEN onset, typically within 6-48 hours. Acute presentation (NOT chronic - >5 days suggests alternative).
@@ -64,3 +239,8 @@ KEY NEGATIVES: Pain starting in RLQ without periumbilical origin is less typical
 - Key discriminating features in CAPS
 - Clear key positives and negatives
 
+**Patient-friendly terms should be:**
+- 2-6 words maximum
+- Use common language
+- Be anatomically accurate
+- Easy to understand for all education levels

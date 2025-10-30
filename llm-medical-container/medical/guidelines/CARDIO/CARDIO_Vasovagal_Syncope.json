@@ -17,100 +17,250 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "preceded by prodrome",
-          "warning signs"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "preceded by prodrome",
+            "patient_friendly": "preceded by prodrome"
+          },
+          {
+            "medical": "warning signs",
+            "patient_friendly": "warning signs"
+          }
         ],
         "excludes": [
-          "gradual",
-          "no warning",
-          "chronic"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "no warning",
+            "patient_friendly": "no warning"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
         ]
       },
       "location": {
         "includes": [
-          "generalized",
-          "loss of consciousness"
+          {
+            "medical": "generalized",
+            "patient_friendly": "generalized"
+          },
+          {
+            "medical": "loss of consciousness",
+            "patient_friendly": "loss of consciousness"
+          }
         ],
         "excludes": [
-          "localized",
-          "one area only",
-          "chest"
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "one area only",
+            "patient_friendly": "one area only"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "chest area"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "seconds to 1-2 minutes",
-          "brief",
-          "short"
+          {
+            "medical": "seconds to 1-2 minutes",
+            "patient_friendly": "seconds to 1-2 minutes"
+          },
+          {
+            "medical": "brief",
+            "patient_friendly": "for a short time"
+          },
+          {
+            "medical": "short",
+            "patient_friendly": "short"
+          }
         ],
         "excludes": [
-          "prolonged",
-          ">5 minutes",
-          "hours"
+          {
+            "medical": "prolonged",
+            "patient_friendly": "for a long time"
+          },
+          {
+            "medical": ">5 minutes",
+            "patient_friendly": ">5 minutes"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          }
         ]
       },
       "character": {
         "includes": [
-          "lightheadedness",
-          "tunnel vision",
-          "nausea",
-          "sweating before fainting"
+          {
+            "medical": "lightheadedness",
+            "patient_friendly": "lightheadedness"
+          },
+          {
+            "medical": "tunnel vision",
+            "patient_friendly": "tunnel vision"
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "feeling sick to your stomach"
+          },
+          {
+            "medical": "sweating before fainting",
+            "patient_friendly": "sweating before fainting"
+          }
         ],
         "excludes": [
-          "chest pain",
-          "palpitations",
-          "seizure activity"
+          {
+            "medical": "chest pain",
+            "patient_friendly": "chest pain"
+          },
+          {
+            "medical": "palpitations",
+            "patient_friendly": "palpitations"
+          },
+          {
+            "medical": "seizure activity",
+            "patient_friendly": "seizure activity"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "prolonged standing",
-          "heat",
-          "dehydration",
-          "pain",
-          "emotional stress",
-          "sight of blood"
+          {
+            "medical": "prolonged standing",
+            "patient_friendly": "prolonged standing"
+          },
+          {
+            "medical": "heat",
+            "patient_friendly": "applying heat"
+          },
+          {
+            "medical": "dehydration",
+            "patient_friendly": "dehydration"
+          },
+          {
+            "medical": "pain",
+            "patient_friendly": "pain"
+          },
+          {
+            "medical": "emotional stress",
+            "patient_friendly": "emotional stress"
+          },
+          {
+            "medical": "sight of blood",
+            "patient_friendly": "sight of blood"
+          }
         ],
         "excludes": [
-          "lying down",
-          "rest",
-          "medication"
+          {
+            "medical": "lying down",
+            "patient_friendly": "lying down"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "medication",
+            "patient_friendly": "medication"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "lying down",
-          "recovery rapid once horizontal"
+          {
+            "medical": "lying down",
+            "patient_friendly": "lying down"
+          },
+          {
+            "medical": "recovery rapid once horizontal",
+            "patient_friendly": "recovery rapid once horizontal"
+          }
         ],
         "excludes": [
-          "prolonged standing",
-          "heat",
-          "dehydration"
+          {
+            "medical": "prolonged standing",
+            "patient_friendly": "prolonged standing"
+          },
+          {
+            "medical": "heat",
+            "patient_friendly": "applying heat"
+          },
+          {
+            "medical": "dehydration",
+            "patient_friendly": "dehydration"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "single episode",
-          "rare episodes",
-          "clear triggers"
+          {
+            "medical": "single episode",
+            "patient_friendly": "single episode"
+          },
+          {
+            "medical": "rare episodes",
+            "patient_friendly": "rare episodes"
+          },
+          {
+            "medical": "clear triggers",
+            "patient_friendly": "clear triggers"
+          }
         ],
         "excludes": [
-          "frequent",
-          "unpredictable",
-          "no triggers"
+          {
+            "medical": "frequent",
+            "patient_friendly": "frequent"
+          },
+          {
+            "medical": "unpredictable",
+            "patient_friendly": "unpredictable"
+          },
+          {
+            "medical": "no triggers",
+            "patient_friendly": "no triggers"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "complete LOC",
-          "brief",
-          "rapid recovery"
+          {
+            "medical": "complete LOC",
+            "patient_friendly": "complete LOC"
+          },
+          {
+            "medical": "brief",
+            "patient_friendly": "for a short time"
+          },
+          {
+            "medical": "rapid recovery",
+            "patient_friendly": "rapid recovery"
+          }
         ],
         "excludes": [
-          "prolonged",
-          "confusion post-event",
-          "severe"
+          {
+            "medical": "prolonged",
+            "patient_friendly": "for a long time"
+          },
+          {
+            "medical": "confusion post-event",
+            "patient_friendly": "confusion post-event"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
         ]
       }
     }
@@ -126,4 +276,3 @@
     "Seizure-like activity"
   ]
 }
-

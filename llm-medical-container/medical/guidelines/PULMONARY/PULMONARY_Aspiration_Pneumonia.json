@@ -17,108 +17,261 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden during or shortly after aspiration event",
-          "acute",
-          "immediate"
+          {
+            "medical": "sudden during or shortly after aspiration event",
+            "patient_friendly": "sudden during or shortly after aspiration event"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "slow onset"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          }
         ]
       },
       "location": {
         "includes": [
-          "dependent lung regions",
-          "right lower lobe most common",
-          "lung"
+          {
+            "medical": "dependent lung regions",
+            "patient_friendly": "dependent lung regions"
+          },
+          {
+            "medical": "right lower lobe most common",
+            "patient_friendly": "right lower lobe most common"
+          },
+          {
+            "medical": "lung",
+            "patient_friendly": "lung"
+          }
         ],
         "excludes": [
-          "unilateral",
-          "one side only",
-          "upper lobes"
+          {
+            "medical": "unilateral",
+            "patient_friendly": "unilateral"
+          },
+          {
+            "medical": "one side only",
+            "patient_friendly": "one side only"
+          },
+          {
+            "medical": "upper lobes",
+            "patient_friendly": "upper lobes"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "acute onset",
-          "can persist for days to weeks",
-          "ongoing"
+          {
+            "medical": "acute onset",
+            "patient_friendly": "acute onset"
+          },
+          {
+            "medical": "can persist for days to weeks",
+            "patient_friendly": "can persist for days to weeks"
+          },
+          {
+            "medical": "ongoing",
+            "patient_friendly": "ongoing"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "dyspnea",
-          "cough",
-          "chest discomfort"
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "dyspnea"
+          },
+          {
+            "medical": "cough",
+            "patient_friendly": "coughing"
+          },
+          {
+            "medical": "chest discomfort",
+            "patient_friendly": "chest discomfort"
+          }
         ],
         "excludes": [
-          "no chest pain",
-          "no wheezing",
-          "mild"
+          {
+            "medical": "no chest pain",
+            "patient_friendly": "no chest pain"
+          },
+          {
+            "medical": "no wheezing",
+            "patient_friendly": "no wheezing"
+          },
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "lying flat",
-          "continued aspiration risk",
-          "activity"
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying flat on your back"
+          },
+          {
+            "medical": "continued aspiration risk",
+            "patient_friendly": "continued aspiration risk"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          }
         ],
         "excludes": [
-          "upright positioning",
-          "suctioning",
-          "antibiotics"
+          {
+            "medical": "upright positioning",
+            "patient_friendly": "upright positioning"
+          },
+          {
+            "medical": "suctioning",
+            "patient_friendly": "suctioning"
+          },
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "antibiotics"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "upright positioning",
-          "suctioning",
-          "antibiotics"
+          {
+            "medical": "upright positioning",
+            "patient_friendly": "upright positioning"
+          },
+          {
+            "medical": "suctioning",
+            "patient_friendly": "suctioning"
+          },
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "antibiotics"
+          }
         ],
         "excludes": [
-          "lying flat",
-          "continued aspiration risk",
-          "activity"
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying flat on your back"
+          },
+          {
+            "medical": "continued aspiration risk",
+            "patient_friendly": "continued aspiration risk"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "acute",
-          "often during eating or vomiting",
-          "continuous"
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "often during eating or vomiting",
+            "patient_friendly": "often during eating or vomiting"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "moderate to severe",
-          "6-8/10",
-          "6",
-          "7",
-          "8"
+          {
+            "medical": "moderate to severe",
+            "patient_friendly": "moderate to severe"
+          },
+          {
+            "medical": "6-8/10",
+            "patient_friendly": "6-8/10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-5/10",
-          "severe",
-          "9-10/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-5/10",
+            "patient_friendly": "1-5/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "9-10/10",
+            "patient_friendly": "9-10/10"
+          }
         ]
       }
     }
   },
   "red_flags": [
     "Severe dyspnea or respiratory distress",
-    "High fever >101.5°F",
+    "High fever >101.5\u00b0F",
     "Altered mental status",
     "Cyanosis or oxygen saturation <90%",
     "Hemoptysis or blood in sputum",

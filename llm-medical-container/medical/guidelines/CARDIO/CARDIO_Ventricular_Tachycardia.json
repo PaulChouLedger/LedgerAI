@@ -17,94 +17,226 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "abrupt start"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "abrupt start",
+            "patient_friendly": "abrupt start"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "slow onset"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          }
         ]
       },
       "location": {
         "includes": [
-          "chest",
-          "palpitations",
-          "generalized symptoms"
+          {
+            "medical": "chest",
+            "patient_friendly": "chest area"
+          },
+          {
+            "medical": "palpitations",
+            "patient_friendly": "palpitations"
+          },
+          {
+            "medical": "generalized symptoms",
+            "patient_friendly": "generalized symptoms"
+          }
         ],
         "excludes": [
-          "localized",
-          "one area only",
-          "extremities"
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "one area only",
+            "patient_friendly": "one area only"
+          },
+          {
+            "medical": "extremities",
+            "patient_friendly": "extremities"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "sustained",
-          ">30 seconds",
-          "non-sustained bursts"
+          {
+            "medical": "sustained",
+            "patient_friendly": "sustained"
+          },
+          {
+            "medical": ">30 seconds",
+            "patient_friendly": ">30 seconds"
+          },
+          {
+            "medical": "non-sustained bursts",
+            "patient_friendly": "non-sustained bursts"
+          }
         ],
         "excludes": [
-          "brief",
-          "minutes only",
-          "intermittent"
+          {
+            "medical": "brief",
+            "patient_friendly": "for a short time"
+          },
+          {
+            "medical": "minutes only",
+            "patient_friendly": "minutes only"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "rapid",
-          "regular",
-          "slightly irregular palpitations"
+          {
+            "medical": "rapid",
+            "patient_friendly": "very quickly"
+          },
+          {
+            "medical": "regular",
+            "patient_friendly": "regular"
+          },
+          {
+            "medical": "slightly irregular palpitations",
+            "patient_friendly": "slightly irregular palpitations"
+          }
         ],
         "excludes": [
-          "slow",
-          "steady",
-          "no palpitations"
+          {
+            "medical": "slow",
+            "patient_friendly": "slow"
+          },
+          {
+            "medical": "steady",
+            "patient_friendly": "steady"
+          },
+          {
+            "medical": "no palpitations",
+            "patient_friendly": "no palpitations"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "exertion",
-          "electrolyte abnormalities"
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          },
+          {
+            "medical": "electrolyte abnormalities",
+            "patient_friendly": "electrolyte abnormalities"
+          }
         ],
         "excludes": [
-          "cardioversion",
-          "antiarrhythmics",
-          "rest"
+          {
+            "medical": "cardioversion",
+            "patient_friendly": "cardioversion"
+          },
+          {
+            "medical": "antiarrhythmics",
+            "patient_friendly": "antiarrhythmics"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "cardioversion",
-          "antiarrhythmics"
+          {
+            "medical": "cardioversion",
+            "patient_friendly": "cardioversion"
+          },
+          {
+            "medical": "antiarrhythmics",
+            "patient_friendly": "antiarrhythmics"
+          }
         ],
         "excludes": [
-          "exertion",
-          "electrolyte abnormalities",
-          "activity"
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          },
+          {
+            "medical": "electrolyte abnormalities",
+            "patient_friendly": "electrolyte abnormalities"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "episodic",
-          "sustained"
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "sustained",
+            "patient_friendly": "sustained"
+          }
         ],
         "excludes": [
-          "constant",
-          "unrelenting",
-          "continuous"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "variable",
-          "asymptomatic to severe",
-          "variable symptoms"
+          {
+            "medical": "variable",
+            "patient_friendly": "variable"
+          },
+          {
+            "medical": "asymptomatic to severe",
+            "patient_friendly": "asymptomatic to severe"
+          },
+          {
+            "medical": "variable symptoms",
+            "patient_friendly": "variable symptoms"
+          }
         ],
         "excludes": [
-          "mild",
-          "moderate",
-          "constant"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
         ]
       }
     }
@@ -120,4 +252,3 @@
     "Pulselessness (V-Tach with no pulse = ventricular fibrillation )"
   ]
 }
-

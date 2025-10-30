@@ -17,95 +17,230 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "acute",
-          "following myocardial infarction",
-          "acute heart failure"
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "following myocardial infarction",
+            "patient_friendly": "following myocardial infarction"
+          },
+          {
+            "medical": "acute heart failure",
+            "patient_friendly": "acute heart failure"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "slow onset"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          }
         ]
       },
       "location": {
         "includes": [
-          "generalized",
-          "systemic hypoperfusion"
+          {
+            "medical": "generalized",
+            "patient_friendly": "generalized"
+          },
+          {
+            "medical": "systemic hypoperfusion",
+            "patient_friendly": "systemic hypoperfusion"
+          }
         ],
         "excludes": [
-          "localized",
-          "one area only",
-          "chest"
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "one area only",
+            "patient_friendly": "one area only"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "chest area"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "continuous",
-          "life-threatening",
-          "persistent"
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "life-threatening",
+            "patient_friendly": "life-threatening"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "severe dyspnea",
-          "chest pain",
-          "altered mental status",
-          "cold clammy skin"
+          {
+            "medical": "severe dyspnea",
+            "patient_friendly": "severe dyspnea"
+          },
+          {
+            "medical": "chest pain",
+            "patient_friendly": "chest pain"
+          },
+          {
+            "medical": "altered mental status",
+            "patient_friendly": "altered mental status"
+          },
+          {
+            "medical": "cold clammy skin",
+            "patient_friendly": "cold clammy skin"
+          }
         ],
         "excludes": [
-          "mild",
-          "moderate",
-          "warm extremities",
-          "no symptoms"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "warm extremities",
+            "patient_friendly": "warm extremities"
+          },
+          {
+            "medical": "no symptoms",
+            "patient_friendly": "no symptoms"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "reduced cardiac output"
+          {
+            "medical": "reduced cardiac output",
+            "patient_friendly": "reduced cardiac output"
+          }
         ],
         "excludes": [
-          "inotropic support",
-          "revascularization",
-          "medication"
+          {
+            "medical": "inotropic support",
+            "patient_friendly": "inotropic support"
+          },
+          {
+            "medical": "revascularization",
+            "patient_friendly": "revascularization"
+          },
+          {
+            "medical": "medication",
+            "patient_friendly": "medication"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "inotropic support",
-          "revascularization"
+          {
+            "medical": "inotropic support",
+            "patient_friendly": "inotropic support"
+          },
+          {
+            "medical": "revascularization",
+            "patient_friendly": "revascularization"
+          }
         ],
         "excludes": [
-          "reduced cardiac output",
-          "activity",
-          "exertion"
+          {
+            "medical": "reduced cardiac output",
+            "patient_friendly": "reduced cardiac output"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          },
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "acute decompensation",
-          "continuous"
+          {
+            "medical": "acute decompensation",
+            "patient_friendly": "acute decompensation"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "critical",
-          "life-threatening",
-          "severe"
+          {
+            "medical": "critical",
+            "patient_friendly": "critical"
+          },
+          {
+            "medical": "life-threatening",
+            "patient_friendly": "life-threatening"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
         ],
         "excludes": [
-          "mild",
-          "moderate",
-          "no symptoms"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "no symptoms",
+            "patient_friendly": "no symptoms"
+          }
         ]
       }
     }
@@ -121,4 +256,3 @@
     "Multi-organ failure"
   ]
 }
-

@@ -16,96 +16,234 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "abrupt start",
-          "like a switch flipped"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "abrupt start",
+            "patient_friendly": "abrupt start"
+          },
+          {
+            "medical": "like a switch flipped",
+            "patient_friendly": "like a switch flipped"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "slow onset"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          }
         ]
       },
       "location": {
         "includes": [
-          "chest",
-          "palpitations"
+          {
+            "medical": "chest",
+            "patient_friendly": "chest area"
+          },
+          {
+            "medical": "palpitations",
+            "patient_friendly": "palpitations"
+          }
         ],
         "excludes": [
-          "localized",
-          "one area only",
-          "extremities"
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "one area only",
+            "patient_friendly": "one area only"
+          },
+          {
+            "medical": "extremities",
+            "patient_friendly": "extremities"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "minutes to hours",
-          "variable"
+          {
+            "medical": "minutes to hours",
+            "patient_friendly": "minutes to hours"
+          },
+          {
+            "medical": "variable",
+            "patient_friendly": "variable"
+          }
         ],
         "excludes": [
-          "continuous",
-          "unrelenting",
-          "days"
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          }
         ]
       },
       "character": {
         "includes": [
-          "regular",
-          "rapid palpitations",
-          "racing heart"
+          {
+            "medical": "regular",
+            "patient_friendly": "regular"
+          },
+          {
+            "medical": "rapid palpitations",
+            "patient_friendly": "rapid palpitations"
+          },
+          {
+            "medical": "racing heart",
+            "patient_friendly": "racing heart"
+          }
         ],
         "excludes": [
-          "irregular",
-          "slow",
-          "steady"
+          {
+            "medical": "irregular",
+            "patient_friendly": "happens irregularly"
+          },
+          {
+            "medical": "slow",
+            "patient_friendly": "slow"
+          },
+          {
+            "medical": "steady",
+            "patient_friendly": "steady"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "caffeine",
-          "stress",
-          "exertion"
+          {
+            "medical": "caffeine",
+            "patient_friendly": "caffeine"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          },
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          }
         ],
         "excludes": [
-          "vagal maneuvers",
-          "bearing down",
-          "carotid massage"
+          {
+            "medical": "vagal maneuvers",
+            "patient_friendly": "vagal maneuvers"
+          },
+          {
+            "medical": "bearing down",
+            "patient_friendly": "bearing down"
+          },
+          {
+            "medical": "carotid massage",
+            "patient_friendly": "carotid massage"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "vagal maneuvers",
-          "bearing down",
-          "carotid massage",
-          "sometimes spontaneous"
+          {
+            "medical": "vagal maneuvers",
+            "patient_friendly": "vagal maneuvers"
+          },
+          {
+            "medical": "bearing down",
+            "patient_friendly": "bearing down"
+          },
+          {
+            "medical": "carotid massage",
+            "patient_friendly": "carotid massage"
+          },
+          {
+            "medical": "sometimes spontaneous",
+            "patient_friendly": "sometimes spontaneous"
+          }
         ],
         "excludes": [
-          "caffeine",
-          "stress",
-          "exertion"
+          {
+            "medical": "caffeine",
+            "patient_friendly": "caffeine"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          },
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "paroxysmal",
-          "sudden start and stop"
+          {
+            "medical": "paroxysmal",
+            "patient_friendly": "paroxysmal"
+          },
+          {
+            "medical": "sudden start and stop",
+            "patient_friendly": "sudden start and stop"
+          }
         ],
         "excludes": [
-          "constant",
-          "unrelenting",
-          "continuous"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "uncomfortable",
-          "not painful typically",
-          "moderate"
+          {
+            "medical": "uncomfortable",
+            "patient_friendly": "uncomfortable"
+          },
+          {
+            "medical": "not painful typically",
+            "patient_friendly": "not painful typically"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          }
         ],
         "excludes": [
-          "severe",
-          "painful",
-          "mild"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "painful",
+            "patient_friendly": "painful"
+          },
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          }
         ]
       }
     }
@@ -121,4 +259,3 @@
     "History of Wolff-Parkinson-White syndrome (WPW) (Wolff-Parkinson-White)"
   ]
 }
-

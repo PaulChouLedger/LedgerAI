@@ -17,100 +17,250 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "chronic",
-          "progressive over months to years",
-          "slow onset"
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "progressive over months to years",
+            "patient_friendly": "progressive over months to years"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          }
         ],
         "excludes": [
-          "sudden",
-          "acute",
-          "immediate"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          }
         ]
       },
       "location": {
         "includes": [
-          "bilateral",
-          "often lower lobes"
+          {
+            "medical": "bilateral",
+            "patient_friendly": "on both sides"
+          },
+          {
+            "medical": "often lower lobes",
+            "patient_friendly": "often lower lobes"
+          }
         ],
         "excludes": [
-          "unilateral",
-          "one side only",
-          "upper lobes"
+          {
+            "medical": "unilateral",
+            "patient_friendly": "unilateral"
+          },
+          {
+            "medical": "one side only",
+            "patient_friendly": "one side only"
+          },
+          {
+            "medical": "upper lobes",
+            "patient_friendly": "upper lobes"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "chronic",
-          "persistent with acute exacerbations",
-          "ongoing"
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "persistent with acute exacerbations",
+            "patient_friendly": "persistent with acute exacerbations"
+          },
+          {
+            "medical": "ongoing",
+            "patient_friendly": "ongoing"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "chronic productive cough with copious sputum",
-          "productive cough"
+          {
+            "medical": "chronic productive cough with copious sputum",
+            "patient_friendly": "chronic productive cough with copious sputum"
+          },
+          {
+            "medical": "productive cough",
+            "patient_friendly": "productive cough"
+          }
         ],
         "excludes": [
-          "no chest pain",
-          "no wheezing",
-          "dry cough"
+          {
+            "medical": "no chest pain",
+            "patient_friendly": "no chest pain"
+          },
+          {
+            "medical": "no wheezing",
+            "patient_friendly": "no wheezing"
+          },
+          {
+            "medical": "dry cough",
+            "patient_friendly": "dry cough"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "infections",
-          "lying flat",
-          "morning"
+          {
+            "medical": "infections",
+            "patient_friendly": "infections"
+          },
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying flat on your back"
+          },
+          {
+            "medical": "morning",
+            "patient_friendly": "morning"
+          }
         ],
         "excludes": [
-          "postural drainage",
-          "chest physiotherapy",
-          "antibiotics"
+          {
+            "medical": "postural drainage",
+            "patient_friendly": "postural drainage"
+          },
+          {
+            "medical": "chest physiotherapy",
+            "patient_friendly": "chest physiotherapy"
+          },
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "antibiotics"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "postural drainage",
-          "chest physiotherapy",
-          "antibiotics"
+          {
+            "medical": "postural drainage",
+            "patient_friendly": "postural drainage"
+          },
+          {
+            "medical": "chest physiotherapy",
+            "patient_friendly": "chest physiotherapy"
+          },
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "antibiotics"
+          }
         ],
         "excludes": [
-          "infections",
-          "lying flat",
-          "morning"
+          {
+            "medical": "infections",
+            "patient_friendly": "infections"
+          },
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying flat on your back"
+          },
+          {
+            "medical": "morning",
+            "patient_friendly": "morning"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "worse in morning",
-          "improves with postural drainage",
-          "continuous"
+          {
+            "medical": "worse in morning",
+            "patient_friendly": "worse in morning"
+          },
+          {
+            "medical": "improves with postural drainage",
+            "patient_friendly": "improves with postural drainage"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "moderate to severe",
-          "5-8/10",
-          "5",
-          "6",
-          "7",
-          "8"
+          {
+            "medical": "moderate to severe",
+            "patient_friendly": "moderate to severe"
+          },
+          {
+            "medical": "5-8/10",
+            "patient_friendly": "5-8/10"
+          },
+          {
+            "medical": "5",
+            "patient_friendly": "5 out of 10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-4/10",
-          "severe",
-          "9-10/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-4/10",
+            "patient_friendly": "1-4/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "9-10/10",
+            "patient_friendly": "9-10/10"
+          }
         ]
       }
     }

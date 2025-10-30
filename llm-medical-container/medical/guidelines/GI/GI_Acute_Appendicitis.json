@@ -18,107 +18,275 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "acute",
-          "hours",
-          "6-48 hours"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "6-48 hours",
+            "patient_friendly": "6-48 hours"
+          }
         ],
         "excludes": [
-          "chronic",
-          "months",
-          "years",
-          "gradual"
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "months",
+            "patient_friendly": "months"
+          },
+          {
+            "medical": "years",
+            "patient_friendly": "years"
+          },
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          }
         ]
       },
       "location": {
         "includes": [
-          "right lower quadrant",
-          "periumbilical migration"
+          {
+            "medical": "right lower quadrant",
+            "patient_friendly": "lower right side near your groin"
+          },
+          {
+            "medical": "periumbilical migration",
+            "patient_friendly": "periumbilical migration"
+          }
         ],
         "excludes": [
-          "left side",
-          "LLQ",
-          "upper abdomen",
-          "diffuse"
+          {
+            "medical": "left side",
+            "patient_friendly": "left side"
+          },
+          {
+            "medical": "LLQ",
+            "patient_friendly": "LLQ"
+          },
+          {
+            "medical": "upper abdomen",
+            "patient_friendly": "upper abdomen"
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "diffuse"
+          }
         ],
         "anatomical_type": "right_only"
       },
       "duration": {
         "includes": [
-          "constant",
-          "hours",
-          "days",
-          "persistent"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "minutes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "sharp",
-          "stabbing",
-          "constant",
-          "severe"
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "stabbing",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
         ],
         "excludes": [
-          "crampy",
-          "burning",
-          "dull",
-          "pressure-like"
+          {
+            "medical": "crampy",
+            "patient_friendly": "crampy or cramping"
+          },
+          {
+            "medical": "burning",
+            "patient_friendly": "burning sensation"
+          },
+          {
+            "medical": "dull",
+            "patient_friendly": "dull or achy"
+          },
+          {
+            "medical": "pressure-like",
+            "patient_friendly": "pressure-like"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "movement",
-          "coughing",
-          "walking",
-          "jumping"
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "coughing",
+            "patient_friendly": "coughing"
+          },
+          {
+            "medical": "walking",
+            "patient_friendly": "walking"
+          },
+          {
+            "medical": "jumping",
+            "patient_friendly": "jumping"
+          }
         ],
         "excludes": [
-          "eating",
-          "rest",
-          "lying still"
+          {
+            "medical": "eating",
+            "patient_friendly": "eating food"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "lying still",
+            "patient_friendly": "lying still"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "lying still",
-          "fetal position"
+          {
+            "medical": "lying still",
+            "patient_friendly": "lying still"
+          },
+          {
+            "medical": "fetal position",
+            "patient_friendly": "fetal position"
+          }
         ],
         "excludes": [
-          "movement",
-          "activity"
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "constant",
-          "progressive",
-          "worsening"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          },
+          {
+            "medical": "worsening",
+            "patient_friendly": "worsening"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "comes and goes",
-          "episodic"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "severe",
-          "7",
-          "8",
-          "9",
-          "10",
-          "7-10/10"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "9",
+            "patient_friendly": "9 out of 10"
+          },
+          {
+            "medical": "10",
+            "patient_friendly": "10 out of 10"
+          },
+          {
+            "medical": "7-10/10",
+            "patient_friendly": "7-10/10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1",
-          "2",
-          "3"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1",
+            "patient_friendly": "1 out of 10"
+          },
+          {
+            "medical": "2",
+            "patient_friendly": "2 out of 10"
+          },
+          {
+            "medical": "3",
+            "patient_friendly": "3 out of 10"
+          }
         ]
       }
     }

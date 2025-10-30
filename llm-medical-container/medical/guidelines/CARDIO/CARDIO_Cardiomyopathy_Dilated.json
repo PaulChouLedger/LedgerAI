@@ -16,97 +16,238 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "progressive over weeks to months",
-          "acute decompensation possible",
-          "gradual"
+          {
+            "medical": "progressive over weeks to months",
+            "patient_friendly": "progressive over weeks to months"
+          },
+          {
+            "medical": "acute decompensation possible",
+            "patient_friendly": "acute decompensation possible"
+          },
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          }
         ],
         "excludes": [
-          "sudden",
-          "acute",
-          "minutes"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          }
         ]
       },
       "location": {
         "includes": [
-          "generalized dyspnea",
-          "bilateral lower extremity edema"
+          {
+            "medical": "generalized dyspnea",
+            "patient_friendly": "generalized dyspnea"
+          },
+          {
+            "medical": "bilateral lower extremity edema",
+            "patient_friendly": "bilateral lower extremity edema"
+          }
         ],
         "excludes": [
-          "unilateral leg swelling",
-          "localized",
-          "one area only"
+          {
+            "medical": "unilateral leg swelling",
+            "patient_friendly": "unilateral leg swelling"
+          },
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "one area only",
+            "patient_friendly": "one area only"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "progressive",
-          "chronic with acute worsening",
-          "ongoing"
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          },
+          {
+            "medical": "chronic with acute worsening",
+            "patient_friendly": "chronic with acute worsening"
+          },
+          {
+            "medical": "ongoing",
+            "patient_friendly": "ongoing"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "dyspnea on exertion",
-          "progressing to dyspnea at rest",
-          "orthopnea",
-          "paroxysmal nocturnal dyspnea",
-          "fatigue"
+          {
+            "medical": "dyspnea on exertion",
+            "patient_friendly": "dyspnea on exertion"
+          },
+          {
+            "medical": "progressing to dyspnea at rest",
+            "patient_friendly": "progressing to dyspnea at rest"
+          },
+          {
+            "medical": "orthopnea",
+            "patient_friendly": "orthopnea"
+          },
+          {
+            "medical": "paroxysmal nocturnal dyspnea",
+            "patient_friendly": "paroxysmal nocturnal dyspnea"
+          },
+          {
+            "medical": "fatigue",
+            "patient_friendly": "feeling very tired"
+          }
         ],
         "excludes": [
-          "acute myocardial infarction presentation",
-          "pleuritic",
-          "sharp",
-          "stabbing"
+          {
+            "medical": "acute myocardial infarction presentation",
+            "patient_friendly": "acute myocardial infarction presentation"
+          },
+          {
+            "medical": "pleuritic",
+            "patient_friendly": "pleuritic"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "stabbing",
+            "patient_friendly": "sharp or stabbing"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "exertion",
-          "lying flat",
-          "salt intake"
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          },
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying flat on your back"
+          },
+          {
+            "medical": "salt intake",
+            "patient_friendly": "salt intake"
+          }
         ],
         "excludes": [
-          "diuretics",
-          "sitting upright",
-          "medication"
+          {
+            "medical": "diuretics",
+            "patient_friendly": "diuretics"
+          },
+          {
+            "medical": "sitting upright",
+            "patient_friendly": "sitting upright"
+          },
+          {
+            "medical": "medication",
+            "patient_friendly": "medication"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "diuretics",
-          "sitting upright"
+          {
+            "medical": "diuretics",
+            "patient_friendly": "diuretics"
+          },
+          {
+            "medical": "sitting upright",
+            "patient_friendly": "sitting upright"
+          }
         ],
         "excludes": [
-          "exertion",
-          "lying flat",
-          "salt intake"
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          },
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying flat on your back"
+          },
+          {
+            "medical": "salt intake",
+            "patient_friendly": "salt intake"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "progressive worsening",
-          "continuous"
+          {
+            "medical": "progressive worsening",
+            "patient_friendly": "progressive worsening"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "severe dyspnea",
-          "severe"
+          {
+            "medical": "severe dyspnea",
+            "patient_friendly": "severe dyspnea"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
         ],
         "excludes": [
-          "mild",
-          "moderate",
-          "no symptoms"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "no symptoms",
+            "patient_friendly": "no symptoms"
+          }
         ]
       }
     }
@@ -122,4 +263,3 @@
     "Chest pain (suggests ischemia)"
   ]
 }
-

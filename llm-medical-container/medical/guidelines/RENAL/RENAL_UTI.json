@@ -19,15 +19,36 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "gradual",
-          "progressive",
-          "hours",
-          "days",
-          "weeks"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          },
+          {
+            "medical": "weeks",
+            "patient_friendly": "for several weeks"
+          }
         ],
         "excludes": [
-          "sudden",
-          "immediate"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          }
         ]
       },
       "location": {
@@ -36,37 +57,55 @@
       },
       "duration": {
         "includes": [
-          "progressive"
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ],
         "excludes": []
       },
       "character": {
         "includes": [
-          "severe"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
         ],
         "excludes": []
       },
       "aggravating": {
         "includes": [
-          "urination"
+          {
+            "medical": "urination",
+            "patient_friendly": "urination"
+          }
         ],
         "excludes": []
       },
       "relieving": {
         "includes": [
-          "antibiotics"
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "antibiotics"
+          }
         ],
         "excludes": []
       },
       "timing": {
         "includes": [
-          "progressive"
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ],
         "excludes": []
       },
       "severity": {
         "includes": [
-          "moderate"
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          }
         ],
         "excludes": []
       }

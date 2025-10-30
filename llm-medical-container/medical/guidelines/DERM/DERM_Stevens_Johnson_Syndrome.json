@@ -15,24 +15,48 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within hours to days after drug exposure or infection. LOCATION: GENERALIZED with mucous membrane involvement (eyes, mouth, genitals). DURATION: Rapid progression over hours to days. CHARACTER: ERYTHEMATOUS (red) patches that progress to BULLAE (large blisters) and EPIDERMAL NECROSIS (skin death). AGGRAVATING: TOUCH, heat, movement. RELIEVING: IMMEDIATE discontinuation of offending drug, supportive care, burn unit care. TIMING: Rapid progression over hours to days. SEVERITY: 8-10/10 pain, severe and unrelenting. ASSOCIATED SYMPTOMS: FEVER (100-104°F), malaise, mucous membrane involvement, skin sloughing, may have systemic symptoms. KEY POSITIVES: Erythematous patches, bullae, epidermal necrosis, mucous membrane involvement, positive Nikolsky sign. KEY NEGATIVES: No fever >104°F (rules out toxic shock), no systemic shock (unless severe).",
+    "classic_presentation": "ONSET: SUDDEN onset within hours to days after drug exposure or infection. LOCATION: GENERALIZED with mucous membrane involvement (eyes, mouth, genitals). DURATION: Rapid progression over hours to days. CHARACTER: ERYTHEMATOUS (red) patches that progress to BULLAE (large blisters) and EPIDERMAL NECROSIS (skin death). AGGRAVATING: TOUCH, heat, movement. RELIEVING: IMMEDIATE discontinuation of offending drug, supportive care, burn unit care. TIMING: Rapid progression over hours to days. SEVERITY: 8-10/10 pain, severe and unrelenting. ASSOCIATED SYMPTOMS: FEVER (100-104\u00b0F), malaise, mucous membrane involvement, skin sloughing, may have systemic symptoms. KEY POSITIVES: Erythematous patches, bullae, epidermal necrosis, mucous membrane involvement, positive Nikolsky sign. KEY NEGATIVES: No fever >104\u00b0F (rules out toxic shock), no systemic shock (unless severe).",
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "immediate",
-          "hours",
-          "days"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
         ]
       },
       "location": {
         "includes": [
-          "anywhere",
-          "generalized"
+          {
+            "medical": "anywhere",
+            "patient_friendly": "anywhere"
+          },
+          {
+            "medical": "generalized",
+            "patient_friendly": "generalized"
+          }
         ],
         "excludes": []
       },
@@ -42,14 +66,23 @@
       },
       "character": {
         "includes": [
-          "erythematous",
-          "red"
+          {
+            "medical": "erythematous",
+            "patient_friendly": "erythematous"
+          },
+          {
+            "medical": "red",
+            "patient_friendly": "red"
+          }
         ],
         "excludes": []
       },
       "aggravating": {
         "includes": [
-          "heat"
+          {
+            "medical": "heat",
+            "patient_friendly": "applying heat"
+          }
         ],
         "excludes": []
       },
@@ -63,7 +96,10 @@
       },
       "severity": {
         "includes": [
-          "severe"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
         ],
         "excludes": []
       }

@@ -19,33 +19,78 @@
     "structured_oldcarts": {
       "location": {
         "includes": [
-          "upper mid",
-          "epigastric",
-          "upper abdomen",
-          "radiates to back"
+          {
+            "medical": "upper mid",
+            "patient_friendly": "upper mid"
+          },
+          {
+            "medical": "epigastric",
+            "patient_friendly": "upper middle part of your belly"
+          },
+          {
+            "medical": "upper abdomen",
+            "patient_friendly": "upper abdomen"
+          },
+          {
+            "medical": "radiates to back",
+            "patient_friendly": "spreads to your back"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "constant",
-          "persistent",
-          "continuous"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "worsening",
-          "getting worse",
-          "progressive"
+          {
+            "medical": "worsening",
+            "patient_friendly": "worsening"
+          },
+          {
+            "medical": "getting worse",
+            "patient_friendly": "getting worse"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "7",
-          "6",
-          "5",
-          "moderate",
-          "5-7/10"
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "5",
+            "patient_friendly": "5 out of 10"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "5-7/10",
+            "patient_friendly": "5-7/10"
+          }
         ]
       }
     }

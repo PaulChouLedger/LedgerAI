@@ -20,61 +20,163 @@
       "onset": {},
       "location": {
         "includes": [
-          "right upper quadrant",
-          "epigastric",
-          "radiates to right shoulder",
-          "radiates to scapula"
+          {
+            "medical": "right upper quadrant",
+            "patient_friendly": "top right side near your ribs"
+          },
+          {
+            "medical": "epigastric",
+            "patient_friendly": "upper middle part of your belly"
+          },
+          {
+            "medical": "radiates to right shoulder",
+            "patient_friendly": "spreads to your right shoulder"
+          },
+          {
+            "medical": "radiates to scapula",
+            "patient_friendly": "spreads to your shoulder blade"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "multiple days",
-          "hours",
-          "continuous",
-          "days",
-          "constant",
-          "persistent",
-          "several hours"
+          {
+            "medical": "multiple days",
+            "patient_friendly": "multiple days"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "several hours",
+            "patient_friendly": "several hours"
+          }
         ]
       },
       "character": {
         "includes": [
-          "throbbing",
-          "dull",
-          "unrelenting",
-          "aching",
-          "constant",
-          "steady"
+          {
+            "medical": "throbbing",
+            "patient_friendly": "throbbing or pulsing"
+          },
+          {
+            "medical": "dull",
+            "patient_friendly": "dull or achy"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "aching",
+            "patient_friendly": "achy or sore"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "steady",
+            "patient_friendly": "steady"
+          }
         ]
       },
       "aggravating": {},
       "relieving": {
         "includes": [
-          "nothing helps",
-          "no relief"
+          {
+            "medical": "nothing helps",
+            "patient_friendly": "nothing helps"
+          },
+          {
+            "medical": "no relief",
+            "patient_friendly": "no relief"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "all the time",
-          "continuous",
-          "progressive",
-          "worsening",
-          "getting worse",
-          "constant"
+          {
+            "medical": "all the time",
+            "patient_friendly": "all the time"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          },
+          {
+            "medical": "worsening",
+            "patient_friendly": "worsening"
+          },
+          {
+            "medical": "getting worse",
+            "patient_friendly": "getting worse"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "9",
-          "7",
-          "8",
-          "5-8/10",
-          "6",
-          "5",
-          "10",
-          "moderate",
-          "severe"
+          {
+            "medical": "9",
+            "patient_friendly": "9 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "5-8/10",
+            "patient_friendly": "5-8/10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "5",
+            "patient_friendly": "5 out of 10"
+          },
+          {
+            "medical": "10",
+            "patient_friendly": "10 out of 10"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
         ]
       }
     }

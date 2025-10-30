@@ -17,65 +17,198 @@
   "key_features": {
     "classic_presentation": "ONSET: ACUTE onset over hours to days. More common in elderly, institutionalized, or chronic constipation patients. LOCATION: Left lower quadrant (LLQ) or diffuse lower abdomen. DURATION: CONSTANT pain lasting hours to days. CHARACTER: CRAMPY, COLICKY pain initially, becoming CONSTANT and SEVERE if ischemia develops. AGGRAVATING: Eating or drinking worsens distension and pain. RELIEVING: NOTHING relieves pain. Vomiting may provide brief relief of distension. TIMING: Initially INTERMITTENT crampy pain, becomes CONSTANT as obstruction persists. SEVERITY: 6-9/10, moderate to severe. ASSOCIATED SYMPTOMS: Marked abdominal distension (asymmetric), absolute constipation (obstipation), inability to pass flatus, nausea and vomiting (may be feculent if prolonged). Tympanic distended abdomen. KEY POSITIVES: Massive asymmetric distension, obstipation, elderly patient, chronic constipation history. KEY NEGATIVES: Ability to pass large amounts of flatus or stool rules out complete obstruction.",
     "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "within hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "within a few days"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
+        ]
+      },
       "location": {
         "includes": [
-          "LLQ",
-          "left lower quadrant",
-          "left lower",
-          "everywhere",
-          "all over",
-          "diffuse"
+          {
+            "medical": "left lower quadrant",
+            "patient_friendly": "lower left side near your groin"
+          },
+          {
+            "medical": "left lower abdomen",
+            "patient_friendly": "lower left part of your belly"
+          },
+          {
+            "medical": "diffuse abdominal pain",
+            "patient_friendly": "pain all over your belly"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "multiple days",
-          "hours",
-          "continuous",
-          "days",
-          "constant",
-          "persistent",
-          "several hours"
+          {
+            "medical": "multiple days",
+            "patient_friendly": "multiple days"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "several hours",
+            "patient_friendly": "several hours"
+          }
         ]
       },
       "character": {
         "includes": [
-          "cramp-like",
-          "spasmodic",
-          "crampy",
-          "unrelenting",
-          "constant",
-          "steady"
+          {
+            "medical": "cramp-like",
+            "patient_friendly": "cramp-like"
+          },
+          {
+            "medical": "spasmodic",
+            "patient_friendly": "spasmodic"
+          },
+          {
+            "medical": "crampy",
+            "patient_friendly": "crampy or cramping"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "steady",
+            "patient_friendly": "steady"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "meals",
-          "food",
-          "eating"
+          {
+            "medical": "meals",
+            "patient_friendly": "meals"
+          },
+          {
+            "medical": "food",
+            "patient_friendly": "food"
+          },
+          {
+            "medical": "eating",
+            "patient_friendly": "eating food"
+          }
+        ]
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "nothing helps",
+            "patient_friendly": "nothing helps"
+          },
+          {
+            "medical": "vomiting provides temporary relief",
+            "patient_friendly": "vomiting gives brief relief"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "all the time",
-          "comes and goes",
-          "episodic",
-          "continuous",
-          "intermittent",
-          "constant"
+          {
+            "medical": "all the time",
+            "patient_friendly": "all the time"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "9",
-          "7",
-          "8",
-          "6",
-          "5",
-          "10",
-          "6-9/10",
-          "moderate",
-          "severe"
+          {
+            "medical": "9",
+            "patient_friendly": "9 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "5",
+            "patient_friendly": "5 out of 10"
+          },
+          {
+            "medical": "10",
+            "patient_friendly": "10 out of 10"
+          },
+          {
+            "medical": "6-9/10",
+            "patient_friendly": "6-9/10"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
         ]
       }
     }

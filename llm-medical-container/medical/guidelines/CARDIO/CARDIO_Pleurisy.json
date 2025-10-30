@@ -15,110 +15,272 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "gradual",
-          "over hours to days",
-          "often post-viral",
-          "post-pneumonia"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "over hours to days",
+            "patient_friendly": "over hours to days"
+          },
+          {
+            "medical": "often post-viral",
+            "patient_friendly": "often post-viral"
+          },
+          {
+            "medical": "post-pneumonia",
+            "patient_friendly": "post-pneumonia"
+          }
         ],
         "excludes": [
-          "sudden",
-          "acute",
-          "minutes"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          }
         ]
       },
       "location": {
         "includes": [
-          "lateral chest wall",
-          "unilateral"
+          {
+            "medical": "lateral chest wall",
+            "patient_friendly": "lateral chest wall"
+          },
+          {
+            "medical": "unilateral",
+            "patient_friendly": "unilateral"
+          }
         ],
         "excludes": [
-          "cardiac radiation",
-          "arm",
-          "jaw",
-          "bilateral"
+          {
+            "medical": "cardiac radiation",
+            "patient_friendly": "cardiac radiation"
+          },
+          {
+            "medical": "arm",
+            "patient_friendly": "arm"
+          },
+          {
+            "medical": "jaw",
+            "patient_friendly": "jaw"
+          },
+          {
+            "medical": "bilateral",
+            "patient_friendly": "on both sides"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "days to weeks",
-          "persistent"
+          {
+            "medical": "days to weeks",
+            "patient_friendly": "days to weeks"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "sharp",
-          "stabbing",
-          "pleuritic",
-          "worse with breathing"
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "stabbing",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "pleuritic",
+            "patient_friendly": "pleuritic"
+          },
+          {
+            "medical": "worse with breathing",
+            "patient_friendly": "worse with breathing"
+          }
         ],
         "excludes": [
-          "crushing pressure",
-          "exertional",
-          "dull",
-          "not worse with breathing"
+          {
+            "medical": "crushing pressure",
+            "patient_friendly": "crushing pressure"
+          },
+          {
+            "medical": "exertional",
+            "patient_friendly": "exertional"
+          },
+          {
+            "medical": "dull",
+            "patient_friendly": "dull or achy"
+          },
+          {
+            "medical": "not worse with breathing",
+            "patient_friendly": "not worse with breathing"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "deep inspiration",
-          "cough",
-          "chest movement",
-          "breathing"
+          {
+            "medical": "deep inspiration",
+            "patient_friendly": "taking deep breaths"
+          },
+          {
+            "medical": "cough",
+            "patient_friendly": "coughing"
+          },
+          {
+            "medical": "chest movement",
+            "patient_friendly": "chest movement"
+          },
+          {
+            "medical": "breathing",
+            "patient_friendly": "breathing"
+          }
         ],
         "excludes": [
-          "splinting chest",
-          "shallow breathing",
-          "lying on affected side"
+          {
+            "medical": "splinting chest",
+            "patient_friendly": "splinting chest"
+          },
+          {
+            "medical": "shallow breathing",
+            "patient_friendly": "shallow breathing"
+          },
+          {
+            "medical": "lying on affected side",
+            "patient_friendly": "lying on affected side"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "splinting chest",
-          "shallow breathing",
-          "lying on affected side"
+          {
+            "medical": "splinting chest",
+            "patient_friendly": "splinting chest"
+          },
+          {
+            "medical": "shallow breathing",
+            "patient_friendly": "shallow breathing"
+          },
+          {
+            "medical": "lying on affected side",
+            "patient_friendly": "lying on affected side"
+          }
         ],
         "excludes": [
-          "deep inspiration",
-          "cough",
-          "chest movement"
+          {
+            "medical": "deep inspiration",
+            "patient_friendly": "taking deep breaths"
+          },
+          {
+            "medical": "cough",
+            "patient_friendly": "coughing"
+          },
+          {
+            "medical": "chest movement",
+            "patient_friendly": "chest movement"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "constant but fluctuates with breathing",
-          "continuous"
+          {
+            "medical": "constant but fluctuates with breathing",
+            "patient_friendly": "constant but fluctuates with breathing"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "5-8/10",
-          "5",
-          "6",
-          "7",
-          "8",
-          "with deep breath"
+          {
+            "medical": "5-8/10",
+            "patient_friendly": "5-8/10"
+          },
+          {
+            "medical": "5",
+            "patient_friendly": "5 out of 10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "with deep breath",
+            "patient_friendly": "with deep breath"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-4/10",
-          "severe",
-          "9-10/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-4/10",
+            "patient_friendly": "1-4/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "9-10/10",
+            "patient_friendly": "9-10/10"
+          }
         ]
       }
     }
   },
   "red_flags": [
-    "Fever >101°F (suggests pneumonia)",
+    "Fever >101\u00b0F (suggests pneumonia)",
     "Hypoxia",
     "Hemoptysis (coughing blood)",
     "Unilateral leg swelling (pulmonary embolism (PE) risk)",
@@ -126,4 +288,3 @@
     "Persistent despite treatment"
   ]
 }
-

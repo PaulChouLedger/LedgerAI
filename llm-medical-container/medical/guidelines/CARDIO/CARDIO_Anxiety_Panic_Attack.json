@@ -16,104 +16,266 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "often with anxiety",
-          "stress trigger"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "often with anxiety",
+            "patient_friendly": "often with anxiety"
+          },
+          {
+            "medical": "stress trigger",
+            "patient_friendly": "stress trigger"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "slow onset"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          }
         ]
       },
       "location": {
         "includes": [
-          "chest",
-          "variable location",
-          "can be diffuse",
-          "left-sided"
+          {
+            "medical": "chest",
+            "patient_friendly": "chest area"
+          },
+          {
+            "medical": "variable location",
+            "patient_friendly": "variable location"
+          },
+          {
+            "medical": "can be diffuse",
+            "patient_friendly": "can be diffuse"
+          },
+          {
+            "medical": "left-sided",
+            "patient_friendly": "left-sided"
+          }
         ],
         "excludes": [
-          "exertional pattern",
-          "cardiac risk factors",
-          "reproducible with palpation"
+          {
+            "medical": "exertional pattern",
+            "patient_friendly": "exertional pattern"
+          },
+          {
+            "medical": "cardiac risk factors",
+            "patient_friendly": "cardiac risk factors"
+          },
+          {
+            "medical": "reproducible with palpation",
+            "patient_friendly": "reproducible with palpation"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "minutes to hours",
-          "typically peaks at 10 minutes",
-          "variable"
+          {
+            "medical": "minutes to hours",
+            "patient_friendly": "minutes to hours"
+          },
+          {
+            "medical": "typically peaks at 10 minutes",
+            "patient_friendly": "typically peaks at 10 minutes"
+          },
+          {
+            "medical": "variable",
+            "patient_friendly": "variable"
+          }
         ],
         "excludes": [
-          "continuous",
-          "unrelenting",
-          "days"
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          }
         ]
       },
       "character": {
         "includes": [
-          "sharp",
-          "vague discomfort",
-          "can't catch breath",
-          "chest tightness"
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "vague discomfort",
+            "patient_friendly": "vague discomfort"
+          },
+          {
+            "medical": "can't catch breath",
+            "patient_friendly": "can't catch breath"
+          },
+          {
+            "medical": "chest tightness",
+            "patient_friendly": "tightness in your chest"
+          }
         ],
         "excludes": [
-          "exertional pattern",
-          "cardiac risk factors",
-          "reproducible with palpation"
+          {
+            "medical": "exertional pattern",
+            "patient_friendly": "exertional pattern"
+          },
+          {
+            "medical": "cardiac risk factors",
+            "patient_friendly": "cardiac risk factors"
+          },
+          {
+            "medical": "reproducible with palpation",
+            "patient_friendly": "reproducible with palpation"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "anxiety",
-          "stress",
-          "hyperventilation"
+          {
+            "medical": "anxiety",
+            "patient_friendly": "anxiety"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          },
+          {
+            "medical": "hyperventilation",
+            "patient_friendly": "hyperventilation"
+          }
         ],
         "excludes": [
-          "reassurance",
-          "breathing exercises",
-          "anxiolytics"
+          {
+            "medical": "reassurance",
+            "patient_friendly": "reassurance"
+          },
+          {
+            "medical": "breathing exercises",
+            "patient_friendly": "breathing exercises"
+          },
+          {
+            "medical": "anxiolytics",
+            "patient_friendly": "anxiolytics"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "reassurance",
-          "breathing exercises",
-          "anxiolytics"
+          {
+            "medical": "reassurance",
+            "patient_friendly": "reassurance"
+          },
+          {
+            "medical": "breathing exercises",
+            "patient_friendly": "breathing exercises"
+          },
+          {
+            "medical": "anxiolytics",
+            "patient_friendly": "anxiolytics"
+          }
         ],
         "excludes": [
-          "anxiety",
-          "stress",
-          "hyperventilation"
+          {
+            "medical": "anxiety",
+            "patient_friendly": "anxiety"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          },
+          {
+            "medical": "hyperventilation",
+            "patient_friendly": "hyperventilation"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "episodic",
-          "associated with stress",
-          "associated with anxiety"
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "associated with stress",
+            "patient_friendly": "associated with stress"
+          },
+          {
+            "medical": "associated with anxiety",
+            "patient_friendly": "associated with anxiety"
+          }
         ],
         "excludes": [
-          "constant",
-          "unrelenting",
-          "continuous"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "5-8/10",
-          "5",
-          "6",
-          "7",
-          "8",
-          "subjectively but benign objectively"
+          {
+            "medical": "5-8/10",
+            "patient_friendly": "5-8/10"
+          },
+          {
+            "medical": "5",
+            "patient_friendly": "5 out of 10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "subjectively but benign objectively",
+            "patient_friendly": "subjectively but benign objectively"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-4/10",
-          "severe",
-          "9-10/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-4/10",
+            "patient_friendly": "1-4/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "9-10/10",
+            "patient_friendly": "9-10/10"
+          }
         ]
       }
     }
@@ -128,4 +290,3 @@
     "First episode ever in older patient"
   ]
 }
-

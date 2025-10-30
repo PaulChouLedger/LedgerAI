@@ -19,115 +19,310 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "gradual",
-          "months to years",
-          "slow onset",
-          "progressive"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "months to years",
+            "patient_friendly": "months to years"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ],
         "excludes": [
-          "sudden",
-          "acute",
-          "immediate",
-          "hours"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          }
         ]
       },
       "location": {
         "includes": [
-          "generalized symptoms",
-          "diffuse",
-          "whole body",
-          "bilateral"
+          {
+            "medical": "generalized symptoms",
+            "patient_friendly": "generalized symptoms"
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "diffuse"
+          },
+          {
+            "medical": "whole body",
+            "patient_friendly": "whole body"
+          },
+          {
+            "medical": "bilateral",
+            "patient_friendly": "on both sides"
+          }
         ],
         "excludes": [
-          "localized",
-          "focal",
-          "specific area",
-          "unilateral"
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "focal",
+            "patient_friendly": "focal"
+          },
+          {
+            "medical": "specific area",
+            "patient_friendly": "specific area"
+          },
+          {
+            "medical": "unilateral",
+            "patient_friendly": "unilateral"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "chronic progressive",
-          "ongoing",
-          "persistent",
-          "worsening"
+          {
+            "medical": "chronic progressive",
+            "patient_friendly": "chronic progressive"
+          },
+          {
+            "medical": "ongoing",
+            "patient_friendly": "ongoing"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "worsening",
+            "patient_friendly": "worsening"
+          }
         ],
         "excludes": [
-          "acute",
-          "brief",
-          "transient",
-          "intermittent"
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "brief",
+            "patient_friendly": "for a short time"
+          },
+          {
+            "medical": "transient",
+            "patient_friendly": "transient"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "chorea",
-          "cognitive decline",
-          "behavioral changes",
-          "mild to moderate"
+          {
+            "medical": "chorea",
+            "patient_friendly": "chorea"
+          },
+          {
+            "medical": "cognitive decline",
+            "patient_friendly": "cognitive decline"
+          },
+          {
+            "medical": "behavioral changes",
+            "patient_friendly": "behavioral changes"
+          },
+          {
+            "medical": "mild to moderate",
+            "patient_friendly": "mild to moderate"
+          }
         ],
         "excludes": [
-          "severe",
-          "focal deficits",
-          "localized",
-          "acute"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "focal deficits",
+            "patient_friendly": "focal deficits"
+          },
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "stress",
-          "fatigue",
-          "medication changes",
-          "triggers"
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          },
+          {
+            "medical": "fatigue",
+            "patient_friendly": "feeling very tired"
+          },
+          {
+            "medical": "medication changes",
+            "patient_friendly": "medication changes"
+          },
+          {
+            "medical": "triggers",
+            "patient_friendly": "triggers"
+          }
         ],
         "excludes": [
-          "supportive care",
-          "medications",
-          "rest",
-          "treatment"
+          {
+            "medical": "supportive care",
+            "patient_friendly": "supportive care"
+          },
+          {
+            "medical": "medications",
+            "patient_friendly": "medications"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "treatment",
+            "patient_friendly": "treatment"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "supportive care",
-          "medications",
-          "rest",
-          "treatment"
+          {
+            "medical": "supportive care",
+            "patient_friendly": "supportive care"
+          },
+          {
+            "medical": "medications",
+            "patient_friendly": "medications"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "treatment",
+            "patient_friendly": "treatment"
+          }
         ],
         "excludes": [
-          "stress",
-          "fatigue",
-          "medication changes",
-          "triggers"
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          },
+          {
+            "medical": "fatigue",
+            "patient_friendly": "feeling very tired"
+          },
+          {
+            "medical": "medication changes",
+            "patient_friendly": "medication changes"
+          },
+          {
+            "medical": "triggers",
+            "patient_friendly": "triggers"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "chronic progressive",
-          "worsening over time",
-          "continuous"
+          {
+            "medical": "chronic progressive",
+            "patient_friendly": "chronic progressive"
+          },
+          {
+            "medical": "worsening over time",
+            "patient_friendly": "worsening over time"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "mild to moderate",
-          "3-7/10",
-          "3",
-          "4",
-          "5",
-          "6",
-          "7"
+          {
+            "medical": "mild to moderate",
+            "patient_friendly": "mild to moderate"
+          },
+          {
+            "medical": "3-7/10",
+            "patient_friendly": "3-7/10"
+          },
+          {
+            "medical": "3",
+            "patient_friendly": "3 out of 10"
+          },
+          {
+            "medical": "4",
+            "patient_friendly": "4 out of 10"
+          },
+          {
+            "medical": "5",
+            "patient_friendly": "5 out of 10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          }
         ],
         "excludes": [
-          "severe",
-          "8-10/10",
-          "mild",
-          "1-2/10"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "8-10/10",
+            "patient_friendly": "8-10/10"
+          },
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-2/10",
+            "patient_friendly": "1-2/10"
+          }
         ]
       }
     }

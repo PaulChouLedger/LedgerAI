@@ -15,106 +15,274 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "gradual",
-          "over hours to days",
-          "post-viral illness"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "over hours to days",
+            "patient_friendly": "over hours to days"
+          },
+          {
+            "medical": "post-viral illness",
+            "patient_friendly": "post-viral illness"
+          }
         ],
         "excludes": [
-          "sudden",
-          "acute",
-          "minutes"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          }
         ]
       },
       "location": {
         "includes": [
-          "retrosternal",
-          "left precordial",
-          "over heart",
-          "radiates to trapezius ridge",
-          "radiates to shoulder",
-          "radiates to neck"
+          {
+            "medical": "retrosternal",
+            "patient_friendly": "retrosternal"
+          },
+          {
+            "medical": "left precordial",
+            "patient_friendly": "left precordial"
+          },
+          {
+            "medical": "over heart",
+            "patient_friendly": "over heart"
+          },
+          {
+            "medical": "radiates to trapezius ridge",
+            "patient_friendly": "radiates to trapezius ridge"
+          },
+          {
+            "medical": "radiates to shoulder",
+            "patient_friendly": "spreads to your shoulder"
+          },
+          {
+            "medical": "radiates to neck",
+            "patient_friendly": "spreads to your neck"
+          }
         ],
         "excludes": [
-          "right side only",
-          "no radiation",
-          "localized point"
+          {
+            "medical": "right side only",
+            "patient_friendly": "right side only"
+          },
+          {
+            "medical": "no radiation",
+            "patient_friendly": "no radiation"
+          },
+          {
+            "medical": "localized point",
+            "patient_friendly": "localized point"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "continuous",
-          "hours to days",
-          "persistent"
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "hours to days",
+            "patient_friendly": "hours to days"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "sharp",
-          "pleuritic",
-          "worse with breathing",
-          "stabbing"
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "pleuritic",
+            "patient_friendly": "pleuritic"
+          },
+          {
+            "medical": "worse with breathing",
+            "patient_friendly": "worse with breathing"
+          },
+          {
+            "medical": "stabbing",
+            "patient_friendly": "sharp or stabbing"
+          }
         ],
         "excludes": [
-          "crushing",
-          "pressure",
-          "dull",
-          "not worse with breathing"
+          {
+            "medical": "crushing",
+            "patient_friendly": "crushing or squeezing"
+          },
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure or heaviness"
+          },
+          {
+            "medical": "dull",
+            "patient_friendly": "dull or achy"
+          },
+          {
+            "medical": "not worse with breathing",
+            "patient_friendly": "not worse with breathing"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "deep inspiration",
-          "lying flat",
-          "cough",
-          "breathing"
+          {
+            "medical": "deep inspiration",
+            "patient_friendly": "taking deep breaths"
+          },
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying flat on your back"
+          },
+          {
+            "medical": "cough",
+            "patient_friendly": "coughing"
+          },
+          {
+            "medical": "breathing",
+            "patient_friendly": "breathing"
+          }
         ],
         "excludes": [
-          "sitting up",
-          "leaning forward",
-          "rest"
+          {
+            "medical": "sitting up",
+            "patient_friendly": "sitting up"
+          },
+          {
+            "medical": "leaning forward",
+            "patient_friendly": "leaning forward"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "sitting up",
-          "leaning forward",
-          "positional relief"
+          {
+            "medical": "sitting up",
+            "patient_friendly": "sitting up"
+          },
+          {
+            "medical": "leaning forward",
+            "patient_friendly": "leaning forward"
+          },
+          {
+            "medical": "positional relief",
+            "patient_friendly": "positional relief"
+          }
         ],
         "excludes": [
-          "lying flat",
-          "deep inspiration",
-          "cough"
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying flat on your back"
+          },
+          {
+            "medical": "deep inspiration",
+            "patient_friendly": "taking deep breaths"
+          },
+          {
+            "medical": "cough",
+            "patient_friendly": "coughing"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "constant",
-          "fluctuates with position",
-          "fluctuates with breathing"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "fluctuates with position",
+            "patient_friendly": "fluctuates with position"
+          },
+          {
+            "medical": "fluctuates with breathing",
+            "patient_friendly": "fluctuates with breathing"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "6-8/10",
-          "6",
-          "7",
-          "8"
+          {
+            "medical": "6-8/10",
+            "patient_friendly": "6-8/10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-5/10",
-          "severe",
-          "9-10/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-5/10",
+            "patient_friendly": "1-5/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "9-10/10",
+            "patient_friendly": "9-10/10"
+          }
         ]
       }
     }
@@ -130,4 +298,3 @@
     "Jugular venous distension"
   ]
 }
-

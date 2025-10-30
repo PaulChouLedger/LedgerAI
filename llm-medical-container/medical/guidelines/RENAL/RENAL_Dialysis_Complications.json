@@ -19,17 +19,44 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "acute",
-          "immediate",
-          "minutes",
-          "hours",
-          "days",
-          "weeks"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          },
+          {
+            "medical": "weeks",
+            "patient_friendly": "for several weeks"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
         ]
       },
       "location": {
@@ -38,40 +65,67 @@
       },
       "duration": {
         "includes": [
-          "progressive"
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ],
         "excludes": []
       },
       "character": {
         "includes": [
-          "severe",
-          "swelling"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "swelling",
+            "patient_friendly": "swelling or puffiness"
+          }
         ],
         "excludes": []
       },
       "aggravating": {
         "includes": [
-          "movement",
-          "medications"
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "medications",
+            "patient_friendly": "medications"
+          }
         ],
         "excludes": []
       },
       "relieving": {
         "includes": [
-          "dialysis"
+          {
+            "medical": "dialysis",
+            "patient_friendly": "dialysis"
+          }
         ],
         "excludes": []
       },
       "timing": {
         "includes": [
-          "progressive"
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ],
         "excludes": []
       },
       "severity": {
         "includes": [
-          "6-9/10",
-          "moderate to severe"
+          {
+            "medical": "6-9/10",
+            "patient_friendly": "6-9/10"
+          },
+          {
+            "medical": "moderate to severe",
+            "patient_friendly": "moderate to severe"
+          }
         ],
         "excludes": []
       }

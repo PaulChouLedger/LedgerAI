@@ -17,106 +17,274 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "gradual over years",
-          "acute exacerbations",
-          "progressive"
+          {
+            "medical": "gradual over years",
+            "patient_friendly": "gradual over years"
+          },
+          {
+            "medical": "acute exacerbations",
+            "patient_friendly": "acute exacerbations"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ],
         "excludes": [
-          "sudden",
-          "acute",
-          "minutes"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          }
         ]
       },
       "location": {
         "includes": [
-          "bilateral",
-          "diffuse"
+          {
+            "medical": "bilateral",
+            "patient_friendly": "on both sides"
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "diffuse"
+          }
         ],
         "excludes": [
-          "localized",
-          "one side only",
-          "specific point"
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "one side only",
+            "patient_friendly": "one side only"
+          },
+          {
+            "medical": "specific point",
+            "patient_friendly": "specific point"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "chronic with acute exacerbations",
-          "lasting days to weeks",
-          "ongoing"
+          {
+            "medical": "chronic with acute exacerbations",
+            "patient_friendly": "chronic with acute exacerbations"
+          },
+          {
+            "medical": "lasting days to weeks",
+            "patient_friendly": "lasting days to weeks"
+          },
+          {
+            "medical": "ongoing",
+            "patient_friendly": "ongoing"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "dyspnea",
-          "chest tightness",
-          "productive cough"
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "dyspnea"
+          },
+          {
+            "medical": "chest tightness",
+            "patient_friendly": "tightness in your chest"
+          },
+          {
+            "medical": "productive cough",
+            "patient_friendly": "productive cough"
+          }
         ],
         "excludes": [
-          "no chest pain",
-          "no fever",
-          "sharp",
-          "stabbing"
+          {
+            "medical": "no chest pain",
+            "patient_friendly": "no chest pain"
+          },
+          {
+            "medical": "no fever",
+            "patient_friendly": "no fever"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "stabbing",
+            "patient_friendly": "sharp or stabbing"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "infections",
-          "cold air",
-          "exertion",
-          "smoking"
+          {
+            "medical": "infections",
+            "patient_friendly": "infections"
+          },
+          {
+            "medical": "cold air",
+            "patient_friendly": "cold air"
+          },
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          },
+          {
+            "medical": "smoking",
+            "patient_friendly": "smoking"
+          }
         ],
         "excludes": [
-          "bronchodilators",
-          "oxygen",
-          "steroids",
-          "antibiotics"
+          {
+            "medical": "bronchodilators",
+            "patient_friendly": "bronchodilators"
+          },
+          {
+            "medical": "oxygen",
+            "patient_friendly": "breathing oxygen"
+          },
+          {
+            "medical": "steroids",
+            "patient_friendly": "steroids"
+          },
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "antibiotics"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "bronchodilators",
-          "oxygen",
-          "steroids",
-          "antibiotics"
+          {
+            "medical": "bronchodilators",
+            "patient_friendly": "bronchodilators"
+          },
+          {
+            "medical": "oxygen",
+            "patient_friendly": "breathing oxygen"
+          },
+          {
+            "medical": "steroids",
+            "patient_friendly": "steroids"
+          },
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "antibiotics"
+          }
         ],
         "excludes": [
-          "infections",
-          "cold air",
-          "exertion",
-          "smoking"
+          {
+            "medical": "infections",
+            "patient_friendly": "infections"
+          },
+          {
+            "medical": "cold air",
+            "patient_friendly": "cold air"
+          },
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          },
+          {
+            "medical": "smoking",
+            "patient_friendly": "smoking"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "chronic baseline with acute worsening",
-          "continuous"
+          {
+            "medical": "chronic baseline with acute worsening",
+            "patient_friendly": "chronic baseline with acute worsening"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "moderate to severe",
-          "5-9/10",
-          "5",
-          "6",
-          "7",
-          "8",
-          "9"
+          {
+            "medical": "moderate to severe",
+            "patient_friendly": "moderate to severe"
+          },
+          {
+            "medical": "5-9/10",
+            "patient_friendly": "5-9/10"
+          },
+          {
+            "medical": "5",
+            "patient_friendly": "5 out of 10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "9",
+            "patient_friendly": "9 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-4/10",
-          "severe",
-          "10/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-4/10",
+            "patient_friendly": "1-4/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "10/10",
+            "patient_friendly": "10/10"
+          }
         ]
       }
     }

@@ -15,114 +15,276 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL onset over 24-48 hours, often following skin break (cut, scrape, insect bite). LOCATION: Lower extremities most common, but can occur anywhere. DURATION: Progressive over 24-48 hours, may worsen rapidly. CHARACTER: ERYTHEMATOUS (red), WARM, TENDER, EDEMATOUS (swollen) skin. AGGRAVATING: TOUCH, pressure, movement. RELIEVING: ELEVATION, cool compresses, antibiotics. TIMING: Progressive over 24-48 hours, may spread rapidly. SEVERITY: 5-9/10 pain, moderate to severe. ASSOCIATED SYMPTOMS: FEVER (100-102°F), chills, malaise, lymphangitis (red streaks), lymphadenopathy (swollen lymph nodes), may have purulent drainage. KEY POSITIVES: Erythema, warmth, tenderness, edema, fever, lymphangitis. KEY NEGATIVES: No crepitus (rules out necrotizing fasciitis), no bullae or skin necrosis, no systemic shock.",
+    "classic_presentation": "ONSET: GRADUAL onset over 24-48 hours, often following skin break (cut, scrape, insect bite). LOCATION: Lower extremities most common, but can occur anywhere. DURATION: Progressive over 24-48 hours, may worsen rapidly. CHARACTER: ERYTHEMATOUS (red), WARM, TENDER, EDEMATOUS (swollen) skin. AGGRAVATING: TOUCH, pressure, movement. RELIEVING: ELEVATION, cool compresses, antibiotics. TIMING: Progressive over 24-48 hours, may spread rapidly. SEVERITY: 5-9/10 pain, moderate to severe. ASSOCIATED SYMPTOMS: FEVER (100-102\u00b0F), chills, malaise, lymphangitis (red streaks), lymphadenopathy (swollen lymph nodes), may have purulent drainage. KEY POSITIVES: Erythema, warmth, tenderness, edema, fever, lymphangitis. KEY NEGATIVES: No crepitus (rules out necrotizing fasciitis), no bullae or skin necrosis, no systemic shock.",
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "gradual",
-          "24-48 hours",
-          "following skin break",
-          "cut",
-          "scrape",
-          "insect bite"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "24-48 hours",
+            "patient_friendly": "24-48 hours"
+          },
+          {
+            "medical": "following skin break",
+            "patient_friendly": "following skin break"
+          },
+          {
+            "medical": "cut",
+            "patient_friendly": "cut"
+          },
+          {
+            "medical": "scrape",
+            "patient_friendly": "scrape"
+          },
+          {
+            "medical": "insect bite",
+            "patient_friendly": "insect bite"
+          }
         ],
         "excludes": [
-          "sudden",
-          "immediate",
-          "chronic"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
         ]
       },
       "location": {
         "includes": [
-          "lower extremities",
-          "anywhere",
-          "skin",
-          "cutaneous"
+          {
+            "medical": "lower extremities",
+            "patient_friendly": "lower extremities"
+          },
+          {
+            "medical": "anywhere",
+            "patient_friendly": "anywhere"
+          },
+          {
+            "medical": "skin",
+            "patient_friendly": "skin"
+          },
+          {
+            "medical": "cutaneous",
+            "patient_friendly": "cutaneous"
+          }
         ],
         "excludes": [
-          "internal organs",
-          "deep tissues"
+          {
+            "medical": "internal organs",
+            "patient_friendly": "internal organs"
+          },
+          {
+            "medical": "deep tissues",
+            "patient_friendly": "deep tissues"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "progressive",
-          "24-48 hours",
-          "may worsen rapidly"
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          },
+          {
+            "medical": "24-48 hours",
+            "patient_friendly": "24-48 hours"
+          },
+          {
+            "medical": "may worsen rapidly",
+            "patient_friendly": "may worsen rapidly"
+          }
         ],
         "excludes": [
-          "chronic",
-          "months",
-          "years"
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "months",
+            "patient_friendly": "for several months"
+          },
+          {
+            "medical": "years",
+            "patient_friendly": "for several years"
+          }
         ]
       },
       "character": {
         "includes": [
-          "erythematous",
-          "red",
-          "warm",
-          "tender",
-          "edematous",
-          "swollen"
+          {
+            "medical": "erythematous",
+            "patient_friendly": "erythematous"
+          },
+          {
+            "medical": "red",
+            "patient_friendly": "red"
+          },
+          {
+            "medical": "warm",
+            "patient_friendly": "warm"
+          },
+          {
+            "medical": "tender",
+            "patient_friendly": "tender"
+          },
+          {
+            "medical": "edematous",
+            "patient_friendly": "edematous"
+          },
+          {
+            "medical": "swollen",
+            "patient_friendly": "swollen"
+          }
         ],
         "excludes": [
-          "pale",
-          "cool",
-          "non-tender",
-          "normal skin"
+          {
+            "medical": "pale",
+            "patient_friendly": "pale"
+          },
+          {
+            "medical": "cool",
+            "patient_friendly": "cool"
+          },
+          {
+            "medical": "non-tender",
+            "patient_friendly": "non-tender"
+          },
+          {
+            "medical": "normal skin",
+            "patient_friendly": "normal skin"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "touch",
-          "pressure",
-          "movement"
+          {
+            "medical": "touch",
+            "patient_friendly": "touch"
+          },
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure or heaviness"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          }
         ],
         "excludes": [
-          "rest",
-          "immobilization"
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "immobilization",
+            "patient_friendly": "immobilization"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "elevation",
-          "cool compresses",
-          "antibiotics"
+          {
+            "medical": "elevation",
+            "patient_friendly": "elevation"
+          },
+          {
+            "medical": "cool compresses",
+            "patient_friendly": "cool compresses"
+          },
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "antibiotics"
+          }
         ],
         "excludes": [
-          "heat",
-          "massage",
-          "movement"
+          {
+            "medical": "heat",
+            "patient_friendly": "applying heat"
+          },
+          {
+            "medical": "massage",
+            "patient_friendly": "massaging the area"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "progressive",
-          "24-48 hours",
-          "may spread rapidly"
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          },
+          {
+            "medical": "24-48 hours",
+            "patient_friendly": "24-48 hours"
+          },
+          {
+            "medical": "may spread rapidly",
+            "patient_friendly": "may spread rapidly"
+          }
         ],
         "excludes": [
-          "constant",
-          "intermittent",
-          "chronic"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "5-9/10",
-          "moderate",
-          "severe"
+          {
+            "medical": "5-9/10",
+            "patient_friendly": "5-9/10"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-4/10",
-          "asymptomatic"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-4/10",
+            "patient_friendly": "1-4/10"
+          },
+          {
+            "medical": "asymptomatic",
+            "patient_friendly": "asymptomatic"
+          }
         ]
       }
     }
   },
   "red_flags": [
-    "High fever >102°F with rigors - possible sepsis, call 911",
+    "High fever >102\u00b0F with rigors - possible sepsis, call 911",
     "Rapidly spreading redness with severe pain - possible necrotizing fasciitis, call 911",
     "Bullae, skin necrosis, or crepitus - necrotizing fasciitis, call 911",
     "Severe systemic symptoms - hypotension, tachycardia, altered mental status - sepsis, call 911",

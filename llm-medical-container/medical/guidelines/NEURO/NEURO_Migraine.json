@@ -19,111 +19,294 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "gradual",
-          "minutes to hours",
-          "slow onset",
-          "progressive"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "minutes to hours",
+            "patient_friendly": "minutes to hours"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ],
         "excludes": [
-          "sudden",
-          "acute",
-          "immediate",
-          "seconds"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          },
+          {
+            "medical": "seconds",
+            "patient_friendly": "seconds"
+          }
         ]
       },
       "location": {
         "includes": [
-          "unilateral",
-          "bilateral",
-          "one side",
-          "both sides"
+          {
+            "medical": "unilateral",
+            "patient_friendly": "unilateral"
+          },
+          {
+            "medical": "bilateral",
+            "patient_friendly": "on both sides"
+          },
+          {
+            "medical": "one side",
+            "patient_friendly": "one side"
+          },
+          {
+            "medical": "both sides",
+            "patient_friendly": "both sides"
+          }
         ],
         "excludes": [
-          "localized",
-          "specific point",
-          "focal"
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "specific point",
+            "patient_friendly": "specific point"
+          },
+          {
+            "medical": "focal",
+            "patient_friendly": "focal"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "4-72 hours",
-          "hours",
-          "prolonged"
+          {
+            "medical": "4-72 hours",
+            "patient_friendly": "4-72 hours"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "prolonged",
+            "patient_friendly": "for a long time"
+          }
         ],
         "excludes": [
-          "minutes",
-          "seconds",
-          "brief"
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          },
+          {
+            "medical": "seconds",
+            "patient_friendly": "seconds"
+          },
+          {
+            "medical": "brief",
+            "patient_friendly": "for a short time"
+          }
         ]
       },
       "character": {
         "includes": [
-          "throbbing",
-          "pulsating",
-          "moderate to severe",
-          "intense"
+          {
+            "medical": "throbbing",
+            "patient_friendly": "throbbing or pulsing"
+          },
+          {
+            "medical": "pulsating",
+            "patient_friendly": "pulsating"
+          },
+          {
+            "medical": "moderate to severe",
+            "patient_friendly": "moderate to severe"
+          },
+          {
+            "medical": "intense",
+            "patient_friendly": "intense"
+          }
         ],
         "excludes": [
-          "dull",
-          "aching",
-          "mild",
-          "pressure-like"
+          {
+            "medical": "dull",
+            "patient_friendly": "dull or achy"
+          },
+          {
+            "medical": "aching",
+            "patient_friendly": "achy or sore"
+          },
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "pressure-like",
+            "patient_friendly": "pressure-like"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "light",
-          "sound",
-          "movement",
-          "stress"
+          {
+            "medical": "light",
+            "patient_friendly": "light"
+          },
+          {
+            "medical": "sound",
+            "patient_friendly": "sound"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          }
         ],
         "excludes": [
-          "dark",
-          "quiet room",
-          "sleep",
-          "medications"
+          {
+            "medical": "dark",
+            "patient_friendly": "dark"
+          },
+          {
+            "medical": "quiet room",
+            "patient_friendly": "quiet room"
+          },
+          {
+            "medical": "sleep",
+            "patient_friendly": "sleep"
+          },
+          {
+            "medical": "medications",
+            "patient_friendly": "medications"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "dark",
-          "quiet room",
-          "sleep",
-          "medications"
+          {
+            "medical": "dark",
+            "patient_friendly": "dark"
+          },
+          {
+            "medical": "quiet room",
+            "patient_friendly": "quiet room"
+          },
+          {
+            "medical": "sleep",
+            "patient_friendly": "sleep"
+          },
+          {
+            "medical": "medications",
+            "patient_friendly": "medications"
+          }
         ],
         "excludes": [
-          "light",
-          "sound",
-          "movement",
-          "stress"
+          {
+            "medical": "light",
+            "patient_friendly": "light"
+          },
+          {
+            "medical": "sound",
+            "patient_friendly": "sound"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "gradual onset",
-          "prolonged",
-          "episodic"
+          {
+            "medical": "gradual onset",
+            "patient_friendly": "gradual onset"
+          },
+          {
+            "medical": "prolonged",
+            "patient_friendly": "for a long time"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          }
         ],
         "excludes": [
-          "sudden",
-          "continuous",
-          "unrelenting"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "moderate to severe",
-          "6-9/10",
-          "6",
-          "7",
-          "8",
-          "9"
+          {
+            "medical": "moderate to severe",
+            "patient_friendly": "moderate to severe"
+          },
+          {
+            "medical": "6-9/10",
+            "patient_friendly": "6-9/10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "9",
+            "patient_friendly": "9 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-5/10",
-          "severe",
-          "10/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-5/10",
+            "patient_friendly": "1-5/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "10/10",
+            "patient_friendly": "10/10"
+          }
         ]
       }
     }

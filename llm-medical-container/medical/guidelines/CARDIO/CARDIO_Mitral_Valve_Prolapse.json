@@ -16,99 +16,246 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "episodic",
-          "often asymptomatic",
-          "discovered incidentally"
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "often asymptomatic",
+            "patient_friendly": "often asymptomatic"
+          },
+          {
+            "medical": "discovered incidentally",
+            "patient_friendly": "discovered incidentally"
+          }
         ],
         "excludes": [
-          "sudden",
-          "acute",
-          "minutes"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          }
         ]
       },
       "location": {
         "includes": [
-          "left chest",
-          "precordial"
+          {
+            "medical": "left chest",
+            "patient_friendly": "left side of your chest"
+          },
+          {
+            "medical": "precordial",
+            "patient_friendly": "precordial"
+          }
         ],
         "excludes": [
-          "right side only",
-          "no radiation",
-          "localized point"
+          {
+            "medical": "right side only",
+            "patient_friendly": "right side only"
+          },
+          {
+            "medical": "no radiation",
+            "patient_friendly": "no radiation"
+          },
+          {
+            "medical": "localized point",
+            "patient_friendly": "localized point"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "brief episodes",
-          "short duration"
+          {
+            "medical": "brief episodes",
+            "patient_friendly": "brief episodes"
+          },
+          {
+            "medical": "short duration",
+            "patient_friendly": "short duration"
+          }
         ],
         "excludes": [
-          "continuous",
-          "unrelenting",
-          "hours"
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          }
         ]
       },
       "character": {
         "includes": [
-          "sharp",
-          "brief",
-          "atypical chest pain",
-          "not typical angina",
-          "palpitations"
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "brief",
+            "patient_friendly": "for a short time"
+          },
+          {
+            "medical": "atypical chest pain",
+            "patient_friendly": "atypical chest pain"
+          },
+          {
+            "medical": "not typical angina",
+            "patient_friendly": "not typical angina"
+          },
+          {
+            "medical": "palpitations",
+            "patient_friendly": "palpitations"
+          }
         ],
         "excludes": [
-          "exertional angina",
-          "dyspnea",
-          "crushing",
-          "pressure"
+          {
+            "medical": "exertional angina",
+            "patient_friendly": "exertional angina"
+          },
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "dyspnea"
+          },
+          {
+            "medical": "crushing",
+            "patient_friendly": "crushing or squeezing"
+          },
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure or heaviness"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "anxiety",
-          "caffeine",
-          "dehydration"
+          {
+            "medical": "anxiety",
+            "patient_friendly": "anxiety"
+          },
+          {
+            "medical": "caffeine",
+            "patient_friendly": "caffeine"
+          },
+          {
+            "medical": "dehydration",
+            "patient_friendly": "dehydration"
+          }
         ],
         "excludes": [
-          "rest",
-          "beta-blockers",
-          "medication"
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "beta-blockers",
+            "patient_friendly": "beta-blockers"
+          },
+          {
+            "medical": "medication",
+            "patient_friendly": "medication"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "rest",
-          "beta-blockers"
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "beta-blockers",
+            "patient_friendly": "beta-blockers"
+          }
         ],
         "excludes": [
-          "anxiety",
-          "caffeine",
-          "dehydration"
+          {
+            "medical": "anxiety",
+            "patient_friendly": "anxiety"
+          },
+          {
+            "medical": "caffeine",
+            "patient_friendly": "caffeine"
+          },
+          {
+            "medical": "dehydration",
+            "patient_friendly": "dehydration"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "episodic",
-          "unpredictable"
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "unpredictable",
+            "patient_friendly": "unpredictable"
+          }
         ],
         "excludes": [
-          "constant",
-          "unrelenting",
-          "continuous"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "mild",
-          "2-4/10",
-          "2",
-          "3",
-          "4"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "2-4/10",
+            "patient_friendly": "2-4/10"
+          },
+          {
+            "medical": "2",
+            "patient_friendly": "2 out of 10"
+          },
+          {
+            "medical": "3",
+            "patient_friendly": "3 out of 10"
+          },
+          {
+            "medical": "4",
+            "patient_friendly": "4 out of 10"
+          }
         ],
         "excludes": [
-          "moderate",
-          "5-10/10",
-          "severe"
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "5-10/10",
+            "patient_friendly": "5-10/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
         ]
       }
     }
@@ -123,4 +270,3 @@
     "Family history of sudden cardiac death"
   ]
 }
-

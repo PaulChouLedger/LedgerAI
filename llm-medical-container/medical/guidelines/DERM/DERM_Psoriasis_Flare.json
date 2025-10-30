@@ -19,54 +19,117 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "gradual",
-          "progressive",
-          "days",
-          "weeks"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          },
+          {
+            "medical": "weeks",
+            "patient_friendly": "for several weeks"
+          }
         ],
         "excludes": [
-          "sudden",
-          "immediate"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          }
         ]
       },
       "location": {
         "includes": [
-          "anywhere",
-          "generalized",
-          "face"
+          {
+            "medical": "anywhere",
+            "patient_friendly": "anywhere"
+          },
+          {
+            "medical": "generalized",
+            "patient_friendly": "generalized"
+          },
+          {
+            "medical": "face",
+            "patient_friendly": "face"
+          }
         ],
         "excludes": []
       },
       "duration": {
         "includes": [
-          "chronic",
-          "acute"
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
         ],
         "excludes": [
-          "acute",
-          "short-term",
-          "chronic",
-          "long-term"
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "short-term",
+            "patient_friendly": "short-term"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "long-term",
+            "patient_friendly": "long-term"
+          }
         ]
       },
       "character": {
         "includes": [
-          "erythematous",
-          "red"
+          {
+            "medical": "erythematous",
+            "patient_friendly": "erythematous"
+          },
+          {
+            "medical": "red",
+            "patient_friendly": "red"
+          }
         ],
         "excludes": []
       },
       "aggravating": {
         "includes": [
-          "scratching",
-          "stress"
+          {
+            "medical": "scratching",
+            "patient_friendly": "scratching"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          }
         ],
         "excludes": []
       },
       "relieving": {
         "includes": [
-          "topical steroids",
-          "avoiding triggers"
+          {
+            "medical": "topical steroids",
+            "patient_friendly": "topical steroids"
+          },
+          {
+            "medical": "avoiding triggers",
+            "patient_friendly": "avoiding triggers"
+          }
         ],
         "excludes": []
       },
@@ -76,8 +139,14 @@
       },
       "severity": {
         "includes": [
-          "moderate",
-          "mild"
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          }
         ],
         "excludes": []
       }

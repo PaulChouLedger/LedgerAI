@@ -13,77 +13,164 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within minutes to hours. Acute, dramatic presentation. LOCATION: Unilateral FLANK PAIN. RADIATES from flank→groin→testicle (males) or labia (females). Follows ureter path. DURATION: Waves last minutes, entire episode lasts hours. COLICKY (comes and goes in waves). CHARACTER: SEVERE COLICKY PAIN described as SHARP, STABBING, or 'WORST PAIN OF MY LIFE'. Intensity waxes and wanes. AGGRAVATING: NOTHING specifically worsens (spontaneous waves). Movement doesn't change intensity. Dehydration may precipitate. RELIEVING: NOTHING relieves during wave. Position changes don't help (patient RESTLESS, paces, cannot find comfort - unlike peritonitis where still). Narcotics needed. TIMING: COMES IN WAVES - intense for minutes, then slightly better, then intense again. Pattern repeats. Not constant. SEVERITY: 8-10/10, extremely severe and dramatic. ASSOCIATED SYMPTOMS: NAUSEA AND VOMITING (very common), HEMATURIA (blood in urine - 90%, gross or microscopic), urinary frequency, urgency. KEY POSITIVES: cerebrovascular accident (CVA) tenderness, hematuria, colicky waves, restlessness, flank→groin radiation. KEY NEGATIVES: Peritoneal signs (rigidity) suggest alternative. FEVER suggests pyelonephritis not stone. Bilateral pain unusual.",
+    "classic_presentation": "ONSET: SUDDEN onset within minutes to hours. Acute, dramatic presentation. LOCATION: Unilateral FLANK PAIN. RADIATES from flank\u2192groin\u2192testicle (males) or labia (females). Follows ureter path. DURATION: Waves last minutes, entire episode lasts hours. COLICKY (comes and goes in waves). CHARACTER: SEVERE COLICKY PAIN described as SHARP, STABBING, or 'WORST PAIN OF MY LIFE'. Intensity waxes and wanes. AGGRAVATING: NOTHING specifically worsens (spontaneous waves). Movement doesn't change intensity. Dehydration may precipitate. RELIEVING: NOTHING relieves during wave. Position changes don't help (patient RESTLESS, paces, cannot find comfort - unlike peritonitis where still). Narcotics needed. TIMING: COMES IN WAVES - intense for minutes, then slightly better, then intense again. Pattern repeats. Not constant. SEVERITY: 8-10/10, extremely severe and dramatic. ASSOCIATED SYMPTOMS: NAUSEA AND VOMITING (very common), HEMATURIA (blood in urine - 90%, gross or microscopic), urinary frequency, urgency. KEY POSITIVES: cerebrovascular accident (CVA) tenderness, hematuria, colicky waves, restlessness, flank\u2192groin radiation. KEY NEGATIVES: Peritoneal signs (rigidity) suggest alternative. FEVER suggests pyelonephritis not stone. Bilateral pain unusual.",
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "acute",
-          "immediate",
-          "minutes",
-          "hours"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
         ]
       },
       "location": {
         "includes": [
-          "testicle",
-          "testicular",
-          "scrotal",
-          "flank",
-          "groin",
-          "radiates to groin",
-          "radiates to testicle"
+          {
+            "medical": "testicle",
+            "patient_friendly": "testicle"
+          },
+          {
+            "medical": "testicular",
+            "patient_friendly": "testicular"
+          },
+          {
+            "medical": "scrotal",
+            "patient_friendly": "scrotal"
+          },
+          {
+            "medical": "flank",
+            "patient_friendly": "side of your back"
+          },
+          {
+            "medical": "groin",
+            "patient_friendly": "groin area"
+          },
+          {
+            "medical": "radiates to groin",
+            "patient_friendly": "radiates to groin"
+          },
+          {
+            "medical": "radiates to testicle",
+            "patient_friendly": "radiates to testicle"
+          }
         ],
         "excludes": []
       },
       "duration": {
         "includes": [
-          "constant",
-          "colicky"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "colicky",
+            "patient_friendly": "comes and goes in waves"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "severe",
-          "sharp",
-          "stabbing"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "stabbing",
+            "patient_friendly": "sharp or stabbing"
+          }
         ],
         "excludes": []
       },
       "aggravating": {
         "includes": [
-          "movement"
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          }
         ],
         "excludes": []
       },
       "relieving": {
         "includes": [
-          "nothing relieves"
+          {
+            "medical": "nothing relieves",
+            "patient_friendly": "nothing relieves"
+          }
         ],
         "excludes": [
-          "position changes",
-          "medications"
+          {
+            "medical": "position changes",
+            "patient_friendly": "changing how you sit or lie"
+          },
+          {
+            "medical": "medications",
+            "patient_friendly": "medications"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "constant",
-          "comes in waves"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "comes in waves",
+            "patient_friendly": "comes in waves"
+          }
         ],
         "excludes": []
       },
       "severity": {
         "includes": [
-          "9-10/10",
-          "severe"
+          {
+            "medical": "9-10/10",
+            "patient_friendly": "9-10/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
         ],
         "excludes": []
       }

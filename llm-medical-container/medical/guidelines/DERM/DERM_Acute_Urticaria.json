@@ -19,102 +19,258 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "minutes to hours",
-          "after exposure to trigger"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "minutes to hours",
+            "patient_friendly": "minutes to hours"
+          },
+          {
+            "medical": "after exposure to trigger",
+            "patient_friendly": "after exposure to trigger"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "days"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          }
         ]
       },
       "location": {
         "includes": [
-          "anywhere on body",
-          "face",
-          "trunk",
-          "extremities",
-          "localized",
-          "generalized"
+          {
+            "medical": "anywhere on body",
+            "patient_friendly": "anywhere on body"
+          },
+          {
+            "medical": "face",
+            "patient_friendly": "face"
+          },
+          {
+            "medical": "trunk",
+            "patient_friendly": "trunk"
+          },
+          {
+            "medical": "extremities",
+            "patient_friendly": "extremities"
+          },
+          {
+            "medical": "localized",
+            "patient_friendly": "localized"
+          },
+          {
+            "medical": "generalized",
+            "patient_friendly": "generalized"
+          }
         ],
         "excludes": [
-          "internal organs",
-          "specific organ systems"
+          {
+            "medical": "internal organs",
+            "patient_friendly": "internal organs"
+          },
+          {
+            "medical": "specific organ systems",
+            "patient_friendly": "specific organ systems"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "individual lesions <24 hours",
-          "new lesions for days to weeks"
+          {
+            "medical": "individual lesions <24 hours",
+            "patient_friendly": "individual lesions <24 hours"
+          },
+          {
+            "medical": "new lesions for days to weeks",
+            "patient_friendly": "new lesions for days to weeks"
+          }
         ],
         "excludes": [
-          "chronic lesions",
-          "permanent lesions"
+          {
+            "medical": "chronic lesions",
+            "patient_friendly": "chronic lesions"
+          },
+          {
+            "medical": "permanent lesions",
+            "patient_friendly": "permanent lesions"
+          }
         ]
       },
       "character": {
         "includes": [
-          "raised",
-          "wheal-like",
-          "pruritic",
-          "itchy",
-          "central pallor",
-          "red borders"
+          {
+            "medical": "raised",
+            "patient_friendly": "raised"
+          },
+          {
+            "medical": "wheal-like",
+            "patient_friendly": "wheal-like"
+          },
+          {
+            "medical": "pruritic",
+            "patient_friendly": "pruritic"
+          },
+          {
+            "medical": "itchy",
+            "patient_friendly": "itchy"
+          },
+          {
+            "medical": "central pallor",
+            "patient_friendly": "central pallor"
+          },
+          {
+            "medical": "red borders",
+            "patient_friendly": "red borders"
+          }
         ],
         "excludes": [
-          "flat",
-          "non-itchy",
-          "painful",
-          "scaly"
+          {
+            "medical": "flat",
+            "patient_friendly": "flat"
+          },
+          {
+            "medical": "non-itchy",
+            "patient_friendly": "non-itchy"
+          },
+          {
+            "medical": "painful",
+            "patient_friendly": "painful"
+          },
+          {
+            "medical": "scaly",
+            "patient_friendly": "scaly"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "heat",
-          "stress",
-          "pressure",
-          "scratching"
+          {
+            "medical": "heat",
+            "patient_friendly": "applying heat"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          },
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure or heaviness"
+          },
+          {
+            "medical": "scratching",
+            "patient_friendly": "scratching"
+          }
         ],
         "excludes": [
-          "cool",
-          "rest",
-          "avoiding triggers"
+          {
+            "medical": "cool",
+            "patient_friendly": "cool"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "avoiding triggers",
+            "patient_friendly": "avoiding triggers"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "cool compresses",
-          "antihistamines",
-          "avoiding triggers"
+          {
+            "medical": "cool compresses",
+            "patient_friendly": "cool compresses"
+          },
+          {
+            "medical": "antihistamines",
+            "patient_friendly": "antihistamines"
+          },
+          {
+            "medical": "avoiding triggers",
+            "patient_friendly": "avoiding triggers"
+          }
         ],
         "excludes": [
-          "heat",
-          "scratching",
-          "stress"
+          {
+            "medical": "heat",
+            "patient_friendly": "applying heat"
+          },
+          {
+            "medical": "scratching",
+            "patient_friendly": "scratching"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "lesions appear and disappear within 24 hours",
-          "new ones may continue"
+          {
+            "medical": "lesions appear and disappear within 24 hours",
+            "patient_friendly": "lesions appear and disappear within 24 hours"
+          },
+          {
+            "medical": "new ones may continue",
+            "patient_friendly": "new ones may continue"
+          }
         ],
         "excludes": [
-          "constant",
-          "chronic",
-          "permanent"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "permanent",
+            "patient_friendly": "permanent"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "3-8/10 itching",
-          "moderate",
-          "severe"
+          {
+            "medical": "3-8/10 itching",
+            "patient_friendly": "3-8/10 itching"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-2/10",
-          "asymptomatic"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-2/10",
+            "patient_friendly": "1-2/10"
+          },
+          {
+            "medical": "asymptomatic",
+            "patient_friendly": "asymptomatic"
+          }
         ]
       }
     }

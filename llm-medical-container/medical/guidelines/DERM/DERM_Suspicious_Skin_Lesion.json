@@ -19,20 +19,44 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "gradual",
-          "progressive",
-          "weeks"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          },
+          {
+            "medical": "weeks",
+            "patient_friendly": "for several weeks"
+          }
         ],
         "excludes": [
-          "sudden",
-          "immediate"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          }
         ]
       },
       "location": {
         "includes": [
-          "anywhere",
-          "generalized",
-          "face"
+          {
+            "medical": "anywhere",
+            "patient_friendly": "anywhere"
+          },
+          {
+            "medical": "generalized",
+            "patient_friendly": "generalized"
+          },
+          {
+            "medical": "face",
+            "patient_friendly": "face"
+          }
         ],
         "excludes": []
       },
@@ -42,7 +66,10 @@
       },
       "character": {
         "includes": [
-          "raised"
+          {
+            "medical": "raised",
+            "patient_friendly": "raised"
+          }
         ],
         "excludes": []
       },
@@ -52,19 +79,28 @@
       },
       "relieving": {
         "includes": [
-          "avoiding triggers"
+          {
+            "medical": "avoiding triggers",
+            "patient_friendly": "avoiding triggers"
+          }
         ],
         "excludes": []
       },
       "timing": {
         "includes": [
-          "progressive"
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ],
         "excludes": []
       },
       "severity": {
         "includes": [
-          "mild"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          }
         ],
         "excludes": []
       }

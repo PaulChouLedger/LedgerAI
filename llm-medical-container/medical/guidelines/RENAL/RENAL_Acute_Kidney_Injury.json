@@ -19,65 +19,134 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "gradual",
-          "progressive",
-          "hours",
-          "days",
-          "weeks"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          },
+          {
+            "medical": "weeks",
+            "patient_friendly": "for several weeks"
+          }
         ],
         "excludes": [
-          "sudden",
-          "immediate"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "immediate",
+            "patient_friendly": "immediate"
+          }
         ]
       },
       "location": {
         "includes": [
-          "kidney",
-          "renal",
-          "bilateral"
+          {
+            "medical": "kidney",
+            "patient_friendly": "kidney area"
+          },
+          {
+            "medical": "renal",
+            "patient_friendly": "renal"
+          },
+          {
+            "medical": "bilateral",
+            "patient_friendly": "on both sides"
+          }
         ],
         "excludes": []
       },
       "duration": {
         "includes": [
-          "progressive"
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ],
         "excludes": []
       },
       "character": {
         "includes": [
-          "severe",
-          "decreased urine output",
-          "swelling",
-          "fluid retention"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "decreased urine output",
+            "patient_friendly": "decreased urine output"
+          },
+          {
+            "medical": "swelling",
+            "patient_friendly": "swelling or puffiness"
+          },
+          {
+            "medical": "fluid retention",
+            "patient_friendly": "fluid retention"
+          }
         ],
         "excludes": []
       },
       "aggravating": {
         "includes": [
-          "dehydration",
-          "medications",
-          "contrast agents"
+          {
+            "medical": "dehydration",
+            "patient_friendly": "dehydration"
+          },
+          {
+            "medical": "medications",
+            "patient_friendly": "medications"
+          },
+          {
+            "medical": "contrast agents",
+            "patient_friendly": "contrast agents"
+          }
         ],
         "excludes": []
       },
       "relieving": {
         "includes": [
-          "fluid management",
-          "dialysis"
+          {
+            "medical": "fluid management",
+            "patient_friendly": "fluid management"
+          },
+          {
+            "medical": "dialysis",
+            "patient_friendly": "dialysis"
+          }
         ],
         "excludes": []
       },
       "timing": {
         "includes": [
-          "progressive"
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ],
         "excludes": []
       },
       "severity": {
         "includes": [
-          "6-9/10",
-          "moderate to severe"
+          {
+            "medical": "6-9/10",
+            "patient_friendly": "6-9/10"
+          },
+          {
+            "medical": "moderate to severe",
+            "patient_friendly": "moderate to severe"
+          }
         ],
         "excludes": []
       }

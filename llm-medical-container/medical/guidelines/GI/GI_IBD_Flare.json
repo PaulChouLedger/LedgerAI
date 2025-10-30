@@ -14,12 +14,75 @@
   "key_features": {
     "classic_presentation": "ONSET: GRADUAL over days to weeks. Progressive worsening. Patient usually has KNOWN inflammatory bowel disease (IBD) diagnosis with prior flares. LOCATION: Diffuse cramping throughout abdomen, or right lower quadrant (RLQ) if Crohn's (terminal ileum involved). DURATION: Flares last days to weeks. Cramping comes in waves, diarrhea persists. Chronic relapsing pattern. CHARACTER: CRAMPY ABDOMINAL PAIN. Intermittent, wave-like cramping with bowel movements. AGGRAVATING: EATING may worsen cramping. Stress can trigger flares. Missed medications worsen. RELIEVING: Defecation provides TEMPORARY relief of cramping. Anti-inflammatory medications (steroids, biologics) needed for flare resolution. TIMING: INTERMITTENT cramping with bowel movements. Diarrhea is frequent (3-10+ stools/day). Pattern fluctuates. SEVERITY: 5-8/10 cramping, moderate. Not as severe as surgical emergencies. ASSOCIATED SYMPTOMS: CHRONIC BLOODY OR MUCOID DIARRHEA (hallmark), urgency, tenesmus, weight loss, fatigue, LOW-GRADE FEVER. May have extra-intestinal symptoms (joint pain, eye inflammation). KEY POSITIVES: Blood/mucus in stool, cramping with BMs, chronic relapsing pattern, known inflammatory bowel disease (IBD) diagnosis. KEY NEGATIVES: ACUTE onset without blood suggests gastroenteritis. FIRST episode bloody diarrhea needs workup (not assumed inflammatory bowel disease ).",
     "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          { "medical": "gradual", "patient_friendly": "slowly over time" },
+          { "medical": "days", "patient_friendly": "over days" },
+          { "medical": "weeks", "patient_friendly": "over weeks" }
+        ],
+        "excludes": [
+          { "medical": "acute", "patient_friendly": "all at once or very quickly" }
+        ]
+      },
       "location": {
         "includes": [
-          "everywhere",
-          "all over",
-          "diffuse",
-          "right lower quadrant"
+          {
+            "medical": "everywhere",
+            "patient_friendly": "everywhere"
+          },
+          {
+            "medical": "all over",
+            "patient_friendly": "all over"
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "diffuse"
+          },
+          {
+            "medical": "right lower quadrant",
+            "patient_friendly": "lower right side near your groin"
+          }
+        ]
+      },
+      "duration": {
+        "includes": [
+          { "medical": "days", "patient_friendly": "for several days" },
+          { "medical": "weeks", "patient_friendly": "for several weeks" }
+        ]
+      },
+      "character": {
+        "includes": [
+          { "medical": "crampy", "patient_friendly": "crampy or cramping" },
+          { "medical": "wave-like", "patient_friendly": "comes in waves" }
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          { "medical": "eating", "patient_friendly": "eating food" },
+          { "medical": "stress", "patient_friendly": "stress or anxiety" },
+          { "medical": "missed medications", "patient_friendly": "missing your medicines" }
+        ]
+      },
+      "relieving": {
+        "includes": [
+          { "medical": "defecation", "patient_friendly": "having a bowel movement" },
+          { "medical": "anti-inflammatory medications", "patient_friendly": "IBD medicines like steroids or biologics" }
+        ]
+      },
+      "timing": {
+        "includes": [
+          { "medical": "intermittent", "patient_friendly": "comes and goes" },
+          { "medical": "with bowel movements", "patient_friendly": "around bowel movements" },
+          { "medical": "frequent stools", "patient_friendly": "frequent diarrhea" }
+        ]
+      },
+      "severity": {
+        "includes": [
+          { "medical": "moderate", "patient_friendly": "somewhat bad" },
+          { "medical": "5", "patient_friendly": "5 out of 10" },
+          { "medical": "6", "patient_friendly": "6 out of 10" },
+          { "medical": "7", "patient_friendly": "7 out of 10" },
+          { "medical": "8", "patient_friendly": "8 out of 10" }
         ]
       }
     }

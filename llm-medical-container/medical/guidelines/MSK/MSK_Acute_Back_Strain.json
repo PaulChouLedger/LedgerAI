@@ -19,121 +19,334 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "during activity",
-          "lifting",
-          "twisting",
-          "bending",
-          "sudden movement",
-          "heavy lifting"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "during activity",
+            "patient_friendly": "during activity"
+          },
+          {
+            "medical": "lifting",
+            "patient_friendly": "lifting"
+          },
+          {
+            "medical": "twisting",
+            "patient_friendly": "twisting"
+          },
+          {
+            "medical": "bending",
+            "patient_friendly": "bending over"
+          },
+          {
+            "medical": "sudden movement",
+            "patient_friendly": "sudden movement"
+          },
+          {
+            "medical": "heavy lifting",
+            "patient_friendly": "heavy lifting"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "slow onset"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          }
         ]
       },
       "location": {
         "includes": [
-          "lower back",
-          "lumbar",
-          "radiates to buttocks",
-          "radiates to thighs"
+          {
+            "medical": "lower back",
+            "patient_friendly": "lower part of your back"
+          },
+          {
+            "medical": "lumbar",
+            "patient_friendly": "lumbar"
+          },
+          {
+            "medical": "radiates to buttocks",
+            "patient_friendly": "radiates to buttocks"
+          },
+          {
+            "medical": "radiates to thighs",
+            "patient_friendly": "radiates to thighs"
+          }
         ],
         "excludes": [
-          "upper back",
-          "neck",
-          "chest",
-          "abdomen"
+          {
+            "medical": "upper back",
+            "patient_friendly": "upper part of your back"
+          },
+          {
+            "medical": "neck",
+            "patient_friendly": "neck area"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "chest area"
+          },
+          {
+            "medical": "abdomen",
+            "patient_friendly": "abdomen"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "immediate pain",
-          "worsens over 24-48 hours",
-          "gradually improves",
-          "days to weeks"
+          {
+            "medical": "immediate pain",
+            "patient_friendly": "immediate pain"
+          },
+          {
+            "medical": "worsens over 24-48 hours",
+            "patient_friendly": "worsens over 24-48 hours"
+          },
+          {
+            "medical": "gradually improves",
+            "patient_friendly": "gradually improves"
+          },
+          {
+            "medical": "days to weeks",
+            "patient_friendly": "days to weeks"
+          }
         ],
         "excludes": [
-          "constant severe",
-          "unrelenting",
-          "hours only"
+          {
+            "medical": "constant severe",
+            "patient_friendly": "constant severe"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "hours only",
+            "patient_friendly": "hours only"
+          }
         ]
       },
       "character": {
         "includes": [
-          "sharp initial",
-          "throbbing",
-          "aching",
-          "muscle spasms"
+          {
+            "medical": "sharp initial",
+            "patient_friendly": "sharp initial"
+          },
+          {
+            "medical": "throbbing",
+            "patient_friendly": "throbbing or pulsing"
+          },
+          {
+            "medical": "aching",
+            "patient_friendly": "achy or sore"
+          },
+          {
+            "medical": "muscle spasms",
+            "patient_friendly": "muscle spasms"
+          }
         ],
         "excludes": [
-          "burning",
-          "numbness",
-          "tingling",
-          "constant sharp"
+          {
+            "medical": "burning",
+            "patient_friendly": "burning sensation"
+          },
+          {
+            "medical": "numbness",
+            "patient_friendly": "feeling numb"
+          },
+          {
+            "medical": "tingling",
+            "patient_friendly": "feeling tingly or pins and needles"
+          },
+          {
+            "medical": "constant sharp",
+            "patient_friendly": "constant sharp"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "bending",
-          "lifting",
-          "twisting",
-          "sitting",
-          "standing",
-          "coughing",
-          "sneezing"
+          {
+            "medical": "bending",
+            "patient_friendly": "bending over"
+          },
+          {
+            "medical": "lifting",
+            "patient_friendly": "lifting"
+          },
+          {
+            "medical": "twisting",
+            "patient_friendly": "twisting"
+          },
+          {
+            "medical": "sitting",
+            "patient_friendly": "sitting down"
+          },
+          {
+            "medical": "standing",
+            "patient_friendly": "standing up"
+          },
+          {
+            "medical": "coughing",
+            "patient_friendly": "coughing"
+          },
+          {
+            "medical": "sneezing",
+            "patient_friendly": "sneezing"
+          }
         ],
         "excludes": [
-          "rest",
-          "heat",
-          "ice",
-          "NSAIDs"
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "heat",
+            "patient_friendly": "applying heat"
+          },
+          {
+            "medical": "ice",
+            "patient_friendly": "applying ice"
+          },
+          {
+            "medical": "NSAIDs",
+            "patient_friendly": "NSAIDs"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "rest",
-          "heat",
-          "ice",
-          "NSAIDs",
-          "muscle relaxants"
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "heat",
+            "patient_friendly": "applying heat"
+          },
+          {
+            "medical": "ice",
+            "patient_friendly": "applying ice"
+          },
+          {
+            "medical": "NSAIDs",
+            "patient_friendly": "NSAIDs"
+          },
+          {
+            "medical": "muscle relaxants",
+            "patient_friendly": "muscle relaxants"
+          }
         ],
         "excludes": [
-          "bending",
-          "lifting",
-          "twisting",
-          "activity"
+          {
+            "medical": "bending",
+            "patient_friendly": "bending over"
+          },
+          {
+            "medical": "lifting",
+            "patient_friendly": "lifting"
+          },
+          {
+            "medical": "twisting",
+            "patient_friendly": "twisting"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "immediate pain",
-          "stiffness increases",
-          "gradually improves"
+          {
+            "medical": "immediate pain",
+            "patient_friendly": "immediate pain"
+          },
+          {
+            "medical": "stiffness increases",
+            "patient_friendly": "stiffness increases"
+          },
+          {
+            "medical": "gradually improves",
+            "patient_friendly": "gradually improves"
+          }
         ],
         "excludes": [
-          "constant",
-          "unrelenting",
-          "intermittent"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "4-8/10",
-          "moderate to severe",
-          "4",
-          "5",
-          "6",
-          "7",
-          "8",
-          "with movement"
+          {
+            "medical": "4-8/10",
+            "patient_friendly": "4-8/10"
+          },
+          {
+            "medical": "moderate to severe",
+            "patient_friendly": "moderate to severe"
+          },
+          {
+            "medical": "4",
+            "patient_friendly": "4 out of 10"
+          },
+          {
+            "medical": "5",
+            "patient_friendly": "5 out of 10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "with movement",
+            "patient_friendly": "with movement"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-3/10",
-          "severe",
-          "9-10/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-3/10",
+            "patient_friendly": "1-3/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "9-10/10",
+            "patient_friendly": "9-10/10"
+          }
         ]
       }
     }

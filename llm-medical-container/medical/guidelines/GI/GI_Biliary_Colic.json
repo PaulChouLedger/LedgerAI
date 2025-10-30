@@ -16,110 +16,290 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "sudden",
-          "30 minutes after eating",
-          "2 hours after eating",
-          "after fatty meals",
-          "after greasy meals",
-          "recurrent"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "30 minutes after eating",
+            "patient_friendly": "30 minutes after eating"
+          },
+          {
+            "medical": "2 hours after eating",
+            "patient_friendly": "2 hours after eating"
+          },
+          {
+            "medical": "after fatty meals",
+            "patient_friendly": "after fatty meals"
+          },
+          {
+            "medical": "after greasy meals",
+            "patient_friendly": "after greasy meals"
+          },
+          {
+            "medical": "recurrent",
+            "patient_friendly": "recurrent"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "constant"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
         ]
       },
       "location": {
         "includes": [
-          "right upper quadrant",
-          "epigastric",
-          "radiates to right shoulder",
-          "radiates to back"
+          {
+            "medical": "right upper quadrant",
+            "patient_friendly": "top right side near your ribs"
+          },
+          {
+            "medical": "epigastric",
+            "patient_friendly": "upper middle part of your belly"
+          },
+          {
+            "medical": "radiates to right shoulder",
+            "patient_friendly": "spreads to your right shoulder"
+          },
+          {
+            "medical": "radiates to back",
+            "patient_friendly": "spreads to your back"
+          }
         ],
         "excludes": [
-          "left side",
-          "lower abdomen",
-          "diffuse"
+          {
+            "medical": "left side",
+            "patient_friendly": "left side"
+          },
+          {
+            "medical": "lower abdomen",
+            "patient_friendly": "lower abdomen"
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "diffuse"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "30 minutes",
-          "6 hours",
-          "episodic",
-          "completely resolves"
+          {
+            "medical": "30 minutes",
+            "patient_friendly": "30 minutes"
+          },
+          {
+            "medical": "6 hours",
+            "patient_friendly": "6 hours"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "completely resolves",
+            "patient_friendly": "completely resolves"
+          }
         ],
         "excludes": [
-          "constant",
-          "persistent",
-          "unrelenting"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          }
         ]
       },
       "character": {
         "includes": [
-          "steady",
-          "severe",
-          "intense pressure",
-          "aching",
-          "not crampy"
+          {
+            "medical": "steady",
+            "patient_friendly": "steady"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "intense pressure",
+            "patient_friendly": "intense pressure"
+          },
+          {
+            "medical": "aching",
+            "patient_friendly": "achy or sore"
+          },
+          {
+            "medical": "not crampy",
+            "patient_friendly": "not crampy"
+          }
         ],
         "excludes": [
-          "crampy",
-          "intermittent",
-          "mild"
+          {
+            "medical": "crampy",
+            "patient_friendly": "crampy or cramping"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "fatty meals",
-          "greasy meals",
-          "fried foods",
-          "fatty meats",
-          "dairy",
-          "eating"
+          {
+            "medical": "fatty meals",
+            "patient_friendly": "fatty meals"
+          },
+          {
+            "medical": "greasy meals",
+            "patient_friendly": "greasy meals"
+          },
+          {
+            "medical": "fried foods",
+            "patient_friendly": "fried foods"
+          },
+          {
+            "medical": "fatty meats",
+            "patient_friendly": "fatty meats"
+          },
+          {
+            "medical": "dairy",
+            "patient_friendly": "dairy"
+          },
+          {
+            "medical": "eating",
+            "patient_friendly": "eating food"
+          }
         ],
         "excludes": [
-          "rest",
-          "fasting",
-          "water"
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "fasting",
+            "patient_friendly": "fasting"
+          },
+          {
+            "medical": "water",
+            "patient_friendly": "water"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "spontaneously resolves",
-          "pain-free between episodes",
-          "rest"
+          {
+            "medical": "spontaneously resolves",
+            "patient_friendly": "spontaneously resolves"
+          },
+          {
+            "medical": "pain-free between episodes",
+            "patient_friendly": "pain-free between episodes"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          }
         ],
         "excludes": [
-          "medication",
-          "constant pain"
+          {
+            "medical": "medication",
+            "patient_friendly": "medication"
+          },
+          {
+            "medical": "constant pain",
+            "patient_friendly": "constant pain"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "episodic",
-          "comes and goes",
-          "complete resolution between",
-          "recurrent pattern"
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "complete resolution between",
+            "patient_friendly": "complete resolution between"
+          },
+          {
+            "medical": "recurrent pattern",
+            "patient_friendly": "recurrent pattern"
+          }
         ],
         "excludes": [
-          "constant",
-          "unrelenting",
-          "continuous"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "10",
-          "7-10/10",
-          "7",
-          "severe during episodes",
-          "0 between episodes"
+          {
+            "medical": "10",
+            "patient_friendly": "10 out of 10"
+          },
+          {
+            "medical": "7-10/10",
+            "patient_friendly": "7-10/10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "severe during episodes",
+            "patient_friendly": "severe during episodes"
+          },
+          {
+            "medical": "0 between episodes",
+            "patient_friendly": "0 between episodes"
+          }
         ],
         "excludes": [
-          "mild",
-          "constant severe",
-          "1-5/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "constant severe",
+            "patient_friendly": "constant severe"
+          },
+          {
+            "medical": "1-5/10",
+            "patient_friendly": "1-5/10"
+          }
         ]
       }
     }

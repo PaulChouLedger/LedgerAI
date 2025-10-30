@@ -17,104 +17,263 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "chronic",
-          "recurrent",
-          "months",
-          "years"
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "recurrent",
+            "patient_friendly": "recurrent"
+          },
+          {
+            "medical": "months",
+            "patient_friendly": "months"
+          },
+          {
+            "medical": "years",
+            "patient_friendly": "years"
+          }
         ],
         "excludes": [
-          "sudden",
-          "acute",
-          "hours"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          }
         ]
       },
       "location": {
         "includes": [
-          "epigastric",
-          "substernal",
-          "chest",
-          "upper abdomen"
+          {
+            "medical": "epigastric",
+            "patient_friendly": "upper middle part of your belly"
+          },
+          {
+            "medical": "substernal",
+            "patient_friendly": "substernal"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "chest"
+          },
+          {
+            "medical": "upper abdomen",
+            "patient_friendly": "upper abdomen"
+          }
         ],
         "excludes": [
-          "lower abdomen",
-          "RLQ",
-          "LLQ"
+          {
+            "medical": "lower abdomen",
+            "patient_friendly": "lower abdomen"
+          },
+          {
+            "medical": "RLQ",
+            "patient_friendly": "RLQ"
+          },
+          {
+            "medical": "LLQ",
+            "patient_friendly": "LLQ"
+          }
         ],
         "anatomical_type": "upper_central"
       },
       "duration": {
         "includes": [
-          "chronic",
-          "episodic",
-          "minutes to hours"
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "minutes to hours",
+            "patient_friendly": "minutes to hours"
+          }
         ],
         "excludes": [
-          "constant",
-          "days"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          }
         ]
       },
       "character": {
         "includes": [
-          "burning",
-          "heartburn",
-          "acid",
-          "rising sensation"
+          {
+            "medical": "burning",
+            "patient_friendly": "burning sensation"
+          },
+          {
+            "medical": "heartburn",
+            "patient_friendly": "heartburn"
+          },
+          {
+            "medical": "acid",
+            "patient_friendly": "acid"
+          },
+          {
+            "medical": "rising sensation",
+            "patient_friendly": "rising sensation"
+          }
         ],
         "excludes": [
-          "sharp",
-          "stabbing",
-          "pressure-like",
-          "crushing"
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "stabbing",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "pressure-like",
+            "patient_friendly": "pressure-like"
+          },
+          {
+            "medical": "crushing",
+            "patient_friendly": "crushing"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "lying down",
-          "bending",
-          "large meals",
-          "spicy foods"
+          {
+            "medical": "lying down",
+            "patient_friendly": "lying down"
+          },
+          {
+            "medical": "bending",
+            "patient_friendly": "bending over"
+          },
+          {
+            "medical": "large meals",
+            "patient_friendly": "large meals"
+          },
+          {
+            "medical": "spicy foods",
+            "patient_friendly": "spicy foods"
+          }
         ],
         "excludes": [
-          "movement",
-          "coughing"
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "coughing",
+            "patient_friendly": "coughing"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "sitting up",
-          "antacids",
-          "proton pump inhibitors"
+          {
+            "medical": "sitting up",
+            "patient_friendly": "sitting up"
+          },
+          {
+            "medical": "antacids",
+            "patient_friendly": "antacids"
+          },
+          {
+            "medical": "proton pump inhibitors",
+            "patient_friendly": "proton pump inhibitors"
+          }
         ],
         "excludes": [
-          "lying still",
-          "movement"
+          {
+            "medical": "lying still",
+            "patient_friendly": "lying still"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "after meals",
-          "at night",
-          "episodic"
+          {
+            "medical": "after meals",
+            "patient_friendly": "after eating"
+          },
+          {
+            "medical": "at night",
+            "patient_friendly": "during the night"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          }
         ],
         "excludes": [
-          "constant",
-          "unrelated to meals"
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "unrelated to meals",
+            "patient_friendly": "unrelated to meals"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "mild",
-          "moderate",
-          "3",
-          "4",
-          "5",
-          "6"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "3",
+            "patient_friendly": "3 out of 10"
+          },
+          {
+            "medical": "4",
+            "patient_friendly": "4 out of 10"
+          },
+          {
+            "medical": "5",
+            "patient_friendly": "5 out of 10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          }
         ],
         "excludes": [
-          "severe",
-          "8",
-          "9",
-          "10"
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "9",
+            "patient_friendly": "9 out of 10"
+          },
+          {
+            "medical": "10",
+            "patient_friendly": "10 out of 10"
+          }
         ]
       }
     }

@@ -16,97 +16,238 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "days to weeks",
-          "often follows viral illness",
-          "gradual"
+          {
+            "medical": "days to weeks",
+            "patient_friendly": "days to weeks"
+          },
+          {
+            "medical": "often follows viral illness",
+            "patient_friendly": "often follows viral illness"
+          },
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          }
         ],
         "excludes": [
-          "sudden",
-          "acute",
-          "minutes"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          }
         ]
       },
       "location": {
         "includes": [
-          "chest",
-          "retrosternal",
-          "left-sided"
+          {
+            "medical": "chest",
+            "patient_friendly": "chest area"
+          },
+          {
+            "medical": "retrosternal",
+            "patient_friendly": "retrosternal"
+          },
+          {
+            "medical": "left-sided",
+            "patient_friendly": "left-sided"
+          }
         ],
         "excludes": [
-          "right side only",
-          "no radiation",
-          "localized point"
+          {
+            "medical": "right side only",
+            "patient_friendly": "right side only"
+          },
+          {
+            "medical": "no radiation",
+            "patient_friendly": "no radiation"
+          },
+          {
+            "medical": "localized point",
+            "patient_friendly": "localized point"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "continuous over days",
-          "persistent"
+          {
+            "medical": "continuous over days",
+            "patient_friendly": "continuous over days"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "dull ache",
-          "pressure",
-          "sharp pleuritic pain"
+          {
+            "medical": "dull ache",
+            "patient_friendly": "dull ache"
+          },
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure or heaviness"
+          },
+          {
+            "medical": "sharp pleuritic pain",
+            "patient_friendly": "sharp pleuritic pain"
+          }
         ],
         "excludes": [
-          "crushing",
-          "burning",
-          "no pain"
+          {
+            "medical": "crushing",
+            "patient_friendly": "crushing or squeezing"
+          },
+          {
+            "medical": "burning",
+            "patient_friendly": "burning sensation"
+          },
+          {
+            "medical": "no pain",
+            "patient_friendly": "no pain"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "exertion",
-          "activity"
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          }
         ],
         "excludes": [
-          "rest",
-          "medication",
-          "position"
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "medication",
+            "patient_friendly": "medication"
+          },
+          {
+            "medical": "position",
+            "patient_friendly": "position"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "rest"
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          }
         ],
         "excludes": [
-          "exertion",
-          "activity",
-          "stress"
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "progressive over days",
-          "continuous"
+          {
+            "medical": "progressive over days",
+            "patient_friendly": "progressive over days"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "variable",
-          "4-7/10",
-          "4",
-          "5",
-          "6",
-          "7"
+          {
+            "medical": "variable",
+            "patient_friendly": "variable"
+          },
+          {
+            "medical": "4-7/10",
+            "patient_friendly": "4-7/10"
+          },
+          {
+            "medical": "4",
+            "patient_friendly": "4 out of 10"
+          },
+          {
+            "medical": "5",
+            "patient_friendly": "5 out of 10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-3/10",
-          "severe",
-          "8-10/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-3/10",
+            "patient_friendly": "1-3/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "8-10/10",
+            "patient_friendly": "8-10/10"
+          }
         ]
       }
     }
@@ -122,4 +263,3 @@
     "Family history of sudden cardiac death"
   ]
 }
-

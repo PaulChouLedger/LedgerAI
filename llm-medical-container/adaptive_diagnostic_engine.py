@@ -794,29 +794,58 @@ class AdaptiveDiagnosticEngine:
     
     def _generate_clarifying_question(self, oldcarts_element: str, patient_answer: str, 
                                      clarification_count: int, missing_terms: list) -> str:
-        """Generate clarifying question with missing terms"""
+        """Generate clarifying question using patient-friendly terms from guidelines"""
         if not missing_terms:
             raise ValueError(f"Cannot generate clarifying question for {oldcarts_element} - no missing terms")
         
-        # Simple question generation
+        # Get patient-friendly terms directly from guidelines
+        patient_friendly_terms = []
+        for term in missing_terms[:3]:
+            friendly_term = self._get_patient_friendly_from_guidelines(term, oldcarts_element)
+            patient_friendly_terms.append(friendly_term)
+        
         if oldcarts_element == 'location':
-            options = ", ".join(missing_terms[:3])
+            options = ", ".join(patient_friendly_terms)
             return f"Can you be more specific? For example, is it {options}?"
         else:
-            options = ", ".join(missing_terms[:3])
+            options = ", ".join(patient_friendly_terms)
             return f"Can you be more specific? For example, {options}?"
+    
+    def _get_patient_friendly_from_guidelines(self, medical_term: str, oldcarts_element: str) -> str:
+        """Get patient-friendly term directly from guidelines"""
+        for guideline in self.active_guidelines:
+            structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            element_data = structured.get(oldcarts_element, {})
+            if isinstance(element_data, dict):
+                includes = element_data.get('includes', [])
+                for term_obj in includes:
+                    if isinstance(term_obj, dict) and term_obj.get('medical') == medical_term:
+                        return term_obj.get('patient_friendly', medical_term)
+                    elif isinstance(term_obj, str) and term_obj == medical_term:
+                        # Handle old format where terms are just strings
+                        return medical_term
+        
+        # Fallback to original term if not found
+        return medical_term
     
     def _ask_next_clinical_question(self) -> Dict[str, Any]:
         """Ask next OLDCARTS question - standard order"""
+        self._capture_debug(f"[Engine] 🔍 Asking next clinical question")
+        self._capture_debug(f"[Engine] Has oldcarts_analysis: {hasattr(self, 'oldcarts_analysis')}")
+        if hasattr(self, 'oldcarts_analysis'):
+            self._capture_debug(f"[Engine] OLDCARTS analysis: {self.oldcarts_analysis}")
+        
         if not hasattr(self, 'oldcarts_analysis') or not self.oldcarts_analysis:
             return {'success': False, 'message': 'No OLDCARTS analysis available'}
         
         missing = self.oldcarts_analysis.get('missing_components', [])
+        self._capture_debug(f"[Engine] Missing components: {missing}")
         if not missing:
             return {'success': True, 'status': 'completed', 'message': 'Assessment complete'}
         
         # Standard OLDCARTS order
         next_element = missing[0]
+        self._capture_debug(f"[Engine] Next element to ask: {next_element}")
         question = self._generate_oldcarts_question_for_component(next_element)
         
         self.conversation_history.append({
@@ -999,6 +1028,8 @@ class AdaptiveDiagnosticEngine:
             }
         
         # All demographics collected, start OLDCARTS
+        self._capture_debug("[Engine] 📋 Demographics complete, transitioning to clinical questions")
+        self._capture_debug(f"[Engine] Current OLDCARTS analysis: {self.oldcarts_analysis}")
         return self._ask_next_clinical_question()
     
     def _generate_empathetic_statement(self) -> str:
@@ -1040,6 +1071,11 @@ class AdaptiveDiagnosticEngine:
                 last_q = item
                 break
         
+        self._capture_debug(f"[Engine] 🔍 Last question: {last_q}")
+        self._capture_debug(f"[Engine] 🔍 User answer: '{user_answer}'")
+        self._capture_debug(f"[Engine] 🔍 Conversation history length: {len(self.conversation_history)}")
+        self._capture_debug(f"[Engine] 🔍 Demographics: {self.demographics}")
+        
         # Handle symptom gathering response
         if last_q and last_q.get('focus') == 'symptom_gathering':
             # Analyze the symptom response for additional OLDCARTS information
@@ -1079,17 +1115,7 @@ class AdaptiveDiagnosticEngine:
                 'message': confirmation_msg
             })
             
-            # STEP 2: Return confirmation message first, then next call will get demographics
-            return {
-                'success': True,
-                'message': confirmation_msg,
-                'status': 'questioning',
-                'has_pause': True  # Pause before next question
-            }
-        
-        # Handle statement responses (empathetic statement doesn't need user response)
-        if last_q and last_q.get('type') == 'statement':
-            # Statement was shown, now ask age question (skip statement check since we already showed it)
+            # STEP 2: Ask age question immediately (no pause)
             if 'age' not in self.demographics:
                 question = "How old are you?"
                 self.conversation_history.append({
@@ -1099,22 +1125,31 @@ class AdaptiveDiagnosticEngine:
                 })
                 return {
                     'success': True,
-                    'message': question,
+                    'message': f"{confirmation_msg}\n\n{question}",
                     'status': 'questioning'
                 }
             else:
                 # Age already collected, continue with next demographic
                 return self._generate_ml_first_question_with_demographics()
         
-        # Handle demographics
-        if last_q and last_q.get('focus') == 'age':
-            # Simple age validation - accept direct numeric answers
+        
+        # Handle age answers - check if we just asked an age question
+        if (last_q and last_q.get('type') == 'question' and last_q.get('focus') == 'age' and 
+            'age' not in self.demographics):
+            # Process age answer
             age_str = user_answer.strip()
+            self._capture_debug(f"[Engine] 🔍 Processing age: '{age_str}'")
             if age_str.isdigit():
                 age = int(age_str)
                 if 0 <= age <= 150:
                     self.demographics['age'] = age
+                    self._capture_debug(f"[Engine] ✅ Age set to: {age}")
+                    self._capture_debug(f"[Engine] 🔍 Demographics after age: {self.demographics}")
                     return self._generate_ml_first_question_with_demographics()
+                else:
+                    self._capture_debug(f"[Engine] ❌ Age out of range: {age}")
+            else:
+                self._capture_debug(f"[Engine] ❌ Age not numeric: '{age_str}'")
             
             # Fallback to LLM if simple validation fails
             if self.llm_chat_simple_fn:
@@ -1136,6 +1171,8 @@ class AdaptiveDiagnosticEngine:
             
             return {'success': False, 'message': 'Please provide your age as a number (e.g., 25, thirty-five, etc.)'}
         
+        
+        # Handle other demographics (sex, chronicity)
         if last_q and last_q.get('focus') == 'sex':
             # Simple sex validation - accept direct answers
             sex_str = user_answer.strip().lower()
@@ -1273,7 +1310,8 @@ class AdaptiveDiagnosticEngine:
         
         # Build LLM prompt
         system_msg = """You are a helpful medical assistant. The patient has asked a question during a medical assessment. 
-Provide a clear, empathetic, and brief explanation to help them understand and answer the original question."""
+Provide a clear, empathetic, and brief explanation. Do NOT expose internal reasoning or mention what you were "trying to do". 
+Just answer their question directly and simply restate what you need from them."""
         
         user_msg = f"""Context from recent conversation:
 {context}
@@ -1283,9 +1321,10 @@ Current question being asked: {last_question or 'General assessment'}
 Patient's question: {user_question}
 
 Provide a helpful response that:
-1. Answers their question or clarifies what they're confused about
+1. Answers their question directly and simply
 2. Briefly restates what you need from them to continue
 3. Is empathetic and encouraging
+4. Uses simple, everyday language
 
 Response:"""
         

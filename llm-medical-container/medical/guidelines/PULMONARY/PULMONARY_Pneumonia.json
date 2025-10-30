@@ -17,111 +17,273 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "gradual",
-          "over days",
-          "progressive"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "over days",
+            "patient_friendly": "over days"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "gets worse over time"
+          }
         ],
         "excludes": [
-          "sudden",
-          "acute",
-          "minutes"
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          }
         ]
       },
       "location": {
         "includes": [
-          "focal lung",
-          "diffuse lung",
-          "lung areas",
-          "chest"
+          {
+            "medical": "focal lung",
+            "patient_friendly": "focal lung"
+          },
+          {
+            "medical": "diffuse lung",
+            "patient_friendly": "diffuse lung"
+          },
+          {
+            "medical": "lung areas",
+            "patient_friendly": "lung areas"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "chest area"
+          }
         ],
         "excludes": [
-          "abdomen",
-          "extremities",
-          "head"
+          {
+            "medical": "abdomen",
+            "patient_friendly": "abdomen"
+          },
+          {
+            "medical": "extremities",
+            "patient_friendly": "extremities"
+          },
+          {
+            "medical": "head",
+            "patient_friendly": "head"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "days to weeks",
-          "persistent",
-          "acute"
+          {
+            "medical": "days to weeks",
+            "patient_friendly": "days to weeks"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
         ],
         "excludes": [
-          "hours",
-          "minutes",
-          "intermittent"
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just a few minutes"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "character": {
         "includes": [
-          "productive cough",
-          "chest pain",
-          "dyspnea",
-          "shortness of breath"
+          {
+            "medical": "productive cough",
+            "patient_friendly": "productive cough"
+          },
+          {
+            "medical": "chest pain",
+            "patient_friendly": "chest pain"
+          },
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "dyspnea"
+          },
+          {
+            "medical": "shortness of breath",
+            "patient_friendly": "trouble breathing"
+          }
         ],
         "excludes": [
-          "dry cough",
-          "no respiratory symptoms",
-          "abdominal pain"
+          {
+            "medical": "dry cough",
+            "patient_friendly": "dry cough"
+          },
+          {
+            "medical": "no respiratory symptoms",
+            "patient_friendly": "no respiratory symptoms"
+          },
+          {
+            "medical": "abdominal pain",
+            "patient_friendly": "abdominal pain"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "lying flat",
-          "exertion",
-          "activity",
-          "breathing"
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying flat on your back"
+          },
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          },
+          {
+            "medical": "breathing",
+            "patient_friendly": "breathing"
+          }
         ],
         "excludes": [
-          "rest",
-          "oxygen",
-          "antibiotics"
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          },
+          {
+            "medical": "oxygen",
+            "patient_friendly": "breathing oxygen"
+          },
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "antibiotics"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "antibiotics",
-          "oxygen",
-          "positioning",
-          "rest"
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "antibiotics"
+          },
+          {
+            "medical": "oxygen",
+            "patient_friendly": "breathing oxygen"
+          },
+          {
+            "medical": "positioning",
+            "patient_friendly": "positioning"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          }
         ],
         "excludes": [
-          "exertion",
-          "lying flat",
-          "activity"
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical exertion"
+          },
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying flat on your back"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "acute",
-          "persistent",
-          "continuous"
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "moderate to severe",
-          "6-8/10",
-          "6",
-          "7",
-          "8"
+          {
+            "medical": "moderate to severe",
+            "patient_friendly": "moderate to severe"
+          },
+          {
+            "medical": "6-8/10",
+            "patient_friendly": "6-8/10"
+          },
+          {
+            "medical": "6",
+            "patient_friendly": "6 out of 10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-5/10",
-          "severe"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-5/10",
+            "patient_friendly": "1-5/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
         ]
       }
     }
   },
   "red_flags": [
     "Severe dyspnea or respiratory distress",
-    "High fever >102°F",
+    "High fever >102\u00b0F",
     "Cyanosis or oxygen saturation <90%",
     "Altered mental status",
     "Signs of respiratory failure",

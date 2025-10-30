@@ -15,99 +15,246 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          "acute",
-          "often after emotional stress",
-          "often after physical stress"
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "often after emotional stress",
+            "patient_friendly": "often after emotional stress"
+          },
+          {
+            "medical": "often after physical stress",
+            "patient_friendly": "often after physical stress"
+          }
         ],
         "excludes": [
-          "gradual",
-          "chronic",
-          "slow onset"
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "slow onset",
+            "patient_friendly": "slow onset"
+          }
         ]
       },
       "location": {
         "includes": [
-          "chest",
-          "retrosternal",
-          "radiates to arm",
-          "radiates to jaw"
+          {
+            "medical": "chest",
+            "patient_friendly": "chest area"
+          },
+          {
+            "medical": "retrosternal",
+            "patient_friendly": "retrosternal"
+          },
+          {
+            "medical": "radiates to arm",
+            "patient_friendly": "spreads to your arm"
+          },
+          {
+            "medical": "radiates to jaw",
+            "patient_friendly": "spreads to your jaw"
+          }
         ],
         "excludes": [
-          "right side only",
-          "no radiation",
-          "localized point"
+          {
+            "medical": "right side only",
+            "patient_friendly": "right side only"
+          },
+          {
+            "medical": "no radiation",
+            "patient_friendly": "no radiation"
+          },
+          {
+            "medical": "localized point",
+            "patient_friendly": "localized point"
+          }
         ]
       },
       "duration": {
         "includes": [
-          "minutes to hours",
-          "brief"
+          {
+            "medical": "minutes to hours",
+            "patient_friendly": "minutes to hours"
+          },
+          {
+            "medical": "brief",
+            "patient_friendly": "for a short time"
+          }
         ],
         "excludes": [
-          "continuous",
-          "unrelenting",
-          "days"
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous"
+          },
+          {
+            "medical": "unrelenting",
+            "patient_friendly": "unrelenting"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for several days"
+          }
         ]
       },
       "character": {
         "includes": [
-          "chest pain",
-          "pressure",
-          "dyspnea mimicking myocardial infarction"
+          {
+            "medical": "chest pain",
+            "patient_friendly": "chest pain"
+          },
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure or heaviness"
+          },
+          {
+            "medical": "dyspnea mimicking myocardial infarction",
+            "patient_friendly": "dyspnea mimicking myocardial infarction"
+          }
         ],
         "excludes": [
-          "sharp",
-          "stabbing",
-          "burning",
-          "no pain"
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "stabbing",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "burning",
+            "patient_friendly": "burning sensation"
+          },
+          {
+            "medical": "no pain",
+            "patient_friendly": "no pain"
+          }
         ]
       },
       "aggravating": {
         "includes": [
-          "recent severe emotional stress",
-          "death of loved one",
-          "bad news",
-          "argument"
+          {
+            "medical": "recent severe emotional stress",
+            "patient_friendly": "recent severe emotional stress"
+          },
+          {
+            "medical": "death of loved one",
+            "patient_friendly": "death of loved one"
+          },
+          {
+            "medical": "bad news",
+            "patient_friendly": "bad news"
+          },
+          {
+            "medical": "argument",
+            "patient_friendly": "argument"
+          }
         ],
         "excludes": [
-          "supportive care",
-          "medication",
-          "rest"
+          {
+            "medical": "supportive care",
+            "patient_friendly": "supportive care"
+          },
+          {
+            "medical": "medication",
+            "patient_friendly": "medication"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "lying still or resting"
+          }
         ]
       },
       "relieving": {
         "includes": [
-          "supportive care"
+          {
+            "medical": "supportive care",
+            "patient_friendly": "supportive care"
+          }
         ],
         "excludes": [
-          "emotional stress",
-          "physical stress",
-          "activity"
+          {
+            "medical": "emotional stress",
+            "patient_friendly": "emotional stress"
+          },
+          {
+            "medical": "physical stress",
+            "patient_friendly": "physical stress"
+          },
+          {
+            "medical": "activity",
+            "patient_friendly": "activity"
+          }
         ]
       },
       "timing": {
         "includes": [
-          "acute onset after stressor",
-          "sudden"
+          {
+            "medical": "acute onset after stressor",
+            "patient_friendly": "acute onset after stressor"
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
         ],
         "excludes": [
-          "intermittent",
-          "episodic",
-          "comes and goes"
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "comes and goes"
+          }
         ]
       },
       "severity": {
         "includes": [
-          "7-9/10",
-          "7",
-          "8",
-          "9"
+          {
+            "medical": "7-9/10",
+            "patient_friendly": "7-9/10"
+          },
+          {
+            "medical": "7",
+            "patient_friendly": "7 out of 10"
+          },
+          {
+            "medical": "8",
+            "patient_friendly": "8 out of 10"
+          },
+          {
+            "medical": "9",
+            "patient_friendly": "9 out of 10"
+          }
         ],
         "excludes": [
-          "mild",
-          "1-6/10",
-          "severe",
-          "10/10"
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "1-6/10",
+            "patient_friendly": "1-6/10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "10/10",
+            "patient_friendly": "10/10"
+          }
         ]
       }
     }
@@ -122,4 +269,3 @@
     "Recent severe emotional stress"
   ]
 }
-
