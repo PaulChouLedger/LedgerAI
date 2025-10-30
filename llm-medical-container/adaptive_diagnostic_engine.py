@@ -313,7 +313,7 @@ class AdaptiveDiagnosticEngine:
             # Generate symptom gathering question using LLM
             if self.llm_chat_simple_fn:
                 system_msg = "You are a medical assistant. Generate a natural, empathetic question to ask the patient to describe more about their symptoms."
-                user_msg = "Generate a natural question to ask the patient to tell you more about their symptoms. Make it empathetic and conversational. Return only the question, no other text."
+                user_msg = "Generate a natural question to ask the patient to tell you more about their symptoms. Make it empathetic and conversational. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
                 
                 response = self.llm_chat_simple_fn(
                     [
@@ -1066,7 +1066,7 @@ class AdaptiveDiagnosticEngine:
             covered_info = "Already covered: " + ", ".join([k for k, v in self.oldcarts_covered.items() if v])
             
             system_msg = "You are a medical assistant. Generate a natural, conversational question to ask about a specific aspect of a patient's symptoms. Base your question ONLY on what the patient has actually told you — do NOT make up details. Avoid leading the patient or naming specific anatomical regions unless the patient already said them."
-            user_msg = f"{chief_complaint_context}\n{covered_info}\n\nGenerate a natural question to ask about the {component} of the patient's symptoms related to their chief complaint. Make it conversational and empathetic. Do NOT introduce specific locations (e.g., 'lower right abdomen', 'RUQ') unless the patient already said them. Return only the question, no other text."
+            user_msg = f"{chief_complaint_context}\n{covered_info}\n\nGenerate a natural question to ask about the {component} of the patient's symptoms related to their chief complaint. Make it conversational and empathetic. Do NOT introduce specific locations (e.g., 'lower right abdomen', 'RUQ') unless the patient already said them. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
             
             response = self.llm_chat_simple_fn(
                 [
@@ -1119,7 +1119,7 @@ class AdaptiveDiagnosticEngine:
         if 'age' not in self.demographics:
             if self.llm_chat_simple_fn:
                 system_msg = "You are a medical assistant. Generate a natural, conversational question to ask for the patient's age."
-                user_msg = "Generate a natural question to ask for the patient's age. Make it conversational and professional. Return only the question, no other text."
+                user_msg = "Generate a natural question to ask for the patient's age. Make it conversational and professional. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
                 
                 response = self.llm_chat_simple_fn(
                     [
@@ -1177,7 +1177,7 @@ class AdaptiveDiagnosticEngine:
         if 'chronicity' not in self.demographics:
             if self.llm_chat_simple_fn:
                 system_msg = "You are a medical assistant. Generate a natural, conversational question to ask if the patient's problem is new or ongoing."
-                user_msg = "Generate a natural question to ask if this is a new problem or ongoing issue. Make it conversational and professional. Return only the question, no other text."
+                user_msg = "Generate a natural question to ask if this is a new problem or ongoing issue. Make it conversational and professional. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
                 
                 response = self.llm_chat_simple_fn(
                     [
