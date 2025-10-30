@@ -909,6 +909,32 @@ class AdaptiveDiagnosticEngine:
                 satisfied_terms.add(term)
         
         return satisfied_terms
+
+    def _collect_patient_friendly_options(self, oldcarts_element: str, limit: int = 3) -> list:
+        """Collect unique patient-friendly options for an OLDCARTS element from active guidelines."""
+        options = []
+        seen = set()
+        for g in self.active_guidelines:
+            structured = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            element_data = structured.get(oldcarts_element, {})
+            if isinstance(element_data, dict):
+                includes = element_data.get('includes', [])
+                for term in includes:
+                    if isinstance(term, dict):
+                        pf = term.get('patient_friendly') or term.get('medical')
+                        if isinstance(pf, str):
+                            key = pf.strip().lower()
+                            if key and key not in seen:
+                                options.append(pf.strip())
+                                seen.add(key)
+                    elif isinstance(term, str):
+                        key = term.strip().lower()
+                        if key and key not in seen:
+                            options.append(term.strip())
+                            seen.add(key)
+            if len(options) >= limit:
+                break
+        return options[:limit]
     
     def _generate_clarifying_question(self, oldcarts_element: str, patient_answer: str, 
                                      clarification_count: int, missing_terms: list) -> str:
@@ -1467,6 +1493,32 @@ class AdaptiveDiagnosticEngine:
     
     def _handle_user_question(self, user_question: str) -> Dict[str, Any]:
         """Handle user questions using LLM with conversation context"""
+        # Special-case: if last active question is an OLDCARTS clinical question, prefer element-specific clarification
+        last_q = None
+        for item in reversed(self.conversation_history):
+            if item['type'] == 'question':
+                last_q = item
+                break
+        if last_q and last_q.get('focus') == 'clinical' and last_q.get('oldcarts') == 'location':
+            # Generate patient-friendly clarification options directly from guidelines
+            options = self._collect_patient_friendly_options('location', limit=3)
+            if options:
+                msg = "Can you be more specific? For example, is it " + ", ".join(options) + "?"
+            else:
+                msg = "Can you be more specific about where exactly the pain is located?"
+            # Track as clarification question
+            self.conversation_history.append({
+                'type': 'question',
+                'question': msg,
+                'oldcarts': 'location',
+                'is_clarification': True
+            })
+            return {
+                'success': True,
+                'message': msg,
+                'status': 'questioning'
+            }
+        
         if not self.llm_chat_fn:
             return {
                 'success': False,
@@ -1491,9 +1543,9 @@ class AdaptiveDiagnosticEngine:
                 break
         
         # Build LLM prompt
-        system_msg = """You are a helpful medical assistant. The patient has asked a question during a medical assessment. 
-Provide a clear, empathetic, and brief explanation. Do NOT expose internal reasoning or mention what you were "trying to do". 
-Just answer their question directly and simply restate what you need from them."""
+        system_msg = """You are a helpful medical assistant. The patient has asked a question during a medical assessment.
+Provide a clear, empathetic, and brief explanation. Do NOT expose internal reasoning, and do NOT invent clinical details.
+Do NOT name specific anatomical locations unless the patient has already said them. Keep it neutral and ask for the needed detail."""
         
         user_msg = f"""Context from recent conversation:
 {context}
