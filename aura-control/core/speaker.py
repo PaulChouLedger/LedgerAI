@@ -41,7 +41,12 @@ ALSA_CONTROLS = ["PCM", "Speaker", "Master"]  # try these in order
 # === TTS config ===
 SENTENCE_QUEUE = queue.Queue()
 playback_lock = threading.Lock()
-TTS_TOKEN_LIMIT = int(os.getenv("TTS_TOKEN_LIMIT", "15"))  # Max tokens before forcing sentence split
+tts_limit_raw = os.getenv("TTS_TOKEN_LIMIT")
+if tts_limit_raw is None or not tts_limit_raw.strip().isdigit() or int(tts_limit_raw) <= 0:
+    raise RuntimeError(
+        "❌ Missing or invalid TTS_TOKEN_LIMIT. Set it in .env via aura_config.sh → TTS, then restart."
+    )
+TTS_TOKEN_LIMIT = int(tts_limit_raw)  # Max tokens before forcing sentence split (no default)
 USE_SSML = True
 INSERT_BREAKS = True
 INSERT_SENTENCE_PAUSE = True
