@@ -26,6 +26,7 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceT
 
 # Copy models (cached - these are large and rarely change)
 COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K_M.gguf
+COPY models/Qwen3-4B-Instruct-2507-Q5_K_M.gguf /models/Qwen3-4B-Instruct-2507-Q5_K_M.gguf
 
 # Copy static files (cached - these change less frequently than Python code)
 COPY synonyms/ /app/synonyms/

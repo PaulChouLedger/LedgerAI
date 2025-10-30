@@ -78,6 +78,7 @@ show_all_settings() {
     echo -e "${BOLD}🧠 LLM MODEL${NC}"
     echo "  Model:         $(get_config_value 'SIMPLE_MODEL_PATH' | sed 's|.*/||')"
     echo "  Context:       $(get_config_value 'SIMPLE_N_CTX')"
+    echo "  Chat Format:   $(get_config_value 'SIMPLE_CHAT_FORMAT')"
     echo "  Temperature:   $(get_config_value 'LLM_TEMPERATURE_SIMPLE')"
     echo "  Top P:         $(get_config_value 'LLM_TOP_P')"
     echo "  Top K:         $(get_config_value 'LLM_TOP_K')"
@@ -242,9 +243,10 @@ configure_llm() {
     echo "8) Set frequency_penalty"
     echo "9) Set num_predict (max tokens)"
     echo "10) Set stop sequences (CSV)"
-    echo "11) Back to main menu"
+    echo "11) Set chat format (e.g., llama-3, qwen2, qwen2.5)"
+    echo "12) Back to main menu"
     echo ""
-    read -p "Choice [1-11]: " choice
+    read -p "Choice [1-12]: " choice
     
     case $choice in
         1)
@@ -285,7 +287,16 @@ configure_llm() {
         10)
             read -p "Enter stop sequences as CSV (e.g., \\n\\n,###): " v
             set_config_value "LLM_STOP" "$v"; show_restart_message ;;
-        11) return ;;
+        11)
+            echo ""
+            echo "Current chat format: $(get_config_value 'SIMPLE_CHAT_FORMAT')"
+            read -p "Enter chat format (e.g., llama-3, qwen2, qwen2.5): " cf
+            if [ -n "$cf" ]; then
+                set_config_value "SIMPLE_CHAT_FORMAT" "$cf"
+                show_restart_message
+            fi
+            ;;
+        12) return ;;
     esac
 }
 
