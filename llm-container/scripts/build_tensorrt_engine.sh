@@ -271,17 +271,29 @@ EOF
         
         if [ -n "$convert_script" ]; then
             echo -e "${BLUE}   Using convert_checkpoint.py from: $convert_script${NC}"
+            echo "   This is the recommended method - creates proper TensorRT-LLM checkpoint format"
+            echo ""
+            
+            # Try running the conversion script
+            # Note: May fail with Python 3.10 compatibility issues
             if python3 "$convert_script" \
                 --model_dir "$model_path" \
                 --output_dir "$checkpoint_dir" \
                 --dtype float16 \
                 2>&1 | tee /tmp/trtllm_convert.log; then
-                # Create marker file to indicate successful conversion
-                touch "$checkpoint_marker"
-                echo "Converted using convert_checkpoint.py" > "$checkpoint_marker"
-                conversion_success=true
+                # Verify rank0/ structure was created
+                if [ -f "$checkpoint_dir/rank0/model.safetensors" ] || [ -f "$checkpoint_dir/rank0/model.bin" ]; then
+                    # Create marker file to indicate successful conversion
+                    touch "$checkpoint_marker"
+                    echo "Converted using convert_checkpoint.py" > "$checkpoint_marker"
+                    conversion_success=true
+                    echo -e "${GREEN}   ✅ Official conversion script succeeded${NC}"
+                else
+                    echo -e "${YELLOW}   ⚠️  Conversion script ran but rank0/ structure not found, trying alternative...${NC}"
+                fi
             else
-                echo -e "${YELLOW}   ⚠️  convert_checkpoint.py failed, trying alternative...${NC}"
+                echo -e "${YELLOW}   ⚠️  convert_checkpoint.py failed (may be Python 3.10 compatibility issue), trying alternative...${NC}"
+                echo "   Error log saved to /tmp/trtllm_convert.log"
             fi
         fi
         
