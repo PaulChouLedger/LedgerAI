@@ -233,14 +233,17 @@ EOF
     echo -e "${BLUE}🔧 Converting HuggingFace model to TensorRT-LLM checkpoint format...${NC}"
     echo ""
     
-    # Check if checkpoint already exists and has proper weights
-    if [ -d "$checkpoint_dir" ] && [ -f "$checkpoint_dir/config.json" ] && [ -f "$checkpoint_dir/model.safetensors" ]; then
-        echo -e "${GREEN}✅ Checkpoint already exists with weights, skipping conversion${NC}"
+    # Check if checkpoint already exists and is valid (has been properly converted)
+    # We check for a marker file that indicates successful conversion
+    checkpoint_marker="$checkpoint_dir/.tensorrt_llm_converted"
+    
+    if [ -d "$checkpoint_dir" ] && [ -f "$checkpoint_dir/config.json" ] && [ -f "$checkpoint_dir/model.safetensors" ] && [ -f "$checkpoint_marker" ]; then
+        echo -e "${GREEN}✅ Checkpoint already exists and is properly converted, skipping conversion${NC}"
         echo ""
     else
         # Remove incomplete checkpoint if it exists
         if [ -d "$checkpoint_dir" ]; then
-            echo -e "${YELLOW}⚠️  Removing incomplete checkpoint directory...${NC}"
+            echo -e "${YELLOW}⚠️  Removing incomplete checkpoint directory (will re-convert properly)...${NC}"
             rm -rf "$checkpoint_dir"
         fi
         echo -e "${BLUE}   Converting: $model_path → $checkpoint_dir${NC}"
@@ -272,6 +275,9 @@ EOF
                 --output_dir "$checkpoint_dir" \
                 --dtype float16 \
                 2>&1 | tee /tmp/trtllm_convert.log; then
+                # Create marker file to indicate successful conversion
+                touch "$checkpoint_marker"
+                echo "Converted using convert_checkpoint.py" > "$checkpoint_marker"
                 conversion_success=true
             else
                 echo -e "${YELLOW}   ⚠️  convert_checkpoint.py failed, trying alternative...${NC}"
@@ -308,7 +314,13 @@ try:
     model.save_pretrained(checkpoint_dir, safe_serialization=True)
     tokenizer.save_pretrained(checkpoint_dir)
     
+    # Create marker file to indicate successful conversion
+    marker_file = os.path.join(checkpoint_dir, ".tensorrt_llm_converted")
+    with open(marker_file, 'w') as f:
+        f.write("Converted using transformers.save_pretrained()\n")
+    
     print("✅ Model re-saved successfully")
+    print(f"✅ Marker file created: {marker_file}")
     sys.exit(0)
 except Exception as e:
     print(f"❌ Failed: {e}")
