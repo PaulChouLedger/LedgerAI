@@ -140,11 +140,19 @@ build_llama_engine() {
     echo -e "${GREEN}🚀 Starting TensorRT-LLM build...${NC}"
     echo ""
     
-    # Fix config.json if missing 'architecture' field (required by TensorRT-LLM)
+    # Fix config.json if missing required fields (required by TensorRT-LLM)
     config_file="$model_path/config.json"
     if [ -f "$config_file" ]; then
+        needs_fix=false
         if ! grep -q '"architecture"' "$config_file" 2>/dev/null; then
-            echo -e "${YELLOW}⚠️  Fixing config.json (adding architecture field)...${NC}"
+            needs_fix=true
+        fi
+        if ! grep -q '"dtype"' "$config_file" 2>/dev/null; then
+            needs_fix=true
+        fi
+        
+        if [ "$needs_fix" = true ]; then
+            echo -e "${YELLOW}⚠️  Fixing config.json (adding required fields)...${NC}"
             python3 << EOF
 import json
 
@@ -153,13 +161,21 @@ try:
     with open(config_path, 'r') as f:
         config = json.load(f)
     
+    fixed = []
     if 'architecture' not in config:
         config['architecture'] = 'LlamaForCausalLM'
+        fixed.append('architecture')
+    
+    if 'dtype' not in config:
+        config['dtype'] = 'float16'
+        fixed.append('dtype')
+    
+    if fixed:
         with open(config_path, 'w') as f:
             json.dump(config, f, indent=2)
-        print("✅ Added architecture: LlamaForCausalLM")
+        print(f"✅ Added fields: {', '.join(fixed)}")
     else:
-        print("✅ Architecture field already exists")
+        print("✅ All required fields already exist")
 except Exception as e:
     print(f"⚠️  Could not fix config: {e}")
 EOF
