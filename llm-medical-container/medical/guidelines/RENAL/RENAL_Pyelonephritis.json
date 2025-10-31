@@ -22,71 +22,25 @@
           {
             "medical": "sudden",
             "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "days",
-            "patient_friendly": "for several days"
-          },
-          {
-            "medical": "weeks",
-            "patient_friendly": "for several weeks"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "kidney",
-            "patient_friendly": "kidney area"
-          },
-          {
-            "medical": "renal",
-            "patient_friendly": "renal"
-          },
-          {
-            "medical": "flank",
-            "patient_friendly": "side of your back"
+            "medical": "unilateral",
+            "patient_friendly": "one side"
           },
           {
             "medical": "bilateral",
-            "patient_friendly": "on both sides"
-          },
-          {
-            "medical": "unilateral",
-            "patient_friendly": "unilateral"
+            "patient_friendly": "both sides"
           }
         ],
         "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          }
-        ],
+        "includes": [],
         "excludes": []
       },
       "character": {
@@ -103,14 +57,6 @@
           {
             "medical": "movement",
             "patient_friendly": "moving around"
-          },
-          {
-            "medical": "urination",
-            "patient_friendly": "urination"
-          },
-          {
-            "medical": "medications",
-            "patient_friendly": "medications"
           }
         ],
         "excludes": []
@@ -119,11 +65,7 @@
         "includes": [
           {
             "medical": "antibiotics",
-            "patient_friendly": "antibiotics"
-          },
-          {
-            "medical": "pain medications",
-            "patient_friendly": "pain medications"
+            "patient_friendly": "ANTIBIOTICS"
           }
         ],
         "excludes": []
@@ -131,12 +73,8 @@
       "timing": {
         "includes": [
           {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
           }
         ],
         "excludes": []
@@ -144,8 +82,17 @@
       "severity": {
         "includes": [
           {
-            "medical": "7-9/10",
-            "patient_friendly": "7-9/10"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "severe flank pain",
+            "patient_friendly": "very bad or intense"
           },
           {
             "medical": "severe",

@@ -16,256 +16,54 @@
     "classic_presentation": "ONSET: Hours to days, progressive worsening. LOCATION: Chest (dyspnea), bilateral lower extremities (edema). DURATION: Progressive, continuous dyspnea. CHARACTER: Dyspnea, orthopnea (can't lie flat), paroxysmal nocturnal dyspnea (wake up gasping). AGGRAVATING: Lying flat, exertion, fluid intake. RELIEVING: Sitting upright, diuretics. TIMING: Progressive, worse at night. SEVERITY: Severe dyspnea, patient speaks in short phrases. KEY POSITIVES: Bilateral leg swelling, weight gain, pink frothy sputum, rales on lung exam, elevated JVP, S3 gallop. KEY NEGATIVES: NOT unilateral leg swelling (DVT), NOT pleuritic (PE).",
     "structured_oldcarts": {
       "onset": {
-        "includes": [
-          {
-            "medical": "hours to days",
-            "patient_friendly": "hours to days"
-          },
-          {
-            "medical": "progressive worsening",
-            "patient_friendly": "progressive worsening"
-          },
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "location": {
         "includes": [
           {
             "medical": "chest",
-            "patient_friendly": "chest area"
+            "patient_friendly": "your chest"
           },
           {
-            "medical": "dyspnea",
-            "patient_friendly": "dyspnea"
-          },
-          {
-            "medical": "bilateral lower extremities",
-            "patient_friendly": "bilateral lower extremities"
-          },
-          {
-            "medical": "edema",
-            "patient_friendly": "edema"
+            "medical": "bilateral",
+            "patient_friendly": "both sides"
           }
         ],
-        "excludes": [
-          {
-            "medical": "unilateral leg swelling",
-            "patient_friendly": "unilateral leg swelling"
-          },
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "one area only",
-            "patient_friendly": "one area only"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "continuous dyspnea",
-            "patient_friendly": "continuous dyspnea"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
-        "includes": [
-          {
-            "medical": "dyspnea",
-            "patient_friendly": "dyspnea"
-          },
-          {
-            "medical": "orthopnea",
-            "patient_friendly": "orthopnea"
-          },
-          {
-            "medical": "can't lie flat",
-            "patient_friendly": "can't lie flat"
-          },
-          {
-            "medical": "paroxysmal nocturnal dyspnea",
-            "patient_friendly": "paroxysmal nocturnal dyspnea"
-          },
-          {
-            "medical": "wake up gasping",
-            "patient_friendly": "wake up gasping"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "pleuritic",
-            "patient_friendly": "pleuritic"
-          },
-          {
-            "medical": "sharp",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "no respiratory symptoms",
-            "patient_friendly": "no respiratory symptoms"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat on your back"
-          },
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          },
-          {
-            "medical": "fluid intake",
-            "patient_friendly": "fluid intake"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "sitting upright",
-            "patient_friendly": "sitting upright"
-          },
-          {
-            "medical": "diuretics",
-            "patient_friendly": "diuretics"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
-        "includes": [
-          {
-            "medical": "sitting upright",
-            "patient_friendly": "sitting upright"
-          },
-          {
-            "medical": "diuretics",
-            "patient_friendly": "diuretics"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat on your back"
-          },
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          },
-          {
-            "medical": "fluid intake",
-            "patient_friendly": "fluid intake"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "timing": {
-        "includes": [
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "worse at night",
-            "patient_friendly": "worse at night"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "severity": {
         "includes": [
-          {
-            "medical": "severe dyspnea",
-            "patient_friendly": "severe dyspnea"
-          },
-          {
-            "medical": "patient speaks in short phrases",
-            "patient_friendly": "patient speaks in short phrases"
-          },
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "no symptoms",
-            "patient_friendly": "no symptoms"
-          }
-        ]
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },

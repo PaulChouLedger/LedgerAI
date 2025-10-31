@@ -12,259 +12,93 @@
   "prevalence": "rare",
   "sex": "both",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN, maximal at onset. LOCATION: Chest and/or BACK (interscapular). RADIATES along aortic path (chest\u2192back\u2192abdomen as dissection extends). DURATION: Continuous, persistent. CHARACTER: TEARING, RIPPING, or severe sharp pain. AGGRAVATING: Hypertension. RELIEVING: Nothing helps. TIMING: Sudden onset, unrelenting. SEVERITY: 10/10, catastrophic. KEY POSITIVES: Hypertension, pulse or blood pressure (BP) differential between extremities, Marfan syndrome, bicuspid aortic valve, aortic regurgitation murmur. KEY NEGATIVES: NOT gradual onset, NOT pressure (like myocardial infarction ).",
+    "classic_presentation": "ONSET: SUDDEN, maximal at onset. LOCATION: Chest and/or BACK (interscapular). RADIATES along aortic path (chest→back→abdomen as dissection extends). DURATION: Continuous, persistent. CHARACTER: TEARING, RIPPING, or severe sharp pain. AGGRAVATING: Hypertension. RELIEVING: Nothing helps. TIMING: Sudden onset, unrelenting. SEVERITY: 10/10, catastrophic. KEY POSITIVES: Hypertension, pulse or blood pressure (BP) differential between extremities, Marfan syndrome, bicuspid aortic valve, aortic regurgitation murmur. KEY NEGATIVES: NOT gradual onset, NOT pressure (like myocardial infarction ).",
     "structured_oldcarts": {
       "onset": {
         "includes": [
           {
             "medical": "sudden",
             "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "maximal at onset",
-            "patient_friendly": "maximal at onset"
-          },
-          {
-            "medical": "catastrophic",
-            "patient_friendly": "catastrophic"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "chest",
-            "patient_friendly": "chest area"
-          },
-          {
             "medical": "back",
-            "patient_friendly": "back area"
+            "patient_friendly": "your back"
           },
           {
-            "medical": "interscapular",
-            "patient_friendly": "interscapular"
-          },
-          {
-            "medical": "radiates along aortic path",
-            "patient_friendly": "radiates along aortic path"
-          },
-          {
-            "medical": "chest to back to abdomen",
-            "patient_friendly": "chest to back to abdomen"
+            "medical": "chest",
+            "patient_friendly": "your chest"
           }
         ],
-        "excludes": [
+        "excludes": []
+      },
+      "radiation": {
+        "includes": [
           {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "one area only",
-            "patient_friendly": "one area only"
-          },
-          {
-            "medical": "no radiation",
-            "patient_friendly": "no radiation"
+            "medical": "along aortic path (chest→back→abdomen)",
+            "patient_friendly": "spreads from your chest to your back and down your abdomen"
           }
-        ]
+        ],
+        "excludes": []
       },
       "duration": {
         "includes": [
           {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          },
-          {
             "medical": "persistent",
             "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
           {
             "medical": "tearing",
-            "patient_friendly": "tearing or ripping"
+            "patient_friendly": "tearing"
           },
           {
             "medical": "ripping",
-            "patient_friendly": "tearing or ripping"
+            "patient_friendly": "ripping"
           },
           {
-            "medical": "severe sharp",
-            "patient_friendly": "severe sharp"
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
           },
           {
-            "medical": "catastrophic",
-            "patient_friendly": "catastrophic"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
-          {
-            "medical": "pressure",
-            "patient_friendly": "pressure or heaviness"
-          },
-          {
-            "medical": "dull",
-            "patient_friendly": "dull or achy"
-          },
-          {
-            "medical": "crampy",
-            "patient_friendly": "crampy or cramping"
-          },
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "hypertension",
-            "patient_friendly": "hypertension"
-          },
-          {
-            "medical": "high blood pressure",
-            "patient_friendly": "high blood pressure"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "medication",
-            "patient_friendly": "medication"
-          },
-          {
-            "medical": "position",
-            "patient_friendly": "position"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
-        "includes": [
-          {
-            "medical": "nothing helps",
-            "patient_friendly": "nothing helps"
-          },
-          {
-            "medical": "no relief",
-            "patient_friendly": "no relief"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "medication",
-            "patient_friendly": "medication"
-          },
-          {
-            "medical": "position",
-            "patient_friendly": "position"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
-            "medical": "sudden onset",
-            "patient_friendly": "sudden onset"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
-        "includes": [
-          {
-            "medical": "10/10",
-            "patient_friendly": "10/10"
-          },
-          {
-            "medical": "catastrophic",
-            "patient_friendly": "catastrophic"
-          },
-          {
-            "medical": "10",
-            "patient_friendly": "10 out of 10"
-          },
-          {
-            "medical": "maximal",
-            "patient_friendly": "maximal"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "1-9/10",
-            "patient_friendly": "1-9/10"
-          }
-        ]
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },

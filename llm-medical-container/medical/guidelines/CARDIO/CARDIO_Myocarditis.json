@@ -15,240 +15,63 @@
     "classic_presentation": "ONSET: Days to weeks, often follows viral illness. LOCATION: Chest (retrosternal or left-sided). DURATION: Continuous over days. CHARACTER: Dull ache, pressure, or sharp pleuritic pain. AGGRAVATING: Exertion. RELIEVING: Rest. TIMING: Progressive over days. SEVERITY: Variable, 4-7/10. KEY POSITIVES: Recent viral illness (URI, GI illness) 1-3 weeks prior, dyspnea, fatigue, palpitations, fever, young patient. KEY NEGATIVES: NOT typical exertional angina pattern, NOT elderly (usually younger patients).",
     "structured_oldcarts": {
       "onset": {
-        "includes": [
-          {
-            "medical": "days to weeks",
-            "patient_friendly": "days to weeks"
-          },
-          {
-            "medical": "often follows viral illness",
-            "patient_friendly": "often follows viral illness"
-          },
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "location": {
         "includes": [
           {
             "medical": "chest",
-            "patient_friendly": "chest area"
-          },
-          {
-            "medical": "retrosternal",
-            "patient_friendly": "retrosternal"
-          },
-          {
-            "medical": "left-sided",
-            "patient_friendly": "left-sided"
+            "patient_friendly": "your chest"
           }
         ],
-        "excludes": [
-          {
-            "medical": "right side only",
-            "patient_friendly": "right side only"
-          },
-          {
-            "medical": "no radiation",
-            "patient_friendly": "no radiation"
-          },
-          {
-            "medical": "localized point",
-            "patient_friendly": "localized point"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "continuous over days",
-            "patient_friendly": "continuous over days"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
         "includes": [
           {
-            "medical": "dull ache",
-            "patient_friendly": "dull ache"
+            "medical": "dull",
+            "patient_friendly": "dull or achy"
           },
           {
             "medical": "pressure",
-            "patient_friendly": "pressure or heaviness"
+            "patient_friendly": "pressure-like"
           },
           {
-            "medical": "sharp pleuritic pain",
-            "patient_friendly": "sharp pleuritic pain"
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
           }
         ],
-        "excludes": [
-          {
-            "medical": "crushing",
-            "patient_friendly": "crushing or squeezing"
-          },
-          {
-            "medical": "burning",
-            "patient_friendly": "burning sensation"
-          },
-          {
-            "medical": "no pain",
-            "patient_friendly": "no pain"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "medication",
-            "patient_friendly": "medication"
-          },
-          {
-            "medical": "position",
-            "patient_friendly": "position"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
             "medical": "rest",
-            "patient_friendly": "lying still or resting"
+            "patient_friendly": "resting"
           }
         ],
-        "excludes": [
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          },
-          {
-            "medical": "stress",
-            "patient_friendly": "stress or anxiety"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
-        "includes": [
-          {
-            "medical": "progressive over days",
-            "patient_friendly": "progressive over days"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "severity": {
-        "includes": [
-          {
-            "medical": "variable",
-            "patient_friendly": "variable"
-          },
-          {
-            "medical": "4-7/10",
-            "patient_friendly": "4-7/10"
-          },
-          {
-            "medical": "4",
-            "patient_friendly": "4 out of 10"
-          },
-          {
-            "medical": "5",
-            "patient_friendly": "5 out of 10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "1-3/10",
-            "patient_friendly": "1-3/10"
-          },
-          {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "8-10/10",
-            "patient_friendly": "8-10/10"
-          }
-        ]
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },

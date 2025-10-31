@@ -19,95 +19,41 @@
         "includes": [
           {
             "medical": "subacute",
-            "patient_friendly": "subacute"
+            "patient_friendly": "sudden and severe"
           },
           {
             "medical": "gradual",
             "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "days to weeks",
-            "patient_friendly": "days to weeks"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "slowly",
-            "patient_friendly": "slowly"
-          },
-          {
-            "medical": "over days",
-            "patient_friendly": "over days"
-          },
-          {
-            "medical": "over weeks",
-            "patient_friendly": "over weeks"
           }
-        ]
+        ],
+        "excludes": []
       },
       "location": {
         "includes": [
           {
             "medical": "right upper quadrant",
             "patient_friendly": "top right side near your ribs"
-          },
-          {
-            "medical": "epigastric",
-            "patient_friendly": "upper middle part of your belly"
-          },
-          {
-            "medical": "liver area",
-            "patient_friendly": "liver area"
           }
         ],
-        "excludes": [
-          {
-            "medical": "left side",
-            "patient_friendly": "left side"
-          },
-          {
-            "medical": "lower abdomen",
-            "patient_friendly": "lower abdomen"
-          },
-          {
-            "medical": "pelvis",
-            "patient_friendly": "pelvis"
-          },
-          {
-            "medical": "RLQ",
-            "patient_friendly": "RLQ"
-          },
-          {
-            "medical": "LLQ",
-            "patient_friendly": "LLQ"
-          }
-        ]
+        "excludes": [],
+        "anatomical_type": "right_upper"
       },
       "duration": {
         "includes": [
           {
-            "medical": "weeks",
-            "patient_friendly": "weeks"
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
           },
           {
             "medical": "persistent",
             "patient_friendly": "keeps going"
           },
           {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
           }
-        ]
+        ],
+        "excludes": []
       },
       "character": {
         "includes": [
@@ -117,91 +63,39 @@
           },
           {
             "medical": "aching",
-            "patient_friendly": "achy or sore"
+            "patient_friendly": "aching"
           },
           {
-            "medical": "heavy",
-            "patient_friendly": "heavy"
+            "medical": "ruq",
+            "patient_friendly": "top right side near your ribs"
           },
-          {
-            "medical": "pressure",
-            "patient_friendly": "pressure or heaviness"
-          },
-          {
-            "medical": "discomfort",
-            "patient_friendly": "discomfort"
-          },
-          {
-            "medical": "fullness",
-            "patient_friendly": "fullness"
-          }
-        ],
-        "excludes": [
           {
             "medical": "sharp",
             "patient_friendly": "sharp or stabbing"
           },
           {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "cramping",
-            "patient_friendly": "crampy or cramping"
-          },
-          {
-            "medical": "cutting",
-            "patient_friendly": "cutting"
+            "medical": "pressure",
+            "patient_friendly": "pressure-like"
           }
-        ]
+        ],
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "fatty foods",
-            "patient_friendly": "greasy or fatty foods"
-          },
-          {
-            "medical": "food intake",
-            "patient_friendly": "food intake"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          },
-          {
-            "medical": "alcohol",
-            "patient_friendly": "alcohol"
-          },
-          {
-            "medical": "eating fatty foods",
-            "patient_friendly": "eating fatty foods"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
+            "medical": "ruq",
+            "patient_friendly": "top right side near your ribs"
+          },
+          {
             "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "avoiding fatty foods",
-            "patient_friendly": "staying away from greasy foods"
-          },
-          {
-            "medical": "hydration",
-            "patient_friendly": "hydration"
-          },
-          {
-            "medical": "drinking water",
-            "patient_friendly": "drinking water"
-          },
-          {
-            "medical": "laying down",
-            "patient_friendly": "laying down"
+            "patient_friendly": "resting"
           }
-        ]
+        ],
+        "excludes": []
       },
       "timing": {
         "includes": [
@@ -212,90 +106,51 @@
           {
             "medical": "persistent",
             "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          },
-          {
-            "medical": "all the time",
-            "patient_friendly": "all the time"
-          },
-          {
-            "medical": "progressive worsening",
-            "patient_friendly": "progressive worsening"
           }
         ],
-        "excludes": [
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "wave-like",
-            "patient_friendly": "wave-like"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "4",
-            "patient_friendly": "4 out of 10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          },
-          {
-            "medical": "5",
-            "patient_friendly": "5 out of 10"
-          },
-          {
-            "medical": "10",
-            "patient_friendly": "10 out of 10"
-          },
-          {
             "medical": "mild",
             "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "3",
-            "patient_friendly": "3 out of 10"
           },
           {
             "medical": "moderate",
             "patient_friendly": "somewhat bad"
           },
           {
-            "medical": "4-7/10",
-            "patient_friendly": "4-7/10"
-          },
-          {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
           }
-        ]
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "profound fatigue",
+            "patient_friendly": "PROFOUND FATIGUE"
+          },
+          {
+            "medical": "jaundice",
+            "patient_friendly": "JAUNDICE"
+          },
+          {
+            "medical": "dark urine",
+            "patient_friendly": "DARK URINE"
+          },
+          {
+            "medical": "light",
+            "patient_friendly": "LIGHT"
+          },
+          {
+            "medical": "colored stools",
+            "patient_friendly": "COLORED STOOLS"
+          }
+        ],
+        "excludes": []
       }
     }
   },

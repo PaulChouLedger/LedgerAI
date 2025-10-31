@@ -19,153 +19,84 @@
       "onset": {
         "includes": [
           {
-            "medical": "years",
-            "patient_friendly": "years"
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
           },
           {
-            "medical": "recurrent",
-            "patient_friendly": "recurrent"
-          },
-          {
-            "medical": "months",
-            "patient_friendly": "months"
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
           },
           {
             "medical": "chronic",
             "patient_friendly": "ongoing for a long time"
           }
-        ]
+        ],
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "everywhere",
-            "patient_friendly": "everywhere"
-          },
-          {
-            "medical": "umbilical",
-            "patient_friendly": "umbilical"
-          },
-          {
-            "medical": "all over",
-            "patient_friendly": "all over"
-          },
-          {
-            "medical": "diffuse",
-            "patient_friendly": "diffuse"
-          },
-          {
-            "medical": "right lower quadrant",
-            "patient_friendly": "lower right side near your groin"
-          },
-          {
-            "medical": "around navel",
-            "patient_friendly": "around navel"
+            "medical": "rlq",
+            "patient_friendly": "lower right side around your groin"
           },
           {
             "medical": "periumbilical",
             "patient_friendly": "around your belly button"
           }
-        ]
+        ],
+        "excludes": [],
+        "anatomical_type": "right_lower"
       },
       "duration": {
         "includes": [
           {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          },
-          {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "several hours",
-            "patient_friendly": "several hours"
           }
-        ]
+        ],
+        "excludes": []
       },
       "character": {
         "includes": [
-          {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
-          },
           {
             "medical": "sharp",
             "patient_friendly": "sharp or stabbing"
           },
           {
-            "medical": "knife-like",
-            "patient_friendly": "knife-like"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           },
           {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
+            "medical": "colicky",
+            "patient_friendly": "comes and goes in waves"
           },
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "steady",
-            "patient_friendly": "steady"
           }
-        ]
+        ],
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
-            "medical": "meals",
-            "patient_friendly": "meals"
-          },
-          {
-            "medical": "food",
-            "patient_friendly": "food"
-          },
-          {
             "medical": "eating",
-            "patient_friendly": "eating food"
+            "patient_friendly": "eating"
           }
-        ]
+        ],
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
-            "medical": "nothing helps",
+            "medical": "nothing",
             "patient_friendly": "nothing helps"
-          },
-          {
-            "medical": "no relief",
-            "patient_friendly": "no relief"
           }
-        ]
+        ],
+        "excludes": []
       },
       "timing": {
         "includes": [
-          {
-            "medical": "all the time",
-            "patient_friendly": "all the time"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          },
           {
             "medical": "intermittent",
             "patient_friendly": "comes and goes"
@@ -174,35 +105,34 @@
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
           }
-        ]
+        ],
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "7-10/10",
-            "patient_friendly": "7-10/10"
-          },
-          {
-            "medical": "10",
-            "patient_friendly": "10 out of 10"
-          },
-          {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
           }
-        ]
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "abdomen",
+            "patient_friendly": "your belly"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
+        ],
+        "excludes": []
       }
     }
   },

@@ -19,232 +19,69 @@
           {
             "medical": "acute",
             "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "trauma",
-            "patient_friendly": "trauma"
-          },
-          {
-            "medical": "rupture",
-            "patient_friendly": "rupture"
-          },
-          {
-            "medical": "subacute",
-            "patient_friendly": "subacute"
-          },
-          {
-            "medical": "effusion accumulation",
-            "patient_friendly": "effusion accumulation"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
             "medical": "chest",
-            "patient_friendly": "chest area"
+            "patient_friendly": "your chest"
           },
           {
-            "medical": "retrosternal pressure",
-            "patient_friendly": "retrosternal pressure"
-          },
-          {
-            "medical": "generalized dyspnea",
-            "patient_friendly": "generalized dyspnea"
+            "medical": "pressure",
+            "patient_friendly": "pressure-like"
           }
         ],
-        "excludes": [
-          {
-            "medical": "pleuritic pain",
-            "patient_friendly": "pleuritic pain"
-          },
-          {
-            "medical": "unilateral symptoms",
-            "patient_friendly": "unilateral symptoms"
-          },
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "over hours to days",
-            "patient_friendly": "over hours to days"
-          },
-          {
-            "medical": "worsening",
-            "patient_friendly": "worsening"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
         "includes": [
           {
-            "medical": "dyspnea",
-            "patient_friendly": "dyspnea"
+            "medical": "chest",
+            "patient_friendly": "your chest"
           },
           {
-            "medical": "chest pressure",
-            "patient_friendly": "pressure in your chest"
-          },
-          {
-            "medical": "feeling of impending doom",
-            "patient_friendly": "feeling of impending doom"
+            "medical": "pressure",
+            "patient_friendly": "pressure-like"
           }
         ],
-        "excludes": [
-          {
-            "medical": "pleuritic pain",
-            "patient_friendly": "pleuritic pain"
-          },
-          {
-            "medical": "sharp",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "no symptoms",
-            "patient_friendly": "no symptoms"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat on your back"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "sitting up",
-            "patient_friendly": "sitting up"
-          },
-          {
-            "medical": "leaning forward",
-            "patient_friendly": "leaning forward"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
             "medical": "sitting up",
             "patient_friendly": "sitting up"
-          },
-          {
-            "medical": "leaning forward",
-            "patient_friendly": "leaning forward"
           }
         ],
-        "excludes": [
-          {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat on your back"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          },
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
-        "includes": [
-          {
-            "medical": "progressive worsening",
-            "patient_friendly": "progressive worsening"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "severity": {
         "includes": [
-          {
-            "medical": "severe respiratory distress",
-            "patient_friendly": "severe respiratory distress"
-          },
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "no symptoms",
-            "patient_friendly": "no symptoms"
-          }
-        ]
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },

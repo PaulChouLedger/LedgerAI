@@ -15,44 +15,24 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL onset over 2-3 days, often preceded by prodromal symptoms (fatigue, headache, fever). LOCATION: UNILATERAL dermatomal distribution - most commonly thoracic, trigeminal, or lumbar. DURATION: Prodrome 2-3 days, rash 2-4 weeks, pain may persist for months. CHARACTER: VESICULAR (blistering) rash with SEVERE BURNING/STINGING pain. AGGRAVATING: TOUCH, clothing, heat. RELIEVING: ANTIVIRALS (if started within 72 hours), pain medications, cool compresses. TIMING: Prodrome 2-3 days, rash develops over 2-4 weeks. SEVERITY: 6-10/10 pain, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE BURNING/STINGING pain, vesicular rash in dermatomal distribution, may have fever, malaise, headache. KEY POSITIVES: Unilateral dermatomal distribution, vesicles, severe pain, positive Tzanck smear. KEY NEGATIVES: No crossing midline, no systemic symptoms (unless disseminated), no fever >102\u00b0F.",
+    "classic_presentation": "ONSET: GRADUAL onset over 2-3 days, often preceded by prodromal symptoms (fatigue, headache, fever). LOCATION: UNILATERAL dermatomal distribution - most commonly thoracic, trigeminal, or lumbar. DURATION: Prodrome 2-3 days, rash 2-4 weeks, pain may persist for months. CHARACTER: VESICULAR (blistering) rash with SEVERE BURNING/STINGING pain. AGGRAVATING: TOUCH, clothing, heat. RELIEVING: ANTIVIRALS (if started within 72 hours), pain medications, cool compresses. TIMING: Prodrome 2-3 days, rash develops over 2-4 weeks. SEVERITY: 6-10/10 pain, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE BURNING/STINGING pain, vesicular rash in dermatomal distribution, may have fever, malaise, headache. KEY POSITIVES: Unilateral dermatomal distribution, vesicles, severe pain, positive Tzanck smear. KEY NEGATIVES: No crossing midline, no systemic symptoms (unless disseminated), no fever >102°F.",
     "structured_oldcarts": {
       "onset": {
         "includes": [
           {
             "medical": "gradual",
             "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "days",
-            "patient_friendly": "for several days"
-          },
-          {
-            "medical": "weeks",
-            "patient_friendly": "for several weeks"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          }
-        ]
+        "excludes": []
       },
       "location": {
-        "includes": [],
+        "includes": [
+          {
+            "medical": "unilateral",
+            "patient_friendly": "one side"
+          }
+        ],
         "excludes": []
       },
       "duration": {
@@ -60,14 +40,35 @@
         "excludes": []
       },
       "character": {
-        "includes": [],
+        "includes": [
+          {
+            "medical": "vesicular",
+            "patient_friendly": "VESICULAR"
+          },
+          {
+            "medical": "severe burning",
+            "patient_friendly": "burning sensation"
+          },
+          {
+            "medical": "stinging",
+            "patient_friendly": "STINGING"
+          },
+          {
+            "medical": "burning",
+            "patient_friendly": "burning sensation"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
         "excludes": []
       },
       "aggravating": {
         "includes": [
           {
-            "medical": "heat",
-            "patient_friendly": "applying heat"
+            "medical": "touch",
+            "patient_friendly": "TOUCH"
           }
         ],
         "excludes": []
@@ -75,8 +76,8 @@
       "relieving": {
         "includes": [
           {
-            "medical": "cool compresses",
-            "patient_friendly": "cool compresses"
+            "medical": "antivirals",
+            "patient_friendly": "ANTIVIRALS"
           }
         ],
         "excludes": []
@@ -87,6 +88,27 @@
       },
       "severity": {
         "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "severe burning",
+            "patient_friendly": "burning sensation"
+          },
+          {
+            "medical": "stinging",
+            "patient_friendly": "STINGING"
+          },
+          {
+            "medical": "burning",
+            "patient_friendly": "burning sensation"
+          },
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"

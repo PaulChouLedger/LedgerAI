@@ -22,296 +22,75 @@
           {
             "medical": "sudden",
             "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "within seconds",
-            "patient_friendly": "within seconds"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
             "medical": "generalized",
-            "patient_friendly": "generalized"
-          },
-          {
-            "medical": "focal",
-            "patient_friendly": "focal"
-          },
-          {
-            "medical": "whole body",
-            "patient_friendly": "whole body"
-          },
-          {
-            "medical": "specific area",
-            "patient_friendly": "specific area"
+            "patient_friendly": "GENERALIZED"
           }
         ],
-        "excludes": [
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "specific point",
-            "patient_friendly": "specific point"
-          },
-          {
-            "medical": "unilateral only",
-            "patient_friendly": "unilateral only"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "seconds to minutes",
-            "patient_friendly": "seconds to minutes"
-          },
-          {
-            "medical": "brief",
-            "patient_friendly": "for a short time"
-          },
-          {
-            "medical": "transient",
-            "patient_friendly": "transient"
-          },
-          {
-            "medical": "short",
-            "patient_friendly": "short"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "days",
-            "patient_friendly": "for several days"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
         "includes": [
           {
-            "medical": "involuntary movements",
-            "patient_friendly": "involuntary movements"
-          },
-          {
-            "medical": "jerking",
-            "patient_friendly": "jerking"
-          },
-          {
-            "medical": "convulsions",
-            "patient_friendly": "convulsions"
-          },
-          {
-            "medical": "severe during episode",
-            "patient_friendly": "severe during episode"
+            "medical": "involuntary",
+            "patient_friendly": "INVOLUNTARY"
           }
         ],
-        "excludes": [
-          {
-            "medical": "voluntary",
-            "patient_friendly": "voluntary"
-          },
-          {
-            "medical": "controlled",
-            "patient_friendly": "controlled"
-          },
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
             "medical": "stress",
-            "patient_friendly": "stress or anxiety"
-          },
-          {
-            "medical": "sleep deprivation",
-            "patient_friendly": "sleep deprivation"
-          },
-          {
-            "medical": "alcohol withdrawal",
-            "patient_friendly": "alcohol withdrawal"
-          },
-          {
-            "medical": "triggers",
-            "patient_friendly": "triggers"
+            "patient_friendly": "STRESS"
           }
         ],
-        "excludes": [
-          {
-            "medical": "anticonvulsants",
-            "patient_friendly": "anticonvulsants"
-          },
-          {
-            "medical": "supportive care",
-            "patient_friendly": "supportive care"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "treatment",
-            "patient_friendly": "treatment"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
             "medical": "anticonvulsants",
-            "patient_friendly": "anticonvulsants"
-          },
-          {
-            "medical": "supportive care",
-            "patient_friendly": "supportive care"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "treatment",
-            "patient_friendly": "treatment"
+            "patient_friendly": "ANTICONVULSANTS"
           }
         ],
-        "excludes": [
-          {
-            "medical": "stress",
-            "patient_friendly": "stress or anxiety"
-          },
-          {
-            "medical": "sleep deprivation",
-            "patient_friendly": "sleep deprivation"
-          },
-          {
-            "medical": "alcohol withdrawal",
-            "patient_friendly": "alcohol withdrawal"
-          },
-          {
-            "medical": "triggers",
-            "patient_friendly": "triggers"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
-            "medical": "sudden onset",
-            "patient_friendly": "sudden onset"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
         "includes": [
           {
-            "medical": "8-10/10 during episode",
-            "patient_friendly": "8-10/10 during episode"
+            "medical": "loss",
+            "patient_friendly": "LOSS"
           },
           {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
-          },
-          {
-            "medical": "10",
-            "patient_friendly": "10 out of 10"
-          },
-          {
-            "medical": "severe during episode",
-            "patient_friendly": "severe during episode"
+            "medical": "consciousness",
+            "patient_friendly": "CONSCIOUSNESS"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "1-7/10",
-            "patient_friendly": "1-7/10"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          }
-        ]
+        "excludes": []
       }
     }
   },

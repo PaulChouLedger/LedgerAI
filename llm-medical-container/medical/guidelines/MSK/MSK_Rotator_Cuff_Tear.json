@@ -24,120 +24,45 @@
             "patient_friendly": "slowly over time"
           },
           {
-            "medical": "weeks to months",
-            "patient_friendly": "weeks to months"
-          },
-          {
             "medical": "sudden",
             "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "during trauma",
-            "patient_friendly": "during trauma"
-          },
-          {
-            "medical": "fall",
-            "patient_friendly": "fall"
-          },
-          {
-            "medical": "direct blow",
-            "patient_friendly": "direct blow"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          },
-          {
-            "medical": "seconds",
-            "patient_friendly": "seconds"
-          },
-          {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          }
-        ]
-      },
-      "location": {
-        "includes": [
-          {
-            "medical": "anterior shoulder",
-            "patient_friendly": "anterior shoulder"
-          },
-          {
-            "medical": "upper arm",
-            "patient_friendly": "upper arm"
-          },
-          {
-            "medical": "shoulder",
-            "patient_friendly": "shoulder area"
-          },
-          {
-            "medical": "shoulder joint",
-            "patient_friendly": "shoulder joint"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "elbow",
-            "patient_friendly": "elbow area"
-          },
-          {
-            "medical": "wrist",
-            "patient_friendly": "wrist area"
-          },
-          {
-            "medical": "neck",
-            "patient_friendly": "neck area"
-          },
-          {
-            "medical": "chest",
-            "patient_friendly": "chest area"
-          }
-        ]
-      },
-      "duration": {
-        "includes": [
-          {
-            "medical": "weeks to months",
-            "patient_friendly": "weeks to months"
-          },
-          {
-            "medical": "days to weeks",
-            "patient_friendly": "days to weeks"
           },
           {
             "medical": "chronic",
             "patient_friendly": "ongoing for a long time"
           },
           {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
           }
         ],
-        "excludes": [
+        "excludes": []
+      },
+      "location": {
+        "includes": [
           {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
+            "medical": "shoulder",
+            "patient_friendly": "spreads to your right shoulder"
           },
           {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "brief",
-            "patient_friendly": "for a short time"
-          },
-          {
-            "medical": "transient",
-            "patient_friendly": "transient"
+            "medical": "arm",
+            "patient_friendly": "arm"
           }
-        ]
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
+        ],
+        "excludes": []
       },
       "character": {
         "includes": [
@@ -147,207 +72,66 @@
           },
           {
             "medical": "aching",
-            "patient_friendly": "achy or sore"
+            "patient_friendly": "aching"
           },
           {
-            "medical": "sharp episodes",
-            "patient_friendly": "sharp episodes"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
           }
         ],
-        "excludes": [
-          {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "burning",
-            "patient_friendly": "burning sensation"
-          },
-          {
-            "medical": "numbness",
-            "patient_friendly": "feeling numb"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
-            "medical": "overhead activities",
-            "patient_friendly": "overhead activities"
+            "medical": "overhead",
+            "patient_friendly": "OVERHEAD"
           },
           {
-            "medical": "reaching behind back",
-            "patient_friendly": "reaching behind back"
-          },
-          {
-            "medical": "sleeping on affected side",
-            "patient_friendly": "sleeping on affected side"
-          },
-          {
-            "medical": "lifting",
-            "patient_friendly": "lifting"
-          },
-          {
-            "medical": "pushing",
-            "patient_friendly": "pushing"
-          },
-          {
-            "medical": "pulling",
-            "patient_friendly": "pulling"
+            "medical": "back",
+            "patient_friendly": "your back"
           }
         ],
-        "excludes": [
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "ice",
-            "patient_friendly": "applying ice"
-          },
-          {
-            "medical": "NSAIDs",
-            "patient_friendly": "NSAIDs"
-          },
-          {
-            "medical": "physical therapy",
-            "patient_friendly": "physical therapy"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
             "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "ice",
-            "patient_friendly": "applying ice"
-          },
-          {
-            "medical": "NSAIDs",
-            "patient_friendly": "NSAIDs"
-          },
-          {
-            "medical": "physical therapy",
-            "patient_friendly": "physical therapy"
-          },
-          {
-            "medical": "treatment",
-            "patient_friendly": "treatment"
+            "patient_friendly": "resting"
           }
         ],
-        "excludes": [
-          {
-            "medical": "overhead activities",
-            "patient_friendly": "overhead activities"
-          },
-          {
-            "medical": "reaching behind back",
-            "patient_friendly": "reaching behind back"
-          },
-          {
-            "medical": "sleeping on affected side",
-            "patient_friendly": "sleeping on affected side"
-          },
-          {
-            "medical": "lifting",
-            "patient_friendly": "lifting"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
-        "includes": [
-          {
-            "medical": "worse at night",
-            "patient_friendly": "worse at night"
-          },
-          {
-            "medical": "sleeping on affected side",
-            "patient_friendly": "sleeping on affected side"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "morning only",
-            "patient_friendly": "morning only"
-          },
-          {
-            "medical": "daytime only",
-            "patient_friendly": "daytime only"
-          },
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "variable",
-            "patient_friendly": "variable"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "moderate to severe",
-            "patient_friendly": "moderate to severe"
-          },
-          {
-            "medical": "4-7/10",
-            "patient_friendly": "4-7/10"
-          },
-          {
-            "medical": "4",
-            "patient_friendly": "4 out of 10"
-          },
-          {
-            "medical": "5",
-            "patient_friendly": "5 out of 10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "1-3/10",
-            "patient_friendly": "1-3/10"
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
           },
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "weakness",
+            "patient_friendly": "WEAKNESS"
           },
           {
-            "medical": "8-10/10",
-            "patient_friendly": "8-10/10"
+            "medical": "back",
+            "patient_friendly": "your back"
           }
-        ]
+        ],
+        "excludes": []
       }
     }
   },

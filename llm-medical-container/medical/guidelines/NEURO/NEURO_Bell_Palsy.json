@@ -22,114 +22,22 @@
           {
             "medical": "sudden",
             "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "within hours to days",
-            "patient_friendly": "within hours to days"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "unilateral facial paralysis",
-            "patient_friendly": "unilateral facial paralysis"
-          },
-          {
-            "medical": "one side",
-            "patient_friendly": "one side"
-          },
-          {
-            "medical": "facial",
-            "patient_friendly": "facial"
-          },
-          {
             "medical": "unilateral",
-            "patient_friendly": "unilateral"
+            "patient_friendly": "one side"
           }
         ],
-        "excludes": [
-          {
-            "medical": "bilateral",
-            "patient_friendly": "on both sides"
-          },
-          {
-            "medical": "both sides",
-            "patient_friendly": "both sides"
-          },
-          {
-            "medical": "generalized",
-            "patient_friendly": "generalized"
-          },
-          {
-            "medical": "diffuse",
-            "patient_friendly": "diffuse"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "develops over hours to days",
-            "patient_friendly": "develops over hours to days"
-          },
-          {
-            "medical": "weeks to months",
-            "patient_friendly": "weeks to months"
-          },
-          {
-            "medical": "prolonged",
-            "patient_friendly": "for a long time"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
-          },
-          {
-            "medical": "seconds",
-            "patient_friendly": "seconds"
-          },
-          {
-            "medical": "brief",
-            "patient_friendly": "for a short time"
-          },
-          {
-            "medical": "transient",
-            "patient_friendly": "transient"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
         "includes": [
@@ -138,193 +46,73 @@
             "patient_friendly": "all at once or very quickly"
           },
           {
-            "medical": "severe facial weakness",
-            "patient_friendly": "severe facial weakness"
-          },
-          {
-            "medical": "paralysis",
-            "patient_friendly": "paralysis"
-          },
-          {
-            "medical": "moderate to severe",
-            "patient_friendly": "moderate to severe"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "focal",
-            "patient_friendly": "focal"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
             "medical": "speaking",
-            "patient_friendly": "speaking"
+            "patient_friendly": "SPEAKING"
           },
           {
             "medical": "eating",
-            "patient_friendly": "eating food"
-          },
-          {
-            "medical": "drinking",
-            "patient_friendly": "drinking"
-          },
-          {
-            "medical": "facial movement",
-            "patient_friendly": "facial movement"
+            "patient_friendly": "eating"
           }
         ],
-        "excludes": [
-          {
-            "medical": "steroids",
-            "patient_friendly": "steroids"
-          },
-          {
-            "medical": "antiviral medications",
-            "patient_friendly": "antiviral medications"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "treatment",
-            "patient_friendly": "treatment"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
             "medical": "steroids",
-            "patient_friendly": "steroids"
-          },
-          {
-            "medical": "antiviral medications",
-            "patient_friendly": "antiviral medications"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "treatment",
-            "patient_friendly": "treatment"
+            "patient_friendly": "STEROIDS"
           }
         ],
-        "excludes": [
-          {
-            "medical": "speaking",
-            "patient_friendly": "speaking"
-          },
-          {
-            "medical": "eating",
-            "patient_friendly": "eating food"
-          },
-          {
-            "medical": "drinking",
-            "patient_friendly": "drinking"
-          },
-          {
-            "medical": "facial movement",
-            "patient_friendly": "facial movement"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
-            "medical": "sudden onset",
-            "patient_friendly": "sudden onset"
-          },
-          {
-            "medical": "develops over hours to days",
-            "patient_friendly": "develops over hours to days"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "moderate to severe",
-            "patient_friendly": "moderate to severe"
-          },
-          {
-            "medical": "6-9/10",
-            "patient_friendly": "6-9/10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "1-5/10",
-            "patient_friendly": "1-5/10"
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
           },
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "facial weakness",
+            "patient_friendly": "FACIAL WEAKNESS"
           },
           {
-            "medical": "10/10",
-            "patient_friendly": "10/10"
+            "medical": "eating",
+            "patient_friendly": "eating"
           }
-        ]
+        ],
+        "excludes": []
       }
     }
   },
   "red_flags": [
-    "Bilateral facial weakness - possible Guillain-Barr\u00e9 syndrome, call 911",
+    "Bilateral facial weakness - possible Guillain-Barré syndrome, call 911",
     "Facial weakness with other neurological deficits - possible stroke, call 911",
     "Facial weakness with signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911",
     "Facial weakness with severe hypertension - possible hypertensive crisis, call 911",

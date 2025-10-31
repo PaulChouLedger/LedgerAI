@@ -15,51 +15,22 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within hours to days after starting new medication. LOCATION: GENERALIZED or localized to specific areas. DURATION: Develops over hours to days, may persist for days to weeks. CHARACTER: ERYTHEMATOUS (red), PRURITIC (itchy), may be MACULOPAPULAR (flat and raised) or VESICULAR (blistering). AGGRAVATING: SCRATCHING, heat, stress. RELIEVING: DISCONTINUING offending drug, antihistamines, topical steroids. TIMING: Develops within hours to days of drug exposure. SEVERITY: 4-8/10 itching, moderate to severe. ASSOCIATED SYMPTOMS: SEVERE ITCHING (pruritus), erythema, may have fever, may have systemic symptoms (nausea, vomiting, diarrhea). KEY POSITIVES: Erythema, pruritus, recent medication history, positive drug challenge. KEY NEGATIVES: No fever >102\u00b0F (rules out serious drug reaction), no systemic symptoms (unless severe).",
+    "classic_presentation": "ONSET: SUDDEN onset within hours to days after starting new medication. LOCATION: GENERALIZED or localized to specific areas. DURATION: Develops over hours to days, may persist for days to weeks. CHARACTER: ERYTHEMATOUS (red), PRURITIC (itchy), may be MACULOPAPULAR (flat and raised) or VESICULAR (blistering). AGGRAVATING: SCRATCHING, heat, stress. RELIEVING: DISCONTINUING offending drug, antihistamines, topical steroids. TIMING: Develops within hours to days of drug exposure. SEVERITY: 4-8/10 itching, moderate to severe. ASSOCIATED SYMPTOMS: SEVERE ITCHING (pruritus), erythema, may have fever, may have systemic symptoms (nausea, vomiting, diarrhea). KEY POSITIVES: Erythema, pruritus, recent medication history, positive drug challenge. KEY NEGATIVES: No fever >102°F (rules out serious drug reaction), no systemic symptoms (unless severe).",
     "structured_oldcarts": {
       "onset": {
         "includes": [
           {
             "medical": "sudden",
             "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "days",
-            "patient_friendly": "for several days"
-          },
-          {
-            "medical": "weeks",
-            "patient_friendly": "for several weeks"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "anywhere",
-            "patient_friendly": "anywhere"
-          },
-          {
             "medical": "generalized",
-            "patient_friendly": "generalized"
+            "patient_friendly": "GENERALIZED"
           }
         ],
         "excludes": []
@@ -72,23 +43,19 @@
         "includes": [
           {
             "medical": "erythematous",
-            "patient_friendly": "erythematous"
-          },
-          {
-            "medical": "red",
-            "patient_friendly": "red"
+            "patient_friendly": "ERYTHEMATOUS"
           },
           {
             "medical": "pruritic",
-            "patient_friendly": "pruritic"
+            "patient_friendly": "PRURITIC"
           },
           {
-            "medical": "itchy",
-            "patient_friendly": "itchy"
+            "medical": "maculopapular",
+            "patient_friendly": "MACULOPAPULAR"
           },
           {
-            "medical": "raised",
-            "patient_friendly": "raised"
+            "medical": "vesicular",
+            "patient_friendly": "VESICULAR"
           }
         ],
         "excludes": []
@@ -97,15 +64,7 @@
         "includes": [
           {
             "medical": "scratching",
-            "patient_friendly": "scratching"
-          },
-          {
-            "medical": "heat",
-            "patient_friendly": "applying heat"
-          },
-          {
-            "medical": "stress",
-            "patient_friendly": "stress or anxiety"
+            "patient_friendly": "SCRATCHING"
           }
         ],
         "excludes": []
@@ -113,12 +72,8 @@
       "relieving": {
         "includes": [
           {
-            "medical": "antihistamines",
-            "patient_friendly": "antihistamines"
-          },
-          {
-            "medical": "topical steroids",
-            "patient_friendly": "topical steroids"
+            "medical": "discontinuing",
+            "patient_friendly": "DISCONTINUING"
           }
         ],
         "excludes": []
@@ -139,11 +94,24 @@
           }
         ],
         "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "severe itching",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
       }
     }
   },
   "red_flags": [
-    "Rash with fever >102\u00b0F - possible serious drug reaction, call 911",
+    "Rash with fever >102°F - possible serious drug reaction, call 911",
     "Rash with severe systemic symptoms - possible anaphylaxis, call 911",
     "Rash involving mucous membranes - eyes, mouth, genitals - Stevens-Johnson syndrome, call 911",
     "Rash with difficulty breathing - possible anaphylaxis, call 911",

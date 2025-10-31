@@ -14,7 +14,7 @@
     "lower right side pain"
   ],
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within 6-48 hours (acute, NOT chronic). LOCATION: Pain MIGRATES from periumbilical to right lower quadrant (RLQ) over 12-24 hours - highly specific migration pattern. Localizes to McBurney's point in right lower quadrant (RLQ). DURATION: CONSTANT pain lasting hours to days (not episodic). CHARACTER: SHARP and CONSTANT (NOT crampy or intermittent). AGGRAVATING: WORSENS WITH MOVEMENT - patients can't jump, cough, or tolerate car bumps. Lying still required. RELIEVING: Lying motionless provides slight relief. NOTHING fully relieves pain. Movement worsens it. TIMING: CONSTANT and progressively worsening over time (not waves). SEVERITY: 7-10/10, moderate to severe. ASSOCIATED SYMPTOMS: ANOREXIA in >90% (ask 'are you hungry?' - 'yes' makes appendicitis unlikely), nausea and vomiting (AFTER pain onset), low-grade fever (100-102\u00b0F). KEY POSITIVES: Anorexia, right lower quadrant (RLQ) tenderness, periumbilical\u2192RLQ migration. KEY NEGATIVES: Pain starting in right lower quadrant (RLQ) without migration is less typical. CRAMPY pain suggests obstruction. PROFUSE WATERY DIARRHEA suggests gastroenteritis. High fever >103\u00b0F suggests perforation.",
+    "classic_presentation": "ONSET: SUDDEN onset within 6-48 hours (acute, NOT chronic). LOCATION: Pain MIGRATES from periumbilical to right lower quadrant (RLQ) over 12-24 hours - highly specific migration pattern. Localizes to McBurney's point in right lower quadrant (RLQ). DURATION: CONSTANT pain lasting hours to days (not episodic). CHARACTER: SHARP and CONSTANT (NOT crampy or intermittent). AGGRAVATING: WORSENS WITH MOVEMENT - patients can't jump, cough, or tolerate car bumps. Lying still required. RELIEVING: Lying motionless provides slight relief. NOTHING fully relieves pain. Movement worsens it. TIMING: CONSTANT and progressively worsening over time (not waves). SEVERITY: 7-10/10, moderate to severe. ASSOCIATED SYMPTOMS: ANOREXIA in >90% (ask 'are you hungry?' - 'yes' makes appendicitis unlikely), nausea and vomiting (AFTER pain onset), low-grade fever (100-102°F). KEY POSITIVES: Anorexia, right lower quadrant (RLQ) tenderness, periumbilical→RLQ migration. KEY NEGATIVES: Pain starting in right lower quadrant (RLQ) without migration is less typical. CRAMPY pain suggests obstruction. PROFUSE WATERY DIARRHEA suggests gastroenteritis. High fever >103°F suggests perforation.",
     "structured_oldcarts": {
       "onset": {
         "includes": [
@@ -27,63 +27,29 @@
             "patient_friendly": "sudden and severe"
           },
           {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "6-48 hours",
-            "patient_friendly": "6-48 hours"
-          }
-        ],
-        "excludes": [
-          {
             "medical": "chronic",
             "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "months",
-            "patient_friendly": "months"
-          },
-          {
-            "medical": "years",
-            "patient_friendly": "years"
-          },
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
           }
-        ]
+        ],
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "right lower quadrant",
-            "patient_friendly": "lower right side near your groin"
+            "medical": "migrates",
+            "patient_friendly": "MIGRATES"
           },
           {
-            "medical": "periumbilical migration",
-            "patient_friendly": "periumbilical migration"
+            "medical": "rlq",
+            "patient_friendly": "lower right side around your groin"
+          },
+          {
+            "medical": "periumbilical",
+            "patient_friendly": "around your belly button"
           }
         ],
-        "excludes": [
-          {
-            "medical": "left side",
-            "patient_friendly": "left side"
-          },
-          {
-            "medical": "LLQ",
-            "patient_friendly": "LLQ"
-          },
-          {
-            "medical": "upper abdomen",
-            "patient_friendly": "upper abdomen"
-          },
-          {
-            "medical": "diffuse",
-            "patient_friendly": "diffuse"
-          }
-        ],
-        "anatomical_type": "right_only"
+        "excludes": [],
+        "anatomical_type": "right_lower"
       },
       "duration": {
         "includes": [
@@ -92,32 +58,11 @@
             "patient_friendly": "continuous without stopping"
           },
           {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "days",
-            "patient_friendly": "for several days"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
             "medical": "episodic",
             "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
           }
-        ]
+        ],
+        "excludes": []
       },
       "character": {
         "includes": [
@@ -126,175 +71,83 @@
             "patient_friendly": "sharp or stabbing"
           },
           {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
           },
           {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
           }
         ],
-        "excludes": [
-          {
-            "medical": "crampy",
-            "patient_friendly": "crampy or cramping"
-          },
-          {
-            "medical": "burning",
-            "patient_friendly": "burning sensation"
-          },
-          {
-            "medical": "dull",
-            "patient_friendly": "dull or achy"
-          },
-          {
-            "medical": "pressure-like",
-            "patient_friendly": "pressure-like"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
-            "medical": "movement",
+            "medical": "worsens with movement",
             "patient_friendly": "moving around"
           },
           {
-            "medical": "coughing",
-            "patient_friendly": "coughing"
-          },
-          {
-            "medical": "walking",
-            "patient_friendly": "walking"
-          },
-          {
-            "medical": "jumping",
-            "patient_friendly": "jumping"
+            "medical": "movement",
+            "patient_friendly": "moving around"
           }
         ],
-        "excludes": [
-          {
-            "medical": "eating",
-            "patient_friendly": "eating food"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "lying still",
-            "patient_friendly": "lying still"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
-            "medical": "lying still",
-            "patient_friendly": "lying still"
+            "medical": "nothing",
+            "patient_friendly": "nothing helps"
           },
-          {
-            "medical": "fetal position",
-            "patient_friendly": "fetal position"
-          }
-        ],
-        "excludes": [
           {
             "medical": "movement",
             "patient_friendly": "moving around"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
           }
-        ]
+        ],
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "worsening",
-            "patient_friendly": "worsening"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
-          },
-          {
-            "medical": "10",
-            "patient_friendly": "10 out of 10"
-          },
-          {
-            "medical": "7-10/10",
-            "patient_friendly": "7-10/10"
           }
         ],
-        "excludes": [
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
           {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
+            "medical": "anorexia",
+            "patient_friendly": "ANOREXIA"
           },
           {
-            "medical": "1",
-            "patient_friendly": "1 out of 10"
-          },
-          {
-            "medical": "2",
-            "patient_friendly": "2 out of 10"
-          },
-          {
-            "medical": "3",
-            "patient_friendly": "3 out of 10"
+            "medical": "after",
+            "patient_friendly": "after eating"
           }
-        ]
+        ],
+        "excludes": []
       }
     }
   },
   "red_flags": [
     "Sudden severe pain that then improves briefly - may indicate PERFORATION",
     "Severe pain with abdominal rigidity (board-like abdomen) - perforation with peritonitis, call 911",
-    "High fever >103\u00b0F with severe pain - possible perforation",
+    "High fever >103°F with severe pain - possible perforation",
     "Hypotension, tachycardia, altered mental status - septic shock, call 911"
   ]
 }

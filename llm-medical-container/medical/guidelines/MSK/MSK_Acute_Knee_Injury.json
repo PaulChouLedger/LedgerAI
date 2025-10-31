@@ -22,134 +22,30 @@
           {
             "medical": "sudden",
             "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "during activity",
-            "patient_friendly": "during activity"
-          },
-          {
-            "medical": "twisting",
-            "patient_friendly": "twisting"
-          },
-          {
-            "medical": "pivoting",
-            "patient_friendly": "pivoting"
-          },
-          {
-            "medical": "direct blow",
-            "patient_friendly": "direct blow"
-          },
-          {
-            "medical": "hyperextension",
-            "patient_friendly": "hyperextension"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          },
-          {
-            "medical": "days to weeks",
-            "patient_friendly": "days to weeks"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "anterior knee",
-            "patient_friendly": "anterior knee"
-          },
-          {
-            "medical": "patellar",
-            "patient_friendly": "patellar"
-          },
-          {
-            "medical": "medial knee",
-            "patient_friendly": "medial knee"
-          },
-          {
-            "medical": "MCL",
+            "medical": "mcl",
             "patient_friendly": "MCL"
           },
           {
-            "medical": "lateral knee",
-            "patient_friendly": "lateral knee"
-          },
-          {
-            "medical": "LCL",
+            "medical": "lcl",
             "patient_friendly": "LCL"
           },
           {
-            "medical": "posterior knee",
-            "patient_friendly": "posterior knee"
+            "medical": "knee",
+            "patient_friendly": "knee"
           }
         ],
-        "excludes": [
-          {
-            "medical": "hip",
-            "patient_friendly": "hip area"
-          },
-          {
-            "medical": "ankle",
-            "patient_friendly": "ankle area"
-          },
-          {
-            "medical": "thigh",
-            "patient_friendly": "thigh"
-          },
-          {
-            "medical": "calf",
-            "patient_friendly": "calf"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          },
-          {
-            "medical": "24-48 hours",
-            "patient_friendly": "24-48 hours"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
-          },
-          {
-            "medical": "seconds",
-            "patient_friendly": "seconds"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "weeks to months",
-            "patient_friendly": "weeks to months"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
         "includes": [
@@ -159,215 +55,70 @@
           },
           {
             "medical": "throbbing",
-            "patient_friendly": "throbbing or pulsing"
+            "patient_friendly": "THROBBING"
           },
           {
             "medical": "aching",
-            "patient_friendly": "achy or sore"
-          },
-          {
-            "medical": "popping",
-            "patient_friendly": "popping"
-          },
-          {
-            "medical": "snapping",
-            "patient_friendly": "snapping"
+            "patient_friendly": "aching"
           }
         ],
-        "excludes": [
-          {
-            "medical": "dull",
-            "patient_friendly": "dull or achy"
-          },
-          {
-            "medical": "burning",
-            "patient_friendly": "burning sensation"
-          },
-          {
-            "medical": "numbness",
-            "patient_friendly": "feeling numb"
-          },
-          {
-            "medical": "tingling",
-            "patient_friendly": "feeling tingly or pins and needles"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
             "medical": "weight bearing",
-            "patient_friendly": "weight bearing"
+            "patient_friendly": "WEIGHT BEARING"
           },
           {
-            "medical": "walking",
-            "patient_friendly": "walking around"
-          },
-          {
-            "medical": "stairs",
-            "patient_friendly": "stairs"
-          },
-          {
-            "medical": "squatting",
-            "patient_friendly": "squatting"
-          },
-          {
-            "medical": "knee flexion",
-            "patient_friendly": "knee flexion"
-          },
-          {
-            "medical": "knee extension",
-            "patient_friendly": "knee extension"
+            "medical": "knee",
+            "patient_friendly": "knee"
           }
         ],
-        "excludes": [
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "ice",
-            "patient_friendly": "applying ice"
-          },
-          {
-            "medical": "elevation",
-            "patient_friendly": "elevation"
-          },
-          {
-            "medical": "NSAIDs",
-            "patient_friendly": "NSAIDs"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
             "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "ice",
-            "patient_friendly": "applying ice"
-          },
-          {
-            "medical": "elevation",
-            "patient_friendly": "elevation"
-          },
-          {
-            "medical": "NSAIDs",
-            "patient_friendly": "NSAIDs"
-          },
-          {
-            "medical": "immobilization",
-            "patient_friendly": "immobilization"
+            "patient_friendly": "resting"
           }
         ],
-        "excludes": [
-          {
-            "medical": "weight bearing",
-            "patient_friendly": "weight bearing"
-          },
-          {
-            "medical": "walking",
-            "patient_friendly": "walking around"
-          },
-          {
-            "medical": "stairs",
-            "patient_friendly": "stairs"
-          },
-          {
-            "medical": "squatting",
-            "patient_friendly": "squatting"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
-        "includes": [
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "24-48 hours",
-            "patient_friendly": "24-48 hours"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "delayed",
-            "patient_friendly": "delayed"
-          },
-          {
-            "medical": "days later",
-            "patient_friendly": "days later"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "5-9/10",
-            "patient_friendly": "5-9/10"
-          },
-          {
-            "medical": "5",
-            "patient_friendly": "5 out of 10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
           }
         ],
-        "excludes": [
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
           {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
+            "medical": "swelling",
+            "patient_friendly": "SWELLING"
           },
           {
-            "medical": "1-3/10",
-            "patient_friendly": "1-3/10"
+            "medical": "bruising",
+            "patient_friendly": "BRUISING"
           },
           {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
+            "medical": "stiffness",
+            "patient_friendly": "STIFFNESS"
           },
           {
-            "medical": "4/10",
-            "patient_friendly": "4/10"
+            "medical": "knee",
+            "patient_friendly": "knee"
           }
-        ]
+        ],
+        "excludes": []
       }
     }
   },

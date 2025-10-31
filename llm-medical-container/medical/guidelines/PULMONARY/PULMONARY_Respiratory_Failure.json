@@ -16,60 +16,18 @@
     "classic_presentation": "ONSET: Rapid onset over hours. LOCATION: Diffuse, bilateral. DURATION: Acute, persistent. CHARACTER: Severe dyspnea, air hunger. AGGRAVATING: Any exertion. RELIEVING: Mechanical ventilation, oxygen. TIMING: Acute, progressive. SEVERITY: Severe to life-threatening (8-10/10). ASSOCIATED SYMPTOMS: Severe dyspnea, cyanosis, altered mental status, use of accessory muscles. KEY POSITIVES: Severe dyspnea, cyanosis, altered mental status. KEY NEGATIVES: No chest pain (unless secondary), no wheezing (unless reactive airway disease).",
     "structured_oldcarts": {
       "onset": {
-        "includes": [
-          {
-            "medical": "rapid onset over hours",
-            "patient_friendly": "rapid onset over hours"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "diffuse",
-            "patient_friendly": "diffuse"
-          },
-          {
             "medical": "bilateral",
-            "patient_friendly": "on both sides"
+            "patient_friendly": "both sides"
           }
         ],
-        "excludes": [
-          {
-            "medical": "unilateral",
-            "patient_friendly": "unilateral"
-          },
-          {
-            "medical": "one side only",
-            "patient_friendly": "one side only"
-          },
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          }
-        ]
+        "excludes": [],
+        "anatomical_type": "midline"
       },
       "duration": {
         "includes": [
@@ -80,180 +38,53 @@
           {
             "medical": "persistent",
             "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
           {
-            "medical": "severe dyspnea",
-            "patient_friendly": "severe dyspnea"
-          },
-          {
-            "medical": "air hunger",
-            "patient_friendly": "air hunger"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
-          {
-            "medical": "no chest pain",
-            "patient_friendly": "no chest pain"
-          },
-          {
-            "medical": "no wheezing",
-            "patient_friendly": "no wheezing"
-          },
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "any exertion",
-            "patient_friendly": "any exertion"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          },
-          {
-            "medical": "movement",
-            "patient_friendly": "moving around"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "mechanical ventilation",
-            "patient_friendly": "mechanical ventilation"
-          },
-          {
-            "medical": "oxygen",
-            "patient_friendly": "breathing oxygen"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
-        "includes": [
-          {
-            "medical": "mechanical ventilation",
-            "patient_friendly": "mechanical ventilation"
-          },
-          {
-            "medical": "oxygen",
-            "patient_friendly": "breathing oxygen"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "any exertion",
-            "patient_friendly": "any exertion"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          },
-          {
-            "medical": "movement",
-            "patient_friendly": "moving around"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
             "medical": "acute",
             "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "severe to life-threatening",
-            "patient_friendly": "severe to life-threatening"
-          },
-          {
-            "medical": "8-10/10",
-            "patient_friendly": "8-10/10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
-          },
-          {
-            "medical": "10",
-            "patient_friendly": "10 out of 10"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
           {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "1-7/10",
-            "patient_friendly": "1-7/10"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
-        ]
+        ],
+        "excludes": []
       }
     }
   },

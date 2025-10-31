@@ -18,264 +18,74 @@
           {
             "medical": "acute",
             "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "over minutes to hours",
-            "patient_friendly": "over minutes to hours"
-          },
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
             "medical": "retrosternal",
-            "patient_friendly": "retrosternal"
+            "patient_friendly": "RETROSTERNAL"
           },
           {
-            "medical": "left chest",
-            "patient_friendly": "left side of your chest"
-          },
-          {
-            "medical": "radiates to left arm",
-            "patient_friendly": "spreads to your left arm"
-          },
-          {
-            "medical": "radiates to jaw",
-            "patient_friendly": "spreads to your jaw"
-          },
-          {
-            "medical": "radiates to neck",
-            "patient_friendly": "spreads to your neck"
-          },
-          {
-            "medical": "radiates to back",
-            "patient_friendly": "spreads to your back"
+            "medical": "chest",
+            "patient_friendly": "your chest"
           }
         ],
-        "excludes": [
-          {
-            "medical": "right side only",
-            "patient_friendly": "right side only"
-          },
-          {
-            "medical": "no radiation",
-            "patient_friendly": "no radiation"
-          },
-          {
-            "medical": "localized point",
-            "patient_friendly": "localized point"
-          }
-        ]
+        "excludes": []
       },
-      "duration": {
+      "radiation": {
         "includes": [
           {
-            "medical": "prolonged",
-            "patient_friendly": "for a long time"
-          },
-          {
-            "medical": ">10-20 minutes",
-            "patient_friendly": ">10-20 minutes"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
+            "medical": "to left arm, jaw, neck, back",
+            "patient_friendly": "spreads to your left jaw"
           }
         ],
-        "excludes": [
-          {
-            "medical": "brief",
-            "patient_friendly": "for a short time"
-          },
-          {
-            "medical": "2-10 minutes",
-            "patient_friendly": "2-10 minutes"
-          },
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
       },
       "character": {
         "includes": [
           {
             "medical": "pressure",
-            "patient_friendly": "pressure or heaviness"
-          },
-          {
-            "medical": "squeezing",
-            "patient_friendly": "squeezing or crushing"
-          },
-          {
-            "medical": "heaviness",
-            "patient_friendly": "heaviness"
+            "patient_friendly": "pressure-like"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sharp",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "burning",
-            "patient_friendly": "burning sensation"
-          },
-          {
-            "medical": "crushing",
-            "patient_friendly": "crushing or squeezing"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
-            "medical": "can occur at rest",
-            "patient_friendly": "can occur at rest"
-          },
-          {
-            "medical": "with exertion",
-            "patient_friendly": "with exertion"
-          },
-          {
-            "medical": "variable",
-            "patient_friendly": "variable"
+            "medical": "rest",
+            "patient_friendly": "resting"
           }
         ],
-        "excludes": [
-          {
-            "medical": "only with exertion",
-            "patient_friendly": "only with exertion"
-          },
-          {
-            "medical": "only at rest",
-            "patient_friendly": "only at rest"
-          },
-          {
-            "medical": "predictable",
-            "patient_friendly": "predictable"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
-        "includes": [
-          {
-            "medical": "partial relief with nitroglycerin",
-            "patient_friendly": "partial relief with nitroglycerin"
-          },
-          {
-            "medical": "possible relief",
-            "patient_friendly": "possible relief"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "complete relief",
-            "patient_friendly": "complete relief"
-          },
-          {
-            "medical": "no relief",
-            "patient_friendly": "no relief"
-          },
-          {
-            "medical": "predictable relief",
-            "patient_friendly": "predictable relief"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
             "medical": "persistent",
             "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "crescendo pattern",
-            "patient_friendly": "crescendo pattern"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
-        "includes": [
-          {
-            "medical": "6-9/10",
-            "patient_friendly": "6-9/10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "1-5/10",
-            "patient_friendly": "1-5/10"
-          },
-          {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "10/10",
-            "patient_friendly": "10/10"
-          }
-        ]
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },

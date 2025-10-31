@@ -19,272 +19,69 @@
           {
             "medical": "sudden",
             "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
             "medical": "chest",
-            "patient_friendly": "chest area"
-          },
-          {
-            "medical": "pleuritic pain",
-            "patient_friendly": "pleuritic pain"
-          },
-          {
-            "medical": "lateral",
-            "patient_friendly": "lateral"
-          },
-          {
-            "medical": "posterior",
-            "patient_friendly": "posterior"
+            "patient_friendly": "your chest"
           }
         ],
-        "excludes": [
-          {
-            "medical": "abdomen",
-            "patient_friendly": "abdomen"
-          },
-          {
-            "medical": "extremities",
-            "patient_friendly": "extremities"
-          },
-          {
-            "medical": "head",
-            "patient_friendly": "head"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
         "includes": [
           {
             "medical": "pleuritic",
-            "patient_friendly": "pleuritic"
+            "patient_friendly": "PLEURITIC"
           },
           {
             "medical": "sharp",
             "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "worse with deep breath",
-            "patient_friendly": "worse with deep breath"
-          },
-          {
-            "medical": "dyspnea",
-            "patient_friendly": "dyspnea"
           }
         ],
-        "excludes": [
-          {
-            "medical": "dull",
-            "patient_friendly": "dull or achy"
-          },
-          {
-            "medical": "pressure",
-            "patient_friendly": "pressure or heaviness"
-          },
-          {
-            "medical": "crushing",
-            "patient_friendly": "crushing or squeezing"
-          },
-          {
-            "medical": "not worse with breathing",
-            "patient_friendly": "not worse with breathing"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "deep inspiration",
-            "patient_friendly": "taking deep breaths"
-          },
-          {
-            "medical": "cough",
-            "patient_friendly": "coughing"
-          },
-          {
-            "medical": "breathing",
-            "patient_friendly": "breathing"
-          },
-          {
-            "medical": "movement",
-            "patient_friendly": "moving around"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "shallow breathing",
-            "patient_friendly": "shallow breathing"
-          },
-          {
-            "medical": "medication",
-            "patient_friendly": "medication"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
-            "medical": "shallow breathing",
-            "patient_friendly": "shallow breathing"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
           }
         ],
-        "excludes": [
-          {
-            "medical": "deep inspiration",
-            "patient_friendly": "taking deep breaths"
-          },
-          {
-            "medical": "cough",
-            "patient_friendly": "coughing"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
-            "medical": "sudden onset",
-            "patient_friendly": "sudden onset"
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
           },
           {
             "medical": "persistent",
             "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
-        "includes": [
-          {
-            "medical": "variable",
-            "patient_friendly": "variable"
-          },
-          {
-            "medical": "5-9/10",
-            "patient_friendly": "5-9/10"
-          },
-          {
-            "medical": "5",
-            "patient_friendly": "5 out of 10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "1-4/10",
-            "patient_friendly": "1-4/10"
-          },
-          {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "10/10",
-            "patient_friendly": "10/10"
-          }
-        ]
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },

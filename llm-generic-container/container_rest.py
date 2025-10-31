@@ -397,4 +397,4 @@ if __name__ == "__main__":
     print("  - RAG Integration: Document-based Q&A")
     print("  - Fuzzy Matching: Typo and transcription error correction")
     
-    app.run(host='0.0.0.0', port=11434, debug=False)
+    app.run(host='0.0.0.0', port=11435, debug=False)

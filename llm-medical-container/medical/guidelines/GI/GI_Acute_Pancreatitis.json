@@ -13,7 +13,7 @@
     "pain radiating to back"
   ],
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within hours to 1-2 days. Often triggered by ALCOHOL BINGE or HEAVY FATTY MEAL (gallstones). LOCATION: Epigastric (upper mid-abdomen) and periumbilical. RADIATES STRAIGHT THROUGH TO THE BACK in 'boring' or 'band-like' pattern - highly characteristic. May radiate to left upper quadrant. DURATION: CONSTANT pain lasting hours to days (not episodic). CHARACTER: DEEP ACHING or KNIFE-LIKE. Described as boring, penetrating, or band-like across upper abdomen. AGGRAVATING: WORSE WHEN LYING FLAT. Pain intensifies in supine position. RELIEVING: BETTER WHEN SITTING UP AND LEANING FORWARD. Patients assume 'fetal position' or lean forward for relief. TIMING: CONSTANT and unrelenting. Persists continuously (not waves). SEVERITY: 8-10/10, very severe and debilitating. ASSOCIATED SYMPTOMS: PERSISTENT NAUSEA AND VOMITING (severe, not relieved by vomiting), anorexia, low-grade fever, abdominal distension. KEY POSITIVES: Epigastric\u2192back radiation, relief with leaning forward, alcohol/fatty meal trigger, persistent vomiting. KEY NEGATIVES: Pain NOT radiating to back is atypical. Diarrhea uncommon initially. right lower quadrant (RLQ) pain suggests appendicitis not pancreatitis.",
+    "classic_presentation": "ONSET: SUDDEN onset within hours to 1-2 days. Often triggered by ALCOHOL BINGE or HEAVY FATTY MEAL (gallstones). LOCATION: Epigastric (upper mid-abdomen) and periumbilical. RADIATES STRAIGHT THROUGH TO THE BACK in 'boring' or 'band-like' pattern - highly characteristic. May radiate to left upper quadrant. DURATION: CONSTANT pain lasting hours to days (not episodic). CHARACTER: DEEP ACHING or KNIFE-LIKE. Described as boring, penetrating, or band-like across upper abdomen. AGGRAVATING: WORSE WHEN LYING FLAT. Pain intensifies in supine position. RELIEVING: BETTER WHEN SITTING UP AND LEANING FORWARD. Patients assume 'fetal position' or lean forward for relief. TIMING: CONSTANT and unrelenting. Persists continuously (not waves). SEVERITY: 8-10/10, very severe and debilitating. ASSOCIATED SYMPTOMS: PERSISTENT NAUSEA AND VOMITING (severe, not relieved by vomiting), anorexia, low-grade fever, abdominal distension. KEY POSITIVES: Epigastric→back radiation, relief with leaning forward, alcohol/fatty meal trigger, persistent vomiting. KEY NEGATIVES: Pain NOT radiating to back is atypical. Diarrhea uncommon initially. right lower quadrant (RLQ) pain suggests appendicitis not pancreatitis.",
     "structured_oldcarts": {
       "onset": {
         "includes": [
@@ -22,40 +22,15 @@
             "patient_friendly": "all at once or very quickly"
           },
           {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "1-2 days",
-            "patient_friendly": "1-2 days"
-          },
-          {
             "medical": "alcohol binge",
-            "patient_friendly": "alcohol binge"
+            "patient_friendly": "ALCOHOL BINGE"
           },
           {
             "medical": "heavy fatty meal",
-            "patient_friendly": "heavy fatty meal"
-          },
-          {
-            "medical": "gallstones",
-            "patient_friendly": "gallstones"
+            "patient_friendly": "fatty or greasy foods"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
@@ -64,268 +39,124 @@
             "patient_friendly": "upper middle part of your belly"
           },
           {
-            "medical": "upper mid-abdomen",
-            "patient_friendly": "upper mid-abdomen"
+            "medical": "abdomen",
+            "patient_friendly": "your belly"
           },
           {
             "medical": "periumbilical",
             "patient_friendly": "around your belly button"
-          },
-          {
-            "medical": "radiates to back",
-            "patient_friendly": "spreads to your back"
-          },
-          {
-            "medical": "left upper quadrant",
-            "patient_friendly": "top left side near your ribs"
-          },
-          {
-            "medical": "boring pattern",
-            "patient_friendly": "boring pattern"
-          },
-          {
-            "medical": "band-like",
-            "patient_friendly": "band-like"
           }
         ],
-        "excludes": [
+        "excludes": [],
+        "anatomical_type": "left_upper"
+      },
+      "radiation": {
+        "includes": [
           {
-            "medical": "right lower quadrant",
-            "patient_friendly": "lower right side near your groin"
-          },
-          {
-            "medical": "RLQ",
-            "patient_friendly": "RLQ"
-          },
-          {
-            "medical": "localized point",
-            "patient_friendly": "localized point"
+            "medical": "STRAIGHT THROUGH TO THE BACK in 'boring' or 'band-like' pattern - highly characteristic",
+            "patient_friendly": "your back"
           }
-        ]
+        ],
+        "excludes": []
       },
       "duration": {
         "includes": [
-          {
-            "medical": "multiple days",
-            "patient_friendly": "multiple days"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          },
-          {
-            "medical": "days",
-            "patient_friendly": "for several days"
-          },
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
           },
           {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "several hours",
-            "patient_friendly": "several hours"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
             "medical": "episodic",
             "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
           }
-        ]
+        ],
+        "excludes": []
       },
       "character": {
         "includes": [
           {
             "medical": "deep aching",
-            "patient_friendly": "deep aching"
+            "patient_friendly": "aching"
           },
           {
-            "medical": "knife-like",
-            "patient_friendly": "knife-like"
+            "medical": "knife",
+            "patient_friendly": "KNIFE"
           },
           {
-            "medical": "boring",
-            "patient_friendly": "boring"
+            "medical": "like",
+            "patient_friendly": "LIKE"
           },
           {
-            "medical": "penetrating",
-            "patient_friendly": "penetrating"
+            "medical": "aching",
+            "patient_friendly": "aching"
           },
           {
-            "medical": "band-like",
-            "patient_friendly": "band-like"
-          },
-          {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
+            "medical": "abdomen",
+            "patient_friendly": "your belly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "crampy",
-            "patient_friendly": "crampy or cramping"
-          },
-          {
-            "medical": "dull",
-            "patient_friendly": "dull or achy"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat"
-          },
-          {
-            "medical": "supine position",
-            "patient_friendly": "supine position"
-          },
-          {
-            "medical": "lying down",
-            "patient_friendly": "lying down"
+            "medical": "worse when lying flat",
+            "patient_friendly": "WORSE WHEN LYING FLAT"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sitting up",
-            "patient_friendly": "sitting up"
-          },
-          {
-            "medical": "leaning forward",
-            "patient_friendly": "leaning forward"
-          },
-          {
-            "medical": "fetal position",
-            "patient_friendly": "fetal position"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
+            "medical": "better when sitting",
+            "patient_friendly": "BETTER WHEN SITTING"
+          },
+          {
+            "medical": "and leaning forward",
+            "patient_friendly": "AND LEANING FORWARD"
+          },
+          {
             "medical": "sitting up",
             "patient_friendly": "sitting up"
-          },
-          {
-            "medical": "leaning forward",
-            "patient_friendly": "leaning forward"
-          },
-          {
-            "medical": "fetal position",
-            "patient_friendly": "fetal position"
           }
         ],
-        "excludes": [
-          {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat"
-          },
-          {
-            "medical": "supine",
-            "patient_friendly": "supine"
-          },
-          {
-            "medical": "medication",
-            "patient_friendly": "medication"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          },
-          {
-            "medical": "persists continuously",
-            "patient_friendly": "persists continuously"
-          },
-          {
-            "medical": "not waves",
-            "patient_friendly": "not waves"
           }
         ],
-        "excludes": [
-          {
-            "medical": "waves",
-            "patient_friendly": "waves"
-          },
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "persistent nausea and vomiting",
+            "patient_friendly": "keeps going"
           },
           {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "10",
-            "patient_friendly": "10 out of 10"
-          },
-          {
-            "medical": "8-10/10",
-            "patient_friendly": "8-10/10"
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
           },
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "debilitating",
-            "patient_friendly": "debilitating"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "1-5/10",
-            "patient_friendly": "1-5/10"
-          }
-        ]
+        "excludes": []
       }
     }
   },

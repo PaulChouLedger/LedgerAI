@@ -18,230 +18,61 @@
       "onset": {
         "includes": [
           {
+            "medical": "mi",
+            "patient_friendly": "just a few minutes"
+          },
+          {
             "medical": "acute",
             "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "following myocardial infarction",
-            "patient_friendly": "following myocardial infarction"
-          },
-          {
-            "medical": "acute heart failure",
-            "patient_friendly": "acute heart failure"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          }
-        ]
+        "excludes": []
       },
       "location": {
-        "includes": [
-          {
-            "medical": "generalized",
-            "patient_friendly": "generalized"
-          },
-          {
-            "medical": "systemic hypoperfusion",
-            "patient_friendly": "systemic hypoperfusion"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "one area only",
-            "patient_friendly": "one area only"
-          },
-          {
-            "medical": "chest",
-            "patient_friendly": "chest area"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          },
-          {
-            "medical": "life-threatening",
-            "patient_friendly": "life-threatening"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
         "includes": [
           {
-            "medical": "severe dyspnea",
-            "patient_friendly": "severe dyspnea"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           },
           {
-            "medical": "chest pain",
-            "patient_friendly": "chest pain"
-          },
-          {
-            "medical": "altered mental status",
-            "patient_friendly": "altered mental status"
-          },
-          {
-            "medical": "cold clammy skin",
-            "patient_friendly": "cold clammy skin"
+            "medical": "chest",
+            "patient_friendly": "your chest"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "warm extremities",
-            "patient_friendly": "warm extremities"
-          },
-          {
-            "medical": "no symptoms",
-            "patient_friendly": "no symptoms"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "reduced cardiac output",
-            "patient_friendly": "reduced cardiac output"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "inotropic support",
-            "patient_friendly": "inotropic support"
-          },
-          {
-            "medical": "revascularization",
-            "patient_friendly": "revascularization"
-          },
-          {
-            "medical": "medication",
-            "patient_friendly": "medication"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
-        "includes": [
-          {
-            "medical": "inotropic support",
-            "patient_friendly": "inotropic support"
-          },
-          {
-            "medical": "revascularization",
-            "patient_friendly": "revascularization"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "reduced cardiac output",
-            "patient_friendly": "reduced cardiac output"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          },
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
-            "medical": "acute decompensation",
-            "patient_friendly": "acute decompensation"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
-        "includes": [
-          {
-            "medical": "critical",
-            "patient_friendly": "critical"
-          },
-          {
-            "medical": "life-threatening",
-            "patient_friendly": "life-threatening"
-          },
-          {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "no symptoms",
-            "patient_friendly": "no symptoms"
-          }
-        ]
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },

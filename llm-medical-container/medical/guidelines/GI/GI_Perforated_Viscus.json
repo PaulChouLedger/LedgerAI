@@ -21,39 +21,14 @@
           },
           {
             "medical": "dramatic",
-            "patient_friendly": "dramatic"
-          },
-          {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
+            "patient_friendly": "DRAMATIC"
           },
           {
             "medical": "acute",
             "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "catastrophic",
-            "patient_friendly": "catastrophic"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "slow",
-            "patient_friendly": "slow"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
@@ -62,62 +37,21 @@
             "patient_friendly": "upper middle part of your belly"
           },
           {
-            "medical": "initially localized",
-            "patient_friendly": "initially localized"
-          },
-          {
-            "medical": "then diffuse",
-            "patient_friendly": "then diffuse"
-          },
-          {
-            "medical": "shoulder pain",
-            "patient_friendly": "shoulder pain"
-          },
-          {
-            "medical": "diaphragmatic irritation",
-            "patient_friendly": "diaphragmatic irritation"
+            "medical": "diffuse",
+            "patient_friendly": "all over your belly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "constant location",
-            "patient_friendly": "constant location"
-          },
-          {
-            "medical": "one quadrant only",
-            "patient_friendly": "one quadrant only"
-          }
-        ]
+        "excludes": [],
+        "anatomical_type": "midline"
       },
       "duration": {
         "includes": [
           {
-            "medical": "constant from onset",
-            "patient_friendly": "constant from onset"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          },
-          {
-            "medical": "persists continuously",
-            "patient_friendly": "persists continuously"
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
@@ -135,175 +69,78 @@
           },
           {
             "medical": "stabbed",
-            "patient_friendly": "stabbed"
+            "patient_friendly": "STABBED"
           },
           {
             "medical": "kicked",
-            "patient_friendly": "kicked"
-          },
-          {
-            "medical": "excruciating",
-            "patient_friendly": "excruciating"
-          },
-          {
-            "medical": "worst pain imaginable",
-            "patient_friendly": "worst pain imaginable"
+            "patient_friendly": "KICKED"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "dull",
-            "patient_friendly": "dull or achy"
-          },
-          {
-            "medical": "crampy",
-            "patient_friendly": "crampy or cramping"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
             "medical": "any movement",
-            "patient_friendly": "any movement"
-          },
-          {
-            "medical": "breathing",
-            "patient_friendly": "breathing"
-          },
-          {
-            "medical": "coughing",
-            "patient_friendly": "coughing"
-          },
-          {
-            "medical": "talking",
-            "patient_friendly": "talking"
-          },
-          {
-            "medical": "jarring",
-            "patient_friendly": "jarring"
-          },
-          {
-            "medical": "bumps",
-            "patient_friendly": "bumps"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "lying still",
-            "patient_friendly": "lying still"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "position changes",
-            "patient_friendly": "changing how you sit or lie"
-          }
-        ]
-      },
-      "relieving": {
-        "includes": [
-          {
-            "medical": "nothing helps",
-            "patient_friendly": "nothing helps"
-          },
-          {
-            "medical": "lying perfectly still",
-            "patient_friendly": "lying perfectly still"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "position",
-            "patient_friendly": "position"
-          },
-          {
-            "medical": "medication",
-            "patient_friendly": "medication"
+            "patient_friendly": "moving around"
           },
           {
             "medical": "movement",
             "patient_friendly": "moving around"
+          },
+          {
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
+          },
+          {
+            "medical": "coughing",
+            "patient_friendly": "coughing"
           }
-        ]
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "nothing",
+            "patient_friendly": "nothing helps"
+          },
+          {
+            "medical": "perfectly still",
+            "patient_friendly": "PERFECTLY STILL"
+          }
+        ],
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          },
-          {
-            "medical": "progressive worsening",
-            "patient_friendly": "progressive worsening"
-          },
-          {
-            "medical": "from onset",
-            "patient_friendly": "from onset"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
         "includes": [
           {
-            "medical": "10/10",
-            "patient_friendly": "10/10"
+            "medical": "board",
+            "patient_friendly": "BOARD"
           },
           {
-            "medical": "maximal",
-            "patient_friendly": "maximal"
+            "medical": "like rigid abdomen",
+            "patient_friendly": "your belly"
           },
           {
-            "medical": "catastrophic",
-            "patient_friendly": "catastrophic"
-          },
-          {
-            "medical": "10",
-            "patient_friendly": "10 out of 10"
+            "medical": "abdomen",
+            "patient_friendly": "your belly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "1-9/10",
-            "patient_friendly": "1-9/10"
-          }
-        ]
+        "excludes": []
       }
     }
   },

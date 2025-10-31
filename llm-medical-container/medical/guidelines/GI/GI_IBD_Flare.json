@@ -16,80 +16,151 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          { "medical": "gradual", "patient_friendly": "slowly over time" },
-          { "medical": "days", "patient_friendly": "over days" },
-          { "medical": "weeks", "patient_friendly": "over weeks" }
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "known",
+            "patient_friendly": "KNOWN"
+          },
+          {
+            "medical": "ibd",
+            "patient_friendly": "IBD"
+          }
         ],
-        "excludes": [
-          { "medical": "acute", "patient_friendly": "all at once or very quickly" }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "everywhere",
-            "patient_friendly": "everywhere"
+            "medical": "rlq",
+            "patient_friendly": "lower right side around your groin"
           },
           {
-            "medical": "all over",
-            "patient_friendly": "all over"
+            "medical": "abdomen",
+            "patient_friendly": "your belly"
           },
           {
-            "medical": "diffuse",
-            "patient_friendly": "diffuse"
-          },
-          {
-            "medical": "right lower quadrant",
-            "patient_friendly": "lower right side near your groin"
+            "medical": "cramping",
+            "patient_friendly": "cramping"
           }
-        ]
+        ],
+        "excludes": [],
+        "anatomical_type": "right_lower"
       },
       "duration": {
         "includes": [
-          { "medical": "days", "patient_friendly": "for several days" },
-          { "medical": "weeks", "patient_friendly": "for several weeks" }
-        ]
+          {
+            "medical": "cramping",
+            "patient_friendly": "cramping"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
+        ],
+        "excludes": []
       },
       "character": {
         "includes": [
-          { "medical": "crampy", "patient_friendly": "crampy or cramping" },
-          { "medical": "wave-like", "patient_friendly": "comes in waves" }
-        ]
+          {
+            "medical": "crampy abdominal pain",
+            "patient_friendly": "crampy or cramping"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "cramping",
+            "patient_friendly": "cramping"
+          }
+        ],
+        "excludes": []
       },
       "aggravating": {
         "includes": [
-          { "medical": "eating", "patient_friendly": "eating food" },
-          { "medical": "stress", "patient_friendly": "stress or anxiety" },
-          { "medical": "missed medications", "patient_friendly": "missing your medicines" }
-        ]
+          {
+            "medical": "eating",
+            "patient_friendly": "eating"
+          },
+          {
+            "medical": "cramping",
+            "patient_friendly": "cramping"
+          }
+        ],
+        "excludes": []
       },
       "relieving": {
         "includes": [
-          { "medical": "defecation", "patient_friendly": "having a bowel movement" },
-          { "medical": "anti-inflammatory medications", "patient_friendly": "IBD medicines like steroids or biologics" }
-        ]
+          {
+            "medical": "temporary",
+            "patient_friendly": "TEMPORARY"
+          },
+          {
+            "medical": "cramping",
+            "patient_friendly": "cramping"
+          }
+        ],
+        "excludes": []
       },
       "timing": {
         "includes": [
-          { "medical": "intermittent", "patient_friendly": "comes and goes" },
-          { "medical": "with bowel movements", "patient_friendly": "around bowel movements" },
-          { "medical": "frequent stools", "patient_friendly": "frequent diarrhea" }
-        ]
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "cramping",
+            "patient_friendly": "cramping"
+          }
+        ],
+        "excludes": []
       },
       "severity": {
         "includes": [
-          { "medical": "moderate", "patient_friendly": "somewhat bad" },
-          { "medical": "5", "patient_friendly": "5 out of 10" },
-          { "medical": "6", "patient_friendly": "6 out of 10" },
-          { "medical": "7", "patient_friendly": "7 out of 10" },
-          { "medical": "8", "patient_friendly": "8 out of 10" }
-        ]
+          {
+            "medical": "cramping",
+            "patient_friendly": "cramping"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "chronic bloody",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "mucoid diarrhea",
+            "patient_friendly": "diarrhea"
+          },
+          {
+            "medical": "grade fever",
+            "patient_friendly": "fever"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
+        ],
+        "excludes": []
       }
     }
   },
   "red_flags": [
     "Severe abdominal pain with peritoneal signs - toxic megacolon or perforation, call 911",
-    "High fever >102\u00b0F with tachycardia - severe colitis, toxic megacolon risk",
+    "High fever >102°F with tachycardia - severe colitis, toxic megacolon risk",
     "Severe bloody diarrhea with >10 stools/day - severe flare, needs hospitalization",
     "Abdominal distension with decreased bowel sounds - toxic megacolon, surgical emergency"
   ]

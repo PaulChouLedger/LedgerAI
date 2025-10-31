@@ -17,238 +17,67 @@
       "onset": {
         "includes": [
           {
-            "medical": "progressive over weeks to months",
-            "patient_friendly": "progressive over weeks to months"
-          },
-          {
-            "medical": "acute decompensation possible",
-            "patient_friendly": "acute decompensation possible"
-          },
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
             "medical": "acute",
             "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
           }
-        ]
+        ],
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "generalized dyspnea",
-            "patient_friendly": "generalized dyspnea"
-          },
-          {
-            "medical": "bilateral lower extremity edema",
-            "patient_friendly": "bilateral lower extremity edema"
+            "medical": "bilateral",
+            "patient_friendly": "both sides"
           }
         ],
-        "excludes": [
-          {
-            "medical": "unilateral leg swelling",
-            "patient_friendly": "unilateral leg swelling"
-          },
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "one area only",
-            "patient_friendly": "one area only"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
         "includes": [
           {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
           },
           {
-            "medical": "chronic with acute worsening",
-            "patient_friendly": "chronic with acute worsening"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
           {
-            "medical": "dyspnea on exertion",
-            "patient_friendly": "dyspnea on exertion"
-          },
-          {
-            "medical": "progressing to dyspnea at rest",
-            "patient_friendly": "progressing to dyspnea at rest"
-          },
-          {
-            "medical": "orthopnea",
-            "patient_friendly": "orthopnea"
-          },
-          {
-            "medical": "paroxysmal nocturnal dyspnea",
-            "patient_friendly": "paroxysmal nocturnal dyspnea"
-          },
-          {
-            "medical": "fatigue",
-            "patient_friendly": "feeling very tired"
+            "medical": "rest",
+            "patient_friendly": "resting"
           }
         ],
-        "excludes": [
-          {
-            "medical": "acute myocardial infarction presentation",
-            "patient_friendly": "acute myocardial infarction presentation"
-          },
-          {
-            "medical": "pleuritic",
-            "patient_friendly": "pleuritic"
-          },
-          {
-            "medical": "sharp",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          },
-          {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat on your back"
-          },
-          {
-            "medical": "salt intake",
-            "patient_friendly": "salt intake"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "diuretics",
-            "patient_friendly": "diuretics"
-          },
-          {
-            "medical": "sitting upright",
-            "patient_friendly": "sitting upright"
-          },
-          {
-            "medical": "medication",
-            "patient_friendly": "medication"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
-        "includes": [
-          {
-            "medical": "diuretics",
-            "patient_friendly": "diuretics"
-          },
-          {
-            "medical": "sitting upright",
-            "patient_friendly": "sitting upright"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          },
-          {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat on your back"
-          },
-          {
-            "medical": "salt intake",
-            "patient_friendly": "salt intake"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "timing": {
-        "includes": [
-          {
-            "medical": "progressive worsening",
-            "patient_friendly": "progressive worsening"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "severity": {
         "includes": [
-          {
-            "medical": "severe dyspnea",
-            "patient_friendly": "severe dyspnea"
-          },
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "no symptoms",
-            "patient_friendly": "no symptoms"
-          }
-        ]
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },

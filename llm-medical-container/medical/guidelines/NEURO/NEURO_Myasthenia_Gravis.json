@@ -22,312 +22,79 @@
           {
             "medical": "gradual",
             "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "days to weeks",
-            "patient_friendly": "days to weeks"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          },
-          {
-            "medical": "seconds",
-            "patient_friendly": "seconds"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
             "medical": "bilateral",
-            "patient_friendly": "on both sides"
-          },
-          {
-            "medical": "eyes",
-            "patient_friendly": "eyes"
-          },
-          {
-            "medical": "both sides",
             "patient_friendly": "both sides"
-          },
-          {
-            "medical": "generalized",
-            "patient_friendly": "generalized"
           }
         ],
-        "excludes": [
-          {
-            "medical": "unilateral",
-            "patient_friendly": "unilateral"
-          },
-          {
-            "medical": "focal",
-            "patient_friendly": "focal"
-          },
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "days to weeks",
-            "patient_friendly": "days to weeks"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "brief",
-            "patient_friendly": "for a short time"
-          },
-          {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "transient",
-            "patient_friendly": "transient"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
         "includes": [
           {
-            "medical": "progressive weakness",
-            "patient_friendly": "progressive weakness"
-          },
-          {
-            "medical": "fatigue",
-            "patient_friendly": "feeling very tired"
-          },
-          {
-            "medical": "muscle weakness",
-            "patient_friendly": "muscle weakness"
-          },
-          {
-            "medical": "exhaustion",
-            "patient_friendly": "exhaustion"
+            "medical": "progressive",
+            "patient_friendly": "PROGRESSIVE"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sharp",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "burning",
-            "patient_friendly": "burning sensation"
-          },
-          {
-            "medical": "numbness",
-            "patient_friendly": "feeling numb"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
             "medical": "activity",
-            "patient_friendly": "activity"
-          },
-          {
-            "medical": "stress",
-            "patient_friendly": "stress or anxiety"
-          },
-          {
-            "medical": "fatigue",
-            "patient_friendly": "feeling very tired"
-          },
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
+            "patient_friendly": "ACTIVITY"
           }
         ],
-        "excludes": [
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "medications",
-            "patient_friendly": "medications"
-          },
-          {
-            "medical": "treatment",
-            "patient_friendly": "treatment"
-          },
-          {
-            "medical": "sleep",
-            "patient_friendly": "sleep"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
-            "medical": "cholinesterase inhibitors",
-            "patient_friendly": "cholinesterase inhibitors"
-          },
-          {
-            "medical": "immunosuppressants",
-            "patient_friendly": "immunosuppressants"
-          },
-          {
-            "medical": "medications",
-            "patient_friendly": "medications"
-          },
-          {
-            "medical": "treatment",
-            "patient_friendly": "treatment"
+            "medical": "cholinesterase",
+            "patient_friendly": "CHOLINESTERASE"
           }
         ],
-        "excludes": [
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          },
-          {
-            "medical": "stress",
-            "patient_friendly": "stress or anxiety"
-          },
-          {
-            "medical": "fatigue",
-            "patient_friendly": "feeling very tired"
-          },
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
-        "includes": [
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "days to weeks",
-            "patient_friendly": "days to weeks"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "brief",
-            "patient_friendly": "for a short time"
-          },
-          {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
-          },
-          {
-            "medical": "transient",
-            "patient_friendly": "transient"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "moderate to severe",
-            "patient_friendly": "moderate to severe"
-          },
-          {
-            "medical": "4-8/10",
-            "patient_friendly": "4-8/10"
-          },
-          {
-            "medical": "4",
-            "patient_friendly": "4 out of 10"
-          },
-          {
-            "medical": "5",
-            "patient_friendly": "5 out of 10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "1-3/10",
-            "patient_friendly": "1-3/10"
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
           },
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "progressive weakness",
+            "patient_friendly": "PROGRESSIVE WEAKNESS"
           },
           {
-            "medical": "9-10/10",
-            "patient_friendly": "9-10/10"
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
           }
-        ]
+        ],
+        "excludes": []
       }
     }
   },

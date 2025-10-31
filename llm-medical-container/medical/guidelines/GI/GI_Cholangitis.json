@@ -17,158 +17,78 @@
   "key_features": {
     "classic_presentation": "ONSET: ACUTE onset over hours to days, often history of gallstones or prior biliary procedures. LOCATION: Right upper quadrant (RUQ), may radiate to right shoulder/scapula. DURATION: CONSTANT pain lasting hours to days. CHARACTER: DULL, ACHING, CONSTANT pain (less severe than cholecystitis alone). AGGRAVATING: No specific aggravating factors. RELIEVING: Nothing relieves pain. TIMING: CONSTANT and progressively worsening. SEVERITY: 5-8/10, moderate to severe. ASSOCIATED SYMPTOMS: CHARCOT'S TRIAD: fever + jaundice + right upper quadrant (RUQ) pain (50-70%). REYNOLDS' PENTAD: Charcot's triad + hypotension + altered mental status (7-10%, indicates severe disease). High fever with rigors, dark urine, pale stools, pruritus. KEY POSITIVES: Jaundice, high fever, right upper quadrant (RUQ) tenderness, history of gallstones. KEY NEGATIVES: Absence of jaundice makes cholangitis less likely.",
     "structured_oldcarts": {
-      "onset": {},
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
+        ],
+        "excludes": []
+      },
       "location": {
         "includes": [
           {
-            "medical": "right upper quadrant",
+            "medical": "ruq",
             "patient_friendly": "top right side near your ribs"
           },
           {
-            "medical": "epigastric",
-            "patient_friendly": "upper middle part of your belly"
-          },
-          {
-            "medical": "radiates to right shoulder",
+            "medical": "shoulder",
             "patient_friendly": "spreads to your right shoulder"
-          },
-          {
-            "medical": "radiates to scapula",
-            "patient_friendly": "spreads to your shoulder blade"
           }
-        ]
+        ],
+        "excludes": [],
+        "anatomical_type": "right_upper"
       },
       "duration": {
         "includes": [
           {
-            "medical": "multiple days",
-            "patient_friendly": "multiple days"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          },
-          {
-            "medical": "days",
-            "patient_friendly": "for several days"
-          },
-          {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "several hours",
-            "patient_friendly": "several hours"
           }
-        ]
+        ],
+        "excludes": []
       },
       "character": {
         "includes": [
-          {
-            "medical": "throbbing",
-            "patient_friendly": "throbbing or pulsing"
-          },
           {
             "medical": "dull",
             "patient_friendly": "dull or achy"
           },
           {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          },
-          {
             "medical": "aching",
-            "patient_friendly": "achy or sore"
+            "patient_friendly": "aching"
           },
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
           },
           {
-            "medical": "steady",
-            "patient_friendly": "steady"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
-        ]
+        ],
+        "excludes": []
       },
-      "aggravating": {},
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
       "relieving": {
-        "includes": [
-          {
-            "medical": "nothing helps",
-            "patient_friendly": "nothing helps"
-          },
-          {
-            "medical": "no relief",
-            "patient_friendly": "no relief"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
-            "medical": "all the time",
-            "patient_friendly": "all the time"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "worsening",
-            "patient_friendly": "worsening"
-          },
-          {
-            "medical": "getting worse",
-            "patient_friendly": "getting worse"
-          },
-          {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
           }
-        ]
+        ],
+        "excludes": []
       },
       "severity": {
         "includes": [
-          {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "5-8/10",
-            "patient_friendly": "5-8/10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          },
-          {
-            "medical": "5",
-            "patient_friendly": "5 out of 10"
-          },
-          {
-            "medical": "10",
-            "patient_friendly": "10 out of 10"
-          },
           {
             "medical": "moderate",
             "patient_friendly": "somewhat bad"
@@ -177,14 +97,40 @@
             "medical": "severe",
             "patient_friendly": "very bad or intense"
           }
-        ]
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "charcot",
+            "patient_friendly": "CHARCOT"
+          },
+          {
+            "medical": "triad",
+            "patient_friendly": "TRIAD"
+          },
+          {
+            "medical": "reynolds",
+            "patient_friendly": "REYNOLDS"
+          },
+          {
+            "medical": "pentad",
+            "patient_friendly": "PENTAD"
+          },
+          {
+            "medical": "ruq",
+            "patient_friendly": "top right side near your ribs"
+          }
+        ],
+        "excludes": []
       }
     }
   },
   "red_flags": [
     "Hypotension with fever and right upper quadrant (RUQ) pain - septic shock, call 911",
     "Altered mental status with fever and jaundice - severe sepsis, call 911",
-    "Rigors (shaking chills) with high fever >103\u00b0F - bacteremia",
+    "Rigors (shaking chills) with high fever >103°F - bacteremia",
     "Progressive jaundice with confusion - hepatic encephalopathy risk"
   ]
 }

@@ -15,47 +15,22 @@
   ],
   "urgency": "urgent",
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within hours to days after drug exposure or infection. LOCATION: GENERALIZED with mucous membrane involvement (eyes, mouth, genitals). DURATION: Rapid progression over hours to days. CHARACTER: ERYTHEMATOUS (red) patches that progress to BULLAE (large blisters) and EPIDERMAL NECROSIS (skin death). AGGRAVATING: TOUCH, heat, movement. RELIEVING: IMMEDIATE discontinuation of offending drug, supportive care, burn unit care. TIMING: Rapid progression over hours to days. SEVERITY: 8-10/10 pain, severe and unrelenting. ASSOCIATED SYMPTOMS: FEVER (100-104\u00b0F), malaise, mucous membrane involvement, skin sloughing, may have systemic symptoms. KEY POSITIVES: Erythematous patches, bullae, epidermal necrosis, mucous membrane involvement, positive Nikolsky sign. KEY NEGATIVES: No fever >104\u00b0F (rules out toxic shock), no systemic shock (unless severe).",
+    "classic_presentation": "ONSET: SUDDEN onset within hours to days after drug exposure or infection. LOCATION: GENERALIZED with mucous membrane involvement (eyes, mouth, genitals). DURATION: Rapid progression over hours to days. CHARACTER: ERYTHEMATOUS (red) patches that progress to BULLAE (large blisters) and EPIDERMAL NECROSIS (skin death). AGGRAVATING: TOUCH, heat, movement. RELIEVING: IMMEDIATE discontinuation of offending drug, supportive care, burn unit care. TIMING: Rapid progression over hours to days. SEVERITY: 8-10/10 pain, severe and unrelenting. ASSOCIATED SYMPTOMS: FEVER (100-104°F), malaise, mucous membrane involvement, skin sloughing, may have systemic symptoms. KEY POSITIVES: Erythematous patches, bullae, epidermal necrosis, mucous membrane involvement, positive Nikolsky sign. KEY NEGATIVES: No fever >104°F (rules out toxic shock), no systemic shock (unless severe).",
     "structured_oldcarts": {
       "onset": {
         "includes": [
           {
             "medical": "sudden",
             "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "days",
-            "patient_friendly": "for several days"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "anywhere",
-            "patient_friendly": "anywhere"
-          },
-          {
             "medical": "generalized",
-            "patient_friendly": "generalized"
+            "patient_friendly": "GENERALIZED"
           }
         ],
         "excludes": []
@@ -68,11 +43,15 @@
         "includes": [
           {
             "medical": "erythematous",
-            "patient_friendly": "erythematous"
+            "patient_friendly": "ERYTHEMATOUS"
           },
           {
-            "medical": "red",
-            "patient_friendly": "red"
+            "medical": "bullae",
+            "patient_friendly": "BULLAE"
+          },
+          {
+            "medical": "epidermal necrosis",
+            "patient_friendly": "EPIDERMAL NECROSIS"
           }
         ],
         "excludes": []
@@ -80,14 +59,23 @@
       "aggravating": {
         "includes": [
           {
-            "medical": "heat",
-            "patient_friendly": "applying heat"
+            "medical": "touch",
+            "patient_friendly": "TOUCH"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
           }
         ],
         "excludes": []
       },
       "relieving": {
-        "includes": [],
+        "includes": [
+          {
+            "medical": "immediate",
+            "patient_friendly": "IMMEDIATE"
+          }
+        ],
         "excludes": []
       },
       "timing": {
@@ -99,6 +87,15 @@
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "fever",
+            "patient_friendly": "fever"
           }
         ],
         "excludes": []

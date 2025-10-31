@@ -18,102 +18,31 @@
           {
             "medical": "gradual",
             "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "over hours to days",
-            "patient_friendly": "over hours to days"
-          },
-          {
-            "medical": "post-viral illness",
-            "patient_friendly": "post-viral illness"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
             "medical": "retrosternal",
-            "patient_friendly": "retrosternal"
-          },
-          {
-            "medical": "left precordial",
-            "patient_friendly": "left precordial"
-          },
-          {
-            "medical": "over heart",
-            "patient_friendly": "over heart"
-          },
-          {
-            "medical": "radiates to trapezius ridge",
-            "patient_friendly": "radiates to trapezius ridge"
-          },
-          {
-            "medical": "radiates to shoulder",
-            "patient_friendly": "spreads to your shoulder"
-          },
-          {
-            "medical": "radiates to neck",
-            "patient_friendly": "spreads to your neck"
+            "patient_friendly": "RETROSTERNAL"
           }
         ],
-        "excludes": [
-          {
-            "medical": "right side only",
-            "patient_friendly": "right side only"
-          },
-          {
-            "medical": "no radiation",
-            "patient_friendly": "no radiation"
-          },
-          {
-            "medical": "localized point",
-            "patient_friendly": "localized point"
-          }
-        ]
+        "excludes": []
       },
-      "duration": {
+      "radiation": {
         "includes": [
           {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          },
-          {
-            "medical": "hours to days",
-            "patient_friendly": "hours to days"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
+            "medical": "to trapezius ridge (shoulder), neck",
+            "patient_friendly": "your neck"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
       },
       "character": {
         "includes": [
@@ -123,99 +52,35 @@
           },
           {
             "medical": "pleuritic",
-            "patient_friendly": "pleuritic"
-          },
-          {
-            "medical": "worse with breathing",
-            "patient_friendly": "worse with breathing"
-          },
-          {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "crushing",
-            "patient_friendly": "crushing or squeezing"
-          },
-          {
-            "medical": "pressure",
-            "patient_friendly": "pressure or heaviness"
-          },
-          {
-            "medical": "dull",
-            "patient_friendly": "dull or achy"
-          },
-          {
-            "medical": "not worse with breathing",
-            "patient_friendly": "not worse with breathing"
-          }
-        ]
-      },
-      "aggravating": {
-        "includes": [
-          {
-            "medical": "deep inspiration",
-            "patient_friendly": "taking deep breaths"
-          },
-          {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat on your back"
-          },
-          {
-            "medical": "cough",
-            "patient_friendly": "coughing"
+            "patient_friendly": "PLEURITIC"
           },
           {
             "medical": "breathing",
-            "patient_friendly": "breathing"
+            "patient_friendly": "taking deep breaths"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sitting up",
-            "patient_friendly": "sitting up"
-          },
-          {
-            "medical": "leaning forward",
-            "patient_friendly": "leaning forward"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ]
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
-            "medical": "sitting up",
+            "medical": "sitting",
             "patient_friendly": "sitting up"
           },
           {
             "medical": "leaning forward",
-            "patient_friendly": "leaning forward"
+            "patient_friendly": "LEANING FORWARD"
           },
           {
-            "medical": "positional relief",
-            "patient_friendly": "positional relief"
+            "medical": "sitting up",
+            "patient_friendly": "sitting up"
           }
         ],
-        "excludes": [
-          {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat on your back"
-          },
-          {
-            "medical": "deep inspiration",
-            "patient_friendly": "taking deep breaths"
-          },
-          {
-            "medical": "cough",
-            "patient_friendly": "coughing"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
         "includes": [
@@ -224,66 +89,19 @@
             "patient_friendly": "continuous without stopping"
           },
           {
-            "medical": "fluctuates with position",
-            "patient_friendly": "fluctuates with position"
-          },
-          {
-            "medical": "fluctuates with breathing",
-            "patient_friendly": "fluctuates with breathing"
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
-        "includes": [
-          {
-            "medical": "6-8/10",
-            "patient_friendly": "6-8/10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "1-5/10",
-            "patient_friendly": "1-5/10"
-          },
-          {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "9-10/10",
-            "patient_friendly": "9-10/10"
-          }
-        ]
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },

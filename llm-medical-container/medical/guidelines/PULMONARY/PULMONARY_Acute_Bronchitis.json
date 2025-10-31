@@ -19,271 +19,73 @@
       "onset": {
         "includes": [
           {
-            "medical": "gradual over days",
-            "patient_friendly": "gradual over days"
-          },
-          {
-            "medical": "often follows upper respiratory infection",
-            "patient_friendly": "often follows upper respiratory infection"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "diffuse chest",
-            "patient_friendly": "diffuse chest"
-          },
-          {
-            "medical": "trachea",
-            "patient_friendly": "trachea"
-          },
-          {
-            "medical": "bronchi",
-            "patient_friendly": "bronchi"
+            "medical": "chest",
+            "patient_friendly": "your chest"
           }
         ],
-        "excludes": [
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "one side only",
-            "patient_friendly": "one side only"
-          },
-          {
-            "medical": "specific point",
-            "patient_friendly": "specific point"
-          }
-        ]
+        "excludes": [],
+        "anatomical_type": "midline"
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "1-3 weeks",
-            "patient_friendly": "1-3 weeks"
-          },
-          {
-            "medical": "typically self-limiting",
-            "patient_friendly": "typically self-limiting"
-          },
-          {
-            "medical": "variable",
-            "patient_friendly": "variable"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
-        "includes": [
-          {
-            "medical": "dry cough initially",
-            "patient_friendly": "dry cough initially"
-          },
-          {
-            "medical": "becomes productive with yellow/green sputum",
-            "patient_friendly": "becomes productive with yellow/green sputum"
-          },
-          {
-            "medical": "chest congestion",
-            "patient_friendly": "chest congestion"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "no high fever",
-            "patient_friendly": "no high fever"
-          },
-          {
-            "medical": "no severe dyspnea",
-            "patient_friendly": "no severe dyspnea"
-          },
-          {
-            "medical": "no chest pain",
-            "patient_friendly": "no chest pain"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "cold air",
-            "patient_friendly": "cold air"
-          },
-          {
-            "medical": "talking",
-            "patient_friendly": "talking"
-          },
-          {
-            "medical": "laughing",
-            "patient_friendly": "laughing"
-          },
-          {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat on your back"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "warm liquids",
-            "patient_friendly": "warm liquids"
-          },
-          {
-            "medical": "humid air",
-            "patient_friendly": "humid air"
-          },
-          {
-            "medical": "cough suppressants",
-            "patient_friendly": "cough suppressants"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
-        "includes": [
-          {
-            "medical": "warm liquids",
-            "patient_friendly": "warm liquids"
-          },
-          {
-            "medical": "humid air",
-            "patient_friendly": "humid air"
-          },
-          {
-            "medical": "cough suppressants",
-            "patient_friendly": "cough suppressants"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "cold air",
-            "patient_friendly": "cold air"
-          },
-          {
-            "medical": "talking",
-            "patient_friendly": "talking"
-          },
-          {
-            "medical": "laughing",
-            "patient_friendly": "laughing"
-          },
-          {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat on your back"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
-            "medical": "persistent throughout day",
-            "patient_friendly": "persistent throughout day"
-          },
-          {
-            "medical": "worse at night",
-            "patient_friendly": "worse at night"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
-          {
-            "medical": "mild to moderate",
-            "patient_friendly": "mild to moderate"
-          },
-          {
-            "medical": "3-6/10",
-            "patient_friendly": "3-6/10"
-          },
-          {
-            "medical": "3",
-            "patient_friendly": "3 out of 10"
-          },
-          {
-            "medical": "4",
-            "patient_friendly": "4 out of 10"
-          },
-          {
-            "medical": "5",
-            "patient_friendly": "5 out of 10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "7-10/10",
-            "patient_friendly": "7-10/10"
-          },
           {
             "medical": "mild",
             "patient_friendly": "not too bad"
           },
           {
-            "medical": "1-2/10",
-            "patient_friendly": "1-2/10"
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
           }
-        ]
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
       }
     }
   },
   "red_flags": [
-    "High fever >101.5\u00b0F",
+    "High fever >101.5°F",
     "Severe shortness of breath",
     "Chest pain with breathing",
     "Blood in sputum",

@@ -23,262 +23,91 @@
             "patient_friendly": "all at once or very quickly"
           },
           {
-            "medical": "gradual worsening",
-            "patient_friendly": "gradual worsening"
-          },
-          {
-            "medical": "over hours to days",
-            "patient_friendly": "over hours to days"
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
           }
         ],
-        "excludes": [
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "diffuse chest tightness",
-            "patient_friendly": "diffuse chest tightness"
+            "medical": "chest",
+            "patient_friendly": "your chest"
           },
           {
             "medical": "bilateral",
-            "patient_friendly": "on both sides"
+            "patient_friendly": "both sides"
           }
         ],
-        "excludes": [
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "one side only",
-            "patient_friendly": "one side only"
-          },
-          {
-            "medical": "specific point",
-            "patient_friendly": "specific point"
-          }
-        ]
+        "excludes": [],
+        "anatomical_type": "midline"
       },
       "duration": {
         "includes": [
           {
-            "medical": "episodes lasting minutes to hours",
-            "patient_friendly": "episodes lasting minutes to hours"
-          },
-          {
-            "medical": "can be persistent",
-            "patient_friendly": "can be persistent"
-          },
-          {
-            "medical": "variable",
-            "patient_friendly": "variable"
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
           }
         ],
-        "excludes": [
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          },
-          {
-            "medical": "days only",
-            "patient_friendly": "days only"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
           {
-            "medical": "chest tightness",
-            "patient_friendly": "tightness in your chest"
+            "medical": "chest",
+            "patient_friendly": "your chest"
           },
           {
             "medical": "pressure",
-            "patient_friendly": "pressure or heaviness"
-          },
-          {
-            "medical": "can't get air in",
-            "patient_friendly": "can't get air in"
+            "patient_friendly": "pressure-like"
           }
         ],
-        "excludes": [
-          {
-            "medical": "no fever",
-            "patient_friendly": "no fever"
-          },
-          {
-            "medical": "no chest pain",
-            "patient_friendly": "no chest pain"
-          },
-          {
-            "medical": "sharp",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "triggers",
-            "patient_friendly": "triggers"
-          },
-          {
-            "medical": "allergens",
-            "patient_friendly": "allergens"
-          },
-          {
-            "medical": "exercise",
-            "patient_friendly": "physical activity"
-          },
-          {
-            "medical": "cold air",
-            "patient_friendly": "cold air"
-          },
-          {
-            "medical": "stress",
-            "patient_friendly": "stress or anxiety"
-          },
-          {
-            "medical": "infections",
-            "patient_friendly": "infections"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "bronchodilators",
-            "patient_friendly": "bronchodilators"
-          },
-          {
-            "medical": "albuterol",
-            "patient_friendly": "albuterol"
-          },
-          {
-            "medical": "sitting upright",
-            "patient_friendly": "sitting upright"
-          },
-          {
-            "medical": "pursed-lip breathing",
-            "patient_friendly": "pursed-lip breathing"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
-            "medical": "bronchodilators",
-            "patient_friendly": "bronchodilators"
-          },
-          {
-            "medical": "albuterol",
-            "patient_friendly": "albuterol"
-          },
-          {
-            "medical": "sitting upright",
-            "patient_friendly": "sitting upright"
-          },
-          {
-            "medical": "pursed-lip breathing",
-            "patient_friendly": "pursed-lip breathing"
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
           }
         ],
-        "excludes": [
-          {
-            "medical": "triggers",
-            "patient_friendly": "triggers"
-          },
-          {
-            "medical": "allergens",
-            "patient_friendly": "allergens"
-          },
-          {
-            "medical": "exercise",
-            "patient_friendly": "physical activity"
-          },
-          {
-            "medical": "cold air",
-            "patient_friendly": "cold air"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
-            "medical": "can be episodic",
-            "patient_friendly": "can be episodic"
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
           },
           {
             "medical": "persistent",
             "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "variable",
-            "patient_friendly": "variable"
           }
         ],
-        "excludes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "variable",
-            "patient_friendly": "variable"
-          },
-          {
-            "medical": "can be mild to life-threatening",
-            "patient_friendly": "can be mild to life-threatening"
-          },
-          {
-            "medical": "variable symptoms",
-            "patient_friendly": "variable symptoms"
-          }
-        ],
-        "excludes": [
-          {
             "medical": "mild",
             "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
           }
-        ]
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
       }
     }
   },

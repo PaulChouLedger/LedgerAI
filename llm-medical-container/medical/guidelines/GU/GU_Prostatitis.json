@@ -20,12 +20,8 @@
       "onset": {
         "includes": [
           {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "days",
-            "patient_friendly": "for several days"
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
           }
         ],
         "excludes": []
@@ -33,23 +29,12 @@
       "location": {
         "includes": [
           {
-            "medical": "perineum",
-            "patient_friendly": "perineum"
-          },
-          {
-            "medical": "perineal",
-            "patient_friendly": "perineal"
-          },
-          {
-            "medical": "pelvic",
-            "patient_friendly": "pelvic area"
-          },
-          {
-            "medical": "suprapubic",
-            "patient_friendly": "lower part of your belly"
+            "medical": "back",
+            "patient_friendly": "your back"
           }
         ],
-        "excludes": []
+        "excludes": [],
+        "anatomical_type": "midline"
       },
       "duration": {
         "includes": [
@@ -58,61 +43,39 @@
             "patient_friendly": "continuous without stopping"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
-          {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "sharp",
-            "patient_friendly": "sharp or stabbing"
-          },
           {
             "medical": "dull",
             "patient_friendly": "dull or achy"
           },
           {
             "medical": "aching",
-            "patient_friendly": "achy or sore"
+            "patient_friendly": "aching"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
           }
         ],
         "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "urination",
-            "patient_friendly": "urination"
-          },
-          {
-            "medical": "dysuria",
-            "patient_friendly": "dysuria"
-          },
-          {
-            "medical": "movement",
-            "patient_friendly": "moving around"
-          },
-          {
-            "medical": "prolonged sitting",
-            "patient_friendly": "prolonged sitting"
-          }
-        ],
+        "includes": [],
         "excludes": []
       },
       "relieving": {
         "includes": [
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure-like"
+          },
           {
             "medical": "lying down",
             "patient_friendly": "lying down"
@@ -132,20 +95,24 @@
       "severity": {
         "includes": [
           {
-            "medical": "6-8/10",
-            "patient_friendly": "6-8/10"
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
           },
           {
-            "medical": "moderate to severe",
-            "patient_friendly": "moderate to severe"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
         "excludes": []
       }
     }
   },
   "red_flags": [
-    "High fever >103\u00b0F with rigors - urosepsis risk, may need admission",
+    "High fever >103°F with rigors - urosepsis risk, may need admission",
     "Complete urinary retention - bladder outlet obstruction, needs catheter",
     "Hypotension with fever - septic shock, call 911",
     "Severe prostatic tenderness - prostatic abscess possible"

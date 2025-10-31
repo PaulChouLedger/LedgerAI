@@ -20,224 +20,56 @@
           {
             "medical": "sudden",
             "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "abrupt start",
-            "patient_friendly": "abrupt start"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
             "medical": "chest",
-            "patient_friendly": "chest area"
-          },
-          {
-            "medical": "palpitations",
-            "patient_friendly": "palpitations"
-          },
-          {
-            "medical": "generalized symptoms",
-            "patient_friendly": "generalized symptoms"
+            "patient_friendly": "your chest"
           }
         ],
-        "excludes": [
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "one area only",
-            "patient_friendly": "one area only"
-          },
-          {
-            "medical": "extremities",
-            "patient_friendly": "extremities"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "sustained",
-            "patient_friendly": "sustained"
-          },
-          {
-            "medical": ">30 seconds",
-            "patient_friendly": ">30 seconds"
-          },
-          {
-            "medical": "non-sustained bursts",
-            "patient_friendly": "non-sustained bursts"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "brief",
-            "patient_friendly": "for a short time"
-          },
-          {
-            "medical": "minutes only",
-            "patient_friendly": "minutes only"
-          },
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
-        "includes": [
-          {
-            "medical": "rapid",
-            "patient_friendly": "very quickly"
-          },
-          {
-            "medical": "regular",
-            "patient_friendly": "regular"
-          },
-          {
-            "medical": "slightly irregular palpitations",
-            "patient_friendly": "slightly irregular palpitations"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "slow",
-            "patient_friendly": "slow"
-          },
-          {
-            "medical": "steady",
-            "patient_friendly": "steady"
-          },
-          {
-            "medical": "no palpitations",
-            "patient_friendly": "no palpitations"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          },
-          {
-            "medical": "electrolyte abnormalities",
-            "patient_friendly": "electrolyte abnormalities"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "cardioversion",
-            "patient_friendly": "cardioversion"
-          },
-          {
-            "medical": "antiarrhythmics",
-            "patient_friendly": "antiarrhythmics"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
-        "includes": [
-          {
-            "medical": "cardioversion",
-            "patient_friendly": "cardioversion"
-          },
-          {
-            "medical": "antiarrhythmics",
-            "patient_friendly": "antiarrhythmics"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          },
-          {
-            "medical": "electrolyte abnormalities",
-            "patient_friendly": "electrolyte abnormalities"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
             "medical": "episodic",
             "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "sustained",
-            "patient_friendly": "sustained"
           }
         ],
-        "excludes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "variable",
-            "patient_friendly": "variable"
-          },
-          {
-            "medical": "asymptomatic to severe",
-            "patient_friendly": "asymptomatic to severe"
-          },
-          {
-            "medical": "variable symptoms",
-            "patient_friendly": "variable symptoms"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          }
-        ]
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },

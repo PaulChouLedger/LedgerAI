@@ -20,300 +20,105 @@
           {
             "medical": "sudden",
             "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "over minutes",
-            "patient_friendly": "over minutes"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
             "medical": "retrosternal",
-            "patient_friendly": "retrosternal"
+            "patient_friendly": "RETROSTERNAL"
           },
           {
-            "medical": "behind breastbone",
-            "patient_friendly": "behind breastbone"
-          },
-          {
-            "medical": "left-sided chest",
-            "patient_friendly": "left-sided chest"
+            "medical": "chest",
+            "patient_friendly": "your chest"
           },
           {
             "medical": "epigastric",
             "patient_friendly": "upper middle part of your belly"
-          },
-          {
-            "medical": "radiates to left arm",
-            "patient_friendly": "spreads to your left arm"
-          },
-          {
-            "medical": "radiates to jaw",
-            "patient_friendly": "spreads to your jaw"
-          },
-          {
-            "medical": "radiates to neck",
-            "patient_friendly": "spreads to your neck"
-          },
-          {
-            "medical": "radiates to back",
-            "patient_friendly": "spreads to your back"
-          },
-          {
-            "medical": "radiates to both arms",
-            "patient_friendly": "radiates to both arms"
           }
         ],
-        "excludes": [
+        "excludes": []
+      },
+      "radiation": {
+        "includes": [
           {
-            "medical": "right side only",
-            "patient_friendly": "right side only"
-          },
-          {
-            "medical": "no radiation",
-            "patient_friendly": "no radiation"
-          },
-          {
-            "medical": "localized point",
-            "patient_friendly": "localized point"
+            "medical": "to left arm, jaw, neck, back, or both arms",
+            "patient_friendly": "spreads to your left jaw or your arm"
           }
-        ]
+        ],
+        "excludes": []
       },
       "duration": {
         "includes": [
           {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          },
-          {
-            "medical": ">10-20 minutes",
-            "patient_friendly": ">10-20 minutes"
-          },
-          {
-            "medical": "does not resolve with rest",
-            "patient_friendly": "does not resolve with rest"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
+            "medical": "rest",
+            "patient_friendly": "resting"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "resolves with rest",
-            "patient_friendly": "resolves with rest"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
           {
             "medical": "crushing",
-            "patient_friendly": "crushing or squeezing"
+            "patient_friendly": "crushing"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
           },
           {
             "medical": "pressure",
-            "patient_friendly": "pressure or heaviness"
+            "patient_friendly": "pressure-like"
           },
-          {
-            "medical": "squeezing",
-            "patient_friendly": "squeezing or crushing"
-          },
-          {
-            "medical": "heaviness",
-            "patient_friendly": "heaviness"
-          },
-          {
-            "medical": "elephant on chest",
-            "patient_friendly": "elephant on chest"
-          }
-        ],
-        "excludes": [
           {
             "medical": "sharp",
             "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "burning",
-            "patient_friendly": "burning sensation"
-          },
-          {
-            "medical": "crampy",
-            "patient_friendly": "crampy or cramping"
           }
-        ]
+        ],
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
-            "medical": "none",
-            "patient_friendly": "none"
-          },
-          {
-            "medical": "unprovoked",
-            "patient_friendly": "unprovoked"
-          },
-          {
-            "medical": "can occur at rest",
-            "patient_friendly": "can occur at rest"
+            "medical": "rest",
+            "patient_friendly": "resting"
           }
         ],
-        "excludes": [
-          {
-            "medical": "movement",
-            "patient_friendly": "moving around"
-          },
-          {
-            "medical": "breathing",
-            "patient_friendly": "breathing"
-          },
-          {
-            "medical": "position",
-            "patient_friendly": "position"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
-            "medical": "not relieved by position change",
-            "patient_friendly": "not relieved by position change"
-          },
-          {
-            "medical": "not relieved by antacids",
-            "patient_friendly": "not relieved by antacids"
-          },
-          {
-            "medical": "not relieved by nitroglycerin",
-            "patient_friendly": "not relieved by nitroglycerin"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
-          {
-            "medical": "position change",
-            "patient_friendly": "position change"
-          },
-          {
-            "medical": "antacids",
-            "patient_friendly": "antacids"
-          },
-          {
-            "medical": "nitroglycerin",
-            "patient_friendly": "heart medicine"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
             "medical": "persistent",
             "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "progressive worsening",
-            "patient_friendly": "progressive worsening"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "7-10/10",
-            "patient_friendly": "7-10/10"
-          },
-          {
-            "medical": "most severe pain ever felt",
-            "patient_friendly": "most severe pain ever felt"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
-          },
-          {
-            "medical": "10",
-            "patient_friendly": "10 out of 10"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "1-6/10",
-            "patient_friendly": "1-6/10"
-          }
-        ]
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },

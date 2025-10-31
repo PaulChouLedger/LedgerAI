@@ -20,234 +20,81 @@
             "patient_friendly": "slowly over time"
           },
           {
-            "medical": "discovered incidentally",
-            "patient_friendly": "discovered incidentally"
-          },
-          {
-            "medical": "mild symptoms",
-            "patient_friendly": "mild symptoms"
+            "medical": "mild",
+            "patient_friendly": "not too bad"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "headache if present",
-            "patient_friendly": "headache if present"
-          },
-          {
             "medical": "frontal",
-            "patient_friendly": "frontal"
+            "patient_friendly": "front of your head"
           },
           {
             "medical": "occipital",
-            "patient_friendly": "occipital"
+            "patient_friendly": "back of your head"
           }
         ],
-        "excludes": [
-          {
-            "medical": "chest pain",
-            "patient_friendly": "chest pain"
-          },
-          {
-            "medical": "vision changes",
-            "patient_friendly": "vision changes"
-          },
-          {
-            "medical": "dyspnea",
-            "patient_friendly": "dyspnea"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
         "includes": [
           {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
-          },
-          {
             "medical": "chronic",
             "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
           {
-            "medical": "asymptomatic",
-            "patient_friendly": "asymptomatic"
-          },
-          {
-            "medical": "mild headache",
-            "patient_friendly": "mild headache"
+            "medical": "mild",
+            "patient_friendly": "not too bad"
           }
         ],
-        "excludes": [
-          {
-            "medical": "chest pain",
-            "patient_friendly": "chest pain"
-          },
-          {
-            "medical": "altered mental status",
-            "patient_friendly": "altered mental status"
-          },
-          {
-            "medical": "vision changes",
-            "patient_friendly": "vision changes"
-          },
-          {
-            "medical": "dyspnea",
-            "patient_friendly": "dyspnea"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "medication non-compliance",
-            "patient_friendly": "medication non-compliance"
-          },
-          {
-            "medical": "stress",
-            "patient_friendly": "stress or anxiety"
-          },
-          {
-            "medical": "salt intake",
-            "patient_friendly": "salt intake"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "blood pressure reduction",
-            "patient_friendly": "blood pressure reduction"
-          },
-          {
-            "medical": "medication",
-            "patient_friendly": "medication"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
-            "medical": "blood pressure reduction",
-            "patient_friendly": "blood pressure reduction"
-          },
-          {
-            "medical": "medication",
-            "patient_friendly": "medication"
+            "medical": "pressure",
+            "patient_friendly": "pressure-like"
           }
         ],
-        "excludes": [
-          {
-            "medical": "medication non-compliance",
-            "patient_friendly": "medication non-compliance"
-          },
-          {
-            "medical": "stress",
-            "patient_friendly": "stress or anxiety"
-          },
-          {
-            "medical": "salt intake",
-            "patient_friendly": "salt intake"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
             "medical": "chronic",
             "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "stable",
-            "patient_friendly": "stable"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "minimal symptoms",
-            "patient_friendly": "minimal symptoms"
+            "medical": "bp",
+            "patient_friendly": "BP"
           },
           {
-            "medical": "despite elevated blood pressure",
-            "patient_friendly": "despite elevated blood pressure"
-          },
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
+            "medical": "pressure",
+            "patient_friendly": "pressure-like"
           }
         ],
-        "excludes": [
-          {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          }
-        ]
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },

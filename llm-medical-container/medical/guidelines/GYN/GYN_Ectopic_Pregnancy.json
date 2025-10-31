@@ -17,62 +17,41 @@
       "onset": {
         "includes": [
           {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "days",
-            "patient_friendly": "for several days"
-          },
-          {
-            "medical": "weeks",
-            "patient_friendly": "for several weeks"
-          }
-        ],
-        "excludes": [
-          {
             "medical": "gradual",
             "patient_friendly": "slowly over time"
           },
           {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
+            "medical": "sudden severe",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
           }
-        ]
+        ],
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "pelvic",
-            "patient_friendly": "pelvic area"
+            "medical": "unilateral lower abdominal",
+            "patient_friendly": "one side"
           },
           {
-            "medical": "lower abdominal",
-            "patient_friendly": "lower abdominal"
+            "medical": "pelvic pain",
+            "patient_friendly": "PELVIC PAIN"
           },
           {
             "medical": "unilateral",
-            "patient_friendly": "unilateral"
-          },
-          {
-            "medical": "adnexal",
-            "patient_friendly": "adnexal"
-          },
-          {
-            "medical": "vaginal",
-            "patient_friendly": "vaginal"
+            "patient_friendly": "one side"
           }
         ],
         "excludes": []
@@ -84,50 +63,29 @@
             "patient_friendly": "continuous without stopping"
           },
           {
+            "medical": "cramping",
+            "patient_friendly": "cramping"
+          },
+          {
             "medical": "intermittent",
             "patient_friendly": "comes and goes"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
           {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
+            "medical": "crampy",
+            "patient_friendly": "crampy or cramping"
           },
           {
             "medical": "sharp",
             "patient_friendly": "sharp or stabbing"
           },
           {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "crampy",
-            "patient_friendly": "crampy or cramping"
-          },
-          {
-            "medical": "cramping",
-            "patient_friendly": "crampy or cramping"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
         "excludes": []
@@ -137,14 +95,6 @@
           {
             "medical": "movement",
             "patient_friendly": "moving around"
-          },
-          {
-            "medical": "physical activity",
-            "patient_friendly": "physical activity"
-          },
-          {
-            "medical": "jarring movements",
-            "patient_friendly": "jarring movements"
           }
         ],
         "excludes": []
@@ -152,47 +102,46 @@
       "relieving": {
         "includes": [
           {
-            "medical": "nothing relieves",
-            "patient_friendly": "nothing relieves"
-          },
-          {
-            "medical": "surgical intervention",
-            "patient_friendly": "surgical intervention"
+            "medical": "nothing",
+            "patient_friendly": "nothing helps"
           }
         ],
-        "excludes": [
-          {
-            "medical": "position changes",
-            "patient_friendly": "changing how you sit or lie"
-          },
-          {
-            "medical": "medications",
-            "patient_friendly": "medications"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
         "includes": [
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
           },
           {
-            "medical": "progressively worsening",
-            "patient_friendly": "progressively worsening"
+            "medical": "cramping",
+            "patient_friendly": "cramping"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
         "excludes": []
       },
       "severity": {
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
         "includes": [
           {
-            "medical": "9-10/10",
-            "patient_friendly": "9-10/10"
+            "medical": "missed period",
+            "patient_friendly": "MISSED PERIOD"
           },
           {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
+            "medical": "pregnancy test positive",
+            "patient_friendly": "PREGNANCY TEST POSITIVE"
           }
         ],
         "excludes": []

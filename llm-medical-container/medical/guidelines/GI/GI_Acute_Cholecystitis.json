@@ -14,7 +14,7 @@
     "gallbladder pain"
   ],
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within 12-48 hours, often 30 minutes to 2 hours AFTER A FATTY MEAL (fried foods, heavy meals). LOCATION: Right upper quadrant (RUQ), precisely localized just below right rib cage. RADIATES TO RIGHT SHOULDER OR SCAPULA (phrenic nerve referred pain). DURATION: CONSTANT pain lasting >6 hours (unlike biliary colic <6 hours). CHARACTER: SHARP or ACHING, CONSTANT (NOT colicky). AGGRAVATING: WORSE WITH DEEP BREATHING, movement, and fatty food intake. Trigger is fatty meals. RELIEVING: NOTHING relieves pain effectively. Position changes don't help. Pain persists despite rest. TIMING: CONSTANT (not episodic like biliary colic). Lasts >6 hours continuously. SEVERITY: 7-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: NAUSEA AND VOMITING very common, fever (100.5-102\u00b0F) within 12-24 hours, MURPHY'S SIGN (inspiratory arrest during right upper quadrant (RUQ) palpation), anorexia. May have jaundice if common bile duct involved. KEY POSITIVES: right upper quadrant (RUQ) tenderness, Murphy's sign, post-fatty meal onset, fever. KEY NEGATIVES: Diarrhea uncommon. Left-sided pain rules out. Pain resolving <1-2 hours suggests biliary colic not cholecystitis.",
+    "classic_presentation": "ONSET: SUDDEN onset within 12-48 hours, often 30 minutes to 2 hours AFTER A FATTY MEAL (fried foods, heavy meals). LOCATION: Right upper quadrant (RUQ), precisely localized just below right rib cage. RADIATES TO RIGHT SHOULDER OR SCAPULA (phrenic nerve referred pain). DURATION: CONSTANT pain lasting >6 hours (unlike biliary colic <6 hours). CHARACTER: SHARP or ACHING, CONSTANT (NOT colicky). AGGRAVATING: WORSE WITH DEEP BREATHING, movement, and fatty food intake. Trigger is fatty meals. RELIEVING: NOTHING relieves pain effectively. Position changes don't help. Pain persists despite rest. TIMING: CONSTANT (not episodic like biliary colic). Lasts >6 hours continuously. SEVERITY: 7-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: NAUSEA AND VOMITING very common, fever (100.5-102°F) within 12-24 hours, MURPHY'S SIGN (inspiratory arrest during right upper quadrant (RUQ) palpation), anorexia. May have jaundice if common bile duct involved. KEY POSITIVES: right upper quadrant (RUQ) tenderness, Murphy's sign, post-fatty meal onset, fever. KEY NEGATIVES: Diarrhea uncommon. Left-sided pain rules out. Pain resolving <1-2 hours suggests biliary colic not cholecystitis.",
     "structured_oldcarts": {
       "onset": {
         "includes": [
@@ -23,97 +23,43 @@
             "patient_friendly": "all at once or very quickly"
           },
           {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
+            "medical": "after",
+            "patient_friendly": "after eating"
           },
           {
-            "medical": "hours",
-            "patient_friendly": "within a few hours"
+            "medical": "fatty meal",
+            "patient_friendly": "fatty or greasy foods"
           }
         ],
-        "excludes": [
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "months",
-            "patient_friendly": "for months"
-          },
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "right upper quadrant",
+            "medical": "ruq",
             "patient_friendly": "top right side near your ribs"
-          },
-          {
-            "medical": "right subcostal",
-            "patient_friendly": "right side under your ribs"
-          },
-          {
-            "medical": "epigastric",
-            "patient_friendly": "upper middle part of your belly"
-          },
-          {
-            "medical": "radiates to right shoulder",
-            "patient_friendly": "spreads to your right shoulder"
-          },
-          {
-            "medical": "radiates to scapula",
-            "patient_friendly": "spreads to your shoulder blade"
           }
         ],
-        "excludes": [
-          {
-            "medical": "left side",
-            "patient_friendly": "left side"
-          },
-          {
-            "medical": "lower abdomen",
-            "patient_friendly": "lower part of your belly"
-          },
-          {
-            "medical": "LLQ",
-            "patient_friendly": "left lower side"
-          }
-        ],
+        "excludes": [],
         "anatomical_type": "right_upper"
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "TO RIGHT SHOULDER OR SCAPULA (phrenic nerve referred pain)",
+            "patient_friendly": "spreads to your right shoulder or your shoulder blade"
+          }
+        ],
+        "excludes": []
       },
       "duration": {
         "includes": [
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
@@ -122,41 +68,24 @@
             "patient_friendly": "sharp or stabbing"
           },
           {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
+            "medical": "aching",
+            "patient_friendly": "aching"
           },
           {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "colicky",
-            "patient_friendly": "comes and goes in waves"
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
           }
         ],
-        "excludes": [
-          {
-            "medical": "burning",
-            "patient_friendly": "burning sensation"
-          },
-          {
-            "medical": "crampy",
-            "patient_friendly": "crampy or cramping"
-          },
-          {
-            "medical": "dull",
-            "patient_friendly": "dull or achy"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
-            "medical": "fatty foods",
-            "patient_friendly": "greasy or fatty foods"
+            "medical": "worse with deep breathing",
+            "patient_friendly": "taking deep breaths"
           },
           {
-            "medical": "deep inspiration",
+            "medical": "breathing",
             "patient_friendly": "taking deep breaths"
           },
           {
@@ -164,38 +93,20 @@
             "patient_friendly": "moving around"
           }
         ],
-        "excludes": [
-          {
-            "medical": "fasting",
-            "patient_friendly": "not eating"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
-            "medical": "avoiding fatty foods",
-            "patient_friendly": "staying away from greasy foods"
+            "medical": "nothing",
+            "patient_friendly": "nothing helps"
           },
           {
-            "medical": "pain medication",
-            "patient_friendly": "pain medicine"
+            "medical": "rest",
+            "patient_friendly": "resting"
           }
         ],
-        "excludes": [
-          {
-            "medical": "eating",
-            "patient_friendly": "eating food"
-          },
-          {
-            "medical": "movement",
-            "patient_friendly": "moving around"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
         "includes": [
@@ -204,71 +115,46 @@
             "patient_friendly": "continuous without stopping"
           },
           {
-            "medical": "after meals",
-            "patient_friendly": "after eating"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "unrelated to food",
-            "patient_friendly": "not connected to eating"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
-          },
-          {
-            "medical": "10",
-            "patient_friendly": "10 out of 10"
           }
         ],
-        "excludes": [
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
           {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
+            "medical": "nausea and vomiting",
+            "patient_friendly": "nausea"
           },
           {
-            "medical": "1",
-            "patient_friendly": "1 out of 10"
+            "medical": "murphy",
+            "patient_friendly": "MURPHY"
           },
           {
-            "medical": "2",
-            "patient_friendly": "2 out of 10"
+            "medical": "sign",
+            "patient_friendly": "SIGN"
           },
           {
-            "medical": "3",
-            "patient_friendly": "3 out of 10"
+            "medical": "ruq",
+            "patient_friendly": "top right side near your ribs"
           }
-        ]
+        ],
+        "excludes": []
       }
     }
   },
   "red_flags": [
-    "High fever >102.5\u00b0F with rigors - suggests gangrenous cholecystitis or ascending cholangitis",
+    "High fever >102.5°F with rigors - suggests gangrenous cholecystitis or ascending cholangitis",
     "Jaundice with confusion or sepsis - ascending cholangitis, needs urgent ERCP",
     "Severe right upper quadrant (RUQ) pain with hypotension - gallbladder perforation or septic shock, call 911",
     "Elderly or diabetic patients - higher risk of gangrenous cholecystitis and perforation"

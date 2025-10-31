@@ -18,256 +18,78 @@
       "onset": {
         "includes": [
           {
-            "medical": "sudden onset over hours",
-            "patient_friendly": "sudden onset over hours"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          }
-        ]
+        "excludes": []
       },
       "location": {
-        "includes": [
-          {
-            "medical": "systemic",
-            "patient_friendly": "systemic"
-          },
-          {
-            "medical": "respiratory",
-            "patient_friendly": "breathing area"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "one side only",
-            "patient_friendly": "one side only"
-          },
-          {
-            "medical": "specific point",
-            "patient_friendly": "specific point"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "3-7 days",
-            "patient_friendly": "3-7 days"
-          },
-          {
-            "medical": "can last longer",
-            "patient_friendly": "can last longer"
-          },
-          {
-            "medical": "variable",
-            "patient_friendly": "variable"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
         "includes": [
           {
-            "medical": "high fever",
-            "patient_friendly": "high fever"
-          },
-          {
-            "medical": "severe body aches",
-            "patient_friendly": "severe body aches"
-          },
-          {
-            "medical": "dry cough",
-            "patient_friendly": "dry cough"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
-          {
-            "medical": "no chest pain",
-            "patient_friendly": "no chest pain"
-          },
-          {
-            "medical": "no wheezing",
-            "patient_friendly": "no wheezing"
-          },
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          },
-          {
-            "medical": "cold air",
-            "patient_friendly": "cold air"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "fluids",
-            "patient_friendly": "fluids"
-          },
-          {
-            "medical": "antipyretics",
-            "patient_friendly": "antipyretics"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
             "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "fluids",
-            "patient_friendly": "fluids"
-          },
-          {
-            "medical": "antipyretics",
-            "patient_friendly": "antipyretics"
+            "patient_friendly": "resting"
           }
         ],
-        "excludes": [
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          },
-          {
-            "medical": "cold air",
-            "patient_friendly": "cold air"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
             "medical": "acute",
             "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "seasonal",
-            "patient_friendly": "seasonal"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "moderate to severe",
-            "patient_friendly": "moderate to severe"
-          },
-          {
-            "medical": "6-8/10",
-            "patient_friendly": "6-8/10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "1-5/10",
-            "patient_friendly": "1-5/10"
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
           },
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "9-10/10",
-            "patient_friendly": "9-10/10"
           }
-        ]
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
       }
     }
   },
   "red_flags": [
     "Severe dyspnea or respiratory distress",
-    "High fever >103\u00b0F",
+    "High fever >103°F",
     "Altered mental status",
     "Signs of dehydration",
     "Chest pain with breathing",

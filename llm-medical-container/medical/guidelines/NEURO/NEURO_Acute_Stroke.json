@@ -22,106 +22,22 @@
           {
             "medical": "sudden",
             "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "minutes to hours",
-            "patient_friendly": "minutes to hours"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
             "medical": "unilateral",
-            "patient_friendly": "unilateral"
-          },
-          {
-            "medical": "one side",
             "patient_friendly": "one side"
-          },
-          {
-            "medical": "face",
-            "patient_friendly": "face"
-          },
-          {
-            "medical": "arm",
-            "patient_friendly": "arm"
-          },
-          {
-            "medical": "leg",
-            "patient_friendly": "leg"
-          },
-          {
-            "medical": "speech area",
-            "patient_friendly": "speech area"
           }
         ],
-        "excludes": [
-          {
-            "medical": "bilateral",
-            "patient_friendly": "on both sides"
-          },
-          {
-            "medical": "both sides",
-            "patient_friendly": "both sides"
-          },
-          {
-            "medical": "generalized",
-            "patient_friendly": "generalized"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "immediate onset",
-            "patient_friendly": "immediate onset"
-          },
-          {
-            "medical": "symptoms persist",
-            "patient_friendly": "symptoms persist"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
         "includes": [
@@ -132,170 +48,58 @@
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "weakness",
-            "patient_friendly": "feeling weak"
-          },
-          {
-            "medical": "numbness",
-            "patient_friendly": "feeling numb"
-          },
-          {
-            "medical": "paralysis",
-            "patient_friendly": "paralysis"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
             "medical": "movement",
             "patient_friendly": "moving around"
-          },
-          {
-            "medical": "speaking",
-            "patient_friendly": "speaking"
-          },
-          {
-            "medical": "swallowing",
-            "patient_friendly": "swallowing"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
           }
         ],
-        "excludes": [
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "medication",
-            "patient_friendly": "medication"
-          },
-          {
-            "medical": "position",
-            "patient_friendly": "position"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
-            "medical": "immediate medical intervention",
-            "patient_friendly": "immediate medical intervention"
-          },
-          {
-            "medical": "thrombolytics",
-            "patient_friendly": "thrombolytics"
-          },
-          {
-            "medical": "emergency treatment",
-            "patient_friendly": "emergency treatment"
+            "medical": "immediate",
+            "patient_friendly": "IMMEDIATE"
           }
         ],
-        "excludes": [
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "home remedies",
-            "patient_friendly": "home remedies"
-          },
-          {
-            "medical": "delayed treatment",
-            "patient_friendly": "delayed treatment"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
-            "medical": "sudden onset",
-            "patient_friendly": "sudden onset"
-          },
-          {
-            "medical": "symptoms persist",
-            "patient_friendly": "symptoms persist"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "8-10/10",
-            "patient_friendly": "8-10/10"
-          },
-          {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
-          },
-          {
-            "medical": "10",
-            "patient_friendly": "10 out of 10"
           }
         ],
-        "excludes": [
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
           {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
+            "medical": "facial droop",
+            "patient_friendly": "FACIAL DROOP"
           },
           {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "1-7/10",
-            "patient_friendly": "1-7/10"
+            "medical": "arm",
+            "patient_friendly": "arm"
           }
-        ]
+        ],
+        "excludes": []
       }
     }
   },

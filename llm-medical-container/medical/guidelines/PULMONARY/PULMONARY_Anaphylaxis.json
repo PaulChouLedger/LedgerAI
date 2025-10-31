@@ -19,242 +19,58 @@
       "onset": {
         "includes": [
           {
-            "medical": "rapid onset within minutes of exposure to allergen",
-            "patient_friendly": "rapid onset within minutes of exposure to allergen"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
+            "medical": "rapid",
+            "patient_friendly": "RAPID"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          }
-        ]
+        "excludes": []
       },
       "location": {
-        "includes": [
-          {
-            "medical": "systemic",
-            "patient_friendly": "systemic"
-          },
-          {
-            "medical": "affecting multiple organ systems",
-            "patient_friendly": "affecting multiple organ systems"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "one side only",
-            "patient_friendly": "one side only"
-          },
-          {
-            "medical": "specific point",
-            "patient_friendly": "specific point"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "minutes to hours",
-            "patient_friendly": "minutes to hours"
-          },
-          {
-            "medical": "can be life-threatening",
-            "patient_friendly": "can be life-threatening"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
         "includes": [
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "rapidly progressive",
-            "patient_friendly": "rapidly progressive"
           }
         ],
-        "excludes": [
-          {
-            "medical": "no fever",
-            "patient_friendly": "no fever"
-          },
-          {
-            "medical": "no chest pain",
-            "patient_friendly": "no chest pain"
-          },
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "continued allergen exposure",
-            "patient_friendly": "continued allergen exposure"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          },
-          {
-            "medical": "movement",
-            "patient_friendly": "moving around"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "epinephrine",
-            "patient_friendly": "epinephrine"
-          },
-          {
-            "medical": "antihistamines",
-            "patient_friendly": "antihistamines"
-          },
-          {
-            "medical": "steroids",
-            "patient_friendly": "steroids"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
-        "includes": [
-          {
-            "medical": "epinephrine",
-            "patient_friendly": "epinephrine"
-          },
-          {
-            "medical": "antihistamines",
-            "patient_friendly": "antihistamines"
-          },
-          {
-            "medical": "steroids",
-            "patient_friendly": "steroids"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "continued allergen exposure",
-            "patient_friendly": "continued allergen exposure"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          },
-          {
-            "medical": "movement",
-            "patient_friendly": "moving around"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
             "medical": "acute",
             "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "rapid progression",
-            "patient_friendly": "rapid progression"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "severe to life-threatening",
-            "patient_friendly": "severe to life-threatening"
-          },
-          {
-            "medical": "8-10/10",
-            "patient_friendly": "8-10/10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
-          },
-          {
-            "medical": "10",
-            "patient_friendly": "10 out of 10"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "1-7/10",
-            "patient_friendly": "1-7/10"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          }
-        ]
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },

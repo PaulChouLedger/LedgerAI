@@ -16,259 +16,67 @@
     "classic_presentation": "ONSET: Rapid onset over hours. LOCATION: Supraglottic region. DURATION: Acute, hours to days. CHARACTER: Severe throat pain, dysphagia, dyspnea. AGGRAVATING: Swallowing, lying flat. RELIEVING: Sitting upright, humidified air, antibiotics. TIMING: Acute, progressive. SEVERITY: Severe (8-10/10). ASSOCIATED SYMPTOMS: High fever, drooling, stridor, dysphagia, muffled voice, tripod positioning, anxiety. KEY POSITIVES: High fever, drooling, stridor, dysphagia, tripod positioning. KEY NEGATIVES: No chest pain, no wheezing.",
     "structured_oldcarts": {
       "onset": {
-        "includes": [
-          {
-            "medical": "rapid onset over hours",
-            "patient_friendly": "rapid onset over hours"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "location": {
-        "includes": [
-          {
-            "medical": "supraglottic region",
-            "patient_friendly": "supraglottic region"
-          },
-          {
-            "medical": "throat",
-            "patient_friendly": "throat"
-          },
-          {
-            "medical": "upper airway",
-            "patient_friendly": "upper airway"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "lower airway",
-            "patient_friendly": "lower airway"
-          },
-          {
-            "medical": "chest",
-            "patient_friendly": "chest area"
-          },
-          {
-            "medical": "lungs",
-            "patient_friendly": "lung area"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "duration": {
         "includes": [
           {
             "medical": "acute",
             "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "hours to days",
-            "patient_friendly": "hours to days"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
           {
-            "medical": "severe throat pain",
-            "patient_friendly": "severe throat pain"
-          },
-          {
-            "medical": "dysphagia",
-            "patient_friendly": "dysphagia"
-          },
-          {
-            "medical": "dyspnea",
-            "patient_friendly": "dyspnea"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
-          {
-            "medical": "no chest pain",
-            "patient_friendly": "no chest pain"
-          },
-          {
-            "medical": "no wheezing",
-            "patient_friendly": "no wheezing"
-          },
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "swallowing",
-            "patient_friendly": "swallowing"
-          },
-          {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat on your back"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "sitting upright",
-            "patient_friendly": "sitting upright"
-          },
-          {
-            "medical": "humidified air",
-            "patient_friendly": "humidified air"
-          },
-          {
-            "medical": "antibiotics",
-            "patient_friendly": "antibiotics"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
-        "includes": [
-          {
-            "medical": "sitting upright",
-            "patient_friendly": "sitting upright"
-          },
-          {
-            "medical": "humidified air",
-            "patient_friendly": "humidified air"
-          },
-          {
-            "medical": "antibiotics",
-            "patient_friendly": "antibiotics"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "swallowing",
-            "patient_friendly": "swallowing"
-          },
-          {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat on your back"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
             "medical": "acute",
             "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "8-10/10",
-            "patient_friendly": "8-10/10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
-          },
-          {
-            "medical": "10",
-            "patient_friendly": "10 out of 10"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "1-7/10",
-            "patient_friendly": "1-7/10"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          }
-        ]
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },
   "red_flags": [
     "Stridor or respiratory distress",
     "Drooling or inability to swallow",
-    "High fever >102\u00b0F",
+    "High fever >102°F",
     "Tripod positioning",
     "Muffled voice or 'hot potato' voice",
     "Cyanosis",

@@ -18,58 +18,20 @@
       "onset": {
         "includes": [
           {
-            "medical": "sudden onset",
-            "patient_friendly": "sudden onset"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
             "medical": "chest",
-            "patient_friendly": "chest area"
-          },
-          {
-            "medical": "often pleuritic",
-            "patient_friendly": "often pleuritic"
+            "patient_friendly": "your chest"
           }
         ],
-        "excludes": [
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "one area only",
-            "patient_friendly": "one area only"
-          },
-          {
-            "medical": "specific point",
-            "patient_friendly": "specific point"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
         "includes": [
@@ -80,116 +42,35 @@
           {
             "medical": "persistent",
             "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
           {
-            "medical": "sudden chest pain",
-            "patient_friendly": "sudden chest pain"
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
           },
           {
-            "medical": "dyspnea",
-            "patient_friendly": "dyspnea"
+            "medical": "chest",
+            "patient_friendly": "your chest"
           }
         ],
-        "excludes": [
-          {
-            "medical": "no fever",
-            "patient_friendly": "no fever"
-          },
-          {
-            "medical": "no wheezing",
-            "patient_friendly": "no wheezing"
-          },
-          {
-            "medical": "sharp",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
-            "medical": "deep breathing",
-            "patient_friendly": "deep breathing"
-          },
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
           }
         ],
-        "excludes": [
-          {
-            "medical": "anticoagulants",
-            "patient_friendly": "anticoagulants"
-          },
-          {
-            "medical": "oxygen",
-            "patient_friendly": "breathing oxygen"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
-        "includes": [
-          {
-            "medical": "anticoagulants",
-            "patient_friendly": "anticoagulants"
-          },
-          {
-            "medical": "oxygen",
-            "patient_friendly": "breathing oxygen"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "deep breathing",
-            "patient_friendly": "deep breathing"
-          },
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "timing": {
         "includes": [
@@ -200,68 +81,39 @@
           {
             "medical": "sudden",
             "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "moderate to severe",
-            "patient_friendly": "moderate to severe"
-          },
-          {
-            "medical": "6-8/10",
-            "patient_friendly": "6-8/10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "1-5/10",
-            "patient_friendly": "1-5/10"
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
           },
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
           },
           {
-            "medical": "9-10/10",
-            "patient_friendly": "9-10/10"
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          },
+          {
+            "medical": "leg",
+            "patient_friendly": "leg"
           }
-        ]
+        ],
+        "excludes": []
       }
     }
   },

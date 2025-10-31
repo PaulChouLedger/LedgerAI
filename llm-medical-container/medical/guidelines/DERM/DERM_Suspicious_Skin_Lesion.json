@@ -22,40 +22,15 @@
           {
             "medical": "gradual",
             "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "weeks",
-            "patient_friendly": "for several weeks"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
             "medical": "anywhere",
-            "patient_friendly": "anywhere"
-          },
-          {
-            "medical": "generalized",
-            "patient_friendly": "generalized"
-          },
-          {
-            "medical": "face",
-            "patient_friendly": "face"
+            "patient_friendly": "ANYWHERE"
           }
         ],
         "excludes": []
@@ -67,8 +42,8 @@
       "character": {
         "includes": [
           {
-            "medical": "raised",
-            "patient_friendly": "raised"
+            "medical": "variable",
+            "patient_friendly": "VARIABLE"
           }
         ],
         "excludes": []
@@ -80,23 +55,26 @@
       "relieving": {
         "includes": [
           {
-            "medical": "avoiding triggers",
-            "patient_friendly": "avoiding triggers"
+            "medical": "avoiding",
+            "patient_friendly": "AVOIDING"
           }
         ],
         "excludes": []
       },
       "timing": {
-        "includes": [
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          }
-        ],
+        "includes": [],
         "excludes": []
       },
       "severity": {
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
         "includes": [
+          {
+            "medical": "asymptomatic",
+            "patient_friendly": "ASYMPTOMATIC"
+          },
           {
             "medical": "mild",
             "patient_friendly": "not too bad"

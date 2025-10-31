@@ -18,58 +18,19 @@
       "onset": {
         "includes": [
           {
-            "medical": "sudden during eating or playing",
-            "patient_friendly": "sudden during eating or playing"
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
           },
           {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
+            "medical": "eating",
+            "patient_friendly": "eating"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          }
-        ]
+        "excludes": []
       },
       "location": {
-        "includes": [
-          {
-            "medical": "upper airway",
-            "patient_friendly": "upper airway"
-          },
-          {
-            "medical": "bronchial tree",
-            "patient_friendly": "bronchial tree"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "lower airway",
-            "patient_friendly": "lower airway"
-          },
-          {
-            "medical": "chest",
-            "patient_friendly": "chest area"
-          },
-          {
-            "medical": "lungs",
-            "patient_friendly": "lung area"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "duration": {
         "includes": [
@@ -78,114 +39,28 @@
             "patient_friendly": "sudden and severe"
           },
           {
-            "medical": "persistent until removed",
-            "patient_friendly": "persistent until removed"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
           {
-            "medical": "sudden dyspnea",
-            "patient_friendly": "sudden dyspnea"
-          },
-          {
-            "medical": "choking sensation",
-            "patient_friendly": "choking sensation"
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "no fever",
-            "patient_friendly": "no fever"
-          },
-          {
-            "medical": "no chest pain",
-            "patient_friendly": "no chest pain"
-          },
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          {
-            "medical": "continued attempts to breathe",
-            "patient_friendly": "continued attempts to breathe"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          },
-          {
-            "medical": "movement",
-            "patient_friendly": "moving around"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "removal of foreign body",
-            "patient_friendly": "removal of foreign body"
-          },
-          {
-            "medical": "positioning",
-            "patient_friendly": "positioning"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
-        "includes": [
-          {
-            "medical": "removal of foreign body",
-            "patient_friendly": "removal of foreign body"
-          },
-          {
-            "medical": "positioning",
-            "patient_friendly": "positioning"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "continued attempts to breathe",
-            "patient_friendly": "continued attempts to breathe"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          },
-          {
-            "medical": "movement",
-            "patient_friendly": "moving around"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "timing": {
         "includes": [
@@ -194,66 +69,33 @@
             "patient_friendly": "sudden and severe"
           },
           {
-            "medical": "sudden onset",
-            "patient_friendly": "sudden onset"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "severe to life-threatening",
-            "patient_friendly": "severe to life-threatening"
-          },
-          {
-            "medical": "8-10/10",
-            "patient_friendly": "8-10/10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
-          },
-          {
-            "medical": "10",
-            "patient_friendly": "10 out of 10"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
           {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
           },
           {
-            "medical": "1-7/10",
-            "patient_friendly": "1-7/10"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
+            "medical": "coughing",
+            "patient_friendly": "coughing"
           }
-        ]
+        ],
+        "excludes": []
       }
     }
   },

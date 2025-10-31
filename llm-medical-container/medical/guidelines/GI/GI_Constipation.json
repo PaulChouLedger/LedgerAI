@@ -23,108 +23,42 @@
             "patient_friendly": "slowly over time"
           },
           {
-            "medical": "days to weeks",
-            "patient_friendly": "days to weeks"
-          },
-          {
             "medical": "chronic",
             "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "progressive pattern",
-            "patient_friendly": "progressive pattern"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
           },
           {
             "medical": "acute",
             "patient_friendly": "sudden and severe"
           },
           {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
           }
-        ]
+        ],
+        "excludes": []
       },
       "location": {
         "includes": [
           {
             "medical": "lower abdomen",
-            "patient_friendly": "lower abdomen"
+            "patient_friendly": "your belly"
           },
           {
-            "medical": "diffuse",
-            "patient_friendly": "diffuse"
-          },
-          {
-            "medical": "throughout lower belly",
-            "patient_friendly": "throughout lower belly"
-          },
-          {
-            "medical": "not localized",
-            "patient_friendly": "not localized"
+            "medical": "abdomen",
+            "patient_friendly": "your belly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "upper abdomen",
-            "patient_friendly": "upper abdomen"
-          },
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "one quadrant",
-            "patient_friendly": "one quadrant"
-          },
-          {
-            "medical": "specific point",
-            "patient_friendly": "specific point"
-          }
-        ]
+        "excludes": [],
+        "anatomical_type": "midline"
       },
       "duration": {
         "includes": [
           {
-            "medical": "days to weeks",
-            "patient_friendly": "days to weeks"
-          },
-          {
-            "medical": "minutes to hours",
-            "patient_friendly": "minutes to hours"
-          },
-          {
-            "medical": "come and go",
-            "patient_friendly": "come and go"
-          },
-          {
-            "medical": "persist",
-            "patient_friendly": "persist"
+            "medical": "cramping",
+            "patient_friendly": "cramping"
           }
         ],
-        "excludes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
@@ -134,111 +68,40 @@
           },
           {
             "medical": "achy",
-            "patient_friendly": "achy"
-          },
-          {
-            "medical": "discomfort",
-            "patient_friendly": "discomfort"
+            "patient_friendly": "ACHY"
           },
           {
             "medical": "dull",
             "patient_friendly": "dull or achy"
           },
           {
-            "medical": "bloating sensation",
-            "patient_friendly": "bloating sensation"
-          }
-        ],
-        "excludes": [
-          {
             "medical": "sharp",
             "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "excruciating",
-            "patient_friendly": "excruciating"
           }
-        ]
+        ],
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
             "medical": "eating",
-            "patient_friendly": "eating food"
-          },
-          {
-            "medical": "straining",
-            "patient_friendly": "pushing or straining"
-          },
-          {
-            "medical": "bloating",
-            "patient_friendly": "bloating"
+            "patient_friendly": "eating"
           }
         ],
-        "excludes": [
-          {
-            "medical": "bowel movement",
-            "patient_friendly": "bowel movement"
-          },
-          {
-            "medical": "passing gas",
-            "patient_friendly": "passing gas"
-          },
-          {
-            "medical": "fiber",
-            "patient_friendly": "fiber"
-          },
-          {
-            "medical": "hydration",
-            "patient_friendly": "hydration"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
-            "medical": "bowel movement",
-            "patient_friendly": "bowel movement"
-          },
-          {
             "medical": "passing gas",
-            "patient_friendly": "passing gas"
+            "patient_friendly": "PASSING GAS"
           },
           {
-            "medical": "fiber",
-            "patient_friendly": "fiber"
-          },
-          {
-            "medical": "hydration",
-            "patient_friendly": "hydration"
-          },
-          {
-            "medical": "laxatives",
-            "patient_friendly": "laxatives"
-          },
-          {
-            "medical": "defecation",
-            "patient_friendly": "defecation"
+            "medical": "movement",
+            "patient_friendly": "moving around"
           }
         ],
-        "excludes": [
-          {
-            "medical": "eating",
-            "patient_friendly": "eating food"
-          },
-          {
-            "medical": "straining",
-            "patient_friendly": "pushing or straining"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
         "includes": [
@@ -247,39 +110,14 @@
             "patient_friendly": "comes and goes"
           },
           {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "better after defecation",
-            "patient_friendly": "better after defecation"
-          },
-          {
-            "medical": "worse when haven't gone",
-            "patient_friendly": "worse when haven't gone"
+            "medical": "cramping",
+            "patient_friendly": "cramping"
           }
         ],
-        "excludes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
-          {
-            "medical": "3-6/10",
-            "patient_friendly": "3-6/10"
-          },
           {
             "medical": "mild",
             "patient_friendly": "not too bad"
@@ -289,40 +127,32 @@
             "patient_friendly": "somewhat bad"
           },
           {
-            "medical": "3",
-            "patient_friendly": "3 out of 10"
-          },
-          {
-            "medical": "4",
-            "patient_friendly": "4 out of 10"
-          },
-          {
-            "medical": "5",
-            "patient_friendly": "5 out of 10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          },
-          {
-            "medical": "discomfort",
-            "patient_friendly": "discomfort"
-          }
-        ],
-        "excludes": [
-          {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "7-10/10",
-            "patient_friendly": "7-10/10"
-          },
-          {
-            "medical": "excruciating",
-            "patient_friendly": "excruciating"
           }
-        ]
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "bloating",
+            "patient_friendly": "BLOATING"
+          },
+          {
+            "medical": "hard pellet",
+            "patient_friendly": "HARD PELLET"
+          },
+          {
+            "medical": "like stools",
+            "patient_friendly": "LIKE STOOLS"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          }
+        ],
+        "excludes": []
       }
     }
   },

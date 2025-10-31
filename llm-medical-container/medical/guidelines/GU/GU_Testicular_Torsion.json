@@ -25,56 +25,15 @@
           {
             "medical": "acute",
             "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          },
-          {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "days",
-            "patient_friendly": "for several days"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "testicle",
-            "patient_friendly": "testicle"
-          },
-          {
-            "medical": "testicular",
-            "patient_friendly": "testicular"
-          },
-          {
-            "medical": "scrotal",
-            "patient_friendly": "scrotal"
-          },
-          {
-            "medical": "groin",
-            "patient_friendly": "groin area"
-          },
-          {
-            "medical": "lower abdomen",
-            "patient_friendly": "lower abdomen"
+            "medical": "abdomen",
+            "patient_friendly": "your belly"
           }
         ],
         "excludes": []
@@ -86,16 +45,7 @@
             "patient_friendly": "continuous without stopping"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
@@ -106,6 +56,10 @@
           {
             "medical": "sharp",
             "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
           }
         ],
         "excludes": []
@@ -115,10 +69,6 @@
           {
             "medical": "movement",
             "patient_friendly": "moving around"
-          },
-          {
-            "medical": "palpation",
-            "patient_friendly": "palpation"
           }
         ],
         "excludes": []
@@ -126,34 +76,17 @@
       "relieving": {
         "includes": [
           {
-            "medical": "nothing relieves",
-            "patient_friendly": "nothing relieves"
-          },
-          {
-            "medical": "elevation",
-            "patient_friendly": "elevation"
+            "medical": "nothing",
+            "patient_friendly": "nothing helps"
           }
         ],
-        "excludes": [
-          {
-            "medical": "position changes",
-            "patient_friendly": "changing how you sit or lie"
-          },
-          {
-            "medical": "medications",
-            "patient_friendly": "medications"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "progressively worsening",
-            "patient_friendly": "progressively worsening"
           }
         ],
         "excludes": []
@@ -161,14 +94,14 @@
       "severity": {
         "includes": [
           {
-            "medical": "9-10/10",
-            "patient_friendly": "9-10/10"
-          },
-          {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
           }
         ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
         "excludes": []
       }
     }

@@ -22,70 +22,28 @@
           {
             "medical": "gradual",
             "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "days",
-            "patient_friendly": "for several days"
-          },
-          {
-            "medical": "weeks",
-            "patient_friendly": "for several weeks"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "kidney",
-            "patient_friendly": "kidney area"
-          },
-          {
-            "medical": "renal",
-            "patient_friendly": "renal"
-          },
-          {
             "medical": "bilateral",
-            "patient_friendly": "on both sides"
+            "patient_friendly": "both sides"
           }
         ],
         "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          }
-        ],
+        "includes": [],
         "excludes": []
       },
       "character": {
         "includes": [
           {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "decreased urine output",
-            "patient_friendly": "decreased urine output"
-          },
-          {
-            "medical": "swelling",
-            "patient_friendly": "swelling or puffiness"
+            "medical": "hematuria",
+            "patient_friendly": "HEMATURIA"
           }
         ],
         "excludes": []
@@ -94,24 +52,25 @@
         "includes": [
           {
             "medical": "dehydration",
-            "patient_friendly": "dehydration"
-          },
-          {
-            "medical": "medications",
-            "patient_friendly": "medications"
+            "patient_friendly": "DEHYDRATION"
           }
         ],
         "excludes": []
       },
       "relieving": {
-        "includes": [],
+        "includes": [
+          {
+            "medical": "immunosuppressants",
+            "patient_friendly": "IMMUNOSUPPRESSANTS"
+          }
+        ],
         "excludes": []
       },
       "timing": {
         "includes": [
           {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
           }
         ],
         "excludes": []
@@ -121,6 +80,19 @@
           {
             "medical": "moderate",
             "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "hematuria",
+            "patient_friendly": "HEMATURIA"
           }
         ],
         "excludes": []

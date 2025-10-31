@@ -22,44 +22,19 @@
           {
             "medical": "gradual",
             "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "days",
-            "patient_friendly": "for several days"
-          },
-          {
-            "medical": "weeks",
-            "patient_friendly": "for several weeks"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "anywhere",
-            "patient_friendly": "anywhere"
+            "medical": "extensor",
+            "patient_friendly": "EXTENSOR"
           },
           {
-            "medical": "generalized",
-            "patient_friendly": "generalized"
-          },
-          {
-            "medical": "face",
-            "patient_friendly": "face"
+            "medical": "back",
+            "patient_friendly": "your back"
           }
         ],
         "excludes": []
@@ -75,34 +50,17 @@
             "patient_friendly": "sudden and severe"
           }
         ],
-        "excludes": [
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "short-term",
-            "patient_friendly": "short-term"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "long-term",
-            "patient_friendly": "long-term"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
           {
             "medical": "erythematous",
-            "patient_friendly": "erythematous"
+            "patient_friendly": "ERYTHEMATOUS"
           },
           {
-            "medical": "red",
-            "patient_friendly": "red"
+            "medical": "silver scales",
+            "patient_friendly": "SILVER SCALES"
           }
         ],
         "excludes": []
@@ -111,11 +69,7 @@
         "includes": [
           {
             "medical": "scratching",
-            "patient_friendly": "scratching"
-          },
-          {
-            "medical": "stress",
-            "patient_friendly": "stress or anxiety"
+            "patient_friendly": "SCRATCHING"
           }
         ],
         "excludes": []
@@ -123,25 +77,43 @@
       "relieving": {
         "includes": [
           {
-            "medical": "topical steroids",
-            "patient_friendly": "topical steroids"
-          },
-          {
-            "medical": "avoiding triggers",
-            "patient_friendly": "avoiding triggers"
+            "medical": "topical",
+            "patient_friendly": "TOPICAL"
           }
         ],
         "excludes": []
       },
       "timing": {
-        "includes": [],
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
+        ],
         "excludes": []
       },
       "severity": {
         "includes": [
           {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
             "medical": "moderate",
             "patient_friendly": "somewhat bad"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "mild itching",
+            "patient_friendly": "not too bad"
           },
           {
             "medical": "mild",

@@ -17,218 +17,72 @@
       "onset": {
         "includes": [
           {
-            "medical": "can be sudden",
-            "patient_friendly": "can be sudden"
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
           },
           {
             "medical": "gradual",
             "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "variable",
-            "patient_friendly": "variable"
           }
         ],
-        "excludes": [
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
             "medical": "chest",
-            "patient_friendly": "chest area"
-          },
-          {
-            "medical": "palpitations",
-            "patient_friendly": "palpitations"
+            "patient_friendly": "your chest"
           }
         ],
-        "excludes": [
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "one area only",
-            "patient_friendly": "one area only"
-          },
-          {
-            "medical": "extremities",
-            "patient_friendly": "extremities"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
         "includes": [
-          {
-            "medical": "minutes to persistent",
-            "patient_friendly": "minutes to persistent"
-          },
-          {
-            "medical": "variable",
-            "patient_friendly": "variable"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          },
-          {
-            "medical": "hours only",
-            "patient_friendly": "hours only"
-          }
-        ]
-      },
-      "character": {
-        "includes": [
-          {
-            "medical": "regular rapid palpitations",
-            "patient_friendly": "regular rapid palpitations"
-          },
-          {
-            "medical": "flutter sensation",
-            "patient_friendly": "flutter sensation"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "irregularly irregular",
-            "patient_friendly": "irregularly irregular"
-          },
-          {
-            "medical": "sudden start stop",
-            "patient_friendly": "sudden start stop"
-          },
-          {
-            "medical": "slow",
-            "patient_friendly": "slow"
-          }
-        ]
-      },
-      "aggravating": {
-        "includes": [
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          },
-          {
-            "medical": "stress",
-            "patient_friendly": "stress or anxiety"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "cardioversion",
-            "patient_friendly": "cardioversion"
-          },
-          {
-            "medical": "rate control medications",
-            "patient_friendly": "rate control medications"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ]
-      },
-      "relieving": {
-        "includes": [
-          {
-            "medical": "cardioversion",
-            "patient_friendly": "cardioversion"
-          },
-          {
-            "medical": "rate control medications",
-            "patient_friendly": "rate control medications"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          },
-          {
-            "medical": "stress",
-            "patient_friendly": "stress or anxiety"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          }
-        ]
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "paroxysmal",
-            "patient_friendly": "paroxysmal"
-          },
           {
             "medical": "persistent",
             "patient_friendly": "keeps going"
           }
         ],
-        "excludes": [
+        "excludes": []
+      },
+      "character": {
+        "includes": [
           {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
+            "medical": "rapid",
+            "patient_friendly": "RAPID"
           }
-        ]
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
+        ],
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "discomfort",
-            "patient_friendly": "discomfort"
-          },
-          {
-            "medical": "not severe pain",
-            "patient_friendly": "not severe pain"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          }
-        ],
-        "excludes": [
-          {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "painful",
-            "patient_friendly": "painful"
-          },
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
           }
-        ]
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },

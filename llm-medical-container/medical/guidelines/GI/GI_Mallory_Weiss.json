@@ -17,86 +17,93 @@
     "structured_oldcarts": {
       "onset": {
         "includes": [
-          { "medical": "acute", "patient_friendly": "all at once or very quickly" },
-          { "medical": "after vomiting", "patient_friendly": "right after vomiting or retching" }
-        ]
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "after",
+            "patient_friendly": "after eating"
+          },
+          {
+            "medical": "hematemesis",
+            "patient_friendly": "HEMATEMESIS"
+          }
+        ],
+        "excludes": []
       },
       "location": {
         "includes": [
-          {
-            "medical": "upper mid",
-            "patient_friendly": "upper mid"
-          },
           {
             "medical": "epigastric",
             "patient_friendly": "upper middle part of your belly"
           },
           {
-            "medical": "upper abdomen",
-            "patient_friendly": "upper abdomen"
+            "medical": "abdomen",
+            "patient_friendly": "your belly"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
           }
-        ]
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "bleeding",
+            "patient_friendly": "BLEEDING"
+          }
+        ],
+        "excludes": []
       },
       "character": {
         "includes": [
           {
-            "medical": "knife-like",
-            "patient_friendly": "knife-like"
-          },
-          {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
             "medical": "sharp",
             "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "epigastric",
+            "patient_friendly": "upper middle part of your belly"
           }
-        ]
+        ],
+        "excludes": []
       },
       "aggravating": {
-        "includes": [
-          { "medical": "continued vomiting", "patient_friendly": "keeping on vomiting" },
-          { "medical": "retching", "patient_friendly": "retching" }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "relieving": {
-        "includes": [
-          { "medical": "cessation of vomiting", "patient_friendly": "stopping the vomiting" }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "timing": {
         "includes": [
-          { "medical": "during vomiting", "patient_friendly": "during vomiting" },
-          { "medical": "immediately after vomiting", "patient_friendly": "right after vomiting" }
-        ]
+          {
+            "medical": "during",
+            "patient_friendly": "DURING"
+          },
+          {
+            "medical": "immediately after",
+            "patient_friendly": "IMMEDIATELY AFTER"
+          }
+        ],
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "4",
-            "patient_friendly": "4 out of 10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          },
-          {
-            "medical": "5",
-            "patient_friendly": "5 out of 10"
-          },
-          {
             "medical": "moderate",
             "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "4-7/10",
-            "patient_friendly": "4-7/10"
           }
-        ]
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },

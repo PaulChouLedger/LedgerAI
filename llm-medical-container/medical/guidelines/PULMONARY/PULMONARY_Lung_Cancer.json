@@ -18,258 +18,81 @@
       "onset": {
         "includes": [
           {
-            "medical": "gradual over months",
-            "patient_friendly": "gradual over months"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          }
-        ]
+        "excludes": []
       },
       "location": {
-        "includes": [
-          {
-            "medical": "focal or diffuse lung areas",
-            "patient_friendly": "focal or diffuse lung areas"
-          },
-          {
-            "medical": "lung",
-            "patient_friendly": "lung"
-          },
-          {
-            "medical": "chest",
-            "patient_friendly": "chest area"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "unilateral",
-            "patient_friendly": "unilateral"
-          },
-          {
-            "medical": "one side only",
-            "patient_friendly": "one side only"
-          },
-          {
-            "medical": "specific point",
-            "patient_friendly": "specific point"
-          }
-        ]
+        "includes": [],
+        "excludes": [],
+        "anatomical_type": "midline"
       },
       "duration": {
         "includes": [
           {
             "medical": "chronic",
             "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "character": {
-        "includes": [
-          {
-            "medical": "chronic cough",
-            "patient_friendly": "chronic cough"
-          },
-          {
-            "medical": "chest pain",
-            "patient_friendly": "chest pain"
-          },
-          {
-            "medical": "dyspnea",
-            "patient_friendly": "dyspnea"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "no fever",
-            "patient_friendly": "no fever"
-          },
-          {
-            "medical": "no wheezing",
-            "patient_friendly": "no wheezing"
-          },
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          }
-        ]
-      },
-      "aggravating": {
-        "includes": [
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          },
-          {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat on your back"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "pain medications",
-            "patient_friendly": "pain medications"
-          },
-          {
-            "medical": "oxygen",
-            "patient_friendly": "breathing oxygen"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ]
-      },
-      "relieving": {
-        "includes": [
-          {
-            "medical": "pain medications",
-            "patient_friendly": "pain medications"
-          },
-          {
-            "medical": "oxygen",
-            "patient_friendly": "breathing oxygen"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "exertion",
-            "patient_friendly": "physical exertion"
-          },
-          {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat on your back"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          }
-        ]
-      },
-      "timing": {
         "includes": [
           {
             "medical": "chronic",
             "patient_friendly": "ongoing for a long time"
           },
           {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
+            "medical": "chest",
+            "patient_friendly": "your chest"
           }
         ],
-        "excludes": [
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
           {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
           }
-        ]
+        ],
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "moderate to severe",
-            "patient_friendly": "moderate to severe"
-          },
-          {
-            "medical": "5-8/10",
-            "patient_friendly": "5-8/10"
-          },
-          {
-            "medical": "5",
-            "patient_friendly": "5 out of 10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "1-4/10",
-            "patient_friendly": "1-4/10"
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
           },
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
           },
           {
-            "medical": "9-10/10",
-            "patient_friendly": "9-10/10"
+            "medical": "chest",
+            "patient_friendly": "your chest"
           }
-        ]
+        ],
+        "excludes": []
       }
     }
   },

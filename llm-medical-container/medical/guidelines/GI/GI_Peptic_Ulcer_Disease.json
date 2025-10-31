@@ -26,28 +26,11 @@
             "patient_friendly": "ongoing for a long time"
           },
           {
-            "medical": "recurrent",
-            "patient_friendly": "recurrent"
-          },
-          {
-            "medical": "weeks to months",
-            "patient_friendly": "weeks to months"
-          }
-        ],
-        "excludes": [
-          {
             "medical": "sudden",
             "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
           }
-        ]
+        ],
+        "excludes": []
       },
       "location": {
         "includes": [
@@ -56,58 +39,24 @@
             "patient_friendly": "upper middle part of your belly"
           },
           {
-            "medical": "midline upper abdomen",
-            "patient_friendly": "midline upper abdomen"
-          },
-          {
-            "medical": "upper abdomen",
-            "patient_friendly": "upper abdomen"
+            "medical": "abdomen",
+            "patient_friendly": "your belly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "radiates",
-            "patient_friendly": "radiates"
-          },
-          {
-            "medical": "lower abdomen",
-            "patient_friendly": "lower abdomen"
-          },
-          {
-            "medical": "sides",
-            "patient_friendly": "sides"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
         "includes": [
           {
-            "medical": "minutes to hours",
-            "patient_friendly": "minutes to hours"
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
           },
           {
-            "medical": "episodes",
-            "patient_friendly": "episodes"
-          },
-          {
-            "medical": "constant in severe cases",
-            "patient_friendly": "constant in severe cases"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
-          {
-            "medical": "days",
-            "patient_friendly": "for several days"
-          },
-          {
-            "medical": "weeks",
-            "patient_friendly": "weeks"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
@@ -117,91 +66,52 @@
           },
           {
             "medical": "gnawing",
-            "patient_friendly": "gnawing"
+            "patient_friendly": "GNAWING"
           },
           {
             "medical": "aching",
-            "patient_friendly": "achy or sore"
-          },
-          {
-            "medical": "hunger-like",
-            "patient_friendly": "hunger-like"
-          },
-          {
-            "medical": "discomfort",
-            "patient_friendly": "discomfort"
+            "patient_friendly": "aching"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sharp",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "crampy",
-            "patient_friendly": "crampy or cramping"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
-            "medical": "duodenal ulcers worsen 2-5 hours after meals",
-            "patient_friendly": "duodenal ulcers worsen 2-5 hours after meals"
+            "medical": "duodenal",
+            "patient_friendly": "DUODENAL"
           },
           {
-            "medical": "gastric ulcers worsen with food",
-            "patient_friendly": "gastric ulcers worsen with food"
+            "medical": "gastric",
+            "patient_friendly": "upper middle part of your belly"
           },
           {
-            "medical": "NSAIDs",
-            "patient_friendly": "NSAIDs"
-          },
-          {
-            "medical": "empty stomach",
-            "patient_friendly": "empty stomach"
+            "medical": "with",
+            "patient_friendly": "WITH"
           }
         ],
-        "excludes": [
-          {
-            "medical": "food for duodenal",
-            "patient_friendly": "food for duodenal"
-          },
-          {
-            "medical": "antacids",
-            "patient_friendly": "antacids"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
-            "medical": "duodenal ulcers improve with food",
-            "patient_friendly": "duodenal ulcers improve with food"
+            "medical": "duodenal",
+            "patient_friendly": "DUODENAL"
+          },
+          {
+            "medical": "with",
+            "patient_friendly": "WITH"
           },
           {
             "medical": "antacids",
             "patient_friendly": "antacids"
           },
           {
-            "medical": "food for duodenal",
-            "patient_friendly": "food for duodenal"
+            "medical": "gastric",
+            "patient_friendly": "upper middle part of your belly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "food for gastric",
-            "patient_friendly": "food for gastric"
-          },
-          {
-            "medical": "NSAIDs",
-            "patient_friendly": "NSAIDs"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
         "includes": [
@@ -210,70 +120,36 @@
             "patient_friendly": "happens in episodes"
           },
           {
-            "medical": "meal-related pattern",
-            "patient_friendly": "meal-related pattern"
-          },
-          {
             "medical": "nocturnal",
-            "patient_friendly": "nocturnal"
+            "patient_friendly": "NOCTURNAL"
           },
           {
-            "medical": "wakes at night",
-            "patient_friendly": "wakes at night"
+            "medical": "duodenal",
+            "patient_friendly": "DUODENAL"
+          },
+          {
+            "medical": "gastric",
+            "patient_friendly": "upper middle part of your belly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
-          {
-            "medical": "5-8/10",
-            "patient_friendly": "5-8/10"
-          },
           {
             "medical": "moderate",
             "patient_friendly": "somewhat bad"
           },
           {
-            "medical": "5",
-            "patient_friendly": "5 out of 10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          }
-        ],
-        "excludes": [
-          {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "9-10/10",
-            "patient_friendly": "9-10/10"
-          },
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
           }
-        ]
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },

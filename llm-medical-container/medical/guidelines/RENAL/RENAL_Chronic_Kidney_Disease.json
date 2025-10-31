@@ -22,57 +22,33 @@
           {
             "medical": "gradual",
             "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "kidney",
-            "patient_friendly": "kidney area"
-          },
-          {
-            "medical": "renal",
-            "patient_friendly": "renal"
-          },
-          {
             "medical": "bilateral",
-            "patient_friendly": "on both sides"
+            "patient_friendly": "both sides"
           }
         ],
         "excludes": []
       },
       "duration": {
-        "includes": [],
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
+        ],
         "excludes": []
       },
       "character": {
         "includes": [
           {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "swelling",
-            "patient_friendly": "swelling or puffiness"
-          },
-          {
-            "medical": "fluid retention",
-            "patient_friendly": "fluid retention"
+            "medical": "progressive",
+            "patient_friendly": "PROGRESSIVE"
           }
         ],
         "excludes": []
@@ -81,15 +57,7 @@
         "includes": [
           {
             "medical": "dehydration",
-            "patient_friendly": "dehydration"
-          },
-          {
-            "medical": "medications",
-            "patient_friendly": "medications"
-          },
-          {
-            "medical": "contrast agents",
-            "patient_friendly": "contrast agents"
+            "patient_friendly": "DEHYDRATION"
           }
         ],
         "excludes": []
@@ -97,18 +65,19 @@
       "relieving": {
         "includes": [
           {
-            "medical": "fluid management",
-            "patient_friendly": "fluid management"
-          },
-          {
-            "medical": "dialysis",
-            "patient_friendly": "dialysis"
+            "medical": "fluid",
+            "patient_friendly": "FLUID"
           }
         ],
         "excludes": []
       },
       "timing": {
-        "includes": [],
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
+        ],
         "excludes": []
       },
       "severity": {
@@ -116,6 +85,19 @@
           {
             "medical": "moderate",
             "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "progressive kidney function decline",
+            "patient_friendly": "PROGRESSIVE KIDNEY FUNCTION DECLINE"
           }
         ],
         "excludes": []

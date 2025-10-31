@@ -15,6 +15,23 @@ services:
     working_dir: /app
     env_file: /home/aura/LedgerAI/.env
 
+  llm-generic:
+    build: ../llm-generic-container
+    network_mode: host
+    volumes:
+      - ../shared:/shared
+      - ../data:/app/data
+      - /home/aura/LedgerAI/.env:/app/.env
+    working_dir: /app
+    env_file: /home/aura/LedgerAI/.env
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
   rag:
     build: ../rag-container
     network_mode: host

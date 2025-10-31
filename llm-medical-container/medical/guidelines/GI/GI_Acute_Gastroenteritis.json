@@ -24,40 +24,11 @@
             "patient_friendly": "all at once or very quickly"
           },
           {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "1-2 days",
-            "patient_friendly": "1-2 days"
-          },
-          {
             "medical": "acute",
             "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "sick contacts",
-            "patient_friendly": "sick contacts"
-          },
-          {
-            "medical": "contaminated food",
-            "patient_friendly": "contaminated food"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "weeks",
-            "patient_friendly": "weeks"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
@@ -67,69 +38,19 @@
           },
           {
             "medical": "diffuse",
-            "patient_friendly": "diffuse"
+            "patient_friendly": "all over your belly"
           },
           {
-            "medical": "throughout abdomen",
-            "patient_friendly": "throughout abdomen"
-          },
-          {
-            "medical": "moves around",
-            "patient_friendly": "moves around"
+            "medical": "abdomen",
+            "patient_friendly": "your belly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "one quadrant",
-            "patient_friendly": "one quadrant"
-          },
-          {
-            "medical": "right lower quadrant",
-            "patient_friendly": "lower right side near your groin"
-          },
-          {
-            "medical": "RLQ",
-            "patient_friendly": "RLQ"
-          }
-        ]
+        "excludes": [],
+        "anatomical_type": "midline"
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "hours to days",
-            "patient_friendly": "hours to days"
-          },
-          {
-            "medical": "seconds to minutes",
-            "patient_friendly": "seconds to minutes"
-          },
-          {
-            "medical": "resolves within 3-7 days",
-            "patient_friendly": "resolves within 3-7 days"
-          },
-          {
-            "medical": "episodes",
-            "patient_friendly": "episodes"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "weeks",
-            "patient_friendly": "weeks"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
         "includes": [
@@ -139,107 +60,56 @@
           },
           {
             "medical": "diffuse",
-            "patient_friendly": "diffuse"
+            "patient_friendly": "all over your belly"
           },
           {
             "medical": "intermittent",
             "patient_friendly": "comes and goes"
           },
           {
-            "medical": "dull cramping",
-            "patient_friendly": "dull cramping"
+            "medical": "dull",
+            "patient_friendly": "dull or achy"
           },
           {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
+            "medical": "cramping",
+            "patient_friendly": "cramping"
           }
         ],
-        "excludes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "sharp",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "stabbing",
-            "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
             "medical": "eating",
-            "patient_friendly": "eating food"
-          },
-          {
-            "medical": "movement during cramp",
-            "patient_friendly": "movement during cramp"
-          },
-          {
-            "medical": "bowel movements",
-            "patient_friendly": "bowel movements"
-          },
-          {
-            "medical": "straining",
-            "patient_friendly": "pushing or straining"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "defecation",
-            "patient_friendly": "defecation"
-          },
-          {
-            "medical": "hydration",
-            "patient_friendly": "hydration"
-          }
-        ]
-      },
-      "relieving": {
-        "includes": [
-          {
-            "medical": "defecation",
-            "patient_friendly": "defecation"
-          },
-          {
-            "medical": "bowel movements",
-            "patient_friendly": "bowel movements"
-          },
-          {
-            "medical": "passing gas",
-            "patient_friendly": "passing gas"
-          },
-          {
-            "medical": "hydration",
-            "patient_friendly": "hydration"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "eating",
-            "patient_friendly": "eating food"
+            "patient_friendly": "eating"
           },
           {
             "medical": "movement",
             "patient_friendly": "moving around"
+          },
+          {
+            "medical": "cramping",
+            "patient_friendly": "cramping"
           }
-        ]
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "temporary",
+            "patient_friendly": "TEMPORARY"
+          },
+          {
+            "medical": "cramping",
+            "patient_friendly": "cramping"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          }
+        ],
+        "excludes": []
       },
       "timing": {
         "includes": [
@@ -248,38 +118,29 @@
             "patient_friendly": "comes and goes"
           },
           {
-            "medical": "waves",
-            "patient_friendly": "waves"
+            "medical": "cramping",
+            "patient_friendly": "cramping"
           },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "not constant",
-            "patient_friendly": "not constant"
-          }
-        ],
-        "excludes": [
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
           }
-        ]
+        ],
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "3-6/10",
-            "patient_friendly": "3-6/10"
+            "medical": "diarrhea",
+            "patient_friendly": "diarrhea"
+          },
+          {
+            "medical": "predominant",
+            "patient_friendly": "PREDOMINANT"
+          },
+          {
+            "medical": "cramping",
+            "patient_friendly": "cramping"
           },
           {
             "medical": "mild",
@@ -288,44 +149,40 @@
           {
             "medical": "moderate",
             "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "3",
-            "patient_friendly": "3 out of 10"
-          },
-          {
-            "medical": "4",
-            "patient_friendly": "4 out of 10"
-          },
-          {
-            "medical": "5",
-            "patient_friendly": "5 out of 10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
           }
         ],
-        "excludes": [
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
           {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
+            "medical": "diarrhea",
+            "patient_friendly": "diarrhea"
           },
           {
-            "medical": "7-10/10",
-            "patient_friendly": "7-10/10"
+            "medical": "nausea and vomiting",
+            "patient_friendly": "nausea"
           },
           {
-            "medical": "excruciating",
-            "patient_friendly": "excruciating"
+            "medical": "before",
+            "patient_friendly": "BEFORE"
+          },
+          {
+            "medical": "with",
+            "patient_friendly": "WITH"
+          },
+          {
+            "medical": "appetite",
+            "patient_friendly": "APPETITE"
           }
-        ]
+        ],
+        "excludes": []
       }
     }
   },
   "red_flags": [
     "Severe dehydration (dry mucous membranes, decreased urine output, orthostatic hypotension) - needs IV fluids",
-    "Bloody diarrhea with high fever >102\u00b0F - invasive bacterial infection (Shigella, Salmonella, E. coli), may need antibiotics",
+    "Bloody diarrhea with high fever >102°F - invasive bacterial infection (Shigella, Salmonella, E. coli), may need antibiotics",
     "Severe abdominal pain with peritoneal signs - suggests perforation or alternative diagnosis, not simple gastroenteritis",
     "Immunocompromised patients or infants - higher risk of severe dehydration and complications"
   ]

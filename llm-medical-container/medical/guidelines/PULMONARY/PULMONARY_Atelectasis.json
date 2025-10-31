@@ -18,260 +18,99 @@
       "onset": {
         "includes": [
           {
-            "medical": "gradual or sudden",
-            "patient_friendly": "gradual or sudden"
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
           },
           {
-            "medical": "often post-operative or bedridden",
-            "patient_friendly": "often post-operative or bedridden"
-          },
-          {
-            "medical": "variable",
-            "patient_friendly": "variable"
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
           }
         ],
-        "excludes": [
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
-          }
-        ]
+        "excludes": []
       },
       "location": {
-        "includes": [
-          {
-            "medical": "focal or segmental lung areas",
-            "patient_friendly": "focal or segmental lung areas"
-          },
-          {
-            "medical": "lung",
-            "patient_friendly": "lung"
-          },
-          {
-            "medical": "chest",
-            "patient_friendly": "chest area"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "unilateral",
-            "patient_friendly": "unilateral"
-          },
-          {
-            "medical": "one side only",
-            "patient_friendly": "one side only"
-          },
-          {
-            "medical": "specific point",
-            "patient_friendly": "specific point"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "duration": {
         "includes": [
           {
-            "medical": "hours to days",
-            "patient_friendly": "hours to days"
-          },
-          {
-            "medical": "can be persistent",
-            "patient_friendly": "can be persistent"
-          },
-          {
-            "medical": "variable",
-            "patient_friendly": "variable"
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
           }
         ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
-          {
-            "medical": "mild dyspnea",
-            "patient_friendly": "mild dyspnea"
-          },
-          {
-            "medical": "chest discomfort",
-            "patient_friendly": "chest discomfort"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "no severe dyspnea",
-            "patient_friendly": "no severe dyspnea"
-          },
-          {
-            "medical": "no chest pain",
-            "patient_friendly": "no chest pain"
-          },
-          {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
-          }
-        ]
-      },
-      "aggravating": {
-        "includes": [
-          {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat on your back"
-          },
-          {
-            "medical": "shallow breathing",
-            "patient_friendly": "shallow breathing"
-          },
-          {
-            "medical": "immobility",
-            "patient_friendly": "immobility"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "deep breathing",
-            "patient_friendly": "deep breathing"
-          },
-          {
-            "medical": "coughing",
-            "patient_friendly": "coughing"
-          },
-          {
-            "medical": "incentive spirometry",
-            "patient_friendly": "incentive spirometry"
-          }
-        ]
-      },
-      "relieving": {
-        "includes": [
-          {
-            "medical": "deep breathing",
-            "patient_friendly": "deep breathing"
-          },
-          {
-            "medical": "coughing",
-            "patient_friendly": "coughing"
-          },
-          {
-            "medical": "incentive spirometry",
-            "patient_friendly": "incentive spirometry"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "lying flat",
-            "patient_friendly": "lying flat on your back"
-          },
-          {
-            "medical": "shallow breathing",
-            "patient_friendly": "shallow breathing"
-          },
-          {
-            "medical": "immobility",
-            "patient_friendly": "immobility"
-          }
-        ]
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "often worse in morning",
-            "patient_friendly": "often worse in morning"
-          },
-          {
-            "medical": "improves with activity",
-            "patient_friendly": "improves with activity"
-          },
-          {
-            "medical": "variable",
-            "patient_friendly": "variable"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
-          }
-        ]
-      },
-      "severity": {
-        "includes": [
-          {
-            "medical": "mild to moderate",
-            "patient_friendly": "mild to moderate"
-          },
-          {
-            "medical": "3-6/10",
-            "patient_friendly": "3-6/10"
-          },
-          {
-            "medical": "3",
-            "patient_friendly": "3 out of 10"
-          },
-          {
-            "medical": "4",
-            "patient_friendly": "4 out of 10"
-          },
-          {
-            "medical": "5",
-            "patient_friendly": "5 out of 10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "7-10/10",
-            "patient_friendly": "7-10/10"
-          },
           {
             "medical": "mild",
             "patient_friendly": "not too bad"
           },
           {
-            "medical": "1-2/10",
-            "patient_friendly": "1-2/10"
+            "medical": "chest",
+            "patient_friendly": "your chest"
           }
-        ]
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
+          },
+          {
+            "medical": "coughing",
+            "patient_friendly": "coughing"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
       }
     }
   },
   "red_flags": [
     "Severe dyspnea or respiratory distress",
-    "High fever >101.5\u00b0F",
+    "High fever >101.5°F",
     "Chest pain with breathing",
     "Cyanosis or oxygen saturation <90%",
     "Hemoptysis",

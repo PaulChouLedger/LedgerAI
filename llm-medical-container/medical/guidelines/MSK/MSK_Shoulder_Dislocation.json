@@ -24,120 +24,29 @@
             "patient_friendly": "all at once or very quickly"
           },
           {
-            "medical": "during trauma",
-            "patient_friendly": "during trauma"
-          },
-          {
-            "medical": "fall on outstretched arm",
-            "patient_friendly": "fall on outstretched arm"
-          },
-          {
-            "medical": "direct blow",
-            "patient_friendly": "direct blow"
-          },
-          {
-            "medical": "forceful abduction",
-            "patient_friendly": "forceful abduction"
-          },
-          {
-            "medical": "external rotation",
-            "patient_friendly": "external rotation"
+            "medical": "arm",
+            "patient_friendly": "arm"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          },
-          {
-            "medical": "days to weeks",
-            "patient_friendly": "days to weeks"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "anterior shoulder",
-            "patient_friendly": "anterior shoulder"
-          },
-          {
-            "medical": "posterior shoulder",
-            "patient_friendly": "posterior shoulder"
-          },
-          {
             "medical": "shoulder",
-            "patient_friendly": "shoulder area"
-          },
-          {
-            "medical": "shoulder joint",
-            "patient_friendly": "shoulder joint"
+            "patient_friendly": "spreads to your right shoulder"
           }
         ],
-        "excludes": [
-          {
-            "medical": "elbow",
-            "patient_friendly": "elbow area"
-          },
-          {
-            "medical": "wrist",
-            "patient_friendly": "wrist area"
-          },
-          {
-            "medical": "neck",
-            "patient_friendly": "neck area"
-          },
-          {
-            "medical": "chest",
-            "patient_friendly": "chest area"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
         "includes": [
           {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          },
-          {
-            "medical": "persists until reduction",
-            "patient_friendly": "persists until reduction"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
-          {
-            "medical": "brief",
-            "patient_friendly": "for a short time"
-          },
-          {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "transient",
-            "patient_friendly": "transient"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
@@ -152,190 +61,70 @@
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "dull",
-            "patient_friendly": "dull or achy"
-          },
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "aching",
-            "patient_friendly": "achy or sore"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
-            "medical": "shoulder movement",
-            "patient_friendly": "shoulder movement"
+            "medical": "shoulder",
+            "patient_friendly": "spreads to your right shoulder"
           },
           {
-            "medical": "abduction",
-            "patient_friendly": "abduction"
-          },
-          {
-            "medical": "external rotation",
-            "patient_friendly": "external rotation"
-          },
-          {
-            "medical": "any movement",
-            "patient_friendly": "any movement"
+            "medical": "movement",
+            "patient_friendly": "moving around"
           }
         ],
-        "excludes": [
-          {
-            "medical": "reduction",
-            "patient_friendly": "reduction"
-          },
-          {
-            "medical": "immobilization",
-            "patient_friendly": "immobilization"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "treatment",
-            "patient_friendly": "treatment"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
-            "medical": "reduction",
-            "patient_friendly": "reduction"
+            "medical": "nothing",
+            "patient_friendly": "nothing helps"
           },
           {
-            "medical": "immobilization",
-            "patient_friendly": "immobilization"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "treatment",
-            "patient_friendly": "treatment"
+            "medical": "arm",
+            "patient_friendly": "arm"
           }
         ],
-        "excludes": [
-          {
-            "medical": "shoulder movement",
-            "patient_friendly": "shoulder movement"
-          },
-          {
-            "medical": "abduction",
-            "patient_friendly": "abduction"
-          },
-          {
-            "medical": "external rotation",
-            "patient_friendly": "external rotation"
-          },
-          {
-            "medical": "activity",
-            "patient_friendly": "activity"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
         "includes": [
           {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          },
-          {
-            "medical": "persists until reduction",
-            "patient_friendly": "persists until reduction"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
-          {
-            "medical": "delayed",
-            "patient_friendly": "delayed"
-          },
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "variable",
-            "patient_friendly": "variable"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          }
-        ]
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "8-10/10",
-            "patient_friendly": "8-10/10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          },
-          {
-            "medical": "9",
-            "patient_friendly": "9 out of 10"
-          },
-          {
-            "medical": "10",
-            "patient_friendly": "10 out of 10"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
           }
         ],
-        "excludes": [
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
           {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
+            "medical": "obvious deformity",
+            "patient_friendly": "OBVIOUS DEFORMITY"
           },
           {
-            "medical": "1-3/10",
-            "patient_friendly": "1-3/10"
+            "medical": "shoulder",
+            "patient_friendly": "spreads to your right shoulder"
           },
           {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "4-7/10",
-            "patient_friendly": "4-7/10"
+            "medical": "arm",
+            "patient_friendly": "arm"
           }
-        ]
+        ],
+        "excludes": []
       }
     }
   },

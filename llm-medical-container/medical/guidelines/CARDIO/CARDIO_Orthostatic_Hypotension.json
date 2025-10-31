@@ -14,256 +14,60 @@
     "classic_presentation": "ONSET: Immediate, within seconds to minutes of standing. LOCATION: Generalized lightheadedness, dizziness. DURATION: Brief, seconds to minutes, resolves when sitting/lying down. CHARACTER: Lightheadedness, dizziness, blurred vision, weakness. AGGRAVATING: STANDING UP from sitting or lying, prolonged standing, hot environment, dehydration. RELIEVING: Sitting or lying down immediately. TIMING: Reproducible with postural changes. SEVERITY: Variable, can lead to syncope if severe. KEY POSITIVES: Occurs with postural change, elderly patient, medications (antihypertensives, diuretics), dehydration, rapid resolution when sitting. KEY NEGATIVES: NOT constant dizziness, NOT spinning vertigo (BPPV), NOT exertional.",
     "structured_oldcarts": {
       "onset": {
-        "includes": [
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          },
-          {
-            "medical": "within seconds to minutes of standing",
-            "patient_friendly": "within seconds to minutes of standing"
-          },
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "location": {
-        "includes": [
-          {
-            "medical": "generalized lightheadedness",
-            "patient_friendly": "generalized lightheadedness"
-          },
-          {
-            "medical": "dizziness",
-            "patient_friendly": "feeling dizzy or lightheaded"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "one area only",
-            "patient_friendly": "one area only"
-          },
-          {
-            "medical": "chest",
-            "patient_friendly": "chest area"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "duration": {
         "includes": [
           {
-            "medical": "brief",
-            "patient_friendly": "for a short time"
-          },
-          {
-            "medical": "seconds to minutes",
-            "patient_friendly": "seconds to minutes"
-          },
-          {
-            "medical": "resolves when sitting lying down",
-            "patient_friendly": "resolves when sitting lying down"
+            "medical": "lying down",
+            "patient_friendly": "lying down"
           }
         ],
-        "excludes": [
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          },
-          {
-            "medical": "unrelenting",
-            "patient_friendly": "unrelenting"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          }
-        ]
+        "excludes": []
       },
       "character": {
-        "includes": [
-          {
-            "medical": "lightheadedness",
-            "patient_friendly": "lightheadedness"
-          },
-          {
-            "medical": "dizziness",
-            "patient_friendly": "feeling dizzy or lightheaded"
-          },
-          {
-            "medical": "blurred vision",
-            "patient_friendly": "blurred vision"
-          },
-          {
-            "medical": "weakness",
-            "patient_friendly": "feeling weak"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "constant dizziness",
-            "patient_friendly": "constant dizziness"
-          },
-          {
-            "medical": "spinning vertigo",
-            "patient_friendly": "spinning vertigo"
-          },
-          {
-            "medical": "exertional",
-            "patient_friendly": "exertional"
-          },
-          {
-            "medical": "chest pain",
-            "patient_friendly": "chest pain"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
-            "medical": "standing up from sitting",
-            "patient_friendly": "standing up from sitting"
-          },
-          {
-            "medical": "standing up from lying",
-            "patient_friendly": "standing up from lying"
-          },
-          {
-            "medical": "prolonged standing",
-            "patient_friendly": "prolonged standing"
-          },
-          {
-            "medical": "hot environment",
-            "patient_friendly": "hot environment"
-          },
-          {
-            "medical": "dehydration",
-            "patient_friendly": "dehydration"
+            "medical": "standing",
+            "patient_friendly": "STANDING"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sitting",
-            "patient_friendly": "sitting down"
-          },
-          {
-            "medical": "lying down",
-            "patient_friendly": "lying down"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "medication",
-            "patient_friendly": "medication"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
-            "medical": "sitting",
-            "patient_friendly": "sitting down"
-          },
-          {
-            "medical": "lying down immediately",
-            "patient_friendly": "lying down immediately"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
+            "medical": "lying down",
+            "patient_friendly": "lying down"
           }
         ],
-        "excludes": [
-          {
-            "medical": "standing up",
-            "patient_friendly": "standing up"
-          },
-          {
-            "medical": "prolonged standing",
-            "patient_friendly": "prolonged standing"
-          },
-          {
-            "medical": "hot environment",
-            "patient_friendly": "hot environment"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
-        "includes": [
-          {
-            "medical": "reproducible with postural changes",
-            "patient_friendly": "reproducible with postural changes"
-          },
-          {
-            "medical": "consistent",
-            "patient_friendly": "consistent"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "unpredictable",
-            "patient_friendly": "unpredictable"
-          },
-          {
-            "medical": "random",
-            "patient_friendly": "random"
-          },
-          {
-            "medical": "continuous",
-            "patient_friendly": "continuous"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "variable",
-            "patient_friendly": "variable"
-          },
-          {
-            "medical": "can lead to syncope if severe",
-            "patient_friendly": "can lead to syncope if severe"
-          },
-          {
-            "medical": "variable symptoms",
-            "patient_friendly": "variable symptoms"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          }
-        ]
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
       }
     }
   },

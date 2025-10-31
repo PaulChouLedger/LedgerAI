@@ -22,233 +22,72 @@
           {
             "medical": "sudden",
             "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "minutes to hours",
-            "patient_friendly": "minutes to hours"
-          },
-          {
-            "medical": "after exposure to trigger",
-            "patient_friendly": "after exposure to trigger"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "days",
-            "patient_friendly": "for several days"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "anywhere on body",
-            "patient_friendly": "anywhere on body"
-          },
-          {
-            "medical": "face",
-            "patient_friendly": "face"
-          },
-          {
-            "medical": "trunk",
-            "patient_friendly": "trunk"
-          },
-          {
-            "medical": "extremities",
-            "patient_friendly": "extremities"
-          },
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "generalized",
-            "patient_friendly": "generalized"
+            "medical": "anywhere",
+            "patient_friendly": "ANYWHERE"
           }
         ],
-        "excludes": [
-          {
-            "medical": "internal organs",
-            "patient_friendly": "internal organs"
-          },
-          {
-            "medical": "specific organ systems",
-            "patient_friendly": "specific organ systems"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "individual lesions <24 hours",
-            "patient_friendly": "individual lesions <24 hours"
-          },
-          {
-            "medical": "new lesions for days to weeks",
-            "patient_friendly": "new lesions for days to weeks"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "chronic lesions",
-            "patient_friendly": "chronic lesions"
-          },
-          {
-            "medical": "permanent lesions",
-            "patient_friendly": "permanent lesions"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
         "includes": [
           {
             "medical": "raised",
-            "patient_friendly": "raised"
+            "patient_friendly": "RAISED"
           },
           {
-            "medical": "wheal-like",
-            "patient_friendly": "wheal-like"
+            "medical": "wheal",
+            "patient_friendly": "WHEAL"
+          },
+          {
+            "medical": "like",
+            "patient_friendly": "LIKE"
           },
           {
             "medical": "pruritic",
-            "patient_friendly": "pruritic"
-          },
-          {
-            "medical": "itchy",
-            "patient_friendly": "itchy"
-          },
-          {
-            "medical": "central pallor",
-            "patient_friendly": "central pallor"
-          },
-          {
-            "medical": "red borders",
-            "patient_friendly": "red borders"
+            "patient_friendly": "PRURITIC"
           }
         ],
-        "excludes": [
-          {
-            "medical": "flat",
-            "patient_friendly": "flat"
-          },
-          {
-            "medical": "non-itchy",
-            "patient_friendly": "non-itchy"
-          },
-          {
-            "medical": "painful",
-            "patient_friendly": "painful"
-          },
-          {
-            "medical": "scaly",
-            "patient_friendly": "scaly"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
             "medical": "heat",
-            "patient_friendly": "applying heat"
-          },
-          {
-            "medical": "stress",
-            "patient_friendly": "stress or anxiety"
+            "patient_friendly": "HEAT"
           },
           {
             "medical": "pressure",
-            "patient_friendly": "pressure or heaviness"
-          },
-          {
-            "medical": "scratching",
-            "patient_friendly": "scratching"
+            "patient_friendly": "pressure-like"
           }
         ],
-        "excludes": [
-          {
-            "medical": "cool",
-            "patient_friendly": "cool"
-          },
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "avoiding triggers",
-            "patient_friendly": "avoiding triggers"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
-            "medical": "cool compresses",
-            "patient_friendly": "cool compresses"
-          },
-          {
-            "medical": "antihistamines",
-            "patient_friendly": "antihistamines"
-          },
-          {
-            "medical": "avoiding triggers",
-            "patient_friendly": "avoiding triggers"
+            "medical": "cool",
+            "patient_friendly": "COOL"
           }
         ],
-        "excludes": [
-          {
-            "medical": "heat",
-            "patient_friendly": "applying heat"
-          },
-          {
-            "medical": "scratching",
-            "patient_friendly": "scratching"
-          },
-          {
-            "medical": "stress",
-            "patient_friendly": "stress or anxiety"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
-        "includes": [
-          {
-            "medical": "lesions appear and disappear within 24 hours",
-            "patient_friendly": "lesions appear and disappear within 24 hours"
-          },
-          {
-            "medical": "new ones may continue",
-            "patient_friendly": "new ones may continue"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "permanent",
-            "patient_friendly": "permanent"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "severity": {
         "includes": [
-          {
-            "medical": "3-8/10 itching",
-            "patient_friendly": "3-8/10 itching"
-          },
           {
             "medical": "moderate",
             "patient_friendly": "somewhat bad"
@@ -258,20 +97,20 @@
             "patient_friendly": "very bad or intense"
           }
         ],
-        "excludes": [
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
           {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
+            "medical": "severe itching",
+            "patient_friendly": "very bad or intense"
           },
           {
-            "medical": "1-2/10",
-            "patient_friendly": "1-2/10"
-          },
-          {
-            "medical": "asymptomatic",
-            "patient_friendly": "asymptomatic"
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
           }
-        ]
+        ],
+        "excludes": []
       }
     }
   },

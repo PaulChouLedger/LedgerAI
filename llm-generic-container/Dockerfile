@@ -55,7 +55,7 @@ ENV N_CTX_COMPLEX=4096
 ENV N_CTX_SIMPLE=2048
 
 # Expose port for API
-EXPOSE 11434
+EXPOSE 11435
 
 # Run the API (loads .env inside container if mounted)
 CMD ["python3", "/app/container_rest.py"]

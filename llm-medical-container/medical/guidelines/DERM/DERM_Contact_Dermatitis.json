@@ -22,83 +22,40 @@
           {
             "medical": "gradual",
             "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "days",
-            "patient_friendly": "for several days"
-          },
-          {
-            "medical": "weeks",
-            "patient_friendly": "for several weeks"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
-            "medical": "face",
-            "patient_friendly": "face"
+            "medical": "areas",
+            "patient_friendly": "AREAS"
           },
           {
-            "medical": "hands",
-            "patient_friendly": "hands"
+            "medical": "contact",
+            "patient_friendly": "CONTACT"
           }
         ],
         "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "short-term",
-            "patient_friendly": "short-term"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
         "includes": [
           {
             "medical": "erythematous",
-            "patient_friendly": "erythematous"
-          },
-          {
-            "medical": "red",
-            "patient_friendly": "red"
+            "patient_friendly": "ERYTHEMATOUS"
           },
           {
             "medical": "pruritic",
-            "patient_friendly": "pruritic"
+            "patient_friendly": "PRURITIC"
           },
           {
-            "medical": "itchy",
-            "patient_friendly": "itchy"
+            "medical": "vesicles",
+            "patient_friendly": "VESICLES"
           }
         ],
         "excludes": []
@@ -107,11 +64,7 @@
         "includes": [
           {
             "medical": "scratching",
-            "patient_friendly": "scratching"
-          },
-          {
-            "medical": "heat",
-            "patient_friendly": "applying heat"
+            "patient_friendly": "SCRATCHING"
           }
         ],
         "excludes": []
@@ -119,20 +72,8 @@
       "relieving": {
         "includes": [
           {
-            "medical": "cool compresses",
-            "patient_friendly": "cool compresses"
-          },
-          {
-            "medical": "antihistamines",
-            "patient_friendly": "antihistamines"
-          },
-          {
-            "medical": "topical steroids",
-            "patient_friendly": "topical steroids"
-          },
-          {
-            "medical": "avoiding triggers",
-            "patient_friendly": "avoiding triggers"
+            "medical": "avoiding",
+            "patient_friendly": "AVOIDING"
           }
         ],
         "excludes": []
@@ -146,6 +87,19 @@
           {
             "medical": "moderate",
             "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "severe itching",
+            "patient_friendly": "very bad or intense"
           },
           {
             "medical": "severe",

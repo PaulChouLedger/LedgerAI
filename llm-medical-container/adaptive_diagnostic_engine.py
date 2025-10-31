@@ -147,6 +147,8 @@ class AdaptiveDiagnosticEngine:
         self.oldcarts_analysis = None
         self.clarification_count = {}
         self.diagnosed_condition = None
+        self.radiation_asked = False  # Track if radiation question has been asked
+        self.radiation_answered = False  # Track if radiation has been answered
         self.red_flags_present = []
         self.red_flag_index = 0
         self.MAX_ACTIVE = 5
@@ -573,6 +575,52 @@ class AdaptiveDiagnosticEngine:
                 }
                 return self._ask_next_clinical_question()
         
+        # Handle radiation (separate question after location)
+        if oldcarts_element == 'radiation':
+            self.radiation_answered = True
+            self._capture_debug(f"[Engine] 📍 Radiation answer: '{user_answer}'")
+            
+            # Score guidelines based on radiation answer using radiation section
+            if self.medical_rule_engine:
+                all_guidelines = list(self.all_guidelines.values())
+                for g in all_guidelines:
+                    classic = g['data'].get('key_features', {}).get('classic_presentation', '')
+                    oldcarts_section = self._extract_oldcarts_section(classic, 'location')  # Radiation terms are still in LOCATION section
+                    
+                    if not oldcarts_section:
+                        continue
+                    
+                    structured_oldcarts = g['data'].get('key_features', {}).get('structured_oldcarts', {})
+                    element_data = structured_oldcarts.get('radiation')  # Use radiation element data
+                    
+                    condition_name = g['data'].get('condition', g.get('name', 'Unknown'))
+                    # Detect organ system from category
+                    category_to_system = {
+                        'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
+                        'respiratory': 'PULMONARY', 'neurological': 'NEURO',
+                        'musculoskeletal': 'MSK', 'renal': 'RENAL',
+                        'genitourinary': 'GU', 'gynecological': 'GYN',
+                        'dermatological': 'DERM'
+                    }
+                    organ_system = category_to_system.get(self.current_category or 'gastrointestinal', 'GI')
+                    
+                    # Score radiation using radiation element data
+                    similarity_result = self.medical_rule_engine.compute_unified_similarity(
+                        user_answer, oldcarts_section, condition_name, organ_system,
+                        'location', {'location': element_data} if element_data else None
+                    )
+                    
+                    old_score = g['score']
+                    new_score = self._update_score_with_oldcarts(old_score, similarity_result['similarity_score'])
+                    g['score'] = new_score
+                    self._capture_debug(f"[Scoring] 📊 {condition_name}: old={old_score:.3f}, radiation={similarity_result['similarity_score']:.3f}, new={new_score:.3f}")
+                
+                # Re-rank after radiation scoring
+                self._rerank_and_pool_guidelines()
+            
+            # Continue to next question
+            return self._ask_next_clinical_question()
+        
         # Handle onset (documentation only)
         if oldcarts_element == 'onset':
             # Mark onset as covered and store the answer
@@ -672,31 +720,37 @@ class AdaptiveDiagnosticEngine:
                                  and item.get('is_clarification'))
         
         clarification_needed = False
+        missing_terms = []  # Missing terms for the current element
+        
         if clarification_count < 2 and self.active_guidelines:
             try:
+                # Get missing terms
                 missing_terms = self._analyze_missing_information(answer, oldcarts_element)
-                # Only need clarification if there are missing terms AND no terms are satisfied
+                self._capture_debug(f"[Clarification] 📊 Missing terms: {missing_terms}")
+                
+                # Determine if clarification needed based on missing_terms
                 if missing_terms:
                     # Check if any terms are satisfied (exact or semantic match)
                     satisfied_terms = self._get_satisfied_terms(answer, oldcarts_element)
                     if not satisfied_terms:
                         clarification_needed = True
-                    question = self._generate_clarifying_question(oldcarts_element, answer, clarification_count, missing_terms)
-                    self.conversation_history.append({
-                        'type': 'question',
-                        'question': question,
-                        'oldcarts': oldcarts_element,
-                        'is_clarification': True
-                    })
-                    return {
-                        'success': True,
-                        'question': question,
-                        'status': 'questioning',
-                        'debug': {
-                            'engine': self._format_engine_debug("[Engine] ⏳ Clarification requested") + "\n\n" + self._format_rankings_debug(),
-                            'internal': self._get_debug_info(last_answer=answer)
+                        # Use missing terms for the clarifying question
+                        question = self._generate_clarifying_question(oldcarts_element, answer, clarification_count, missing_terms)
+                        self.conversation_history.append({
+                            'type': 'question',
+                            'question': question,
+                            'oldcarts': oldcarts_element,
+                            'is_clarification': True
+                        })
+                        return {
+                            'success': True,
+                            'question': question,
+                            'status': 'questioning',
+                            'debug': {
+                                'engine': self._format_engine_debug("[Engine] ⏳ Clarification requested") + "\n\n" + self._format_rankings_debug(),
+                                'internal': self._get_debug_info(last_answer=answer)
+                            }
                         }
-                    }
             except Exception as e:
                 self._capture_debug(f"[Engine] ⚠️ Clarification check failed: {e}")
         
@@ -711,6 +765,20 @@ class AdaptiveDiagnosticEngine:
                     if oldcarts_element in self.oldcarts_analysis['missing_components']:
                         self.oldcarts_analysis['missing_components'].remove(oldcarts_element)
                 self._capture_debug(f"[Engine] ✅ {oldcarts_element} marked as complete")
+                
+                # Special handling: After location is satisfied, check if any guidelines have radiation section
+                if oldcarts_element == 'location' and not self.radiation_asked:
+                    # Check if any active guidelines have a radiation section
+                    has_radiation_section = False
+                    for guideline in self.active_guidelines:
+                        structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+                        if structured.get('radiation') and structured['radiation'].get('includes'):
+                            has_radiation_section = True
+                            break
+                    
+                    if has_radiation_section:
+                        self._capture_debug(f"[Engine] 📍 Location satisfied - radiation section found in guidelines")
+                        return self._ask_about_radiation()
         else:
             self._capture_debug(f"[Engine] ⏳ {oldcarts_element} needs clarification - not marked complete")
         
@@ -936,17 +1004,25 @@ class AdaptiveDiagnosticEngine:
                 break
         return options[:limit]
     
-    def _generate_clarifying_question(self, oldcarts_element: str, patient_answer: str, 
+    def _generate_clarifying_question(self, oldcarts_element: str, patient_answer: str,
                                      clarification_count: int, missing_terms: list) -> str:
         """Generate clarifying question using patient-friendly terms from guidelines"""
         if not missing_terms:
             raise ValueError(f"Cannot generate clarifying question for {oldcarts_element} - no missing terms")
         
+        self._capture_debug(f"[Clarification] 🔍 Missing medical terms ({oldcarts_element}): {missing_terms[:5]}")
+        
         # Get patient-friendly terms directly from guidelines
         patient_friendly_terms = []
-        for term in missing_terms[:3]:
+        medical_to_friendly_map = {}
+        for term in missing_terms[:3]:  # Limit to 3 terms
             friendly_term = self._get_patient_friendly_from_guidelines(term, oldcarts_element)
             patient_friendly_terms.append(friendly_term)
+            medical_to_friendly_map[term] = friendly_term
+        
+        # Debug output showing the mapping
+        for med, friendly in medical_to_friendly_map.items():
+            self._capture_debug(f"[Clarification] 📝 '{med}' → '{friendly}'")
         
         if oldcarts_element == 'location':
             options = ", ".join(patient_friendly_terms)
@@ -956,21 +1032,79 @@ class AdaptiveDiagnosticEngine:
             return f"Can you be more specific? For example, {options}?"
     
     def _get_patient_friendly_from_guidelines(self, medical_term: str, oldcarts_element: str) -> str:
-        """Get patient-friendly term directly from guidelines"""
+        """Get patient-friendly term directly from guidelines (case-insensitive match)"""
+        medical_term_lower = medical_term.lower().strip()
         for guideline in self.active_guidelines:
             structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
             element_data = structured.get(oldcarts_element, {})
             if isinstance(element_data, dict):
                 includes = element_data.get('includes', [])
                 for term_obj in includes:
-                    if isinstance(term_obj, dict) and term_obj.get('medical') == medical_term:
-                        return term_obj.get('patient_friendly', medical_term)
-                    elif isinstance(term_obj, str) and term_obj == medical_term:
+                    if isinstance(term_obj, dict):
+                        med = term_obj.get('medical', '')
+                        if isinstance(med, str) and med.lower().strip() == medical_term_lower:
+                            return term_obj.get('patient_friendly', medical_term)
+                    elif isinstance(term_obj, str) and term_obj.lower().strip() == medical_term_lower:
                         # Handle old format where terms are just strings
                         return medical_term
         
         # Fallback to original term if not found
         return medical_term
+    
+    def _ask_about_radiation(self) -> Dict[str, Any]:
+        """Ask about radiation as a separate question after location is satisfied"""
+        self.radiation_asked = True
+        
+        # Collect all radiation terms with patient-friendly versions from radiation section
+        radiation_options = []
+        for guideline in self.active_guidelines:
+            structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            radiation_data = structured.get('radiation', {})
+            if isinstance(radiation_data, dict):
+                includes = radiation_data.get('includes', [])
+                for term_obj in includes:
+                    medical_term = None
+                    patient_friendly = None
+                    if isinstance(term_obj, dict):
+                        medical_term = term_obj.get('medical', '')
+                        patient_friendly = term_obj.get('patient_friendly', medical_term)
+                    elif isinstance(term_obj, str):
+                        medical_term = term_obj
+                        patient_friendly = term_obj
+                    
+                    if medical_term and patient_friendly:
+                        if patient_friendly not in radiation_options:
+                            radiation_options.append(patient_friendly)
+        
+        if not radiation_options:
+            # No radiation terms found, continue normally
+            return self._ask_next_clinical_question()
+        
+        # Generate question with radiation options
+        if len(radiation_options) == 1:
+            question = f"Does the pain spread or radiate anywhere? For example, {radiation_options[0]}?"
+        else:
+            options = ", ".join(radiation_options[:3])
+            question = f"Does the pain spread or radiate anywhere? For example, {options}?"
+        
+        self.conversation_history.append({
+            'type': 'question',
+            'question': question,
+            'oldcarts': 'radiation',
+            'focus': 'clinical'
+        })
+        
+        self._capture_debug(f"[Engine] 📍 Asking about radiation: {question}")
+        
+        return {
+            'success': True,
+            'question': question,
+            'status': 'questioning',
+            'debug': {
+                'engine': self._format_engine_debug("[Engine] 📍 Radiation question generated") + "\n\n" + self._format_rankings_debug(),
+                'internal': self._get_debug_info()
+            }
+        }
     
     def _ask_next_clinical_question(self) -> Dict[str, Any]:
         """Ask next OLDCARTS question - standard order"""

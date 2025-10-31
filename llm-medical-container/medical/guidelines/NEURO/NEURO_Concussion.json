@@ -24,306 +24,81 @@
             "patient_friendly": "all at once or very quickly"
           },
           {
-            "medical": "after head trauma",
-            "patient_friendly": "after head trauma"
-          },
-          {
-            "medical": "immediate",
-            "patient_friendly": "immediate"
-          },
-          {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
+            "medical": "head",
+            "patient_friendly": "head"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "slow onset",
-            "patient_friendly": "slow onset"
-          },
-          {
-            "medical": "progressive",
-            "patient_friendly": "gets worse over time"
-          }
-        ]
+        "excludes": []
       },
       "location": {
         "includes": [
           {
             "medical": "generalized",
-            "patient_friendly": "generalized"
-          },
-          {
-            "medical": "diffuse",
-            "patient_friendly": "diffuse"
-          },
-          {
-            "medical": "whole head",
-            "patient_friendly": "whole head"
-          },
-          {
-            "medical": "bilateral",
-            "patient_friendly": "on both sides"
+            "patient_friendly": "GENERALIZED"
           }
         ],
-        "excludes": [
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          },
-          {
-            "medical": "focal",
-            "patient_friendly": "focal"
-          },
-          {
-            "medical": "specific point",
-            "patient_friendly": "specific point"
-          },
-          {
-            "medical": "unilateral",
-            "patient_friendly": "unilateral"
-          }
-        ]
+        "excludes": []
       },
       "duration": {
-        "includes": [
-          {
-            "medical": "days to weeks",
-            "patient_friendly": "days to weeks"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "prolonged",
-            "patient_friendly": "for a long time"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "minutes",
-            "patient_friendly": "just a few minutes"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
-            "medical": "brief",
-            "patient_friendly": "for a short time"
-          },
-          {
-            "medical": "transient",
-            "patient_friendly": "transient"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "character": {
         "includes": [
           {
             "medical": "headache",
-            "patient_friendly": "head pain"
-          },
-          {
-            "medical": "dizziness",
-            "patient_friendly": "feeling dizzy or lightheaded"
-          },
-          {
-            "medical": "confusion",
-            "patient_friendly": "confusion"
-          },
-          {
-            "medical": "moderate to severe",
-            "patient_friendly": "moderate to severe"
+            "patient_friendly": "HEADACHE"
           }
         ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "focal deficits",
-            "patient_friendly": "focal deficits"
-          },
-          {
-            "medical": "severe neurological",
-            "patient_friendly": "severe neurological"
-          },
-          {
-            "medical": "localized",
-            "patient_friendly": "localized"
-          }
-        ]
+        "excludes": []
       },
       "aggravating": {
         "includes": [
           {
             "medical": "light",
-            "patient_friendly": "light"
-          },
-          {
-            "medical": "sound",
-            "patient_friendly": "sound"
+            "patient_friendly": "LIGHT"
           },
           {
             "medical": "movement",
             "patient_friendly": "moving around"
-          },
-          {
-            "medical": "cognitive tasks",
-            "patient_friendly": "cognitive tasks"
           }
         ],
-        "excludes": [
-          {
-            "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "avoiding triggers",
-            "patient_friendly": "avoiding triggers"
-          },
-          {
-            "medical": "dark",
-            "patient_friendly": "dark"
-          },
-          {
-            "medical": "quiet",
-            "patient_friendly": "quiet"
-          }
-        ]
+        "excludes": []
       },
       "relieving": {
         "includes": [
           {
             "medical": "rest",
-            "patient_friendly": "lying still or resting"
-          },
-          {
-            "medical": "avoiding triggers",
-            "patient_friendly": "avoiding triggers"
-          },
-          {
-            "medical": "dark",
-            "patient_friendly": "dark"
-          },
-          {
-            "medical": "quiet",
-            "patient_friendly": "quiet"
+            "patient_friendly": "resting"
           }
         ],
-        "excludes": [
-          {
-            "medical": "light",
-            "patient_friendly": "light"
-          },
-          {
-            "medical": "sound",
-            "patient_friendly": "sound"
-          },
-          {
-            "medical": "movement",
-            "patient_friendly": "moving around"
-          },
-          {
-            "medical": "cognitive tasks",
-            "patient_friendly": "cognitive tasks"
-          }
-        ]
+        "excludes": []
       },
       "timing": {
-        "includes": [
-          {
-            "medical": "immediate onset after trauma",
-            "patient_friendly": "immediate onset after trauma"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
-          },
-          {
-            "medical": "ongoing",
-            "patient_friendly": "ongoing"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "comes and goes",
-            "patient_friendly": "comes and goes"
-          }
-        ]
+        "includes": [],
+        "excludes": []
       },
       "severity": {
         "includes": [
           {
-            "medical": "moderate to severe",
-            "patient_friendly": "moderate to severe"
-          },
-          {
-            "medical": "4-8/10",
-            "patient_friendly": "4-8/10"
-          },
-          {
-            "medical": "4",
-            "patient_friendly": "4 out of 10"
-          },
-          {
-            "medical": "5",
-            "patient_friendly": "5 out of 10"
-          },
-          {
-            "medical": "6",
-            "patient_friendly": "6 out of 10"
-          },
-          {
-            "medical": "7",
-            "patient_friendly": "7 out of 10"
-          },
-          {
-            "medical": "8",
-            "patient_friendly": "8 out of 10"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "1-3/10",
-            "patient_friendly": "1-3/10"
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
           },
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "9-10/10",
-            "patient_friendly": "9-10/10"
           }
-        ]
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "headache",
+            "patient_friendly": "HEADACHE"
+          }
+        ],
+        "excludes": []
       }
     }
   },
