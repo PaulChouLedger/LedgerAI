@@ -263,12 +263,17 @@ EOF
         # Try different conversion methods based on TensorRT-LLM version
         conversion_success=false
         
+        # Temporarily disable exit on error for conversion attempts
+        set +e
+        
         # Method 1: Look for convert_checkpoint.py (pip-installed TensorRT-LLM)
         # With pip installation, scripts are typically in site-packages
         convert_script=""
         
         # Try to find it using Python
+        echo -e "${BLUE}   Searching for convert_checkpoint.py...${NC}"
         python_found_path=$(python3 << 'PYEOF'
+import sys
 try:
     import tensorrt_llm
     import os
@@ -276,17 +281,18 @@ try:
     convert_path = os.path.join(package_path, "models", "llama", "convert_checkpoint.py")
     if os.path.exists(convert_path):
         print(convert_path)
-        exit(0)
+        sys.exit(0)
     # Also check examples
     convert_path = os.path.join(package_path, "examples", "llama", "convert_checkpoint.py")
     if os.path.exists(convert_path):
         print(convert_path)
-        exit(0)
-except:
+        sys.exit(0)
+except Exception as e:
+    # Silently fail - we'll use fallback method
     pass
-exit(1)
+sys.exit(1)
 PYEOF
-)
+) || python_found_path=""
         
         if [ -n "$python_found_path" ] && [ -f "$python_found_path" ]; then
             convert_script="$python_found_path"
@@ -414,6 +420,9 @@ PYEOF
                 conversion_success=true
             fi
         fi
+        
+        # Re-enable exit on error
+        set -e
         
         if [ "$conversion_success" = false ]; then
             echo ""
