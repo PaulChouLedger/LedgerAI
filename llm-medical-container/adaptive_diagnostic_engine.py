@@ -344,8 +344,8 @@ class AdaptiveDiagnosticEngine:
             
             # Generate symptom gathering question using LLM
             if self.llm_chat_simple_fn:
-                system_msg = "You are a medical assistant. Generate a natural, empathetic question to ask the patient to describe more about their symptoms."
-                user_msg = "Generate a natural question to ask the patient to tell you more about their symptoms. Make it empathetic and conversational. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
+                system_msg = "You are a medical assistant. Generate a natural question to gather more information about the patient's symptoms."
+                user_msg = f"Patient reported: '{self.chief_complaint}'\n\nGenerate a brief follow-up question to learn more about their symptoms. Focus ONLY on gathering information. Do NOT use phrases like 'I'm sorry', 'I understand', or other empathetic language. Be direct and factual. Ask one specific question about timing, location, or severity. Respond in 1 sentence ending with a question mark. Return only the question, no other text."
                 
                 llm_kwargs = self._get_llm_kwargs(override_max_tokens=40)
                 response = self.llm_chat_simple_fn(
@@ -1382,8 +1382,8 @@ class AdaptiveDiagnosticEngine:
     def _generate_empathetic_statement(self) -> str:
         """Generate empathetic opening statement using LLM"""
         if self.llm_chat_simple_fn:
-            system_msg = "You are a compassionate medical assistant. Generate a brief, empathetic statement acknowledging the patient's chief complaint."
-            user_msg = f"Patient says: '{self.chief_complaint}'\n\nGenerate a brief, empathetic statement (1-2 sentences) that acknowledges their concern and shows you're here to help."
+            system_msg = "You are a compassionate medical assistant. Generate a brief, empathetic statement acknowledging the patient's concern."
+            user_msg = f"Patient reported: '{self.chief_complaint}'\n\nGenerate a brief, empathetic acknowledgment (1-2 sentences). Acknowledge their concern, show compassion, and express that you're here to help. Do NOT ask questions. End with a period. Return only the statement, no other text."
             
             # Use all LLM settings from environment
             llm_kwargs = self._get_llm_kwargs(override_max_tokens=60)
