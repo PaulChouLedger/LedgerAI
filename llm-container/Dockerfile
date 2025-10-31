@@ -12,7 +12,8 @@ WORKDIR /app
 # Install additional required packages for our application
 # Note: PyTorch and TensorRT-LLM are already installed in the base image
 # Use PyPI index explicitly to avoid Jetson repository timeouts
-RUN pip3 install --no-cache-dir \
+# --ignore-installed ensures we get the versions we need even if some packages exist
+RUN pip3 install --no-cache-dir --ignore-installed \
     --index-url https://pypi.org/simple/ \
     flask \
     python-dotenv \
