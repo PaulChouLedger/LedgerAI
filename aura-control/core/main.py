@@ -393,7 +393,28 @@ def start_services():
     
     # Wait for LLM Flask API and model to be fully ready
     print("[Aura] ⏳ Waiting for LLM Flask API and model to load...")
-    print("[Aura] 💡 Loading in background: Llama-3.2-1B (~1s)...")
+    
+    # Get model name from health endpoint or environment
+    model_name = "LLM model"
+    try:
+        # Try to get model name from health endpoint
+        response = requests.get("http://localhost:11434/health", timeout=2)
+        if response.status_code == 200:
+            health_data = response.json()
+            models = health_data.get("models", {})
+            model_path = models.get("simple_path", "")
+            if model_path:
+                # Extract model name from path
+                import os
+                model_name = os.path.basename(model_path).replace('.gguf', '').replace('.ggml', '')
+    except:
+        # Fallback to environment variable if available
+        model_name = HOST_ENV.get("SIMPLE_MODEL_PATH", "LLM model")
+        if '/' in model_name:
+            import os
+            model_name = os.path.basename(model_name).replace('.gguf', '').replace('.ggml', '')
+    
+    print(f"[Aura] 💡 Loading in background: {model_name} (~1s)...")
     
     # Wait up to 60 seconds for model to load
     model_ready = False
