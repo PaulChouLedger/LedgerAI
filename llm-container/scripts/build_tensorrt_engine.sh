@@ -46,8 +46,22 @@ build_qwen_engine() {
     # Check if source model exists
     if [ ! -d "$model_path" ] && [ ! -f "$model_path" ]; then
         echo -e "${RED}❌ Source model not found: $model_path${NC}"
-        echo -e "${YELLOW}💡 For HuggingFace models, ensure the model directory exists${NC}"
-        echo -e "${YELLOW}💡 For GGUF models, you may need to convert to HuggingFace format first${NC}"
+        echo ""
+        echo -e "${YELLOW}Debugging info:${NC}"
+        echo "  Model path: $model_path"
+        echo "  Parent directory exists: $([ -d "$(dirname "$model_path")" ] && echo "✅ Yes" || echo "❌ No")"
+        if [ -d "$(dirname "$model_path")" ]; then
+            echo "  Parent directory contents:"
+            ls -la "$(dirname "$model_path")" 2>/dev/null | head -10 || echo "  (cannot list)"
+        fi
+        echo ""
+        echo -e "${YELLOW}💡 Common issues:${NC}"
+        echo "  1. Model not downloaded yet - run 'hf download' first"
+        echo "  2. Volume mount path mismatch - check docker -v path"
+        echo "  3. Wrong model path - verify the exact directory name"
+        echo ""
+        echo -e "${YELLOW}💡 To download the model:${NC}"
+        echo "  hf download meta-llama/Llama-3.2-1B-Instruct --local-dir $model_path"
         return 1
     fi
     
@@ -59,6 +73,9 @@ build_qwen_engine() {
     
     # Build TensorRT-LLM engine
     # Optimized for low latency (1-2s target)
+    # Note: max_seq_len = max_input_len + generation length
+    max_seq_len=$((context_window + 256))  # Input context + output generation
+    
     trtllm-build \
         --checkpoint_dir "$model_path" \
         --output_dir "$engine_dir" \
@@ -68,7 +85,7 @@ build_qwen_engine() {
         --remove_input_padding enable \
         --max_batch_size 1 \
         --max_input_len $context_window \
-        --max_output_len 256 \
+        --max_seq_len $max_seq_len \
         --max_beam_width 1 \
         --builder_opt 3 \
         || {
@@ -98,6 +115,22 @@ build_llama_engine() {
     # Check if source model exists
     if [ ! -d "$model_path" ] && [ ! -f "$model_path" ]; then
         echo -e "${RED}❌ Source model not found: $model_path${NC}"
+        echo ""
+        echo -e "${YELLOW}Debugging info:${NC}"
+        echo "  Model path: $model_path"
+        echo "  Parent directory exists: $([ -d "$(dirname "$model_path")" ] && echo "✅ Yes" || echo "❌ No")"
+        echo "  Parent directory contents:"
+        if [ -d "$(dirname "$model_path")" ]; then
+            ls -la "$(dirname "$model_path")" 2>/dev/null | head -10 || echo "  (cannot list)"
+        fi
+        echo ""
+        echo -e "${YELLOW}💡 Common issues:${NC}"
+        echo "  1. Model not downloaded yet - run 'hf download' first"
+        echo "  2. Volume mount path mismatch - check docker -v path"
+        echo "  3. Wrong model path - verify the exact directory name"
+        echo ""
+        echo -e "${YELLOW}💡 To download the model:${NC}"
+        echo "  hf download meta-llama/Llama-3.2-1B-Instruct --local-dir $model_path"
         return 1
     fi
     
@@ -109,6 +142,9 @@ build_llama_engine() {
     
     # Build TensorRT-LLM engine
     # Optimized for low latency (1-2s target)
+    # Note: max_seq_len = max_input_len + generation length
+    max_seq_len=$((context_window + 256))  # Input context + output generation
+    
     trtllm-build \
         --checkpoint_dir "$model_path" \
         --output_dir "$engine_dir" \
@@ -118,7 +154,7 @@ build_llama_engine() {
         --remove_input_padding enable \
         --max_batch_size 1 \
         --max_input_len $context_window \
-        --max_output_len 256 \
+        --max_seq_len $max_seq_len \
         --max_beam_width 1 \
         --builder_opt 3 \
         || {
