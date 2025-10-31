@@ -60,7 +60,7 @@ COPY rag/ /app/rag/
 
 # === Environment defaults (can be overridden by .env or -e) ===
 ENV SIMPLE_MODEL_PATH=/models/Nemotron-Mini-4B-Instruct-Q4_K_M.gguf
-ENV SIMPLE_CHAT_FORMAT=nemotron
+ENV SIMPLE_CHAT_FORMAT=chatml
 ENV SIMPLE_N_CTX=2048
 
 # Expose port for API
