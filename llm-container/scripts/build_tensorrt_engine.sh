@@ -257,22 +257,24 @@ EOF
             rm -rf "$checkpoint_dir"
         fi
         echo -e "${BLUE}   Converting: $model_path → $checkpoint_dir${NC}"
-        echo "   DEBUG: About to create checkpoint directory..."
         
         # Verify we can create the directory
+        echo "   DEBUG: Creating checkpoint directory..."
         if ! mkdir -p "$checkpoint_dir" 2>&1; then
             echo -e "${RED}❌ Failed to create checkpoint directory: $checkpoint_dir${NC}"
+            echo "   Check permissions and disk space"
             return 1
         fi
-        echo "   DEBUG: Directory created successfully"
+        echo "   ✅ Directory created: $checkpoint_dir"
         
         # Use TensorRT-LLM's conversion utility
-        # Try different conversion methods based on TensorRT-LLM version
+        # Based on Jetson AI Lab: https://www.jetson-ai-lab.com/tensorrt_llm.html
+        # Scripts are in /opt/TensorRT-LLM/examples/llama/
         conversion_success=false
         
         # Temporarily disable exit on error for conversion attempts
         set +e
-        echo "   DEBUG: Exit on error disabled (set +e)"
+        trap 'set +e' ERR  # Ensure errors don't exit during conversion attempts
         
         echo -e "${BLUE}   Starting conversion process...${NC}"
         echo "   DEBUG: About to search for convert_checkpoint.py"
@@ -364,15 +366,28 @@ PYEOF
             echo -e "${BLUE}   Attempting Method 1: Official convert_checkpoint.py${NC}"
             echo -e "${BLUE}   Using: $convert_script${NC}"
             echo ""
+            echo "   DEBUG: About to execute: python3 $convert_script --model_dir $model_path --output_dir $checkpoint_dir --dtype float16"
             
             # Try running the conversion script
+            # Based on Jetson AI Lab docs, scripts accept --model_dir and --output_dir
             # Note: May fail with Python 3.10 compatibility issues
             echo -e "${BLUE}   Running conversion script...${NC}"
-            if python3 "$convert_script" \
+            
+            # Capture both stdout and stderr, and check exit code explicitly
+            python3 "$convert_script" \
                 --model_dir "$model_path" \
                 --output_dir "$checkpoint_dir" \
                 --dtype float16 \
-                2>&1 | tee /tmp/trtllm_convert.log; then
+                > /tmp/trtllm_convert.log 2>&1
+            
+            convert_exit_code=$?
+            
+            # Always show the log output
+            echo "   Conversion script output:"
+            cat /tmp/trtllm_convert.log
+            echo ""
+            
+            if [ $convert_exit_code -eq 0 ]; then
                 echo -e "${GREEN}   ✅ Conversion script executed successfully${NC}"
                 # Verify rank0/ structure was created
                 if [ -f "$checkpoint_dir/rank0/model.safetensors" ] || [ -f "$checkpoint_dir/rank0/model.bin" ]; then
@@ -385,8 +400,11 @@ PYEOF
                     echo -e "${YELLOW}   ⚠️  Conversion script ran but rank0/ structure not found, trying alternative...${NC}"
                 fi
             else
-                echo -e "${YELLOW}   ⚠️  convert_checkpoint.py failed (may be Python 3.10 compatibility issue), trying alternative...${NC}"
-                echo "   Error log saved to /tmp/trtllm_convert.log"
+                echo -e "${YELLOW}   ⚠️  convert_checkpoint.py failed with exit code $convert_exit_code${NC}"
+                echo "   Full error log:"
+                cat /tmp/trtllm_convert.log
+                echo ""
+                echo -e "${YELLOW}   Trying alternative conversion method...${NC}"
             fi
         fi
         
@@ -394,8 +412,10 @@ PYEOF
         if [ "$conversion_success" = false ]; then
             echo ""
             echo -e "${BLUE}   Attempting Method 2: Transformers fallback (avoids tensorrt_llm import issues)...${NC}"
-            echo "   DEBUG: About to run Python transformers conversion..."
-            if MODEL_PATH="$model_path" CHECKPOINT_DIR="$checkpoint_dir" python3 << 'PYEOF'; then
+            echo "   DEBUG: Running Python transformers conversion..."
+            
+            # Write Python script to temp file for better error handling
+            cat > /tmp/trtllm_transformers_convert.py << 'PYEOF'
 import os
 import sys
 import shutil
@@ -468,17 +488,37 @@ except Exception as e:
     traceback.print_exc()
     sys.exit(1)
 PYEOF
-            then
-                conversion_success=true
-                echo "   DEBUG: Transformers conversion succeeded"
+            
+            echo "   DEBUG: Executing transformers conversion script..."
+            MODEL_PATH="$model_path" CHECKPOINT_DIR="$checkpoint_dir" python3 /tmp/trtllm_transformers_convert.py > /tmp/trtllm_transformers_convert.log 2>&1
+            transformers_exit_code=$?
+            
+            # Always show the log output
+            echo "   Transformers conversion output:"
+            cat /tmp/trtllm_transformers_convert.log
+            echo ""
+            
+            if [ $transformers_exit_code -eq 0 ]; then
+                # Verify rank0/ structure was created
+                if [ -f "$checkpoint_dir/rank0/model.safetensors" ] || [ -f "$checkpoint_dir/rank0/model.bin" ]; then
+                    touch "$checkpoint_marker"
+                    echo "Converted using transformers.save_pretrained()" > "$checkpoint_marker"
+                    conversion_success=true
+                    echo -e "${GREEN}   ✅ Transformers conversion succeeded${NC}"
+                else
+                    echo -e "${YELLOW}   ⚠️  Conversion ran but rank0/ structure not found${NC}"
+                    conversion_success=false
+                fi
             else
-                echo "   ERROR: Python transformers conversion failed with exit code $?"
-                echo "   This is a critical error - checkpoint conversion failed"
+                echo -e "${RED}   ❌ Transformers conversion failed with exit code $transformers_exit_code${NC}"
+                echo "   Full error log:"
+                cat /tmp/trtllm_transformers_convert.log
                 conversion_success=false
             fi
         fi
         
-        # Re-enable exit on error
+        # Re-enable exit on error and remove trap
+        trap - ERR
         set -e
         
         if [ "$conversion_success" = false ]; then

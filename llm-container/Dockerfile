@@ -1,6 +1,9 @@
 # TensorRT-LLM Container - Using DustyNV pre-built TensorRT-LLM container
+# Based on Jetson AI Lab: https://www.jetson-ai-lab.com/tensorrt_llm.html
+# 
 # Note: TensorRT-LLM pip installation is NOT supported on Jetson/Tegra systems
 # The dustynv/tensorrt_llm container has TensorRT-LLM pre-built and optimized for Jetson
+# Conversion scripts are located at /opt/TensorRT-LLM/examples/llama/
 FROM dustynv/tensorrt_llm:0.12-r36.4.0
 
 # Set working directory
