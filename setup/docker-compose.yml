@@ -13,6 +13,7 @@ services:
       - ../data:/app/data
       - /home/aura/LedgerAI/.env:/app/.env
       - /models:/models  # Mount models directory for TensorRT-LLM engines
+      - /models/ollama-models:/root/.ollama/models  # Persist Ollama models (stored on host at /models/ollama-models)
     working_dir: /app
     env_file: /home/aura/LedgerAI/.env
     deploy:
