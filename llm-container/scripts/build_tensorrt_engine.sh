@@ -234,11 +234,20 @@ EOF
     echo ""
     
     # Check if checkpoint already exists and is valid (has been properly converted)
-    # We check for a marker file that indicates successful conversion
+    # We check for a marker file that indicates successful conversion AND weights in rank0/
     checkpoint_marker="$checkpoint_dir/.tensorrt_llm_converted"
     rank0_weights="$checkpoint_dir/rank0/model.safetensors"
+    rank0_config="$checkpoint_dir/rank0/config.json"
     
-    if [ -d "$checkpoint_dir" ] && [ -f "$checkpoint_dir/config.json" ] && [ -f "$rank0_weights" ] && [ -f "$checkpoint_marker" ]; then
+    # Also check that root weights are NOT present (TensorRT-LLM expects them only in rank0/)
+    root_weights="$checkpoint_dir/model.safetensors"
+    
+    if [ -d "$checkpoint_dir" ] && \
+       [ -f "$checkpoint_dir/config.json" ] && \
+       [ -f "$rank0_weights" ] && \
+       [ -f "$rank0_config" ] && \
+       [ -f "$checkpoint_marker" ] && \
+       [ ! -f "$root_weights" ]; then
         echo -e "${GREEN}✅ Checkpoint already exists and is properly converted (with rank0/ structure), skipping conversion${NC}"
         echo ""
     else
@@ -334,20 +343,28 @@ try:
     rank0_dir = os.path.join(checkpoint_dir, "rank0")
     os.makedirs(rank0_dir, exist_ok=True)
     
-    # Copy weights to rank0/ subdirectory
+    # Copy weights to rank0/ subdirectory (TensorRT-LLM expects weights in rank0/, not root)
     weights_source = os.path.join(checkpoint_dir, "model.safetensors")
     if os.path.exists(weights_source):
         weights_dest = os.path.join(rank0_dir, "model.safetensors")
         print(f"Copying weights to rank0/ subdirectory...")
         shutil.copy2(weights_source, weights_dest)
         print(f"✅ Copied {weights_source} → {weights_dest}")
+        
+        # TensorRT-LLM may require weights ONLY in rank0/, remove from root
+        print(f"Removing weights from root (TensorRT-LLM expects them only in rank0/)...")
+        os.remove(weights_source)
+        print(f"✅ Removed {weights_source} from root")
     
-    # Also try copying config.json to rank0/
+    # Also copy config.json to rank0/ (TensorRT-LLM may need it there too)
     config_source = os.path.join(checkpoint_dir, "config.json")
     if os.path.exists(config_source):
         config_dest = os.path.join(rank0_dir, "config.json")
         shutil.copy2(config_source, config_dest)
         print(f"✅ Copied config.json to rank0/")
+        
+        # Keep config.json in root as well (TensorRT-LLM may check both)
+        print(f"✅ Config.json kept in both root and rank0/")
     
     # Create marker file to indicate successful conversion
     marker_file = os.path.join(checkpoint_dir, ".tensorrt_llm_converted")
@@ -436,7 +453,43 @@ PYEOF
             echo "Checkpoint directory contents:"
             ls -lh "$checkpoint_dir" | head -10
             echo ""
-            echo -e "${YELLOW}💡 Try using Method 3 (transformers re-save) for proper conversion${NC}"
+            echo "rank0/ subdirectory contents:"
+            if [ -d "$checkpoint_dir/rank0" ]; then
+                ls -lh "$checkpoint_dir/rank0"
+            else
+                echo "  ❌ rank0/ directory does not exist!"
+            fi
+            echo ""
+            echo -e "${YELLOW}💡 Debugging: TensorRT-LLM may be looking for weights in a different path${NC}"
+            echo "   Trying to find what TensorRT-LLM expects..."
+            echo ""
+            
+            # Check common weight file patterns TensorRT-LLM might look for
+            weight_patterns=(
+                "$checkpoint_dir/rank0/model.safetensors"
+                "$checkpoint_dir/rank0/model.bin"
+                "$checkpoint_dir/rank0/pytorch_model.bin"
+                "$checkpoint_dir/rank0/pytorch_model.safetensors"
+                "$checkpoint_dir/model.safetensors"
+                "$checkpoint_dir/model.bin"
+            )
+            
+            echo "Checking for weight files in expected locations:"
+            found_weights=false
+            for pattern in "${weight_patterns[@]}"; do
+                if [ -f "$pattern" ]; then
+                    echo "  ✅ Found: $pattern ($(ls -lh "$pattern" | awk '{print $5}'))"
+                    found_weights=true
+                fi
+            done
+            
+            if [ "$found_weights" = false ]; then
+                echo "  ❌ No weight files found in expected locations"
+            fi
+            echo ""
+            echo -e "${YELLOW}💡 Solution: The checkpoint may need to be re-converted${NC}"
+            echo "   Delete the checkpoint directory and re-run the build:"
+            echo "   rm -rf $checkpoint_dir"
         else
             echo "Check the error messages above for details."
         fi
