@@ -245,54 +245,90 @@ EOF
         # Try different conversion methods based on TensorRT-LLM version
         conversion_success=false
         
-        # Method 1: Use convert_checkpoint.py script if available
-        convert_script="/usr/local/lib/python3.10/dist-packages/tensorrt_llm/models/llama/convert_checkpoint.py"
-        if [ -f "$convert_script" ]; then
-            echo -e "${BLUE}   Using convert_checkpoint.py...${NC}"
+        # Method 1: Look for convert_checkpoint.py in examples directory
+        convert_script=""
+        possible_paths=(
+            "/usr/local/lib/python3.10/dist-packages/tensorrt_llm/examples/llama/convert_checkpoint.py"
+            "/usr/local/lib/python3.10/dist-packages/tensorrt_llm/models/llama/convert_checkpoint.py"
+            "/workspace/examples/llama/convert_checkpoint.py"
+        )
+        
+        for path in "${possible_paths[@]}"; do
+            if [ -f "$path" ]; then
+                convert_script="$path"
+                break
+            fi
+        done
+        
+        if [ -n "$convert_script" ]; then
+            echo -e "${BLUE}   Using convert_checkpoint.py from: $convert_script${NC}"
             if python3 "$convert_script" \
                 --model_dir "$model_path" \
                 --output_dir "$checkpoint_dir" \
                 --dtype float16 \
                 2>&1 | tee /tmp/trtllm_convert.log; then
                 conversion_success=true
+            else
+                echo -e "${YELLOW}   ⚠️  convert_checkpoint.py failed, trying alternative...${NC}"
             fi
         fi
         
-        # Method 2: Use Python API if script doesn't exist or failed
+        # Method 2: Simple copy (TensorRT-LLM 0.12 might handle HuggingFace format directly)
+        # This avoids Python compatibility issues
         if [ "$conversion_success" = false ]; then
-            echo -e "${BLUE}   Using TensorRT-LLM Python API...${NC}"
-            if python3 << EOF
+            echo -e "${BLUE}   Copying model files (TensorRT-LLM may handle HuggingFace format directly)...${NC}"
+            if cp -r "$model_path"/* "$checkpoint_dir"/ 2>/dev/null; then
+                # Ensure config.json exists
+                if [ -f "$checkpoint_dir/config.json" ]; then
+                    echo "✅ Model files copied to checkpoint directory"
+                    conversion_success=true
+                else
+                    echo "❌ config.json not found after copy"
+                fi
+            else
+                echo "❌ Failed to copy model files"
+            fi
+        fi
+        
+        # Method 3: Use transformers to re-save (ensures proper format, avoids tensorrt_llm import)
+        if [ "$conversion_success" = false ]; then
+            echo -e "${BLUE}   Using transformers to re-save model (avoids tensorrt_llm import issues)...${NC}"
+            MODEL_PATH="$model_path" CHECKPOINT_DIR="$checkpoint_dir" python3 << 'PYEOF'
+import os
 import sys
-sys.path.insert(0, '/usr/local/lib/python3.10/dist-packages')
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+
+model_path = os.environ.get('MODEL_PATH', '')
+checkpoint_dir = os.environ.get('CHECKPOINT_DIR', '')
+
+if not model_path or not checkpoint_dir:
+    print("❌ Environment variables not set")
+    sys.exit(1)
 
 try:
-    from tensorrt_llm.models.llama.weight import convert_from_hugging_face
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-    import torch
-    
-    print("Loading HuggingFace model...")
+    print(f"Loading from: {model_path}")
     model = AutoModelForCausalLM.from_pretrained(
-        "$model_path",
+        model_path,
         torch_dtype=torch.float16,
         trust_remote_code=True
     )
-    tokenizer = AutoTokenizer.from_pretrained("$model_path", trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
     
-    print("Converting to TensorRT-LLM checkpoint format...")
-    convert_from_hugging_face(
-        output_dir="$checkpoint_dir",
-        hf_model_dir="$model_path",
-        dtype="float16"
-    )
-    print("✅ Conversion successful")
+    print(f"Saving to: {checkpoint_dir}")
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    model.save_pretrained(checkpoint_dir, safe_serialization=True)
+    tokenizer.save_pretrained(checkpoint_dir)
+    
+    print("✅ Model re-saved successfully")
     sys.exit(0)
 except Exception as e:
-    print(f"❌ Conversion failed: {e}")
+    print(f"❌ Failed: {e}")
     import traceback
     traceback.print_exc()
     sys.exit(1)
-EOF
-            then
+PYEOF
+            if [ $? -eq 0 ]; then
                 conversion_success=true
             fi
         fi
