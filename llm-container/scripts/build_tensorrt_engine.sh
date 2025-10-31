@@ -233,11 +233,16 @@ EOF
     echo -e "${BLUE}🔧 Converting HuggingFace model to TensorRT-LLM checkpoint format...${NC}"
     echo ""
     
-    # Check if checkpoint already exists
-    if [ -d "$checkpoint_dir" ] && [ -f "$checkpoint_dir/config.json" ]; then
-        echo -e "${GREEN}✅ Checkpoint already exists, skipping conversion${NC}"
+    # Check if checkpoint already exists and has proper weights
+    if [ -d "$checkpoint_dir" ] && [ -f "$checkpoint_dir/config.json" ] && [ -f "$checkpoint_dir/model.safetensors" ]; then
+        echo -e "${GREEN}✅ Checkpoint already exists with weights, skipping conversion${NC}"
         echo ""
     else
+        # Remove incomplete checkpoint if it exists
+        if [ -d "$checkpoint_dir" ]; then
+            echo -e "${YELLOW}⚠️  Removing incomplete checkpoint directory...${NC}"
+            rm -rf "$checkpoint_dir"
+        fi
         echo -e "${BLUE}   Converting: $model_path → $checkpoint_dir${NC}"
         mkdir -p "$checkpoint_dir"
         
@@ -273,24 +278,7 @@ EOF
             fi
         fi
         
-        # Method 2: Simple copy (TensorRT-LLM 0.12 might handle HuggingFace format directly)
-        # This avoids Python compatibility issues
-        if [ "$conversion_success" = false ]; then
-            echo -e "${BLUE}   Copying model files (TensorRT-LLM may handle HuggingFace format directly)...${NC}"
-            if cp -r "$model_path"/* "$checkpoint_dir"/ 2>/dev/null; then
-                # Ensure config.json exists
-                if [ -f "$checkpoint_dir/config.json" ]; then
-                    echo "✅ Model files copied to checkpoint directory"
-                    conversion_success=true
-                else
-                    echo "❌ config.json not found after copy"
-                fi
-            else
-                echo "❌ Failed to copy model files"
-            fi
-        fi
-        
-        # Method 3: Use transformers to re-save (ensures proper format, avoids tensorrt_llm import)
+        # Method 2: Use transformers to re-save (ensures proper format, avoids tensorrt_llm import)
         if [ "$conversion_success" = false ]; then
             echo -e "${BLUE}   Using transformers to re-save model (avoids tensorrt_llm import issues)...${NC}"
             MODEL_PATH="$model_path" CHECKPOINT_DIR="$checkpoint_dir" python3 << 'PYEOF'
@@ -353,7 +341,9 @@ PYEOF
     echo -e "${BLUE}🔧 Building TensorRT-LLM engine from checkpoint...${NC}"
     echo ""
     
-    if trtllm-build \
+    # Build and capture both stdout/stderr and exit code
+    set +e  # Don't exit on error
+    trtllm-build \
         --checkpoint_dir "$checkpoint_dir" \
         --model_cls_name LlamaForCausalLM \
         --output_dir "$engine_dir" \
@@ -366,15 +356,43 @@ PYEOF
         --max_seq_len $max_seq_len \
         --max_beam_width 1 \
         --builder_opt 3 \
-        2>&1 | tee /tmp/trtllm_build.log; then
-        echo ""
-        echo -e "${GREEN}✅ Engine build succeeded!${NC}"
-        return 0
+        2>&1 | tee /tmp/trtllm_build.log
+    build_exit_code=${PIPESTATUS[0]}  # Get trtllm-build exit code, not tee's
+    set -e  # Re-enable exit on error
+    
+    # Check if build succeeded
+    if [ $build_exit_code -eq 0 ]; then
+        # Also verify engine files were created
+        if [ -f "$engine_dir/rank0.engine" ] || [ -d "$engine_dir/rank0" ]; then
+            echo ""
+            echo -e "${GREEN}✅ Engine build succeeded!${NC}"
+            return 0
+        else
+            echo ""
+            echo -e "${YELLOW}⚠️  Build reported success but engine files not found${NC}"
+            echo "Checking checkpoint directory structure..."
+            ls -la "$checkpoint_dir" | head -10
+            return 1
+        fi
     else
         echo ""
-        echo -e "${RED}❌ TensorRT-LLM engine build failed${NC}"
+        echo -e "${RED}❌ TensorRT-LLM engine build failed (exit code: $build_exit_code)${NC}"
         echo ""
-        echo "Check the error messages above for details."
+        
+        # Check for specific errors
+        if grep -q "assert os.path.isfile(weights_path)" /tmp/trtllm_build.log 2>/dev/null; then
+            echo -e "${YELLOW}💡 Error: TensorRT-LLM couldn't find weights file${NC}"
+            echo ""
+            echo "TensorRT-LLM expects weights in a specific checkpoint format."
+            echo "The checkpoint directory should have model weights in the expected location."
+            echo ""
+            echo "Checkpoint directory contents:"
+            ls -lh "$checkpoint_dir" | head -10
+            echo ""
+            echo -e "${YELLOW}💡 Try using Method 3 (transformers re-save) for proper conversion${NC}"
+        else
+            echo "Check the error messages above for details."
+        fi
         return 1
     fi
 }
