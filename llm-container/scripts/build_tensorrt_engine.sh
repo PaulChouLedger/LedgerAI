@@ -726,18 +726,48 @@ try:
             # Try to replicate the path construction logic
             rank = kwargs.get('rank', 0)
             tp_size = kwargs.get('tp_size', 1)
+            
+            # Get config from kwargs if provided (this affects path construction)
+            config = kwargs.get('config', None)
+            if config:
+                print(f"DEBUG: config provided: type={type(config)}")
+                if hasattr(config, 'rank'):
+                    print(f"DEBUG: config.rank={config.rank}")
+                if hasattr(config, 'tp_size'):
+                    print(f"DEBUG: config.tp_size={config.tp_size}")
+                if hasattr(config, 'tp_rank'):
+                    print(f"DEBUG: config.tp_rank={config.tp_rank}")
+            
             print(f"DEBUG: rank={rank}, tp_size={tp_size}")
             
-            # Common patterns TensorRT-LLM might use
+            # Try to read the actual source code to see the path construction
+            try:
+                source_file = LLaMAForCausalLM.from_checkpoint.__code__.co_filename
+                with open(source_file, 'r') as f:
+                    source_lines = f.readlines()
+                # Look for weights_path assignment around line 475
+                print("\nDEBUG: Searching for weights_path construction in source:")
+                for i in range(460, 485):
+                    if i < len(source_lines):
+                        line = source_lines[i]
+                        if 'weights_path' in line or 'rank' in line.lower():
+                            print(f"  Line {i+1}: {line.rstrip()}")
+            except Exception as e:
+                print(f"DEBUG: Could not read source: {e}")
+            
+            # Common patterns TensorRT-LLM might use (including tp_rank)
+            tp_rank = kwargs.get('tp_rank', rank)
             possible_paths = [
+                os.path.join(ckpt_dir, f"rank{tp_rank}", "model.safetensors"),
                 os.path.join(ckpt_dir, f"rank{rank}", "model.safetensors"),
+                os.path.join(ckpt_dir, f"rank{tp_rank}", "pytorch_model.bin"),
                 os.path.join(ckpt_dir, f"rank{rank}", "pytorch_model.bin"),
                 os.path.join(ckpt_dir, "rank0", "model.safetensors"),
                 os.path.join(ckpt_dir, "model.safetensors"),
                 os.path.join(ckpt_dir, "pytorch_model.bin"),
             ]
             
-            print("DEBUG: Checking possible weight paths:")
+            print("\nDEBUG: Checking possible weight paths:")
             for path in possible_paths:
                 exists = os.path.isfile(path)
                 if exists:
@@ -746,17 +776,68 @@ try:
                 else:
                     print(f"  ❌ {path}")
             
-            # Now call the original
-            return original_from_checkpoint(ckpt_dir, **kwargs)
+            # Patch os.path.isfile to capture what TensorRT-LLM is checking
+            original_isfile = os.path.isfile
+            checked_paths = []
+            def debug_isfile(path):
+                checked_paths.append(path)
+                if 'safetensors' in path.lower() or 'pytorch' in path.lower() or 'bin' in path.lower():
+                    print(f"DEBUG: os.path.isfile called for: {path}")
+                    result = original_isfile(path)
+                    print(f"DEBUG:   -> {result}")
+                return original_isfile(path)
+            
+            import os as os_module
+            os_module.path.isfile = debug_isfile
+            
+            try:
+                # Now call the original
+                result = original_from_checkpoint(ckpt_dir, **kwargs)
+                print(f"\nDEBUG: Successfully called from_checkpoint")
+                return result
+            except AssertionError as e:
+                print(f"\nDEBUG: AssertionError caught!")
+                print(f"DEBUG: Paths checked by TensorRT-LLM:")
+                for p in checked_paths:
+                    print(f"  - {p}")
+                raise
+            finally:
+                # Restore original function
+                os_module.path.isfile = original_isfile
+        
+        # Try to inspect the actual source code of from_checkpoint
+        # Read the modeling_utils.py file to see how it constructs weights_path
+        import inspect
+        source_file = LLaMAForCausalLM.from_checkpoint.__code__.co_filename
+        print(f"Reading source from: {source_file}")
+        try:
+            with open(source_file, 'r') as f:
+                lines = f.readlines()
+            # Find the assert statement around line 475
+            print("\nSource code around line 475 (where assert fails):")
+            start_line = max(0, 470 - 5)
+            end_line = min(len(lines), 480 + 5)
+            for i in range(start_line, end_line):
+                line = lines[i]
+                if 'weights_path' in line or 'assert' in line.lower() or 'rank' in line.lower():
+                    print(f"  {i+1:4d}: {line.rstrip()}")
+        except Exception as e:
+            print(f"Could not read source file: {e}")
         
         # Try the debug version
-        print("Attempting from_checkpoint with debug logging...")
+        print("\nAttempting from_checkpoint with debug logging...")
         try:
             debug_from_checkpoint(checkpoint_dir)
         except AssertionError as e:
-            print(f"❌ AssertionError (this shows what path it expected): {e}")
+            print(f"❌ AssertionError: {e}")
+            # Try to get more info about the assertion
+            import traceback
+            print("\nFull traceback:")
+            traceback.print_exc()
         except Exception as e:
             print(f"❌ Error: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
             
     except Exception as e:
         print(f"Could not trace from_checkpoint: {e}")
