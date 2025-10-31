@@ -27,7 +27,7 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceT
 
 # Copy models (cached - these are large and rarely change)
 COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K_M.gguf
-COPY models/Qwen3-4B-Instruct-2507-Q4_K_M.gguf /models/Qwen3-4B-Instruct-2507-Q4_K_M.gguf
+COPY models/Nemotron-Mini-4B-Instruct-Q4_K_M.gguf /models/Nemotron-Mini-4B-Instruct-Q4_K_M.gguf
 
 # Copy static files (cached - these change less frequently than Python code)
 COPY synonyms/ /app/synonyms/
@@ -59,8 +59,8 @@ COPY rag/ /app/rag/
 # Models already copied above (cached layer)
 
 # === Environment defaults (can be overridden by .env or -e) ===
-ENV SIMPLE_MODEL_PATH=/models/Qwen3-4B-Instruct-2507-Q4_K_M.gguf
-ENV SIMPLE_CHAT_FORMAT=qwen
+ENV SIMPLE_MODEL_PATH=/models/Nemotron-Mini-4B-Instruct-Q4_K_M.gguf
+ENV SIMPLE_CHAT_FORMAT=nemotron
 ENV SIMPLE_N_CTX=2048
 
 # Expose port for API
