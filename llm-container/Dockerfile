@@ -23,16 +23,20 @@ RUN apt-get update && apt-get install -y \
 # RUN apt-get update && apt-get install -y libopenmpi-dev && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip and setuptools (required by TensorRT-LLM)
-RUN pip3 install --upgrade pip setuptools
+# Use PyPI index for TensorRT-LLM installation (not Jetson-specific index)
+RUN pip3 install --upgrade pip setuptools --index-url https://pypi.org/simple/
 
 # Install TensorRT-LLM via pip
 # This will download and install TensorRT-LLM with all dependencies
+# Use PyPI index explicitly to avoid Jetson repository timeouts
 # Review license terms of third-party open source projects before use
-RUN pip3 install --no-cache-dir tensorrt_llm
+RUN pip3 install --no-cache-dir tensorrt_llm --index-url https://pypi.org/simple/
 
 # Install additional required packages for our application
 # Note: PyTorch is already installed in the base image
+# Use PyPI index for standard packages
 RUN pip3 install --no-cache-dir \
+    --index-url https://pypi.org/simple/ \
     flask \
     python-dotenv \
     numpy>=1.26.0 \
