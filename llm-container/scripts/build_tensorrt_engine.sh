@@ -263,20 +263,50 @@ EOF
         # Try different conversion methods based on TensorRT-LLM version
         conversion_success=false
         
-        # Method 1: Look for convert_checkpoint.py in examples directory
+        # Method 1: Look for convert_checkpoint.py (pip-installed TensorRT-LLM)
+        # With pip installation, scripts are typically in site-packages
         convert_script=""
-        possible_paths=(
-            "/usr/local/lib/python3.10/dist-packages/tensorrt_llm/examples/llama/convert_checkpoint.py"
-            "/usr/local/lib/python3.10/dist-packages/tensorrt_llm/models/llama/convert_checkpoint.py"
-            "/workspace/examples/llama/convert_checkpoint.py"
-        )
         
-        for path in "${possible_paths[@]}"; do
-            if [ -f "$path" ]; then
-                convert_script="$path"
-                break
-            fi
-        done
+        # Try to find it using Python
+        python_found_path=$(python3 << 'PYEOF'
+try:
+    import tensorrt_llm
+    import os
+    package_path = os.path.dirname(tensorrt_llm.__file__)
+    convert_path = os.path.join(package_path, "models", "llama", "convert_checkpoint.py")
+    if os.path.exists(convert_path):
+        print(convert_path)
+        exit(0)
+    # Also check examples
+    convert_path = os.path.join(package_path, "examples", "llama", "convert_checkpoint.py")
+    if os.path.exists(convert_path):
+        print(convert_path)
+        exit(0)
+except:
+    pass
+exit(1)
+PYEOF
+)
+        
+        if [ -n "$python_found_path" ] && [ -f "$python_found_path" ]; then
+            convert_script="$python_found_path"
+        else
+            # Fallback: try common locations
+            possible_paths=(
+                "/usr/local/lib/python3.12/site-packages/tensorrt_llm/models/llama/convert_checkpoint.py"
+                "/usr/local/lib/python3.11/site-packages/tensorrt_llm/models/llama/convert_checkpoint.py"
+                "/usr/local/lib/python3.10/dist-packages/tensorrt_llm/models/llama/convert_checkpoint.py"
+                "/usr/local/lib/python3.10/dist-packages/tensorrt_llm/examples/llama/convert_checkpoint.py"
+                "/workspace/examples/llama/convert_checkpoint.py"
+            )
+            
+            for path in "${possible_paths[@]}"; do
+                if [ -f "$path" ]; then
+                    convert_script="$path"
+                    break
+                fi
+            done
+        fi
         
         if [ -n "$convert_script" ]; then
             echo -e "${BLUE}   Using convert_checkpoint.py from: $convert_script${NC}"
@@ -487,9 +517,82 @@ PYEOF
                 echo "  ❌ No weight files found in expected locations"
             fi
             echo ""
-            echo -e "${YELLOW}💡 Solution: The checkpoint may need to be re-converted${NC}"
-            echo "   Delete the checkpoint directory and re-run the build:"
-            echo "   rm -rf $checkpoint_dir"
+            echo ""
+            echo -e "${BLUE}🔍 Attempting to inspect TensorRT-LLM's expected weights path...${NC}"
+            echo ""
+            
+            # Try to inspect what TensorRT-LLM is looking for by checking the source code pattern
+            python3 << EOF
+import os
+checkpoint_dir = "$checkpoint_dir"
+
+# Common patterns TensorRT-LLM might use to construct weights_path
+# Based on TensorRT-LLM checkpoint format conventions
+patterns_to_check = []
+
+# Pattern 1: rank0/model.safetensors (current structure)
+patterns_to_check.append(os.path.join(checkpoint_dir, "rank0", "model.safetensors"))
+
+# Pattern 2: rank0/model.bin (alternate format)
+patterns_to_check.append(os.path.join(checkpoint_dir, "rank0", "model.bin"))
+
+# Pattern 3: rank0/pytorch_model.safetensors
+patterns_to_check.append(os.path.join(checkpoint_dir, "rank0", "pytorch_model.safetensors"))
+
+# Pattern 4: rank0/pytorch_model.bin
+patterns_to_check.append(os.path.join(checkpoint_dir, "rank0", "pytorch_model.bin"))
+
+# Pattern 5: Direct in checkpoint (without rank0/)
+patterns_to_check.append(os.path.join(checkpoint_dir, "model.safetensors"))
+patterns_to_check.append(os.path.join(checkpoint_dir, "model.bin"))
+
+print("Expected paths TensorRT-LLM might be checking:")
+for i, path in enumerate(patterns_to_check, 1):
+    exists = os.path.isfile(path)
+    status = "✅ EXISTS" if exists else "❌ NOT FOUND"
+    print(f"  {i}. {path} - {status}")
+    if exists:
+        size = os.path.getsize(path) / (1024**3)  # Size in GB
+        print(f"     Size: {size:.2f} GB")
+
+print("\nActual checkpoint structure:")
+if os.path.isdir(checkpoint_dir):
+    print(f"  Root: {checkpoint_dir}")
+    for item in os.listdir(checkpoint_dir):
+        item_path = os.path.join(checkpoint_dir, item)
+        if os.path.isdir(item_path):
+            print(f"    📁 {item}/")
+            if item == "rank0":
+                for subitem in os.listdir(item_path):
+                    subitem_path = os.path.join(item_path, subitem)
+                    if os.path.isfile(subitem_path):
+                        size = os.path.getsize(subitem_path)
+                        if size > 1024**3:
+                            size_str = f"{size/(1024**3):.2f} GB"
+                        else:
+                            size_str = f"{size/(1024**2):.2f} MB"
+                        print(f"      📄 {subitem} ({size_str})")
+        elif os.path.isfile(item_path):
+            size = os.path.getsize(item_path)
+            if size > 1024**2:
+                size_str = f"{size/(1024**2):.2f} MB"
+            else:
+                size_str = f"{size/1024:.2f} KB"
+            print(f"    📄 {item} ({size_str})")
+EOF
+            
+            echo ""
+            echo -e "${YELLOW}💡 Solution: The checkpoint may need to be re-converted using the official script${NC}"
+            echo "   However, the official conversion script has Python 3.10 compatibility issues."
+            echo "   Try one of these approaches:"
+            echo ""
+            echo "   1. Delete checkpoint and retry (script will use alternative conversion):"
+            echo "      rm -rf $checkpoint_dir"
+            echo ""
+            echo "   2. Manually create symlink if TensorRT-LLM expects different naming:"
+            echo "      Check the path patterns above and create symlinks if needed"
+            echo ""
+            echo "   3. Use a TensorRT-LLM container with Python 3.11+ for official conversion"
         else
             echo "Check the error messages above for details."
         fi

@@ -1,11 +1,35 @@
-# Use DustyNV TensorRT-LLM base image (Jetson optimized)
-# This image includes TensorRT-LLM pre-installed and configured for Jetson Orin
-FROM dustynv/tensorrt_llm:0.12-r36.4.0
+# TensorRT-LLM Container - Installed via pip (following official installation guide)
+# Base: NVIDIA L4T PyTorch image (Jetson compatible)
+# Reference: https://nvidia.github.io/TensorRT-LLM/installation/linux.html
+FROM nvcr.io/nvidia/l4t-pytorch:r36.4.0-pth2.1-py3
 
 # Set working directory
 WORKDIR /app
 
-# Install required packages
+# Set CUDA_HOME (required by TensorRT-LLM)
+ENV CUDA_HOME=/usr/local/cuda
+ENV PATH=${CUDA_HOME}/bin:${PATH}
+ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
+
+# Install prerequisites per TensorRT-LLM documentation
+# Note: For Jetson, some packages may already be installed
+RUN apt-get update && apt-get install -y \
+    git \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Optional: Install MPI (for distributed inference if needed)
+# RUN apt-get update && apt-get install -y libopenmpi-dev && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip and setuptools (required by TensorRT-LLM)
+RUN pip3 install --upgrade pip setuptools
+
+# Install TensorRT-LLM via pip
+# This will download and install TensorRT-LLM with all dependencies
+# Review license terms of third-party open source projects before use
+RUN pip3 install --no-cache-dir tensorrt_llm
+
+# Install additional required packages for our application
 RUN pip3 install --no-cache-dir \
     flask \
     python-dotenv \
@@ -17,20 +41,16 @@ RUN pip3 install --no-cache-dir \
     joblib \
     fuzzywuzzy \
     python-Levenshtein \
-    watchdog
-
+    watchdog \
+    transformers \
+    torch \
+    safetensors
 
 # Pre-download sentence transformer model (cached layer)
 RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-distilroberta-v1')" && \
     echo "✅ all-distilroberta-v1 model pre-downloaded into image"
 
-# Copy TensorRT-LLM engines (if pre-built)
-# Note: TensorRT-LLM engines must be built separately using trtllm-build
-# Engines should be placed in /models/tensorrt-llm/{model-name}/
-# Example structure:
-#   /models/tensorrt-llm/qwen3-4b-instruct-2507/
-#     - config.json
-#     - engine files...
+# Create directory for TensorRT-LLM engines
 RUN mkdir -p /models/tensorrt-llm
 
 # Copy static files (cached - these change less frequently than Python code)
@@ -38,8 +58,6 @@ COPY synonyms/ /app/synonyms/
 COPY ml/ /app/ml/
 COPY medical/guidelines/ /app/medical/guidelines/
 COPY config/ /app/config/
-# ML files (location_ml_model.pkl, location_ml_data.csv) - kept for future ML training but not actively used
-# oldcarts_keywords.json - kept for compatibility
 
 # === UNIFIED LLM CONTAINER ARCHITECTURE ===
 # This container provides both medical and generic conversation modes:
@@ -59,15 +77,15 @@ COPY config/ /app/config/
 # - Complete session management with proper reset functionality
 
 # Copy all Python application files in one layer (frequently changed - no caching)
-# This ensures that any change to any Python file only invalidates this single layer
 COPY container_rest.py clinician_mode.py adaptive_diagnostic_engine.py thinking_fillers.py feedback_guide.py fuzzy_medical_matcher.py tensorrt_llm_wrapper.py tensorrt_models_config.py ./
 
 # Copy RAG module (organized structure)
 COPY rag/ /app/rag/
 
-# Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
+# Copy build scripts (for engine building)
+COPY scripts/ /app/scripts/
 
-# Models already copied above (cached layer)
+# Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
 
 # === Environment defaults (can be overridden by .env or -e) ===
 # TensorRT-LLM configuration
