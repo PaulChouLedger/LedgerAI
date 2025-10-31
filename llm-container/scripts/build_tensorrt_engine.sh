@@ -226,12 +226,17 @@ EOF
     ls -lh "$model_path" | grep -E "\.(safetensors|bin)$|config\.json" | head -5
     echo ""
     
-    # Try building with explicit model class for Llama
+    # TensorRT-LLM 0.12 supports --hf_model_dir for HuggingFace models
+    # Try this first, then fall back to --checkpoint_dir if needed
     echo -e "${BLUE}🔧 Attempting build with Llama model class...${NC}"
+    echo ""
     
-    trtllm-build \
-        --checkpoint_dir "$model_path" \
-        --model_cls_name LlamaForCausalLM \
+    build_success=false
+    
+    # Attempt 1: Use --hf_model_dir (TensorRT-LLM 0.12+ supports HuggingFace directly)
+    echo -e "${BLUE}   Attempt 1: Using --hf_model_dir (HuggingFace format)...${NC}"
+    if trtllm-build \
+        --hf_model_dir "$model_path" \
         --output_dir "$engine_dir" \
         --gemm_plugin float16 \
         --gpt_attention_plugin float16 \
@@ -242,25 +247,64 @@ EOF
         --max_seq_len $max_seq_len \
         --max_beam_width 1 \
         --builder_opt 3 \
-        || {
-            echo ""
-            echo -e "${YELLOW}⚠️  Build failed. This might be a TensorRT-LLM compatibility issue.${NC}"
-            echo ""
-            echo -e "${YELLOW}💡 Troubleshooting steps:${NC}"
-            echo "  1. Verify model files are complete:"
-            echo "     ls -lh $model_path"
-            echo ""
-            echo "  2. Check if TensorRT-LLM supports this model format"
-            echo ""
-            echo "  3. Try converting model to checkpoint format first"
-            echo ""
-            echo -e "${YELLOW}💡 Alternative: Use pre-converted checkpoint format${NC}"
-            echo "  TensorRT-LLM may require models in checkpoint format, not raw HuggingFace format"
-            return 1
-        }
+        2>&1 | tee /tmp/trtllm_build_attempt1.log; then
+        echo ""
+        echo -e "${GREEN}✅ Build succeeded with --hf_model_dir!${NC}"
+        build_success=true
+    fi
     
+    # Attempt 2: Use --checkpoint_dir with model_cls_name (if Attempt 1 failed)
+    if [ "$build_success" = false ]; then
+        echo ""
+        echo -e "${BLUE}   Attempt 2: Using --checkpoint_dir with model class...${NC}"
+        if trtllm-build \
+            --checkpoint_dir "$model_path" \
+            --model_cls_name LlamaForCausalLM \
+            --output_dir "$engine_dir" \
+            --gemm_plugin float16 \
+            --gpt_attention_plugin float16 \
+            --context_fmha enable \
+            --remove_input_padding enable \
+            --max_batch_size 1 \
+            --max_input_len $context_window \
+            --max_seq_len $max_seq_len \
+            --max_beam_width 1 \
+            --builder_opt 3 \
+            2>&1 | tee /tmp/trtllm_build_attempt2.log; then
+            echo ""
+            echo -e "${GREEN}✅ Build succeeded with --checkpoint_dir!${NC}"
+            build_success=true
+        fi
+    fi
+    
+    if [ "$build_success" = true ]; then
+        return 0
+    fi
+    
+    # Both attempts failed - provide diagnostic info
     echo ""
-    echo -e "${GREEN}✅ Engine built successfully: $engine_dir${NC}"
+    echo -e "${YELLOW}⚠️  Both build attempts failed${NC}"
+    echo ""
+    
+    # Check for weights_path error
+    if grep -q "assert os.path.isfile(weights_path)" /tmp/trtllm_build_attempt*.log 2>/dev/null; then
+        echo -e "${YELLOW}💡 Error: TensorRT-LLM couldn't find weights in expected format${NC}"
+        echo ""
+        echo "This TensorRT-LLM version may require converting HuggingFace models first."
+        echo "Try using the convert_checkpoint.py script:"
+        echo ""
+        echo "  python3 /usr/local/lib/python3.10/dist-packages/tensorrt_llm/models/llama/convert_checkpoint.py \\"
+        echo "    --model_dir $model_path \\"
+        echo "    --output_dir $engine_dir/checkpoint \\"
+        echo "    --dtype float16"
+        echo ""
+        echo "Then rebuild with: --checkpoint_dir $engine_dir/checkpoint"
+    else
+        echo -e "${RED}❌ TensorRT-LLM build failed${NC}"
+        echo "Check the error messages above for details."
+    fi
+    
+    return 1
 }
 
 # Main build function
