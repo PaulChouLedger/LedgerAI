@@ -10,9 +10,10 @@ WORKDIR /app
 # CUDA environment is already configured
 
 # Install additional required packages for our application
-# Note: PyTorch and TensorRT-LLM are already installed in the base image
+# Note: PyTorch, TensorRT-LLM, transformers, and safetensors are already installed in the base image
 # Use PyPI index explicitly to avoid Jetson repository timeouts
 # --ignore-installed ensures we get the versions we need even if some packages exist
+# Note: Don't reinstall safetensors or transformers as they may conflict with base image versions
 RUN pip3 install --no-cache-dir --ignore-installed \
     --index-url https://pypi.org/simple/ \
     flask \
@@ -25,13 +26,13 @@ RUN pip3 install --no-cache-dir --ignore-installed \
     joblib \
     fuzzywuzzy \
     python-Levenshtein \
-    watchdog \
-    transformers \
-    safetensors
+    watchdog
 
 # Pre-download sentence transformer model (cached layer)
+# Make this optional - if it fails, the model will download at runtime
 RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-distilroberta-v1')" && \
-    echo "✅ all-distilroberta-v1 model pre-downloaded into image"
+    echo "✅ all-distilroberta-v1 model pre-downloaded into image" || \
+    echo "⚠️  Model pre-download skipped - will download at runtime"
 
 # Create directory for TensorRT-LLM engines
 RUN mkdir -p /models/tensorrt-llm
