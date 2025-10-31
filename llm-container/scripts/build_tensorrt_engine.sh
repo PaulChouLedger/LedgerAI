@@ -140,10 +140,42 @@ build_llama_engine() {
     echo -e "${GREEN}🚀 Starting TensorRT-LLM build...${NC}"
     echo ""
     
+    # Fix config.json if missing 'architecture' field (required by TensorRT-LLM)
+    config_file="$model_path/config.json"
+    if [ -f "$config_file" ]; then
+        if ! grep -q '"architecture"' "$config_file" 2>/dev/null; then
+            echo -e "${YELLOW}⚠️  Fixing config.json (adding architecture field)...${NC}"
+            python3 << 'PYEOF'
+import json
+import sys
+
+config_path = sys.argv[1]
+try:
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    
+    if 'architecture' not in config:
+        config['architecture'] = 'LlamaForCausalLM'
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=2)
+        print("✅ Added architecture: LlamaForCausalLM")
+    else:
+        print("✅ Architecture field already exists")
+except Exception as e:
+    print(f"⚠️  Could not fix config: {e}")
+PYEOF
+                "$config_file"
+        fi
+        echo ""
+    fi
+    
     # Build TensorRT-LLM engine
     # Optimized for low latency (1-2s target)
     # Note: max_seq_len = max_input_len + generation length
     max_seq_len=$((context_window + 256))  # Input context + output generation
+    
+    echo -e "${BLUE}Building with max_seq_len=${max_seq_len} (input=${context_window} + generation=256)${NC}"
+    echo ""
     
     trtllm-build \
         --checkpoint_dir "$model_path" \
