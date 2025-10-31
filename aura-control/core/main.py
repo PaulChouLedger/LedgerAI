@@ -404,14 +404,13 @@ def start_services():
             models = health_data.get("models", {})
             model_path = models.get("simple_path", "")
             if model_path:
-                # Extract model name from path
-                import os
+                # Extract model name from path (os is already imported at top of file)
                 model_name = os.path.basename(model_path).replace('.gguf', '').replace('.ggml', '')
     except:
         # Fallback to environment variable if available
         model_name = HOST_ENV.get("SIMPLE_MODEL_PATH", "LLM model")
         if '/' in model_name:
-            import os
+            # Extract model name from path (os is already imported at top of file)
             model_name = os.path.basename(model_name).replace('.gguf', '').replace('.ggml', '')
     
     print(f"[Aura] 💡 Loading in background: {model_name} (~1s)...")
