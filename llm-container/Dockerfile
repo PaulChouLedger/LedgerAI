@@ -1,12 +1,13 @@
 # TensorRT-LLM Container - Installed via pip (following official installation guide)
-# Base: NVIDIA L4T PyTorch image (Jetson compatible)
+# Base: DustyNV PyTorch image (Jetson optimized, includes CUDA)
 # Reference: https://nvidia.github.io/TensorRT-LLM/installation/linux.html
-FROM nvcr.io/nvidia/l4t-pytorch:r36.4.0-pth2.1-py3
+FROM dustynv/pytorch:2.7-r36.4.0-cu128-24.04
 
 # Set working directory
 WORKDIR /app
 
 # Set CUDA_HOME (required by TensorRT-LLM)
+# DustyNV images typically have CUDA in /usr/local/cuda or /usr/local/cuda-12.x
 ENV CUDA_HOME=/usr/local/cuda
 ENV PATH=${CUDA_HOME}/bin:${PATH}
 ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
@@ -30,6 +31,7 @@ RUN pip3 install --upgrade pip setuptools
 RUN pip3 install --no-cache-dir tensorrt_llm
 
 # Install additional required packages for our application
+# Note: PyTorch is already installed in the base image
 RUN pip3 install --no-cache-dir \
     flask \
     python-dotenv \
@@ -43,7 +45,6 @@ RUN pip3 install --no-cache-dir \
     python-Levenshtein \
     watchdog \
     transformers \
-    torch \
     safetensors
 
 # Pre-download sentence transformer model (cached layer)
