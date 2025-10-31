@@ -134,6 +134,36 @@ build_llama_engine() {
         return 1
     fi
     
+    # Verify model weights exist (TensorRT-LLM requirement)
+    echo -e "${BLUE}📋 Verifying model files...${NC}"
+    has_safetensors=false
+    has_pytorch=false
+    
+    if ls "$model_path"/*.safetensors 1> /dev/null 2>&1; then
+        has_safetensors=true
+        echo "  ✅ Found .safetensors files"
+    fi
+    
+    if ls "$model_path"/pytorch_model*.bin 1> /dev/null 2>&1; then
+        has_pytorch=true
+        echo "  ✅ Found pytorch_model files"
+    fi
+    
+    if [ "$has_safetensors" = false ] && [ "$has_pytorch" = false ]; then
+        echo -e "${RED}❌ No model weight files found!${NC}"
+        echo ""
+        echo "Model directory contents:"
+        ls -lh "$model_path" | head -10
+        echo ""
+        echo -e "${YELLOW}💡 TensorRT-LLM requires model weights in one of these formats:${NC}"
+        echo "  - .safetensors files (preferred)"
+        echo "  - pytorch_model*.bin files"
+        echo ""
+        echo "The model may not have downloaded completely. Re-run the download."
+        return 1
+    fi
+    echo ""
+    
     # Create engine directory
     mkdir -p "$engine_dir"
     
@@ -191,8 +221,17 @@ EOF
     echo -e "${BLUE}Building with max_seq_len=${max_seq_len} (input=${context_window} + generation=256)${NC}"
     echo ""
     
+    # Show model directory structure for debugging
+    echo -e "${BLUE}📁 Model directory structure:${NC}"
+    ls -lh "$model_path" | grep -E "\.(safetensors|bin)$|config\.json" | head -5
+    echo ""
+    
+    # Try building with explicit model class for Llama
+    echo -e "${BLUE}🔧 Attempting build with Llama model class...${NC}"
+    
     trtllm-build \
         --checkpoint_dir "$model_path" \
+        --model_cls_name LlamaForCausalLM \
         --output_dir "$engine_dir" \
         --gemm_plugin float16 \
         --gpt_attention_plugin float16 \
@@ -204,7 +243,19 @@ EOF
         --max_beam_width 1 \
         --builder_opt 3 \
         || {
-            echo -e "${RED}❌ TensorRT-LLM build failed${NC}"
+            echo ""
+            echo -e "${YELLOW}⚠️  Build failed. This might be a TensorRT-LLM compatibility issue.${NC}"
+            echo ""
+            echo -e "${YELLOW}💡 Troubleshooting steps:${NC}"
+            echo "  1. Verify model files are complete:"
+            echo "     ls -lh $model_path"
+            echo ""
+            echo "  2. Check if TensorRT-LLM supports this model format"
+            echo ""
+            echo "  3. Try converting model to checkpoint format first"
+            echo ""
+            echo -e "${YELLOW}💡 Alternative: Use pre-converted checkpoint format${NC}"
+            echo "  TensorRT-LLM may require models in checkpoint format, not raw HuggingFace format"
             return 1
         }
     
