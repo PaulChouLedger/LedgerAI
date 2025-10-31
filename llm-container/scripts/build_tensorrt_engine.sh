@@ -234,7 +234,7 @@ EOF
     echo ""
     
     # Check if checkpoint already exists and is valid (has been properly converted)
-    # TensorRT-LLM expects weights and config.json directly in checkpoint_dir (not in rank0/)
+    # TensorRT-LLM may check both root and rank0/ locations
     checkpoint_marker="$checkpoint_dir/.tensorrt_llm_converted"
     checkpoint_weights="$checkpoint_dir/model.safetensors"
     checkpoint_config="$checkpoint_dir/config.json"
@@ -244,9 +244,21 @@ EOF
         checkpoint_weights="$checkpoint_dir/pytorch_model.bin"
     fi
     
+    # Check rank0/ as well (TensorRT-LLM may prefer this location)
+    rank0_weights="$checkpoint_dir/rank0/model.safetensors"
+    if [ ! -f "$rank0_weights" ]; then
+        rank0_weights="$checkpoint_dir/rank0/pytorch_model.bin"
+    fi
+    
+    # Checkpoint is valid if it has weights (either in root or rank0/) and config.json
+    weights_exist=false
+    if [ -f "$checkpoint_weights" ] || [ -f "$rank0_weights" ]; then
+        weights_exist=true
+    fi
+    
     if [ -d "$checkpoint_dir" ] && \
        [ -f "$checkpoint_config" ] && \
-       [ -f "$checkpoint_weights" ] && \
+       [ "$weights_exist" = true ] && \
        [ -f "$checkpoint_marker" ]; then
         echo -e "${GREEN}✅ Checkpoint already exists and is properly converted, skipping conversion${NC}"
         echo ""
@@ -500,7 +512,26 @@ try:
     
     weights_size = os.path.getsize(weights_path)
     print(f"✅ Verified weights file: {os.path.basename(weights_path)} (size: {weights_size:,} bytes)")
-    print(f"✅ Checkpoint structure matches TensorRT-LLM expectations (files in root, no rank0/ subdirectory)")
+    
+    # TensorRT-LLM's from_checkpoint might expect rank-based structure even for single GPU
+    # Create rank0/ subdirectory with weights and config (TensorRT-LLM may check both locations)
+    rank0_dir = os.path.join(checkpoint_dir, "rank0")
+    os.makedirs(rank0_dir, exist_ok=True)
+    
+    # Copy weights to rank0/ (TensorRT-LLM might look here first)
+    rank0_weights = os.path.join(rank0_dir, os.path.basename(weights_path))
+    if not os.path.exists(rank0_weights):
+        print(f"Creating rank0/ structure for TensorRT-LLM compatibility...")
+        shutil.copy2(weights_path, rank0_weights)
+        print(f"✅ Copied weights to rank0/: {rank0_weights}")
+    
+    # Copy config.json to rank0/ as well
+    rank0_config = os.path.join(rank0_dir, "config.json")
+    if not os.path.exists(rank0_config):
+        shutil.copy2(config_path, rank0_config)
+        print(f"✅ Copied config.json to rank0/")
+    
+    print(f"✅ Checkpoint structure created: files in both root and rank0/ (TensorRT-LLM compatibility)")
     
     # TensorRT-LLM may also need tokenizer files in root
     # (already saved by tokenizer.save_pretrained above)
@@ -508,7 +539,7 @@ try:
     # Create marker file to indicate successful conversion
     marker_file = os.path.join(checkpoint_dir, ".tensorrt_llm_converted")
     with open(marker_file, 'w') as f:
-        f.write("Converted using transformers.save_pretrained() - files in checkpoint root (no rank0/ subdirectory)\n")
+        f.write("Converted using transformers.save_pretrained() - files in both root and rank0/ for TensorRT-LLM compatibility\n")
     
     print("✅ Model re-saved successfully with TensorRT-LLM checkpoint structure")
     print(f"✅ Marker file created: {marker_file}")
@@ -579,41 +610,48 @@ PYEOF
     echo ""
     
     # Verify checkpoint structure before building
-    # TensorRT-LLM expects weights and config.json directly in checkpoint_dir (matching official llama.sh)
+    # TensorRT-LLM may check both root and rank0/ locations
     echo "   DEBUG: Verifying checkpoint structure..."
     echo "   DEBUG: Checking checkpoint_dir: $checkpoint_dir"
     
-    # Check for weights and config in checkpoint root (official TensorRT-LLM structure)
+    # Check for weights in both locations (root first, then rank0/)
     weights_found=""
     config_found=""
     
     if [ -f "$checkpoint_dir/model.safetensors" ]; then
-        weights_found="model.safetensors"
-        echo "   ✅ Found weights: model.safetensors"
+        weights_found="$checkpoint_dir/model.safetensors"
+        echo "   ✅ Found weights in root: model.safetensors"
     elif [ -f "$checkpoint_dir/pytorch_model.bin" ]; then
-        weights_found="pytorch_model.bin"
-        echo "   ✅ Found weights: pytorch_model.bin"
-    elif [ -f "$checkpoint_dir/model.bin" ]; then
-        weights_found="model.bin"
-        echo "   ✅ Found weights: model.bin"
+        weights_found="$checkpoint_dir/pytorch_model.bin"
+        echo "   ✅ Found weights in root: pytorch_model.bin"
+    elif [ -f "$checkpoint_dir/rank0/model.safetensors" ]; then
+        weights_found="$checkpoint_dir/rank0/model.safetensors"
+        echo "   ✅ Found weights in rank0/: model.safetensors"
+    elif [ -f "$checkpoint_dir/rank0/pytorch_model.bin" ]; then
+        weights_found="$checkpoint_dir/rank0/pytorch_model.bin"
+        echo "   ✅ Found weights in rank0/: pytorch_model.bin"
     else
-        echo -e "${RED}   ❌ Weights not found in checkpoint directory${NC}"
-        echo "   Expected: $checkpoint_dir/model.safetensors or pytorch_model.bin"
+        echo -e "${RED}   ❌ Weights not found in checkpoint directory (checked root and rank0/)${NC}"
         return 1
     fi
     
-    if [ -f "$checkpoint_dir/config.json" ]; then
-        config_found="yes"
-        config_size=$(stat -f%z "$checkpoint_dir/config.json" 2>/dev/null || stat -c%s "$checkpoint_dir/config.json" 2>/dev/null || echo "unknown")
-        echo "   ✅ Found config.json (size: $config_size bytes)"
+    # Check for config.json (prefer rank0/ if it exists, otherwise root)
+    if [ -f "$checkpoint_dir/rank0/config.json" ]; then
+        config_found="$checkpoint_dir/rank0/config.json"
+        config_size=$(stat -f%z "$config_found" 2>/dev/null || stat -c%s "$config_found" 2>/dev/null || echo "unknown")
+        echo "   ✅ Found config.json in rank0/ (size: $config_size bytes)"
+    elif [ -f "$checkpoint_dir/config.json" ]; then
+        config_found="$checkpoint_dir/config.json"
+        config_size=$(stat -f%z "$config_found" 2>/dev/null || stat -c%s "$config_found" 2>/dev/null || echo "unknown")
+        echo "   ✅ Found config.json in root (size: $config_size bytes)"
     else
-        echo -e "${RED}   ❌ config.json not found in checkpoint directory${NC}"
+        echo -e "${RED}   ❌ config.json not found in checkpoint directory (checked root and rank0/)${NC}"
         return 1
     fi
     
-    echo "   ✅ Checkpoint structure verified (matches official TensorRT-LLM format)"
+    echo "   ✅ Checkpoint structure verified"
     echo "   DEBUG: Using checkpoint_dir: $checkpoint_dir"
-    echo "   DEBUG: TensorRT-LLM will look for: $checkpoint_dir/$weights_found"
+    echo "   DEBUG: TensorRT-LLM will look for weights in both root and rank0/ locations"
     echo ""
     
     # Build and capture both stdout/stderr and exit code
