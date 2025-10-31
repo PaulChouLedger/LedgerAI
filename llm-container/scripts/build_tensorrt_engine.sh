@@ -257,7 +257,14 @@ EOF
             rm -rf "$checkpoint_dir"
         fi
         echo -e "${BLUE}   Converting: $model_path → $checkpoint_dir${NC}"
-        mkdir -p "$checkpoint_dir"
+        echo "   DEBUG: About to create checkpoint directory..."
+        
+        # Verify we can create the directory
+        if ! mkdir -p "$checkpoint_dir" 2>&1; then
+            echo -e "${RED}❌ Failed to create checkpoint directory: $checkpoint_dir${NC}"
+            return 1
+        fi
+        echo "   DEBUG: Directory created successfully"
         
         # Use TensorRT-LLM's conversion utility
         # Try different conversion methods based on TensorRT-LLM version
@@ -265,19 +272,33 @@ EOF
         
         # Temporarily disable exit on error for conversion attempts
         set +e
+        echo "   DEBUG: Exit on error disabled (set +e)"
+        
+        echo -e "${BLUE}   Starting conversion process...${NC}"
+        echo "   DEBUG: About to search for convert_checkpoint.py"
         
         # Method 1: Look for convert_checkpoint.py (pip-installed TensorRT-LLM)
         # With pip installation, scripts are typically in site-packages
         convert_script=""
         
-        # Try to find it using Python
+        # Try to find it using Python - use explicit error handling
         echo -e "${BLUE}   Searching for convert_checkpoint.py...${NC}"
-        python_found_path=$(python3 << 'PYEOF'
+        
+        # Use a temp file to capture output and avoid command substitution issues
+        python_found_path=""
+        if python3 << 'PYEOF' > /tmp/find_convert_script.log 2>&1; then
 import sys
 try:
     import tensorrt_llm
     import os
     package_path = os.path.dirname(tensorrt_llm.__file__)
+    # Check /opt/TensorRT-LLM first (Jetson AI Lab standard location)
+    opt_path = "/opt/TensorRT-LLM/examples/llama/convert_checkpoint.py"
+    if os.path.exists(opt_path):
+        print(opt_path)
+        sys.exit(0)
+    
+    # Check package installation locations
     convert_path = os.path.join(package_path, "models", "llama", "convert_checkpoint.py")
     if os.path.exists(convert_path):
         print(convert_path)
@@ -288,17 +309,37 @@ try:
         print(convert_path)
         sys.exit(0)
 except Exception as e:
-    # Silently fail - we'll use fallback method
+    # Log the error but don't fail
+    print(f"Search failed: {e}", file=sys.stderr)
     pass
 sys.exit(1)
 PYEOF
-) || python_found_path=""
+        then
+            # Python script succeeded, read the result
+            if [ -f /tmp/find_convert_script.log ]; then
+                python_found_path=$(cat /tmp/find_convert_script.log | grep -v "Search failed" | head -1)
+                if [ -n "$python_found_path" ] && [ -f "$python_found_path" ]; then
+                    echo -e "${GREEN}   ✅ Found: $python_found_path${NC}"
+                else
+                    python_found_path=""
+                fi
+            fi
+        else
+            # Python script failed, that's okay - we'll use fallback
+            echo -e "${YELLOW}   ⚠️  Could not search via Python import, checking common locations...${NC}"
+            python_found_path=""
+        fi
         
         if [ -n "$python_found_path" ] && [ -f "$python_found_path" ]; then
             convert_script="$python_found_path"
         else
             # Fallback: try common locations
+            # Based on Jetson AI Lab docs: https://www.jetson-ai-lab.com/tensorrt_llm.html
+            # Scripts are typically in /opt/TensorRT-LLM/examples/llama/
+            echo -e "${BLUE}   Checking common locations...${NC}"
             possible_paths=(
+                "/opt/TensorRT-LLM/examples/llama/convert_checkpoint.py"
+                "/opt/TensorRT-LLM/examples/llama/convert_llama_weights_to_tensorrt_llm.py"
                 "/usr/local/lib/python3.12/site-packages/tensorrt_llm/models/llama/convert_checkpoint.py"
                 "/usr/local/lib/python3.11/site-packages/tensorrt_llm/models/llama/convert_checkpoint.py"
                 "/usr/local/lib/python3.10/dist-packages/tensorrt_llm/models/llama/convert_checkpoint.py"
@@ -309,23 +350,30 @@ PYEOF
             for path in "${possible_paths[@]}"; do
                 if [ -f "$path" ]; then
                     convert_script="$path"
+                    echo -e "${GREEN}   ✅ Found at: $path${NC}"
                     break
                 fi
             done
+            
+            if [ -z "$convert_script" ]; then
+                echo -e "${YELLOW}   ⚠️  Official conversion script not found, using transformers fallback${NC}"
+            fi
         fi
         
         if [ -n "$convert_script" ]; then
-            echo -e "${BLUE}   Using convert_checkpoint.py from: $convert_script${NC}"
-            echo "   This is the recommended method - creates proper TensorRT-LLM checkpoint format"
+            echo -e "${BLUE}   Attempting Method 1: Official convert_checkpoint.py${NC}"
+            echo -e "${BLUE}   Using: $convert_script${NC}"
             echo ""
             
             # Try running the conversion script
             # Note: May fail with Python 3.10 compatibility issues
+            echo -e "${BLUE}   Running conversion script...${NC}"
             if python3 "$convert_script" \
                 --model_dir "$model_path" \
                 --output_dir "$checkpoint_dir" \
                 --dtype float16 \
                 2>&1 | tee /tmp/trtllm_convert.log; then
+                echo -e "${GREEN}   ✅ Conversion script executed successfully${NC}"
                 # Verify rank0/ structure was created
                 if [ -f "$checkpoint_dir/rank0/model.safetensors" ] || [ -f "$checkpoint_dir/rank0/model.bin" ]; then
                     # Create marker file to indicate successful conversion
@@ -344,8 +392,10 @@ PYEOF
         
         # Method 2: Use transformers to re-save (ensures proper format, avoids tensorrt_llm import)
         if [ "$conversion_success" = false ]; then
-            echo -e "${BLUE}   Using transformers to re-save model (avoids tensorrt_llm import issues)...${NC}"
-            MODEL_PATH="$model_path" CHECKPOINT_DIR="$checkpoint_dir" python3 << 'PYEOF'
+            echo ""
+            echo -e "${BLUE}   Attempting Method 2: Transformers fallback (avoids tensorrt_llm import issues)...${NC}"
+            echo "   DEBUG: About to run Python transformers conversion..."
+            if MODEL_PATH="$model_path" CHECKPOINT_DIR="$checkpoint_dir" python3 << 'PYEOF'; then
 import os
 import sys
 import shutil
@@ -355,8 +405,10 @@ import torch
 model_path = os.environ.get('MODEL_PATH', '')
 checkpoint_dir = os.environ.get('CHECKPOINT_DIR', '')
 
+print(f"DEBUG: model_path={model_path}, checkpoint_dir={checkpoint_dir}")
+
 if not model_path or not checkpoint_dir:
-    print("❌ Environment variables not set")
+    print("❌ Environment variables not set", file=sys.stderr)
     sys.exit(1)
 
 try:
@@ -416,8 +468,13 @@ except Exception as e:
     traceback.print_exc()
     sys.exit(1)
 PYEOF
-            if [ $? -eq 0 ]; then
+            then
                 conversion_success=true
+                echo "   DEBUG: Transformers conversion succeeded"
+            else
+                echo "   ERROR: Python transformers conversion failed with exit code $?"
+                echo "   This is a critical error - checkpoint conversion failed"
+                conversion_success=false
             fi
         fi
         
