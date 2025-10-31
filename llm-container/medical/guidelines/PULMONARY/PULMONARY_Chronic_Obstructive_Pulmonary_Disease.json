@@ -1,0 +1,122 @@
+{
+  "condition": "Chronic Obstructive Pulmonary Disease (COPD)",
+  "icd10": "J44.1",
+  "snomed": "13645005",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "chronic obstructive pulmonary disease (COPD)",
+    "emphysema",
+    "chronic bronchitis",
+    "shortness of breath",
+    "smoking-related lung disease"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual over years, acute exacerbations. LOCATION: Bilateral, diffuse. DURATION: Chronic with acute exacerbations lasting days to weeks. CHARACTER: Dyspnea, chest tightness, productive cough. AGGRAVATING: Infections, cold air, exertion, smoking. RELIEVING: Bronchodilators, oxygen, steroids, antibiotics. TIMING: Chronic baseline with acute worsening. SEVERITY: Moderate to severe (5-9/10). ASSOCIATED SYMPTOMS: Chronic productive cough, dyspnea, wheezing, barrel chest, clubbing, weight loss, fatigue. KEY POSITIVES: Smoking history, chronic cough, dyspnea, wheezing. KEY NEGATIVES: No chest pain (unless pneumothorax), no fever (unless infection).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "bilateral",
+            "patient_friendly": "both sides"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "midline"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Severe dyspnea at rest",
+    "Cyanosis or oxygen saturation <90%",
+    "Altered mental status",
+    "Use of accessory muscles",
+    "Inability to speak in full sentences",
+    "High fever with purulent sputum",
+    "Hemoptysis",
+    "Signs of respiratory failure"
+  ]
+}

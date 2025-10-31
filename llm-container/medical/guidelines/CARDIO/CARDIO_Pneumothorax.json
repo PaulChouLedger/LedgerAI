@@ -1,0 +1,106 @@
+{
+  "condition": "Pneumothorax (Collapsed Lung)",
+  "icd10": "J93.9",
+  "snomed": "36118008",
+  "chief_complaint_triggers": [
+    "sudden chest pain",
+    "sudden shortness of breath",
+    "difficulty breathing",
+    "sharp chest pain"
+  ],
+  "urgency": "emergent",
+  "prevalence": "uncommon",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset. LOCATION: UNILATERAL chest pain (left or right). DURATION: Continuous until treated. CHARACTER: SHARP, PLEURITIC (worse with breathing). AGGRAVATING: Deep inspiration, cough. RELIEVING: Shallow breathing, sitting upright. TIMING: Sudden onset, persistent. SEVERITY: 7-10/10 for pain and dyspnea. KEY POSITIVES: Tall, thin young male (spontaneous), recent trauma or procedure, decreased breath sounds on affected side, hyperresonance, dyspnea. KEY NEGATIVES: NOT bilateral, NOT gradual onset, NOT cardiac radiation pattern.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "unilateral",
+            "patient_friendly": "one side"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "pleuritic",
+            "patient_friendly": "PLEURITIC"
+          },
+          {
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Severe dyspnea",
+    "Hypoxia",
+    "Hypotension (tension pneumothorax)",
+    "Tracheal deviation (tension)",
+    "Jugular venous distension (tension)",
+    "Recent trauma or central line placement",
+    "Mechanical ventilation",
+    "Absent breath sounds on one side"
+  ]
+}

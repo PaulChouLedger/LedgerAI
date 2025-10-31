@@ -1,0 +1,115 @@
+{
+  "condition": "Testicular Torsion",
+  "icd10": "N44.00",
+  "snomed": "59952004",
+  "sex": "male",
+  "prevalence": "rare",
+  "chief_complaint_triggers": [
+    "testicular pain",
+    "testicle pain",
+    "scrotal pain",
+    "groin pain",
+    "lower abdominal pain",
+    "severe testicle pain"
+  ],
+  "urgency": "emergent",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN, ACUTE onset within minutes to hours. Bimodal distribution: neonates and adolescents (12-18 years peak). May occur after trauma or during sleep. LOCATION: Affected testicle, may radiate to lower abdomen or groin. DURATION: CONSTANT pain since onset, progressively worsening. CHARACTER: SEVERE, SHARP, CONSTANT pain. AGGRAVATING: Movement, palpation of testicle. RELIEVING: NOTHING relieves pain. Lying still may decrease intensity slightly. TIMING: CONSTANT and unrelenting, worsens over time. Salvage rate <10% after 24 hours. SEVERITY: 9-10/10, SEVERE (patient often writhing in pain). ASSOCIATED SYMPTOMS: Nausea and vomiting (50%), high-riding testicle, horizontal lie of testicle, absent cremasteric reflex, scrotal swelling and erythema. NO relief with testicular elevation (negative Prehn's sign). KEY POSITIVES: Sudden severe testicular pain, adolescent male, nausea, high-riding testicle, absent cremasteric reflex. KEY NEGATIVES: Gradual onset over days suggests epididymitis. Relief with elevation suggests epididymitis.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "abdomen",
+            "patient_friendly": "your belly"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "nothing",
+            "patient_friendly": "nothing helps"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Any testicular pain >6 hours - irreversible ischemia developing, IMMEDIATE ER",
+    "Sudden severe testicular pain - ALWAYS emergent until proven otherwise",
+    "Absent cremasteric reflex with testicular pain - high suspicion for torsion",
+    "Nausea/vomiting with testicular pain - torsion until proven otherwise"
+  ]
+}

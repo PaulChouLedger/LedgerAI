@@ -1,0 +1,117 @@
+{
+  "condition": "Renal Colic",
+  "icd10": "N23",
+  "snomed": "125654004",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "renal colic",
+    "kidney colic",
+    "stone colic",
+    "flank pain",
+    "back pain",
+    "urinary pain",
+    "stone pain"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset within minutes to hours. LOCATION: UNILATERAL flank pain, may radiate to groin. DURATION: Lasts hours to days. CHARACTER: SEVERE, SHARP, COLIC pain. AGGRAVATING: MOVEMENT, urination. RELIEVING: PAIN medications, hydration. TIMING: Sudden onset, lasts hours to days. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE FLANK PAIN, may have nausea, vomiting, hematuria, may have fever if infected. KEY POSITIVES: Severe flank pain, hematuria, positive imaging. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "unilateral",
+            "patient_friendly": "one side"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "colic",
+            "patient_friendly": "comes and goes in waves"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "pain",
+            "patient_friendly": "PAIN"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "severe flank pain",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Severe pain with fever - possible infected stone, call 911",
+    "Signs of severe infection - fever, chills, rigors - call 911",
+    "Severe hypertension with neurological deficits - possible hypertensive crisis, call 911",
+    "Signs of severe metabolic acidosis - deep breathing, confusion, coma - call 911",
+    "Signs of severe electrolyte imbalances - confusion, seizures, cardiac arrhythmias - call 911"
+  ]
+}

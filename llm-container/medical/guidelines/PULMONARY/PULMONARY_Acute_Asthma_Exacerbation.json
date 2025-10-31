@@ -1,0 +1,124 @@
+{
+  "condition": "Acute Asthma Exacerbation",
+  "icd10": "J45.901",
+  "snomed": "195967001",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "shortness of breath",
+    "difficulty breathing",
+    "wheezing",
+    "chest tightness",
+    "asthma attack",
+    "can't catch my breath"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: Sudden or gradual worsening over hours to days. LOCATION: Diffuse chest tightness, bilateral. DURATION: Episodes lasting minutes to hours, can be persistent. CHARACTER: Chest tightness, pressure, 'can't get air in'. AGGRAVATING: Triggers (allergens, exercise, cold air, stress, infections). RELIEVING: Bronchodilators (albuterol), sitting upright, pursed-lip breathing. TIMING: Can be episodic or persistent. SEVERITY: Variable, can be mild to life-threatening. ASSOCIATED SYMPTOMS: Wheezing (audible or auscultated), cough (dry or productive), accessory muscle use, tripod positioning, inability to speak in full sentences, cyanosis (severe cases). KEY POSITIVES: Wheezing, chest tightness, dyspnea, cough, accessory muscle use. KEY NEGATIVES: No fever (unless infection trigger), no chest pain (unless severe).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          },
+          {
+            "medical": "bilateral",
+            "patient_friendly": "both sides"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "midline"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          },
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure-like"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Inability to speak in full sentences",
+    "Cyanosis or blue lips/fingernails",
+    "Accessory muscle use (neck/chest muscles)",
+    "Tripod positioning (leaning forward)",
+    "Altered mental status or confusion",
+    "Severe dyspnea at rest",
+    "Pulsus paradoxus (drop in blood pressure with inspiration)",
+    "Silent chest (no wheezing despite severe obstruction)"
+  ]
+}

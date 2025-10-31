@@ -1,0 +1,109 @@
+{
+  "condition": "Lung Cancer",
+  "icd10": "C78.00",
+  "snomed": "363358000",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "chief_complaint_triggers": [
+    "lung cancer",
+    "chest pain",
+    "cough with blood",
+    "weight loss",
+    "shortness of breath"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual over months. LOCATION: Focal or diffuse lung areas. DURATION: Chronic, progressive. CHARACTER: Chronic cough, chest pain, dyspnea. AGGRAVATING: Exertion, lying flat. RELIEVING: Pain medications, oxygen. TIMING: Chronic, progressive. SEVERITY: Moderate to severe (5-8/10). ASSOCIATED SYMPTOMS: Chronic cough, hemoptysis, chest pain, dyspnea, weight loss, fatigue, hoarseness, bone pain. KEY POSITIVES: Smoking history, chronic cough, hemoptysis, weight loss. KEY NEGATIVES: No fever (unless infection), no wheezing (unless obstruction).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [],
+        "excludes": [],
+        "anatomical_type": "midline"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Massive hemoptysis",
+    "Severe dyspnea or respiratory distress",
+    "Signs of superior vena cava syndrome",
+    "Altered mental status",
+    "Severe chest pain",
+    "Signs of respiratory failure",
+    "Cyanosis or oxygen saturation <90%",
+    "Signs of metastatic disease"
+  ]
+}

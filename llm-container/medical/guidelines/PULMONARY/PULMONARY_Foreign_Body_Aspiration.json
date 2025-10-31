@@ -1,0 +1,112 @@
+{
+  "condition": "Foreign Body Aspiration",
+  "icd10": "T17.900A",
+  "snomed": "233604007",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "chief_complaint_triggers": [
+    "choking",
+    "foreign body",
+    "something stuck in throat",
+    "aspiration",
+    "can't breathe"
+  ],
+  "urgency": "emergent",
+  "key_features": {
+    "classic_presentation": "ONSET: Sudden during eating or playing. LOCATION: Upper airway or bronchial tree. DURATION: Acute, persistent until removed. CHARACTER: Sudden dyspnea, choking sensation. AGGRAVATING: Continued attempts to breathe. RELIEVING: Removal of foreign body, positioning. TIMING: Acute, sudden onset. SEVERITY: Severe to life-threatening (8-10/10). ASSOCIATED SYMPTOMS: Sudden dyspnea, choking, coughing, stridor, cyanosis, altered mental status. KEY POSITIVES: Witnessed choking event, sudden onset, stridor, dyspnea. KEY NEGATIVES: No fever, no chest pain (unless secondary).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "eating",
+            "patient_friendly": "eating"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "coughing",
+            "patient_friendly": "coughing"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Complete airway obstruction",
+    "Cyanosis or respiratory arrest",
+    "Altered mental status",
+    "Inability to speak or cough",
+    "Stridor or wheezing",
+    "Signs of respiratory distress",
+    "Unconsciousness",
+    "Failed Heimlich maneuver"
+  ]
+}

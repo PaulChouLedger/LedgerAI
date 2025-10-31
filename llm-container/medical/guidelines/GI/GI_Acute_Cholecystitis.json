@@ -1,0 +1,162 @@
+{
+  "condition": "Acute Cholecystitis",
+  "icd10": "K81.0",
+  "snomed": "65275009",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "urgent",
+  "chief_complaint_triggers": [
+    "abdominal pain",
+    "right upper abdominal pain",
+    "right upper quadrant (RUQ) pain",
+    "upper right side pain",
+    "pain after eating",
+    "gallbladder pain"
+  ],
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset within 12-48 hours, often 30 minutes to 2 hours AFTER A FATTY MEAL (fried foods, heavy meals). LOCATION: Right upper quadrant (RUQ), precisely localized just below right rib cage. RADIATES TO RIGHT SHOULDER OR SCAPULA (phrenic nerve referred pain). DURATION: CONSTANT pain lasting >6 hours (unlike biliary colic <6 hours). CHARACTER: SHARP or ACHING, CONSTANT (NOT colicky). AGGRAVATING: WORSE WITH DEEP BREATHING, movement, and fatty food intake. Trigger is fatty meals. RELIEVING: NOTHING relieves pain effectively. Position changes don't help. Pain persists despite rest. TIMING: CONSTANT (not episodic like biliary colic). Lasts >6 hours continuously. SEVERITY: 7-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: NAUSEA AND VOMITING very common, fever (100.5-102°F) within 12-24 hours, MURPHY'S SIGN (inspiratory arrest during right upper quadrant (RUQ) palpation), anorexia. May have jaundice if common bile duct involved. KEY POSITIVES: right upper quadrant (RUQ) tenderness, Murphy's sign, post-fatty meal onset, fever. KEY NEGATIVES: Diarrhea uncommon. Left-sided pain rules out. Pain resolving <1-2 hours suggests biliary colic not cholecystitis.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "after",
+            "patient_friendly": "after eating"
+          },
+          {
+            "medical": "fatty meal",
+            "patient_friendly": "fatty or greasy foods"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "ruq",
+            "patient_friendly": "top right side near your ribs"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "right_upper"
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "TO RIGHT SHOULDER OR SCAPULA (phrenic nerve referred pain)",
+            "patient_friendly": "spreads to your right shoulder or your shoulder blade"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "aching",
+            "patient_friendly": "aching"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "worse with deep breathing",
+            "patient_friendly": "taking deep breaths"
+          },
+          {
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "nothing",
+            "patient_friendly": "nothing helps"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "nausea and vomiting",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "murphy",
+            "patient_friendly": "MURPHY"
+          },
+          {
+            "medical": "sign",
+            "patient_friendly": "SIGN"
+          },
+          {
+            "medical": "ruq",
+            "patient_friendly": "top right side near your ribs"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "High fever >102.5°F with rigors - suggests gangrenous cholecystitis or ascending cholangitis",
+    "Jaundice with confusion or sepsis - ascending cholangitis, needs urgent ERCP",
+    "Severe right upper quadrant (RUQ) pain with hypotension - gallbladder perforation or septic shock, call 911",
+    "Elderly or diabetic patients - higher risk of gangrenous cholecystitis and perforation"
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "condition": "Acute Aortic Syndrome",
+  "icd10": "I71.9",
+  "snomed": "233985008",
+  "chief_complaint_triggers": [
+    "severe chest pain",
+    "severe back pain",
+    "tearing pain",
+    "sudden chest and back pain"
+  ],
+  "urgency": "emergent",
+  "prevalence": "rare",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN, maximal at onset. LOCATION: Chest and/or BACK (interscapular). RADIATES along aortic path (chest→back→abdomen as dissection extends). DURATION: Continuous, persistent. CHARACTER: TEARING, RIPPING, or severe sharp pain. AGGRAVATING: Hypertension. RELIEVING: Nothing helps. TIMING: Sudden onset, unrelenting. SEVERITY: 10/10, catastrophic. KEY POSITIVES: Hypertension, pulse or blood pressure (BP) differential between extremities, Marfan syndrome, bicuspid aortic valve, aortic regurgitation murmur. KEY NEGATIVES: NOT gradual onset, NOT pressure (like myocardial infarction ).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "back",
+            "patient_friendly": "your back"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "along aortic path (chest→back→abdomen)",
+            "patient_friendly": "spreads from your chest to your back and down your abdomen"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "tearing",
+            "patient_friendly": "tearing"
+          },
+          {
+            "medical": "ripping",
+            "patient_friendly": "ripping"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Sudden maximal pain",
+    "Tearing or ripping quality",
+    "Back pain (interscapular)",
+    "Pulse differential",
+    "Blood pressure differential >20 mmHg",
+    "Neurologic deficits",
+    "Marfan syndrome",
+    "Hypotension or shock",
+    "Syncope"
+  ]
+}

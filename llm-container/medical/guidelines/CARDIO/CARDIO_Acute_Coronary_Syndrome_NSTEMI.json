@@ -1,0 +1,103 @@
+{
+  "condition": "non-ST-elevation myocardial infarction (NSTEMI) (Non-ST Elevation Myocardial Infarction)",
+  "icd10": "I21.4",
+  "snomed": "401314000",
+  "chief_complaint_triggers": [
+    "chest pain",
+    "chest pressure",
+    "chest discomfort"
+  ],
+  "urgency": "emergent",
+  "prevalence": "common",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Acute, over minutes to hours. LOCATION: RETROSTERNAL or left chest. RADIATES to left arm, jaw, neck, back. DURATION: Prolonged >10-20 minutes. CHARACTER: Pressure, squeezing, heaviness. AGGRAVATING: Can occur at rest or with exertion. RELIEVING: Partial relief with nitroglycerin possible. TIMING: Persistent or crescendo pattern. SEVERITY: 6-9/10. KEY POSITIVES: Troponin elevation (positive cardiac enzymes), dyspnea, diaphoresis, nausea, elderly or diabetic patient, cardiac risk factors. KEY NEGATIVES: NO ST elevation on electrocardiogram (ECG) (differentiates from ST-elevation myocardial infarction (STEMI) but still myocardial infarction (MI)).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "retrosternal",
+            "patient_friendly": "RETROSTERNAL"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "to left arm, jaw, neck, back",
+            "patient_friendly": "spreads to your left jaw"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure-like"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Elevated troponin (confirms myocardial infarction )",
+    "Persistent chest pain >20 minutes",
+    "Diaphoresis",
+    "Dyspnea",
+    "Nausea or vomiting",
+    "Hemodynamic instability",
+    "Diabetes or chronic kidney disease",
+    "Elderly patient",
+    "Multiple cardiac risk factors"
+  ]
+}

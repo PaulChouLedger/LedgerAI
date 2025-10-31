@@ -1,0 +1,113 @@
+{
+  "condition": "Encephalitis",
+  "icd10": "G04.9",
+  "snomed": "125645005",
+  "sex": "both",
+  "prevalence": "rare",
+  "chief_complaint_triggers": [
+    "encephalitis",
+    "brain inflammation",
+    "headache",
+    "fever",
+    "altered mental status",
+    "seizures",
+    "neurological symptoms"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset within hours to days. LOCATION: GENERALIZED symptoms. DURATION: Develops over hours to days. CHARACTER: SEVERE headache, fever, altered mental status. AGGRAVATING: LIGHT, sound, movement. RELIEVING: ANTIVIRALS, supportive care. TIMING: Sudden onset, develops over hours to days. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE HEADACHE, fever, altered mental status, seizures, may have focal neurological deficits. KEY POSITIVES: Severe headache, fever, altered mental status, seizures, may have focal neurological deficits. KEY NEGATIVES: No neck stiffness, no photophobia.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "generalized",
+            "patient_friendly": "GENERALIZED"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "light",
+            "patient_friendly": "LIGHT"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "antivirals",
+            "patient_friendly": "ANTIVIRALS"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "severe headache",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Severe neurological deficits with altered mental status - possible severe encephalitis, call 911",
+    "Signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911",
+    "Severe hypertension with neurological deficits - possible hypertensive crisis, call 911",
+    "Signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911",
+    "Signs of respiratory failure - difficulty breathing, cyanosis, altered mental status - call 911"
+  ]
+}

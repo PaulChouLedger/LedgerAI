@@ -1,0 +1,100 @@
+{
+  "condition": "Pneumonia",
+  "icd10": "J18.9",
+  "snomed": "233604007",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "pneumonia",
+    "chest infection",
+    "fever and cough",
+    "lung infection",
+    "shortness of breath"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual over days. LOCATION: Focal or diffuse lung areas. DURATION: Days to weeks. CHARACTER: Productive cough, chest pain, dyspnea. AGGRAVATING: Lying flat, exertion. RELIEVING: Antibiotics, oxygen, positioning. TIMING: Acute, persistent. SEVERITY: Moderate to severe (6-8/10). ASSOCIATED SYMPTOMS: High fever, productive cough, chest pain, dyspnea, fatigue, malaise. KEY POSITIVES: High fever, productive cough, chest pain, dyspnea. KEY NEGATIVES: No wheezing (unless reactive airway disease).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [],
+        "excludes": [],
+        "anatomical_type": "midline"
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Severe dyspnea or respiratory distress",
+    "High fever >102°F",
+    "Cyanosis or oxygen saturation <90%",
+    "Altered mental status",
+    "Signs of respiratory failure",
+    "Severe chest pain",
+    "Hemoptysis",
+    "Signs of sepsis or shock"
+  ]
+}

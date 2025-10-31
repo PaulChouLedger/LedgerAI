@@ -1,0 +1,137 @@
+{
+  "condition": "Acute Myocardial Infarction (Heart Attack)",
+  "icd10": "I21.9",
+  "snomed": "57054005",
+  "chief_complaint_triggers": [
+    "chest pain",
+    "chest pressure",
+    "chest tightness",
+    "heart attack",
+    "crushing chest pain"
+  ],
+  "urgency": "emergent",
+  "prevalence": "common",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Sudden or over minutes. LOCATION: RETROSTERNAL (behind breastbone), left-sided chest, or epigastric. RADIATES to left arm, jaw, neck, back, or both arms. DURATION: Continuous for >10-20 minutes, does NOT resolve with rest. CHARACTER: CRUSHING, pressure, squeezing, heaviness, \"elephant on chest\". NOT sharp or stabbing typically. AGGRAVATING: None (unprovoked, can occur at rest). RELIEVING: NOT relieved by position change, antacids, or nitroglycerin (if severe). TIMING: Persistent, progressive worsening. SEVERITY: 7-10/10, most severe pain patient has ever felt. KEY POSITIVES: Diaphoresis (sweating), nausea, vomiting, dyspnea (shortness of breath), sense of impending doom, pallor, weakness. KEY NEGATIVES: NOT sharp, NOT positional, NOT pleuritic (worse with breathing).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "retrosternal",
+            "patient_friendly": "RETROSTERNAL"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          },
+          {
+            "medical": "epigastric",
+            "patient_friendly": "upper middle part of your belly"
+          }
+        ],
+        "excludes": []
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "to left arm, jaw, neck, back, or both arms",
+            "patient_friendly": "spreads to your left jaw or your arm"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "crushing",
+            "patient_friendly": "crushing"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          },
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure-like"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Diaphoresis (profuse sweating)",
+    "Shortness of breath or dyspnea",
+    "Nausea or vomiting",
+    "Radiation to left arm or jaw",
+    "History of coronary artery disease",
+    "Diabetes mellitus",
+    "Hyperlipidemia or hypertension",
+    "Family history of early myocardial infarction (MI)",
+    "Syncope or near-syncope",
+    "Altered mental status"
+  ]
+}

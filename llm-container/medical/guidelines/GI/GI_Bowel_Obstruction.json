@@ -1,0 +1,157 @@
+{
+  "condition": "Small Bowel Obstruction",
+  "icd10": "K56.60",
+  "snomed": "81060008",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "urgency": "urgent",
+  "chief_complaint_triggers": [
+    "abdominal pain",
+    "cramping",
+    "vomiting",
+    "no bowel movement",
+    "can't pass gas",
+    "bloating"
+  ],
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset within 12-48 hours. Acute presentation. LOCATION: Periumbilical and diffuse (not localized to one quadrant). Cramping throughout mid-abdomen. DURATION: WAVES lasting minutes, repeating every 4-5 minutes. Entire episode lasts hours to days. CHARACTER: COLICKY CRAMPING (COMES AND GOES IN WAVES, not constant). Intermittent, wave-like quality. AGGRAVATING: EATING OR DRINKING worsens vomiting and cramping. Any oral intake intensifies symptoms. Movement during cramp worsens discomfort. RELIEVING: Vomiting provides TEMPORARY relief. Nothing to eat/drink reduces new vomiting. Position doesn't significantly help. TIMING: WAVE pattern - cramps every 4-5 minutes. Progressive worsening over time. Becomes more frequent. SEVERITY: 6-9/10 during cramps, less between waves. Moderate to severe. ASSOCIATED SYMPTOMS: BILIOUS (green/yellow) VOMITING progressively more frequent, ABSOLUTE CONSTIPATION (no stool OR GAS >12-24 hours), progressive abdominal DISTENSION. Tinkling bowel sounds. KEY POSITIVES: Wave-like cramps, bilious vomiting, inability to pass flatus, distension, prior surgery. KEY NEGATIVES: Diarrhea rules out complete obstruction. CONSTANT pain with peritoneal signs suggests strangulation (surgical emergency).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "periumbilical",
+            "patient_friendly": "around your belly button"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "midline"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "waves",
+            "patient_friendly": "WAVES"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "colicky cramping",
+            "patient_friendly": "cramping"
+          },
+          {
+            "medical": "comes and goes",
+            "patient_friendly": "COMES AND GOES"
+          },
+          {
+            "medical": "waves",
+            "patient_friendly": "WAVES"
+          },
+          {
+            "medical": "cramping",
+            "patient_friendly": "cramping"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "eating",
+            "patient_friendly": "eating"
+          },
+          {
+            "medical": "drinking",
+            "patient_friendly": "DRINKING"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "cramping",
+            "patient_friendly": "cramping"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "temporary",
+            "patient_friendly": "TEMPORARY"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "wave",
+            "patient_friendly": "WAVE"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "bilious",
+            "patient_friendly": "BILIOUS"
+          },
+          {
+            "medical": "vomiting",
+            "patient_friendly": "vomiting"
+          },
+          {
+            "medical": "absolute constipation",
+            "patient_friendly": "constipation"
+          },
+          {
+            "medical": "distension",
+            "patient_friendly": "DISTENSION"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Severe constant pain with fever and peritoneal signs - strangulated bowel, call 911",
+    "Bloody vomit or stool - ischemic bowel, needs immediate surgery",
+    "Severe abdominal distension with tachycardia - complete obstruction with possible perforation",
+    "Previous bowel obstruction - higher risk of recurrence and complications"
+  ]
+}

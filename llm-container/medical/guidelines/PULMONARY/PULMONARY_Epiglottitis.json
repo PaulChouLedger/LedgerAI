@@ -1,0 +1,86 @@
+{
+  "condition": "Epiglottitis",
+  "icd10": "J05.1",
+  "snomed": "267425001",
+  "sex": "both",
+  "prevalence": "rare",
+  "chief_complaint_triggers": [
+    "epiglottitis",
+    "throat swelling",
+    "stridor",
+    "difficulty swallowing",
+    "sore throat with breathing problems"
+  ],
+  "urgency": "emergent",
+  "key_features": {
+    "classic_presentation": "ONSET: Rapid onset over hours. LOCATION: Supraglottic region. DURATION: Acute, hours to days. CHARACTER: Severe throat pain, dysphagia, dyspnea. AGGRAVATING: Swallowing, lying flat. RELIEVING: Sitting upright, humidified air, antibiotics. TIMING: Acute, progressive. SEVERITY: Severe (8-10/10). ASSOCIATED SYMPTOMS: High fever, drooling, stridor, dysphagia, muffled voice, tripod positioning, anxiety. KEY POSITIVES: High fever, drooling, stridor, dysphagia, tripod positioning. KEY NEGATIVES: No chest pain, no wheezing.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [],
+        "excludes": []
+      },
+      "location": {
+        "includes": [],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Stridor or respiratory distress",
+    "Drooling or inability to swallow",
+    "High fever >102°F",
+    "Tripod positioning",
+    "Muffled voice or 'hot potato' voice",
+    "Cyanosis",
+    "Altered mental status",
+    "Signs of airway obstruction"
+  ]
+}

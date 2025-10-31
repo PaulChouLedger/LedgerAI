@@ -1,22 +1,52 @@
-# === container_rest.py — Aura Medical Container (Clinician Mode Architecture)
-# All requests are handled by the clinician mode which provides:
+# === container_rest.py — Aura Unified LLM Container
+# Handles both generic and medical conversations based on USE_MEDICAL_MODE toggle
+# 
+# Medical Mode (USE_MEDICAL_MODE=true):
 # - Medical symptom assessment with adaptive diagnostic engine
 # - Medical knowledge queries with RAG integration
 # - Casual greetings and general medical conversation
 # - Comprehensive physician-like medical assistance
+#
+# Generic Mode (USE_MEDICAL_MODE=false):
+# - General conversation
+# - RAG-powered document Q&A
+# - Flexible LLM interactions
 
 from flask import Flask, request, jsonify, stream_with_context, Response
-from llama_cpp import Llama
 from dotenv import load_dotenv
 import os, re, json, string, threading, time
 from datetime import datetime, timedelta
 from glob import glob
 import requests
 
+# TensorRT-LLM imports
+try:
+    from tensorrt_llm_wrapper import TensorRTLLMWrapper
+    from tensorrt_models_config import get_engine_dir, get_tokenizer_dir, validate_engine_dir
+    TENSORRT_LLM_AVAILABLE = True
+except ImportError as e:
+    print(f"[TensorRT-LLM] ⚠️ TensorRT-LLM wrapper not available: {e}")
+    TENSORRT_LLM_AVAILABLE = False
+    TensorRTLLMWrapper = None
+
 # Note: Validation functions removed - ML system handles all validation
 
-# Import clinician mode for comprehensive medical assistance
-from clinician_mode import ClinicianSession, is_clinician_trigger, get_clinician_session, handle_clinician_response
+# Medical/Generic mode toggle
+USE_MEDICAL_MODE = os.getenv("USE_MEDICAL_MODE", "true").lower() == "true"  # Default to medical mode
+
+# Import clinician mode for medical conversations (only if enabled)
+if USE_MEDICAL_MODE:
+    try:
+        from clinician_mode import ClinicianSession, is_clinician_trigger, get_clinician_session, handle_clinician_response
+        MEDICAL_MODE_AVAILABLE = True
+        print(f"[Container] ✅ Medical mode ENABLED - All requests handled by clinician mode")
+    except ImportError as e:
+        print(f"[Container] ❌ Medical mode enabled but clinician_mode not available: {e}")
+        MEDICAL_MODE_AVAILABLE = False
+        USE_MEDICAL_MODE = False  # Fallback to generic mode
+else:
+    MEDICAL_MODE_AVAILABLE = False
+    print(f"[Container] ℹ️ Medical mode DISABLED - Generic conversation mode active")
 
 # Import modular RAG client (supports both GPU and CPU modes)
 from rag import get_rag_client
@@ -202,141 +232,156 @@ def stream_llm_response(messages, max_tokens=100):
         yield ""
 
 
-# === Non-streaming chat endpoint for Telegram ===
-@app.route("/chat-tg", methods=["POST"])
-def chat_tg():
+# === Medical Chat Endpoint ===
+@app.route("/chat-medical", methods=["POST"])
+def chat_medical():
     """
-    Non-streaming chat endpoint for Telegram bot
-    Uses SAME routing and logic as /chat, just returns single response instead of streaming
+    Medical conversation endpoint
+    Handles medical symptom assessment, knowledge queries, and clinician interactions
     """
     data = request.get_json()
     prompt = (data.get("prompt") or "").strip()
-    session_id = (data.get("chat_id") or data.get("session_id") or "telegram_session").strip()
+    session_id = (data.get("chat_id") or data.get("session_id") or "default").strip()
     do_reset = bool(data.get("reset"))
     
-    if not prompt:
-        return jsonify({"response": "Please describe your symptoms."})
+    if not MEDICAL_MODE_AVAILABLE:
+        return jsonify({"error": "Medical mode not available. Ensure USE_MEDICAL_MODE=true and medical modules are loaded."}), 503
     
-    # Handle reset commands (same as /chat)
+    if not prompt:
+        return jsonify({"error": "Prompt is required"}), 400
+    
+    # Handle reset
     prompt_norm = normalize_text(prompt)
     RESET_KEYWORDS = {"reset", "restart", "new session"}
     if any(k in prompt_norm for k in RESET_KEYWORDS):
         do_reset = True
     
-    print(f"[Telegram] 💬 Session: {session_id}, Prompt: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}', Reset: {do_reset}")
-    
-    # Handle session reset - PROPERLY CLEAR SESSION STATE
     if do_reset:
-        print(f"[Telegram] 🔄 Resetting session: {session_id}")
-        
-        # Clear session state properly
         try:
-            # Reset clinician session if exists
             from clinician_mode import reset_clinician_session
             reset_clinician_session(session_id)
-            print(f"[Telegram] ✅ Clinician session reset: {session_id}")
         except Exception as e:
-            print(f"[Telegram] ⚠️ Error resetting clinician session: {e}")
-        
-        # Always return reset confirmation
+            print(f"[Medical] ⚠️ Error resetting session: {e}")
         return jsonify({"response": "Session reset. Start again with your symptoms."})
     
     try:
-        # All requests go to clinician mode
-        print(f"[Telegram] 🎯 Using clinician mode for all requests")
+        print(f"[Medical] 💬 Session: {session_id}, Prompt: '{prompt[:50]}...'")
+        response = handle_clinician_response(prompt, session_id, llm_chat, llm_chat_simple)
         
-        # Helper to collect streamed response into single string
-        def collect_stream(generator):
-            """Collect streamed response and clean it"""
-            response_parts = []
-            for chunk in filter_think_blocks(generator):
-                chunk = chunk.strip()
-                if chunk:
-                    # Remove sentence markers
-                    chunk = chunk.replace('<sentence_start>', '').replace('<sentence_end>', '')
-                    chunk = chunk.strip()
-                    if chunk:
-                        response_parts.append(chunk)
-            return ' '.join(response_parts).strip()
-        
-        # Dispatch to unified medical mode
-        try:
-            # For Telegram, we don't need immediate fillers since it's text-based
-            # Engine debug output will flow through naturally (no duplication needed)
-            print(f"[Container] 🔍 Telegram request: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}'")
-            response = handle_clinician_response(prompt, session_id, llm_chat, llm_chat_simple)
-            print(f"[Container] ✅ Telegram response processed")
-            print(f"[Container] 🔍 Response type: {type(response)}")
-            if isinstance(response, dict):
-                print(f"[Container] 🔍 Response keys: {list(response.keys())}")
-                if 'debug' in response:
-                    print(f"[Container] 🔍 Debug info present: {response['debug'] is not None}")
-                else:
-                    print(f"[Container] ⚠️ No debug key in response")
+        # Format response
+        if isinstance(response, dict):
+            response_text = response.get('message', '')
+            if response.get('question'):
+                if response_text:
+                    response_text += "\n\n" if response.get('has_pause') else "\n"
+                response_text += response['question']
+            if not response_text:
+                response_text = response.get('question', response.get('message', ''))
             
-            # Check if response includes question (dict) or is simple text (str)
-            if isinstance(response, dict):
-                # Return question + debug info for Telegram
-                debug_info = response.get('debug')
-                print(f"[Container] 🔍 Debug info in response: {debug_info is not None}")
-                if debug_info:
-                    print(f"[Container] 🔍 Debug info keys: {list(debug_info.keys())}")
-                    if 'engine_debug_output' in debug_info:
-                        print(f"[Container] 🔍 Engine debug output: {len(debug_info['engine_debug_output'])} lines")
-                        if debug_info['engine_debug_output']:
-                            print(f"[Container] 🔍 First few debug lines: {debug_info['engine_debug_output'][:3]}")
-                        else:
-                            print(f"[Container] ⚠️ Engine debug output is empty")
-                    else:
-                        print(f"[Container] ⚠️ No engine_debug_output key in debug info")
-                
-                # Format response for Telegram
-                # Handle empathetic statement + question (with pause indicator)
-                response_text = ""
-                if response.get('message'):
-                    response_text = response['message']
-                
-                if response.get('question'):
-                    if response_text:
-                        # Add pause indicator if both message and question exist
-                        if response.get('has_pause'):
-                            response_text += "\n\n"  # Extra spacing for pause
-                        else:
-                            response_text += "\n"
-                    response_text += response['question']
-                
-                # Fallback if neither exists
-                if not response_text:
-                    response_text = response.get('question', response.get('message', ''))
-                
-                telegram_response = {
-                    "response": response_text,
-                    "debug": debug_info  # Include debug info if available
-                }
-                return jsonify(telegram_response)
-            else:
-                # Simple text response
-                return jsonify({"response": response})
-        except Exception as e:
-            print(f"[Container] ❌ Error in clinician mode (non-streaming): {e}")
-            print(f"[Container] 📋 Error type: {type(e).__name__}")
-            print(f"[Container] 📍 Error location: {e.__traceback__.tb_frame.f_code.co_filename}:{e.__traceback__.tb_lineno}")
-            print(f"[Container] 🔍 Full traceback:")
-            import traceback
-            traceback.print_exc()
-            
-            # NO FALLBACKS - re-raise the actual error
-            raise e
+            return jsonify({
+                "response": response_text,
+                "debug": response.get('debug')
+            })
+        else:
+            return jsonify({"response": response})
             
     except Exception as e:
-        print(f"[Telegram] ❌ Error in chat-simple: {e}")
-        print(f"[Telegram] 📋 Error type: {type(e).__name__}")
-        print(f"[Telegram] 📍 Error location: {e.__traceback__.tb_frame.f_code.co_filename}:{e.__traceback__.tb_lineno}")
-        print(f"[Telegram] 🔍 Full traceback:")
+        print(f"[Medical] ❌ Error: {e}")
         import traceback
         traceback.print_exc()
-        # NO FALLBACKS - re-raise the actual error
-        raise e
+        return jsonify({"error": str(e)}), 500
+
+
+# === Generic Chat Endpoint ===
+@app.route("/chat-generic", methods=["POST"])
+def chat_generic():
+    """
+    Generic conversation endpoint
+    Handles general conversation, RAG Q&A, and non-medical interactions
+    """
+    data = request.get_json()
+    prompt = (data.get("prompt") or "").strip()
+    session_id = (data.get("chat_id") or data.get("session_id") or "default").strip()
+    stream = data.get("stream", False)
+    max_tokens = data.get("max_tokens", 200)
+    use_rag = data.get("use_rag", True)
+    
+    if not prompt:
+        return jsonify({"error": "Prompt is required"}), 400
+    
+    try:
+        print(f"[Generic] 💬 Session: {session_id}, Prompt: '{prompt[:50]}...'")
+        
+        # Get RAG context if enabled
+        rag_context = None
+        if use_rag:
+            try:
+                rag_client = get_rag_client()
+                if rag_client:
+                    results = rag_client.search(query=prompt, k=3)
+                    if results:
+                        rag_context = "\n\n".join([f"[{i+1}] {r['text']}" for i, r in enumerate(results)])
+                        print(f"[Generic] ✅ RAG: Retrieved {len(results)} chunks")
+            except Exception as e:
+                print(f"[Generic] ⚠️ RAG search failed: {e}")
+        
+        # Build messages
+        messages = [
+            {"role": "system", "content": "You are a helpful AI assistant. Be concise, friendly, and helpful."},
+            {"role": "user", "content": prompt}
+        ]
+        if rag_context:
+            messages[0]["content"] += f"\n\nRelevant context:\n{rag_context}"
+        
+        # Get response
+        if stream:
+            def generate():
+                response_gen = llm_chat_simple(messages, max_tokens=max_tokens, stream=True, temperature=0.7)
+                for chunk in response_gen:
+                    if isinstance(chunk, dict) and 'choices' in chunk:
+                        delta = chunk['choices'][0].get('delta', {})
+                        content = delta.get('content', '')
+                        if content:
+                            yield content
+                    elif isinstance(chunk, str):
+                        yield chunk
+            return Response(stream_with_context(generate()), mimetype='text/plain')
+        else:
+            response = llm_chat_simple(messages, max_tokens=max_tokens, stream=False, temperature=0.7)
+            
+            # Extract content
+            if isinstance(response, dict):
+                content = response.get('choices', [{}])[0].get('message', {}).get('content', '') or str(response)
+            else:
+                content = response
+            
+            return jsonify({
+                "response": content,
+                "session_id": session_id,
+                "used_rag": rag_context is not None
+            })
+            
+    except Exception as e:
+        print(f"[Generic] ❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+# === Non-streaming chat endpoint for Telegram (routes based on USE_MEDICAL_MODE) ===
+@app.route("/chat-tg", methods=["POST"])
+def chat_tg():
+    """
+    Non-streaming chat endpoint for Telegram bot
+    Routes to /chat-medical or /chat-generic based on USE_MEDICAL_MODE toggle
+    """
+    # Route to appropriate endpoint based on toggle
+    if USE_MEDICAL_MODE and MEDICAL_MODE_AVAILABLE:
+        print(f"[Telegram] 🎯 Routing to medical endpoint")
+        return chat_medical()
+    else:
+        print(f"[Telegram] 🎯 Routing to generic endpoint")
+        return chat_generic()
 
 
 # === Streaming chat endpoint for TTS/Voice ===
@@ -375,136 +420,176 @@ def chat_tts():
             # Filter think blocks at container level (though unlikely here)
             return Response(stream_with_context(filter_think_blocks(generate_reset())), mimetype="text/plain")
 
-    # All requests go to clinician mode
-    print(f"[Aura-LLM] 🎯 Using clinician mode for all requests")
-
-    # Dispatch to clinician mode
-    def generate_clinician():
-        try:
-            print("[Container] 🔄 Using dynamic medical assessment for CLINICIAN")
-            
-            # Check if this will be a simple operation (no filler needed)
-            def will_use_simple_llm(prompt_text):
-                """Predict if the operation will use simple patterns (no filler needed)"""
-                prompt_lower = prompt_text.lower().strip()
+    # Route based on USE_MEDICAL_MODE toggle
+    if USE_MEDICAL_MODE and MEDICAL_MODE_AVAILABLE:
+        print(f"[Aura-LLM] 🎯 Medical mode ENABLED - Routing to clinician mode")
+        
+        # Dispatch to clinician mode
+        def generate_clinician():
+            try:
+                print("[Container] 🔄 Using dynamic medical assessment for CLINICIAN")
                 
-                # Simple operations (no filler needed):
-                # - Age answers: "35", "35 years old", "thirty five"
-                # - Sex answers: "male", "female", "man", "woman"
-                # - Simple clarifications
-                
-                # Age patterns
-                age_patterns = [
-                    r'^\d+\.?$',  # Just numbers: "35" or "35."
-                    r'^\d+\s*years?\s*old\.?$',  # "35 years old" or "35 years old."
-                    r'^i\'?m\s+\d+\.?$',  # "I'm 35" or "I'm 35."
-                    r'^i\s+am\s+\d+\.?$',  # "I am 35" or "I am 35."
-                    r'^(thirty|forty|fifty|sixty|seventy|eighty|ninety)',  # "thirty five"
-                    r'^(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\s+(one|two|three|four|five|six|seven|eight|nine)$'
-                ]
-                
-                # Sex patterns
-                sex_patterns = [
-                    r'^(male|female|man|woman|m|f)\.?$',
-                    r'^(i am|i\'m)\s+(male|female|a man|a woman)\.?$'
-                ]
-                
-                # Check for age patterns
-                import re
-                for pattern in age_patterns:
-                    if re.match(pattern, prompt_lower):
-                        return True
-                
-                # Check for sex patterns
-                for pattern in sex_patterns:
-                    if re.match(pattern, prompt_lower):
-                        return True
-                
-                # Default to complex operation (needs filler)
-                return False
-            
-            # Determine if we need a filler based on predicted operation complexity
-            will_use_simple = will_use_simple_llm(prompt)
-            
-            if will_use_simple:
-                # Simple operation - no filler needed
-                print(f"[Container] ⚡ Simple operation - no filler needed")
-            else:
-                # Complex operation - use filler
-                from thinking_fillers import get_filler
-                immediate_filler = get_filler('question_generation', use_audio=True)
-                filler_text = immediate_filler['text']
-                print(f"[Container] 💬 IMMEDIATE filler for complex operation: '{filler_text}'")
-                
-                # Stream filler immediately
-                yield "<sentence_start>\n"
-                yield f"{filler_text}\n"
-                yield "<sentence_end>\n"
-            
-            # Now process the actual response in the background
-            response = handle_clinician_response(prompt, session_id, llm_chat, llm_chat_simple)
-            
-            print(f"[Container] ✅ Got response from unified medical session")
-            
-            # Check if response includes filler (dict) or is simple text (str)
-            if isinstance(response, dict):
-                # Handle empathetic statement + question (with pause)
-                if response.get('message') and response.get('question'):
-                    # Stream empathetic statement first
-                    message_text = response.get('message', '')
-                    yield "<sentence_start>\n"
-                    yield f"{message_text}\n"
-                    yield "<sentence_end>\n"
+                # Check if this will be a simple operation (no filler needed)
+                def will_use_simple_llm(prompt_text):
+                    """Predict if the operation will use simple patterns (no filler needed)"""
+                    prompt_lower = prompt_text.lower().strip()
                     
-                    # Add pause if indicated
-                    if response.get('has_pause'):
-                        yield "<pause>\n"  # Pause marker for TTS
+                    # Simple operations (no filler needed):
+                    # - Age answers: "35", "35 years old", "thirty five"
+                    # - Sex answers: "male", "female", "man", "woman"
+                    # - Simple clarifications
                     
-                    # Then stream question
-                    question_text = response.get('question', '')
+                    # Age patterns
+                    age_patterns = [
+                        r'^\d+\.?$',  # Just numbers: "35" or "35."
+                        r'^\d+\s*years?\s*old\.?$',  # "35 years old" or "35 years old."
+                        r'^i\'?m\s+\d+\.?$',  # "I'm 35" or "I'm 35."
+                        r'^i\s+am\s+\d+\.?$',  # "I am 35" or "I am 35."
+                        r'^(thirty|forty|fifty|sixty|seventy|eighty|ninety)',  # "thirty five"
+                        r'^(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\s+(one|two|three|four|five|six|seven|eight|nine)$'
+                    ]
+                    
+                    # Sex patterns
+                    sex_patterns = [
+                        r'^(male|female|man|woman|m|f)\.?$',
+                        r'^(i am|i\'m)\s+(male|female|a man|a woman)\.?$'
+                    ]
+                    
+                    # Check for age patterns
+                    import re
+                    for pattern in age_patterns:
+                        if re.match(pattern, prompt_lower):
+                            return True
+                    
+                    # Check for sex patterns
+                    for pattern in sex_patterns:
+                        if re.match(pattern, prompt_lower):
+                            return True
+                    
+                    # Default to complex operation (needs filler)
+                    return False
+                
+                # Determine if we need a filler based on predicted operation complexity
+                will_use_simple = will_use_simple_llm(prompt)
+                
+                if will_use_simple:
+                    # Simple operation - no filler needed
+                    print(f"[Container] ⚡ Simple operation - no filler needed")
+                else:
+                    # Complex operation - use filler
+                    from thinking_fillers import get_filler
+                    immediate_filler = get_filler('question_generation', use_audio=True)
+                    filler_text = immediate_filler['text']
+                    print(f"[Container] 💬 IMMEDIATE filler for complex operation: '{filler_text}'")
+                    
+                    # Stream filler immediately
                     yield "<sentence_start>\n"
-                    yield f"{question_text}\n"
+                    yield f"{filler_text}\n"
                     yield "<sentence_end>\n"
-                elif response.get('question'):
-                    # Just question
-                    question_text = response.get('question', '')
+                
+                # Now process the actual response in the background
+                response = handle_clinician_response(prompt, session_id, llm_chat, llm_chat_simple)
+                
+                print(f"[Container] ✅ Got response from unified medical session")
+                
+                # Check if response includes filler (dict) or is simple text (str)
+                if isinstance(response, dict):
+                    # Handle empathetic statement + question (with pause)
+                    if response.get('message') and response.get('question'):
+                        # Stream empathetic statement first
+                        message_text = response.get('message', '')
+                        yield "<sentence_start>\n"
+                        yield f"{message_text}\n"
+                        yield "<sentence_end>\n"
+                        
+                        # Add pause if indicated
+                        if response.get('has_pause'):
+                            yield "<pause>\n"  # Pause marker for TTS
+                        
+                        # Then stream question
+                        question_text = response.get('question', '')
+                        yield "<sentence_start>\n"
+                        yield f"{question_text}\n"
+                        yield "<sentence_end>\n"
+                    elif response.get('question'):
+                        # Just question
+                        question_text = response.get('question', '')
+                        yield "<sentence_start>\n"
+                        yield f"{question_text}\n"
+                        yield "<sentence_end>\n"
+                    elif response.get('message'):
+                        # Just message
+                        message_text = response.get('message', '')
+                        yield "<sentence_start>\n"
+                        yield f"{message_text}\n"
+                        yield "<sentence_end>\n"
+                    else:
+                        # Fallback
+                        yield "<sentence_start>\n"
+                        yield "I'm processing your response...\n"
+                        yield "<sentence_end>\n"
+                elif isinstance(response, str):
+                    # Simple text response (no filler)
                     yield "<sentence_start>\n"
-                    yield f"{question_text}\n"
-                    yield "<sentence_end>\n"
-                elif response.get('message'):
-                    # Just message
-                    message_text = response.get('message', '')
-                    yield "<sentence_start>\n"
-                    yield f"{message_text}\n"
+                    yield f"{response}\n"
                     yield "<sentence_end>\n"
                 else:
                     # Fallback
                     yield "<sentence_start>\n"
                     yield "I'm processing your response...\n"
                     yield "<sentence_end>\n"
-            elif isinstance(response, str):
-                # Simple text response (no filler)
+            except Exception as e:
+                print(f"[Container] ❌ Error in clinician mode: {e}")
+                print(f"[Container] 📋 Error type: {type(e).__name__}")
+                print(f"[Container] 📍 Error location: {e.__traceback__.tb_frame.f_code.co_filename}:{e.__traceback__.tb_lineno}")
+                print(f"[Container] 🔍 Full traceback:")
+                import traceback
+                traceback.print_exc()
+                
+                # NO FALLBACKS - re-raise the actual error
+                raise e
+        
+        # Filter think blocks at container level
+        return Response(stream_with_context(filter_think_blocks(generate_clinician())), mimetype="text/plain")
+    
+    else:
+        # Generic mode - handle general conversation
+        print(f"[Aura-LLM] 🎯 Generic mode ENABLED - Handling general conversation")
+        
+        def generate_generic():
+            try:
+                print("[Container] 💬 Generic conversation mode")
+                
+                # Simple generic conversation using LLM
+                messages = [
+                    {"role": "system", "content": "You are a helpful AI assistant. Be concise, friendly, and helpful."},
+                    {"role": "user", "content": prompt}
+                ]
+                
+                # Use simple LLM for generic conversation
+                response = llm_chat_simple(messages, max_tokens=200, temperature=0.7)
+                
+                if isinstance(response, dict):
+                    # Extract content from OpenAI-format response
+                    content = response.get('choices', [{}])[0].get('message', {}).get('content', '')
+                    if not content:
+                        content = str(response)
+                else:
+                    content = response
+                
                 yield "<sentence_start>\n"
-                yield f"{response}\n"
+                yield f"{content}\n"
                 yield "<sentence_end>\n"
-            else:
-                # Fallback
+                
+            except Exception as e:
+                print(f"[Container] ❌ Error in generic mode: {e}")
+                import traceback
+                traceback.print_exc()
                 yield "<sentence_start>\n"
-                yield "I'm processing your response...\n"
+                yield "I apologize, but I encountered an error processing your request.\n"
                 yield "<sentence_end>\n"
-        except Exception as e:
-            print(f"[Container] ❌ Error in clinician mode: {e}")
-            print(f"[Container] 📋 Error type: {type(e).__name__}")
-            print(f"[Container] 📍 Error location: {e.__traceback__.tb_frame.f_code.co_filename}:{e.__traceback__.tb_lineno}")
-            print(f"[Container] 🔍 Full traceback:")
-            import traceback
-            traceback.print_exc()
-            
-            # NO FALLBACKS - re-raise the actual error
-            raise e
-
-    # Filter think blocks at container level
-    return Response(stream_with_context(filter_think_blocks(generate_clinician())), mimetype="text/plain")
+        
+        return Response(stream_with_context(filter_think_blocks(generate_generic())), mimetype="text/plain")
 
 
 
@@ -725,39 +810,38 @@ def llm_chat_once(messages, **kwargs):
 if __name__ == "__main__":
     # Load model ONLY when running as main script (prevents double loading on import)
     
-    print(f"[LLM] 🚀 Loading model: {SIMPLE_MODEL_PATH}")
-    print(f"[LLM] ⚙️  Config: n_ctx={SIMPLE_N_CTX}, format={SIMPLE_CHAT_FORMAT}")
-    
-    # Check if model file exists and get file info
-    if not os.path.exists(SIMPLE_MODEL_PATH):
-        print(f"[LLM] ❌ Model file not found: {SIMPLE_MODEL_PATH}")
+    if not TENSORRT_LLM_AVAILABLE:
+        print("[LLM] ❌ TensorRT-LLM is not available. Cannot start container.")
         exit(1)
-    else:
-        # Get file size and modification time
-        file_stat = os.stat(SIMPLE_MODEL_PATH)
-        file_size_mb = file_stat.st_size / (1024 * 1024)
-        mod_time = time.ctime(file_stat.st_mtime)
-        print(f"[LLM] 📁 Model file found locally: {file_size_mb:.1f}MB, modified: {mod_time}")
-        print(f"[LLM] 🔍 File path: {SIMPLE_MODEL_PATH}")
     
-    print(f"[LLM] 🧠 Initializing Llama model (this may take a while for large models)...")
+    # Get TensorRT-LLM engine directory
+    engine_dir = get_engine_dir()
+    tokenizer_dir = get_tokenizer_dir()
+    
+    print(f"[LLM] 🚀 Loading TensorRT-LLM engine from: {engine_dir}")
+    print(f"[LLM] ⚙️  Config: format={SIMPLE_CHAT_FORMAT}")
+    
+    # Validate engine directory
+    if not validate_engine_dir(engine_dir):
+        print(f"[LLM] ❌ Invalid engine directory: {engine_dir}")
+        print(f"[LLM] 💡 Ensure TensorRT-LLM engine is built and available at: {engine_dir}")
+        exit(1)
+    
+    print(f"[LLM] 🧠 Initializing TensorRT-LLM model (this may take a while for large models)...")
     start_time = time.time()
-    llm_simple = Llama(
-        model_path=SIMPLE_MODEL_PATH,
-        n_ctx=SIMPLE_N_CTX,
-        n_gpu_layers=32,  # Use fewer layers for simple model on Orin32
-        n_threads=6,
-        chat_format=SIMPLE_CHAT_FORMAT,
-        use_mlock=True,
-        use_mmap=True,
-        verbose=False,
-        temperature=float(os.environ["LLM_TEMPERATURE_SIMPLE"]),
-        top_p=float(os.getenv("LLM_TOP_P", "0.85")),
-        top_k=int(os.getenv("LLM_TOP_K", "30")),
-        repeat_penalty=float(os.getenv("LLM_REPEAT_PENALTY", "1.15"))
-    )
-    load_time = time.time() - start_time
-    print(f"[LLM] ✅ Simple model loaded: {SIMPLE_MODEL_PATH} (took {load_time:.1f}s)")
+    
+    try:
+        llm_simple = TensorRTLLMWrapper(
+            engine_dir=engine_dir,
+            tokenizer_dir=tokenizer_dir
+        )
+        load_time = time.time() - start_time
+        print(f"[LLM] ✅ TensorRT-LLM model loaded: {engine_dir} (took {load_time:.1f}s)")
+    except Exception as e:
+        print(f"[LLM] ❌ Failed to load TensorRT-LLM model: {e}")
+        import traceback
+        traceback.print_exc()
+        exit(1)
     
     print("[Aura-LLM] 🚀 Starting Aura LLM Container (Modular Architecture)")
     print("[Aura-LLM] 📋 Configuration:")

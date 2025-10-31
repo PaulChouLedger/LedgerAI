@@ -1,0 +1,110 @@
+{
+  "condition": "Sarcoidosis",
+  "icd10": "D86.9",
+  "snomed": "233604007",
+  "sex": "both",
+  "prevalence": "rare",
+  "chief_complaint_triggers": [
+    "sarcoidosis",
+    "chest pain",
+    "shortness of breath",
+    "lung disease",
+    "fatigue"
+  ],
+  "urgency": "routine",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual over months to years. LOCATION: Bilateral, diffuse. DURATION: Chronic, persistent. CHARACTER: Progressive dyspnea, chest pain. AGGRAVATING: Exertion, infections. RELIEVING: Steroids, immunosuppressants. TIMING: Chronic, progressive. SEVERITY: Moderate to severe (5-8/10). ASSOCIATED SYMPTOMS: Progressive dyspnea, chest pain, fatigue, weight loss, skin lesions. KEY POSITIVES: Progressive dyspnea, chest pain, fatigue. KEY NEGATIVES: No fever (unless infection), no wheezing (unless reactive airway disease).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "bilateral",
+            "patient_friendly": "both sides"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "midline"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Severe dyspnea or respiratory distress",
+    "Cyanosis or oxygen saturation <90%",
+    "Signs of respiratory failure",
+    "Altered mental status",
+    "Severe fatigue or weakness",
+    "Signs of infection",
+    "Weight loss or cachexia",
+    "Signs of cardiac involvement"
+  ]
+}

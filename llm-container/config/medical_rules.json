@@ -1,0 +1,224 @@
+{
+  "GI": {
+    "bilateral": [
+      "Acute Gastroenteritis",
+      "Severe Constipation",
+      "Inflammatory Bowel Disease Flare (Crohn's/Ulcerative Colitis)",
+      "Irritable Bowel Syndrome (IBS)"
+    ],
+    "midline": [
+      "Peptic Ulcer Disease",
+      "Acute Gastritis",
+      "Acute Pancreatitis",
+      "Gastric Outlet Obstruction",
+      "Mallory-Weiss Tear",
+      "Perforated Viscus (Perforated Ulcer/Bowel)",
+      "Esophageal Spasm",
+      "gastroesophageal reflux disease (GERD) (Cardiac Chest Pain Mimicker)",
+      "gastroesophageal reflux disease (GERD) (Gastroesophageal Reflux Disease)",
+      "Acute Mesenteric Ischemia",
+      "Small Bowel Obstruction"
+    ],
+    "right_only": [
+      "Acute Appendicitis",
+      "Acute Cholecystitis",
+      "Biliary Colic",
+      "Acute Cholangitis",
+      "Acute Hepatitis",
+      "Cecal Volvulus",
+      "Incarcerated Inguinal/Femoral Hernia"
+    ],
+    "left_only": [
+      "Acute Diverticulitis",
+      "Sigmoid Volvulus"
+    ]
+  },
+  "GU": {
+    "bilateral": [
+      "Acute Bacterial Prostatitis"
+    ],
+    "midline": [],
+    "right_only": [
+      "Testicular Torsion"
+    ],
+    "left_only": []
+  },
+  "GYN": {
+    "bilateral": [
+      "Pelvic Inflammatory Disease (PID)"
+    ],
+    "midline": [],
+    "right_only": [
+      "Ectopic Pregnancy",
+      "Ovarian Torsion",
+      "Ruptured Ovarian Cyst"
+    ],
+    "left_only": []
+  },
+  "CARDIO": {
+    "bilateral": [
+      "Acute Heart Failure / Pulmonary Edema",
+      "Atrial Fibrillation (AFib)",
+      "Atrial Flutter",
+      "Benign Arrhythmia (PAC/PVC)",
+      "Cardiogenic Shock",
+      "Chronic Obstructive Pulmonary Disease (COPD)",
+      "Dilated Cardiomyopathy (Decompensated)",
+      "Hypertensive Emergency",
+      "Hypertensive Urgency",
+      "Infective Endocarditis",
+      "Orthostatic Hypotension",
+      "Pulmonary Edema",
+      "Pulmonary Hypertension",
+      "Supraventricular Tachycardia (SVT)",
+      "Takotsubo Cardiomyopathy (Broken Heart Syndrome)",
+      "Vasovagal Syncope (Fainting)",
+      "Ventricular Tachycardia (ventricular tachycardia (VT) / V-Tach)"
+    ],
+    "midline": [
+      "Acute Aortic Syndrome",
+      "Acute Myocardial Infarction (Heart Attack)",
+      "Acute Myocarditis",
+      "Acute Pericarditis",
+      "Aortic Dissection",
+      "Aortic Stenosis (Symptomatic)",
+      "Cardiac Tamponade",
+      "Costochondritis (Chest Wall Pain)",
+      "Mitral Valve Prolapse (Symptomatic)",
+      "Panic Attack / Anxiety-Related Chest Pain",
+      "Pericardial Effusion (Non-Tamponade)",
+      "Prinzmetal Angina (Vasospastic Angina)",
+      "Stable Angina",
+      "Symptomatic Bradycardia / Heart Block",
+      "Unstable Angina",
+      "non-ST-elevation myocardial infarction (NSTEMI) (Non-ST Elevation Myocardial Infarction)"
+    ],
+    "right_only": [],
+    "left_only": []
+  },
+  "PULMONARY": {
+    "bilateral": [
+      "Acute Asthma Exacerbation",
+      "Acute Bronchitis",
+      "Acute Respiratory Distress Syndrome (ARDS)",
+      "Aspiration Pneumonia",
+      "Atelectasis",
+      "Bronchiectasis",
+      "Cystic Fibrosis",
+      "Foreign Body Aspiration",
+      "Hyperventilation Syndrome",
+      "Influenza",
+      "Lung Abscess",
+      "Lung Cancer",
+      "Pleurisy (Pleuritis)",
+      "Pneumonia",
+      "Pulmonary Embolism",
+      "Pulmonary Embolism (PE)",
+      "Pulmonary Fibrosis",
+      "Pulmonary Tuberculosis",
+      "Respiratory Failure",
+      "Sarcoidosis",
+      "Sleep Apnea",
+      "Upper Respiratory Infection (URI)",
+      "Viral Pneumonia"
+    ],
+    "midline": [
+      "Epiglottitis",
+      "Pneumothorax (Collapsed Lung)",
+      "Pneumothorax",
+      "Pleural Effusion"
+    ],
+    "right_only": [],
+    "left_only": []
+  },
+  "MSK": {
+    "bilateral": [
+      "Acute Back Strain",
+      "Rotator Cuff Tear"
+    ],
+    "midline": [
+      "Hip Fracture",
+      "ACL Tear"
+    ],
+    "right_only": [
+      "Acute Ankle Sprain",
+      "Acute Knee Injury",
+      "Shoulder Dislocation"
+    ],
+    "left_only": [
+      "Wrist Fracture",
+      "Elbow Fracture",
+      "Ankle Fracture"
+    ]
+  },
+  "DERM": {
+    "bilateral": [
+      "Acute Urticaria",
+      "Contact Dermatitis",
+      "Atopic Dermatitis Flare",
+      "Psoriasis Flare",
+      "Seborrheic Dermatitis",
+      "Drug Rash"
+    ],
+    "midline": [
+      "Cellulitis",
+      "Impetigo",
+      "Suspicious Skin Lesion"
+    ],
+    "right_only": [
+      "Shingles"
+    ],
+    "left_only": [
+      "Stevens-Johnson Syndrome"
+    ]
+  },
+  "NEURO": {
+    "bilateral": [
+      "Acute Stroke",
+      "Amyotrophic Lateral Sclerosis",
+      "Anaphylaxis",
+      "Bell Palsy",
+      "Brain Tumor",
+      "Concussion",
+      "Encephalitis",
+      "Epilepsy",
+      "Guillain-Barré Syndrome",
+      "Headache",
+      "Huntington's Disease",
+      "Meningitis",
+      "Migraine",
+      "Multiple Sclerosis Flare",
+      "Myasthenia Gravis",
+      "Parkinson's Disease",
+      "Seizure",
+      "Spinal Cord Injury",
+      "Transient Ischemic Attack",
+      "Trigeminal Neuralgia",
+      "Alzheimer's Disease"
+    ],
+    "midline": [],
+    "right_only": [],
+    "left_only": []
+  },
+  "RENAL": {
+    "bilateral": [
+      "Acute Kidney Injury",
+      "Chronic Kidney Disease",
+      "Glomerulonephritis",
+      "Renal Failure",
+      "Dialysis Complications"
+    ],
+    "midline": [
+      "Urinary Tract Infection",
+      "Urinary Tract Infection / Pyelonephritis",
+      "Pyelonephritis"
+    ],
+    "right_only": [
+      "Kidney Stone (Nephrolithiasis/Ureterolithiasis)",
+      "Hydronephrosis",
+      "Renal Colic",
+      "Kidney Stone"
+    ],
+    "left_only": []
+  }
+}

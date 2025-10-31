@@ -1,0 +1,112 @@
+{
+  "condition": "Stevens-Johnson Syndrome",
+  "icd10": "L51.1",
+  "snomed": "125620000",
+  "sex": "both",
+  "prevalence": "rare",
+  "chief_complaint_triggers": [
+    "severe skin rash",
+    "stevens johnson syndrome",
+    "toxic epidermal necrolysis",
+    "skin peeling",
+    "blistering rash",
+    "mucous membrane rash",
+    "drug reaction"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset within hours to days after drug exposure or infection. LOCATION: GENERALIZED with mucous membrane involvement (eyes, mouth, genitals). DURATION: Rapid progression over hours to days. CHARACTER: ERYTHEMATOUS (red) patches that progress to BULLAE (large blisters) and EPIDERMAL NECROSIS (skin death). AGGRAVATING: TOUCH, heat, movement. RELIEVING: IMMEDIATE discontinuation of offending drug, supportive care, burn unit care. TIMING: Rapid progression over hours to days. SEVERITY: 8-10/10 pain, severe and unrelenting. ASSOCIATED SYMPTOMS: FEVER (100-104°F), malaise, mucous membrane involvement, skin sloughing, may have systemic symptoms. KEY POSITIVES: Erythematous patches, bullae, epidermal necrosis, mucous membrane involvement, positive Nikolsky sign. KEY NEGATIVES: No fever >104°F (rules out toxic shock), no systemic shock (unless severe).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "generalized",
+            "patient_friendly": "GENERALIZED"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "erythematous",
+            "patient_friendly": "ERYTHEMATOUS"
+          },
+          {
+            "medical": "bullae",
+            "patient_friendly": "BULLAE"
+          },
+          {
+            "medical": "epidermal necrosis",
+            "patient_friendly": "EPIDERMAL NECROSIS"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "touch",
+            "patient_friendly": "TOUCH"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "immediate",
+            "patient_friendly": "IMMEDIATE"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "fever",
+            "patient_friendly": "fever"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Rash involving >30% of body surface - toxic epidermal necrolysis, call 911",
+    "Rash with severe systemic symptoms - fever, hypotension, tachycardia - toxic shock, call 911",
+    "Rash with mucous membrane involvement - eyes, mouth, genitals - needs urgent evaluation",
+    "Rash with skin sloughing - epidermal necrosis, call 911",
+    "Rash with signs of secondary infection - fever, pus, increasing pain - needs urgent evaluation"
+  ]
+}

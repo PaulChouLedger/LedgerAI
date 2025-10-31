@@ -1,0 +1,118 @@
+{
+  "condition": "Acute Pericarditis",
+  "icd10": "I30.9",
+  "snomed": "3238004",
+  "chief_complaint_triggers": [
+    "chest pain",
+    "sharp chest pain",
+    "chest pain worse with breathing"
+  ],
+  "urgency": "urgent",
+  "prevalence": "uncommon",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual over hours to days, often post-viral illness. LOCATION: RETROSTERNAL or left precordial (over heart). RADIATES to trapezius ridge (shoulder), neck. DURATION: Continuous for hours to days. CHARACTER: SHARP, PLEURITIC (worse with breathing), stabbing. AGGRAVATING: Deep inspiration, lying flat, cough. RELIEVING: SITTING UP and LEANING FORWARD. TIMING: Constant but fluctuates with position and breathing. SEVERITY: 6-8/10. KEY POSITIVES: Recent viral illness (URI), pericardial friction rub on exam, positional relief. KEY NEGATIVES: NOT crushing/pressure (unlike myocardial infarction ), NOT exertional.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "retrosternal",
+            "patient_friendly": "RETROSTERNAL"
+          }
+        ],
+        "excludes": []
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "to trapezius ridge (shoulder), neck",
+            "patient_friendly": "your neck"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "pleuritic",
+            "patient_friendly": "PLEURITIC"
+          },
+          {
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "sitting",
+            "patient_friendly": "sitting up"
+          },
+          {
+            "medical": "leaning forward",
+            "patient_friendly": "LEANING FORWARD"
+          },
+          {
+            "medical": "sitting up",
+            "patient_friendly": "sitting up"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Fever",
+    "Hemodynamic instability",
+    "Large pericardial effusion",
+    "Immunosuppression",
+    "Trauma history",
+    "Anticoagulation use",
+    "Muffled heart sounds (tamponade)",
+    "Jugular venous distension"
+  ]
+}

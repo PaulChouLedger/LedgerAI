@@ -75,6 +75,15 @@ show_all_settings() {
     fi
     echo ""
     
+    echo -e "${BOLD}🧠 LLM CONTAINER MODE${NC}"
+    local medical_mode=$(get_config_value "USE_MEDICAL_MODE")
+    if [ "$medical_mode" == "true" ]; then
+        echo -e "  ${GREEN}●${NC} Medical Mode (symptom assessment, adaptive diagnostics)"
+    else
+        echo -e "  ${YELLOW}○${NC} Generic Mode (general conversation, RAG Q&A)"
+    fi
+    echo ""
+    
     echo -e "${BOLD}🧠 LLM MODEL${NC}"
     echo "  Model:         $(get_config_value 'SIMPLE_MODEL_PATH' | sed 's|.*/||')"
     echo "  Context:       $(get_config_value 'SIMPLE_N_CTX')"
@@ -177,6 +186,35 @@ toggle_ehr() {
         echo -e "${GREEN}✅ EHR Integration DISABLED${NC}"
         echo ""
         echo "Normal Aura mode (local data only)"
+        echo ""
+    fi
+    
+    show_restart_message
+}
+
+toggle_medical_mode() {
+    local action=$1
+    
+    if [ "$action" == "on" ]; then
+        set_config_value "USE_MEDICAL_MODE" "true"
+        echo ""
+        echo -e "${GREEN}✅ Medical Mode ENABLED${NC}"
+        echo ""
+        echo "Container will handle:"
+        echo "  • Medical symptom assessment"
+        echo "  • Adaptive diagnostic engine"
+        echo "  • OLDCARTS-based questioning"
+        echo "  • Guideline matching"
+        echo ""
+    else
+        set_config_value "USE_MEDICAL_MODE" "false"
+        echo ""
+        echo -e "${GREEN}✅ Generic Mode ENABLED${NC}"
+        echo ""
+        echo "Container will handle:"
+        echo "  • General conversation"
+        echo "  • RAG-powered document Q&A"
+        echo "  • Flexible LLM interactions"
         echo ""
     fi
     
@@ -297,6 +335,41 @@ configure_llm() {
             fi
             ;;
         12) return ;;
+    esac
+}
+
+configure_medical_mode() {
+    print_header "LLM CONTAINER MODE CONFIGURATION"
+    
+    local current=$(get_config_value 'USE_MEDICAL_MODE')
+    
+    echo "Current Mode:"
+    if [ "$current" == "true" ]; then
+        echo -e "  ${GREEN}Medical Mode${NC} - Symptom assessment, adaptive diagnostics"
+        echo ""
+        echo "  Endpoints available:"
+        echo "    • /chat-medical - Medical conversations"
+        echo "    • /chat-tg - Routes to medical mode"
+        echo "    • /chat-tts - Routes to medical mode (streaming)"
+    else
+        echo -e "  ${YELLOW}Generic Mode${NC} - General conversation, RAG Q&A"
+        echo ""
+        echo "  Endpoints available:"
+        echo "    • /chat-generic - Generic conversations"
+        echo "    • /chat-tg - Routes to generic mode"
+        echo "    • /chat-tts - Routes to generic mode (streaming)"
+    fi
+    echo ""
+    echo "1) Enable Medical Mode"
+    echo "2) Enable Generic Mode"
+    echo "3) Back to main menu"
+    echo ""
+    read -p "Choice [1-3]: " choice
+    
+    case $choice in
+        1) toggle_medical_mode on ;;
+        2) toggle_medical_mode off ;;
+        3) return ;;
     esac
 }
 
@@ -634,16 +707,18 @@ main_menu() {
         echo ""
         echo "  1) Toggle EHR (on/off)"
         echo "  2) Configure EHR settings"
-        echo "  3) Configure LLM models"
-        echo "  4) Configure RAG search"
-        echo "  5) Configure TTS (ElevenLabs)"
-        echo "  6) Configure Telegram bot"
-        echo "  7) Configure NHS/FHIR credentials"
-        echo "  8) Edit .env file directly"
-        echo "  9) Restart Docker containers"
+        echo "  3) Toggle LLM Mode (Medical/Generic)"
+        echo "  4) Configure LLM Mode settings"
+        echo "  5) Configure LLM models"
+        echo "  6) Configure RAG search"
+        echo "  7) Configure TTS (ElevenLabs)"
+        echo "  8) Configure Telegram bot"
+        echo "  9) Configure NHS/FHIR credentials"
+        echo "  a) Edit .env file directly"
+        echo "  b) Restart Docker containers"
         echo "  0) Exit"
         echo ""
-        read -p "Enter choice [0-9]: " choice
+        read -p "Enter choice [0-9ab]: " choice
         
         case $choice in
             1)
@@ -673,29 +748,55 @@ main_menu() {
                 read -p "Press Enter to continue..."
                 ;;
             3)
-                configure_llm
+                # Show current state and ask what to do
+                local current=$(get_config_value 'USE_MEDICAL_MODE')
+                echo ""
+                if [ "$current" == "true" ]; then
+                    echo "LLM Mode is currently: MEDICAL"
+                    echo ""
+                    read -p "Switch to GENERIC mode? (y/n): " answer
+                    if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
+                        toggle_medical_mode off
+                    fi
+                else
+                    echo "LLM Mode is currently: GENERIC"
+                    echo ""
+                    read -p "Switch to MEDICAL mode? (y/n): " answer
+                    if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
+                        toggle_medical_mode on
+                    fi
+                fi
+                echo ""
                 read -p "Press Enter to continue..."
                 ;;
             4)
-                configure_rag
+                configure_medical_mode
                 read -p "Press Enter to continue..."
                 ;;
             5)
-                configure_tts
+                configure_llm
                 read -p "Press Enter to continue..."
                 ;;
             6)
-                configure_telegram
+                configure_rag
                 read -p "Press Enter to continue..."
                 ;;
             7)
-                configure_nhs_fhir
+                configure_tts
                 read -p "Press Enter to continue..."
                 ;;
             8)
-                edit_file
+                configure_telegram
+                read -p "Press Enter to continue..."
                 ;;
             9)
+                configure_nhs_fhir
+                read -p "Press Enter to continue..."
+                ;;
+            a|A)
+                edit_file
+                ;;
+            b|B)
                 echo ""
                 echo "Restarting Docker containers..."
                 docker-compose restart
@@ -731,6 +832,13 @@ case "${1:-}" in
             on|enable) toggle_ehr on ;;
             off|disable) toggle_ehr off ;;
             *) configure_ehr ;;
+        esac
+        ;;
+    mode|medical)
+        case "${2:-}" in
+            on|enable|medical) toggle_medical_mode on ;;
+            off|disable|generic) toggle_medical_mode off ;;
+            *) configure_medical_mode ;;
         esac
         ;;
     edit)

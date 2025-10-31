@@ -1,0 +1,108 @@
+{
+  "condition": "Myasthenia Gravis",
+  "icd10": "G70.0",
+  "snomed": "125639009",
+  "sex": "both",
+  "prevalence": "rare",
+  "chief_complaint_triggers": [
+    "myasthenia gravis",
+    "muscle weakness",
+    "double vision",
+    "drooping eyelids",
+    "difficulty swallowing",
+    "breathing problems",
+    "fatigue"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: GRADUAL onset over days to weeks. LOCATION: BILATERAL weakness, usually starting with eyes. DURATION: Progressive over days to weeks. CHARACTER: PROGRESSIVE weakness, fatigue. AGGRAVATING: ACTIVITY, stress, fatigue. RELIEVING: CHOLINESTERASE inhibitors, immunosuppressants. TIMING: Progressive over days to weeks. SEVERITY: 4-8/10, moderate to severe. ASSOCIATED SYMPTOMS: PROGRESSIVE WEAKNESS, double vision, drooping eyelids, difficulty swallowing, breathing problems, fatigue. KEY POSITIVES: Progressive weakness, double vision, drooping eyelids, difficulty swallowing, breathing problems. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "bilateral",
+            "patient_friendly": "both sides"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "progressive",
+            "patient_friendly": "PROGRESSIVE"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "activity",
+            "patient_friendly": "ACTIVITY"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "cholinesterase",
+            "patient_friendly": "CHOLINESTERASE"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "progressive weakness",
+            "patient_friendly": "PROGRESSIVE WEAKNESS"
+          },
+          {
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Severe respiratory distress - possible respiratory failure, call 911",
+    "Signs of respiratory failure - difficulty breathing, cyanosis, altered mental status - call 911",
+    "Severe hypertension with neurological deficits - possible hypertensive crisis, call 911",
+    "Signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911",
+    "Signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911"
+  ]
+}

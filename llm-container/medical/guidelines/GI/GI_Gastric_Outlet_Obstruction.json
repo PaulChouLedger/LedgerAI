@@ -1,0 +1,143 @@
+{
+  "condition": "Gastric Outlet Obstruction",
+  "icd10": "K31.1",
+  "snomed": "29468003",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "urgency": "urgent",
+  "chief_complaint_triggers": [
+    "abdominal pain",
+    "vomiting",
+    "early satiety",
+    "fullness after eating",
+    "upper abdominal pain",
+    "persistent vomiting",
+    "undigested food vomiting"
+  ],
+  "key_features": {
+    "classic_presentation": "ONSET: GRADUAL onset over days to weeks (chronic obstruction), may have acute exacerbation. History of peptic ulcer disease or gastric malignancy. LOCATION: Epigastric (upper mid-abdomen), may radiate to back. DURATION: CONSTANT discomfort with episodic severe pain during eating. CHARACTER: CRAMPY, fullness, bloating initially. Becomes CONSTANT dull ache if severe. AGGRAVATING: Eating solid foods markedly worsens symptoms. Nausea and vomiting occur 30min-2hrs after eating. RELIEVING: Vomiting provides temporary relief of distension. Liquids tolerated better than solids initially. TIMING: Postprandial (after meals), progressive worsening over time. SEVERITY: 5-7/10, moderate. ASSOCIATED SYMPTOMS: Persistent or projectile vomiting of UNDIGESTED FOOD (hours old), early satiety, weight loss, visible gastric peristalsis (succussion splash), dehydration. Vomit may contain food from >12 hours ago. KEY POSITIVES: Vomiting undigested food, early satiety, weight loss, history of PUD or gastric cancer. KEY NEGATIVES: Bilious vomiting suggests obstruction beyond duodenum (different diagnosis).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "epigastric",
+            "patient_friendly": "upper middle part of your belly"
+          },
+          {
+            "medical": "abdomen",
+            "patient_friendly": "your belly"
+          },
+          {
+            "medical": "back",
+            "patient_friendly": "your back"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "eating",
+            "patient_friendly": "eating"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "crampy",
+            "patient_friendly": "crampy or cramping"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "dull",
+            "patient_friendly": "dull or achy"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "eating",
+            "patient_friendly": "eating"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "undigested food",
+            "patient_friendly": "UNDIGESTED FOOD"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Severe dehydration with hypotension - needs IV fluids immediately",
+    "Unintentional weight loss >10% - malignancy concern",
+    "Coffee-ground emesis or hematemesis - bleeding ulcer",
+    "Severe electrolyte imbalances - hypochloremic, hypokalemic alkalosis"
+  ]
+}

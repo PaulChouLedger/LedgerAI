@@ -1,0 +1,104 @@
+{
+  "condition": "Epilepsy",
+  "icd10": "G40.9",
+  "snomed": "125637007",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "epilepsy",
+    "seizure disorder",
+    "convulsions",
+    "seizures",
+    "unconscious episodes",
+    "jerking movements",
+    "fainting"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset within seconds. LOCATION: GENERALIZED or focal. DURATION: Lasts seconds to minutes. CHARACTER: INVOLUNTARY movements, jerking, convulsions. AGGRAVATING: STRESS, sleep deprivation, medication non-compliance. RELIEVING: ANTICONVULSANTS, supportive care. TIMING: Sudden onset, lasts seconds to minutes. SEVERITY: 8-10/10 during episode, then resolves. ASSOCIATED SYMPTOMS: LOSS OF CONSCIOUSNESS, jerking movements, tongue biting, incontinence, postictal confusion. KEY POSITIVES: Involuntary movements, loss of consciousness, postictal confusion, tongue biting. KEY NEGATIVES: No fever, no neck stiffness, no photophobia.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "generalized",
+            "patient_friendly": "GENERALIZED"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "involuntary",
+            "patient_friendly": "INVOLUNTARY"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "stress",
+            "patient_friendly": "STRESS"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "anticonvulsants",
+            "patient_friendly": "ANTICONVULSANTS"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "loss",
+            "patient_friendly": "LOSS"
+          },
+          {
+            "medical": "consciousness",
+            "patient_friendly": "CONSCIOUSNESS"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Seizure lasting >5 minutes - status epilepticus, call 911",
+    "Multiple seizures without regaining consciousness - status epilepticus, call 911",
+    "Seizure with severe head injury - possible traumatic brain injury, call 911",
+    "Seizure with signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911",
+    "Seizure with severe hypertension - possible hypertensive crisis, call 911"
+  ]
+}

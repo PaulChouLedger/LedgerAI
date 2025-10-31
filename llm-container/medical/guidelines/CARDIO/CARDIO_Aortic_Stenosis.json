@@ -1,0 +1,89 @@
+{
+  "condition": "Aortic Stenosis (Symptomatic)",
+  "icd10": "I35.0",
+  "snomed": "60573004",
+  "chief_complaint_triggers": [
+    "chest pain with exertion",
+    "shortness of breath",
+    "syncope",
+    "dizziness with exertion"
+  ],
+  "urgency": "urgent",
+  "prevalence": "uncommon",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Progressive over months to years, acute decompensation possible. LOCATION: Chest (retrosternal angina), generalized dyspnea. DURATION: Progressive symptoms. CHARACTER: Exertional angina (pressure, squeezing), exertional dyspnea, exertional syncope (classic triad: angina, dyspnea, syncope). AGGRAVATING: EXERTION (angina and syncope), lying flat (dyspnea). RELIEVING: Rest. TIMING: Predictable with exertion. SEVERITY: Variable, 5-8/10 for angina. KEY POSITIVES: Elderly patient, harsh systolic ejection murmur (loudest at right upper sternal border), radiates to carotids, narrow pulse pressure, delayed carotid upstroke, history of bicuspid aortic valve. KEY NEGATIVES: NOT at rest typically.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure-like"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "exertion",
+            "patient_friendly": "EXERTION"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Syncope (especially exertional)",
+    "Severe or new-onset dyspnea",
+    "Angina (chest pain)",
+    "Heart failure symptoms",
+    "Syncope with exertion (high risk)",
+    "Severe stenosis on echo",
+    "Low gradient severe aortic stenosis (AS)"
+  ]
+}

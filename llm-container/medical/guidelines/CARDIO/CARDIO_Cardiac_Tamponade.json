@@ -1,0 +1,99 @@
+{
+  "condition": "Cardiac Tamponade",
+  "icd10": "I31.4",
+  "snomed": "35304003",
+  "chief_complaint_triggers": [
+    "shortness of breath",
+    "chest pressure",
+    "difficulty breathing",
+    "lightheadedness"
+  ],
+  "urgency": "emergent",
+  "prevalence": "rare",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Can be acute (trauma, rupture) or subacute (effusion accumulation). LOCATION: Chest (retrosternal pressure), generalized dyspnea. DURATION: Progressive over hours to days. CHARACTER: Dyspnea, chest pressure, feeling of impending doom. AGGRAVATING: Lying flat. RELIEVING: Sitting up, leaning forward. TIMING: Progressive worsening. SEVERITY: Severe respiratory distress. KEY POSITIVES: Beck's triad (hypotension, muffled heart sounds, JVD), pulsus paradoxus, tachycardia, dyspnea, recent pericarditis or trauma or malignancy. KEY NEGATIVES: NOT pleuritic pain, NOT unilateral symptoms.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          },
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure-like"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          },
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure-like"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "sitting up",
+            "patient_friendly": "sitting up"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Hypotension or shock",
+    "Muffled or distant heart sounds",
+    "Jugular venous distension (JVD)",
+    "Pulsus paradoxus",
+    "Tachycardia",
+    "Recent chest trauma",
+    "Recent cardiac procedure or catheterization",
+    "History of pericarditis or malignancy",
+    "Altered mental status"
+  ]
+}

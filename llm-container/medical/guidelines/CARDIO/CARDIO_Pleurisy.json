@@ -1,0 +1,124 @@
+{
+  "condition": "Pleurisy (Pleuritis)",
+  "icd10": "R09.1",
+  "snomed": "196075003",
+  "chief_complaint_triggers": [
+    "chest pain with breathing",
+    "sharp chest pain",
+    "pain when breathing deeply"
+  ],
+  "urgency": "routine",
+  "prevalence": "uncommon",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual, over hours to days, often post-viral or post-pneumonia. LOCATION: Lateral chest wall, unilateral. DURATION: Days to weeks. CHARACTER: SHARP, STABBING, PLEURITIC (worse with breathing). AGGRAVATING: DEEP INSPIRATION, cough, chest movement. RELIEVING: Splinting chest, shallow breathing, lying on affected side. TIMING: Constant but fluctuates with breathing. SEVERITY: 5-8/10 with deep breath. KEY POSITIVES: Recent respiratory infection, pleural friction rub on exam, worse with breathing/cough, unilateral. KEY NEGATIVES: NOT cardiac radiation (arm/jaw), NOT exertional, NOT crushing pressure.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          },
+          {
+            "medical": "unilateral",
+            "patient_friendly": "one side"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "stabbing",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "pleuritic",
+            "patient_friendly": "PLEURITIC"
+          },
+          {
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "deep inspiration",
+            "patient_friendly": "DEEP INSPIRATION"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          },
+          {
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Fever >101°F (suggests pneumonia)",
+    "Hypoxia",
+    "Hemoptysis (coughing blood)",
+    "Unilateral leg swelling (pulmonary embolism (PE) risk)",
+    "Severe dyspnea",
+    "Persistent despite treatment"
+  ]
+}

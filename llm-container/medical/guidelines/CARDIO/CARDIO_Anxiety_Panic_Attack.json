@@ -1,0 +1,94 @@
+{
+  "condition": "Panic Attack / Anxiety-Related Chest Pain",
+  "icd10": "F41.0",
+  "snomed": "371631005",
+  "chief_complaint_triggers": [
+    "chest pain",
+    "can't breathe",
+    "hyperventilating",
+    "panic attack"
+  ],
+  "urgency": "routine",
+  "prevalence": "common",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Sudden, often with anxiety or stress trigger. LOCATION: Chest (variable location, can be diffuse or left-sided). DURATION: Minutes to hours, typically peaks at 10 minutes. CHARACTER: Sharp or vague discomfort, \"can't catch breath\", chest tightness. AGGRAVATING: Anxiety, stress, hyperventilation. RELIEVING: Reassurance, breathing exercises, anxiolytics. TIMING: Episodic, associated with stress/anxiety. SEVERITY: 5-8/10 subjectively but benign objectively. KEY POSITIVES: Hyperventilation, perioral tingling, carpopedal spasm, sense of impending doom, young patient, history of anxiety disorder, dyspnea out of proportion to findings. KEY NEGATIVES: NOT exertional pattern, NOT cardiac risk factors typically, NOT reproducible with palpation.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "midline"
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Cardiac risk factors present (must rule out cardiac)",
+    "Exertional pattern (suggests cardiac)",
+    "Older age (suggests cardiac)",
+    "Diaphoresis (suggests cardiac)",
+    "Radiation to arm/jaw (suggests cardiac)",
+    "Syncope",
+    "First episode ever in older patient"
+  ]
+}

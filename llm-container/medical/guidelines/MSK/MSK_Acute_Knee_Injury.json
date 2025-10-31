@@ -1,0 +1,132 @@
+{
+  "condition": "Acute Knee Injury",
+  "icd10": "S83.9",
+  "snomed": "125606003",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "knee pain",
+    "knee injury",
+    "twisted knee",
+    "knee swelling",
+    "knee locked",
+    "knee giving out",
+    "can't straighten knee"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset during activity - twisting, pivoting, direct blow, or hyperextension. Common in sports, falls, or accidents. LOCATION: Anterior knee (patellar), medial knee (MCL), lateral knee (LCL), or posterior knee depending on mechanism. DURATION: Immediate pain that may worsen over first 24-48 hours. CHARACTER: SHARP initial pain, then THROBBING and ACHING. May have 'popping' or 'snapping' sound. AGGRAVATING: WEIGHT BEARING, walking, stairs, squatting, knee flexion/extension. RELIEVING: REST, ICE, elevation, NSAIDs. TIMING: Immediate pain, swelling develops over hours, stiffness increases over 24-48 hours. SEVERITY: 5-9/10, severe with activity. ASSOCIATED SYMPTOMS: SWELLING within hours (effusion), BRUISING develops over 24-48 hours, STIFFNESS, difficulty walking or bearing weight, knee may 'give way' or 'lock'. May have audible 'pop' at injury. KEY POSITIVES: Joint effusion, tenderness over affected ligaments, positive Lachman test (ACL), positive valgus/varus stress tests (MCL/LCL), positive McMurray test (meniscus). KEY NEGATIVES: No bony tenderness over patella or tibial plateau (rules out fracture), no obvious deformity.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "mcl",
+            "patient_friendly": "MCL"
+          },
+          {
+            "medical": "lcl",
+            "patient_friendly": "LCL"
+          },
+          {
+            "medical": "knee",
+            "patient_friendly": "knee"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "throbbing",
+            "patient_friendly": "THROBBING"
+          },
+          {
+            "medical": "aching",
+            "patient_friendly": "aching"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "weight bearing",
+            "patient_friendly": "WEIGHT BEARING"
+          },
+          {
+            "medical": "knee",
+            "patient_friendly": "knee"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "swelling",
+            "patient_friendly": "SWELLING"
+          },
+          {
+            "medical": "bruising",
+            "patient_friendly": "BRUISING"
+          },
+          {
+            "medical": "stiffness",
+            "patient_friendly": "STIFFNESS"
+          },
+          {
+            "medical": "knee",
+            "patient_friendly": "knee"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Inability to bear weight immediately - possible fracture or severe ligament injury",
+    "Severe deformity or obvious fracture - obvious knee fracture, call 911",
+    "Knee locked in fixed position - possible meniscal tear or loose body, needs urgent evaluation",
+    "Severe swelling with severe pain - possible hemarthrosis or severe ligament injury",
+    "Numbness or tingling below knee - possible nerve injury or compartment syndrome"
+  ]
+}

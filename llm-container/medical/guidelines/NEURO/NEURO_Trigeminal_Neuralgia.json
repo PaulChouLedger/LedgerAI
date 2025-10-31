@@ -1,0 +1,125 @@
+{
+  "condition": "Trigeminal Neuralgia",
+  "icd10": "G50.0",
+  "snomed": "125638008",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "trigeminal neuralgia",
+    "facial pain",
+    "nerve pain",
+    "facial neuralgia",
+    "trigeminal nerve pain",
+    "facial shooting pain",
+    "facial electric pain"
+  ],
+  "urgency": "urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset within seconds. LOCATION: UNILATERAL facial pain. DURATION: Lasts seconds to minutes. CHARACTER: SEVERE, SHARP, ELECTRIC-like pain. AGGRAVATING: TOUCH, speaking, eating, brushing teeth. RELIEVING: ANTICONVULSANTS, avoiding triggers. TIMING: Sudden onset, lasts seconds to minutes. SEVERITY: 8-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: SEVERE FACIAL PAIN, may have facial twitching, may have difficulty speaking, eating. KEY POSITIVES: Severe facial pain, electric-like pain, trigger points. KEY NEGATIVES: No fever, no neck stiffness, no focal neurological deficits.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "unilateral",
+            "patient_friendly": "one side"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "electric",
+            "patient_friendly": "ELECTRIC"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "touch",
+            "patient_friendly": "TOUCH"
+          },
+          {
+            "medical": "eating",
+            "patient_friendly": "eating"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "anticonvulsants",
+            "patient_friendly": "ANTICONVULSANTS"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "severe facial pain",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "eating",
+            "patient_friendly": "eating"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Severe facial pain with other neurological deficits - possible stroke, call 911",
+    "Facial pain with signs of increased intracranial pressure - severe headache, vomiting, altered mental status - call 911",
+    "Facial pain with severe hypertension - possible hypertensive crisis, call 911",
+    "Facial pain with signs of brainstem involvement - dysphagia, dysarthria, ataxia - call 911",
+    "Facial pain with signs of respiratory failure - difficulty breathing, cyanosis, altered mental status - call 911"
+  ]
+}

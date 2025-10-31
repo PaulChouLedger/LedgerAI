@@ -1,0 +1,89 @@
+{
+  "condition": "Supraventricular Tachycardia (SVT)",
+  "icd10": "I47.1",
+  "snomed": "6456007",
+  "chief_complaint_triggers": [
+    "palpitations",
+    "racing heart",
+    "fast heartbeat",
+    "heart pounding"
+  ],
+  "urgency": "urgent",
+  "prevalence": "uncommon",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN, abrupt start (\"like a switch flipped\"). LOCATION: Chest, palpitations. DURATION: Minutes to hours. CHARACTER: REGULAR, RAPID palpitations, \"racing\" heart. AGGRAVATING: Caffeine, stress, exertion. RELIEVING: Vagal maneuvers (bearing down, carotid massage), sometimes spontaneous. TIMING: Paroxysmal (sudden start and stop). SEVERITY: Uncomfortable but not painful typically. KEY POSITIVES: Heart rate 150-250 bpm, regular rhythm, lightheadedness, dyspnea, chest pressure, sudden onset and offset. KEY NEGATIVES: NOT irregularly irregular (AFib), NOT gradual onset.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "regular",
+            "patient_friendly": "REGULAR"
+          },
+          {
+            "medical": "rapid",
+            "patient_friendly": "RAPID"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Hemodynamic instability",
+    "Syncope or near-syncope",
+    "Chest pain",
+    "Severe dyspnea",
+    "Heart rate >200 bpm",
+    "Signs of heart failure",
+    "Altered mental status",
+    "History of Wolff-Parkinson-White syndrome (WPW) (Wolff-Parkinson-White)"
+  ]
+}

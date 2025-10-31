@@ -1,0 +1,91 @@
+{
+  "condition": "Pericardial Effusion (Non-Tamponade)",
+  "icd10": "I31.3",
+  "snomed": "373945007",
+  "chief_complaint_triggers": [
+    "chest discomfort",
+    "shortness of breath",
+    "chest fullness"
+  ],
+  "urgency": "urgent",
+  "prevalence": "uncommon",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual, over days to weeks. LOCATION: Chest (retrosternal or precordial). DURATION: Progressive over time. CHARACTER: Dull chest discomfort, pressure, or fullness. AGGRAVATING: Lying flat. RELIEVING: Sitting up, leaning forward. TIMING: Progressive worsening. SEVERITY: 3-6/10 discomfort. KEY POSITIVES: Recent pericarditis, malignancy history, uremia (kidney failure), hypothyroidism, autoimmune disease, muffled heart sounds, dyspnea. KEY NEGATIVES: NOT hemodynamic compromise (that's tamponade), NOT Beck's triad.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "dull",
+            "patient_friendly": "dull or achy"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          },
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure-like"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "sitting up",
+            "patient_friendly": "sitting up"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Rapidly accumulating effusion",
+    "Hypotension (suggests tamponade)",
+    "Jugular venous distension",
+    "Muffled heart sounds",
+    "Pulsus paradoxus",
+    "Large effusion on imaging",
+    "Malignancy or uremia"
+  ]
+}

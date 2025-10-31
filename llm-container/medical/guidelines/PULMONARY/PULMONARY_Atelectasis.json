@@ -1,0 +1,121 @@
+{
+  "condition": "Atelectasis",
+  "icd10": "J98.11",
+  "snomed": "19450001",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "shortness of breath",
+    "chest pain",
+    "collapsed lung",
+    "atelectasis",
+    "breathing problems after surgery"
+  ],
+  "urgency": "routine",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual or sudden, often post-operative or bedridden. LOCATION: Focal or segmental lung areas. DURATION: Hours to days, can be persistent. CHARACTER: Mild dyspnea, chest discomfort. AGGRAVATING: Lying flat, shallow breathing. RELIEVING: Deep breathing, coughing, incentive spirometry, positioning. TIMING: Often worse in morning, improves with activity. SEVERITY: Mild to moderate (3-6/10). ASSOCIATED SYMPTOMS: Mild dyspnea, dry cough, chest discomfort, low-grade fever (if infection develops). KEY POSITIVES: Recent surgery, immobility, shallow breathing. KEY NEGATIVES: No severe dyspnea, no chest pain (unless severe), no wheezing.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "breathing",
+            "patient_friendly": "taking deep breaths"
+          },
+          {
+            "medical": "coughing",
+            "patient_friendly": "coughing"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Severe dyspnea or respiratory distress",
+    "High fever >101.5°F",
+    "Chest pain with breathing",
+    "Cyanosis or oxygen saturation <90%",
+    "Hemoptysis",
+    "Signs of infection",
+    "Progressive respiratory failure",
+    "Altered mental status"
+  ]
+}

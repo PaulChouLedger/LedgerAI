@@ -1,0 +1,66 @@
+{
+  "condition": "Infective Endocarditis",
+  "icd10": "I33.0",
+  "snomed": "56819008",
+  "chief_complaint_triggers": [
+    "fever",
+    "heart murmur",
+    "fatigue",
+    "night sweats"
+  ],
+  "urgency": "urgent",
+  "prevalence": "rare",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Subacute, over days to weeks. LOCATION: Generalized systemic symptoms. DURATION: Continuous over weeks. CHARACTER: Fever, fatigue, malaise, night sweats. AGGRAVATING: None specific. RELIEVING: Antibiotics. TIMING: Progressive, worsening. SEVERITY: Variable systemic illness. KEY POSITIVES: Persistent fever, new or changing heart murmur, IVDU (injection drug use), recent dental work or procedure, prosthetic valve, splinter hemorrhages, Osler nodes, Janeway lesions, embolic phenomena (stroke, splenic infarct). KEY NEGATIVES: NOT acute onset, NOT isolated chest pain.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [],
+        "excludes": []
+      },
+      "location": {
+        "includes": [],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Persistent fever despite antibiotics",
+    "New or changing heart murmur",
+    "History of IVDU",
+    "Prosthetic heart valve",
+    "Recent dental or invasive procedure",
+    "Embolic events (stroke, peripheral emboli)",
+    "Heart failure symptoms",
+    "Splinter hemorrhages or petechiae",
+    "Septic shock"
+  ]
+}

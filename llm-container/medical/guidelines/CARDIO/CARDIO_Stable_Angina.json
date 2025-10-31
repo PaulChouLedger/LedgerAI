@@ -1,0 +1,100 @@
+{
+  "condition": "Stable Angina",
+  "icd10": "I20.9",
+  "snomed": "194828000",
+  "chief_complaint_triggers": [
+    "chest pain with exertion",
+    "chest pressure with activity",
+    "exertional chest pain"
+  ],
+  "urgency": "routine",
+  "prevalence": "common",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual with exertion, predictable pattern. LOCATION: RETROSTERNAL or left chest. RADIATES to left arm, jaw, shoulder. DURATION: Brief, typically 2-10 minutes. CHARACTER: Pressure, tightness, heaviness. AGGRAVATING: EXERTION, cold weather, heavy meals, emotional stress. RELIEVING: REST (within minutes) or nitroglycerin. TIMING: Reproducible with similar exertion levels. SEVERITY: 4-6/10, consistent. KEY POSITIVES: Predictable with exertion, relieved by rest in <5 minutes, relieved by nitroglycerin, history of CAD or risk factors. KEY NEGATIVES: NOT at rest (unstable angina), NOT unpredictable.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "retrosternal",
+            "patient_friendly": "RETROSTERNAL"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "to left arm, jaw, shoulder",
+            "patient_friendly": "spreads to your left shoulder"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure-like"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "exertion",
+            "patient_friendly": "EXERTION"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Changing pattern (unstable angina)",
+    "Occurs at rest",
+    "Increasing frequency or severity",
+    "Prolonged duration >10 minutes",
+    "Poor response to nitroglycerin",
+    "New onset in past 2 weeks"
+  ]
+}

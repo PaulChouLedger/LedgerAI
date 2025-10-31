@@ -1,0 +1,122 @@
+{
+  "condition": "Acute Gastritis",
+  "icd10": "K29.70",
+  "snomed": "4556007",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "urgency": "routine",
+  "chief_complaint_triggers": [
+    "abdominal pain",
+    "stomach pain",
+    "epigastric pain",
+    "nausea",
+    "upper abdominal pain"
+  ],
+  "key_features": {
+    "classic_presentation": "ONSET: ACUTE onset within hours to days. Triggered by NSAIDs, alcohol, or stress. LOCATION: EPIGASTRIC (upper mid-abdomen), diffuse. NO radiation. DURATION: Symptoms last hours to days. May persist if trigger continues. CHARACTER: GNAWING or BURNING quality. Discomfort more than severe pain. AGGRAVATING: WORSE WITH EATING (unlike duodenal ulcer). NSAIDs, alcohol, spicy foods worsen. RELIEVING: Antacids provide relief. Stopping NSAIDs helps. Empty stomach may feel better (opposite of duodenal ulcer). TIMING: Can be CONSTANT or EPISODIC. Often worse after meals. May persist for hours to days. SEVERITY: 4-7/10, mild to moderate discomfort. ASSOCIATED SYMPTOMS: NAUSEA (very common), vomiting, loss of appetite, bloating, early satiety. KEY POSITIVES: Recent NSAID/alcohol use, nausea worse with eating, diffuse epigastric tenderness, antacid relief. KEY NEGATIVES: Severe LOCALIZED pain suggests ulcer. Hematemesis or melena suggests bleeding needing urgent evaluation. Weight loss suggests malignancy.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "epigastric",
+            "patient_friendly": "upper middle part of your belly"
+          },
+          {
+            "medical": "abdomen",
+            "patient_friendly": "your belly"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "midline"
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "gnawing",
+            "patient_friendly": "GNAWING"
+          },
+          {
+            "medical": "burning",
+            "patient_friendly": "burning sensation"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "worse with eating",
+            "patient_friendly": "eating"
+          },
+          {
+            "medical": "eating",
+            "patient_friendly": "eating"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Vomiting blood (hematemesis) or coffee-ground emesis - GI bleeding, needs urgent endoscopy",
+    "Black tarry stools (melena) - upper GI bleeding",
+    "Severe pain with peritoneal signs - concern for perforation",
+    "Persistent symptoms despite stopping NSAIDs and taking PPIs - needs endoscopy to rule out ulcer or malignancy"
+  ]
+}

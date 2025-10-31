@@ -1,0 +1,128 @@
+{
+  "condition": "Acute Ankle Sprain",
+  "icd10": "S93.40",
+  "snomed": "125605004",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "ankle pain",
+    "twisted ankle",
+    "rolled ankle",
+    "ankle injury",
+    "sprained ankle",
+    "ankle swelling",
+    "can't walk on ankle"
+  ],
+  "urgency": "non-urgent",
+  "key_features": {
+    "classic_presentation": "ONSET: SUDDEN onset during activity - twisting, rolling, or landing awkwardly. Usually during sports, walking on uneven surface, or stepping off curb. LOCATION: Lateral ankle (outside) most common (85%), medial ankle (inside) less common, anterior ankle possible. DURATION: Immediate pain that may worsen over first 24-48 hours. CHARACTER: SHARP initial pain, then THROBBING and ACHING. AGGRAVATING: WEIGHT BEARING, walking, ankle movement, especially inversion (rolling inward). RELIEVING: REST, ICE, elevation, NSAIDs help. TIMING: Immediate pain that peaks at 24-48 hours, then gradually improves over days to weeks. SEVERITY: 4-8/10 initially, improves with rest. ASSOCIATED SYMPTOMS: SWELLING within hours (lateral ankle), BRUISING (ecchymosis) develops over 24-48 hours, STIFFNESS, difficulty walking or bearing weight. May have 'popping' or 'snapping' sound at injury. KEY POSITIVES: Lateral ankle tenderness, swelling, bruising, positive anterior drawer test, positive talar tilt test. KEY NEGATIVES: No bony tenderness over malleoli (rules out fracture), no deformity, no crepitus.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "ankle",
+            "patient_friendly": "ankle"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          },
+          {
+            "medical": "throbbing",
+            "patient_friendly": "THROBBING"
+          },
+          {
+            "medical": "aching",
+            "patient_friendly": "aching"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "weight bearing",
+            "patient_friendly": "WEIGHT BEARING"
+          },
+          {
+            "medical": "ankle",
+            "patient_friendly": "ankle"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "swelling",
+            "patient_friendly": "SWELLING"
+          },
+          {
+            "medical": "bruising",
+            "patient_friendly": "BRUISING"
+          },
+          {
+            "medical": "stiffness",
+            "patient_friendly": "STIFFNESS"
+          },
+          {
+            "medical": "ankle",
+            "patient_friendly": "ankle"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Inability to bear weight immediately after injury - possible fracture, needs X-ray",
+    "Severe deformity or obvious fracture - obvious ankle fracture, call 911",
+    "Numbness or tingling in foot - possible nerve injury or compartment syndrome",
+    "Cold, pale, or blue foot - possible vascular injury, call 911",
+    "Open wound with bone visible - open fracture, call 911"
+  ]
+}

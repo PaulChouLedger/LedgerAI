@@ -1,0 +1,667 @@
+{
+  "chief_complaint": {
+    "cough": [
+      "cough",
+      "coughing",
+      "dry cough",
+      "wet cough",
+      "productive cough",
+      "persistent cough",
+      "coughing up phlegm",
+      "coughing up mucus",
+      "coughing up blood",
+      "coughing up sputum",
+      "coughing up fluid",
+      "coughing up discharge",
+      "coughing up secretion",
+      "coughing up expectoration",
+      "coughing up matter",
+      "coughing up substance",
+      "coughing up material",
+      "coughing up stuff",
+      "coughing up junk",
+      "coughing up gunk"
+    ],
+    "shortness_of_breath": [
+      "short of breath",
+      "breathing difficulty",
+      "trouble breathing",
+      "can't catch breath",
+      "breathless",
+      "out of breath",
+      "breathing problems",
+      "difficulty breathing",
+      "breathing trouble",
+      "breathing hard",
+      "breathing fast",
+      "breathing heavy",
+      "breathing shallow",
+      "breathing labored",
+      "breathing effort",
+      "breathing work",
+      "breathing struggle",
+      "breathing strain",
+      "breathing stress",
+      "breathing fatigue"
+    ],
+    "chest_pain": [
+      "chest pain",
+      "chest discomfort",
+      "chest ache",
+      "chest pressure",
+      "chest tightness",
+      "chest burning",
+      "chest heaviness",
+      "chest squeezing",
+      "chest constriction",
+      "chest compression",
+      "chest hurt",
+      "chest sore",
+      "chest tender",
+      "chest throb",
+      "chest pang",
+      "chest twinge",
+      "chest spasm",
+      "chest cramp",
+      "chest sharp pain",
+      "chest dull pain"
+    ],
+    "wheezing": [
+      "wheezing",
+      "whistling sound",
+      "breathing noise",
+      "chest whistling",
+      "breathing sound",
+      "lung noise",
+      "respiratory noise",
+      "breathing whistle",
+      "chest whistle",
+      "lung whistle",
+      "airway noise",
+      "breathing wheeze",
+      "chest wheeze",
+      "lung wheeze",
+      "airway wheeze",
+      "respiratory wheeze",
+      "breathing rattle",
+      "chest rattle",
+      "lung rattle",
+      "airway rattle"
+    ],
+    "chest_tightness": [
+      "chest tight",
+      "chest pressure",
+      "chest squeezing",
+      "chest heaviness",
+      "chest constriction",
+      "chest compression",
+      "chest tightness",
+      "chest pressure",
+      "chest squeezing",
+      "chest heaviness",
+      "chest constriction",
+      "chest compression",
+      "chest tight",
+      "chest pressure",
+      "chest squeezing",
+      "chest heaviness",
+      "chest constriction",
+      "chest compression",
+      "chest tightness",
+      "chest pressure"
+    ]
+  },
+  "onset": {
+    "sudden": [
+      "suddenly",
+      "all of a sudden",
+      "came on suddenly",
+      "started suddenly",
+      "hit me suddenly",
+      "came out of nowhere",
+      "without warning"
+    ],
+    "gradual": [
+      "slowly",
+      "gradually",
+      "over time",
+      "slowly getting worse",
+      "progressively",
+      "step by step",
+      "little by little"
+    ],
+    "acute": [
+      "acute onset",
+      "came on quickly",
+      "rapid onset",
+      "fast onset",
+      "quickly developed"
+    ],
+    "chronic": [
+      "long term",
+      "ongoing",
+      "persistent",
+      "has been going on",
+      "for a while",
+      "for some time"
+    ]
+  },
+  "location": {
+    "chest": [
+      "chest pain",
+      "chest discomfort",
+      "chest area",
+      "chest tightness",
+      "chest pressure",
+      "chest ache"
+    ],
+    "chest_left": [
+      "left side of chest",
+      "left chest",
+      "left side chest",
+      "left chest area",
+      "left side of my chest"
+    ],
+    "chest_right": [
+      "right side of chest",
+      "right chest",
+      "right side chest",
+      "right chest area",
+      "right side of my chest"
+    ],
+    "chest_center": [
+      "center of chest",
+      "middle of chest",
+      "chest center",
+      "center chest",
+      "middle chest"
+    ],
+    "chest_back": [
+      "back of chest",
+      "back chest",
+      "chest back",
+      "back chest area",
+      "posterior chest"
+    ],
+    "chest_front": [
+      "front of chest",
+      "front chest",
+      "chest front",
+      "front chest area",
+      "anterior chest"
+    ],
+    "chest_upper": [
+      "upper chest",
+      "top of chest",
+      "upper chest area",
+      "chest upper",
+      "top chest"
+    ],
+    "chest_lower": [
+      "lower chest",
+      "bottom of chest",
+      "lower chest area",
+      "chest lower",
+      "bottom chest"
+    ],
+    "chest_bilateral": [
+      "both sides of chest",
+      "both chest sides",
+      "entire chest",
+      "whole chest",
+      "all over chest"
+    ],
+    "chest_unilateral": [
+      "one side of chest",
+      "single chest side",
+      "one chest side",
+      "half of chest",
+      "one side only"
+    ],
+    "shoulder": [
+      "shoulder pain",
+      "shoulder area",
+      "shoulder blade",
+      "shoulder discomfort",
+      "scapular area"
+    ],
+    "back": [
+      "back pain",
+      "back area",
+      "upper back",
+      "back discomfort",
+      "thoracic back"
+    ],
+    "neck": [
+      "neck pain",
+      "neck area",
+      "neck discomfort",
+      "cervical area",
+      "neck stiffness"
+    ],
+    "throat": [
+      "throat pain",
+      "throat area",
+      "throat discomfort",
+      "pharyngeal area",
+      "throat tightness"
+    ],
+    "diffuse": [
+      "all over chest",
+      "whole chest",
+      "entire chest",
+      "general chest pain",
+      "widespread chest pain"
+    ]
+  },
+  "duration": {
+    "minutes": [
+      "few minutes",
+      "couple minutes",
+      "several minutes",
+      "for minutes"
+    ],
+    "hours": [
+      "few hours",
+      "couple hours",
+      "several hours",
+      "for hours",
+      "hourly"
+    ],
+    "days": [
+      "few days",
+      "couple days",
+      "several days",
+      "for days",
+      "daily"
+    ],
+    "weeks": [
+      "few weeks",
+      "couple weeks",
+      "several weeks",
+      "for weeks",
+      "weekly"
+    ],
+    "months": [
+      "few months",
+      "couple months",
+      "several months",
+      "for months",
+      "monthly"
+    ],
+    "years": [
+      "few years",
+      "couple years",
+      "several years",
+      "for years",
+      "yearly"
+    ],
+    "intermittent": [
+      "comes and goes",
+      "on and off",
+      "sporadic",
+      "occasional",
+      "sometimes",
+      "periodic"
+    ],
+    "constant": [
+      "all the time",
+      "continuous",
+      "non-stop",
+      "persistent",
+      "steady",
+      "ongoing"
+    ]
+  },
+  "character": {
+    "sharp": [
+      "sharp pain",
+      "stabbing",
+      "knife-like",
+      "piercing",
+      "cutting",
+      "acute pain"
+    ],
+    "dull": [
+      "dull pain",
+      "achy",
+      "aching",
+      "sore",
+      "tender",
+      "heavy feeling"
+    ],
+    "burning": [
+      "burning pain",
+      "burning sensation",
+      "hot feeling",
+      "fire-like",
+      "scorching"
+    ],
+    "pressure": [
+      "pressure feeling",
+      "squeezing",
+      "tightness",
+      "fullness",
+      "heavy pressure"
+    ],
+    "throbbing": [
+      "throbbing pain",
+      "pulsating",
+      "beating",
+      "rhythmic pain"
+    ]
+  },
+  "aggravating_factors": {
+    "movement": [
+      "when I move",
+      "movement makes it worse",
+      "walking",
+      "bending",
+      "twisting",
+      "physical activity"
+    ],
+    "breathing": [
+      "when I breathe",
+      "breathing makes it worse",
+      "deep breath",
+      "coughing",
+      "sneezing"
+    ],
+    "stress": [
+      "when stressed",
+      "stress makes it worse",
+      "anxiety",
+      "nervous"
+    ]
+  },
+  "alleviating_factors": {
+    "rest": [
+      "resting helps",
+      "when I rest",
+      "lying still",
+      "not moving",
+      "staying still"
+    ],
+    "heat": [
+      "heat helps",
+      "heating pad",
+      "warm compress",
+      "hot water bottle",
+      "warmth"
+    ],
+    "cold": [
+      "cold helps",
+      "ice pack",
+      "cold compress",
+      "cooling"
+    ],
+    "medication": [
+      "pain medicine",
+      "painkillers",
+      "medication helps",
+      "pills help",
+      "drugs help"
+    ]
+  },
+  "radiation": {
+    "back": [
+      "goes to back",
+      "radiates to back",
+      "back pain",
+      "pain in back",
+      "spreads to back"
+    ],
+    "chest": [
+      "goes to chest",
+      "radiates to chest",
+      "chest pain",
+      "pain in chest",
+      "spreads to chest"
+    ],
+    "arms": [
+      "goes to arms",
+      "radiates to arms",
+      "arm pain",
+      "pain in arms",
+      "spreads to arms"
+    ],
+    "legs": [
+      "goes to legs",
+      "radiates to legs",
+      "leg pain",
+      "pain in legs",
+      "spreads to legs"
+    ]
+  },
+  "timing": {
+    "constant": [
+      "all the time",
+      "continuous",
+      "non-stop",
+      "persistent",
+      "steady",
+      "ongoing"
+    ],
+    "intermittent": [
+      "comes and goes",
+      "on and off",
+      "sporadic",
+      "occasional",
+      "sometimes",
+      "periodic"
+    ],
+    "morning": [
+      "in the morning",
+      "when I wake up",
+      "early morning",
+      "morning time"
+    ],
+    "evening": [
+      "in the evening",
+      "at night",
+      "evening time",
+      "night time"
+    ],
+    "night": [
+      "at night",
+      "during sleep",
+      "wakes me up",
+      "night time"
+    ]
+  },
+  "severity": {
+    "mild": [
+      "mild pain",
+      "slight pain",
+      "minor pain",
+      "not too bad",
+      "manageable",
+      "tolerable"
+    ],
+    "moderate": [
+      "moderate pain",
+      "medium pain",
+      "somewhat painful",
+      "noticeable",
+      "uncomfortable"
+    ],
+    "severe": [
+      "severe pain",
+      "bad pain",
+      "really painful",
+      "excruciating",
+      "unbearable",
+      "intense"
+    ],
+    "scale_1_3": [
+      "1 out of 10",
+      "2 out of 10",
+      "3 out of 10",
+      "very mild",
+      "barely noticeable"
+    ],
+    "scale_4_6": [
+      "4 out of 10",
+      "5 out of 10",
+      "6 out of 10",
+      "moderate",
+      "noticeable"
+    ],
+    "scale_7_10": [
+      "7 out of 10",
+      "8 out of 10",
+      "9 out of 10",
+      "10 out of 10",
+      "severe",
+      "worst pain ever"
+    ]
+  },
+  "associated_symptoms": {
+    "cough": [
+      "coughing",
+      "dry cough",
+      "wet cough",
+      "productive cough",
+      "persistent cough",
+      "coughing up phlegm",
+      "coughing up mucus"
+    ],
+    "shortness_of_breath": [
+      "short of breath",
+      "breathing difficulty",
+      "trouble breathing",
+      "can't catch breath",
+      "breathless",
+      "out of breath",
+      "breathing problems"
+    ],
+    "chest_tightness": [
+      "chest tight",
+      "chest pressure",
+      "chest squeezing",
+      "chest heaviness",
+      "chest constriction",
+      "chest compression"
+    ],
+    "wheezing": [
+      "wheezing",
+      "whistling sound",
+      "breathing noise",
+      "chest whistling",
+      "breathing sound",
+      "lung noise"
+    ],
+    "fever": [
+      "high temperature",
+      "hot",
+      "feverish",
+      "chills",
+      "sweating",
+      "temperature"
+    ],
+    "fatigue": [
+      "tired",
+      "exhausted",
+      "weak",
+      "lethargic",
+      "no energy",
+      "run down"
+    ],
+    "sore_throat": [
+      "throat pain",
+      "throat sore",
+      "throat irritation",
+      "throat scratchy",
+      "throat burning",
+      "throat discomfort"
+    ],
+    "runny_nose": [
+      "runny nose",
+      "nasal discharge",
+      "nose running",
+      "nasal congestion",
+      "stuffy nose",
+      "nose blocked"
+    ],
+    "headache": [
+      "head pain",
+      "headache",
+      "head ache",
+      "pressure in head",
+      "throbbing head"
+    ],
+    "body_aches": [
+      "body aches",
+      "muscle aches",
+      "body pain",
+      "muscle pain",
+      "aching all over",
+      "body soreness"
+    ],
+    "nausea": [
+      "queasy",
+      "sick to stomach",
+      "want to vomit",
+      "feeling nauseous",
+      "upset stomach",
+      "nausea"
+    ],
+    "vomiting": [
+      "throwing up",
+      "want to throw up",
+      "puking",
+      "emesis",
+      "vomit",
+      "nausea and vomiting"
+    ],
+    "dizziness": [
+      "dizzy",
+      "lightheaded",
+      "feeling faint",
+      "dizziness",
+      "vertigo",
+      "spinning sensation"
+    ],
+    "chest_pain": [
+      "chest pain",
+      "chest discomfort",
+      "chest ache",
+      "chest pressure",
+      "chest tightness"
+    ]
+  },
+  "specific_conditions": {
+    "cough": [
+      "coughing",
+      "hack",
+      "throat clearing",
+      "persistent cough",
+      "dry cough",
+      "wet cough",
+      "phlegm"
+    ],
+    "wheezing": [
+      "whistling",
+      "asthma attack",
+      "tight breathing",
+      "noisy breathing",
+      "difficulty exhaling",
+      "airway tightness"
+    ],
+    "hemoptysis": [
+      "coughing blood",
+      "blood in sputum",
+      "bloody phlegm",
+      "spitting blood"
+    ],
+    "shortness_of_breath": [
+      "sob",
+      "breathing difficulty",
+      "hard to breathe",
+      "can\u2019t catch breath",
+      "out of breath",
+      "trouble breathing",
+      "labored breathing"
+    ]
+  }
+}

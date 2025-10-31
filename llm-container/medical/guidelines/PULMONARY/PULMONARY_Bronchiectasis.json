@@ -1,0 +1,113 @@
+{
+  "condition": "Bronchiectasis",
+  "icd10": "J47",
+  "snomed": "195570008",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "chief_complaint_triggers": [
+    "chronic cough",
+    "productive cough",
+    "bronchiectasis",
+    "recurrent lung infections",
+    "copious sputum"
+  ],
+  "urgency": "routine",
+  "key_features": {
+    "classic_presentation": "ONSET: Chronic, progressive over months to years. LOCATION: Bilateral, often lower lobes. DURATION: Chronic, persistent with acute exacerbations. CHARACTER: Chronic productive cough with copious sputum. AGGRAVATING: Infections, lying flat, morning. RELIEVING: Postural drainage, chest physiotherapy, antibiotics. TIMING: Worse in morning, improves with postural drainage. SEVERITY: Moderate to severe (5-8/10). ASSOCIATED SYMPTOMS: Chronic productive cough, recurrent infections, hemoptysis, dyspnea, fatigue, weight loss. KEY POSITIVES: Chronic productive cough, recurrent infections, copious sputum. KEY NEGATIVES: No chest pain (unless infection), no wheezing (unless reactive airway disease).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "bilateral",
+            "patient_friendly": "both sides"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Massive hemoptysis",
+    "Severe dyspnea",
+    "High fever with purulent sputum",
+    "Weight loss or cachexia",
+    "Recurrent pneumonias",
+    "Clubbing of fingers",
+    "Signs of respiratory failure",
+    "Altered mental status"
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "condition": "Ventricular Tachycardia (ventricular tachycardia (VT) / V-Tach)",
+  "icd10": "I47.2",
+  "snomed": "25569003",
+  "chief_complaint_triggers": [
+    "palpitations",
+    "racing heart",
+    "chest pain",
+    "lightheadedness",
+    "syncope"
+  ],
+  "urgency": "emergent",
+  "prevalence": "rare",
+  "sex": "both",
+  "key_features": {
+    "classic_presentation": "ONSET: Sudden, abrupt start. LOCATION: Chest (palpitations), generalized symptoms. DURATION: Sustained (>30 seconds) or non-sustained bursts. CHARACTER: Rapid, regular or slightly irregular palpitations. AGGRAVATING: Exertion, electrolyte abnormalities. RELIEVING: Cardioversion, antiarrhythmics. TIMING: Can be episodic or sustained. SEVERITY: Variable, can be asymptomatic to severe symptoms. KEY POSITIVES: Heart rate 120-250 bpm, wide QRS on electrocardiogram (ECG), history of myocardial infarction (MI) or cardiomyopathy, syncope, chest pain, dyspnea, altered mental status. KEY NEGATIVES: NOT narrow complex tachycardia (SVT).",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "all at once or very quickly"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "Syncope or loss of consciousness",
+    "Hemodynamic instability",
+    "Chest pain",
+    "Severe dyspnea",
+    "Altered mental status",
+    "History of myocardial infarction (MI) or cardiomyopathy",
+    "History of sudden cardiac death in family",
+    "Pulselessness (V-Tach with no pulse = ventricular fibrillation )"
+  ]
+}

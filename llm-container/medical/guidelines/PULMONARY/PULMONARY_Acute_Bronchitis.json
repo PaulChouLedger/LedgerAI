@@ -1,0 +1,97 @@
+{
+  "condition": "Acute Bronchitis",
+  "icd10": "J20.9",
+  "snomed": "195662009",
+  "sex": "both",
+  "prevalence": "common",
+  "chief_complaint_triggers": [
+    "cough",
+    "chest congestion",
+    "bronchitis",
+    "chest cold",
+    "productive cough",
+    "mucus in chest"
+  ],
+  "urgency": "routine",
+  "key_features": {
+    "classic_presentation": "ONSET: Gradual over days, often follows upper respiratory infection. LOCATION: Diffuse chest, trachea, bronchi. DURATION: 1-3 weeks, typically self-limiting. CHARACTER: Dry cough initially, becomes productive with yellow/green sputum. AGGRAVATING: Cold air, talking, laughing, lying flat. RELIEVING: Warm liquids, humid air, cough suppressants (limited). TIMING: Persistent throughout day, worse at night. SEVERITY: Mild to moderate (3-6/10). ASSOCIATED SYMPTOMS: Sore throat, nasal congestion, low-grade fever (rare), chest discomfort, fatigue. KEY POSITIVES: Productive cough, chest congestion, recent URI symptoms. KEY NEGATIVES: No high fever, no severe dyspnea, no chest pain.",
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly over time"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "midline"
+      },
+      "duration": {
+        "includes": [],
+        "excludes": []
+      },
+      "character": {
+        "includes": [],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "persistent",
+            "patient_friendly": "keeps going"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "mild",
+            "patient_friendly": "not too bad"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "somewhat bad"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "your chest"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  },
+  "red_flags": [
+    "High fever >101.5°F",
+    "Severe shortness of breath",
+    "Chest pain with breathing",
+    "Blood in sputum",
+    "Symptoms lasting >3 weeks",
+    "Weight loss or night sweats",
+    "Difficulty swallowing",
+    "Neck stiffness"
+  ]
+}
