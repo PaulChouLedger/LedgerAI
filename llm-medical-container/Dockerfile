@@ -62,6 +62,7 @@ COPY rag/ /app/rag/
 ENV SIMPLE_MODEL_PATH=/models/Nemotron-Mini-4B-Instruct-Q4_K_M.gguf
 ENV SIMPLE_CHAT_FORMAT=chatml
 ENV SIMPLE_N_CTX=2048
+ENV LLM_STOP=<|im_end|>,</s>
 
 # Expose port for API
 EXPOSE 11434

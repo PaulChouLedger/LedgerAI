@@ -370,8 +370,10 @@ class AdaptiveDiagnosticEngine:
             })
             return {
                 'success': True,
-                'message': f"{empathetic_msg}\n\n{symptom_question}",
+                'message': empathetic_msg,
+                'question': symptom_question,
                 'status': 'questioning',
+                'has_pause': True,  # Pause between empathetic statement and question
                 'debug': {
                     'engine': self._format_engine_debug("[Engine] 🧠 Generating structured first question with demographics..."),
                     'internal': self._get_debug_info()

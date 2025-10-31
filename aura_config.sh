@@ -323,7 +323,15 @@ configure_llm() {
             read -p "Enter num_predict (max tokens): " v
             set_config_value "LLM_NUM_PREDICT" "$v"; show_restart_message ;;
         10)
-            read -p "Enter stop sequences as CSV (e.g., \\n\\n,###): " v
+            echo ""
+            echo "Current stop sequences: $(get_config_value 'LLM_STOP')"
+            echo ""
+            echo "Examples:"
+            echo "  - ChatML (Nemotron, Qwen): <|im_end|>,</s>"
+            echo "  - Llama-3: </s>"
+            echo "  - Double newline: \\n\\n"
+            echo ""
+            read -p "Enter stop sequences as CSV: " v
             set_config_value "LLM_STOP" "$v"; show_restart_message ;;
         11)
             echo ""
