@@ -303,7 +303,9 @@ EOF
         
         # Use a temp file to capture output and avoid command substitution issues
         python_found_path=""
-        if python3 << 'PYEOF' > /tmp/find_convert_script.log 2>&1; then
+        
+        # Run Python script to find conversion script
+        python3 << 'PYEOF' > /tmp/find_convert_script.log 2>&1
 import sys
 try:
     import tensorrt_llm
@@ -331,7 +333,9 @@ except Exception as e:
     pass
 sys.exit(1)
 PYEOF
-        then
+        
+        python_search_status=$?
+        if [ $python_search_status -eq 0 ]; then
             # Python script succeeded, read the result
             if [ -f /tmp/find_convert_script.log ]; then
                 python_found_path=$(cat /tmp/find_convert_script.log | grep -v "Search failed" | head -1)
