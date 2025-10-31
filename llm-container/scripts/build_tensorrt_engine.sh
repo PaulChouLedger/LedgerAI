@@ -408,15 +408,19 @@ PYEOF
             
             if [ $convert_exit_code -eq 0 ]; then
                 echo -e "${GREEN}   ✅ Conversion script executed successfully${NC}"
-                # Verify rank0/ structure was created
-                if [ -f "$checkpoint_dir/rank0/model.safetensors" ] || [ -f "$checkpoint_dir/rank0/model.bin" ]; then
-                    # Create marker file to indicate successful conversion
-                    touch "$checkpoint_marker"
-                    echo "Converted using convert_checkpoint.py" > "$checkpoint_marker"
-                    conversion_success=true
-                    echo -e "${GREEN}   ✅ Official conversion script succeeded${NC}"
+                # Verify checkpoint structure (weights and config in root, matching official TensorRT-LLM format)
+                if [ -f "$checkpoint_dir/model.safetensors" ] || [ -f "$checkpoint_dir/model.bin" ] || [ -f "$checkpoint_dir/pytorch_model.bin" ]; then
+                    if [ -f "$checkpoint_dir/config.json" ]; then
+                        # Create marker file to indicate successful conversion
+                        touch "$checkpoint_marker"
+                        echo "Converted using convert_checkpoint.py" > "$checkpoint_marker"
+                        conversion_success=true
+                        echo -e "${GREEN}   ✅ Official conversion script succeeded${NC}"
+                    else
+                        echo -e "${YELLOW}   ⚠️  Conversion script ran but config.json not found, trying alternative...${NC}"
+                    fi
                 else
-                    echo -e "${YELLOW}   ⚠️  Conversion script ran but rank0/ structure not found, trying alternative...${NC}"
+                    echo -e "${YELLOW}   ⚠️  Conversion script ran but weights not found, trying alternative...${NC}"
                 fi
             else
                 echo -e "${YELLOW}   ⚠️  convert_checkpoint.py failed with exit code $convert_exit_code${NC}"
@@ -504,7 +508,7 @@ try:
     # Create marker file to indicate successful conversion
     marker_file = os.path.join(checkpoint_dir, ".tensorrt_llm_converted")
     with open(marker_file, 'w') as f:
-        f.write("Converted using transformers.save_pretrained() with rank0/ structure\n")
+        f.write("Converted using transformers.save_pretrained() - files in checkpoint root (no rank0/ subdirectory)\n")
     
     print("✅ Model re-saved successfully with TensorRT-LLM checkpoint structure")
     print(f"✅ Marker file created: {marker_file}")
@@ -526,14 +530,19 @@ PYEOF
             echo ""
             
             if [ $transformers_exit_code -eq 0 ]; then
-                # Verify rank0/ structure was created
-                if [ -f "$checkpoint_dir/rank0/model.safetensors" ] || [ -f "$checkpoint_dir/rank0/model.bin" ]; then
-                    touch "$checkpoint_marker"
-                    echo "Converted using transformers.save_pretrained()" > "$checkpoint_marker"
-                    conversion_success=true
-                    echo -e "${GREEN}   ✅ Transformers conversion succeeded${NC}"
+                # Verify checkpoint structure (weights and config in root, matching official TensorRT-LLM format)
+                if [ -f "$checkpoint_dir/model.safetensors" ] || [ -f "$checkpoint_dir/model.bin" ] || [ -f "$checkpoint_dir/pytorch_model.bin" ]; then
+                    if [ -f "$checkpoint_dir/config.json" ]; then
+                        touch "$checkpoint_marker"
+                        echo "Converted using transformers.save_pretrained()" > "$checkpoint_marker"
+                        conversion_success=true
+                        echo -e "${GREEN}   ✅ Transformers conversion succeeded${NC}"
+                    else
+                        echo -e "${RED}   ❌ config.json not found in checkpoint directory${NC}"
+                        conversion_success=false
+                    fi
                 else
-                    echo -e "${YELLOW}   ⚠️  Conversion ran but rank0/ structure not found${NC}"
+                    echo -e "${RED}   ❌ Weights not found in checkpoint directory${NC}"
                     conversion_success=false
                 fi
             else
