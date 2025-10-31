@@ -1,40 +1,17 @@
-# TensorRT-LLM Container - Installed via pip (following official installation guide)
-# Base: DustyNV PyTorch image (Jetson optimized, includes CUDA)
-# Reference: https://nvidia.github.io/TensorRT-LLM/installation/linux.html
-FROM dustynv/pytorch:2.7-r36.4.0-cu128-24.04
+# TensorRT-LLM Container - Using DustyNV pre-built TensorRT-LLM container
+# Note: TensorRT-LLM pip installation is NOT supported on Jetson/Tegra systems
+# The dustynv/tensorrt_llm container has TensorRT-LLM pre-built and optimized for Jetson
+FROM dustynv/tensorrt_llm:0.12-r36.4.0
 
 # Set working directory
 WORKDIR /app
 
-# Set CUDA_HOME (required by TensorRT-LLM)
-# DustyNV images typically have CUDA in /usr/local/cuda or /usr/local/cuda-12.x
-ENV CUDA_HOME=/usr/local/cuda
-ENV PATH=${CUDA_HOME}/bin:${PATH}
-ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
-
-# Install prerequisites per TensorRT-LLM documentation
-# Note: For Jetson, some packages may already be installed
-RUN apt-get update && apt-get install -y \
-    git \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-# Optional: Install MPI (for distributed inference if needed)
-# RUN apt-get update && apt-get install -y libopenmpi-dev && rm -rf /var/lib/apt/lists/*
-
-# Upgrade pip and setuptools (required by TensorRT-LLM)
-# Use PyPI index for TensorRT-LLM installation (not Jetson-specific index)
-RUN pip3 install --upgrade pip setuptools --index-url https://pypi.org/simple/
-
-# Install TensorRT-LLM via pip
-# This will download and install TensorRT-LLM with all dependencies
-# Use PyPI index explicitly to avoid Jetson repository timeouts
-# Review license terms of third-party open source projects before use
-RUN pip3 install --no-cache-dir tensorrt_llm --index-url https://pypi.org/simple/
+# TensorRT-LLM is already installed in the base image
+# CUDA environment is already configured
 
 # Install additional required packages for our application
-# Note: PyTorch is already installed in the base image
-# Use PyPI index for standard packages
+# Note: PyTorch and TensorRT-LLM are already installed in the base image
+# Use PyPI index explicitly to avoid Jetson repository timeouts
 RUN pip3 install --no-cache-dir \
     --index-url https://pypi.org/simple/ \
     flask \
