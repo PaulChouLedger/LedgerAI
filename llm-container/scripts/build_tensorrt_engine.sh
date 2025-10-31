@@ -591,14 +591,27 @@ PYEOF
     fi
     
     echo "   ✅ Checkpoint structure verified"
-    echo "   DEBUG: Using checkpoint_dir: $checkpoint_dir"
-    echo "   DEBUG: TensorRT-LLM will look for weights in: $checkpoint_dir/rank0/"
+    
+    # TensorRT-LLM for single GPU may expect checkpoint_dir to point to rank0/ directly
+    # Try both approaches: pointing to parent (with rank0/) and pointing directly to rank0/
+    checkpoint_dir_for_build="$checkpoint_dir"
+    rank0_checkpoint="$checkpoint_dir/rank0"
+    
+    # Check if rank0/ has everything needed
+    if [ -f "$rank0_checkpoint/model.safetensors" ] && [ -f "$rank0_checkpoint/config.json" ]; then
+        echo "   DEBUG: Attempting build with checkpoint_dir pointing to rank0/ subdirectory..."
+        echo "   DEBUG: Using: $rank0_checkpoint"
+        checkpoint_dir_for_build="$rank0_checkpoint"
+    else
+        echo "   DEBUG: Using checkpoint_dir pointing to parent (contains rank0/):"
+        echo "   DEBUG: Using: $checkpoint_dir"
+    fi
     echo ""
     
     # Build and capture both stdout/stderr and exit code
     set +e  # Don't exit on error
     trtllm-build \
-        --checkpoint_dir "$checkpoint_dir" \
+        --checkpoint_dir "$checkpoint_dir_for_build" \
         --model_cls_name LlamaForCausalLM \
         --output_dir "$engine_dir" \
         --gemm_plugin float16 \
