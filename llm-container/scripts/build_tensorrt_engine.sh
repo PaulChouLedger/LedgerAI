@@ -145,11 +145,10 @@ build_llama_engine() {
     if [ -f "$config_file" ]; then
         if ! grep -q '"architecture"' "$config_file" 2>/dev/null; then
             echo -e "${YELLOW}⚠️  Fixing config.json (adding architecture field)...${NC}"
-            python3 << 'PYEOF'
+            python3 << EOF
 import json
-import sys
 
-config_path = sys.argv[1]
+config_path = "$config_file"
 try:
     with open(config_path, 'r') as f:
         config = json.load(f)
@@ -163,8 +162,7 @@ try:
         print("✅ Architecture field already exists")
 except Exception as e:
     print(f"⚠️  Could not fix config: {e}")
-PYEOF
-                "$config_file"
+EOF
         fi
         echo ""
     fi
