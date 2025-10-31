@@ -756,33 +756,30 @@ class AdaptiveDiagnosticEngine:
         
         if clarification_count < 2 and self.active_guidelines:
             try:
-                # Get missing terms
+                # Get missing terms - this already does the expensive matching
                 missing_terms = self._analyze_missing_information(answer, oldcarts_element)
                 self._capture_debug(f"[Clarification] 📊 Missing terms: {missing_terms}")
                 
-                # Determine if clarification needed based on missing_terms
+                # If there are missing terms, we need clarification
                 if missing_terms:
-                    # Check if any terms are satisfied (exact or semantic match)
-                    satisfied_terms = self._get_satisfied_terms(answer, oldcarts_element)
-                    if not satisfied_terms:
-                        clarification_needed = True
-                        # Use missing terms for the clarifying question
-                        question = self._generate_clarifying_question(oldcarts_element, answer, clarification_count, missing_terms)
-                        self.conversation_history.append({
-                            'type': 'question',
-                            'question': question,
-                            'oldcarts': oldcarts_element,
-                            'is_clarification': True
-                        })
-                        return {
-                            'success': True,
-                            'question': question,
-                            'status': 'questioning',
-                            'debug': {
-                                'engine': self._format_engine_debug("[Engine] ⏳ Clarification requested") + "\n\n" + self._format_rankings_debug(),
-                                'internal': self._get_debug_info(last_answer=answer)
-                            }
+                    clarification_needed = True
+                    # Use missing terms for the clarifying question
+                    question = self._generate_clarifying_question(oldcarts_element, answer, clarification_count, missing_terms)
+                    self.conversation_history.append({
+                        'type': 'question',
+                        'question': question,
+                        'oldcarts': oldcarts_element,
+                        'is_clarification': True
+                    })
+                    return {
+                        'success': True,
+                        'question': question,
+                        'status': 'questioning',
+                        'debug': {
+                            'engine': self._format_engine_debug("[Engine] ⏳ Clarification requested") + "\n\n" + self._format_rankings_debug(),
+                            'internal': self._get_debug_info(last_answer=answer)
                         }
+                    }
             except Exception as e:
                 self._capture_debug(f"[Engine] ⚠️ Clarification check failed: {e}")
         
@@ -903,6 +900,15 @@ class AdaptiveDiagnosticEngine:
         except Exception:
             synonym_expansions = {}
         
+        # Do FAISS semantic matching ONCE for all terms (expensive operation)
+        semantic_matches_set = set()
+        if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
+            try:
+                semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, oldcarts_element, threshold=0.6)
+                semantic_matches_set = set(t.lower() for t in semantic_matches)
+            except Exception:
+                pass
+        
         # Check each term using the same logic as unified function
         for term in all_includes:
             term_satisfied = False
@@ -922,22 +928,9 @@ class AdaptiveDiagnosticEngine:
                                 break
                 
                 if not term_satisfied:
-                    # 2. Use FAISS semantic matching (same as unified function)
-                    if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
-                        semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, oldcarts_element, threshold=0.6)
-                        if term in [t.lower() for t in semantic_matches]:
-                            term_satisfied = True
-                        else:
-                            # 3. Direct semantic similarity check (same as unified function)
-                            if self.embedding_model:
-                                try:
-                                    embeddings = self.embedding_model.encode([answer_lower, term])
-                                    similarity = float(np.dot(embeddings[0], embeddings[1]) / 
-                                                     (np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])))
-                                    if similarity >= 0.6:
-                                        term_satisfied = True
-                                except Exception:
-                                    pass
+                    # 2. Check against FAISS semantic matches (already computed)
+                    if term in semantic_matches_set:
+                        term_satisfied = True
             
             if term_satisfied:
                 satisfied_terms.add(term)
