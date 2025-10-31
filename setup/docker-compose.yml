@@ -6,17 +6,25 @@ services:
       - ../shared:/shared
 
   llm:
-    build: ../llm-medical-container
+    build: ../llm-container
     network_mode: host
     volumes:
       - ../shared:/shared
       - ../data:/app/data
       - /home/aura/LedgerAI/.env:/app/.env
+      - /models:/models  # Mount models directory for TensorRT-LLM engines
     working_dir: /app
     env_file: /home/aura/LedgerAI/.env
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
-  llm-generic:
-    build: ../llm-generic-container
+  llm-medical:
+    build: ../llm-medical-container
     network_mode: host
     volumes:
       - ../shared:/shared
@@ -31,6 +39,8 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    profiles:
+      - backup  # Only start with --profile backup
 
   rag:
     build: ../rag-container

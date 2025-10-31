@@ -258,11 +258,24 @@ EOF
         fi
         echo -e "${BLUE}   Converting: $model_path → $checkpoint_dir${NC}"
         
+        # CRITICAL: Disable exit on error BEFORE any operations that might fail
+        # This prevents silent exits during conversion attempts
+        # Use set +e explicitly (safest way, doesn't depend on command substitution)
+        echo "   DEBUG: About to disable exit-on-error..."
+        set +e || echo "   WARNING: set +e failed (this shouldn't happen)"
+        echo "   DEBUG: Exit-on-error disabled (set +e) - status: $?"
+        
+        echo "   DEBUG: About to start conversion process..."
+        
         # Verify we can create the directory
         echo "   DEBUG: Creating checkpoint directory..."
-        if ! mkdir -p "$checkpoint_dir" 2>&1; then
+        mkdir -p "$checkpoint_dir" 2>&1
+        mkdir_status=$?
+        if [ $mkdir_status -ne 0 ]; then
             echo -e "${RED}❌ Failed to create checkpoint directory: $checkpoint_dir${NC}"
             echo "   Check permissions and disk space"
+            # Restore set -e before returning
+            set -e
             return 1
         fi
         echo "   ✅ Directory created: $checkpoint_dir"
@@ -272,12 +285,14 @@ EOF
         # Scripts are in /opt/TensorRT-LLM/examples/llama/
         conversion_success=false
         
-        # Temporarily disable exit on error for conversion attempts
-        set +e
-        trap 'set +e' ERR  # Ensure errors don't exit during conversion attempts
+        # set +e already done above, just ensure trap is set
+        trap 'echo "ERROR: Conversion step failed at line $LINENO"' ERR
         
         echo -e "${BLUE}   Starting conversion process...${NC}"
         echo "   DEBUG: About to search for convert_checkpoint.py"
+        echo "   DEBUG: Current directory: $(pwd)"
+        echo "   DEBUG: Model path exists: $([ -d "$model_path" ] && echo "yes" || echo "no")"
+        echo "   DEBUG: Checkpoint dir exists: $([ -d "$checkpoint_dir" ] && echo "yes" || echo "no")"
         
         # Method 1: Look for convert_checkpoint.py (pip-installed TensorRT-LLM)
         # With pip installation, scripts are typically in site-packages
@@ -520,6 +535,7 @@ PYEOF
         # Re-enable exit on error and remove trap
         trap - ERR
         set -e
+        echo "   DEBUG: Exit-on-error re-enabled (set -e)"
         
         if [ "$conversion_success" = false ]; then
             echo ""
@@ -710,24 +726,35 @@ EOF
 build_engine() {
     local model_name=$1
     local model_path=$2
+    local build_status=0
+    
+    # Temporarily disable exit-on-error for function calls
+    # This allows us to check return codes explicitly
+    set +e
     
     case "$model_name" in
         qwen3-4b|qwen3-4b-2507|qwen*)
             engine_dir="$TENSORRT_ENGINES_BASE/qwen3-4b-instruct-2507"
             build_qwen_engine "$model_name" "$model_path" "$engine_dir" 2048
+            build_status=$?
             ;;
         llama-3.2-1b|llama3.2*)
             engine_dir="$TENSORRT_ENGINES_BASE/llama-3.2-1b-instruct"
+            echo "DEBUG: About to call build_llama_engine"
             build_llama_engine "$model_name" "$model_path" "$engine_dir" 2048
+            build_status=$?
+            echo "DEBUG: build_llama_engine returned: $build_status"
             ;;
         llama-3.1-8b|llama-3.1-8b-instruct|llama3.1*)
             engine_dir="$TENSORRT_ENGINES_BASE/llama-3.1-8b-instruct"
             build_llama_engine "$model_name" "$model_path" "$engine_dir" 8192
+            build_status=$?
             ;;
         qwen2.5-coder-7b|qwen2.5-coder-7b-instruct|qwen2.5*)
             engine_dir="$TENSORRT_ENGINES_BASE/qwen2.5-coder-7b-instruct"
             # Qwen2.5 uses same build process as Qwen but with longer context
             build_qwen_engine "$model_name" "$model_path" "$engine_dir" 32768
+            build_status=$?
             ;;
         *)
             echo -e "${RED}❌ Unknown model: $model_name${NC}"
@@ -736,9 +763,20 @@ build_engine() {
             echo "  - llama-3.2-1b"
             echo "  - llama-3.1-8b-instruct"
             echo "  - qwen2.5-coder-7b-instruct"
-            return 1
+            build_status=1
             ;;
     esac
+    
+    # Restore exit-on-error
+    set -e
+    
+    # Return the build status
+    if [ $build_status -ne 0 ]; then
+        echo -e "${RED}❌ Engine build failed with status: $build_status${NC}"
+        return $build_status
+    fi
+    
+    return 0
 }
 
 # Check if running in TensorRT-LLM container or has trtllm-build
