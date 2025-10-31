@@ -31,14 +31,23 @@
           {
             "medical": "ruq",
             "patient_friendly": "top right side near your ribs"
-          },
-          {
-            "medical": "shoulder",
-            "patient_friendly": "spreads to your right shoulder"
           }
         ],
         "excludes": [],
         "anatomical_type": "right_upper"
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "shoulder",
+            "patient_friendly": "spreads to your right shoulder"
+          },
+          {
+            "medical": "scapula",
+            "patient_friendly": "your shoulder blade"
+          }
+        ],
+        "excludes": []
       },
       "duration": {
         "includes": [

@@ -1057,14 +1057,25 @@ class AdaptiveDiagnosticEngine:
         # Get patient-friendly terms directly from guidelines
         patient_friendly_terms = []
         medical_to_friendly_map = {}
-        for term in missing_terms[:3]:  # Limit to 3 terms
+        for term in missing_terms[:5]:  # Try more terms to get 3 good ones
             friendly_term = self._get_patient_friendly_from_guidelines(term, oldcarts_element)
-            patient_friendly_terms.append(friendly_term)
             medical_to_friendly_map[term] = friendly_term
+            # Only add non-empty terms
+            if friendly_term and friendly_term.strip():
+                patient_friendly_terms.append(friendly_term)
+                if len(patient_friendly_terms) >= 3:  # Stop when we have 3 good ones
+                    break
         
         # Debug output showing the mapping
         for med, friendly in medical_to_friendly_map.items():
             self._capture_debug(f"[Clarification] 📝 '{med}' → '{friendly}'")
+        
+        # If no good terms found, use generic clarifying question
+        if not patient_friendly_terms:
+            if oldcarts_element == 'location':
+                return "Can you be more specific about where exactly the pain is located?"
+            else:
+                return f"Can you tell me more about the {oldcarts_element}?"
         
         if oldcarts_element == 'location':
             options = ", ".join(patient_friendly_terms)

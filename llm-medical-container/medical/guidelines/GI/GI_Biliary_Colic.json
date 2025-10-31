@@ -52,8 +52,12 @@
       "radiation": {
         "includes": [
           {
-            "medical": "TO RIGHT SHOULDER OR BACK",
-            "patient_friendly": "spreads to your right shoulder or your back"
+            "medical": "shoulder",
+            "patient_friendly": "spreads to your right shoulder"
+          },
+          {
+            "medical": "back",
+            "patient_friendly": "your back"
           }
         ],
         "excludes": []

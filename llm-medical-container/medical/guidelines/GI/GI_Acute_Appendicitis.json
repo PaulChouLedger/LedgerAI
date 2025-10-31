@@ -36,10 +36,6 @@
       "location": {
         "includes": [
           {
-            "medical": "migrates",
-            "patient_friendly": "MIGRATES"
-          },
-          {
             "medical": "rlq",
             "patient_friendly": "lower right side around your groin"
           },

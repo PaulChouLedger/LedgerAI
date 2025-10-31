@@ -46,8 +46,12 @@
       "radiation": {
         "includes": [
           {
-            "medical": "TO RIGHT SHOULDER OR SCAPULA (phrenic nerve referred pain)",
-            "patient_friendly": "spreads to your right shoulder or your shoulder blade"
+            "medical": "shoulder",
+            "patient_friendly": "spreads to your right shoulder"
+          },
+          {
+            "medical": "scapula",
+            "patient_friendly": "your shoulder blade"
           }
         ],
         "excludes": []
