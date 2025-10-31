@@ -525,11 +525,39 @@ try:
         shutil.copy2(weights_path, rank0_weights)
         print(f"✅ Copied weights to rank0/: {rank0_weights}")
     
-    # Copy config.json to rank0/ as well
+    # Copy config.json to rank0/ as well (ensure it's properly written with valid JSON)
     rank0_config = os.path.join(rank0_dir, "config.json")
-    if not os.path.exists(rank0_config):
+    # Always re-write to ensure it's not empty/corrupted
+    import json
+    with open(config_path, 'r') as f:
+        config_data = json.load(f)
+    # Write with explicit flushing to ensure file is written
+    with open(rank0_config, 'w') as f:
+        json.dump(config_data, f, indent=2)
+        f.flush()
+        os.fsync(f.fileno())  # Force write to disk
+    # Verify it was written correctly
+    config_size = os.path.getsize(rank0_config)
+    if config_size == 0:
+        print(f"❌ ERROR: rank0/config.json is 0 bytes after write! Trying copy method...")
+        # Fallback to copy method
         shutil.copy2(config_path, rank0_config)
-        print(f"✅ Copied config.json to rank0/")
+        config_size = os.path.getsize(rank0_config)
+        if config_size == 0:
+            print(f"❌ ERROR: rank0/config.json is still empty after copy!")
+            sys.exit(1)
+    print(f"✅ Created config.json in rank0/ (size: {config_size} bytes)")
+    
+    # Also verify we can read it back
+    try:
+        with open(rank0_config, 'r') as f:
+            test_config = json.load(f)
+        if len(test_config) == 0:
+            print(f"❌ ERROR: rank0/config.json is empty when read back!")
+            sys.exit(1)
+    except Exception as e:
+        print(f"❌ ERROR: Cannot read rank0/config.json back: {e}")
+        sys.exit(1)
     
     print(f"✅ Checkpoint structure created: files in both root and rank0/ (TensorRT-LLM compatibility)")
     
@@ -654,6 +682,91 @@ PYEOF
     echo "   DEBUG: TensorRT-LLM will look for weights in both root and rank0/ locations"
     echo ""
     
+    # Try to understand what TensorRT-LLM expects by checking the from_checkpoint source
+    # TensorRT-LLM's from_checkpoint likely constructs weights_path based on rank
+    # For single GPU (rank 0), it might expect: checkpoint_dir/rank0/weights_file
+    # But it might also expect specific weight file naming
+    
+    # Add a debug Python script to inspect what TensorRT-LLM is looking for
+    echo "   DEBUG: Running Python script to inspect TensorRT-LLM checkpoint expectations..."
+    python3 << PYTHON_DEBUG 2>&1 | head -100
+import os
+import sys
+checkpoint_dir = "$checkpoint_dir"
+
+# Try to import and trace TensorRT-LLM's from_checkpoint
+try:
+    from tensorrt_llm.models import LLaMAForCausalLM
+    from tensorrt_llm.models.modeling_utils import PretrainedConfig
+    import inspect
+    import json
+    
+    # Load config to see what rank/tp info it expects
+    config_path = os.path.join(checkpoint_dir, "config.json")
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as f:
+            config_data = json.load(f)
+        print(f"Config loaded: {len(config_data)} fields")
+        print(f"  Model type: {config_data.get('model_type')}")
+        print(f"  Architecture: {config_data.get('architectures', 'N/A')}")
+    
+    # Try to find where from_checkpoint constructs weights_path
+    try:
+        # Look at the modeling_utils.py source
+        source_file = LLaMAForCausalLM.from_checkpoint.__code__.co_filename
+        print(f"from_checkpoint is defined in: {source_file}")
+        
+        # Try to monkey-patch to see what path it's looking for
+        original_from_checkpoint = LLaMAForCausalLM.from_checkpoint
+        
+        def debug_from_checkpoint(ckpt_dir, **kwargs):
+            print(f"DEBUG: from_checkpoint called with ckpt_dir={ckpt_dir}")
+            print(f"DEBUG: kwargs={kwargs}")
+            
+            # Try to replicate the path construction logic
+            rank = kwargs.get('rank', 0)
+            tp_size = kwargs.get('tp_size', 1)
+            print(f"DEBUG: rank={rank}, tp_size={tp_size}")
+            
+            # Common patterns TensorRT-LLM might use
+            possible_paths = [
+                os.path.join(ckpt_dir, f"rank{rank}", "model.safetensors"),
+                os.path.join(ckpt_dir, f"rank{rank}", "pytorch_model.bin"),
+                os.path.join(ckpt_dir, "rank0", "model.safetensors"),
+                os.path.join(ckpt_dir, "model.safetensors"),
+                os.path.join(ckpt_dir, "pytorch_model.bin"),
+            ]
+            
+            print("DEBUG: Checking possible weight paths:")
+            for path in possible_paths:
+                exists = os.path.isfile(path)
+                if exists:
+                    size = os.path.getsize(path)
+                    print(f"  ✅ {path} ({size:,} bytes)")
+                else:
+                    print(f"  ❌ {path}")
+            
+            # Now call the original
+            return original_from_checkpoint(ckpt_dir, **kwargs)
+        
+        # Try the debug version
+        print("Attempting from_checkpoint with debug logging...")
+        try:
+            debug_from_checkpoint(checkpoint_dir)
+        except AssertionError as e:
+            print(f"❌ AssertionError (this shows what path it expected): {e}")
+        except Exception as e:
+            print(f"❌ Error: {type(e).__name__}: {e}")
+            
+    except Exception as e:
+        print(f"Could not trace from_checkpoint: {e}")
+        import traceback
+        traceback.print_exc()
+        
+except ImportError as e:
+    print(f"Could not import TensorRT-LLM: {e}")
+PYTHON_DEBUG
+
     # Build and capture both stdout/stderr and exit code
     set +e  # Don't exit on error
     trtllm-build \
