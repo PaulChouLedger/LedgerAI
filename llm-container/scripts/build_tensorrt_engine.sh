@@ -236,9 +236,10 @@ EOF
     # Check if checkpoint already exists and is valid (has been properly converted)
     # We check for a marker file that indicates successful conversion
     checkpoint_marker="$checkpoint_dir/.tensorrt_llm_converted"
+    rank0_weights="$checkpoint_dir/rank0/model.safetensors"
     
-    if [ -d "$checkpoint_dir" ] && [ -f "$checkpoint_dir/config.json" ] && [ -f "$checkpoint_dir/model.safetensors" ] && [ -f "$checkpoint_marker" ]; then
-        echo -e "${GREEN}✅ Checkpoint already exists and is properly converted, skipping conversion${NC}"
+    if [ -d "$checkpoint_dir" ] && [ -f "$checkpoint_dir/config.json" ] && [ -f "$rank0_weights" ] && [ -f "$checkpoint_marker" ]; then
+        echo -e "${GREEN}✅ Checkpoint already exists and is properly converted (with rank0/ structure), skipping conversion${NC}"
         echo ""
     else
         # Remove incomplete checkpoint if it exists
@@ -290,6 +291,7 @@ EOF
             MODEL_PATH="$model_path" CHECKPOINT_DIR="$checkpoint_dir" python3 << 'PYEOF'
 import os
 import sys
+import shutil
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
@@ -311,15 +313,36 @@ try:
     
     print(f"Saving to: {checkpoint_dir}")
     os.makedirs(checkpoint_dir, exist_ok=True)
+    
+    # Save model and tokenizer to checkpoint directory
     model.save_pretrained(checkpoint_dir, safe_serialization=True)
     tokenizer.save_pretrained(checkpoint_dir)
+    
+    # TensorRT-LLM expects weights in rank0/ subdirectory for single GPU
+    rank0_dir = os.path.join(checkpoint_dir, "rank0")
+    os.makedirs(rank0_dir, exist_ok=True)
+    
+    # Copy weights to rank0/ subdirectory
+    weights_source = os.path.join(checkpoint_dir, "model.safetensors")
+    if os.path.exists(weights_source):
+        weights_dest = os.path.join(rank0_dir, "model.safetensors")
+        print(f"Copying weights to rank0/ subdirectory...")
+        shutil.copy2(weights_source, weights_dest)
+        print(f"✅ Copied {weights_source} → {weights_dest}")
+    
+    # Also try copying config.json to rank0/
+    config_source = os.path.join(checkpoint_dir, "config.json")
+    if os.path.exists(config_source):
+        config_dest = os.path.join(rank0_dir, "config.json")
+        shutil.copy2(config_source, config_dest)
+        print(f"✅ Copied config.json to rank0/")
     
     # Create marker file to indicate successful conversion
     marker_file = os.path.join(checkpoint_dir, ".tensorrt_llm_converted")
     with open(marker_file, 'w') as f:
-        f.write("Converted using transformers.save_pretrained()\n")
+        f.write("Converted using transformers.save_pretrained() with rank0/ structure\n")
     
-    print("✅ Model re-saved successfully")
+    print("✅ Model re-saved successfully with TensorRT-LLM checkpoint structure")
     print(f"✅ Marker file created: {marker_file}")
     sys.exit(0)
 except Exception as e:
