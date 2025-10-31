@@ -226,17 +226,100 @@ EOF
     ls -lh "$model_path" | grep -E "\.(safetensors|bin)$|config\.json" | head -5
     echo ""
     
-    # TensorRT-LLM 0.12 supports --hf_model_dir for HuggingFace models
-    # Try this first, then fall back to --checkpoint_dir if needed
-    echo -e "${BLUE}🔧 Attempting build with Llama model class...${NC}"
+    # TensorRT-LLM requires checkpoint format, not raw HuggingFace
+    # Convert HuggingFace model to TensorRT-LLM checkpoint format first
+    checkpoint_dir="$engine_dir/checkpoint"
+    
+    echo -e "${BLUE}🔧 Converting HuggingFace model to TensorRT-LLM checkpoint format...${NC}"
     echo ""
     
-    build_success=false
+    # Check if checkpoint already exists
+    if [ -d "$checkpoint_dir" ] && [ -f "$checkpoint_dir/config.json" ]; then
+        echo -e "${GREEN}✅ Checkpoint already exists, skipping conversion${NC}"
+        echo ""
+    else
+        echo -e "${BLUE}   Converting: $model_path → $checkpoint_dir${NC}"
+        mkdir -p "$checkpoint_dir"
+        
+        # Use TensorRT-LLM's conversion utility
+        # Try different conversion methods based on TensorRT-LLM version
+        conversion_success=false
+        
+        # Method 1: Use convert_checkpoint.py script if available
+        convert_script="/usr/local/lib/python3.10/dist-packages/tensorrt_llm/models/llama/convert_checkpoint.py"
+        if [ -f "$convert_script" ]; then
+            echo -e "${BLUE}   Using convert_checkpoint.py...${NC}"
+            if python3 "$convert_script" \
+                --model_dir "$model_path" \
+                --output_dir "$checkpoint_dir" \
+                --dtype float16 \
+                2>&1 | tee /tmp/trtllm_convert.log; then
+                conversion_success=true
+            fi
+        fi
+        
+        # Method 2: Use Python API if script doesn't exist or failed
+        if [ "$conversion_success" = false ]; then
+            echo -e "${BLUE}   Using TensorRT-LLM Python API...${NC}"
+            if python3 << EOF
+import sys
+sys.path.insert(0, '/usr/local/lib/python3.10/dist-packages')
+
+try:
+    from tensorrt_llm.models.llama.weight import convert_from_hugging_face
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    import torch
     
-    # Attempt 1: Use --hf_model_dir (TensorRT-LLM 0.12+ supports HuggingFace directly)
-    echo -e "${BLUE}   Attempt 1: Using --hf_model_dir (HuggingFace format)...${NC}"
+    print("Loading HuggingFace model...")
+    model = AutoModelForCausalLM.from_pretrained(
+        "$model_path",
+        torch_dtype=torch.float16,
+        trust_remote_code=True
+    )
+    tokenizer = AutoTokenizer.from_pretrained("$model_path", trust_remote_code=True)
+    
+    print("Converting to TensorRT-LLM checkpoint format...")
+    convert_from_hugging_face(
+        output_dir="$checkpoint_dir",
+        hf_model_dir="$model_path",
+        dtype="float16"
+    )
+    print("✅ Conversion successful")
+    sys.exit(0)
+except Exception as e:
+    print(f"❌ Conversion failed: {e}")
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+EOF
+            then
+                conversion_success=true
+            fi
+        fi
+        
+        if [ "$conversion_success" = false ]; then
+            echo ""
+            echo -e "${RED}❌ Failed to convert HuggingFace model to checkpoint format${NC}"
+            echo ""
+            echo -e "${YELLOW}💡 Manual conversion steps:${NC}"
+            echo "  1. Check TensorRT-LLM documentation for conversion tools"
+            echo "  2. Verify model files are complete"
+            echo "  3. Try using nvidia-modelopt to convert the model"
+            return 1
+        fi
+        
+        echo ""
+        echo -e "${GREEN}✅ Conversion complete${NC}"
+        echo ""
+    fi
+    
+    # Build TensorRT-LLM engine from checkpoint
+    echo -e "${BLUE}🔧 Building TensorRT-LLM engine from checkpoint...${NC}"
+    echo ""
+    
     if trtllm-build \
-        --hf_model_dir "$model_path" \
+        --checkpoint_dir "$checkpoint_dir" \
+        --model_cls_name LlamaForCausalLM \
         --output_dir "$engine_dir" \
         --gemm_plugin float16 \
         --gpt_attention_plugin float16 \
@@ -247,64 +330,17 @@ EOF
         --max_seq_len $max_seq_len \
         --max_beam_width 1 \
         --builder_opt 3 \
-        2>&1 | tee /tmp/trtllm_build_attempt1.log; then
+        2>&1 | tee /tmp/trtllm_build.log; then
         echo ""
-        echo -e "${GREEN}✅ Build succeeded with --hf_model_dir!${NC}"
-        build_success=true
-    fi
-    
-    # Attempt 2: Use --checkpoint_dir with model_cls_name (if Attempt 1 failed)
-    if [ "$build_success" = false ]; then
-        echo ""
-        echo -e "${BLUE}   Attempt 2: Using --checkpoint_dir with model class...${NC}"
-        if trtllm-build \
-            --checkpoint_dir "$model_path" \
-            --model_cls_name LlamaForCausalLM \
-            --output_dir "$engine_dir" \
-            --gemm_plugin float16 \
-            --gpt_attention_plugin float16 \
-            --context_fmha enable \
-            --remove_input_padding enable \
-            --max_batch_size 1 \
-            --max_input_len $context_window \
-            --max_seq_len $max_seq_len \
-            --max_beam_width 1 \
-            --builder_opt 3 \
-            2>&1 | tee /tmp/trtllm_build_attempt2.log; then
-            echo ""
-            echo -e "${GREEN}✅ Build succeeded with --checkpoint_dir!${NC}"
-            build_success=true
-        fi
-    fi
-    
-    if [ "$build_success" = true ]; then
+        echo -e "${GREEN}✅ Engine build succeeded!${NC}"
         return 0
-    fi
-    
-    # Both attempts failed - provide diagnostic info
-    echo ""
-    echo -e "${YELLOW}⚠️  Both build attempts failed${NC}"
-    echo ""
-    
-    # Check for weights_path error
-    if grep -q "assert os.path.isfile(weights_path)" /tmp/trtllm_build_attempt*.log 2>/dev/null; then
-        echo -e "${YELLOW}💡 Error: TensorRT-LLM couldn't find weights in expected format${NC}"
-        echo ""
-        echo "This TensorRT-LLM version may require converting HuggingFace models first."
-        echo "Try using the convert_checkpoint.py script:"
-        echo ""
-        echo "  python3 /usr/local/lib/python3.10/dist-packages/tensorrt_llm/models/llama/convert_checkpoint.py \\"
-        echo "    --model_dir $model_path \\"
-        echo "    --output_dir $engine_dir/checkpoint \\"
-        echo "    --dtype float16"
-        echo ""
-        echo "Then rebuild with: --checkpoint_dir $engine_dir/checkpoint"
     else
-        echo -e "${RED}❌ TensorRT-LLM build failed${NC}"
+        echo ""
+        echo -e "${RED}❌ TensorRT-LLM engine build failed${NC}"
+        echo ""
         echo "Check the error messages above for details."
+        return 1
     fi
-    
-    return 1
 }
 
 # Main build function
