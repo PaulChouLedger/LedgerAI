@@ -128,9 +128,21 @@ def llm_chat(messages, max_tokens=512, temperature=None, stream=False,
         "top_p": kwargs.pop("top_p", float(os.getenv("LLM_TOP_P", "0.85"))),
         "top_k": kwargs.pop("top_k", int(os.getenv("LLM_TOP_K", "30"))),
         "repeat_penalty": kwargs.pop("repeat_penalty", float(os.getenv("LLM_REPEAT_PENALTY", "1.15"))),
+        "presence_penalty": kwargs.pop("presence_penalty", float(os.getenv("LLM_PRESENCE_PENALTY", "0.0"))),
+        "frequency_penalty": kwargs.pop("frequency_penalty", float(os.getenv("LLM_FREQUENCY_PENALTY", "0.0"))),
         "stream": stream,
         **kwargs
     }
+    
+    # Apply stop sequences if configured
+    stop_env = os.getenv("LLM_STOP", "").strip()
+    if stop_env:
+        generation_params["stop"] = [s for s in stop_env.split(",") if s]
+    
+    # Override max_tokens with LLM_NUM_PREDICT if set
+    num_predict_env = os.getenv("LLM_NUM_PREDICT")
+    if num_predict_env and num_predict_env.isdigit():
+        generation_params["max_tokens"] = int(num_predict_env)
     
     with llm_lock:
         try:

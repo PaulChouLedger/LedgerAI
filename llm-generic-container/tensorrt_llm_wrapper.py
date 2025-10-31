@@ -116,9 +116,19 @@ class TensorRTLLMModel:
             "temperature": temperature,
             "top_k": kwargs.get("top_k", self.sampling_config.get("top_k", 50)),
             "top_p": kwargs.get("top_p", self.sampling_config.get("top_p", 0.9)),
-            "repetition_penalty": kwargs.get("repetition_penalty", 
+            "repetition_penalty": kwargs.get("repeat_penalty") or kwargs.get("repetition_penalty", 
                                             self.sampling_config.get("repetition_penalty", 1.1)),
         }
+        
+        # Add optional penalties if provided (TensorRT-LLM may support these)
+        if "presence_penalty" in kwargs:
+            generation_config["presence_penalty"] = kwargs["presence_penalty"]
+        if "frequency_penalty" in kwargs:
+            generation_config["frequency_penalty"] = kwargs["frequency_penalty"]
+        
+        # Add stop sequences if provided
+        if "stop" in kwargs and kwargs["stop"]:
+            generation_config["stop"] = kwargs["stop"]
         
         if stream:
             # Streaming generation

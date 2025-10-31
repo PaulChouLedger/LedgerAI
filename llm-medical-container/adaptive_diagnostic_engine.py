@@ -69,12 +69,42 @@ class AdaptiveDiagnosticEngine:
         self.llm_chat_simple_fn = llm_chat_simple_fn or llm_chat_fn
         self.embedding_model = embedding_model
         
-        # Configuration
+        # Configuration - read all LLM settings from environment
         self.temperature = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.2'))
+        self.top_p = float(os.environ.get('LLM_TOP_P', '0.85'))
+        self.top_k = int(os.environ.get('LLM_TOP_K', '30'))
+        self.repeat_penalty = float(os.environ.get('LLM_REPEAT_PENALTY', '1.15'))
+        self.presence_penalty = float(os.environ.get('LLM_PRESENCE_PENALTY', '0.0'))
+        self.frequency_penalty = float(os.environ.get('LLM_FREQUENCY_PENALTY', '0.0'))
+        self.num_predict = int(os.environ.get('LLM_NUM_PREDICT', '100'))
+        
+        # Stop sequences
+        stop_env = os.environ.get('LLM_STOP', '').strip()
+        self.stop_sequences = [s for s in stop_env.split(',') if s] if stop_env else None
         
         # Initialize debug capture
         self._captured_debug_output = []
         self.current_category = None
+        
+        def _get_llm_kwargs(override_max_tokens=None):
+            """Get all LLM parameters for generation"""
+            kwargs = {
+                'temperature': self.temperature,
+                'top_p': self.top_p,
+                'top_k': self.top_k,
+                'repeat_penalty': self.repeat_penalty,
+                'presence_penalty': self.presence_penalty,
+                'frequency_penalty': self.frequency_penalty,
+            }
+            if override_max_tokens:
+                kwargs['max_tokens'] = override_max_tokens
+            elif self.num_predict:
+                kwargs['max_tokens'] = self.num_predict
+            if self.stop_sequences:
+                kwargs['stop'] = self.stop_sequences
+            return kwargs
+        
+        self._get_llm_kwargs = _get_llm_kwargs
         
         # Initialize Medical Rule Engine
         try:
@@ -317,13 +347,13 @@ class AdaptiveDiagnosticEngine:
                 system_msg = "You are a medical assistant. Generate a natural, empathetic question to ask the patient to describe more about their symptoms."
                 user_msg = "Generate a natural question to ask the patient to tell you more about their symptoms. Make it empathetic and conversational. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
                 
+                llm_kwargs = self._get_llm_kwargs(override_max_tokens=40)
                 response = self.llm_chat_simple_fn(
                     [
                         {"role": "system", "content": system_msg},
                         {"role": "user", "content": user_msg}
                     ],
-                    max_tokens=40,
-                    temperature=self.temperature
+                    **llm_kwargs
                 )
                 symptom_question = response.strip() if response and response.strip() else "Tell me more about your symptoms so I can better understand what you're experiencing."
             else:
@@ -1174,13 +1204,13 @@ class AdaptiveDiagnosticEngine:
             system_msg = "You are a medical assistant. Generate a brief confirmation message paraphrasing what the patient just told you to show you understand."
             user_msg = f"{chief_complaint_context}\n\nPatient just said: '{user_answer}'\n\nGenerate a brief confirmation message (1-2 sentences) that paraphrases what they told you to confirm understanding. Make it natural and empathetic. Return only the confirmation message, no other text."
             
+            llm_kwargs = self._get_llm_kwargs(override_max_tokens=60)
             response = self.llm_chat_simple_fn(
                 [
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=60,
-                temperature=self.temperature
+                **llm_kwargs
             )
             if response and response.strip():
                 return response.strip()
@@ -1202,13 +1232,13 @@ class AdaptiveDiagnosticEngine:
             system_msg = "You are a medical assistant. Generate a natural, conversational question to ask about a specific aspect of a patient's symptoms. Base your question ONLY on what the patient has actually told you — do NOT make up details. Avoid leading the patient or naming specific anatomical regions unless the patient already said them."
             user_msg = f"{chief_complaint_context}\n{covered_info}\n\nGenerate a natural question to ask about the {component} of the patient's symptoms related to their chief complaint. Make it conversational and empathetic. Do NOT introduce specific locations (e.g., 'lower right abdomen', 'RUQ') unless the patient already said them. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
             
+            llm_kwargs = self._get_llm_kwargs(override_max_tokens=50)
             response = self.llm_chat_simple_fn(
                 [
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=50,
-                temperature=self.temperature
+                **llm_kwargs
             )
             if response and response.strip():
                 return response.strip()
@@ -1255,13 +1285,13 @@ class AdaptiveDiagnosticEngine:
                 system_msg = "You are a medical assistant. Generate a natural, conversational question to ask for the patient's age."
                 user_msg = "Generate a natural question to ask for the patient's age. Make it conversational and professional. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
                 
+                llm_kwargs = self._get_llm_kwargs(override_max_tokens=30)
                 response = self.llm_chat_simple_fn(
                     [
                         {"role": "system", "content": system_msg},
                         {"role": "user", "content": user_msg}
                     ],
-                    max_tokens=30,
-                    temperature=self.temperature
+                    **llm_kwargs
                 )
                 question = response.strip() if response and response.strip() else "How old are you?"
             else:
@@ -1313,13 +1343,13 @@ class AdaptiveDiagnosticEngine:
                 system_msg = "You are a medical assistant. Generate a natural, conversational question to ask if the patient's problem is new or ongoing."
                 user_msg = "Generate a natural question to ask if this is a new problem or ongoing issue. Make it conversational and professional. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
                 
+                llm_kwargs = self._get_llm_kwargs(override_max_tokens=40)
                 response = self.llm_chat_simple_fn(
                     [
                         {"role": "system", "content": system_msg},
                         {"role": "user", "content": user_msg}
                     ],
-                    max_tokens=40,
-                    temperature=self.temperature
+                    **llm_kwargs
                 )
                 question = response.strip() if response and response.strip() else "Is this a new problem or an ongoing issue?"
             else:
@@ -1355,13 +1385,14 @@ class AdaptiveDiagnosticEngine:
             system_msg = "You are a compassionate medical assistant. Generate a brief, empathetic statement acknowledging the patient's chief complaint."
             user_msg = f"Patient says: '{self.chief_complaint}'\n\nGenerate a brief, empathetic statement (1-2 sentences) that acknowledges their concern and shows you're here to help."
             
+            # Use all LLM settings from environment
+            llm_kwargs = self._get_llm_kwargs(override_max_tokens=60)
             response = self.llm_chat_simple_fn(
                 [
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=60,
-                temperature=self.temperature
+                **llm_kwargs
             )
             if response and response.strip():
                 return response.strip()
@@ -1477,10 +1508,10 @@ class AdaptiveDiagnosticEngine:
                 system_msg = "You are a medical assistant. Extract the patient's age from their response. Return ONLY a number between 0-150, or 'invalid' if not a valid age."
                 user_msg = f"Patient said: '{user_answer}'\n\nExtract age as a number only:"
         
+                llm_kwargs = self._get_llm_kwargs(override_max_tokens=10)
                 response = self.llm_chat_simple_fn(
                     [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
-                    max_tokens=10,
-                    temperature=self.temperature
+                    **llm_kwargs
                 )
                 
                 age_str = response.strip()
@@ -1521,10 +1552,10 @@ class AdaptiveDiagnosticEngine:
                 system_msg = "You are a medical assistant. Extract the patient's biological sex from their response. Return ONLY 'male', 'female', or 'invalid'."
                 user_msg = f"Patient said: '{user_answer}'\n\nExtract biological sex (male/female) only:"
                 
+                llm_kwargs = self._get_llm_kwargs(override_max_tokens=10)
                 response = self.llm_chat_simple_fn(
                     [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
-                    max_tokens=10,
-                    temperature=self.temperature
+                    **llm_kwargs
                 )
                 
                 sex_str = response.strip().lower()
@@ -1698,13 +1729,13 @@ Response:"""
         
         try:
             # Use LLM to generate context-aware response
+            llm_kwargs = self._get_llm_kwargs(override_max_tokens=150)
             response = self.llm_chat_simple_fn(
                 [
                     {"role": "system", "content": system_msg},
                     {"role": "user", "content": user_msg}
                 ],
-                max_tokens=150,
-                temperature=self.temperature
+                **llm_kwargs
             )
             
             # Record the explanation as a response (not a question)
