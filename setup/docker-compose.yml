@@ -6,25 +6,6 @@ services:
       - ../shared:/shared
 
   llm:
-    build: ../llm-container
-    network_mode: host
-    volumes:
-      - ../shared:/shared
-      - ../data:/app/data
-      - /home/aura/LedgerAI/.env:/app/.env
-      - /models:/models  # Mount models directory for TensorRT-LLM engines
-      - /models/ollama-models:/root/.ollama/models  # Persist Ollama models (stored on host at /models/ollama-models)
-    working_dir: /app
-    env_file: /home/aura/LedgerAI/.env
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-
-  llm-medical:
     build: ../llm-medical-container
     network_mode: host
     volumes:
@@ -40,8 +21,6 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    profiles:
-      - backup  # Only start with --profile backup
 
   rag:
     build: ../rag-container
