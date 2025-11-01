@@ -347,7 +347,7 @@ class AdaptiveDiagnosticEngine:
                 system_msg = "You are a medical assistant. Generate a natural question to gather more information about the patient's symptoms."
                 user_msg = f"Patient reported: '{self.chief_complaint}'\n\nGenerate a brief follow-up question to learn more about their symptoms. Focus ONLY on gathering information. Do NOT use phrases like 'I'm sorry', 'I understand', or other empathetic language. Be direct and factual. Ask one specific question about timing, location, or severity. Respond in 1 sentence ending with a question mark. Return only the question, no other text."
                 
-                llm_kwargs = self._get_llm_kwargs(override_max_tokens=40)
+                llm_kwargs = self._get_llm_kwargs()
                 response = self.llm_chat_simple_fn(
                     [
                         {"role": "system", "content": system_msg},
@@ -1241,7 +1241,7 @@ class AdaptiveDiagnosticEngine:
             system_msg = "You are a medical assistant. Generate a brief confirmation message paraphrasing what the patient just told you to show you understand."
             user_msg = f"{chief_complaint_context}\n\nPatient just said: '{user_answer}'\n\nGenerate a brief confirmation message (1-2 sentences) that paraphrases what they told you to confirm understanding. Make it natural and empathetic. Return only the confirmation message, no other text."
             
-            llm_kwargs = self._get_llm_kwargs(override_max_tokens=60)
+            llm_kwargs = self._get_llm_kwargs()
             response = self.llm_chat_simple_fn(
                 [
                     {"role": "system", "content": system_msg},
@@ -1269,7 +1269,7 @@ class AdaptiveDiagnosticEngine:
             system_msg = "You are a medical assistant. Generate a natural, conversational question to ask about a specific aspect of a patient's symptoms. Base your question ONLY on what the patient has actually told you — do NOT make up details. Avoid leading the patient or naming specific anatomical regions unless the patient already said them."
             user_msg = f"{chief_complaint_context}\n{covered_info}\n\nGenerate a natural question to ask about the {component} of the patient's symptoms related to their chief complaint. Make it conversational and empathetic. Do NOT introduce specific locations (e.g., 'lower right abdomen', 'RUQ') unless the patient already said them. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
             
-            llm_kwargs = self._get_llm_kwargs(override_max_tokens=50)
+            llm_kwargs = self._get_llm_kwargs()
             response = self.llm_chat_simple_fn(
                 [
                     {"role": "system", "content": system_msg},
@@ -1322,7 +1322,7 @@ class AdaptiveDiagnosticEngine:
                 system_msg = "You are a medical assistant. Generate a natural, conversational question to ask for the patient's age."
                 user_msg = "Generate a natural question to ask for the patient's age. Make it conversational and professional. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
                 
-                llm_kwargs = self._get_llm_kwargs(override_max_tokens=30)
+                llm_kwargs = self._get_llm_kwargs()
                 response = self.llm_chat_simple_fn(
                     [
                         {"role": "system", "content": system_msg},
@@ -1377,10 +1377,10 @@ class AdaptiveDiagnosticEngine:
         # STEP 4: Chronicity question
         if 'chronicity' not in self.demographics:
             if self.llm_chat_simple_fn:
-                system_msg = "You are a medical assistant. Generate a natural, conversational question to ask if the patient's problem is new or ongoing."
-                user_msg = "Generate a natural question to ask if this is a new problem or ongoing issue. Make it conversational and professional. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
+                system_msg = "You are a medical assistant. Generate a concise question to ask if the patient's problem is new or ongoing."
+                user_msg = "Is this a new problem or an ongoing issue?"
                 
-                llm_kwargs = self._get_llm_kwargs(override_max_tokens=40)
+                llm_kwargs = self._get_llm_kwargs()
                 response = self.llm_chat_simple_fn(
                     [
                         {"role": "system", "content": system_msg},
@@ -1423,7 +1423,7 @@ class AdaptiveDiagnosticEngine:
             user_msg = f"Patient reported: '{self.chief_complaint}'\n\nGenerate a brief, empathetic acknowledgment (1-2 sentences). Acknowledge their concern, show compassion, and express that you're here to help. Do NOT ask questions. End with a period. Return only the statement, no other text."
             
             # Use all LLM settings from environment
-            llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
+            llm_kwargs = self._get_llm_kwargs()
             response = self.llm_chat_simple_fn(
                 [
                     {"role": "system", "content": system_msg},
@@ -1766,7 +1766,7 @@ Response:"""
         
         try:
             # Use LLM to generate context-aware response
-            llm_kwargs = self._get_llm_kwargs(override_max_tokens=150)
+            llm_kwargs = self._get_llm_kwargs()
             response = self.llm_chat_simple_fn(
                 [
                     {"role": "system", "content": system_msg},
