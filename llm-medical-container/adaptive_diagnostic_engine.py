@@ -791,14 +791,15 @@ class AdaptiveDiagnosticEngine:
         clarification_needed = False
         missing_terms = []  # Missing terms for the current element
         
-        if clarification_count < 2 and self.active_guidelines:
+        if self.active_guidelines:
             try:
-                # Get missing terms - this already does the expensive matching
-                missing_terms = self._analyze_missing_information(answer, oldcarts_element)
+                # Get missing terms and satisfied terms - this already does the expensive matching
+                missing_terms, satisfied_terms = self._analyze_missing_information(answer, oldcarts_element)
                 self._capture_debug(f"[Clarification] 📊 Missing terms: {missing_terms}")
+                self._capture_debug(f"[Clarification] ✅ Satisfied terms: {sorted(satisfied_terms)} (count: {len(satisfied_terms)})")
                 
-                # If there are missing terms, we need clarification
-                if missing_terms:
+                # Continue asking if we have 2+ satisfied terms (ambiguous) OR no satisfied terms at all
+                if len(satisfied_terms) >= 2 or len(satisfied_terms) == 0:
                     clarification_needed = True
                     # Use missing terms for the clarifying question
                     question = self._generate_clarifying_question(oldcarts_element, answer, clarification_count, missing_terms)
@@ -817,6 +818,8 @@ class AdaptiveDiagnosticEngine:
                             'internal': self._get_debug_info(last_answer=answer)
                         }
                     }
+                elif len(satisfied_terms) == 1:
+                    self._capture_debug(f"[Clarification] ✅ Have exactly 1 satisfied term - moving on")
             except Exception as e:
                 self._capture_debug(f"[Engine] ⚠️ Clarification check failed: {e}")
         
@@ -880,10 +883,12 @@ class AdaptiveDiagnosticEngine:
         else:
             return 0.05
     
-    def _analyze_missing_information(self, answer: str, oldcarts_element: str) -> List[str]:
-        """Analyze what information is missing using unified function with FAISS semantic matching"""
+    def _analyze_missing_information(self, answer: str, oldcarts_element: str) -> tuple:
+        """Analyze what information is missing using unified function with FAISS semantic matching
+        Returns: (missing_terms, satisfied_terms)
+        """
         if not self.active_guidelines:
-            return []
+            return [], set()
         
         # Collect all includes terms from active guidelines (normalize dicts)
         all_includes = set()
@@ -992,7 +997,8 @@ class AdaptiveDiagnosticEngine:
         self._capture_debug(f"[Location Analysis] ✅ Satisfied terms: {sorted(satisfied_terms)}")
         self._capture_debug(f"[Location Analysis] ❌ Missing terms: {missing[:5]}")
         
-        return missing[:5]  # Limit to 5
+        # Return both satisfied and missing terms for better decision making
+        return missing[:5], satisfied_terms
     
     def _get_satisfied_terms(self, answer: str, oldcarts_element: str) -> set:
         """Get terms that are satisfied using unified function logic"""
@@ -1111,15 +1117,15 @@ class AdaptiveDiagnosticEngine:
         for term in missing_terms[:5]:  # Try more terms to get 3 good ones
             friendly_term = self._get_patient_friendly_from_guidelines(term, oldcarts_element)
             medical_to_friendly_map[term] = friendly_term
+            
+            # Debug output showing the mapping for each term as we process it
+            self._capture_debug(f"[Clarification] 📝 '{term}' → '{friendly_term}'")
+            
             # Only add non-empty terms
             if friendly_term and friendly_term.strip():
                 patient_friendly_terms.append(friendly_term)
                 if len(patient_friendly_terms) >= 3:  # Stop when we have 3 good ones
                     break
-        
-        # Debug output showing the mapping
-        for med, friendly in medical_to_friendly_map.items():
-            self._capture_debug(f"[Clarification] 📝 '{med}' → '{friendly}'")
         
         # If no good terms found, use generic clarifying question
         if not patient_friendly_terms:
