@@ -928,7 +928,8 @@ class AdaptiveDiagnosticEngine:
                         if term.lower() in [s.lower() for s in synonym_list]:
                             # This term is a synonym of the standard term
                             # Check if answer matches any synonym of this standard term
-                            if any(syn.lower() in answer_lower or answer_lower in syn.lower() for syn in synonym_list):
+                            # Use more precise matching: answer must be a substring of synonym (not reverse)
+                            if any(syn.lower() in answer_lower for syn in synonym_list):
                                 term_satisfied = True
                                 break
                 
