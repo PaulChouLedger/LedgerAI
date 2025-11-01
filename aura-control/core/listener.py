@@ -29,7 +29,7 @@ VAD_SILENCE_THRESHOLD = 0.15  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
 
 # === Device Configuration ===
-DEVICE_NAME = "Mic Array"
+DEVICE_NAME = "XVF3800 4-Mic Array"
 MICROPHONE_CHANNEL = 0  # Channel to use for audio processing (0 or 1, device has 2 channels total)
 
 # === Advanced Multi-Feature Speech Detection ===
@@ -266,9 +266,9 @@ def is_likely_speech(features, duration=None):
 model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
 
 # === Load Hardware Config ===
-def load_respeaker_config():
-    """Load saved ReSpeaker configuration (no permissions needed)"""
-    config_file = os.path.expanduser("~/LedgerAI/data/respeaker_config.json")
+def load_xvf3800_config():
+    """Load saved XVF3800 configuration (no permissions needed)"""
+    config_file = os.path.expanduser("~/LedgerAI/data/xvf3800_config.json")
     try:
         with open(config_file, 'r') as f:
             import json
@@ -284,7 +284,7 @@ def display_hardware_config(state):
     """Display current hardware configuration"""
     if not state:
         print("\n[Hardware] ⚠️  No saved configuration found")
-        print("[Hardware] 💡 Run: sudo python3 scripts/tune_respeaker.py [profile]\n")
+        print("[Hardware] 💡 Run: sudo python3 setup/scripts/tune_xvf3800.py [preset]\n")
         return
     
     preset = state.get('preset', 'unknown')
@@ -295,25 +295,24 @@ def display_hardware_config(state):
     print("="*70)
     
     # AGC
-    if config.get('AGCONOFF', 0) == 1:
+    if config.get('PP_AGCONOFF', 0) == 1:
         print(f"  AGC:                    ✅ ENABLED")
-        print(f"    Target Level:         {config.get('AGCDESIREDLEVEL', 0):.2f} RMS")
-        print(f"    Max Gain:             {config.get('AGCMAXGAIN', 0):.0f} dB")
+        print(f"    Target Level:         {config.get('PP_AGCDESIREDLEVEL', 0):.2f} RMS")
+        print(f"    Max Gain:             {config.get('PP_AGCMAXGAIN', 0):.0f} linear")
     else:
         print(f"  AGC:                    ❌ DISABLED")
     
     # High-pass Filter
-    hpf_labels = ["OFF", "70 Hz", "125 Hz", "180 Hz"]
-    hpf_val = config.get('HPFONOFF', 0)
-    hpf_label = hpf_labels[hpf_val] if hpf_val < len(hpf_labels) else str(hpf_val)
+    hpf_labels = {0: "OFF", 1: "70 Hz", 2: "125 Hz", 3: "150 Hz", 4: "180 Hz"}
+    hpf_val = config.get('AEC_HPFONOFF', 0)
+    hpf_label = hpf_labels.get(hpf_val, str(hpf_val))
     print(f"  High-Pass Filter:       {hpf_label}")
     
-    # Noise Suppression
-    if config.get('STATNOISEONOFF_SR', 0) == 1:
-        gamma = config.get('GAMMA_NS_SR', 1.0)
-        print(f"  Stationary Noise Supp:  ✅ ENABLED (gamma={gamma:.1f})")
+    # Echo Cancellation
+    if config.get('PP_ECHOONOFF', 0) == 1:
+        print(f"  Echo Cancellation:      ✅ ENABLED")
     else:
-        print(f"  Stationary Noise Supp:  ❌ DISABLED")
+        print(f"  Echo Cancellation:      ❌ DISABLED")
     
     print("="*70 + "\n")
 
@@ -420,7 +419,7 @@ def listen():
     channels = find_device_index()
     
     # Display current hardware configuration
-    config = load_respeaker_config()
+    config = load_xvf3800_config()
     display_hardware_config(config)
     
     # Warm up Whisper model (eliminates slow first transcription)
@@ -429,7 +428,7 @@ def listen():
     print("\n" + "="*70)
     print("[Audio] BARE-BONES PIPELINE")
     print("[Audio]   Hardware DSP → Channel 0 → VAD → Whisper")
-    print("[Audio]   (Configure: sudo python3 scripts/tune_respeaker.py [profile])")
+    print("[Audio]   (Configure: python3 setup/scripts/tune_xvf3800.py [preset])")
     print("="*70 + "\n")
     
     # ARM/Jetson-specific audio configuration
