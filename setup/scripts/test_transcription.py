@@ -87,15 +87,15 @@ from scipy.fft import rfft, rfftfreq
 # === Config ===
 SAMPLE_RATE = 16000
 FRAME_SIZE = int(SAMPLE_RATE * 0.032)
-SILENCE_TIMEOUT = 0.3  # 300ms of silence before stopping
-VAD_START_THRESHOLD = 0.25  # Higher = less sensitive to fan noise
+SILENCE_TIMEOUT = 0.5  # 300ms of silence before stopping
+VAD_START_THRESHOLD = 0.25  # Lowered - beamforming provides good noise rejection
 VAD_SILENCE_THRESHOLD = 0.15  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
 
 # === Advanced Multi-Feature Speech Detection (OPTIONAL) ===
 # Set ENABLE_ADVANCED_FILTER = True to enable secondary checks beyond VAD
 # RECOMMENDED: Enable when using beamforming for best results!
-ENABLE_ADVANCED_FILTER = True  # Toggle this to test
+ENABLE_ADVANCED_FILTER = False  # Toggle this to test
 
 # Thresholds based on your ACTUAL speech patterns:
 # Updated after comparing real speech vs noise bursts
