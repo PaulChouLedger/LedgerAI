@@ -5,7 +5,7 @@ services:
     volumes:
       - ../shared:/shared
 
-  llm:
+  llm-medical:
     build: ../llm-medical-container
     network_mode: host
     volumes:
@@ -21,6 +21,27 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    profiles:
+      - medical
+
+  llm-generic:
+    build: ../llm-container
+    network_mode: host
+    volumes:
+      - ../shared:/shared
+      - ../data:/app/data
+      - /home/aura/LedgerAI/.env:/app/.env
+    working_dir: /app
+    env_file: /home/aura/LedgerAI/.env
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    profiles:
+      - generic
 
   rag:
     build: ../rag-container

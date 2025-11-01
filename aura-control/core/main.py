@@ -315,6 +315,9 @@ def start_services():
     # Check if RAG container should be started
     RAG_ENABLED = os.environ.get('RAG_ENABLED', 'false').lower() == 'true'
     
+    # Check which LLM mode to use
+    USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'true').lower() == 'true'
+    
     if RAG_ENABLED:
         print("[Aura] 🚀 Starting all containers in parallel (including RAG)...")
     else:
@@ -337,21 +340,37 @@ def start_services():
                 check=False  # Don't fail if nothing to stop
             )
             
+            # Determine which LLM container to start based on USE_MEDICAL_MODE
+            if USE_MEDICAL_MODE:
+                llm_service = "llm-medical"
+                print("[Aura] 🏥 Medical Mode - starting llm-medical container")
+            else:
+                llm_service = "llm-generic"
+                print("[Aura] 💬 Generic Mode - starting llm-generic container")
+            
             # Determine which services to start
-            services_to_start = ["whisper", "llm"]
+            services_to_start = ["whisper", llm_service]
             if RAG_ENABLED:
                 services_to_start.append("rag")
                 print("[Aura] 🔍 RAG enabled - starting all containers including RAG")
             else:
                 print("[Aura] ⏭️  RAG disabled - starting Whisper and LLM only")
             
-            # Start selected services with Docker Compose
-            cmd = ["docker", "compose", "up", "-d"] + services_to_start
+            # Set COMPOSE_PROFILES environment variable for profile-based service selection
+            env = os.environ.copy()
+            if USE_MEDICAL_MODE:
+                env["COMPOSE_PROFILES"] = "medical"
+                cmd = ["docker", "compose", "up", "-d"] + services_to_start
+            else:
+                env["COMPOSE_PROFILES"] = "generic"
+                cmd = ["docker", "compose", "up", "-d"] + services_to_start
+            
             result = subprocess.run(
                 cmd,
                 cwd=setup_dir,
                 capture_output=True,
-                text=True
+                text=True,
+                env=env
             )
             
             if result.returncode != 0:
