@@ -225,6 +225,8 @@ def configure_hpf_only():
     print("="*80 + "\n")
     
     print("[1/3] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
+    print("      ⚠️  Note: 70Hz is the MINIMUM available on XVF3800")
+    print("      This blocks fan noise at 15-20Hz, but not as selectively as a 20Hz filter")
     run_xvf_command("AEC_HPFONOFF", 1)
     
     print("[2/3] AGC: OFF")
@@ -235,9 +237,11 @@ def configure_hpf_only():
     
     print("\n  ✅ HPF Only Profile Complete")
     print("\n  🎯 MINIMAL PROCESSING:")
-    print("     1️⃣  HPF removes low-frequency rumble and fan noise")
+    print("     1️⃣  HPF 70Hz removes low-frequency rumble and fan noise (15-20Hz)")
     print("     2️⃣  No automatic gain control")
-    print("     3️⃣  Best for clean environments with minimal noise\n")
+    print("     3️⃣  Best for clean environments with minimal noise")
+    print("\n  ⚠️  LIMITATION: XVF3800 hardware supports HPF at 70Hz, 125Hz, 150Hz, 180Hz only")
+    print("      Custom 20Hz cutoff would require external analog/digital filter\n")
     
     save_config_state('hpf_only', {
         'AEC_HPFONOFF': 1,
