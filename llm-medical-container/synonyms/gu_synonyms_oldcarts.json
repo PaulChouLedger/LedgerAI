@@ -88,7 +88,7 @@
       "blood in micturition",
       "bloody micturition"
     ],
-    "genital_pain": [
+    "genital": [
       "genital pain",
       "genital area pain",
       "genital discomfort",
@@ -147,7 +147,7 @@
     ]
   },
   "location": {
-    "urinary_pain": [
+    "urinary": [
       "burning urination",
       "dysuria",
       "pain peeing",
@@ -164,14 +164,14 @@
       "stinging pee",
       "painful pee"
     ],
-    "flank_pain": [
+    "flank": [
       "side pain",
       "loin pain",
       "pain in side",
       "back side pain",
       "kidney pain"
     ],
-    "pelvic_pain": [
+    "pelvic": [
       "lower abdominal pain",
       "pain in pelvis",
       "pelvic cramping",
@@ -538,7 +538,7 @@
       "no energy",
       "run down"
     ],
-    "back_pain": [
+    "back": [
       "back pain",
       "back ache",
       "back discomfort",
@@ -546,7 +546,7 @@
       "flank pain",
       "kidney area pain"
     ],
-    "abdominal_pain": [
+    "abdominal": [
       "abdominal pain",
       "belly pain",
       "stomach pain",

@@ -44,7 +44,7 @@
       "breathing stress",
       "breathing fatigue"
     ],
-    "chest_pain": [
+    "chest": [
       "chest pain",
       "chest discomfort",
       "chest ache",
@@ -622,7 +622,7 @@
       "vertigo",
       "spinning sensation"
     ],
-    "chest_pain": [
+    "chest": [
       "chest pain",
       "chest discomfort",
       "chest ache",

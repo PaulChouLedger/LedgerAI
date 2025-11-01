@@ -34,7 +34,7 @@
       "location": {
         "includes": [
           {
-            "medical": "rlq",
+            "medical": "right lower quadrant",
             "patient_friendly": "lower right side around your groin"
           },
           {

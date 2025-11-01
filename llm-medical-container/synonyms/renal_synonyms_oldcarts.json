@@ -1,6 +1,6 @@
 {
   "chief_complaint": {
-    "flank_pain": [
+    "flank": [
       "side pain",
       "loin pain",
       "pain in side",
@@ -22,7 +22,7 @@
       "kidney sore",
       "kidney tender"
     ],
-    "back_pain": [
+    "back": [
       "back pain",
       "back ache",
       "back discomfort",
@@ -147,7 +147,7 @@
     ]
   },
   "location": {
-    "flank_pain": [
+    "flank": [
       "side pain",
       "loin pain",
       "pain in side",

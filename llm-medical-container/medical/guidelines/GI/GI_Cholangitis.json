@@ -29,7 +29,7 @@
       "location": {
         "includes": [
           {
-            "medical": "ruq",
+            "medical": "right upper quadrant",
             "patient_friendly": "top right side near your ribs"
           }
         ],
@@ -128,7 +128,7 @@
             "patient_friendly": "PENTAD"
           },
           {
-            "medical": "ruq",
+            "medical": "right upper quadrant",
             "patient_friendly": "top right side near your ribs"
           }
         ],

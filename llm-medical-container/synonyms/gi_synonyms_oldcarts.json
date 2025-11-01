@@ -75,7 +75,7 @@
       "right side of stomach",
       "right side of belly"
     ],
-    "ruq_pain": [
+    "right upper quadrant": [
       "right upper quadrant pain",
       "pain under ribs right side",
       "upper right",
@@ -102,7 +102,7 @@
       "gallbladder pain",
       "liver pain"
     ],
-    "rlq_pain": [
+    "right lower quadrant": [
       "right lower quadrant pain",
       "lower right abdominal pain",
       "pain near right pelvis",
@@ -125,7 +125,7 @@
       "appendix pain",
       "appendicitis pain"
     ],
-    "luq_pain": [
+    "left upper quadrant": [
       "left upper quadrant pain",
       "stomach ulcer pain left side",
       "upper left abdominal pain",
@@ -135,7 +135,7 @@
       "pain in left upper stomach",
       "spleen pain"
     ],
-    "llq_pain": [
+    "left lower quadrant": [
       "left lower quadrant pain",
       "diverticulitis pain",
       "lower left abdominal pain",
@@ -146,7 +146,7 @@
       "lower abdomen left side",
       "pain in left lower stomach"
     ],
-    "epigastric_pain": [
+    "epigastric": [
       "pain in the middle upper stomach",
       "center upper abdominal pain",
       "top of abdomen",
@@ -162,14 +162,14 @@
       "middle upper abdomen",
       "epigastric area"
     ],
-    "suprapubic_pain": [
+    "suprapubic": [
       "pain below belly button",
       "lower middle abdominal pain",
       "pubic pain",
       "suprapubic area pain",
       "pain above bladder"
     ],
-    "diffuse_pain": [
+    "diffuse": [
       "pain all over abdomen",
       "generalized abdominal pain",
       "whole stomach pain",
@@ -180,7 +180,7 @@
       "everywhere",
       "throughout abdomen"
     ],
-    "periumbilical_pain": [
+    "periumbilical": [
       "around the belly button",
       "around navel",
       "around my belly button",
@@ -190,7 +190,7 @@
       "by navel",
       "around the navel"
     ],
-    "umbilical_pain": [
+    "umbilical": [
       "belly button",
       "around navel",
       "middle of belly",
@@ -199,7 +199,7 @@
       "navel area",
       "umbilical area"
     ],
-    "mcburney_pain": [
+    "mcburney": [
       "lower right near hip",
       "appendix area",
       "lower right abdomen",

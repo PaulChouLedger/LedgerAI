@@ -1,6 +1,6 @@
 {
   "chief_complaint": {
-    "chest_pain": [
+    "chest": [
       "chest pain",
       "chest discomfort",
       "chest ache",
@@ -22,7 +22,7 @@
       "chest sharp pain",
       "chest dull pain"
     ],
-    "heart_pain": [
+    "heart": [
       "heart pain",
       "heart ache",
       "heart discomfort",

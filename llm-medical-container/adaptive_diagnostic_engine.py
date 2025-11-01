@@ -889,6 +889,7 @@ class AdaptiveDiagnosticEngine:
             
             # Build mapping from synonym keys to all their synonym values for comparison
             synonym_expansions = {}
+            synonym_to_group = {}  # Reverse mapping: synonym → group key
             if os.path.exists(synonym_path):
                 with open(synonym_path, 'r') as f:
                     synonyms = json.load(f)
@@ -896,9 +897,13 @@ class AdaptiveDiagnosticEngine:
                     for standard_term, synonym_list in synonyms[oldcarts_element].items():
                         # Map standard term to all its synonyms for comparison
                         synonym_expansions[standard_term] = [standard_term] + synonym_list
+                        # Build reverse mapping: each synonym points back to its group
+                        for synonym in [standard_term] + synonym_list:
+                            synonym_to_group[synonym.lower()] = standard_term
         
         except Exception:
             synonym_expansions = {}
+            synonym_to_group = {}
         
         # Do FAISS semantic matching ONCE for all terms (expensive operation)
         semantic_matches_set = set()
@@ -934,6 +939,14 @@ class AdaptiveDiagnosticEngine:
             
             if term_satisfied:
                 satisfied_terms.add(term)
+                # If term is part of a synonym group, check if we should satisfy other terms in that group
+                if synonym_to_group and term.lower() in synonym_to_group:
+                    group_key = synonym_to_group[term.lower()]
+                    # Find all other terms in this group and mark them satisfied
+                    if group_key in synonym_expansions:
+                        for other_synonym in synonym_expansions[group_key]:
+                            if other_synonym.lower() in all_includes:
+                                satisfied_terms.add(other_synonym.lower())
         
         # Terms are missing if they're not satisfied
         missing = [term for term in all_includes if term not in satisfied_terms]

@@ -34,11 +34,11 @@
             "patient_friendly": "lower left side around your groin"
           },
           {
-            "medical": "llq",
+            "medical": "left lower quadrant",
             "patient_friendly": "lower left side around your groin"
           },
           {
-            "medical": "rlq",
+            "medical": "right lower quadrant",
             "patient_friendly": "lower right side around your groin"
           }
         ],
