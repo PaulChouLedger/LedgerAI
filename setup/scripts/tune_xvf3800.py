@@ -14,6 +14,9 @@ PRESETS:
     - far_field            : Optimized for 8-16 feet
     - near_field           : Optimized for 1-6 feet
     - hpf_only             : HPF 70Hz only (minimal processing)
+    - agc_only             : AGC only (0.08, 30dB) - no HPF
+    - agc_10               : HPF 70Hz + AGC with 10% increase (0.088)
+    - agc_20               : HPF 70Hz + AGC with 20% increase (0.096)
     - reset                : Factory defaults
     - show                 : Show current settings
 """
@@ -243,6 +246,123 @@ def configure_hpf_only():
     })
     return True
 
+def configure_agc_only():
+    """AGC Only - AGC (0.08, 30dB) with no HPF"""
+    print("\n" + "="*80)
+    print("  🔧 AGC ONLY")
+    print("="*80 + "\n")
+    
+    print("[1/5] High-Pass Filter: OFF")
+    run_xvf_command("AEC_HPFONOFF", 0)
+    
+    print("[2/5] AGC: ENABLED")
+    run_xvf_command("PP_AGCONOFF", 1)
+    
+    print("[3/5] AGC Target Level: 0.08 RMS")
+    run_xvf_command("PP_AGCDESIREDLEVEL", 0.08)
+    
+    print("[4/5] AGC Max Gain: 30 dB (1000 linear)")
+    run_xvf_command("PP_AGCMAXGAIN", 1000)
+    
+    print("[5/5] AGC Attack Time: 0.5 seconds")
+    run_xvf_command("PP_AGCTIME", 0.5)
+    
+    print("\n  ✅ AGC Only Profile Complete")
+    print("\n  🎯 TESTING AGC INDEPENDENTLY:")
+    print("     1️⃣  No high-pass filter")
+    print("     2️⃣  AGC only for automatic gain control")
+    print("     3️⃣  Good for testing AGC alone\n")
+    
+    save_config_state('agc_only', {
+        'AEC_HPFONOFF': 0,
+        'PP_AGCONOFF': 1,
+        'PP_AGCDESIREDLEVEL': 0.08,
+        'PP_AGCMAXGAIN': 1000,
+        'PP_AGCTIME': 0.5,
+        'PP_ECHOONOFF': 0
+    })
+    return True
+
+def configure_agc_10():
+    """AGC 10% Increase - HPF 70Hz + AGC with 10% higher target"""
+    print("\n" + "="*80)
+    print("  🔊 AGC 10% INCREASE")
+    print("="*80 + "\n")
+    
+    print("[1/6] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
+    run_xvf_command("AEC_HPFONOFF", 1)
+    
+    print("[2/6] AGC: ENABLED")
+    run_xvf_command("PP_AGCONOFF", 1)
+    
+    print("[3/6] AGC Target Level: 0.088 RMS (10% increase from 0.08)")
+    run_xvf_command("PP_AGCDESIREDLEVEL", 0.088)
+    
+    print("[4/6] AGC Max Gain: 30 dB (1000 linear)")
+    run_xvf_command("PP_AGCMAXGAIN", 1000)
+    
+    print("[5/6] AGC Attack Time: 0.5 seconds")
+    run_xvf_command("PP_AGCTIME", 0.5)
+    
+    print("[6/6] Echo Cancellation: OFF")
+    run_xvf_command("PP_ECHOONOFF", 0)
+    
+    print("\n  ✅ AGC 10% Increase Profile Complete")
+    print("\n  🎯 MODERATE PROCESSING + 10% BOOST:")
+    print("     1️⃣  HPF removes low-frequency rumble")
+    print("     2️⃣  AGC target 10% higher for more amplification")
+    print("     3️⃣  Good for testing moderate gain boost\n")
+    
+    save_config_state('agc_10', {
+        'AEC_HPFONOFF': 1,
+        'PP_AGCONOFF': 1,
+        'PP_AGCDESIREDLEVEL': 0.088,
+        'PP_AGCMAXGAIN': 1000,
+        'PP_AGCTIME': 0.5,
+        'PP_ECHOONOFF': 0
+    })
+    return True
+
+def configure_agc_20():
+    """AGC 20% Increase - HPF 70Hz + AGC with 20% higher target"""
+    print("\n" + "="*80)
+    print("  🔊 AGC 20% INCREASE")
+    print("="*80 + "\n")
+    
+    print("[1/6] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
+    run_xvf_command("AEC_HPFONOFF", 1)
+    
+    print("[2/6] AGC: ENABLED")
+    run_xvf_command("PP_AGCONOFF", 1)
+    
+    print("[3/6] AGC Target Level: 0.096 RMS (20% increase from 0.08)")
+    run_xvf_command("PP_AGCDESIREDLEVEL", 0.096)
+    
+    print("[4/6] AGC Max Gain: 30 dB (1000 linear)")
+    run_xvf_command("PP_AGCMAXGAIN", 1000)
+    
+    print("[5/6] AGC Attack Time: 0.5 seconds")
+    run_xvf_command("PP_AGCTIME", 0.5)
+    
+    print("[6/6] Echo Cancellation: OFF")
+    run_xvf_command("PP_ECHOONOFF", 0)
+    
+    print("\n  ✅ AGC 20% Increase Profile Complete")
+    print("\n  🎯 MODERATE PROCESSING + 20% BOOST:")
+    print("     1️⃣  HPF removes low-frequency rumble")
+    print("     2️⃣  AGC target 20% higher for more amplification")
+    print("     3️⃣  Good for testing higher gain boost\n")
+    
+    save_config_state('agc_20', {
+        'AEC_HPFONOFF': 1,
+        'PP_AGCONOFF': 1,
+        'PP_AGCDESIREDLEVEL': 0.096,
+        'PP_AGCMAXGAIN': 1000,
+        'PP_AGCTIME': 0.5,
+        'PP_ECHOONOFF': 0
+    })
+    return True
+
 def reset_defaults():
     """Reset to factory defaults"""
     print("\n" + "="*80)
@@ -324,6 +444,12 @@ def main():
             success = configure_near_field()
         elif preset == "hpf_only":
             success = configure_hpf_only()
+        elif preset == "agc_only":
+            success = configure_agc_only()
+        elif preset == "agc_10":
+            success = configure_agc_10()
+        elif preset == "agc_20":
+            success = configure_agc_20()
         elif preset == "reset":
             success = reset_defaults()
         elif preset == "show":
@@ -336,6 +462,9 @@ def main():
             print("    - far_field            : 8-16 feet")
             print("    - near_field           : 1-6 feet")
             print("    - hpf_only             : HPF 70Hz only")
+            print("    - agc_only             : AGC only (0.08, 30dB)")
+            print("    - agc_10               : HPF + AGC with 10% increase")
+            print("    - agc_20               : HPF + AGC with 20% increase")
             print("    - reset                : Factory defaults")
             print("    - show                 : Current settings")
             return 1
