@@ -37,7 +37,9 @@ def run_xvf_command(cmd, *args):
         if result.returncode == 0:
             return result.stdout.strip()
         else:
-            print(f"  ⚠️  Warning: {cmd} returned {result.returncode}")
+            # Show stderr for debugging
+            stderr_msg = f": {result.stderr.strip()}" if result.stderr.strip() else ""
+            print(f"  ⚠️  Warning: {cmd} returned {result.returncode}{stderr_msg}")
             return None
     except subprocess.TimeoutExpired:
         print(f"  ⚠️  Warning: {cmd} timed out")
