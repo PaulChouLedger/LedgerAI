@@ -81,8 +81,8 @@ def configure_balanced_beam():
     print("[4/6] AGC Max Gain: 30 dB (1000 linear)")
     run_xvf_command("PP_AGCMAXGAIN", 1000)
     
-    print("[5/6] AGC Attack Time: 0.2 seconds")
-    run_xvf_command("PP_AGCTIME", 0.2)
+    print("[5/6] AGC Attack Time: 0.5 seconds")
+    run_xvf_command("PP_AGCTIME", 0.5)
     
     print("[6/6] Echo Cancellation: OFF")
     run_xvf_command("PP_ECHOONOFF", 0)
@@ -99,7 +99,7 @@ def configure_balanced_beam():
         'PP_AGCONOFF': 1,
         'PP_AGCDESIREDLEVEL': 0.08,
         'PP_AGCMAXGAIN': 1000,
-        'PP_AGCTIME': 0.2,
+        'PP_AGCTIME': 0.5,
         'PP_ECHOONOFF': 0
     })
     return True
@@ -122,8 +122,8 @@ def configure_ultra_sensitive():
     print("[4/6] AGC Max Gain: 45 dB (31623 linear)")
     run_xvf_command("PP_AGCMAXGAIN", 31623)
     
-    print("[5/6] AGC Attack Time: 0.2 seconds")
-    run_xvf_command("PP_AGCTIME", 0.2)
+    print("[5/6] AGC Attack Time: 0.5 seconds")
+    run_xvf_command("PP_AGCTIME", 0.5)
     
     print("[6/6] Echo Cancellation: OFF")
     run_xvf_command("PP_ECHOONOFF", 0)
@@ -137,7 +137,7 @@ def configure_ultra_sensitive():
         'PP_AGCONOFF': 1,
         'PP_AGCDESIREDLEVEL': 0.10,
         'PP_AGCMAXGAIN': 31623,
-        'PP_AGCTIME': 0.2,
+        'PP_AGCTIME': 0.5,
         'PP_ECHOONOFF': 0
     })
     return True
@@ -160,8 +160,8 @@ def configure_far_field():
     print("[4/6] AGC Max Gain: 40 dB (10000 linear)")
     run_xvf_command("PP_AGCMAXGAIN", 10000)
     
-    print("[5/6] AGC Attack Time: 0.2 seconds")
-    run_xvf_command("PP_AGCTIME", 0.2)
+    print("[5/6] AGC Attack Time: 0.5 seconds")
+    run_xvf_command("PP_AGCTIME", 0.5)
     
     print("[6/6] Echo Cancellation: OFF")
     run_xvf_command("PP_ECHOONOFF", 0)
@@ -173,7 +173,7 @@ def configure_far_field():
         'PP_AGCONOFF': 1,
         'PP_AGCDESIREDLEVEL': 0.08,
         'PP_AGCMAXGAIN': 10000,
-        'PP_AGCTIME': 0.2,
+        'PP_AGCTIME': 0.5,
         'PP_ECHOONOFF': 0
     })
     return True
@@ -196,8 +196,8 @@ def configure_near_field():
     print("[4/6] AGC Max Gain: 20 dB (100 linear)")
     run_xvf_command("PP_AGCMAXGAIN", 100)
     
-    print("[5/6] AGC Attack Time: 0.2 seconds")
-    run_xvf_command("PP_AGCTIME", 0.2)
+    print("[5/6] AGC Attack Time: 0.5 seconds")
+    run_xvf_command("PP_AGCTIME", 0.5)
     
     print("[6/6] Echo Cancellation: OFF")
     run_xvf_command("PP_ECHOONOFF", 0)
@@ -209,7 +209,7 @@ def configure_near_field():
         'PP_AGCONOFF': 1,
         'PP_AGCDESIREDLEVEL': 0.05,
         'PP_AGCMAXGAIN': 100,
-        'PP_AGCTIME': 0.2,
+        'PP_AGCTIME': 0.5,
         'PP_ECHOONOFF': 0
     })
     return True
