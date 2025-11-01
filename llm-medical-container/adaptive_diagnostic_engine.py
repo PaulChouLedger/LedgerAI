@@ -610,7 +610,7 @@ class AdaptiveDiagnosticEngine:
         # Handle radiation (separate question after location)
         if oldcarts_element == 'radiation':
             self.radiation_answered = True
-            self._capture_debug(f"[Engine] 📍 Radiation answer: '{user_answer}'")
+            self._capture_debug(f"[Engine] 📍 Radiation answer: '{answer}'")
             
             # Score guidelines based on radiation answer using radiation section
             if self.medical_rule_engine:
@@ -638,7 +638,7 @@ class AdaptiveDiagnosticEngine:
                     
                     # Score radiation using radiation element data
                     similarity_result = self.medical_rule_engine.compute_unified_similarity(
-                        user_answer, oldcarts_section, condition_name, organ_system,
+                        answer, oldcarts_section, condition_name, organ_system,
                         'location', {'location': element_data} if element_data else None
                     )
                     
