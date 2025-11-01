@@ -78,6 +78,7 @@ python3 listener.py
 - `ultra_sensitive` - AGC (0.10, 45dB) - Far-field optimized
 - `far_field` - Optimized for 8-16 feet
 - `near_field` - Optimized for 1-6 feet
+- `hpf_only` - HPF 70Hz only (minimal processing)
 - `reset` - Factory defaults
 - `show` - Current settings
 

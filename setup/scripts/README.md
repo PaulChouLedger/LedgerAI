@@ -52,5 +52,5 @@ To configure microphone manually:
 python3 setup/scripts/tune_xvf3800.py balanced_beam
 ```
 
-Available presets: `balanced_beam`, `ultra_sensitive`, `far_field`, `near_field`, `reset`, `show`
+Available presets: `balanced_beam`, `ultra_sensitive`, `far_field`, `near_field`, `hpf_only`, `reset`, `show`
 

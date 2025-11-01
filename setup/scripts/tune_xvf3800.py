@@ -13,6 +13,7 @@ PRESETS:
     - ultra_sensitive       : AGC (0.10, 45dB) - Far-field optimized
     - far_field            : Optimized for 8-16 feet
     - near_field           : Optimized for 1-6 feet
+    - hpf_only             : HPF 70Hz only (minimal processing)
     - reset                : Factory defaults
     - show                 : Show current settings
 """
@@ -214,19 +215,47 @@ def configure_near_field():
     })
     return True
 
+def configure_hpf_only():
+    """High-Pass Filter Only - HPF 70Hz (removes low-frequency rumble)"""
+    print("\n" + "="*80)
+    print("  🎚️  HIGH-PASS FILTER ONLY - 70Hz")
+    print("="*80 + "\n")
+    
+    print("[1/3] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
+    run_xvf_command("AEC_HPFONOFF", 1)
+    
+    print("[2/3] AGC: OFF")
+    run_xvf_command("PP_AGCONOFF", 0)
+    
+    print("[3/3] Echo Cancellation: OFF")
+    run_xvf_command("PP_ECHOONOFF", 0)
+    
+    print("\n  ✅ HPF Only Profile Complete")
+    print("\n  🎯 MINIMAL PROCESSING:")
+    print("     1️⃣  HPF removes low-frequency rumble and fan noise")
+    print("     2️⃣  No automatic gain control")
+    print("     3️⃣  Best for clean environments with minimal noise\n")
+    
+    save_config_state('hpf_only', {
+        'AEC_HPFONOFF': 1,
+        'PP_AGCONOFF': 0,
+        'PP_ECHOONOFF': 0
+    })
+    return True
+
 def reset_defaults():
     """Reset to factory defaults"""
     print("\n" + "="*80)
     print("  🔄 RESETTING TO FACTORY DEFAULTS")
     print("="*80 + "\n")
     
-    print("[1/6] High-Pass Filter: OFF")
+    print("[1/3] High-Pass Filter: OFF")
     run_xvf_command("AEC_HPFONOFF", 0)
     
-    print("[2/6] AGC: OFF")
+    print("[2/3] AGC: OFF")
     run_xvf_command("PP_AGCONOFF", 0)
     
-    print("[3/6] Echo Cancellation: OFF")
+    print("[3/3] Echo Cancellation: OFF")
     run_xvf_command("PP_ECHOONOFF", 0)
     
     print("\n  ✅ Factory defaults restored\n")
@@ -293,6 +322,8 @@ def main():
             success = configure_far_field()
         elif preset == "near_field":
             success = configure_near_field()
+        elif preset == "hpf_only":
+            success = configure_hpf_only()
         elif preset == "reset":
             success = reset_defaults()
         elif preset == "show":
@@ -304,6 +335,7 @@ def main():
             print("    - ultra_sensitive      : Far-field optimized")
             print("    - far_field            : 8-16 feet")
             print("    - near_field           : 1-6 feet")
+            print("    - hpf_only             : HPF 70Hz only")
             print("    - reset                : Factory defaults")
             print("    - show                 : Current settings")
             return 1
