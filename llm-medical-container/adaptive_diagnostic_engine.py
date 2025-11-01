@@ -70,13 +70,13 @@ class AdaptiveDiagnosticEngine:
         self.embedding_model = embedding_model
         
         # Configuration - read all LLM settings from environment
-        self.temperature = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.2'))
-        self.top_p = float(os.environ.get('LLM_TOP_P', '0.85'))
-        self.top_k = int(os.environ.get('LLM_TOP_K', '30'))
-        self.repeat_penalty = float(os.environ.get('LLM_REPEAT_PENALTY', '1.15'))
-        self.presence_penalty = float(os.environ.get('LLM_PRESENCE_PENALTY', '0.0'))
-        self.frequency_penalty = float(os.environ.get('LLM_FREQUENCY_PENALTY', '0.0'))
-        self.num_predict = int(os.environ.get('LLM_NUM_PREDICT', '100'))
+        self.temperature = float(os.environ.get('LLM_TEMPERATURE_SIMPLE'))
+        self.top_p = float(os.environ.get('LLM_TOP_P'))
+        self.top_k = int(os.environ.get('LLM_TOP_K'))
+        self.repeat_penalty = float(os.environ.get('LLM_REPEAT_PENALTY'))
+        self.presence_penalty = float(os.environ.get('LLM_PRESENCE_PENALTY'))
+        self.frequency_penalty = float(os.environ.get('LLM_FREQUENCY_PENALTY'))
+        self.num_predict = int(os.environ.get('LLM_NUM_PREDICT'))
         
         # Stop sequences
         stop_env = os.environ.get('LLM_STOP', '').strip()
@@ -1422,7 +1422,7 @@ class AdaptiveDiagnosticEngine:
             user_msg = f"Patient reported: '{self.chief_complaint}'\n\nGenerate a brief, empathetic acknowledgment (1-2 sentences). Acknowledge their concern, show compassion, and express that you're here to help. Do NOT ask questions. End with a period. Return only the statement, no other text."
             
             # Use all LLM settings from environment
-            llm_kwargs = self._get_llm_kwargs(override_max_tokens=60)
+            llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
             response = self.llm_chat_simple_fn(
                 [
                     {"role": "system", "content": system_msg},

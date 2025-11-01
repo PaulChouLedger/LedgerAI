@@ -614,7 +614,7 @@ def reset_session_state(session_id: str) -> dict:
     return reset_state
 
 
-def llm_chat(messages, max_tokens=100, temperature=None, stream=False, **kwargs):
+def llm_chat(messages, max_tokens=None, temperature=None, stream=False, **kwargs):
     """
     Wrapper for LLM chat completion with thread safety and speed optimizations
     
@@ -629,25 +629,30 @@ def llm_chat(messages, max_tokens=100, temperature=None, stream=False, **kwargs)
     if temperature is None:
         temperature = float(os.environ["LLM_TEMPERATURE_SIMPLE"])
     
+    # Handle max_tokens: use LLM_NUM_PREDICT as default if not provided
+    if max_tokens is None:
+        num_predict_env = os.getenv("LLM_NUM_PREDICT")
+        if num_predict_env and num_predict_env.isdigit():
+            max_tokens = int(num_predict_env)
+        else:
+            raise ValueError("LLM_NUM_PREDICT must be set in environment")
+    
     generation_params = {
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
-        "top_p": kwargs.pop("top_p", float(os.getenv("LLM_TOP_P", "0.85"))),
-        "top_k": kwargs.pop("top_k", int(os.getenv("LLM_TOP_K", "30"))),
-        "repeat_penalty": kwargs.pop("repeat_penalty", float(os.getenv("LLM_REPEAT_PENALTY", "1.15"))),
-        "presence_penalty": kwargs.pop("presence_penalty", float(os.getenv("LLM_PRESENCE_PENALTY", "0.0"))),
-        "frequency_penalty": kwargs.pop("frequency_penalty", float(os.getenv("LLM_FREQUENCY_PENALTY", "0.0"))),
+        "top_p": kwargs.pop("top_p", float(os.getenv("LLM_TOP_P"))),
+        "top_k": kwargs.pop("top_k", int(os.getenv("LLM_TOP_K"))),
+        "repeat_penalty": kwargs.pop("repeat_penalty", float(os.getenv("LLM_REPEAT_PENALTY"))),
+        "presence_penalty": kwargs.pop("presence_penalty", float(os.getenv("LLM_PRESENCE_PENALTY"))),
+        "frequency_penalty": kwargs.pop("frequency_penalty", float(os.getenv("LLM_FREQUENCY_PENALTY"))),
         "stream": stream,
         **kwargs
     }
-    # Optional stop sequences and num_predict override
+    # Optional stop sequences
     stop_env = os.getenv("LLM_STOP", "").strip()
     if stop_env:
         generation_params["stop"] = [s for s in stop_env.split(",") if s]
-    num_predict_env = os.getenv("LLM_NUM_PREDICT")
-    if num_predict_env and num_predict_env.isdigit():
-        generation_params["max_tokens"] = int(num_predict_env)
     
     with llm_lock:
         try:
@@ -669,13 +674,13 @@ def llm_chat(messages, max_tokens=100, temperature=None, stream=False, **kwargs)
             return ""  # Return empty string on error
 
 
-def llm_chat_simple(messages, max_tokens=100, temperature=None, stream=False, **kwargs):
+def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, **kwargs):
     """
     Wrapper for SIMPLE LLM (Llama-1B) chat completion - for templates and validation
     
     Args:
         messages: Chat messages
-        max_tokens: Max tokens to generate (default: 100)
+        max_tokens: Max tokens to generate (default from LLM_NUM_PREDICT)
         temperature: Sampling temperature (default: use model config)
         stream: Enable streaming (default: False)
         **kwargs: Additional LLM parameters
@@ -683,24 +688,29 @@ def llm_chat_simple(messages, max_tokens=100, temperature=None, stream=False, **
     if temperature is None:
         temperature = float(os.environ["LLM_TEMPERATURE_SIMPLE"])
     
+    # Handle max_tokens: use LLM_NUM_PREDICT as default if not provided
+    if max_tokens is None:
+        num_predict_env = os.getenv("LLM_NUM_PREDICT")
+        if num_predict_env and num_predict_env.isdigit():
+            max_tokens = int(num_predict_env)
+        else:
+            raise ValueError("LLM_NUM_PREDICT must be set in environment")
+    
     generation_params = {
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
-        "top_p": kwargs.pop("top_p", float(os.getenv("LLM_TOP_P", "0.85"))),
-        "top_k": kwargs.pop("top_k", int(os.getenv("LLM_TOP_K", "30"))),
-        "repeat_penalty": kwargs.pop("repeat_penalty", float(os.getenv("LLM_REPEAT_PENALTY", "1.15"))),
-        "presence_penalty": kwargs.pop("presence_penalty", float(os.getenv("LLM_PRESENCE_PENALTY", "0.0"))),
-        "frequency_penalty": kwargs.pop("frequency_penalty", float(os.getenv("LLM_FREQUENCY_PENALTY", "0.0"))),
+        "top_p": kwargs.pop("top_p", float(os.getenv("LLM_TOP_P"))),
+        "top_k": kwargs.pop("top_k", int(os.getenv("LLM_TOP_K"))),
+        "repeat_penalty": kwargs.pop("repeat_penalty", float(os.getenv("LLM_REPEAT_PENALTY"))),
+        "presence_penalty": kwargs.pop("presence_penalty", float(os.getenv("LLM_PRESENCE_PENALTY"))),
+        "frequency_penalty": kwargs.pop("frequency_penalty", float(os.getenv("LLM_FREQUENCY_PENALTY"))),
         "stream": stream,
         **kwargs
     }
     stop_env = os.getenv("LLM_STOP", "").strip()
     if stop_env:
         generation_params["stop"] = [s for s in stop_env.split(",") if s]
-    num_predict_env = os.getenv("LLM_NUM_PREDICT")
-    if num_predict_env and num_predict_env.isdigit():
-        generation_params["max_tokens"] = int(num_predict_env)
     
     with llm_lock:  # Shared lock for both models
         try:

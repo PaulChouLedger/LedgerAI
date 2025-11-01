@@ -23,7 +23,7 @@ from gui.aura_gui import set_transcribing
 # === Config ===
 SAMPLE_RATE = 16000
 FRAME_SIZE = int(SAMPLE_RATE * 0.032)
-SILENCE_TIMEOUT = 0.5  # 300ms of silence before stopping
+SILENCE_TIMEOUT = 0.5  # 500ms of silence before stopping
 VAD_START_THRESHOLD = 0.25  # Lowered - beamforming provides good noise rejection
 VAD_SILENCE_THRESHOLD = 0.15  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
@@ -34,7 +34,7 @@ MICROPHONE_CHANNEL = 0  # Channel to use for audio processing (0 or 1, device ha
 
 # === Advanced Multi-Feature Speech Detection ===
 # Enabled - Filters out low-energy noise bursts that trigger VAD
-ENABLE_ADVANCED_FILTER = False
+ENABLE_ADVANCED_FILTER = True
 
 # Thresholds tuned from empirical testing
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
