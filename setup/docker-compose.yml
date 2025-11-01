@@ -43,18 +43,3 @@ services:
     profiles:
       - generic
 
-  rag:
-    build: ../rag-container
-    network_mode: host
-    volumes:
-      - ../shared:/shared
-      - ../data:/app/data  # Mount embeddings data
-      - ../rag-container/cache:/app/cache  # Mount RAG model cache
-    working_dir: /app
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
