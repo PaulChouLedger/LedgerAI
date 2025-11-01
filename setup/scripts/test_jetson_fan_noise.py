@@ -12,7 +12,7 @@ from scipy.fft import rfft, rfftfreq
 
 SAMPLE_RATE = 16000
 DURATION = 3  # seconds
-DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
+DEVICE_NAME = "XVF3800 4-Mic Array"
 
 def get_fan_speed():
     """Get current Jetson fan speed"""
@@ -30,7 +30,7 @@ def record_sample(duration=DURATION):
     print(f"  Recording {duration}s sample...")
     audio = sd.rec(int(duration * SAMPLE_RATE), 
                    samplerate=SAMPLE_RATE, 
-                   channels=6, 
+                   channels=2,  # XVF3800 has 2 channels
                    device=DEVICE_NAME,
                    dtype='float32')
     sd.wait()

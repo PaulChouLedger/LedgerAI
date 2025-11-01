@@ -1,0 +1,35 @@
+# XVF3800 Auto-Tuning Service
+# Automatically configures XVF3800 hardware DSP on boot
+#
+# Available Presets (change in ExecStart line):
+#   - balanced_beam    : HPF 70Hz + AGC (0.08, 30dB) - DEFAULT ⭐ RECOMMENDED
+#   - ultra_sensitive  : AGC (0.10, 45dB) - Far-field optimized
+#   - far_field        : Optimized for 8-16 feet
+#   - near_field       : Optimized for 1-6 feet
+#   - reset            : Factory defaults
+#
+# To change preset:
+#   1. sudo nano /etc/systemd/system/xvf3800-tuning.service
+#   2. Change "balanced_beam" to desired preset in ExecStart line below
+#   3. sudo systemctl daemon-reload
+#   4. sudo systemctl restart xvf3800-tuning.service
+#
+# To disable auto-tune:
+#   sudo systemctl disable xvf3800-tuning.service
+
+[Unit]
+Description=XVF3800 Hardware DSP Configuration
+After=multi-user.target
+Wants=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=aura
+ExecStart=/usr/bin/python3 /home/aura/LedgerAI/setup/scripts/tune_xvf3800.py balanced_beam
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

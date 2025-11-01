@@ -122,7 +122,7 @@ LIMITER_KNEE = 0.05             # Soft knee width for smooth limiting
 
 # BARE-BONES: No software processing - testing hardware optimization only
 
-DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
+DEVICE_NAME = "XVF3800 4-Mic Array"
 DEVICE_INDEX = None
 
 # === Stats Tracking ===
@@ -138,7 +138,7 @@ def find_device_index():
         if DEVICE_NAME.lower() in device["name"].lower():
             DEVICE_INDEX = i
             print(f"[Listener] 🎧 Found: {device['name']} (index {i})")
-            return 6  # Always use 6 channels
+            return 2  # XVF3800 has 2 channels
     raise RuntimeError("Microphone not found")
 
 # === Audio Feature Extraction ===
@@ -331,9 +331,9 @@ model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=Fals
 print("[VAD] ✅ VAD model loaded")
 
 # === Load Hardware Config ===
-def load_respeaker_config():
-    """Load saved ReSpeaker configuration (no permissions needed)"""
-    config_file = os.path.expanduser("~/LedgerAI/data/respeaker_config.json")
+def load_xvf3800_config():
+    """Load saved XVF3800 configuration (no permissions needed)"""
+    config_file = os.path.expanduser("~/LedgerAI/data/xvf3800_config.json")
     try:
         with open(config_file, 'r') as f:
             import json
@@ -349,7 +349,7 @@ def display_hardware_config(state):
     """Display current hardware configuration"""
     if not state:
         print("\n[Hardware] ⚠️  No saved configuration found")
-        print("[Hardware] 💡 Run: sudo python3 scripts/tune_respeaker.py [profile]\n")
+        print("[Hardware] 💡 Run: sudo python3 scripts/tune_xvf3800.py [preset]\n")
         return
     
     preset = state.get('preset', 'unknown')
@@ -360,25 +360,24 @@ def display_hardware_config(state):
     print("="*70)
     
     # AGC
-    if config.get('AGCONOFF', 0) == 1:
+    if config.get('PP_AGCONOFF', 0) == 1:
         print(f"  AGC:                    ✅ ENABLED")
-        print(f"    Target Level:         {config.get('AGCDESIREDLEVEL', 0):.2f} RMS")
-        print(f"    Max Gain:             {config.get('AGCMAXGAIN', 0):.0f} dB")
+        print(f"    Target Level:         {config.get('PP_AGCDESIREDLEVEL', 0):.2f} RMS")
+        print(f"    Max Gain:             {config.get('PP_AGCMAXGAIN', 0):.0f} linear")
     else:
         print(f"  AGC:                    ❌ DISABLED")
     
     # High-pass Filter
-    hpf_labels = ["OFF", "70 Hz", "125 Hz", "180 Hz"]
-    hpf_val = config.get('HPFONOFF', 0)
-    hpf_label = hpf_labels[hpf_val] if hpf_val < len(hpf_labels) else str(hpf_val)
+    hpf_labels = {0: "OFF", 1: "70 Hz", 2: "125 Hz", 3: "150 Hz", 4: "180 Hz"}
+    hpf_val = config.get('AEC_HPFONOFF', 0)
+    hpf_label = hpf_labels.get(hpf_val, str(hpf_val))
     print(f"  High-Pass Filter:       {hpf_label}")
     
-    # Noise Suppression
-    if config.get('STATNOISEONOFF_SR', 0) == 1:
-        gamma = config.get('GAMMA_NS_SR', 1.0)
-        print(f"  Stationary Noise Supp:  ✅ ENABLED (gamma={gamma:.1f})")
+    # Echo Cancellation
+    if config.get('PP_ECHOONOFF', 0) == 1:
+        print(f"  Echo Cancellation:      ✅ ENABLED")
     else:
-        print(f"  Stationary Noise Supp:  ❌ DISABLED")
+        print(f"  Echo Cancellation:      ❌ DISABLED")
     
     print("="*70 + "\n")
 
@@ -496,7 +495,7 @@ def listen():
     channels = find_device_index()
     
     # Display current hardware configuration
-    config = load_respeaker_config()
+    config = load_xvf3800_config()
     display_hardware_config(config)
     
     # Warm up Whisper model (eliminates slow first transcription)
@@ -588,7 +587,7 @@ def listen():
                 if channel_0.size < 512:
                     continue
                 
-                # Hardware HPF already applied in ReSpeaker DSP
+                # Hardware HPF already applied in XVF3800 DSP
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 
                 # Calculate audio features
@@ -629,7 +628,7 @@ def listen():
                 
                 buffer.append(audio_block)
                 
-                # Hardware HPF already applied in ReSpeaker DSP
+                # Hardware HPF already applied in XVF3800 DSP
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 
                 if vad_prob < VAD_SILENCE_THRESHOLD:

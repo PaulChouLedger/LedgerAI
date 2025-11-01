@@ -28,16 +28,16 @@ SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
 RECORDING_DURATION = 4.0  # 3 seconds for test phrase
-DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
+DEVICE_NAME = "XVF3800 4-Mic Array"
 
 # Test RMS levels
 TEST_RMS_LEVELS = [0.05, 0.08, 0.10, 0.12, 0.15, 0.18, 0.20]
 
 def find_device_index():
-    """Find the ReSpeaker device index"""
+    """Find the XVF3800 device index"""
     devices = sd.query_devices()
     for i, device in enumerate(devices):
-        if DEVICE_NAME.lower() in device["name"].lower() and device["max_input_channels"] >= 6:
+        if DEVICE_NAME.lower() in device["name"].lower():
             print(f"[Audio] 🎧 Found device: {device['name']} (index {i})")
             return i
     raise RuntimeError(f"Microphone '{DEVICE_NAME}' not found.")
@@ -66,7 +66,7 @@ def record_test_audio(device_index, duration):
     recording = []
     
     try:
-        with sd.InputStream(device=device_index, channels=6, samplerate=SAMPLE_RATE,
+        with sd.InputStream(device=device_index, channels=2, samplerate=SAMPLE_RATE,
                             blocksize=FRAME_SIZE, dtype="float32") as stream:
             samples_recorded = 0
             while samples_recorded < samples_needed:
@@ -225,25 +225,24 @@ def main():
     
     # Show current hardware configuration
     print("\n" + "="*70)
-    print("[Hardware] Current ReSpeaker DSP Configuration:")
+    print("[Hardware] Current XVF3800 DSP Configuration:")
     print("="*70)
     try:
         # Load hardware config from listener's saved state
         import json
-        config_path = os.path.expanduser("~/LedgerAI/data/respeaker_config.json")
+        config_path = os.path.expanduser("~/LedgerAI/data/xvf3800_config.json")
         if os.path.exists(config_path):
             with open(config_path, 'r') as f:
                 config = json.load(f)
             
             # Display config
-            agc_status = "✅ ON" if config.get('AGCONOFF', 0) == 1 else "❌ OFF"
-            agc_target = config.get('AGCDESIREDLEVEL', 0.0)
-            agc_gain = config.get('AGCMAXGAIN', 0.0)
-            ns_status = "✅ ON" if config.get('STATNOISEONOFF_SR', 0) == 1 else "❌ OFF"
-            ns_gamma = config.get('GAMMA_NS_SR', 0.0)
+            agc_status = "✅ ON" if config.get('config', {}).get('PP_AGCONOFF', 0) == 1 else "❌ OFF"
+            agc_target = config.get('config', {}).get('PP_AGCDESIREDLEVEL', 0.0)
+            agc_gain = config.get('config', {}).get('PP_AGCMAXGAIN', 0.0)
+            hpf_status = "✅ ON" if config.get('config', {}).get('AEC_HPFONOFF', 0) == 1 else "❌ OFF"
             
-            print(f"  Hardware AGC:           {agc_status} (target={agc_target:.2f}, max={agc_gain:.0f}dB)")
-            print(f"  Stationary Noise Supp:  {ns_status} (gamma={ns_gamma:.1f})")
+            print(f"  Hardware AGC:           {agc_status} (target={agc_target:.2f}, max={agc_gain:.0f} linear)")
+            print(f"  High-Pass Filter:       {hpf_status}")
             print(f"\n  ℹ️  This test uses whatever hardware settings are currently active.")
             print(f"  ℹ️  Results only valid for THESE settings!")
         else:

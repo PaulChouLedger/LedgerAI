@@ -11,7 +11,7 @@ from scipy.fft import rfft, rfftfreq
 SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
-DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
+DEVICE_NAME = "XVF3800 4-Mic Array"
 SILENCE_DURATION = 0.3
 FINGERPRINT_MIN_SAMPLES = 2048
 
@@ -63,7 +63,7 @@ def transcribe_iter():
     device_index = find_device_index()
     print("[Tuner] 🎤 Starting real-time transcription tuning...\n")
 
-    with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32",
+    with sd.InputStream(samplerate=SAMPLE_RATE, channels=2, dtype="float32",
                         blocksize=FRAME_SIZE, device=device_index) as stream:
         while True:
             silence_start = None
@@ -73,7 +73,7 @@ def transcribe_iter():
 
             while True:
                 chunk, _ = stream.read(FRAME_SIZE)
-                chunk = chunk.flatten()
+                chunk = chunk[:, 0].flatten()  # Use channel 0
                 chunk = apply_gain(chunk)
 
                 tensor = torch.from_numpy(chunk).unsqueeze(0)

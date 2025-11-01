@@ -15,10 +15,10 @@ import time
 import sys
 
 # === Configuration ===
-DEVICE_NAME = "ReSpeaker 4 Mic Array (UAC1.0)"
+DEVICE_NAME = "XVF3800 4-Mic Array"
 SAMPLE_RATE = 16000
 DURATION = 20  # seconds
-CHANNELS = 6
+CHANNELS = 2  # XVF3800 has 2 channels
 CHANNEL_TO_ANALYZE = 0
 
 # === Find Device ===
@@ -28,13 +28,13 @@ def find_device():
         if DEVICE_NAME.lower() in device["name"].lower():
             print(f"✅ Found: {device['name']} (index {i})")
             return i
-    print("❌ ReSpeaker not found!")
+    print("❌ XVF3800 not found!")
     sys.exit(1)
 
 # === Main ===
 def main():
     print("="*70)
-    print("  ReSpeaker Frequency Analyzer (Simple)")
+    print("  XVF3800 Frequency Analyzer (Simple)")
     print("="*70)
     
     device_index = find_device()
