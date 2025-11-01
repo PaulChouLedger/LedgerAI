@@ -506,7 +506,7 @@ def listen():
     print("[Mode]    No LLM | No TTS | No GUI | Continuous transcription")
     print("[Audio] BARE-BONES PIPELINE")
     print("[Audio]   Hardware DSP → Channel 0 → VAD → Whisper")
-    print("[Audio]   (Configure: sudo python3 scripts/tune_respeaker.py [profile])")
+    print("[Audio]   (Configure: python3 setup/scripts/tune_xvf3800.py [preset])")
     
     if ENABLE_ADVANCED_FILTER:
         print("\n[Filter] ✅ ADVANCED MULTI-FEATURE FILTER: ENABLED")

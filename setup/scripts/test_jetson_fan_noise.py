@@ -138,7 +138,7 @@ def main():
         print("\n  Solutions:")
         print("     1. Add foam vibration isolation between Jetson and mic")
         print("     2. Reposition microphone away from Jetson")
-        print("     3. Use aggressive HPF: sudo python3 scripts/tune_respeaker.py beamforming_aggressive")
+        print("     3. Use aggressive HPF: python3 setup/scripts/tune_xvf3800.py balanced_beam")
     
     if snr < 15:
         print("\n  ⚠️  LOW Signal-to-Noise Ratio")
@@ -147,7 +147,7 @@ def main():
         print("     1. PRIORITY: Physically separate mic from Jetson")
         print("     2. Add acoustic foam to enclosure walls")
         print("     3. Test with Jetson fan at lower speed (if possible)")
-        print("     4. Use beamforming: sudo python3 scripts/tune_respeaker.py beamforming_aggressive")
+        print("     4. Use balanced beam: python3 setup/scripts/tune_xvf3800.py balanced_beam")
     
     print("\n" + "="*70 + "\n")
 
