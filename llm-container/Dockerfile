@@ -51,7 +51,7 @@ ENV SIMPLE_N_CTX=2048
 ENV LLM_STOP=<|im_end|>,</s>
 
 # Expose port for API
-EXPOSE 11434
+EXPOSE 11436
 
 # Run the API (loads .env inside container if mounted)
 CMD ["python3", "/app/container_rest.py"]

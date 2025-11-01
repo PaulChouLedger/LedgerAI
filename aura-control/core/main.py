@@ -193,9 +193,13 @@ def warm_up_llm():
         print("[Aura] 💡 First request loads adaptive engine (65 guidelines) - may take 15-20s...")
         
         # Single test request with VERY generous timeout (adaptive engine loads on first request)
+        # Get the correct LLM port based on mode
+        USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'true').lower() == 'true'
+        llm_port = "11434" if USE_MEDICAL_MODE else "11436"
+        
         try:
             response = requests.post(
-                "http://localhost:11434/chat-tts",
+                f"http://localhost:{llm_port}/chat-tts",
                 json={"prompt": "Hello", "session_id": "warmup"},
                 stream=True,
                 timeout=120  # Increased from 45s - adaptive engine needs time to load
@@ -356,21 +360,14 @@ def start_services():
             else:
                 print("[Aura] ⏭️  RAG disabled - starting Whisper and LLM only")
             
-            # Set COMPOSE_PROFILES environment variable for profile-based service selection
-            env = os.environ.copy()
-            if USE_MEDICAL_MODE:
-                env["COMPOSE_PROFILES"] = "medical"
-                cmd = ["docker", "compose", "up", "-d"] + services_to_start
-            else:
-                env["COMPOSE_PROFILES"] = "generic"
-                cmd = ["docker", "compose", "up", "-d"] + services_to_start
+            # Start selected services with Docker Compose (different ports for each LLM)
+            cmd = ["docker", "compose", "up", "-d"] + services_to_start
             
             result = subprocess.run(
                 cmd,
                 cwd=setup_dir,
                 capture_output=True,
-                text=True,
-                env=env
+                text=True
             )
             
             if result.returncode != 0:
@@ -387,8 +384,11 @@ def start_services():
             if not whisper_ready:
                 return False
             
-            # Check LLM
-            llm_ready = wait_for_container("http://localhost:11434/health", "LLM", timeout=30)
+            # Check LLM (different ports for medical vs generic)
+            if USE_MEDICAL_MODE:
+                llm_ready = wait_for_container("http://localhost:11434/health", "LLM", timeout=30)
+            else:
+                llm_ready = wait_for_container("http://localhost:11436/health", "LLM", timeout=30)
             if not llm_ready:
                 return False
             
@@ -415,9 +415,10 @@ def start_services():
     
     # Get model name from health endpoint or environment
     model_name = "LLM model"
+    llm_port = "11434" if USE_MEDICAL_MODE else "11436"
     try:
         # Try to get model name from health endpoint
-        response = requests.get("http://localhost:11434/health", timeout=2)
+        response = requests.get(f"http://localhost:{llm_port}/health", timeout=2)
         if response.status_code == 200:
             health_data = response.json()
             models = health_data.get("models", {})
@@ -438,7 +439,7 @@ def start_services():
     model_ready = False
     for attempt in range(24):  # 24 attempts * 2.5 seconds = 60 seconds max
         try:
-            response = requests.get("http://localhost:11434/health", timeout=2)
+            response = requests.get(f"http://localhost:{llm_port}/health", timeout=2)
             if response.status_code == 200:
                 health_data = response.json()
                 models = health_data.get("models", {})

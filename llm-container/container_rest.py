@@ -192,6 +192,6 @@ if __name__ == "__main__":
     print(f"[Generic] ✅ Model loaded: {SIMPLE_MODEL_PATH}")
     
     print("[Generic] ✅ LLM Container ready!")
-    print("[Generic] 🌐 Starting Flask server on 0.0.0.0:11434...")
+    print("[Generic] 🌐 Starting Flask server on 0.0.0.0:11436...")
     
-    app.run(host="0.0.0.0", port=11434, threaded=True, debug=False)
+    app.run(host="0.0.0.0", port=11436, threaded=True, debug=False)

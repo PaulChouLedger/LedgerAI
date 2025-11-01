@@ -363,9 +363,13 @@ def speak_llm_response(prompt, context=""):
     # Start TTS latency measurement
     tts_start_time = time.time()
     
+    # Get the correct LLM port based on mode
+    USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'true').lower() == 'true'
+    llm_port = "11434" if USE_MEDICAL_MODE else "11436"
+    
     try:
         response = requests.post(
-            "http://localhost:11434/chat-tts",
+            f"http://localhost:{llm_port}/chat-tts",
             json={"prompt": prompt, "context": context, "chat_id": "voice_session"},
             stream=True, timeout=60
         )
