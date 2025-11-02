@@ -704,7 +704,7 @@ class AdaptiveDiagnosticEngine:
                     )
                     
                     old_score = g['score']
-                    new_score = self._update_score_with_oldcarts(old_score, similarity_result['similarity'])
+                    new_score = (old_score * 0.7) + (similarity_result['similarity'] * 0.3)
                     g['score'] = new_score
                     self._capture_debug(f"[Scoring] 📊 {condition_name}: old={old_score:.3f}, radiation={similarity_result['similarity']:.3f}, new={new_score:.3f}")
                 
