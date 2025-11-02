@@ -227,52 +227,15 @@ class MedicalRuleEngine:
         return None
     
     def _normalize_with_synonyms(self, patient_text: str, synonyms: dict, oldcarts_element: str) -> str:
-        """Normalize patient text using synonym file"""
+        """Normalize patient text using FAISS semantic matching"""
         if oldcarts_element not in synonyms:
             return patient_text.lower().strip()
         
-        patient_lower = patient_text.lower()
-        element_synonyms = synonyms[oldcarts_element]
-        
-        # Exact substring matching
-        for standard_term, synonym_list in element_synonyms.items():
-            for synonym in synonym_list:
-                if synonym.lower() in patient_lower:
-                    return standard_term
-        
-        # Semantic matching fallback
-        if self.embedding_model:
-            best_match = None
-            best_similarity = 0.0
-            threshold = 0.65
-            
-            all_synonyms = []
-            synonym_texts = []
-            for standard_term, synonym_list in element_synonyms.items():
-                for synonym in synonym_list:
-                    all_synonyms.append((standard_term, synonym))
-                    synonym_texts.append(synonym.lower())
-            
-            if all_synonyms:
-                try:
-                    all_texts = [patient_lower] + synonym_texts
-                    embeddings = self.embedding_model.encode(all_texts)
-                    embeddings = np.asarray(embeddings, dtype='float32')
-                    patient_emb = embeddings[0]
-                    
-                    for i, (standard_term, synonym) in enumerate(all_synonyms):
-                        synonym_emb = embeddings[i + 1]
-                        similarity = float(np.dot(patient_emb, synonym_emb) / 
-                                          (np.linalg.norm(patient_emb) * np.linalg.norm(synonym_emb)))
-                        
-                        if similarity > best_similarity:
-                            best_similarity = similarity
-                            best_match = standard_term
-                    
-                    if best_similarity >= threshold:
-                        return best_match
-                except Exception as e:
-                    pass
+        # Use FAISS to find the best matching medical term
+        faiss_matches = self.find_matching_terms_faiss(patient_text, oldcarts_element, threshold=0.75)
+        if faiss_matches:
+            # Return the best match (first one with highest score)
+            return faiss_matches[0]
         
         return patient_text.lower().strip()
     
