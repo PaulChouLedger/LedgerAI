@@ -1,5 +1,140 @@
 {
+  "_metadata": {
+    "version": "2.0",
+    "description": "Universal anatomical rules for all organ systems. Supports quadrant-specific, directional, and regional classifications with opposite detection to prevent false positives.",
+    "last_updated": "2025-11-02"
+  },
+  "anatomical_components": {
+    "directional_keywords": {
+      "horizontal": {
+        "left": ["left", "left side", "left-sided", "leftward"],
+        "right": ["right", "right side", "right-sided", "rightward"]
+      },
+      "vertical": {
+        "upper": ["upper", "top", "superior", "above", "high"],
+        "lower": ["lower", "bottom", "inferior", "below", "low"]
+      },
+      "anterior_posterior": {
+        "anterior": ["front", "anterior", "ventral"],
+        "posterior": ["back", "posterior", "dorsal"]
+      }
+    },
+    "quadrant_patterns": {
+      "right_upper": ["right upper quadrant", "ruq", "right upper", "upper right quadrant", "upper right", "right upper quad"],
+      "right_lower": ["right lower quadrant", "rlq", "right lower", "lower right quadrant", "lower right", "right lower quad"],
+      "left_upper": ["left upper quadrant", "luq", "left upper", "upper left quadrant", "upper left", "left upper quad"],
+      "left_lower": ["left lower quadrant", "llq", "left lower", "lower left quadrant", "lower left", "left lower quad"]
+    },
+    "region_keywords": {
+      "chest": ["chest", "thorax", "thoracic", "sternum", "breastbone", "breast"],
+      "abdomen": ["abdomen", "abdominal", "belly", "stomach area"],
+      "pelvis": ["pelvic", "pelvis", "pelvic region"],
+      "head": ["head", "cranial", "skull"],
+      "back": ["back", "dorsal", "posterior"],
+      "limb": ["arm", "leg", "limb", "extremity"]
+    }
+  },
+  "anatomical_opposites": {
+    "horizontal": {
+      "left": ["right"],
+      "right": ["left"]
+    },
+    "vertical": {
+      "upper": ["lower"],
+      "lower": ["upper"],
+      "top": ["bottom"],
+      "bottom": ["top"],
+      "superior": ["inferior"],
+      "inferior": ["superior"],
+      "high": ["low"],
+      "low": ["high"]
+    },
+    "quadrants": {
+      "right_upper": ["right_lower", "left_upper", "left_lower"],
+      "right_lower": ["right_upper", "left_lower", "left_upper"],
+      "left_upper": ["left_lower", "right_upper", "right_lower"],
+      "left_lower": ["left_upper", "right_lower", "right_upper"]
+    },
+    "anterior_posterior": {
+      "anterior": ["posterior"],
+      "posterior": ["anterior"],
+      "front": ["back"],
+      "back": ["front"],
+      "ventral": ["dorsal"],
+      "dorsal": ["ventral"]
+    }
+  },
+  "word_overlap_rules": {
+    "penalty_triggers": {
+      "opposite_direction_detected": {
+        "description": "If patient answer and guideline term share horizontal direction (left/right) but have opposite vertical direction (upper/lower), cancel all word match boost",
+        "example": "patient: 'right upper quadrant' vs guideline: 'right lower quadrant' → cancel boost despite 'right' + 'quadrant' match"
+      },
+      "opposite_quadrant_detected": {
+        "description": "If patient answer and guideline term are in opposite quadrants, cancel all word match boost",
+        "example": "patient: 'right upper quadrant' vs guideline: 'left lower quadrant' → cancel boost"
+      },
+      "opposite_horizontal_detected": {
+        "description": "If patient answer and guideline term have opposite horizontal directions (left vs right), apply penalty",
+        "example": "patient: 'left side' vs guideline: 'right side' → return -0.3"
+      }
+    },
+    "allowed_overlap": {
+      "same_quadrant": "Full boost allowed",
+      "same_direction_both_levels": "Full boost allowed (e.g., both 'right upper quadrant')",
+      "vague_match": "Partial boost (e.g., 'right side' matches 'right upper quadrant')",
+      "bilateral_match": "Bilateral conditions (can occur on either side OR both sides) match either left or right patient answers, as well as bilateral answers. 'Bilateral' tag means condition can affect left side, right side, or both."
+    }
+  },
   "GI": {
+    "anatomical_regions": {
+      "right_upper_quadrant": [
+        "Acute Cholecystitis",
+        "Acute Cholangitis",
+        "Acute Hepatitis",
+        "Biliary Colic"
+      ],
+      "right_lower_quadrant": [
+        "Acute Appendicitis",
+        "Cecal Volvulus",
+        "Incarcerated Inguinal/Femoral Hernia"
+      ],
+      "left_upper_quadrant": [],
+      "left_lower_quadrant": [
+        "Acute Diverticulitis",
+        "Sigmoid Volvulus"
+      ],
+      "epigastric": [
+        "Peptic Ulcer Disease",
+        "Acute Gastritis",
+        "Acute Pancreatitis",
+        "Gastric Outlet Obstruction",
+        "Mallory-Weiss Tear"
+      ],
+      "periumbilical": [
+        "Acute Mesenteric Ischemia",
+        "Small Bowel Obstruction"
+      ],
+      "bilateral": [
+        "Acute Gastroenteritis",
+        "Severe Constipation",
+        "Inflammatory Bowel Disease Flare (Crohn's/Ulcerative Colitis)",
+        "Irritable Bowel Syndrome (IBS)"
+      ],
+      "midline": [
+        "Peptic Ulcer Disease",
+        "Acute Gastritis",
+        "Acute Pancreatitis",
+        "Gastric Outlet Obstruction",
+        "Mallory-Weiss Tear",
+        "Perforated Viscus (Perforated Ulcer/Bowel)",
+        "Esophageal Spasm",
+        "gastroesophageal reflux disease (GERD) (Cardiac Chest Pain Mimicker)",
+        "gastroesophageal reflux disease (GERD) (Gastroesophageal Reflux Disease)",
+        "Acute Mesenteric Ischemia",
+        "Small Bowel Obstruction"
+      ]
+    },
     "bilateral": [
       "Acute Gastroenteritis",
       "Severe Constipation",
@@ -34,28 +169,100 @@
     ]
   },
   "GU": {
+    "anatomical_regions": {
+      "right_side": [],
+      "left_side": [],
+      "bilateral": [
+        "Acute Bacterial Prostatitis",
+        "Kidney Stone (Nephrolithiasis/Ureterolithiasis)",
+        "Kidney Stone",
+        "Testicular Torsion",
+        "Urinary Tract Infection / Pyelonephritis"
+      ],
+      "midline": []
+    },
     "bilateral": [
-      "Acute Bacterial Prostatitis"
+      "Acute Bacterial Prostatitis",
+      "Kidney Stone (Nephrolithiasis/Ureterolithiasis)",
+      "Kidney Stone",
+      "Testicular Torsion",
+      "Urinary Tract Infection / Pyelonephritis"
     ],
     "midline": [],
-    "right_only": [
-      "Testicular Torsion"
-    ],
+    "right_only": [],
     "left_only": []
   },
   "GYN": {
+    "anatomical_regions": {
+      "right_side": [],
+      "left_side": [],
+      "bilateral": [
+        "Ectopic Pregnancy",
+        "Ovarian Torsion",
+        "Pelvic Inflammatory Disease (PID)",
+        "Ruptured Ovarian Cyst"
+      ],
+      "midline": []
+    },
     "bilateral": [
-      "Pelvic Inflammatory Disease (PID)"
-    ],
-    "midline": [],
-    "right_only": [
       "Ectopic Pregnancy",
       "Ovarian Torsion",
+      "Pelvic Inflammatory Disease (PID)",
       "Ruptured Ovarian Cyst"
     ],
+    "midline": [],
+    "right_only": [],
     "left_only": []
   },
   "CARDIO": {
+    "anatomical_regions": {
+      "chest_midline": [
+        "Acute Aortic Syndrome",
+        "Acute Myocardial Infarction (Heart Attack)",
+        "Acute Myocarditis",
+        "Acute Pericarditis",
+        "Aortic Dissection",
+        "Aortic Stenosis (Symptomatic)",
+        "Cardiac Tamponade",
+        "Costochondritis (Chest Wall Pain)",
+        "Esophageal Spasm",
+        "gastroesophageal reflux disease (GERD) (Cardiac Chest Pain Mimicker)",
+        "Mitral Valve Prolapse (Symptomatic)",
+        "Panic Attack / Anxiety-Related Chest Pain",
+        "Pericardial Effusion (Non-Tamponade)",
+        "Prinzmetal Angina (Vasospastic Angina)",
+        "Stable Angina",
+        "Symptomatic Bradycardia / Heart Block",
+        "Unstable Angina",
+        "non-ST-elevation myocardial infarction (NSTEMI) (Non-ST Elevation Myocardial Infarction)"
+      ],
+      "chest_left": [],
+      "chest_right": [],
+      "bilateral": [
+        "Acute Heart Failure / Pulmonary Edema",
+        "Atrial Fibrillation (AFib)",
+        "Atrial Flutter",
+        "Benign Arrhythmia (PAC/PVC)",
+        "Cardiogenic Shock",
+        "Chronic Obstructive Pulmonary Disease (COPD)",
+        "Dilated Cardiomyopathy (Decompensated)",
+        "Hypertensive Emergency",
+        "Hypertensive Urgency",
+        "Infective Endocarditis",
+        "Orthostatic Hypotension",
+        "Pleurisy (Pleuritis)",
+        "Pneumothorax (Collapsed Lung)",
+        "Pneumothorax",
+        "Pulmonary Edema",
+        "Pulmonary Embolism",
+        "Pulmonary Embolism (PE)",
+        "Pulmonary Hypertension",
+        "Supraventricular Tachycardia (SVT)",
+        "Takotsubo Cardiomyopathy (Broken Heart Syndrome)",
+        "Vasovagal Syncope (Fainting)",
+        "Ventricular Tachycardia (ventricular tachycardia (VT) / V-Tach)"
+      ]
+    },
     "bilateral": [
       "Acute Heart Failure / Pulmonary Edema",
       "Atrial Fibrillation (AFib)",
@@ -68,7 +275,12 @@
       "Hypertensive Urgency",
       "Infective Endocarditis",
       "Orthostatic Hypotension",
+      "Pleurisy (Pleuritis)",
+      "Pneumothorax (Collapsed Lung)",
+      "Pneumothorax",
       "Pulmonary Edema",
+      "Pulmonary Embolism",
+      "Pulmonary Embolism (PE)",
       "Pulmonary Hypertension",
       "Supraventricular Tachycardia (SVT)",
       "Takotsubo Cardiomyopathy (Broken Heart Syndrome)",
@@ -84,6 +296,8 @@
       "Aortic Stenosis (Symptomatic)",
       "Cardiac Tamponade",
       "Costochondritis (Chest Wall Pain)",
+      "Esophageal Spasm",
+      "gastroesophageal reflux disease (GERD) (Cardiac Chest Pain Mimicker)",
       "Mitral Valve Prolapse (Symptomatic)",
       "Panic Attack / Anxiety-Related Chest Pain",
       "Pericardial Effusion (Non-Tamponade)",
@@ -97,13 +311,54 @@
     "left_only": []
   },
   "PULMONARY": {
+    "anatomical_regions": {
+      "chest_bilateral": [
+        "Acute Asthma Exacerbation",
+        "Acute Bronchitis",
+        "Acute Respiratory Distress Syndrome (ARDS)",
+        "Anaphylaxis",
+        "Aspiration Pneumonia",
+        "Atelectasis",
+        "Bronchiectasis",
+        "Chronic Obstructive Pulmonary Disease (COPD)",
+        "Cystic Fibrosis",
+        "Foreign Body Aspiration",
+        "Hyperventilation Syndrome",
+        "Influenza",
+        "Lung Abscess",
+        "Lung Cancer",
+        "Pleurisy (Pleuritis)",
+        "Pneumonia",
+        "Pneumothorax (Collapsed Lung)",
+        "Pneumothorax",
+        "Pulmonary Embolism",
+        "Pulmonary Embolism (PE)",
+        "Pulmonary Edema",
+        "Pulmonary Fibrosis",
+        "Pulmonary Hypertension",
+        "Pulmonary Tuberculosis",
+        "Respiratory Failure",
+        "Sarcoidosis",
+        "Sleep Apnea",
+        "Upper Respiratory Infection (URI)",
+        "Viral Pneumonia"
+      ],
+      "chest_midline": [
+        "Epiglottitis",
+        "Pleural Effusion"
+      ],
+      "chest_left": [],
+      "chest_right": []
+    },
     "bilateral": [
       "Acute Asthma Exacerbation",
       "Acute Bronchitis",
       "Acute Respiratory Distress Syndrome (ARDS)",
+      "Anaphylaxis",
       "Aspiration Pneumonia",
       "Atelectasis",
       "Bronchiectasis",
+      "Chronic Obstructive Pulmonary Disease (COPD)",
       "Cystic Fibrosis",
       "Foreign Body Aspiration",
       "Hyperventilation Syndrome",
@@ -112,9 +367,13 @@
       "Lung Cancer",
       "Pleurisy (Pleuritis)",
       "Pneumonia",
+      "Pneumothorax (Collapsed Lung)",
+      "Pneumothorax",
       "Pulmonary Embolism",
       "Pulmonary Embolism (PE)",
+      "Pulmonary Edema",
       "Pulmonary Fibrosis",
+      "Pulmonary Hypertension",
       "Pulmonary Tuberculosis",
       "Respiratory Failure",
       "Sarcoidosis",
@@ -124,14 +383,35 @@
     ],
     "midline": [
       "Epiglottitis",
-      "Pneumothorax (Collapsed Lung)",
-      "Pneumothorax",
       "Pleural Effusion"
     ],
     "right_only": [],
     "left_only": []
   },
   "MSK": {
+    "anatomical_regions": {
+      "right_upper_extremity": [
+        "Acute Ankle Sprain",
+        "Acute Knee Injury",
+        "Shoulder Dislocation"
+      ],
+      "left_upper_extremity": [
+        "Wrist Fracture",
+        "Elbow Fracture"
+      ],
+      "right_lower_extremity": [],
+      "left_lower_extremity": [
+        "Ankle Fracture"
+      ],
+      "bilateral": [
+        "Acute Back Strain",
+        "Rotator Cuff Tear"
+      ],
+      "midline": [
+        "Hip Fracture",
+        "ACL Tear"
+      ]
+    },
     "bilateral": [
       "Acute Back Strain",
       "Rotator Cuff Tear"
@@ -152,27 +432,73 @@
     ]
   },
   "DERM": {
+    "anatomical_regions": {
+      "left_side": [
+        "Stevens-Johnson Syndrome"
+      ],
+      "bilateral": [
+        "Acute Urticaria",
+        "Contact Dermatitis",
+        "Atopic Dermatitis Flare",
+        "Psoriasis Flare",
+        "Seborrheic Dermatitis",
+        "Drug Rash",
+        "Shingles"
+      ],
+      "midline": [
+        "Cellulitis",
+        "Impetigo",
+        "Suspicious Skin Lesion"
+      ]
+    },
     "bilateral": [
       "Acute Urticaria",
       "Contact Dermatitis",
       "Atopic Dermatitis Flare",
       "Psoriasis Flare",
       "Seborrheic Dermatitis",
-      "Drug Rash"
+      "Drug Rash",
+      "Shingles"
     ],
     "midline": [
       "Cellulitis",
       "Impetigo",
       "Suspicious Skin Lesion"
     ],
-    "right_only": [
-      "Shingles"
-    ],
+    "right_only": [],
     "left_only": [
       "Stevens-Johnson Syndrome"
     ]
   },
   "NEURO": {
+    "anatomical_regions": {
+      "head_bilateral": [
+        "Acute Stroke",
+        "Amyotrophic Lateral Sclerosis",
+        "Anaphylaxis",
+        "Bell Palsy",
+        "Brain Tumor",
+        "Concussion",
+        "Encephalitis",
+        "Epilepsy",
+        "Guillain-Barré Syndrome",
+        "Headache",
+        "Huntington's Disease",
+        "Meningitis",
+        "Migraine",
+        "Multiple Sclerosis Flare",
+        "Myasthenia Gravis",
+        "Parkinson's Disease",
+        "Seizure",
+        "Spinal Cord Injury",
+        "Transient Ischemic Attack",
+        "Trigeminal Neuralgia",
+        "Alzheimer's Disease"
+      ],
+      "head_midline": [],
+      "head_left": [],
+      "head_right": []
+    },
     "bilateral": [
       "Acute Stroke",
       "Amyotrophic Lateral Sclerosis",
@@ -201,24 +527,44 @@
     "left_only": []
   },
   "RENAL": {
+    "anatomical_regions": {
+      "left_side": [],
+      "bilateral": [
+        "Acute Kidney Injury",
+        "Chronic Kidney Disease",
+        "Glomerulonephritis",
+        "Renal Failure",
+        "Dialysis Complications",
+        "Kidney Stone (Nephrolithiasis/Ureterolithiasis)",
+        "Kidney Stone",
+        "Hydronephrosis",
+        "Renal Colic",
+        "Urinary Tract Infection / Pyelonephritis"
+      ],
+      "midline": [
+        "Urinary Tract Infection",
+        "Urinary Tract Infection / Pyelonephritis",
+        "Pyelonephritis"
+      ]
+    },
     "bilateral": [
       "Acute Kidney Injury",
       "Chronic Kidney Disease",
       "Glomerulonephritis",
       "Renal Failure",
-      "Dialysis Complications"
+      "Dialysis Complications",
+      "Kidney Stone (Nephrolithiasis/Ureterolithiasis)",
+      "Hydronephrosis",
+      "Renal Colic",
+      "Kidney Stone"
     ],
     "midline": [
       "Urinary Tract Infection",
       "Urinary Tract Infection / Pyelonephritis",
       "Pyelonephritis"
     ],
-    "right_only": [
-      "Kidney Stone (Nephrolithiasis/Ureterolithiasis)",
-      "Hydronephrosis",
-      "Renal Colic",
-      "Kidney Stone"
-    ],
+    "right_only": [],
     "left_only": []
   }
 }
+
