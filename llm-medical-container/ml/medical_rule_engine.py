@@ -22,9 +22,11 @@ class MedicalRuleEngine:
     def __init__(self, embedding_model=None):
         self.embedding_model = embedding_model
         self.medical_rules = self._load_medical_rules()
-        self.term_embeddings = {}
+        self.term_embeddings = {}  # Global index (legacy, kept for backward compatibility)
+        self.term_embeddings_by_category = {}  # Category-specific indexes: {category: {element: {...}}}
         self.synonym_cache = {}  # Cache loaded synonym files to avoid repeated I/O
-        self._build_term_indexes()
+        self.active_category = None  # Currently active category
+        self._build_category_specific_indexes()
     
     def _load_medical_rules(self) -> Dict:
         """Load medical_rules.json"""
@@ -40,34 +42,56 @@ class MedicalRuleEngine:
             print(f"[MedicalRules] ⚠️ Error loading rules: {e}")
             return {}
     
-    def _build_term_indexes(self):
-        """Build FAISS indexes for all OLDCARTS terms from guidelines."""
+    def _build_category_specific_indexes(self):
+        """Build FAISS indexes separately for each category/organ system."""
         if not self.embedding_model:
             print("[FAISS] ⚠️ No embedding model available, skipping term index building")
             return
         
-        print("[FAISS] 🔨 Building term indexes...")
+        print("[FAISS] 🔨 Building category-specific indexes...")
         
-        # Collect all terms from guidelines
-        all_terms = {
-            'onset': set(), 'location': set(), 'duration': set(), 'character': set(),
-            'aggravating': set(), 'relieving': set(), 'timing': set(), 'severity': set()
+        # Map category names to organ system directories and synonym file prefixes
+        category_to_dir = {
+            'gastrointestinal': ('GI', 'gi'),
+            'cardiovascular': ('CARDIO', 'cardio'),
+            'respiratory': ('PULMONARY', 'resp'),
+            'neurological': ('NEURO', 'neuro'),
+            'musculoskeletal': ('MSK', 'msk'),
+            'renal': ('RENAL', 'renal'),
+            'genitourinary': ('GU', 'gu'),
+            'gynecological': ('GYN', 'gyn'),  # May not have synonym file
+            'dermatological': ('DERM', 'derm')
         }
         
-        # Load guidelines and extract terms
         guidelines_path = os.path.join(os.path.dirname(__file__), '..', 'medical', 'guidelines')
         if not os.path.exists(guidelines_path):
             print(f"[FAISS] ⚠️ Guidelines path does not exist: {guidelines_path}")
             return
         
-        guideline_count = 0
-        for root, dirs, files in os.walk(guidelines_path):
-            for file in files:
+        # Build index for each category
+        for category, (organ_system_dir, synonym_prefix) in category_to_dir.items():
+            category_path = os.path.join(guidelines_path, organ_system_dir)
+            if not os.path.exists(category_path):
+                continue
+            
+            print(f"[FAISS] 🔨 Building index for {category} ({organ_system_dir})...")
+            
+            # Collect terms for this category only
+            all_terms = {
+                'onset': set(), 'location': set(), 'duration': set(), 'character': set(),
+                'aggravating': set(), 'relieving': set(), 'timing': set(), 'severity': set()
+            }
+            term_to_conditions = {}
+            
+            # Load guidelines from this category only
+            guideline_count = 0
+            for file in os.listdir(category_path):
                 if file.endswith('.json'):
                     try:
-                        with open(os.path.join(root, file), 'r') as f:
+                        with open(os.path.join(category_path, file), 'r') as f:
                             guideline = json.load(f)
-                            # Try both possible structures
+                            condition_name = guideline.get('condition', guideline.get('name', ''))
+                            
                             structured = guideline.get('key_features', {}).get('structured_oldcarts', {})
                             if not structured:
                                 structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
@@ -77,19 +101,136 @@ class MedicalRuleEngine:
                                 for element, data in structured.items():
                                     if isinstance(data, dict) and 'includes' in data and element in all_terms:
                                         for term in data['includes']:
-                                            # Support new structure where terms can be dicts {medical, patient_friendly}
+                                            medical_term = None
                                             if isinstance(term, dict):
-                                                medical = term.get('medical')
-                                                if isinstance(medical, str) and medical.strip():
-                                                    all_terms[element].add(medical.lower())
+                                                medical_term = term.get('medical')
+                                                if isinstance(medical_term, str) and medical_term.strip():
+                                                    medical_term = medical_term.strip().lower()
                                             elif isinstance(term, str):
-                                                all_terms[element].add(term.lower())
+                                                medical_term = term.strip().lower()
+                                            
+                                            if medical_term:
+                                                all_terms[element].add(medical_term)
+                                                key = (element, medical_term)
+                                                if key not in term_to_conditions:
+                                                    term_to_conditions[key] = set()
+                                                term_to_conditions[key].add(condition_name)
                     except Exception as e:
                         print(f"[FAISS] ⚠️ Could not load guideline {file}: {e}")
+            
+            # Add category-specific synonyms
+            synonym_to_medical_mapping = {
+                'onset': {}, 'location': {}, 'duration': {}, 'character': {},
+                'aggravating': {}, 'relieving': {}, 'timing': {}, 'severity': {}
+            }
+            
+            synonyms_dir = os.path.join(os.path.dirname(__file__), '..', 'synonyms')
+            synonym_file = f"{synonym_prefix}_synonyms_oldcarts.json"
+            synonym_path = os.path.join(synonyms_dir, synonym_file)
+            
+            if os.path.exists(synonym_path):
+                try:
+                    with open(synonym_path, 'r') as f:
+                        synonyms = json.load(f)
+                    
+                    for element, synonym_dict in synonyms.items():
+                        if element in all_terms:
+                            for medical_term, synonym_list in synonym_dict.items():
+                                all_terms[element].add(medical_term.lower())
+                                synonym_to_medical_mapping[element][medical_term.lower()] = medical_term.lower()
+                                for synonym in synonym_list:
+                                    all_terms[element].add(synonym.lower())
+                                    synonym_to_medical_mapping[element][synonym.lower()] = medical_term.lower()
+                except Exception as e:
+                    print(f"[FAISS] ⚠️ Could not load synonyms from {synonym_file}: {e}")
+            else:
+                print(f"[FAISS] ℹ️ No synonym file found for {category} ({synonym_file}), continuing without synonyms")
+            
+            # Build FAISS indexes for this category
+            category_indexes = {}
+            for element, terms in all_terms.items():
+                if terms:
+                    terms_list = list(terms)
+                    try:
+                        embeddings = self.embedding_model.encode(terms_list)
+                        embeddings = np.asarray(embeddings, dtype='float32')
+                        faiss.normalize_L2(embeddings)
+                        
+                        index = faiss.IndexFlatIP(embeddings.shape[1])
+                        index.add(embeddings)
+                        
+                        # Build term-to-conditions mapping for this element
+                        element_term_to_conditions = {}
+                        for term in terms_list:
+                            key = (element, term)
+                            if key in term_to_conditions:
+                                element_term_to_conditions[term] = term_to_conditions[key]
+                        
+                        category_indexes[element] = {
+                            'terms': terms_list,
+                            'embeddings': embeddings,
+                            'index': index,
+                            'synonym_to_medical': synonym_to_medical_mapping[element],
+                            'term_to_conditions': element_term_to_conditions
+                        }
+                    except Exception as e:
+                        print(f"[FAISS] ⚠️ Error building index for {category}/{element}: {e}")
+                        import traceback
+                        traceback.print_exc()
+            
+            self.term_embeddings_by_category[category] = category_indexes
+            print(f"[FAISS] ✅ Built index for {category}: {guideline_count} guidelines, {sum(len(idx['terms']) for idx in category_indexes.values())} total terms")
         
-        print(f"[FAISS] 📚 Loaded {guideline_count} guidelines")
+        # Also build global index for backward compatibility (used when category not yet determined)
+        print(f"[FAISS] 🔨 Building global index (for initial parsing)...")
+        self._build_global_index()
+    
+    def _build_global_index(self):
+        """Build global index from all guidelines (for initial parsing before category is determined)."""
+        all_terms = {
+            'onset': set(), 'location': set(), 'duration': set(), 'character': set(),
+            'aggravating': set(), 'relieving': set(), 'timing': set(), 'severity': set()
+        }
+        term_to_conditions = {}
         
-        # Add synonyms to FAISS index and build synonym-to-medical mapping
+        guidelines_path = os.path.join(os.path.dirname(__file__), '..', 'medical', 'guidelines')
+        guideline_count = 0
+        
+        for root, dirs, files in os.walk(guidelines_path):
+            for file in files:
+                if file.endswith('.json'):
+                    try:
+                        with open(os.path.join(root, file), 'r') as f:
+                            guideline = json.load(f)
+                            condition_name = guideline.get('condition', guideline.get('name', ''))
+                            
+                            structured = guideline.get('key_features', {}).get('structured_oldcarts', {})
+                            if not structured:
+                                structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+                            
+                            if structured:
+                                guideline_count += 1
+                                for element, data in structured.items():
+                                    if isinstance(data, dict) and 'includes' in data and element in all_terms:
+                                        for term in data['includes']:
+                                            medical_term = None
+                                            if isinstance(term, dict):
+                                                medical_term = term.get('medical')
+                                                if isinstance(medical_term, str) and medical_term.strip():
+                                                    medical_term = medical_term.strip().lower()
+                                            elif isinstance(term, str):
+                                                medical_term = term.strip().lower()
+                                            
+                                            if medical_term:
+                                                all_terms[element].add(medical_term)
+                                                key = (element, medical_term)
+                                                if key not in term_to_conditions:
+                                                    term_to_conditions[key] = set()
+                                                term_to_conditions[key].add(condition_name)
+                    except Exception:
+                        pass
+        
+        # Add all synonyms (global index includes all)
         synonym_to_medical_mapping = {
             'onset': {}, 'location': {}, 'duration': {}, 'character': {},
             'aggravating': {}, 'relieving': {}, 'timing': {}, 'severity': {}
@@ -104,48 +245,56 @@ class MedicalRuleEngine:
                         with open(synonym_path, 'r') as f:
                             synonyms = json.load(f)
                         
-                        # Add all synonyms to term lists and build mapping
                         for element, synonym_dict in synonyms.items():
                             if element in all_terms:
                                 for medical_term, synonym_list in synonym_dict.items():
-                                    # Add medical term itself
                                     all_terms[element].add(medical_term.lower())
-                                    # Map medical term to itself
                                     synonym_to_medical_mapping[element][medical_term.lower()] = medical_term.lower()
-                                    # Add all patient-friendly synonyms and map them back to medical term
                                     for synonym in synonym_list:
                                         all_terms[element].add(synonym.lower())
                                         synonym_to_medical_mapping[element][synonym.lower()] = medical_term.lower()
-                    except Exception as e:
-                        print(f"[FAISS] ⚠️ Could not load synonyms from {synonym_file}: {e}")
+                    except Exception:
+                        pass
         
-        # Build FAISS indexes for each element
+        # Build global indexes
         for element, terms in all_terms.items():
             if terms:
                 terms_list = list(terms)
                 try:
                     embeddings = self.embedding_model.encode(terms_list)
                     embeddings = np.asarray(embeddings, dtype='float32')
-                    
-                    # Normalize embeddings for cosine similarity (required for IndexFlatIP)
                     faiss.normalize_L2(embeddings)
                     
-                    # Create FAISS index
-                    index = faiss.IndexFlatIP(embeddings.shape[1])  # Inner product for cosine similarity
+                    index = faiss.IndexFlatIP(embeddings.shape[1])
                     index.add(embeddings)
+                    
+                    element_term_to_conditions = {}
+                    for term in terms_list:
+                        key = (element, term)
+                        if key in term_to_conditions:
+                            element_term_to_conditions[term] = term_to_conditions[key]
                     
                     self.term_embeddings[element] = {
                         'terms': terms_list,
                         'embeddings': embeddings,
                         'index': index,
-                        'synonym_to_medical': synonym_to_medical_mapping[element]
+                        'synonym_to_medical': synonym_to_medical_mapping[element],
+                        'term_to_conditions': element_term_to_conditions
                     }
-                    
-                    print(f"[FAISS] ✅ Built index for {element}: {len(terms_list)} terms")
-                except Exception as e:
-                    print(f"[FAISS] ⚠️ Error building index for {element}: {e}")
-                    import traceback
-                    traceback.print_exc()
+                except Exception:
+                    pass
+        
+        print(f"[FAISS] ✅ Built global index: {guideline_count} guidelines")
+    
+    def set_active_category(self, category: str):
+        """Switch to category-specific indexes once category is determined."""
+        self.active_category = category
+        if category in self.term_embeddings_by_category:
+            # Switch term_embeddings to category-specific
+            self.term_embeddings = self.term_embeddings_by_category[category]
+            print(f"[FAISS] 🔀 Switched to {category} indexes ({sum(len(idx['terms']) for idx in self.term_embeddings.values())} terms)")
+        else:
+            print(f"[FAISS] ⚠️ Category {category} not found, keeping global index")
     
     def _normalize_term_list(self, terms: List[Any]) -> List[str]:
         """Normalize guideline term lists that may contain strings or {medical, patient_friendly} dicts."""
@@ -159,9 +308,27 @@ class MedicalRuleEngine:
                 normalized.append(term.strip().lower())
         return normalized
     
-    def find_matching_terms_faiss(self, prompt: str, element: str, threshold: float = 0.65, return_scores: bool = False) -> List[str]:
-        """Find matching terms using ONLY FAISS semantic similarity."""
-        if element not in self.term_embeddings or not self.embedding_model:
+    def find_matching_terms_faiss(self, prompt: str, element: str, threshold: float = 0.65, 
+                                   return_scores: bool = False, active_condition_names: set = None) -> List[str]:
+        """
+        Find matching terms using ONLY FAISS semantic similarity.
+        Uses category-specific index if category is set, otherwise uses global index.
+        
+        Args:
+            prompt: Patient answer text
+            element: OLDCARTS element (location, aggravating, etc.)
+            threshold: Minimum similarity score (0.0-1.0)
+            return_scores: If True, store scores in self._last_faiss_scores
+            active_condition_names: Optional set of condition names to filter results (if None, returns all matches)
+                                    Note: If category-specific index is used, this further filters within that category
+        
+        Returns:
+            List of matching medical terms (filtered to active conditions if provided)
+        """
+        # Use category-specific index if available, otherwise global index
+        indexes_to_use = self.term_embeddings
+        
+        if element not in indexes_to_use or not self.embedding_model:
             return []
         
         matches = []
@@ -175,18 +342,36 @@ class MedicalRuleEngine:
             # Normalize for cosine similarity (required for IndexFlatIP)
             faiss.normalize_L2(prompt_embedding)
             
-            # Search FAISS index
-            scores, indices = self.term_embeddings[element]['index'].search(
-                prompt_embedding, k=10
+            # Search FAISS index (category-specific if category is set)
+            # Increase k to ensure we get enough matches after filtering
+            k = 20 if active_condition_names else 10
+            scores, indices = indexes_to_use[element]['index'].search(
+                prompt_embedding, k=k
             )
             
             # Filter by threshold and map synonyms back to medical terms
-            synonym_to_medical = self.term_embeddings[element].get('synonym_to_medical', {})
+            synonym_to_medical = indexes_to_use[element].get('synonym_to_medical', {})
+            term_to_conditions = indexes_to_use[element].get('term_to_conditions', {})
+            
+            # Debug: show which index is being used (only print occasionally to avoid spam)
+            # Removed frequent debug print - was causing output spam
+            
             for score, idx in zip(scores[0], indices[0]):
                 if score >= threshold:
-                    term = self.term_embeddings[element]['terms'][idx]
+                    term = indexes_to_use[element]['terms'][idx]
                     # Map synonym back to medical term if available
                     medical_term = synonym_to_medical.get(term, term)
+                    
+                    # Filter by active conditions if provided
+                    if active_condition_names is not None:
+                        # Check if this term is used by any active condition
+                        term_conditions = term_to_conditions.get(term, set())
+                        # If term has no condition mapping (e.g., synonyms), include it (universal terms)
+                        # Otherwise, only include if used by active conditions
+                        if term_conditions and not term_conditions.intersection(active_condition_names):
+                            # This term is not used by any active condition - skip it
+                            continue
+                    
                     if medical_term not in matches:
                         matches.append(medical_term)
                     # Store score for debug purposes
@@ -255,7 +440,8 @@ class MedicalRuleEngine:
     def compute_unified_similarity(self, patient_text: str, guideline_text: str, 
                                    condition_name: str, organ_system: str = None, 
                                    oldcarts_element: str = None, structured_oldcarts: dict = None,
-                                   pre_normalized_text: str = None, precomputed_similarity: float = None) -> Dict[str, Any]:
+                                   pre_normalized_text: str = None, precomputed_similarity: float = None,
+                                   active_condition_names: set = None) -> Dict[str, Any]:
         """
         UNIFIED similarity function used for ALL OLDCARTS elements
         
@@ -312,7 +498,7 @@ class MedicalRuleEngine:
             word_match_boost = self._compute_word_match_boost(
                 patient_text, normalized_text, guideline_text,
                 organ_system, oldcarts_element, structured_oldcarts,
-                condition_name
+                condition_name, active_condition_names=active_condition_names
             )
         
         # STEP 4: Combine results
@@ -330,7 +516,7 @@ class MedicalRuleEngine:
     def _compute_word_match_boost(self, patient_text: str, normalized_text: str,
                                   guideline_text: str, organ_system: str, 
                                   oldcarts_element: str, structured_oldcarts: dict,
-                                  condition_name: str) -> float:
+                                  condition_name: str, active_condition_names: set = None) -> float:
         """
         Simplified word match boost: detect matches vs mismatches, boost or don't boost accordingly.
         """
@@ -379,7 +565,9 @@ class MedicalRuleEngine:
         
         # STEP 3: FAISS-based term matching (for all elements)
         if oldcarts_element in self.term_embeddings:
-            all_faiss_matches = self.find_matching_terms_faiss(patient_text, oldcarts_element, threshold=0.7)
+            all_faiss_matches = self.find_matching_terms_faiss(
+                patient_text, oldcarts_element, threshold=0.7, active_condition_names=active_condition_names
+            )
             
             # Check excludes
             matching_excludes = [term for term in all_faiss_matches if term.lower() in excludes_lower]
@@ -530,18 +718,18 @@ class MedicalRuleEngine:
         # Fallback to simple keyword extraction if FAISS didn't find matches
         if not patient_direction:
             normalized_answer = patient_answer.lower()
-            synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
-            synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
-            
-            if os.path.exists(synonym_path):
-                try:
-                    with open(synonym_path, 'r') as f:
-                        synonyms = json.load(f)
-                    normalized_answer = self._normalize_with_synonyms(patient_answer, synonyms, 'location')
-                except Exception:
-                    pass
-            
-            patient_direction = self._extract_directional_component(normalized_answer, patient_answer)
+        synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+        synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
+        
+        if os.path.exists(synonym_path):
+            try:
+                with open(synonym_path, 'r') as f:
+                    synonyms = json.load(f)
+                normalized_answer = self._normalize_with_synonyms(patient_answer, synonyms, 'location')
+            except Exception:
+                pass
+        
+        patient_direction = self._extract_directional_component(normalized_answer, patient_answer)
         
         if not patient_direction:
             return guidelines  # No direction found, keep all
@@ -572,7 +760,7 @@ class MedicalRuleEngine:
             filtered.append(guideline)
         
         return filtered
-    
+
     def _extract_directional_component_from_terms(self, matched_terms: List[str], raw_text: str = None) -> Optional[str]:
         """
         UNIVERSAL: Extract directional component from FAISS-matched location terms

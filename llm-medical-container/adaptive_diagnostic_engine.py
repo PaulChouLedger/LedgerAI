@@ -335,6 +335,10 @@ class AdaptiveDiagnosticEngine:
         self.current_category = category
         self._capture_debug(f"[Engine] 🎯 Category: {category}")
         
+        # Switch FAISS indexes to category-specific once category is determined
+        if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'set_active_category'):
+            self.medical_rule_engine.set_active_category(category)
+        
         # STEP 2: Narrow down guidelines
         matched_guidelines = self._get_all_guidelines_in_category(category)
         self._capture_debug(f"[Engine] 📊 Found {len(matched_guidelines)} guidelines")
@@ -533,7 +537,18 @@ class AdaptiveDiagnosticEngine:
             
             for element in all_elements:
                 # Use FAISS to find matching terms with semantic similarity (very high threshold for initial parsing to avoid false positives)
-                matching_terms = self.medical_rule_engine.find_matching_terms_faiss(prompt, element, threshold=0.85)
+                # Get active condition names for filtering (if available)
+                active_condition_names = None
+                if hasattr(self, 'active_guidelines') and self.active_guidelines:
+                    active_condition_names = set()
+                    for g in self.active_guidelines:
+                        condition_name = g.get('data', {}).get('condition', g.get('name', ''))
+                        if condition_name:
+                            active_condition_names.add(condition_name)
+                
+                matching_terms = self.medical_rule_engine.find_matching_terms_faiss(
+                    prompt, element, threshold=0.85, active_condition_names=active_condition_names
+                )
                 if matching_terms:
                     answered_components[element] = matching_terms
                     self._capture_debug(f"[Engine] 📍 {element}: {matching_terms}")
@@ -655,7 +670,16 @@ class AdaptiveDiagnosticEngine:
                         element_synonyms = self.synonym_cache[organ_system_key].get('radiation', {})
                         if element_synonyms:
                             # Try to find best matching term via FAISS
-                            faiss_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, 'radiation', threshold=0.75)
+                            # Get active condition names for filtering
+                            active_condition_names = set()
+                            for g in all_guidelines:
+                                condition_name = g.get('data', {}).get('condition', g.get('name', ''))
+                                if condition_name:
+                                    active_condition_names.add(condition_name)
+                            
+                            faiss_matches = self.medical_rule_engine.find_matching_terms_faiss(
+                                answer, 'radiation', threshold=0.75, active_condition_names=active_condition_names
+                            )
                             if faiss_matches:
                                 pre_normalized_text = faiss_matches[0]
                 
@@ -706,12 +730,20 @@ class AdaptiveDiagnosticEngine:
                         raw_similarity = float(np.dot(patient_embedding, section_emb) / 
                                               (np.linalg.norm(patient_embedding) * np.linalg.norm(section_emb)))
                     
+                    # Get active condition names for filtering
+                    active_condition_names = set()
+                    for g in all_guidelines:
+                        cond_name = g.get('data', {}).get('condition', g.get('name', ''))
+                        if cond_name:
+                            active_condition_names.add(cond_name)
+                    
                     # Score radiation using radiation element data
                     similarity_result = self.medical_rule_engine.compute_unified_similarity(
                         answer, oldcarts_section, condition_name, organ_system,
                         'location', {'location': element_data} if element_data else None,
                         pre_normalized_text=pre_normalized_text,
-                        precomputed_similarity=raw_similarity if batch_embeddings is not None else None
+                        precomputed_similarity=raw_similarity if batch_embeddings is not None else None,
+                        active_condition_names=active_condition_names
                     )
                     
                     old_score = g['score']
@@ -765,7 +797,16 @@ class AdaptiveDiagnosticEngine:
                 element_synonyms = self.synonym_cache[organ_system_key].get(oldcarts_element, {})
                 if element_synonyms:
                     # Try to find best matching term via FAISS
-                    faiss_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, oldcarts_element, threshold=0.75)
+                    # Get active condition names for filtering
+                    active_condition_names = set()
+                    for g in all_guidelines:
+                        condition_name = g.get('data', {}).get('condition', g.get('name', ''))
+                        if condition_name:
+                            active_condition_names.add(condition_name)
+                    
+                    faiss_matches = self.medical_rule_engine.find_matching_terms_faiss(
+                        answer, oldcarts_element, threshold=0.75, active_condition_names=active_condition_names
+                    )
                     if faiss_matches:
                         pre_normalized_text = faiss_matches[0]
         
@@ -819,12 +860,20 @@ class AdaptiveDiagnosticEngine:
                     raw_similarity = float(np.dot(patient_embedding, section_emb) / 
                                           (np.linalg.norm(patient_embedding) * np.linalg.norm(section_emb)))
                 
+                # Get active condition names for filtering FAISS results
+                active_condition_names = set()
+                for g in all_guidelines:
+                    cond_name = g.get('data', {}).get('condition', g.get('name', ''))
+                    if cond_name:
+                        active_condition_names.add(cond_name)
+                
                 # Use unified function for word match boost and normalization
                 similarity_result = self.medical_rule_engine.compute_unified_similarity(
                     answer, oldcarts_section, condition_name, organ_system,
                     oldcarts_element, {oldcarts_element: element_data} if element_data else None,
                     pre_normalized_text=pre_normalized_text,
-                    precomputed_similarity=raw_similarity if batch_embeddings is not None else None
+                    precomputed_similarity=raw_similarity if batch_embeddings is not None else None,
+                    active_condition_names=active_condition_names
                 )
                 similarity = similarity_result['similarity']
                 word_match_boost = similarity_result.get('word_match_boost', 0.0)
@@ -1063,18 +1112,28 @@ class AdaptiveDiagnosticEngine:
             synonym_to_group = cache_data.get('to_group', {})
         
         # Do FAISS semantic matching ONCE for all terms (expensive operation)
+        # Get active condition names to filter FAISS results
+        active_condition_names = set()
+        for g in self.active_guidelines:
+            condition_name = g.get('data', {}).get('condition', g.get('name', ''))
+            if condition_name:
+                active_condition_names.add(condition_name)
+        
         semantic_matches_set = set()
         faiss_scores = {}
         if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
             try:
-                semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, oldcarts_element, threshold=0.75, return_scores=True)
+                semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(
+                    answer, oldcarts_element, threshold=0.75, 
+                    return_scores=True, active_condition_names=active_condition_names
+                )
                 semantic_matches_set = set(t.lower() for t in semantic_matches)
-                # Get scores from the engine
+                # Get scores from the engine (already filtered by active conditions)
                 if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
                     all_faiss_scores = self.medical_rule_engine._last_faiss_scores
-                    # Filter to only show scores for terms in active guidelines
+                    # Double-filter to only show scores for terms in active guidelines (redundant but safe)
                     faiss_scores = {term: score for term, score in all_faiss_scores.items() if term.lower() in all_includes}
-                    self._capture_debug(f"[Location Analysis] 🔍 FAISS scores (filtered to active guidelines): {faiss_scores}")
+                    self._capture_debug(f"[Location Analysis] 🔍 FAISS scores (filtered to {len(active_condition_names)} active conditions): {faiss_scores}")
             except Exception as e:
                 self._capture_debug(f"[Location Analysis] ⚠️ FAISS error: {e}")
                 pass
@@ -1185,7 +1244,18 @@ class AdaptiveDiagnosticEngine:
             else:
                 # 2. Use FAISS semantic matching (same as unified function)
                 if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
-                    semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, oldcarts_element, threshold=0.6)
+                    # Get active condition names for filtering
+                    active_condition_names = None
+                    if hasattr(self, 'active_guidelines') and self.active_guidelines:
+                        active_condition_names = set()
+                        for g in self.active_guidelines:
+                            condition_name = g.get('data', {}).get('condition', g.get('name', ''))
+                            if condition_name:
+                                active_condition_names.add(condition_name)
+                    
+                    semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(
+                        answer, oldcarts_element, threshold=0.6, active_condition_names=active_condition_names
+                    )
                     if term in [t.lower() for t in semantic_matches]:
                         term_satisfied = True
                     else:
@@ -1237,23 +1307,29 @@ class AdaptiveDiagnosticEngine:
         if not missing_terms:
             raise ValueError(f"Cannot generate clarifying question for {oldcarts_element} - no missing terms")
         
-        self._capture_debug(f"[Clarification] 🔍 Missing medical terms ({oldcarts_element}): {missing_terms[:5]}")
+        self._capture_debug(f"[Clarification] 🔍 Missing medical terms ({oldcarts_element}): {missing_terms[:8]}")
         
-        # Get patient-friendly terms directly from guidelines
+        # Get patient-friendly terms directly from guidelines (deduplicate to avoid same friendly term from different medical terms)
         patient_friendly_terms = []
+        seen_friendly_terms = set()  # Track unique patient-friendly terms to avoid duplicates
         medical_to_friendly_map = {}
-        for term in missing_terms[:5]:  # Try more terms to get 3 good ones
+        
+        # Try up to 8 terms to get 4 unique patient-friendly terms
+        for term in missing_terms[:8]:
             friendly_term = self._get_patient_friendly_from_guidelines(term, oldcarts_element)
             medical_to_friendly_map[term] = friendly_term
             
             # Debug output showing the mapping for each term as we process it
             self._capture_debug(f"[Clarification] 📝 '{term}' → '{friendly_term}'")
             
-            # Only add non-empty terms
+            # Only add non-empty, unique terms
             if friendly_term and friendly_term.strip():
-                patient_friendly_terms.append(friendly_term)
-                if len(patient_friendly_terms) >= 3:  # Stop when we have 3 good ones
-                    break
+                friendly_lower = friendly_term.strip().lower()
+                if friendly_lower not in seen_friendly_terms:
+                    patient_friendly_terms.append(friendly_term.strip())
+                    seen_friendly_terms.add(friendly_lower)
+                    if len(patient_friendly_terms) >= 4:  # Stop when we have 4 unique ones
+                        break
         
         # If no good terms found, use generic clarifying question
         if not patient_friendly_terms:
@@ -1497,8 +1573,8 @@ class AdaptiveDiagnosticEngine:
         
         sample_guidance = sample_questions.get(component, "")
         
-        system_msg = "You are a medical assistant. Generate a natural, open-ended question to ask about a specific aspect of a patient's symptoms. IMPORTANT: Always start with an open-ended question (not multiple choice or A/B options). Base your question ONLY on what the patient has actually told you — do NOT make up details. Avoid leading the patient or naming specific anatomical regions unless the patient already said them. Make the question flow naturally from the previous conversation."
-        user_msg = f"{chief_complaint_context}\n{covered_info}\n\n{sample_guidance}\n\nRecent conversation:\n{conversation_context}\nGenerate a natural, OPEN-ENDED question to ask about the {component} of the patient's symptoms. Follow the example questions closely. Do NOT provide multiple choice options (e.g., 'lying down or sitting up', 'A or B'). Keep it conversational and empathetic, building on what we've already discussed. Do NOT introduce specific locations (e.g., 'lower right abdomen', 'RUQ') unless the patient already said them. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
+        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, open-ended question to ask about a specific aspect of a patient's symptoms. CRITICAL RULES: 1) Always ask about what the PATIENT can observe/feel themselves - NEVER ask about physical exam maneuvers (no 'pressure', 'palpation', 'when I press', 'when touched', 'when examined'). 2) Always start with an open-ended question (not multiple choice). 3) Base your question ONLY on what the patient has actually told you — do NOT make up details. 4) Avoid leading the patient or naming specific anatomical regions unless the patient already said them. Make the question flow naturally from the previous conversation."
+        user_msg = f"{chief_complaint_context}\n{covered_info}\n\n{sample_guidance}\n\nRecent conversation:\n{conversation_context}\nGenerate a natural, OPEN-ENDED question to ask about the {component} of the patient's symptoms. Follow the example questions closely. Do NOT provide multiple choice options (e.g., 'lying down or sitting up', 'A or B'). Do NOT ask about physical exam maneuvers (e.g., 'when I apply pressure', 'when touched', 'during examination'). Ask ONLY what the patient can observe or feel themselves (e.g., 'What makes it worse?', 'How does it feel?'). Keep it conversational and empathetic, building on what we've already discussed. Do NOT introduce specific locations (e.g., 'lower right abdomen', 'RUQ') unless the patient already said them. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
         
         llm_kwargs = self._get_llm_kwargs()
         response = self.llm_chat_simple_fn(
