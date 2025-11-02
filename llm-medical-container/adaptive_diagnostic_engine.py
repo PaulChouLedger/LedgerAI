@@ -1453,21 +1453,7 @@ class AdaptiveDiagnosticEngine:
         
         # STEP 4: Chronicity question
         if 'chronicity' not in self.demographics:
-            if self.llm_chat_simple_fn:
-                system_msg = "You are a medical assistant. Generate a concise question to ask if the patient's problem is new or ongoing."
-                user_msg = "Is this a new problem or an ongoing issue?"
-                
-                llm_kwargs = self._get_llm_kwargs()
-                response = self.llm_chat_simple_fn(
-                    [
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_msg}
-                    ],
-                    **llm_kwargs
-                )
-                question = response.strip() if response and response.strip() else "Is this a new problem or an ongoing issue?"
-            else:
-                question = "Is this a new problem or an ongoing issue?"
+            question = "Is this a new problem or an ongoing issue?"
             
             self.conversation_history.append({
                 'type': 'question',
