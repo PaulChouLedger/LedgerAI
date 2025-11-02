@@ -1071,8 +1071,10 @@ class AdaptiveDiagnosticEngine:
                 semantic_matches_set = set(t.lower() for t in semantic_matches)
                 # Get scores from the engine
                 if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
-                    faiss_scores = self.medical_rule_engine._last_faiss_scores
-                    self._capture_debug(f"[Location Analysis] 🔍 FAISS scores: {faiss_scores}")
+                    all_faiss_scores = self.medical_rule_engine._last_faiss_scores
+                    # Filter to only show scores for terms in active guidelines
+                    faiss_scores = {term: score for term, score in all_faiss_scores.items() if term.lower() in all_includes}
+                    self._capture_debug(f"[Location Analysis] 🔍 FAISS scores (filtered to active guidelines): {faiss_scores}")
             except Exception as e:
                 self._capture_debug(f"[Location Analysis] ⚠️ FAISS error: {e}")
                 pass

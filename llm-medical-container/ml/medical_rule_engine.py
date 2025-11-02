@@ -332,7 +332,7 @@ class MedicalRuleEngine:
                                   oldcarts_element: str, structured_oldcarts: dict,
                                   condition_name: str) -> float:
         """
-        Compute word match boost using FAISS and medical_rules.json
+        Simplified word match boost: detect matches vs mismatches, boost or don't boost accordingly.
         """
         if oldcarts_element not in structured_oldcarts:
             return 0.0
@@ -341,78 +341,162 @@ class MedicalRuleEngine:
         includes_terms = element_data.get('includes', [])
         excludes_terms = element_data.get('excludes', [])
         
-        # STEP 1: Location-specific medical_rules.json check
-        base_boost = 0.0
-        if oldcarts_element == 'location' and condition_name and organ_system:
-            anatomical_type = self._get_condition_anatomical_type(condition_name, organ_system)
-            patient_direction = self._extract_directional_component(normalized_text, patient_text)
-            
-            if anatomical_type and patient_direction:
-                # Boost matches, penalize opposites, keep vague/bilateral intact
-                if anatomical_type == 'right_only':
-                    if patient_direction == 'right':
-                        base_boost = 0.3  # Match
-                    elif patient_direction == 'left':
-                        return -0.3  # Penalty
-                elif anatomical_type == 'left_only':
-                    if patient_direction == 'left':
-                        base_boost = 0.3  # Match
-                    elif patient_direction == 'right':
-                        return -0.3  # Penalty
-                # bilateral and midline: base_boost stays 0.0 (compatible)
-        
-        # STEP 2: FAISS-based term matching (only for the specific OLDCARTS element)
-        if oldcarts_element in self.term_embeddings:
-            # Get matches for THIS specific element only
-            all_faiss_matches = self.find_matching_terms_faiss(patient_text, oldcarts_element, threshold=0.7)
-            
-            # Filter to only includes/excludes from THIS guideline
-            excludes_lower = self._normalize_term_list(excludes_terms)
-            includes_lower = self._normalize_term_list(includes_terms)
-            
-            # Check excludes (must be in both FAISS matches AND this guideline's excludes)
-            matching_excludes = [term for term in all_faiss_matches if term.lower() in excludes_lower]
-            if matching_excludes:
-                return -0.3  # Penalty for exclude matches
-            
-            # Check includes (must be in both FAISS matches AND this guideline's includes)
-            matching_includes = [term for term in all_faiss_matches if term.lower() in includes_lower]
-            if matching_includes:
-                # Calculate boost based on number of matches
-                match_boost = min(0.1 * len(matching_includes), 0.4)
-                return min(base_boost + match_boost, 0.5)
-        
-        # STEP 3: Fallback to exact matching if FAISS not available
         normalized_lower = normalized_text.lower()
         patient_lower = patient_text.lower()
+        includes_lower = self._normalize_term_list(includes_terms)
+        excludes_lower = self._normalize_term_list(excludes_terms)
         
-        # Check excludes
-        for term in self._normalize_term_list(excludes_terms):
-            term_lower = term
-            if (term_lower in normalized_lower or normalized_lower in term_lower or
-                term_lower in patient_lower or patient_lower in term_lower):
+        # STEP 1: Check excludes first (immediate penalty)
+        for term in excludes_lower:
+            if (term in normalized_lower or normalized_lower in term or
+                term in patient_lower or patient_lower in term):
                 return -0.3  # Penalty
         
-        # Check includes
-        for term in self._normalize_term_list(includes_terms):
-            term_lower = term
+        # STEP 2: For location, check for anatomical mismatches before boosting (universal for all organ systems)
+        if oldcarts_element == 'location':
+            # Extract anatomical components from patient's normalized text (using medical_rules.json)
+            patient_components = self._extract_anatomical_components(normalized_text)
             
-            # Exact match
-            if (term_lower == normalized_lower or term_lower in normalized_lower or 
-                normalized_lower in term_lower):
-                return min(base_boost + 0.5, 0.5)
-            
-            # Word overlap
-            term_words = set(term_lower.split())
-            normalized_words = set(normalized_lower.replace('_', ' ').split())
-            matching_words = normalized_words.intersection(term_words)
-            
-            if len(matching_words) >= 2:
-                match_boost = min(0.2 * len(matching_words), 0.4)
-                return min(base_boost + match_boost, 0.5)
+            # Check each condition location term for mismatch
+            for term in includes_lower:
+                condition_components = self._extract_anatomical_components(term)
+                
+                # If both have anatomical components, check if they're opposites
+                if patient_components and condition_components:
+                    if self._are_anatomical_opposites(patient_components, condition_components):
+                        # Anatomical mismatch - no boost
+                        continue
+                
+                # Exact or substring match (and not opposite)
+                if (term == normalized_lower or term in normalized_lower or 
+                    normalized_lower in term or term in patient_lower or 
+                    patient_lower in term):
+                    # Exact match gets full boost
+                    if term == normalized_lower or normalized_lower == term:
+                        return 0.5
+                    # Substring match gets partial boost
+                    return 0.3
         
-        # Return base_boost if any (from medical_rules.json)
-        return base_boost
+        # STEP 3: FAISS-based term matching (for all elements)
+        if oldcarts_element in self.term_embeddings:
+            all_faiss_matches = self.find_matching_terms_faiss(patient_text, oldcarts_element, threshold=0.7)
+            
+            # Check excludes
+            matching_excludes = [term for term in all_faiss_matches if term.lower() in excludes_lower]
+            if matching_excludes:
+                return -0.3
+            
+            # Check includes
+            matching_includes = [term for term in all_faiss_matches if term.lower() in includes_lower]
+            if matching_includes:
+                # For location, check for anatomical mismatches (universal)
+                if oldcarts_element == 'location':
+                    patient_components = self._extract_anatomical_components(normalized_text)
+                    for matched_term in matching_includes:
+                        condition_components = self._extract_anatomical_components(matched_term.lower())
+                        if patient_components and condition_components:
+                            if self._are_anatomical_opposites(patient_components, condition_components):
+                                # Mismatch - no boost from this term
+                                continue
+                
+                # Good match - boost based on number
+                match_boost = min(0.1 * len(matching_includes), 0.4)
+                return match_boost
+        
+        # STEP 4: Fallback exact matching
+        for term in includes_lower:
+            # Exact match
+            if term == normalized_lower or normalized_lower == term:
+                return 0.5
+            
+            # Substring match
+            if (term in normalized_lower or normalized_lower in term or
+                term in patient_lower or patient_lower in term):
+                return 0.3
+        
+        return 0.0
+    
+    def _extract_anatomical_components(self, text: str) -> Dict[str, str]:
+        """
+        Universal: Extract all anatomical components from text using medical_rules.json.
+        Returns dict with keys: 'quadrant', 'horizontal', 'vertical', 'anterior_posterior'
+        """
+        if not self.medical_rules or 'anatomical_components' not in self.medical_rules:
+            return {}
+        
+        text_lower = text.lower()
+        components = {}
+        anatomical = self.medical_rules.get('anatomical_components', {})
+        
+        # Extract quadrant (GI: right_upper, right_lower, etc.)
+        quadrant_patterns = anatomical.get('quadrant_patterns', {})
+        for quadrant_key, patterns in quadrant_patterns.items():
+            if any(pattern in text_lower for pattern in patterns):
+                components['quadrant'] = quadrant_key
+                break
+        
+        # Extract horizontal direction (left/right)
+        horizontal = anatomical.get('directional_keywords', {}).get('horizontal', {})
+        for direction, keywords in horizontal.items():
+            if any(keyword in text_lower for keyword in keywords):
+                components['horizontal'] = direction
+                break
+        
+        # Extract vertical direction (upper/lower)
+        vertical = anatomical.get('directional_keywords', {}).get('vertical', {})
+        for direction, keywords in vertical.items():
+            if any(keyword in text_lower for keyword in keywords):
+                components['vertical'] = direction
+                break
+        
+        # Extract anterior/posterior
+        anterior_posterior = anatomical.get('directional_keywords', {}).get('anterior_posterior', {})
+        for direction, keywords in anterior_posterior.items():
+            if any(keyword in text_lower for keyword in keywords):
+                components['anterior_posterior'] = direction
+                break
+        
+        return components
+    
+    def _are_anatomical_opposites(self, components1: Dict[str, str], components2: Dict[str, str]) -> bool:
+        """
+        Universal: Check if two sets of anatomical components are opposites using medical_rules.json.
+        Works for all organ systems: GI (quadrants), CARDIO/PULMONARY (chest), MSK (limbs), etc.
+        """
+        if not self.medical_rules or 'anatomical_opposites' not in self.medical_rules:
+            return False
+        
+        opposites = self.medical_rules.get('anatomical_opposites', {})
+        
+        # Check quadrants (GI)
+        if 'quadrant' in components1 and 'quadrant' in components2:
+            quadrant_opposites = opposites.get('quadrants', {})
+            opposite_list = quadrant_opposites.get(components1['quadrant'], [])
+            if components2['quadrant'] in opposite_list:
+                return True
+        
+        # Check horizontal (left/right) - universal for all systems
+        if 'horizontal' in components1 and 'horizontal' in components2:
+            horizontal_opposites = opposites.get('horizontal', {})
+            opposite_list = horizontal_opposites.get(components1['horizontal'], [])
+            if components2['horizontal'] in opposite_list:
+                return True
+        
+        # Check vertical (upper/lower) - universal for all systems
+        if 'vertical' in components1 and 'vertical' in components2:
+            vertical_opposites = opposites.get('vertical', {})
+            opposite_list = vertical_opposites.get(components1['vertical'], [])
+            if components2['vertical'] in opposite_list:
+                return True
+        
+        # Check anterior/posterior (front/back)
+        if 'anterior_posterior' in components1 and 'anterior_posterior' in components2:
+            ap_opposites = opposites.get('anterior_posterior', {})
+            opposite_list = ap_opposites.get(components1['anterior_posterior'], [])
+            if components2['anterior_posterior'] in opposite_list:
+                return True
+        
+        return False
     
     def filter_guidelines_by_location(self, patient_answer: str, guidelines: List[Dict], 
                                      organ_system: str) -> List[Dict]:
