@@ -138,7 +138,9 @@ class MedicalRuleEngine:
         # STEP 1: Exact/substring matching (fast path, highest priority)
         for term in self.term_embeddings[element]['terms']:
             term_lower = term.lower()
-            # Exact match or substring match
+            # Exact match or substring match (but skip very short terms like "mi" to avoid false positives)
+            if len(term_lower) < 3:
+                continue  # Skip very short terms like "mi", "a", etc. to avoid false positives
             if (term_lower == prompt_lower or 
                 term_lower in prompt_lower or 
                 prompt_lower in term_lower):

@@ -139,6 +139,10 @@ class AdaptiveDiagnosticEngine:
         
         # No separate anatomical FAISS index needed - medical_rules.json + OLDCARTS synonyms handle this
         
+        # OPTIMIZATION: Pre-load and cache synonym mappings to avoid repeated I/O
+        self.synonym_cache = {}
+        self._load_synonym_cache()
+        
         # Initialize assessment state
         self.reset_assessment()
     
@@ -158,6 +162,61 @@ class AdaptiveDiagnosticEngine:
                     self.all_guidelines[name] = guideline
             except Exception as e:
                 self._capture_debug(f"[Engine] ⚠️ Failed to load {json_file.name}: {e}")
+    
+    def _load_synonym_cache(self):
+        """Pre-load all synonym mappings for all organ systems to avoid repeated I/O"""
+        category_to_system = {
+            'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
+            'respiratory': 'PULMONARY', 'neurological': 'NEURO',
+            'musculoskeletal': 'MSK', 'renal': 'RENAL',
+            'genitourinary': 'GU', 'gynecological': 'GYN',
+            'dermatological': 'DERM'
+        }
+        
+        for system_name in category_to_system.values():
+            self.synonym_cache[system_name] = self._load_synonyms_for_system(system_name)
+        
+        self._capture_debug(f"[Engine] ✅ Synonym cache loaded for {len(self.synonym_cache)} organ systems")
+    
+    def _load_synonyms_for_system(self, organ_system: str) -> dict:
+        """Load synonyms for a specific organ system and pre-build data structures"""
+        cache = {
+            'onset': {}, 'location': {}, 'duration': {}, 'character': {},
+            'aggravating': {}, 'relieving': {}, 'timing': {}, 'severity': {}
+        }
+        
+        synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+        synonym_path = os.path.join(os.path.dirname(__file__), synonym_file)
+        
+        if not os.path.exists(synonym_path):
+            return cache
+        
+        try:
+            with open(synonym_path, 'r') as f:
+                synonyms = json.load(f)
+            
+            # Pre-build synonym_expansions and synonym_to_group for each OLDCARTS element
+            for oldcarts_element in cache.keys():
+                if oldcarts_element in synonyms:
+                    expansions = {}
+                    to_group = {}
+                    
+                    for standard_term, synonym_list in synonyms[oldcarts_element].items():
+                        # Map standard term to all its synonyms for comparison
+                        expansions[standard_term] = [standard_term] + synonym_list
+                        # Build reverse mapping: each synonym points back to its group
+                        for synonym in [standard_term] + synonym_list:
+                            to_group[synonym.lower()] = standard_term
+                    
+                    cache[oldcarts_element] = {
+                        'expansions': expansions,
+                        'to_group': to_group
+                    }
+            
+        except Exception as e:
+            self._capture_debug(f"[Engine] ⚠️ Failed to load synonyms for {organ_system}: {e}")
+        
+        return cache
         
     def _capture_debug(self, message: str):
         """Capture debug output"""
@@ -614,7 +673,9 @@ class AdaptiveDiagnosticEngine:
             
             # Score guidelines based on radiation answer using radiation section
             if self.medical_rule_engine:
-                all_guidelines = list(self.all_guidelines.values())
+                # Track previous active/reserve state for promotion/demotion logging
+                previous_active = set(g.get('data', {}).get('condition', g.get('name')) for g in self.active_guidelines)
+                all_guidelines = self.active_guidelines + self.reserve_pool
                 for g in all_guidelines:
                     classic = g.get('data', {}).get('key_features', {}).get('classic_presentation', '')
                     oldcarts_section = self._extract_oldcarts_section(classic, 'location')  # Radiation terms are still in LOCATION section
@@ -643,12 +704,12 @@ class AdaptiveDiagnosticEngine:
                     )
                     
                     old_score = g['score']
-                    new_score = self._update_score_with_oldcarts(old_score, similarity_result['similarity_score'])
+                    new_score = self._update_score_with_oldcarts(old_score, similarity_result['similarity'])
                     g['score'] = new_score
-                    self._capture_debug(f"[Scoring] 📊 {condition_name}: old={old_score:.3f}, radiation={similarity_result['similarity_score']:.3f}, new={new_score:.3f}")
+                    self._capture_debug(f"[Scoring] 📊 {condition_name}: old={old_score:.3f}, radiation={similarity_result['similarity']:.3f}, new={new_score:.3f}")
                 
                 # Re-rank after radiation scoring
-                self._rerank_and_pool_guidelines()
+                self._rerank_and_pool_guidelines(all_guidelines, previous_active)
             
             # Continue to next question
             return self._ask_next_clinical_question()
@@ -709,79 +770,22 @@ class AdaptiveDiagnosticEngine:
                     oldcarts_element, {oldcarts_element: element_data} if element_data else None
                 )
                 similarity = similarity_result['similarity']
-                word_matches = similarity_result.get('word_matches', [])
-                boost = similarity_result.get('boost', 0.0)
+                word_match_boost = similarity_result.get('word_match_boost', 0.0)
+                normalized_text = similarity_result.get('normalized_text', answer)
             else:
                 similarity = 0.5
-                word_matches = []
-                boost = 0.0
+                word_match_boost = 0.0
+                normalized_text = answer
             
             # Update score
             old_score = g['score']
             new_score = (old_score * 0.7) + (similarity * 0.3)
             g['score'] = new_score
             
-            self._capture_debug(f"[Scoring] 📊 {condition_name}: old={old_score:.3f}, similarity={similarity:.3f} (matches={word_matches}, boost={boost:.3f}), new={new_score:.3f}")
+            self._capture_debug(f"[Scoring] 📊 {condition_name}: old={old_score:.3f}, similarity={similarity:.3f} (boost={word_match_boost:.3f}), normalized='{normalized_text}', new={new_score:.3f}")
         
-        # Re-rank
-        all_guidelines.sort(key=lambda x: x['score'], reverse=True)
-        self._capture_debug(f"[Ranking] 🎯 Top 5 after scoring: {[(g.get('data', {}).get('condition', g.get('name', 'Unknown')), round(g['score'], 3)) for g in all_guidelines[:5]]}")
-        
-        # Rule out low scores
-        remaining = []
-        ruled_out_count = 0
-        for g in all_guidelines:
-            threshold = self._get_dynamic_threshold(g['score'])
-            if g['score'] >= threshold:
-                remaining.append(g)
-            else:
-                self.ruled_out.append(g)
-                ruled_out_count += 1
-                self._capture_debug(f"[Rule Out] ❌ {g.get('data', {}).get('condition', g.get('name', 'Unknown'))}: score={g['score']:.3f} < threshold={threshold:.3f}")
-        
-        self._capture_debug(f"[Rule Out] 📉 Ruled out {ruled_out_count} guidelines, {len(remaining)} remaining")
-        
-        remaining.sort(key=lambda x: x['score'], reverse=True)
-        self.active_guidelines = remaining[:self.MAX_ACTIVE]
-        self.reserve_pool = remaining[self.MAX_ACTIVE:]
-        
-        # Track promotions and demotions
-        current_active = set(g.get('data', {}).get('condition', g.get('name', 'Unknown')) for g in self.active_guidelines)
-        promoted = [g for g in self.active_guidelines if g.get('data', {}).get('condition', g.get('name', 'Unknown')) not in previous_active]
-        demoted = [g for g in self.reserve_pool if g.get('data', {}).get('condition', g.get('name', 'Unknown')) in previous_active]
-        
-        if promoted:
-            self._capture_debug(f"\n[Engine] 🔼 PROMOTED to active:")
-            for g in promoted:
-                self._capture_debug(f"[Engine]   ↑ {g.get('data', {}).get('condition', g.get('name', 'Unknown'))} (score: {g['score']:.0%})")
-        
-        if demoted:
-            self._capture_debug(f"\n[Engine] 🔽 DEMOTED to reserve:")
-            for g in demoted:
-                self._capture_debug(f"[Engine]   ↓ {g.get('data', {}).get('condition', g.get('name', 'Unknown'))} (score: {g['score']:.0%})")
-        
-        self._capture_debug(f"\n[Engine] 📊 UPDATED RANKINGS:")
-        for i, g in enumerate(self.active_guidelines, 1):
-            urgency_emoji = "🚨" if g.get('data', {}).get('urgency') == 'emergent' else "⚠️" if g.get('data', {}).get('urgency') == 'urgent' else "📋"
-            self._capture_debug(f"[Engine]   {i}. {g.get('data', {}).get('condition', g.get('name', 'Unknown'))}: {g['score']:.0%} {urgency_emoji}")
-            
-            # ML Progress Tracking - Top Conditions
-            self._capture_debug(f"[Scoring] 🏆 Top {i}: {g.get('data', {}).get('condition', g.get('name', 'Unknown'))}")
-            self._capture_debug(f"[Scoring]   📊 Score: {g['score']:.0%}")
-            self._capture_debug(f"[Scoring]   📋 Prevalence: {g.get('prevalence', 'unknown')}")
-            self._capture_debug(f"[Scoring]   🎯 ML Confidence: High similarity match")
-            self._capture_debug(f"[Scoring]   🚨 Urgency: {g.get('data', {}).get('urgency', 'standard')}")
-        
-        # Always show pool statistics
-        self._capture_debug(f"\n[Engine] 🔄 Pool status: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
-        
-        # ML Progress Tracking - Final Statistics
-        self._capture_debug(f"[Scoring] 📊 Final statistics:")
-        self._capture_debug(f"[Scoring]   🎯 Active Conditions: {len(self.active_guidelines)}")
-        self._capture_debug(f"[Scoring]   📋 Reserve Conditions: {len(self.reserve_pool)}")
-        self._capture_debug(f"[Scoring]   ❌ Ruled Out: {len(self.ruled_out)}")
-        self._capture_debug(f"[Scoring]   📈 Total Processed: {len(all_guidelines)}")
-        self._capture_debug(f"[Scoring]   🧠 ML System: Fully operational")
+        # Re-rank and pool guidelines
+        self._rerank_and_pool_guidelines(all_guidelines, previous_active)
         
         # Check if clarification needed
         clarification_count = sum(1 for item in self.conversation_history 
@@ -883,6 +887,68 @@ class AdaptiveDiagnosticEngine:
         else:
             return 0.05
     
+    def _rerank_and_pool_guidelines(self, all_guidelines: list, previous_active: set):
+        """Re-rank guidelines by score and update active/reserve pools"""
+        # Re-rank
+        all_guidelines.sort(key=lambda x: x['score'], reverse=True)
+        self._capture_debug(f"[Ranking] 🎯 Top 5 after scoring: {[(g.get('data', {}).get('condition', g.get('name', 'Unknown')), round(g['score'], 3)) for g in all_guidelines[:5]]}")
+        
+        # Rule out low scores
+        remaining = []
+        ruled_out_count = 0
+        for g in all_guidelines:
+            threshold = self._get_dynamic_threshold(g['score'])
+            if g['score'] >= threshold:
+                remaining.append(g)
+            else:
+                self.ruled_out.append(g)
+                ruled_out_count += 1
+                self._capture_debug(f"[Rule Out] ❌ {g.get('data', {}).get('condition', g.get('name', 'Unknown'))}: score={g['score']:.3f} < threshold={threshold:.3f}")
+        
+        self._capture_debug(f"[Rule Out] 📉 Ruled out {ruled_out_count} guidelines, {len(remaining)} remaining")
+        
+        remaining.sort(key=lambda x: x['score'], reverse=True)
+        self.active_guidelines = remaining[:self.MAX_ACTIVE]
+        self.reserve_pool = remaining[self.MAX_ACTIVE:]
+        
+        # Track promotions and demotions
+        current_active = set(g.get('data', {}).get('condition', g.get('name', 'Unknown')) for g in self.active_guidelines)
+        promoted = [g for g in self.active_guidelines if g.get('data', {}).get('condition', g.get('name', 'Unknown')) not in previous_active]
+        demoted = [g for g in self.reserve_pool if g.get('data', {}).get('condition', g.get('name', 'Unknown')) in previous_active]
+        
+        if promoted:
+            self._capture_debug(f"\n[Engine] 🔼 PROMOTED to active:")
+            for g in promoted:
+                self._capture_debug(f"[Engine]   ↑ {g.get('data', {}).get('condition', g.get('name', 'Unknown'))} (score: {g['score']:.0%})")
+        
+        if demoted:
+            self._capture_debug(f"\n[Engine] 🔽 DEMOTED to reserve:")
+            for g in demoted:
+                self._capture_debug(f"[Engine]   ↓ {g.get('data', {}).get('condition', g.get('name', 'Unknown'))} (score: {g['score']:.0%})")
+        
+        self._capture_debug(f"\n[Engine] 📊 UPDATED RANKINGS:")
+        for i, g in enumerate(self.active_guidelines, 1):
+            urgency_emoji = "🚨" if g.get('data', {}).get('urgency') == 'emergent' else "⚠️" if g.get('data', {}).get('urgency') == 'urgent' else "📋"
+            self._capture_debug(f"[Engine]   {i}. {g.get('data', {}).get('condition', g.get('name', 'Unknown'))}: {g['score']:.0%} {urgency_emoji}")
+            
+            # ML Progress Tracking - Top Conditions
+            self._capture_debug(f"[Scoring] 🏆 Top {i}: {g.get('data', {}).get('condition', g.get('name', 'Unknown'))}")
+            self._capture_debug(f"[Scoring]   📊 Score: {g['score']:.0%}")
+            self._capture_debug(f"[Scoring]   📋 Prevalence: {g.get('prevalence', 'unknown')}")
+            self._capture_debug(f"[Scoring]   🎯 ML Confidence: High similarity match")
+            self._capture_debug(f"[Scoring]   🚨 Urgency: {g.get('data', {}).get('urgency', 'standard')}")
+        
+        # Always show pool statistics
+        self._capture_debug(f"\n[Engine] 🔄 Pool status: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
+        
+        # ML Progress Tracking - Final Statistics
+        self._capture_debug(f"[Scoring] 📊 Final statistics:")
+        self._capture_debug(f"[Scoring]   🎯 Active Conditions: {len(self.active_guidelines)}")
+        self._capture_debug(f"[Scoring]   📋 Reserve Conditions: {len(self.reserve_pool)}")
+        self._capture_debug(f"[Scoring]   ❌ Ruled Out: {len(self.ruled_out)}")
+        self._capture_debug(f"[Scoring]   📈 Total Processed: {len(all_guidelines)}")
+        self._capture_debug(f"[Scoring]   🧠 ML System: Fully operational")
+    
     def _analyze_missing_information(self, answer: str, oldcarts_element: str) -> tuple:
         """Analyze what information is missing using unified function with FAISS semantic matching
         Returns: (missing_terms, satisfied_terms)
@@ -916,36 +982,23 @@ class AdaptiveDiagnosticEngine:
         satisfied_terms = set()
         answer_lower = answer.lower()
         
-        # Load synonyms to expand both ways (patient text → medical term AND medical term → synonyms)
-        try:
-            category_to_system = {
-                'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
-                'respiratory': 'PULMONARY', 'neurological': 'NEURO',
-                'musculoskeletal': 'MSK', 'renal': 'RENAL',
-                'genitourinary': 'GU', 'gynecological': 'GYN',
-                'dermatological': 'DERM'
-            }
-            organ_system = category_to_system.get(self.current_category or 'gastrointestinal', 'GI')
-            synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
-            synonym_path = os.path.join(os.path.dirname(__file__), synonym_file)
-            
-            # Build mapping from synonym keys to all their synonym values for comparison
-            synonym_expansions = {}
-            synonym_to_group = {}  # Reverse mapping: synonym → group key
-            if os.path.exists(synonym_path):
-                with open(synonym_path, 'r') as f:
-                    synonyms = json.load(f)
-                if oldcarts_element in synonyms:
-                    for standard_term, synonym_list in synonyms[oldcarts_element].items():
-                        # Map standard term to all its synonyms for comparison
-                        synonym_expansions[standard_term] = [standard_term] + synonym_list
-                        # Build reverse mapping: each synonym points back to its group
-                        for synonym in [standard_term] + synonym_list:
-                            synonym_to_group[synonym.lower()] = standard_term
+        # OPTIMIZATION: Use pre-loaded synonym cache instead of file I/O
+        category_to_system = {
+            'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
+            'respiratory': 'PULMONARY', 'neurological': 'NEURO',
+            'musculoskeletal': 'MSK', 'renal': 'RENAL',
+            'genitourinary': 'GU', 'gynecological': 'GYN',
+            'dermatological': 'DERM'
+        }
+        organ_system = category_to_system.get(self.current_category or 'gastrointestinal', 'GI')
         
-        except Exception:
-            synonym_expansions = {}
-            synonym_to_group = {}
+        # Get pre-built synonym structures from cache
+        synonym_expansions = {}
+        synonym_to_group = {}
+        if organ_system in self.synonym_cache:
+            cache_data = self.synonym_cache[organ_system].get(oldcarts_element, {})
+            synonym_expansions = cache_data.get('expansions', {})
+            synonym_to_group = cache_data.get('to_group', {})
         
         # Do FAISS semantic matching ONCE for all terms (expensive operation)
         semantic_matches_set = set()
@@ -964,16 +1017,15 @@ class AdaptiveDiagnosticEngine:
             if term in answer_lower or answer_lower in term:
                 term_satisfied = True
             else:
-                # Check if answer was normalized to a synonym key that maps to this term
-                if synonym_expansions:
-                    for standard_term, synonym_list in synonym_expansions.items():
-                        if term.lower() in [s.lower() for s in synonym_list]:
-                            # This term is a synonym of the standard term
-                            # Check if answer matches any synonym of this standard term
-                            # Use more precise matching: answer must be a substring of synonym (not reverse)
-                            if any(syn.lower() in answer_lower for syn in synonym_list):
-                                term_satisfied = True
-                                break
+                # OPTIMIZATION: Check if answer was normalized to a synonym key that maps to this term
+                # Use pre-built synonym_to_group for O(1) lookup instead of O(n²) nested loops
+                if term.lower() in synonym_to_group:
+                    # This term is in a synonym group - check if answer matches any synonym in that group
+                    group_key = synonym_to_group[term.lower()]
+                    synonym_list = synonym_expansions.get(group_key, [])
+                    # Use more precise matching: answer must be a substring of synonym (not reverse)
+                    if any(syn.lower() in answer_lower for syn in synonym_list):
+                        term_satisfied = True
                 
                 if not term_satisfied:
                     # 2. Check against FAISS semantic matches (already computed)
