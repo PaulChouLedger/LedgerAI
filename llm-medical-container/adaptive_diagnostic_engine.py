@@ -846,6 +846,9 @@ class AdaptiveDiagnosticEngine:
                 self._capture_debug(f"[Scoring] ⚠️ Batch embedding failed: {e}")
                 batch_embeddings = None
         
+        # Track which guidelines got scored (for debugging)
+        scored_guidelines = set()
+        
         # Pass 2: Score each guideline
         for idx, g_data in enumerate(guideline_data):
             g = g_data['guideline']
@@ -888,11 +891,25 @@ class AdaptiveDiagnosticEngine:
                 normalized_text = answer
             
             # Update score
-            old_score = g['score']
+            old_score = g.get('score', 0.5)
             new_score = (old_score * 0.7) + (similarity * 0.3)
             g['score'] = new_score
+            scored_guidelines.add(condition_name)
             
             self._capture_debug(f"[Scoring] 📊 {condition_name}: old={old_score:.3f}, similarity={similarity:.3f} (boost={word_match_boost:.3f}), normalized='{normalized_text}', new={new_score:.3f}")
+        
+        # Check if any guidelines weren't scored (missing sections)
+        unscored = []
+        for g in all_guidelines:
+            cond_name = g.get('data', {}).get('condition', g.get('name', 'Unknown'))
+            if cond_name not in scored_guidelines:
+                unscored.append(cond_name)
+                # Keep old score (don't reset to 0.5)
+                if 'score' not in g:
+                    g['score'] = 0.5
+        
+        if unscored:
+            self._capture_debug(f"[Scoring] ⚠️ {len(unscored)} guidelines not scored (missing {oldcarts_element} section): {unscored[:5]}")
         
         # Re-rank and pool guidelines
         self._rerank_and_pool_guidelines(all_guidelines, previous_active)
@@ -1011,9 +1028,14 @@ class AdaptiveDiagnosticEngine:
     
     def _rerank_and_pool_guidelines(self, all_guidelines: list, previous_active: set):
         """Re-rank guidelines by score and update active/reserve pools"""
+        # Debug: Show scores BEFORE sorting
+        scores_before = [(g.get('data', {}).get('condition', g.get('name', 'Unknown')), g.get('score', 'MISSING')) for g in all_guidelines[:5]]
+        self._capture_debug(f"[Ranking] 🔍 Scores before sorting (first 5): {scores_before}")
+        
         # Re-rank
-        all_guidelines.sort(key=lambda x: x['score'], reverse=True)
-        self._capture_debug(f"[Ranking] 🎯 Top 5 after scoring: {[(g.get('data', {}).get('condition', g.get('name', 'Unknown')), round(g['score'], 3)) for g in all_guidelines[:5]]}")
+        all_guidelines.sort(key=lambda x: x.get('score', 0.5), reverse=True)
+        scores_after = [(g.get('data', {}).get('condition', g.get('name', 'Unknown')), g.get('score', 'MISSING')) for g in all_guidelines[:5]]
+        self._capture_debug(f"[Ranking] 🎯 Top 5 after scoring: {scores_after}")
         
         # Rule out low scores
         remaining = []
@@ -1243,10 +1265,11 @@ class AdaptiveDiagnosticEngine:
         missing = [term for term in all_includes if term not in satisfied_terms]
         
         self._capture_debug(f"[Location Analysis] ✅ Satisfied terms: {sorted(satisfied_terms)}")
-        self._capture_debug(f"[Location Analysis] ❌ Missing terms: {missing[:5]}")
+        self._capture_debug(f"[Location Analysis] ❌ Missing terms ({len(missing)} total): {sorted(missing)}")
         
         # Return both satisfied and missing terms for better decision making
-        return missing[:5], satisfied_terms
+        # Return all missing terms (not limited to 5) so clarification questions can see all options
+        return missing, satisfied_terms
     
     def _get_satisfied_terms(self, answer: str, oldcarts_element: str) -> set:
         """Get terms that are satisfied using unified function logic"""
