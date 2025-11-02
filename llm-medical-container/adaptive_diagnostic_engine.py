@@ -568,8 +568,8 @@ class AdaptiveDiagnosticEngine:
             all_elements = ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
             
             for element in all_elements:
-                # Use FAISS to find matching terms with semantic similarity (higher threshold for initial parsing)
-                matching_terms = self.medical_rule_engine.find_matching_terms_faiss(prompt, element, threshold=0.75)
+                # Use FAISS to find matching terms with semantic similarity (very high threshold for initial parsing to avoid false positives)
+                matching_terms = self.medical_rule_engine.find_matching_terms_faiss(prompt, element, threshold=0.85)
                 if matching_terms:
                     answered_components[element] = matching_terms
                     self._capture_debug(f"[Engine] 📍 {element}: {matching_terms}")
