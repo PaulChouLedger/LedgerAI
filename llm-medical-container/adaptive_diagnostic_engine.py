@@ -1431,7 +1431,7 @@ class AdaptiveDiagnosticEngine:
         # Sample questions for each OLDCARTS element as guidance (universal across all organ systems)
         sample_questions = {
             'onset': "Example good question: 'When did this start?' or 'How long have you been experiencing this?'",
-            'location': "Example good question: 'Can you tell me where exactly you're experiencing this?' or 'Where does this occur?'",
+            'location': "Example good question: 'Can you tell me more about where exactly the pain is located?' or 'Where exactly is the pain located?'",
             'duration': "Example good question: 'How long does this typically last?' or 'Is this constant or does it come and go?'",
             'character': "Example good question: 'How would you describe this?' or 'What does this feel like?'",
             'aggravating': "Example good question: 'Does anything make this worse?' or 'What makes it worse?'",
