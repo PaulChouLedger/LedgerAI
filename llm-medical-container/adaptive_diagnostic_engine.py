@@ -979,11 +979,17 @@ class AdaptiveDiagnosticEngine:
         
         # Do FAISS semantic matching ONCE for all terms (expensive operation)
         semantic_matches_set = set()
+        faiss_scores = {}
         if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
             try:
-                semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, oldcarts_element, threshold=0.6)
+                semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, oldcarts_element, threshold=0.6, return_scores=True)
                 semantic_matches_set = set(t.lower() for t in semantic_matches)
-            except Exception:
+                # Get scores from the engine
+                if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
+                    faiss_scores = self.medical_rule_engine._last_faiss_scores
+                    self._capture_debug(f"[Location Analysis] 🔍 FAISS scores: {faiss_scores}")
+            except Exception as e:
+                self._capture_debug(f"[Location Analysis] ⚠️ FAISS error: {e}")
                 pass
         
         # Check each term using the same logic as unified function
@@ -1012,7 +1018,11 @@ class AdaptiveDiagnosticEngine:
                     # 2. Check against FAISS semantic matches (already computed)
                     if term in semantic_matches_set:
                         term_satisfied = True
-                        match_reason = f"FAISS semantic match"
+                        score = faiss_scores.get(term, None)
+                        if score is not None:
+                            match_reason = f"FAISS semantic match (score: {score:.3f})"
+                        else:
+                            match_reason = f"FAISS semantic match"
             
             if term_satisfied:
                 satisfied_terms.add(term)
@@ -1662,6 +1672,11 @@ class AdaptiveDiagnosticEngine:
                     'internal': self._get_debug_info(last_answer=user_answer)
                 }
             }
+        
+        # If no demographics handler matched and demographics incomplete, check if we need to ask demographics
+        if not all(key in self.demographics for key in ['age', 'sex', 'chronicity']):
+            # Demographics incomplete - ask next demographic question
+            return self._generate_ml_first_question_with_demographics()
         
         # Handle clinical answers
         return self._process_clinical_answer(user_answer)

@@ -158,12 +158,13 @@ class MedicalRuleEngine:
                 normalized.append(term.strip().lower())
         return normalized
     
-    def find_matching_terms_faiss(self, prompt: str, element: str, threshold: float = 0.65) -> List[str]:
+    def find_matching_terms_faiss(self, prompt: str, element: str, threshold: float = 0.65, return_scores: bool = False) -> List[str]:
         """Find matching terms using ONLY FAISS semantic similarity."""
         if element not in self.term_embeddings or not self.embedding_model:
             return []
         
         matches = []
+        match_scores = {}
         
         try:
             # Encode prompt
@@ -187,6 +188,17 @@ class MedicalRuleEngine:
                     medical_term = synonym_to_medical.get(term, term)
                     if medical_term not in matches:
                         matches.append(medical_term)
+                    # Store score for debug purposes
+                    if return_scores:
+                        # Keep highest score if multiple synonyms map to same medical term
+                        if medical_term not in match_scores or score > match_scores[medical_term]:
+                            match_scores[medical_term] = float(score)
+            
+            # If debug mode, attach scores to function attribute (hacky but works)
+            if return_scores:
+                self._last_faiss_scores = match_scores
+                # Also print for immediate debugging
+                print(f"[FAISS] 🔍 Scores for '{prompt}' in {element}: {match_scores}")
             
             return matches
         except Exception as e:
