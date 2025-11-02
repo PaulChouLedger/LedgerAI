@@ -337,7 +337,9 @@ class AdaptiveDiagnosticEngine:
         
         # Switch FAISS indexes to category-specific once category is determined
         if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'set_active_category'):
+            self._capture_debug(f"[Engine] 🔀 Switching FAISS indexes to {category} category...")
             self.medical_rule_engine.set_active_category(category)
+            self._capture_debug(f"[Engine] ✅ FAISS indexes switched to {category} category")
         
         # STEP 2: Narrow down guidelines
         matched_guidelines = self._get_all_guidelines_in_category(category)
@@ -1600,6 +1602,18 @@ class AdaptiveDiagnosticEngine:
         chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}"
         covered_info = "Already covered: " + ", ".join([k for k, v in self.oldcarts_covered.items() if v])
         
+        # Get current category to ensure questions are relevant
+        category_context = ""
+        if self.current_category:
+            category_context = f"\nMedical category: {self.current_category}. Focus questions on {self.current_category} conditions only. "
+            # For GI category, emphasize abdominal/chest locations
+            if self.current_category == 'gastrointestinal':
+                category_context += "Ask about ABDOMINAL symptoms only (not legs, arms, or other body parts). "
+            elif self.current_category == 'musculoskeletal':
+                category_context += "Ask about MUSCULOSKELETAL symptoms (joints, muscles, bones). "
+            elif self.current_category in ['cardiovascular', 'respiratory']:
+                category_context += "Ask about CHEST/THORACIC symptoms only (not legs, arms, or abdomen). "
+        
         # Sample questions for each OLDCARTS element as guidance (universal across all organ systems)
         # Order: onset, location, timing, duration, character, aggravating, relieving, severity
         # NOTE: Timing comes before duration. If timing is constant, duration is skipped (redundant).
@@ -1617,8 +1631,21 @@ class AdaptiveDiagnosticEngine:
         
         sample_guidance = sample_questions.get(component, "")
         
-        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, open-ended question to ask about a specific aspect of a patient's symptoms. CRITICAL RULES: 1) Always ask about what the PATIENT can observe/feel themselves - NEVER ask about physical exam maneuvers (no 'pressure', 'palpation', 'when I press', 'when touched', 'when examined'). 2) Always start with an open-ended question (not multiple choice). 3) Base your question ONLY on what the patient has actually told you — do NOT make up details. 4) Avoid leading the patient or naming specific anatomical regions unless the patient already said them. Make the question flow naturally from the previous conversation."
-        user_msg = f"{chief_complaint_context}\n{covered_info}\n\n{sample_guidance}\n\nRecent conversation:\n{conversation_context}\nGenerate a natural, OPEN-ENDED question to ask about the {component} of the patient's symptoms. Follow the example questions closely. Do NOT provide multiple choice options (e.g., 'lying down or sitting up', 'A or B'). Do NOT ask about physical exam maneuvers (e.g., 'when I apply pressure', 'when touched', 'during examination'). Ask ONLY what the patient can observe or feel themselves (e.g., 'What makes it worse?', 'How does it feel?'). Keep it conversational and empathetic, building on what we've already discussed. Do NOT introduce specific locations (e.g., 'lower right abdomen', 'RUQ') unless the patient already said them. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
+        # Map component to clear description for LLM
+        component_descriptions = {
+            'onset': 'WHEN the symptom started or began',
+            'location': 'WHERE the symptom is located (anatomical location/position)',
+            'timing': 'WHETHER the symptom is constant or comes and goes',
+            'duration': 'HOW LONG each episode lasts (only if timing is episodic)',
+            'character': 'HOW the symptom feels (sharp, dull, burning, etc.)',
+            'aggravating': 'WHAT makes the symptom worse (aggravating factors)',
+            'relieving': 'WHAT helps or makes the symptom better (relieving factors)',
+            'severity': 'HOW SEVERE the symptom is (on a scale or in terms of intensity)'
+        }
+        component_description = component_descriptions.get(component, component)
+        
+        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, open-ended question to ask about a specific aspect of a patient's symptoms. CRITICAL RULES: 1) Always ask about what the PATIENT can observe/feel themselves - NEVER ask about physical exam maneuvers (no 'pressure', 'palpation', 'when I press', 'when touched', 'when examined'). 2) Always start with an open-ended question (not multiple choice). 3) Base your question ONLY on what the patient has actually told you — do NOT make up details. 4) Avoid leading the patient or naming specific anatomical regions unless the patient already said them. Make the question flow naturally from the previous conversation. 5) Focus ONLY on the body region relevant to the chief complaint - if the chief complaint is ABDOMINAL PAIN, ask about ABDOMEN only (not legs, arms, or other body parts). 6) CRITICAL: You MUST ask about the SPECIFIC component requested - do NOT confuse different OLDCARTS components."
+        user_msg = f"TASK: Generate a question about {component.upper()} ({component_description}) ONLY.\n\n{chief_complaint_context}{category_context}\n{covered_info}\n\nExample question for {component}:\n{sample_guidance}\n\nRecent conversation:\n{conversation_context}\n\nCRITICAL INSTRUCTIONS:\n- Ask about {component.upper()} ({component_description}) ONLY - do NOT ask about other components\n- For LOCATION: Ask 'WHERE is the pain located?' or 'Can you tell me where exactly the pain is?'\n- For AGGRAVATING: Ask 'What makes it worse?' or 'Does anything make the pain worse?'\n- For RELIEVING: Ask 'What helps?' or 'Does anything make it better?'\n- Follow the example questions closely\n- Do NOT provide multiple choice options\n- Do NOT ask about physical exam maneuvers\n- Ask ONLY what the patient can observe or feel themselves\n- Base your question ONLY on '{self.chief_complaint}' - if it's abdominal pain, ask about abdomen only (not legs, arms, etc.)\n- Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
         
         llm_kwargs = self._get_llm_kwargs()
         response = self.llm_chat_simple_fn(

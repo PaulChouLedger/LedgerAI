@@ -292,9 +292,17 @@ class MedicalRuleEngine:
         if category in self.term_embeddings_by_category:
             # Switch term_embeddings to category-specific
             self.term_embeddings = self.term_embeddings_by_category[category]
-            print(f"[FAISS] 🔀 Switched to {category} indexes ({sum(len(idx['terms']) for idx in self.term_embeddings.values())} terms)")
+            total_terms = sum(len(idx['terms']) for idx in self.term_embeddings.values())
+            elements_with_indexes = list(self.term_embeddings.keys())
+            print(f"[FAISS] 🔀 Switched to {category} category index")
+            print(f"[FAISS] 📊 Category index stats: {total_terms} total terms across {len(elements_with_indexes)} elements: {elements_with_indexes}")
+            # Print detailed breakdown per element
+            for element in elements_with_indexes:
+                term_count = len(self.term_embeddings[element]['terms'])
+                print(f"[FAISS]   - {element}: {term_count} terms")
         else:
             print(f"[FAISS] ⚠️ Category {category} not found, keeping global index")
+            print(f"[FAISS] 📊 Available categories: {list(self.term_embeddings_by_category.keys())}")
     
     def _normalize_term_list(self, terms: List[Any]) -> List[str]:
         """Normalize guideline term lists that may contain strings or {medical, patient_friendly} dicts."""
@@ -327,9 +335,17 @@ class MedicalRuleEngine:
         """
         # Use category-specific index if available, otherwise global index
         indexes_to_use = self.term_embeddings
+        index_type = "category-specific" if self.active_category else "global"
         
         if element not in indexes_to_use or not self.embedding_model:
             return []
+        
+        # Debug: Show which index is being used (only once per search to avoid spam)
+        if not hasattr(self, '_last_index_debug') or self._last_index_debug != (self.active_category, element):
+            term_count = len(indexes_to_use[element]['terms'])
+            category_info = f"{self.active_category} category" if self.active_category else "global"
+            print(f"[FAISS] 🔍 Using {category_info} index for {element} ({term_count} terms, {index_type})")
+            self._last_index_debug = (self.active_category, element)
         
         matches = []
         match_scores = {}
