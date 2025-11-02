@@ -1377,91 +1377,110 @@ class AdaptiveDiagnosticEngine:
     
     def _generate_confirmation_message(self, user_answer: str) -> str:
         """Generate a confirmation/paraphrase message to show we understand what the patient said"""
-        if self.llm_chat_simple_fn:
-            # Get context about chief complaint
-            chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}"
-            if hasattr(self, 'conversation_history') and self.conversation_history:
-                # Include recent conversation context
-                recent_msgs = [item.get('message', item.get('question', item.get('answer', ''))) 
-                             for item in self.conversation_history[-3:] if item.get('type') in ['statement', 'question', 'answer']]
-                context = " ".join(recent_msgs[-2:])  # Last 2 messages
-            else:
-                context = ""
-            
-            system_msg = "You are a medical assistant. Generate a brief confirmation message paraphrasing what the patient just told you to show you understand."
-            user_msg = f"{chief_complaint_context}\n\nPatient just said: '{user_answer}'\n\nGenerate a brief confirmation message (1-2 sentences) that paraphrases what they told you to confirm understanding. Make it natural and empathetic. Return only the confirmation message, no other text."
-            
-            llm_kwargs = self._get_llm_kwargs()
-            response = self.llm_chat_simple_fn(
-                [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg}
-                ],
-                **llm_kwargs
-            )
-            if response and response.strip():
-                return response.strip()
+        if not self.llm_chat_simple_fn:
+            raise ValueError("LLM not available for confirmation message generation")
         
-        # Fallback
-        return f"I understand you're experiencing {user_answer.lower()}."
+        # Get context about chief complaint
+        chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}"
+        if hasattr(self, 'conversation_history') and self.conversation_history:
+            # Include recent conversation context
+            recent_msgs = [item.get('message', item.get('question', item.get('answer', ''))) 
+                         for item in self.conversation_history[-3:] if item.get('type') in ['statement', 'question', 'answer']]
+            context = " ".join(recent_msgs[-2:])  # Last 2 messages
+        else:
+            context = ""
+        
+        system_msg = "You are a medical assistant. Generate a brief confirmation message paraphrasing what the patient just told you to show you understand."
+        user_msg = f"{chief_complaint_context}\n\nPatient just said: '{user_answer}'\n\nGenerate a brief confirmation message (1-2 sentences) that paraphrases what they told you to confirm understanding. Make it natural and empathetic. Return only the confirmation message, no other text."
+        
+        llm_kwargs = self._get_llm_kwargs()
+        response = self.llm_chat_simple_fn(
+            [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ],
+            **llm_kwargs
+        )
+        if not response or not response.strip():
+            raise ValueError("LLM returned empty response for confirmation message")
+        
+        return response.strip()
     
     def _generate_oldcarts_question_for_component(self, component: str) -> str:
         """Generate question for OLDCARTS component using LLM with proper context"""
-        # For location, avoid introducing specific anatomical regions; ask neutrally
-        if component == 'location':
-            return "Can you tell me more about where exactly the pain is located?"
+        if not self.llm_chat_simple_fn:
+            raise ValueError("LLM not available for question generation")
         
-        if self.llm_chat_simple_fn:
-            # Provide context: chief complaint and what we already know
-            chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}"
-            covered_info = "Already covered: " + ", ".join([k for k, v in self.oldcarts_covered.items() if v])
-            
-            system_msg = "You are a medical assistant. Generate a natural, conversational question to ask about a specific aspect of a patient's symptoms. Base your question ONLY on what the patient has actually told you — do NOT make up details. Avoid leading the patient or naming specific anatomical regions unless the patient already said them."
-            user_msg = f"{chief_complaint_context}\n{covered_info}\n\nGenerate a natural question to ask about the {component} of the patient's symptoms related to their chief complaint. Make it conversational and empathetic. Do NOT introduce specific locations (e.g., 'lower right abdomen', 'RUQ') unless the patient already said them. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
-            
-            llm_kwargs = self._get_llm_kwargs()
-            response = self.llm_chat_simple_fn(
-                [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg}
-                ],
-                **llm_kwargs
-            )
-            if response and response.strip():
-                return response.strip()
+        # Build conversation context from recent history
+        conversation_context = ""
+        if hasattr(self, 'conversation_history') and self.conversation_history:
+            # Get last 3-4 items for context (recent Q&A)
+            recent_items = self.conversation_history[-4:]
+            for item in recent_items:
+                if item.get('type') == 'question':
+                    conversation_context += f"Q: {item.get('question', item.get('message', ''))}\n"
+                elif item.get('type') == 'answer':
+                    conversation_context += f"A: {item.get('answer', item.get('message', ''))}\n"
+                elif item.get('type') == 'statement':
+                    conversation_context += f"Statement: {item.get('message', '')}\n"
         
-        # Fallback questions
-        fallback_questions = {
-            'onset': "When did this start? Was it sudden or gradual?",
-            'location': "Where exactly is the pain located?",
-            'duration': "How long does it last?",
-            'character': "How would you describe the pain?",
-            'aggravating': "What makes it worse?",
-            'relieving': "What makes it better?",
-            'timing': "When does it occur?",
-            'severity': "On a scale of 1-10, how severe is it?"
+        # Provide context: chief complaint and what we already know
+        chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}"
+        covered_info = "Already covered: " + ", ".join([k for k, v in self.oldcarts_covered.items() if v])
+        
+        # Sample questions for each OLDCARTS element as guidance (universal across all organ systems)
+        sample_questions = {
+            'onset': "Example good question: 'When did this start?' or 'How long have you been experiencing this?'",
+            'location': "Example good question: 'Can you tell me where exactly you're experiencing this?' or 'Where does this occur?'",
+            'duration': "Example good question: 'How long does this typically last?' or 'Is this constant or does it come and go?'",
+            'character': "Example good question: 'How would you describe this?' or 'What does this feel like?'",
+            'aggravating': "Example good question: 'Does anything make this worse?' or 'What makes it worse?'",
+            'relieving': "Example good question: 'Does anything help?' or 'What makes you feel better?'",
+            'timing': "Example good question: 'When does this typically happen?' or 'Is there a particular time when this occurs?'",
+            'severity': "Example good question: 'On a scale of 1 to 10, how would you rate this?' or 'How severe is this on a scale of 1 to 10?'"
         }
-        return fallback_questions.get(component, f"Tell me about {component}")
+        
+        sample_guidance = sample_questions.get(component, "")
+        
+        system_msg = "You are a medical assistant. Generate a natural, conversational question to ask about a specific aspect of a patient's symptoms. Base your question ONLY on what the patient has actually told you — do NOT make up details. Avoid leading the patient or naming specific anatomical regions unless the patient already said them. Make the question flow naturally from the previous conversation."
+        user_msg = f"{chief_complaint_context}\n{covered_info}\n\n{sample_guidance}\n\nRecent conversation:\n{conversation_context}\nGenerate a natural question to ask about the {component} of the patient's symptoms. Make it conversational and empathetic, building on what we've already discussed. Do NOT introduce specific locations (e.g., 'lower right abdomen', 'RUQ') unless the patient already said them. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
+        
+        llm_kwargs = self._get_llm_kwargs()
+        response = self.llm_chat_simple_fn(
+            [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ],
+            **llm_kwargs
+        )
+        if response and response.strip():
+            return response.strip()
+        
+        # If LLM returns empty, raise error instead of using fallback
+        raise ValueError(f"LLM returned empty response for {component} question")
     
     def _generate_ml_first_question_with_demographics(self) -> Dict[str, Any]:
         """Generate demographics questions in order: chronicity, age, sex"""
         # STEP 1: Chronicity question (first after empathetic statement)
         if 'chronicity' not in self.demographics:
-            if self.llm_chat_simple_fn:
-                system_msg = "You are a medical assistant. Generate a concise question to ask if the patient's problem is new or ongoing."
-                user_msg = "Is this a new problem or an ongoing issue?"
-                
-                llm_kwargs = self._get_llm_kwargs()
-                response = self.llm_chat_simple_fn(
-                    [
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_msg}
-                    ],
-                    **llm_kwargs
-                )
-                question = response.strip() if response and response.strip() else "Is this a new problem or an ongoing issue?"
-            else:
-                question = "Is this a new problem or an ongoing issue?"
+            if not self.llm_chat_simple_fn:
+                raise ValueError("LLM not available for question generation")
+            
+            system_msg = "You are a medical assistant. Generate a concise question to ask if the patient's problem is new or ongoing."
+            user_msg = "Is this a new problem or an ongoing issue?"
+            
+            llm_kwargs = self._get_llm_kwargs()
+            response = self.llm_chat_simple_fn(
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                **llm_kwargs
+            )
+            if not response or not response.strip():
+                raise ValueError("LLM returned empty response for chronicity question")
+            
+            question = response.strip()
             
             self.conversation_history.append({
                 'type': 'question',
@@ -1484,21 +1503,24 @@ class AdaptiveDiagnosticEngine:
         
         # STEP 2: Age question
         if 'age' not in self.demographics:
-            if self.llm_chat_simple_fn:
-                system_msg = "You are a medical assistant. Generate a natural, conversational question to ask for the patient's age."
-                user_msg = "Generate a natural question to ask for the patient's age. Make it conversational and professional. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
-                
-                llm_kwargs = self._get_llm_kwargs()
-                response = self.llm_chat_simple_fn(
-                    [
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_msg}
-                    ],
-                    **llm_kwargs
-                )
-                question = response.strip() if response and response.strip() else "How old are you?"
-            else:
-                question = "How old are you?"
+            if not self.llm_chat_simple_fn:
+                raise ValueError("LLM not available for question generation")
+            
+            system_msg = "You are a medical assistant. Generate a natural, conversational question to ask for the patient's age."
+            user_msg = "Generate a natural question to ask for the patient's age. Make it conversational and professional. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
+            
+            llm_kwargs = self._get_llm_kwargs()
+            response = self.llm_chat_simple_fn(
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": user_msg}
+                ],
+                **llm_kwargs
+            )
+            if not response or not response.strip():
+                raise ValueError("LLM returned empty response for age question")
+            
+            question = response.strip()
             
             self.conversation_history.append({
                 'type': 'question',
@@ -1547,24 +1569,25 @@ class AdaptiveDiagnosticEngine:
     
     def _generate_empathetic_statement(self) -> str:
         """Generate empathetic opening statement using LLM"""
-        if self.llm_chat_simple_fn:
-            system_msg = "You are a compassionate medical assistant. Generate a brief, empathetic statement acknowledging the patient's concern."
-            user_msg = f"Patient reported: '{self.chief_complaint}'\n\nGenerate a brief, empathetic acknowledgment (1-2 sentences). Acknowledge their concern, show compassion, and express that you're here to help. Do NOT ask questions. End with a period. Return only the statement, no other text."
-            
-            # Use all LLM settings from environment
-            llm_kwargs = self._get_llm_kwargs()
-            response = self.llm_chat_simple_fn(
-                [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg}
-                ],
-                **llm_kwargs
-            )
-            if response and response.strip():
-                return response.strip()
+        if not self.llm_chat_simple_fn:
+            raise ValueError("LLM not available for empathetic statement generation")
         
-        # Fallback template
-        return f"I'm so sorry to hear that you're experiencing {self.chief_complaint}. Please know that I'm here for you and will do my best to help you feel more comfortable during your visit."
+        system_msg = "You are a compassionate medical assistant. Generate a brief, empathetic statement acknowledging the patient's concern."
+        user_msg = f"Patient reported: '{self.chief_complaint}'\n\nGenerate a brief, empathetic acknowledgment (1-2 sentences). Acknowledge their concern, show compassion, and express that you're here to help. Do NOT ask questions. End with a period. Return only the statement, no other text."
+        
+        # Use all LLM settings from environment
+        llm_kwargs = self._get_llm_kwargs()
+        response = self.llm_chat_simple_fn(
+            [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ],
+            **llm_kwargs
+        )
+        if not response or not response.strip():
+            raise ValueError("LLM returned empty response for empathetic statement")
+        
+        return response.strip()
     
     def process_answer(self, user_answer: str) -> Dict[str, Any]:
         """Process user answer and continue assessment"""
