@@ -650,13 +650,44 @@ class MedicalRuleEngine:
         """
         Universal: Check if two sets of anatomical components are opposites using medical_rules.json.
         Works for all organ systems: GI (quadrants), CARDIO/PULMONARY (chest), MSK (limbs), etc.
+        
+        Also handles quadrant vs. vertical comparison (e.g., "right_upper" quadrant vs. "upper" vertical).
         """
         if not self.medical_rules or 'anatomical_opposites' not in self.medical_rules:
             return False
         
         opposites = self.medical_rules.get('anatomical_opposites', {})
         
-        # Check quadrants (GI)
+        # Extract vertical from quadrant if needed (e.g., "right_upper" → "upper")
+        def extract_vertical_from_quadrant(quadrant_key):
+            if not quadrant_key or '_' not in quadrant_key:
+                return None
+            parts = quadrant_key.split('_')
+            if len(parts) >= 2:
+                if parts[1] in ['upper', 'lower']:
+                    return parts[1]
+                # Handle "right_upper_quadrant" format
+                if len(parts) >= 3 and parts[1] in ['upper', 'lower']:
+                    return parts[1]
+            return None
+        
+        # Get vertical components (direct or extracted from quadrant)
+        vertical1 = components1.get('vertical')
+        if not vertical1 and 'quadrant' in components1:
+            vertical1 = extract_vertical_from_quadrant(components1['quadrant'])
+        
+        vertical2 = components2.get('vertical')
+        if not vertical2 and 'quadrant' in components2:
+            vertical2 = extract_vertical_from_quadrant(components2['quadrant'])
+        
+        # Check vertical opposites (most important for upper/lower quadrant distinction)
+        if vertical1 and vertical2:
+            vertical_opposites = opposites.get('vertical', {})
+            opposite_list = vertical_opposites.get(vertical1, [])
+            if vertical2 in opposite_list:
+                return True
+        
+        # Check quadrants (GI) - full quadrant comparison
         if 'quadrant' in components1 and 'quadrant' in components2:
             quadrant_opposites = opposites.get('quadrants', {})
             opposite_list = quadrant_opposites.get(components1['quadrant'], [])
@@ -664,17 +695,23 @@ class MedicalRuleEngine:
                 return True
         
         # Check horizontal (left/right) - universal for all systems
-        if 'horizontal' in components1 and 'horizontal' in components2:
-            horizontal_opposites = opposites.get('horizontal', {})
-            opposite_list = horizontal_opposites.get(components1['horizontal'], [])
-            if components2['horizontal'] in opposite_list:
-                return True
+        # Extract horizontal from quadrant if needed
+        horizontal1 = components1.get('horizontal')
+        if not horizontal1 and 'quadrant' in components1:
+            quadrant_parts = components1['quadrant'].split('_')
+            if quadrant_parts and quadrant_parts[0] in ['left', 'right']:
+                horizontal1 = quadrant_parts[0]
         
-        # Check vertical (upper/lower) - universal for all systems
-        if 'vertical' in components1 and 'vertical' in components2:
-            vertical_opposites = opposites.get('vertical', {})
-            opposite_list = vertical_opposites.get(components1['vertical'], [])
-            if components2['vertical'] in opposite_list:
+        horizontal2 = components2.get('horizontal')
+        if not horizontal2 and 'quadrant' in components2:
+            quadrant_parts = components2['quadrant'].split('_')
+            if quadrant_parts and quadrant_parts[0] in ['left', 'right']:
+                horizontal2 = quadrant_parts[0]
+        
+        if horizontal1 and horizontal2:
+            horizontal_opposites = opposites.get('horizontal', {})
+            opposite_list = horizontal_opposites.get(horizontal1, [])
+            if horizontal2 in opposite_list:
                 return True
         
         # Check anterior/posterior (front/back)

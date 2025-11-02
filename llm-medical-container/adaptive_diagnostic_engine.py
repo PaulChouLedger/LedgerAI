@@ -1138,10 +1138,43 @@ class AdaptiveDiagnosticEngine:
                 self._capture_debug(f"[Location Analysis] ⚠️ FAISS error: {e}")
                 pass
         
+        # For location element, normalize answer once to extract anatomical components
+        normalized_answer = answer_lower
+        if oldcarts_element == 'location' and self.medical_rule_engine:
+            # Try to normalize using synonyms first
+            if organ_system in self.synonym_cache:
+                cache_data = self.synonym_cache[organ_system].get('location', {})
+                location_synonyms = cache_data.get('synonyms', {})
+                if location_synonyms:
+                    # Use FAISS to normalize
+                    faiss_normalize = self.medical_rule_engine.find_matching_terms_faiss(
+                        answer, 'location', threshold=0.75, active_condition_names=active_condition_names
+                    )
+                    if faiss_normalize:
+                        normalized_answer = faiss_normalize[0].lower()
+        
+        # Extract anatomical components from patient answer (for location only)
+        patient_components = {}
+        if oldcarts_element == 'location' and self.medical_rule_engine:
+            patient_components = self.medical_rule_engine._extract_anatomical_components(normalized_answer)
+        
         # Check each term using the same logic as unified function
         for term in all_includes:
             term_satisfied = False
             match_reason = None
+            
+            # For location element, check anatomical mismatch BEFORE marking as satisfied
+            anatomical_mismatch = False
+            if oldcarts_element == 'location' and patient_components and self.medical_rule_engine:
+                condition_components = self.medical_rule_engine._extract_anatomical_components(term)
+                if condition_components:
+                    if self.medical_rule_engine._are_anatomical_opposites(patient_components, condition_components):
+                        anatomical_mismatch = True
+                        self._capture_debug(f"[Location Analysis]   ⚠️ '{term}' skipped: anatomical mismatch (patient: {patient_components} vs condition: {condition_components})")
+            
+            # Skip if anatomical mismatch detected
+            if anatomical_mismatch:
+                continue
             
             # 1. Exact/substring matching (fast path)
             if term in answer_lower or answer_lower in term:
@@ -1174,14 +1207,25 @@ class AdaptiveDiagnosticEngine:
                 satisfied_terms.add(term)
                 self._capture_debug(f"[Location Analysis]   ✅ '{term}' satisfied: {match_reason}")
                 # If term is part of a synonym group, check if we should satisfy other terms in that group
+                # BUT: Only expand if no anatomical mismatch
                 if synonym_to_group and term.lower() in synonym_to_group:
                     group_key = synonym_to_group[term.lower()]
-                    # Find all other terms in this group and mark them satisfied
+                    # Find all other terms in this group and mark them satisfied (with mismatch check)
                     if group_key in synonym_expansions:
                         for other_synonym in synonym_expansions[group_key]:
-                            if other_synonym.lower() in all_includes:
-                                satisfied_terms.add(other_synonym.lower())
-                                self._capture_debug(f"[Location Analysis]   ✅ '{other_synonym.lower()}' satisfied via synonym group expansion")
+                            other_term_lower = other_synonym.lower()
+                            if other_term_lower in all_includes:
+                                # Check for anatomical mismatch before adding
+                                should_add = True
+                                if oldcarts_element == 'location' and patient_components and self.medical_rule_engine:
+                                    other_components = self.medical_rule_engine._extract_anatomical_components(other_term_lower)
+                                    if other_components:
+                                        if self.medical_rule_engine._are_anatomical_opposites(patient_components, other_components):
+                                            should_add = False
+                                            self._capture_debug(f"[Location Analysis]   ⚠️ '{other_term_lower}' skipped in synonym expansion: anatomical mismatch")
+                                if should_add:
+                                    satisfied_terms.add(other_term_lower)
+                                    self._capture_debug(f"[Location Analysis]   ✅ '{other_term_lower}' satisfied via synonym group expansion")
             else:
                 self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied")
         

@@ -1,0 +1,638 @@
+{
+  "chief_complaint": {
+    "knee_pain": [
+      "knee hurts",
+      "knee ache",
+      "pain in knee",
+      "sore knee",
+      "knee discomfort",
+      "hurting knee",
+      "knee injury",
+      "knee problem"
+    ],
+    "hip_pain": [
+      "hip hurts",
+      "hip ache",
+      "pain in hip",
+      "sore hip",
+      "hip discomfort",
+      "hurting hip",
+      "hip injury",
+      "broken hip"
+    ],
+    "shoulder_pain": [
+      "shoulder hurts",
+      "shoulder ache",
+      "pain in shoulder",
+      "sore shoulder",
+      "shoulder discomfort",
+      "hurting shoulder",
+      "shoulder injury",
+      "dislocated shoulder",
+      "shoulder out of place"
+    ],
+    "back_pain": [
+      "back hurts",
+      "back ache",
+      "pain in back",
+      "lower back pain",
+      "sore back",
+      "back discomfort",
+      "hurting back",
+      "back injury",
+      "pulled back muscle",
+      "back spasm"
+    ],
+    "ankle_pain": [
+      "ankle hurts",
+      "ankle ache",
+      "pain in ankle",
+      "sore ankle",
+      "ankle discomfort",
+      "hurting ankle",
+      "ankle injury",
+      "twisted ankle",
+      "sprained ankle",
+      "broken ankle"
+    ],
+    "wrist_pain": [
+      "wrist hurts",
+      "wrist ache",
+      "pain in wrist",
+      "sore wrist",
+      "wrist discomfort",
+      "hurting wrist",
+      "wrist injury",
+      "broken wrist"
+    ],
+    "elbow_pain": [
+      "elbow hurts",
+      "elbow ache",
+      "pain in elbow",
+      "sore elbow",
+      "elbow discomfort",
+      "hurting elbow",
+      "elbow injury",
+      "broken elbow"
+    ]
+  },
+  "onset": {
+    "sudden": [
+      "suddenly",
+      "all of a sudden",
+      "came on suddenly",
+      "started suddenly",
+      "hit me suddenly",
+      "came out of nowhere",
+      "without warning",
+      "out of nowhere",
+      "just happened",
+      "right away"
+    ],
+    "gradual": [
+      "slowly",
+      "gradually",
+      "over time",
+      "slowly getting worse",
+      "progressively",
+      "step by step",
+      "little by little",
+      "getting worse"
+    ],
+    "acute": [
+      "acute onset",
+      "came on quickly",
+      "rapid onset",
+      "fast onset",
+      "quickly developed"
+    ],
+    "chronic": [
+      "long term",
+      "ongoing",
+      "persistent",
+      "has been going on",
+      "for a while",
+      "for some time",
+      "continuing"
+    ]
+  },
+  "location": {
+    "knee": [
+      "knee",
+      "in my knee",
+      "on my knee",
+      "knee area",
+      "around knee",
+      "knee joint",
+      "front of knee",
+      "behind knee",
+      "knee cap",
+      "patella"
+    ],
+    "hip": [
+      "hip",
+      "in my hip",
+      "on my hip",
+      "hip area",
+      "around hip",
+      "hip joint",
+      "groin area",
+      "where leg meets body"
+    ],
+    "shoulder": [
+      "shoulder",
+      "in my shoulder",
+      "on my shoulder",
+      "shoulder area",
+      "around shoulder",
+      "shoulder joint",
+      "shoulder blade area"
+    ],
+    "back": [
+      "back",
+      "lower back",
+      "in my back",
+      "on my back",
+      "back area",
+      "spine",
+      "lumbar",
+      "small of back"
+    ],
+    "ankle": [
+      "ankle",
+      "in my ankle",
+      "on my ankle",
+      "ankle area",
+      "around ankle",
+      "ankle joint"
+    ],
+    "wrist": [
+      "wrist",
+      "in my wrist",
+      "on my wrist",
+      "wrist area",
+      "around wrist",
+      "wrist joint"
+    ],
+    "elbow": [
+      "elbow",
+      "in my elbow",
+      "on my elbow",
+      "elbow area",
+      "around elbow",
+      "elbow joint"
+    ],
+    "anterior_knee": [
+      "front of knee",
+      "front knee",
+      "knee cap area",
+      "patella area",
+      "anterior knee"
+    ],
+    "posterior_knee": [
+      "back of knee",
+      "behind knee",
+      "posterior knee"
+    ],
+    "anterior_shoulder": [
+      "front of shoulder",
+      "front shoulder",
+      "anterior shoulder"
+    ],
+    "posterior_shoulder": [
+      "back of shoulder",
+      "behind shoulder",
+      "posterior shoulder"
+    ]
+  },
+  "duration": {
+    "minutes": [
+      "few minutes",
+      "couple minutes",
+      "several minutes",
+      "for minutes",
+      "a minute",
+      "minutes"
+    ],
+    "hours": [
+      "few hours",
+      "couple hours",
+      "several hours",
+      "for hours",
+      "an hour",
+      "hours"
+    ],
+    "days": [
+      "few days",
+      "couple days",
+      "several days",
+      "for days",
+      "a day",
+      "days"
+    ],
+    "weeks": [
+      "few weeks",
+      "couple weeks",
+      "several weeks",
+      "for weeks",
+      "a week",
+      "weeks"
+    ],
+    "intermittent": [
+      "comes and goes",
+      "on and off",
+      "sporadic",
+      "occasional",
+      "sometimes",
+      "periodic"
+    ],
+    "constant": [
+      "all the time",
+      "continuous",
+      "non-stop",
+      "persistent",
+      "steady",
+      "ongoing",
+      "doesn't stop"
+    ]
+  },
+  "character": {
+    "sharp": [
+      "sharp pain",
+      "stabbing",
+      "knife-like",
+      "piercing",
+      "cutting",
+      "acute pain",
+      "twinge",
+      "shooting",
+      "sharp",
+      "stabbing pain"
+    ],
+    "dull": [
+      "dull pain",
+      "achy",
+      "aching",
+      "sore",
+      "tender",
+      "heavy feeling",
+      "niggling",
+      "rough",
+      "dull ache"
+    ],
+    "throbbing": [
+      "throbbing pain",
+      "pulsating",
+      "beating",
+      "rhythmic pain",
+      "throbbing",
+      "pulsing"
+    ],
+    "aching": [
+      "aching",
+      "ache",
+      "achy",
+      "sore",
+      "hurting",
+      "discomfort"
+    ],
+    "severe": [
+      "severe",
+      "very bad",
+      "intense",
+      "excruciating",
+      "terrible",
+      "unbearable",
+      "awful"
+    ],
+    "moderate": [
+      "moderate",
+      "somewhat bad",
+      "medium",
+      "okay",
+      "manageable"
+    ],
+    "constant": [
+      "constant",
+      "continuous",
+      "non-stop",
+      "steady",
+      "persistent"
+    ]
+  },
+  "aggravating": {
+    "weight_bearing": [
+      "standing",
+      "walking",
+      "putting weight on it",
+      "bearing weight",
+      "standing on it",
+      "walking on it",
+      "using it",
+      "weight bearing",
+      "standing up",
+      "on my feet"
+    ],
+    "movement": [
+      "moving",
+      "moving around",
+      "when i move",
+      "with movement",
+      "any movement",
+      "moving it",
+      "activity",
+      "moving the area"
+    ],
+    "knee_movement": [
+      "bending knee",
+      "straightening knee",
+      "knee movement",
+      "flexing knee",
+      "extending knee",
+      "squatting",
+      "going up stairs",
+      "going down stairs",
+      "stairs",
+      "knee flexion",
+      "knee extension"
+    ],
+    "shoulder_movement": [
+      "lifting arm",
+      "raising arm",
+      "shoulder movement",
+      "rotating shoulder",
+      "moving arm",
+      "reaching",
+      "overhead movements",
+      "abduction",
+      "external rotation"
+    ],
+    "hip_movement": [
+      "moving leg",
+      "hip movement",
+      "rotating hip",
+      "walking",
+      "standing",
+      "sitting down",
+      "getting up"
+    ],
+    "back_movement": [
+      "bending",
+      "bending over",
+      "twisting",
+      "lifting",
+      "sitting",
+      "standing",
+      "coughing",
+      "sneezing",
+      "back movement",
+      "flexing back"
+    ],
+    "bending": [
+      "bending",
+      "bending over",
+      "flexing",
+      "forward flexion"
+    ],
+    "lifting": [
+      "lifting",
+      "picking up",
+      "carrying",
+      "heavy lifting"
+    ],
+    "twisting": [
+      "twisting",
+      "turning",
+      "rotating",
+      "pivoting"
+    ]
+  },
+  "relieving": {
+    "rest": [
+      "rest",
+      "resting",
+      "sitting down",
+      "lying down",
+      "not moving",
+      "keeping still",
+      "staying still",
+      "taking it easy"
+    ],
+    "ice": [
+      "ice",
+      "icing",
+      "cold pack",
+      "ice pack",
+      "applying ice",
+      "cold compress"
+    ],
+    "heat": [
+      "heat",
+      "heating pad",
+      "warm compress",
+      "applying heat",
+      "warmth"
+    ],
+    "elevation": [
+      "elevating",
+      "raising it",
+      "propping up",
+      "elevation",
+      "keeping it up"
+    ],
+    "nsaids": [
+      "pain medicine",
+      "ibuprofen",
+      "advil",
+      "aleve",
+      "naproxen",
+      "aspirin",
+      "anti-inflammatory",
+      "pain reliever",
+      "medication"
+    ],
+    "nothing": [
+      "nothing",
+      "nothing helps",
+      "nothing relieves",
+      "doesn't get better",
+      "nothing works",
+      "no relief"
+    ]
+  },
+  "timing": {
+    "intermittent": [
+      "comes and goes",
+      "on and off",
+      "sporadic",
+      "occasional",
+      "sometimes",
+      "periodic",
+      "episodic"
+    ],
+    "constant": [
+      "all the time",
+      "continuous",
+      "non-stop",
+      "persistent",
+      "steady",
+      "ongoing",
+      "constant",
+      "doesn't stop",
+      "always there"
+    ],
+    "with_activity": [
+      "when active",
+      "during activity",
+      "with movement",
+      "when moving",
+      "during exercise",
+      "with use",
+      "when using it"
+    ],
+    "improves": [
+      "gets better",
+      "improves",
+      "easing up",
+      "lessening",
+      "fading",
+      "reducing"
+    ],
+    "worsens": [
+      "gets worse",
+      "worsening",
+      "increasing",
+      "getting more intense",
+      "intensifying"
+    ]
+  },
+  "severity": {
+    "mild": [
+      "mild",
+      "not too bad",
+      "slight",
+      "minor",
+      "manageable",
+      "okay",
+      "bearable"
+    ],
+    "moderate": [
+      "moderate",
+      "somewhat bad",
+      "medium",
+      "fairly bad",
+      "pretty bad"
+    ],
+    "severe": [
+      "severe",
+      "very bad",
+      "intense",
+      "excruciating",
+      "terrible",
+      "unbearable",
+      "awful",
+      "extreme",
+      "worst pain ever"
+    ],
+    "mild_to_moderate": [
+      "mild to moderate",
+      "somewhere between mild and moderate",
+      "not too bad but noticeable"
+    ],
+    "moderate_to_severe": [
+      "moderate to severe",
+      "pretty bad",
+      "quite bad",
+      "very uncomfortable"
+    ]
+  },
+  "associated": {
+    "swelling": [
+      "swelling",
+      "swollen",
+      "puffed up",
+      "enlarged",
+      "fluid",
+      "effusion",
+      "edema"
+    ],
+    "bruising": [
+      "bruising",
+      "bruised",
+      "black and blue",
+      "discoloration",
+      "ecchymosis",
+      "contusion"
+    ],
+    "stiffness": [
+      "stiffness",
+      "stiff",
+      "hard to move",
+      "tight",
+      "locked up",
+      "reduced movement",
+      "limited range"
+    ],
+    "instability": [
+      "giving way",
+      "unstable",
+      "feels loose",
+      "wobbling",
+      "giving out",
+      "instability",
+      "feels weak"
+    ],
+    "deformity": [
+      "deformed",
+      "looks wrong",
+      "out of place",
+      "obvious deformity",
+      "malformed",
+      "crooked",
+      "misaligned"
+    ],
+    "unable_to_bear_weight": [
+      "can't put weight on it",
+      "can't stand on it",
+      "can't walk",
+      "unable to bear weight",
+      "can't use it",
+      "can't support weight"
+    ],
+    "muscle_spasms": [
+      "muscle spasms",
+      "spasms",
+      "muscle cramping",
+      "muscle tightness",
+      "muscle contractions",
+      "cramping"
+    ],
+    "popping": [
+      "popping",
+      "popped",
+      "pop sound",
+      "snapping",
+      "snapped",
+      "clicking",
+      "crack sound"
+    ],
+    "numbness": [
+      "numbness",
+      "numb",
+      "tingling",
+      "pins and needles",
+      "loss of sensation",
+      "dead feeling"
+    ],
+    "locking": [
+      "locked",
+      "locking",
+      "stuck",
+      "can't move",
+      "frozen",
+      "won't move",
+      "caught"
+    ]
+  }
+}
+
