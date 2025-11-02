@@ -1009,28 +1009,10 @@ class AdaptiveDiagnosticEngine:
             except Exception:
                 pass
         
-        # Check each term using the same logic as unified function
+        # Check each term - FAISS already handles exact, substring, and semantic matching
         for term in all_includes:
-            term_satisfied = False
-            
-            # 1. Exact/substring matching (fast path)
-            if term in answer_lower or answer_lower in term:
-                term_satisfied = True
-            else:
-                # OPTIMIZATION: Check if answer was normalized to a synonym key that maps to this term
-                # Use pre-built synonym_to_group for O(1) lookup instead of O(n²) nested loops
-                if term.lower() in synonym_to_group:
-                    # This term is in a synonym group - check if answer matches any synonym in that group
-                    group_key = synonym_to_group[term.lower()]
-                    synonym_list = synonym_expansions.get(group_key, [])
-                    # Use more precise matching: answer must be a substring of synonym (not reverse)
-                    if any(syn.lower() in answer_lower for syn in synonym_list):
-                        term_satisfied = True
-                
-                if not term_satisfied:
-                    # 2. Check against FAISS semantic matches (already computed)
-                    if term in semantic_matches_set:
-                        term_satisfied = True
+            # Check if term is satisfied via FAISS matches (includes exact, substring, and semantic)
+            term_satisfied = term.lower() in semantic_matches_set
             
             if term_satisfied:
                 satisfied_terms.add(term)
@@ -1166,7 +1148,8 @@ class AdaptiveDiagnosticEngine:
         # Get patient-friendly terms directly from guidelines
         patient_friendly_terms = []
         medical_to_friendly_map = {}
-        for term in missing_terms[:5]:  # Try more terms to get 3 good ones
+        # Use limit of 4 to ensure we include both upper and lower quadrants when ambiguous
+        for term in missing_terms[:6]:  # Try more terms to get 4 good ones
             friendly_term = self._get_patient_friendly_from_guidelines(term, oldcarts_element)
             medical_to_friendly_map[term] = friendly_term
             
@@ -1176,7 +1159,7 @@ class AdaptiveDiagnosticEngine:
             # Only add non-empty terms
             if friendly_term and friendly_term.strip():
                 patient_friendly_terms.append(friendly_term)
-                if len(patient_friendly_terms) >= 3:  # Stop when we have 3 good ones
+                if len(patient_friendly_terms) >= 4:  # Stop when we have 4 good ones
                     break
         
         # If no good terms found, use generic clarifying question
