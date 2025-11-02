@@ -49,11 +49,23 @@
         ],
         "excludes": []
       },
+      "timing": {
+        "includes": [],
+        "excludes": []
+      },
       "duration": {
         "includes": [
           {
             "medical": "bleeding",
             "patient_friendly": "BLEEDING"
+          },
+          {
+            "medical": "seconds",
+            "patient_friendly": "for a few seconds"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "for a few minutes"
           }
         ],
         "excludes": []
@@ -77,19 +89,6 @@
       },
       "relieving": {
         "includes": [],
-        "excludes": []
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "during",
-            "patient_friendly": "DURING"
-          },
-          {
-            "medical": "immediately after",
-            "patient_friendly": "IMMEDIATELY AFTER"
-          }
-        ],
         "excludes": []
       },
       "severity": {

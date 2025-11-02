@@ -43,15 +43,11 @@
         "excludes": [],
         "anatomical_type": "right_upper"
       },
-      "radiation": {
+      "timing": {
         "includes": [
           {
-            "medical": "shoulder",
-            "patient_friendly": "spreads to your right shoulder"
-          },
-          {
-            "medical": "scapula",
-            "patient_friendly": "your shoulder blade"
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
           }
         ],
         "excludes": []
@@ -59,8 +55,12 @@
       "duration": {
         "includes": [
           {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
+            "medical": "minutes",
+            "patient_friendly": "for a few minutes"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
           }
         ],
         "excludes": []
@@ -74,10 +74,6 @@
           {
             "medical": "aching",
             "patient_friendly": "aching"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
           }
         ],
         "excludes": []
@@ -112,24 +108,24 @@
         ],
         "excludes": []
       },
-      "timing": {
-        "includes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          }
-        ],
-        "excludes": []
-      },
       "severity": {
         "includes": [
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "shoulder",
+            "patient_friendly": "spreads to your right shoulder"
+          },
+          {
+            "medical": "scapula",
+            "patient_friendly": "your shoulder blade"
           }
         ],
         "excludes": []

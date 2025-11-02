@@ -38,6 +38,15 @@
         "excludes": [],
         "anatomical_type": "right_upper"
       },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
+        ],
+        "excludes": []
+      },
       "duration": {
         "includes": [
           {
@@ -49,8 +58,12 @@
             "patient_friendly": "keeps going"
           },
           {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
+            "medical": "days",
+            "patient_friendly": "for a few days"
+          },
+          {
+            "medical": "weeks",
+            "patient_friendly": "for a few weeks"
           }
         ],
         "excludes": []
@@ -93,19 +106,6 @@
           {
             "medical": "rest",
             "patient_friendly": "resting"
-          }
-        ],
-        "excludes": []
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
           }
         ],
         "excludes": []

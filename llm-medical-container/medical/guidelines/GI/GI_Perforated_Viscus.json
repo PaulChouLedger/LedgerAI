@@ -44,11 +44,24 @@
         "excludes": [],
         "anatomical_type": "midline"
       },
-      "duration": {
+      "timing": {
         "includes": [
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "minutes",
+            "patient_friendly": "for a few minutes"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
           }
         ],
         "excludes": []
@@ -108,15 +121,6 @@
           {
             "medical": "perfectly still",
             "patient_friendly": "lying perfectly still"
-          }
-        ],
-        "excludes": []
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
           }
         ],
         "excludes": []

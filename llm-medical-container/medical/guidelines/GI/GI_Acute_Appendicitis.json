@@ -47,15 +47,24 @@
         "excludes": [],
         "anatomical_type": "right_lower"
       },
-      "duration": {
+      "timing": {
         "includes": [
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
           },
           {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
+            "medical": "days",
+            "patient_friendly": "for a few days"
           }
         ],
         "excludes": []
@@ -65,14 +74,6 @@
           {
             "medical": "sharp",
             "patient_friendly": "sharp or stabbing"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
           }
         ],
         "excludes": []
@@ -99,15 +100,6 @@
           {
             "medical": "movement",
             "patient_friendly": "moving around"
-          }
-        ],
-        "excludes": []
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
           }
         ],
         "excludes": []

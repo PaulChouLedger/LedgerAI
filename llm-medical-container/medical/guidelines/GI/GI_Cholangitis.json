@@ -36,15 +36,11 @@
         "excludes": [],
         "anatomical_type": "right_upper"
       },
-      "radiation": {
+      "timing": {
         "includes": [
           {
-            "medical": "shoulder",
-            "patient_friendly": "spreads to your right shoulder"
-          },
-          {
-            "medical": "scapula",
-            "patient_friendly": "your shoulder blade"
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
           }
         ],
         "excludes": []
@@ -52,8 +48,12 @@
       "duration": {
         "includes": [
           {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for a few days"
           }
         ],
         "excludes": []
@@ -67,10 +67,6 @@
           {
             "medical": "aching",
             "patient_friendly": "aching"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
           },
           {
             "medical": "severe",
@@ -87,15 +83,6 @@
         "includes": [],
         "excludes": []
       },
-      "timing": {
-        "includes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          }
-        ],
-        "excludes": []
-      },
       "severity": {
         "includes": [
           {
@@ -105,6 +92,19 @@
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "shoulder",
+            "patient_friendly": "spreads to your right shoulder"
+          },
+          {
+            "medical": "scapula",
+            "patient_friendly": "your shoulder blade"
           }
         ],
         "excludes": []

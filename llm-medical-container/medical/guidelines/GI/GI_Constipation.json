@@ -51,11 +51,36 @@
         "excludes": [],
         "anatomical_type": "midline"
       },
+      "timing": {
+        "includes": [
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          }
+        ],
+        "excludes": []
+      },
       "duration": {
         "includes": [
           {
             "medical": "cramping",
             "patient_friendly": "cramping"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "for a few minutes"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for a few days"
+          },
+          {
+            "medical": "weeks",
+            "patient_friendly": "for a few weeks"
           }
         ],
         "excludes": []
@@ -99,19 +124,6 @@
           {
             "medical": "movement",
             "patient_friendly": "moving around"
-          }
-        ],
-        "excludes": []
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "cramping",
-            "patient_friendly": "cramping"
           }
         ],
         "excludes": []

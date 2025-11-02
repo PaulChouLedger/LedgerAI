@@ -49,6 +49,15 @@
         "excludes": [],
         "anatomical_type": "right_lower"
       },
+      "timing": {
+        "includes": [
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          }
+        ],
+        "excludes": []
+      },
       "duration": {
         "includes": [
           {
@@ -58,6 +67,14 @@
           {
             "medical": "chronic",
             "patient_friendly": "ongoing for a long time"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for a few days"
+          },
+          {
+            "medical": "weeks",
+            "patient_friendly": "for a few weeks"
           }
         ],
         "excludes": []
@@ -67,10 +84,6 @@
           {
             "medical": "crampy abdominal pain",
             "patient_friendly": "crampy or cramping"
-          },
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
           },
           {
             "medical": "cramping",
@@ -97,19 +110,6 @@
           {
             "medical": "temporary",
             "patient_friendly": "TEMPORARY"
-          },
-          {
-            "medical": "cramping",
-            "patient_friendly": "cramping"
-          }
-        ],
-        "excludes": []
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
           },
           {
             "medical": "cramping",

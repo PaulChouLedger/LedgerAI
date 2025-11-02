@@ -44,11 +44,24 @@
         "excludes": [],
         "anatomical_type": "left_lower"
       },
-      "duration": {
+      "timing": {
         "includes": [
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for a few days"
           }
         ],
         "excludes": []
@@ -62,10 +75,6 @@
           {
             "medical": "colicky",
             "patient_friendly": "comes and goes in waves"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
           },
           {
             "medical": "severe",
@@ -88,19 +97,6 @@
           {
             "medical": "nothing",
             "patient_friendly": "nothing helps"
-          }
-        ],
-        "excludes": []
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
           }
         ],
         "excludes": []

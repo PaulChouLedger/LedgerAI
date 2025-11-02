@@ -38,8 +38,26 @@
         "excludes": [],
         "anatomical_type": "midline"
       },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
+        ],
+        "excludes": []
+      },
       "duration": {
-        "includes": [],
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for a few days"
+          }
+        ],
         "excludes": []
       },
       "character": {
@@ -74,19 +92,6 @@
       },
       "relieving": {
         "includes": [],
-        "excludes": []
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          }
-        ],
         "excludes": []
       },
       "severity": {

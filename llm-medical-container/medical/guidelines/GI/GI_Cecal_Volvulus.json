@@ -47,11 +47,20 @@
         "excludes": [],
         "anatomical_type": "right_lower"
       },
-      "duration": {
+      "timing": {
         "includes": [
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
           }
         ],
         "excludes": []
@@ -69,10 +78,6 @@
           {
             "medical": "colicky",
             "patient_friendly": "comes and goes in waves"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
           }
         ],
         "excludes": []
@@ -91,19 +96,6 @@
           {
             "medical": "nothing",
             "patient_friendly": "nothing helps"
-          }
-        ],
-        "excludes": []
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
           }
         ],
         "excludes": []

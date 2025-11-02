@@ -50,11 +50,11 @@
         "excludes": [],
         "anatomical_type": "left_upper"
       },
-      "radiation": {
+      "timing": {
         "includes": [
           {
-            "medical": "back",
-            "patient_friendly": "your back"
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
           }
         ],
         "excludes": []
@@ -62,12 +62,12 @@
       "duration": {
         "includes": [
           {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
+            "medical": "hours",
+            "patient_friendly": "for several hours"
           },
           {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
+            "medical": "days",
+            "patient_friendly": "for a few days"
           }
         ],
         "excludes": []
@@ -123,20 +123,20 @@
         ],
         "excludes": []
       },
-      "timing": {
-        "includes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          }
-        ],
-        "excludes": []
-      },
       "severity": {
         "includes": [
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
+          }
+        ],
+        "excludes": []
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "back",
+            "patient_friendly": "your back"
           }
         ],
         "excludes": []

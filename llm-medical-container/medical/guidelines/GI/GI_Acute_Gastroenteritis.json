@@ -48,8 +48,34 @@
         "excludes": [],
         "anatomical_type": "midline"
       },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
+        ],
+        "excludes": []
+      },
       "duration": {
-        "includes": [],
+        "includes": [
+          {
+            "medical": "seconds",
+            "patient_friendly": "for a few seconds"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "for a few minutes"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for a few days"
+          }
+        ],
         "excludes": []
       },
       "character": {
@@ -61,10 +87,6 @@
           {
             "medical": "diffuse",
             "patient_friendly": "all over your belly"
-          },
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
           },
           {
             "medical": "dull",
@@ -107,23 +129,6 @@
           {
             "medical": "rest",
             "patient_friendly": "resting"
-          }
-        ],
-        "excludes": []
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
-          },
-          {
-            "medical": "cramping",
-            "patient_friendly": "cramping"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
           }
         ],
         "excludes": []

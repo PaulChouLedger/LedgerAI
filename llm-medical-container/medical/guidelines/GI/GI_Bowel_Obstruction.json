@@ -39,11 +39,32 @@
         "excludes": [],
         "anatomical_type": "midline"
       },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
+        ],
+        "excludes": []
+      },
       "duration": {
         "includes": [
           {
             "medical": "waves",
             "patient_friendly": "WAVES"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "for a few minutes"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for a few days"
           }
         ],
         "excludes": []
@@ -55,20 +76,12 @@
             "patient_friendly": "cramping"
           },
           {
-            "medical": "comes and goes",
-            "patient_friendly": "COMES AND GOES"
-          },
-          {
             "medical": "waves",
             "patient_friendly": "WAVES"
           },
           {
             "medical": "cramping",
             "patient_friendly": "cramping"
-          },
-          {
-            "medical": "intermittent",
-            "patient_friendly": "comes and goes"
           }
         ],
         "excludes": []
@@ -99,15 +112,6 @@
           {
             "medical": "temporary",
             "patient_friendly": "TEMPORARY"
-          }
-        ],
-        "excludes": []
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "wave",
-            "patient_friendly": "WAVE"
           }
         ],
         "excludes": []

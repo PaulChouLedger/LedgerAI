@@ -52,6 +52,15 @@ except Exception as e:
 class AdaptiveDiagnosticEngine:
     """Minimal universal diagnostic engine"""
     
+    # Category to organ system mapping (reused throughout)
+    CATEGORY_TO_SYSTEM = {
+        'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
+        'respiratory': 'PULMONARY', 'neurological': 'NEURO',
+        'musculoskeletal': 'MSK', 'renal': 'RENAL',
+        'genitourinary': 'GU', 'gynecological': 'GYN',
+        'dermatological': 'DERM'
+    }
+    
     def __init__(self, guidelines_dir: str = None, llm_chat_fn=None, embedding_model=None, llm_chat_simple_fn=None):
         # Auto-detect guidelines directory
         if guidelines_dir is None:
@@ -165,15 +174,7 @@ class AdaptiveDiagnosticEngine:
     
     def _load_synonym_cache(self):
         """Pre-load all synonym mappings for all organ systems to avoid repeated I/O"""
-        category_to_system = {
-            'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
-            'respiratory': 'PULMONARY', 'neurological': 'NEURO',
-            'musculoskeletal': 'MSK', 'renal': 'RENAL',
-            'genitourinary': 'GU', 'gynecological': 'GYN',
-            'dermatological': 'DERM'
-        }
-        
-        for system_name in category_to_system.values():
+        for system_name in self.CATEGORY_TO_SYSTEM.values():
             self.synonym_cache[system_name] = self._load_synonyms_for_system(system_name)
         
         self._capture_debug(f"[Engine] ✅ Synonym cache loaded for {len(self.synonym_cache)} organ systems")
@@ -181,8 +182,8 @@ class AdaptiveDiagnosticEngine:
     def _load_synonyms_for_system(self, organ_system: str) -> dict:
         """Load synonyms for a specific organ system and pre-build data structures"""
         cache = {
-            'onset': {}, 'location': {}, 'duration': {}, 'character': {},
-            'aggravating': {}, 'relieving': {}, 'timing': {}, 'severity': {}
+            'onset': {}, 'location': {}, 'timing': {}, 'duration': {},
+            'character': {}, 'aggravating': {}, 'relieving': {}, 'severity': {}
         }
         
         synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
@@ -232,7 +233,7 @@ class AdaptiveDiagnosticEngine:
         self.status = "idle"
         self.conversation_history = []
         self.demographics = {}
-        self.oldcarts_covered = {'O': False, 'L': False, 'D': False, 'C': False, 'A': False, 'R': False, 'T': False, 'S': False}
+        self.oldcarts_covered = {'O': False, 'L': False, 'T': False, 'D': False, 'C': False, 'A': False, 'R': False, 'S': False}
         self.oldcarts_analysis = None
         self.clarification_count = {}
         self.diagnosed_condition = None
@@ -427,18 +428,10 @@ class AdaptiveDiagnosticEngine:
     
     def _match_chief_complaint_to_category(self, chief_complaint: str) -> str:
         """Use unified function with chief complaint synonyms → match category"""
-        category_to_system = {
-            'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
-            'respiratory': 'PULMONARY', 'neurological': 'NEURO',
-            'musculoskeletal': 'MSK', 'renal': 'RENAL',
-            'genitourinary': 'GU', 'gynecological': 'GYN',
-            'dermatological': 'DERM'
-        }
-        
         best_match = None
         best_score = 0.0
         
-        for category, organ_system in category_to_system.items():
+        for category, organ_system in self.CATEGORY_TO_SYSTEM.items():
             synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
             synonym_path = os.path.join(os.path.dirname(__file__), synonym_file)
             
@@ -506,19 +499,7 @@ class AdaptiveDiagnosticEngine:
         if category == 'ALL':
             return self.all_guidelines
         
-        category_map = {
-            'gastrointestinal': 'GI',
-            'cardiovascular': 'CARDIO',
-            'respiratory': 'PULMONARY',
-            'neurological': 'NEURO',
-            'musculoskeletal': 'MSK',
-            'renal': 'RENAL',
-            'genitourinary': 'GU',
-            'gynecological': 'GYN',
-            'dermatological': 'DERM'
-        }
-        
-        target_organ = category_map.get(category.lower(), category.upper())
+        target_organ = self.CATEGORY_TO_SYSTEM.get(category.lower(), category.upper())
         filtered = {}
         
         for name, guideline in self.all_guidelines.items():
@@ -539,7 +520,7 @@ class AdaptiveDiagnosticEngine:
         if not guidelines:
             return {
                 'answered_components': {},
-                'missing_components': ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity'],
+                'missing_components': ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity'],
                 'anatomical_analysis': {}
             }
         
@@ -548,7 +529,7 @@ class AdaptiveDiagnosticEngine:
         
         # Use FAISS to find matching terms - relies on extensive synonym files
         if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
-            all_elements = ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
+            all_elements = ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity']
             
             for element in all_elements:
                 # Use FAISS to find matching terms with semantic similarity (very high threshold for initial parsing to avoid false positives)
@@ -558,7 +539,9 @@ class AdaptiveDiagnosticEngine:
                     self._capture_debug(f"[Engine] 📍 {element}: {matching_terms}")
         
         answered_elements = list(answered_components.keys())
-        missing_elements = [element for element in ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity'] if element not in answered_elements]
+        # Priority order: timing before duration
+        standard_order = ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity']
+        missing_elements = [element for element in standard_order if element not in answered_elements]
         
         return {
             'answered_components': answered_components,
@@ -570,8 +553,8 @@ class AdaptiveDiagnosticEngine:
         """Fallback regex-based parsing"""
         # Collect all 'includes' terms from guidelines
         all_includes = {
-            'onset': set(), 'location': set(), 'duration': set(), 'character': set(),
-            'aggravating': set(), 'relieving': set(), 'timing': set(), 'severity': set()
+            'onset': set(), 'location': set(), 'timing': set(), 'duration': set(),
+            'character': set(), 'aggravating': set(), 'relieving': set(), 'severity': set()
         }
         
         for guideline in guidelines:
@@ -605,7 +588,7 @@ class AdaptiveDiagnosticEngine:
                     answered_components[element].append(term)
                     break
                         
-        all_elements = ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'timing', 'severity']
+        all_elements = ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity']
         answered_elements = list(answered_components.keys())
         missing_elements = [element for element in all_elements if element not in answered_elements]
         
@@ -659,31 +642,76 @@ class AdaptiveDiagnosticEngine:
                 # Track previous active/reserve state for promotion/demotion logging
                 previous_active = set(g.get('data', {}).get('condition', g.get('name')) for g in self.active_guidelines)
                 all_guidelines = self.active_guidelines + self.reserve_pool
+                
+                # Detect organ system from category
+                organ_system = self.CATEGORY_TO_SYSTEM.get(self.current_category or 'gastrointestinal', 'GI')
+                
+                # OPTIMIZATION: Pre-normalize patient answer once before the loop
+                pre_normalized_text = answer.lower()
+                if self.synonym_cache:
+                    organ_system_key = organ_system
+                    if organ_system_key in self.synonym_cache:
+                        # Use synonym cache to normalize once
+                        element_synonyms = self.synonym_cache[organ_system_key].get('radiation', {})
+                        if element_synonyms:
+                            # Try to find best matching term via FAISS
+                            faiss_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, 'radiation', threshold=0.75)
+                            if faiss_matches:
+                                pre_normalized_text = faiss_matches[0]
+                
+                # OPTIMIZATION: Batch embedding for all guidelines
+                # Pass 1: Collect all sections to embed
+                guideline_sections = []
+                guideline_data = []
                 for g in all_guidelines:
                     classic = g.get('data', {}).get('key_features', {}).get('classic_presentation', '')
                     oldcarts_section = self._extract_oldcarts_section(classic, 'location')  # Radiation terms are still in LOCATION section
                     
-                    if not oldcarts_section:
-                        continue
-                    
-                    structured_oldcarts = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+                    if oldcarts_section:
+                        guideline_sections.append(oldcarts_section)
+                        guideline_data.append({
+                            'guideline': g,
+                            'condition_name': g.get('data', {}).get('condition', g.get('name', 'Unknown')),
+                            'structured_oldcarts': g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {}),
+                            'section': oldcarts_section
+                        })
+                
+                # Batch encode all sections at once
+                batch_embeddings = None
+                patient_embedding = None
+                if self.medical_rule_engine.embedding_model and guideline_sections:
+                    try:
+                        # Encode patient answer + all sections in one batch
+                        batch_texts = [answer.lower()] + guideline_sections
+                        batch_embeddings = self.medical_rule_engine.embedding_model.encode(batch_texts)
+                        batch_embeddings = np.asarray(batch_embeddings, dtype='float32')
+                        patient_embedding = batch_embeddings[0]
+                        section_embeddings = batch_embeddings[1:]
+                    except Exception as e:
+                        self._capture_debug(f"[Scoring] ⚠️ Batch embedding failed: {e}")
+                        batch_embeddings = None
+                
+                # Pass 2: Score each guideline
+                for idx, g_data in enumerate(guideline_data):
+                    g = g_data['guideline']
+                    oldcarts_section = g_data['section']
+                    condition_name = g_data['condition_name']
+                    structured_oldcarts = g_data['structured_oldcarts']
                     element_data = structured_oldcarts.get('radiation')  # Use radiation element data
                     
-                    condition_name = g.get('data', {}).get('condition', g.get('name', 'Unknown'))
-                    # Detect organ system from category
-                    category_to_system = {
-                        'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
-                        'respiratory': 'PULMONARY', 'neurological': 'NEURO',
-                        'musculoskeletal': 'MSK', 'renal': 'RENAL',
-                        'genitourinary': 'GU', 'gynecological': 'GYN',
-                        'dermatological': 'DERM'
-                    }
-                    organ_system = category_to_system.get(self.current_category or 'gastrointestinal', 'GI')
+                    # Compute raw similarity from batch embeddings if available
+                    raw_similarity = 0.0
+                    if batch_embeddings is not None and idx < len(section_embeddings):
+                        section_emb = section_embeddings[idx]
+                        raw_similarity = float(np.dot(patient_embedding, section_emb) / 
+                                              (np.linalg.norm(patient_embedding) * np.linalg.norm(section_emb)))
                     
                     # Score radiation using radiation element data
                     similarity_result = self.medical_rule_engine.compute_unified_similarity(
                         answer, oldcarts_section, condition_name, organ_system,
-                        'location', {'location': element_data} if element_data else None
+                        'location', {'location': element_data} if element_data else None,
+                        pre_normalized_text=pre_normalized_text,
+                        precomputed_similarity=raw_similarity if batch_embeddings is not None else None
                     )
                     
                     old_score = g['score']
@@ -718,14 +746,7 @@ class AdaptiveDiagnosticEngine:
         
         # STEP 1: Filter guidelines using medical_rules.json (location only)
         category = self.current_category or 'gastrointestinal'
-        category_to_system = {
-            'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
-            'respiratory': 'PULMONARY', 'neurological': 'NEURO',
-            'musculoskeletal': 'MSK', 'renal': 'RENAL',
-            'genitourinary': 'GU', 'gynecological': 'GYN',
-            'dermatological': 'DERM'
-        }
-        organ_system = category_to_system.get(category, 'GI')
+        organ_system = self.CATEGORY_TO_SYSTEM.get(category, 'GI')
         
         if oldcarts_element == 'location' and self.medical_rule_engine:
             self._capture_debug(f"[Engine] 🏥 Filtering guidelines using medical_rules.json")
@@ -865,8 +886,8 @@ class AdaptiveDiagnosticEngine:
         
         # Only mark element as covered if NO clarification needed
         if not clarification_needed:
-            element_map = {'onset': 'O', 'location': 'L', 'duration': 'D', 'character': 'C',
-                          'aggravating': 'A', 'relieving': 'R', 'timing': 'T', 'severity': 'S'}
+            element_map = {'onset': 'O', 'location': 'L', 'timing': 'T', 'duration': 'D',
+                          'character': 'C', 'aggravating': 'A', 'relieving': 'R', 'severity': 'S'}
             if oldcarts_element in element_map:
                 self.oldcarts_covered[element_map[oldcarts_element]] = True
                 # Update missing_components list to remove this element
@@ -874,6 +895,18 @@ class AdaptiveDiagnosticEngine:
                     if oldcarts_element in self.oldcarts_analysis['missing_components']:
                         self.oldcarts_analysis['missing_components'].remove(oldcarts_element)
                 self._capture_debug(f"[Engine] ✅ {oldcarts_element} marked as complete")
+                
+                # Special handling: If timing is answered as constant, mark duration as covered (redundant)
+                if oldcarts_element == 'timing':
+                    answer_lower = answer.lower()
+                    if any(word in answer_lower for word in ['constant', 'continuous', 'always', 'all the time', 'never stops']):
+                        # Mark duration as covered since timing is constant (duration = constant since onset)
+                        if 'duration' in element_map:
+                            self.oldcarts_covered[element_map['duration']] = True
+                            if self.oldcarts_analysis and 'missing_components' in self.oldcarts_analysis:
+                                if 'duration' in self.oldcarts_analysis['missing_components']:
+                                    self.oldcarts_analysis['missing_components'].remove('duration')
+                                    self._capture_debug(f"[Engine] ⏭️ Duration marked as covered (timing is constant)")
                 
                 # Special handling: After location is satisfied, check if any guidelines have radiation section
                 if oldcarts_element == 'location' and not self.radiation_asked:
@@ -897,9 +930,9 @@ class AdaptiveDiagnosticEngine:
     def _extract_oldcarts_section(self, classic_presentation: str, element: str) -> str:
         """Extract specific OLDCARTS section from classic_presentation"""
         element_names = {
-            'onset': 'ONSET', 'location': 'LOCATION', 'duration': 'DURATION',
+            'onset': 'ONSET', 'location': 'LOCATION', 'timing': 'TIMING', 'duration': 'DURATION',
             'character': 'CHARACTER', 'aggravating': 'AGGRAVATING',
-            'relieving': 'RELIEVING', 'timing': 'TIMING', 'severity': 'SEVERITY'
+            'relieving': 'RELIEVING', 'severity': 'SEVERITY'
         }
         
         element_tag = element_names.get(element.lower(), element.upper())
@@ -1019,14 +1052,7 @@ class AdaptiveDiagnosticEngine:
         answer_lower = answer.lower()
         
         # OPTIMIZATION: Use pre-loaded synonym cache instead of file I/O
-        category_to_system = {
-            'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
-            'respiratory': 'PULMONARY', 'neurological': 'NEURO',
-            'musculoskeletal': 'MSK', 'renal': 'RENAL',
-            'genitourinary': 'GU', 'gynecological': 'GYN',
-            'dermatological': 'DERM'
-        }
-        organ_system = category_to_system.get(self.current_category or 'gastrointestinal', 'GI')
+        organ_system = self.CATEGORY_TO_SYSTEM.get(self.current_category or 'gastrointestinal', 'GI')
         
         # Get pre-built synonym structures from cache
         synonym_expansions = {}
@@ -1133,16 +1159,9 @@ class AdaptiveDiagnosticEngine:
         # Use unified function to check which terms are satisfied
         satisfied_terms = set()
         answer_lower = answer.lower()
-        # Normalize with synonyms
+            # Normalize with synonyms
         try:
-            category_to_system = {
-                'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
-                'respiratory': 'PULMONARY', 'neurological': 'NEURO',
-                'musculoskeletal': 'MSK', 'renal': 'RENAL',
-                'genitourinary': 'GU', 'gynecological': 'GYN',
-                'dermatological': 'DERM'
-            }
-            organ_system = category_to_system.get(self.current_category or 'gastrointestinal', 'GI')
+            organ_system = self.CATEGORY_TO_SYSTEM.get(self.current_category or 'gastrointestinal', 'GI')
             synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
             synonym_path = os.path.join(os.path.dirname(__file__), synonym_file)
             normalized_for_match = answer_lower
@@ -1353,8 +1372,39 @@ class AdaptiveDiagnosticEngine:
                 }
             }
         
-        # Standard OLDCARTS order
-        next_element = missing[0]
+        # OPTIMIZATION: Reorder to prioritize timing before duration
+        # If timing is answered as constant, skip duration (redundant - already constant since onset)
+        priority_order = ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity']
+        reordered_missing = []
+        skip_duration = False
+        
+        # Check if timing is already answered as constant
+        if 'timing' not in missing:
+            # Timing was already answered - check if it's constant
+            if hasattr(self, 'conversation_history'):
+                for item in reversed(self.conversation_history):
+                    if item.get('oldcarts') == 'timing' and item.get('type') == 'answer':
+                        answer = item.get('answer', item.get('message', '')).lower()
+                        if any(word in answer for word in ['constant', 'continuous', 'always', 'all the time', 'never stops']):
+                            skip_duration = True
+                            self._capture_debug(f"[Engine] ⏭️ Skipping duration - timing already answered as constant")
+                        break
+        
+        # Build reordered list: priority order, but only include missing elements
+        for element in priority_order:
+            if element in missing:
+                # Skip duration if timing is constant
+                if element == 'duration' and skip_duration:
+                    continue
+                reordered_missing.append(element)
+        
+        # Add any remaining elements not in priority order
+        for element in missing:
+            if element not in reordered_missing:
+                reordered_missing.append(element)
+        
+        # Standard OLDCARTS order (now reordered)
+        next_element = reordered_missing[0] if reordered_missing else missing[0]
         self._capture_debug(f"[Engine] Next element to ask: {next_element}")
         question = self._generate_oldcarts_question_for_component(next_element)
         
@@ -1429,14 +1479,17 @@ class AdaptiveDiagnosticEngine:
         covered_info = "Already covered: " + ", ".join([k for k, v in self.oldcarts_covered.items() if v])
         
         # Sample questions for each OLDCARTS element as guidance (universal across all organ systems)
+        # Order: onset, location, timing, duration, character, aggravating, relieving, severity
+        # NOTE: Timing comes before duration. If timing is constant, duration is skipped (redundant).
+        # Duration is only asked if timing is episodic/intermittent (to understand episode length).
         sample_questions = {
             'onset': "Example good question: 'When did this start?' or 'How long have you been experiencing this?'",
             'location': "Example good question: 'Can you tell me more about where exactly the pain is located?' or 'Where exactly is the pain located?'",
-            'duration': "Example good question: 'How long has this been going on?' or 'How long have you had this problem?'",
+            'timing': "Example good question: 'Is it constant or does it come and go?' or 'Does it happen continuously or does it stop sometimes?'",
+            'duration': "Example good question: 'How long does each episode typically last?' or 'How long do these episodes usually go on?' (Only asked if timing is episodic/intermittent)",
             'character': "Example good question: 'How would you describe this?' or 'What does this feel like?'",
             'aggravating': "Example good question: 'Does anything make this worse?' or 'What makes it worse?'",
             'relieving': "Example good question: 'Does anything help?' or 'What makes you feel better?'",
-            'timing': "Example good question: 'Does it happen continuously or does it come and go?' or 'Is the pain constant or does it stop sometimes?'",
             'severity': "Example good question: 'On a scale of 1 to 10, how would you rate this?' or 'How severe is this on a scale of 1 to 10?'"
         }
         

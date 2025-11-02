@@ -30,7 +30,12 @@ KEY NEGATIVES: [Findings that argue against this diagnosis]. [Alternative diagno
 
 ## Structured OLDCARTS Format (NEW)
 
-Each OLDCARTS element now includes both medical terms and patient-friendly terms:
+Each OLDCARTS element now includes both medical terms and patient-friendly terms.
+
+**IMPORTANT - Simplification Principle:**
+- **Timing**: Include ONLY the PRIMARY timing pattern for this condition (constant, intermittent, OR episodic - not all). The synonyms file handles variations (e.g., "continuous" → "constant", "comes and goes" → "intermittent").
+- **Duration**: Include only timeframes relevant to this condition (seconds, minutes, hours, days, weeks - not all).
+- **Order**: onset, location, timing, duration, character, aggravating, relieving, severity
 
 ```json
 "structured_oldcarts": {
@@ -75,23 +80,39 @@ Each OLDCARTS element now includes both medical terms and patient-friendly terms
     ],
     "anatomical_type": "right_upper"
   },
-  "duration": {
+  "timing": {
     "includes": [
       {
         "medical": "constant",
         "patient_friendly": "continuous without stopping"
+      }
+    ],
+    "excludes": []
+  },
+  "duration": {
+    "includes": [
+      {
+        "medical": "seconds",
+        "patient_friendly": "for a few seconds"
+      },
+      {
+        "medical": "minutes",
+        "patient_friendly": "for a few minutes"
       },
       {
         "medical": "hours",
         "patient_friendly": "for several hours"
+      },
+      {
+        "medical": "days",
+        "patient_friendly": "for a few days"
+      },
+      {
+        "medical": "weeks",
+        "patient_friendly": "for a few weeks"
       }
     ],
-    "excludes": [
-      {
-        "medical": "intermittent",
-        "patient_friendly": "comes and goes"
-      }
-    ]
+    "excludes": []
   },
   "character": {
     "includes": [
@@ -100,20 +121,19 @@ Each OLDCARTS element now includes both medical terms and patient-friendly terms
         "patient_friendly": "sharp or stabbing"
       },
       {
-        "medical": "severe",
-        "patient_friendly": "very bad or intense"
+        "medical": "dull",
+        "patient_friendly": "dull or achy"
       },
       {
         "medical": "colicky",
         "patient_friendly": "comes and goes in waves"
+      },
+      {
+        "medical": "severe",
+        "patient_friendly": "very bad or intense"
       }
     ],
-    "excludes": [
-      {
-        "medical": "dull",
-        "patient_friendly": "dull or achy"
-      }
-    ]
+    "excludes": []
   },
   "aggravating": {
     "includes": [
@@ -152,24 +172,6 @@ Each OLDCARTS element now includes both medical terms and patient-friendly terms
       {
         "medical": "movement",
         "patient_friendly": "moving around"
-      }
-    ]
-  },
-  "timing": {
-    "includes": [
-      {
-        "medical": "constant",
-        "patient_friendly": "continuous without stopping"
-      },
-      {
-        "medical": "intermittent",
-        "patient_friendly": "comes and goes"
-      }
-    ],
-    "excludes": [
-      {
-        "medical": "episodic",
-        "patient_friendly": "happens in episodes"
       }
     ]
   },

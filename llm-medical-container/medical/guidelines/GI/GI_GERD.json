@@ -53,15 +53,32 @@
         ],
         "excludes": []
       },
+      "timing": {
+        "includes": [
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          }
+        ],
+        "excludes": []
+      },
       "duration": {
         "includes": [
           {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "for a few minutes"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "weeks",
+            "patient_friendly": "for a few weeks"
           }
         ],
         "excludes": []
@@ -113,15 +130,6 @@
           {
             "medical": "head",
             "patient_friendly": "head"
-          }
-        ],
-        "excludes": []
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
           }
         ],
         "excludes": []

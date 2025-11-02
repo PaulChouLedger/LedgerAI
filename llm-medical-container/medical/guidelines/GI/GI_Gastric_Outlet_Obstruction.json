@@ -51,16 +51,17 @@
         ],
         "excludes": []
       },
-      "duration": {
+      "timing": {
         "includes": [
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
@@ -68,6 +69,18 @@
           {
             "medical": "eating",
             "patient_friendly": "eating"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for a few days"
+          },
+          {
+            "medical": "weeks",
+            "patient_friendly": "for a few weeks"
           }
         ],
         "excludes": []
@@ -77,10 +90,6 @@
           {
             "medical": "crampy",
             "patient_friendly": "crampy or cramping"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
           },
           {
             "medical": "dull",
@@ -103,10 +112,6 @@
         "excludes": []
       },
       "relieving": {
-        "includes": [],
-        "excludes": []
-      },
-      "timing": {
         "includes": [],
         "excludes": []
       },

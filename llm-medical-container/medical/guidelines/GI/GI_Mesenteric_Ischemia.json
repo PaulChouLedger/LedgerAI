@@ -36,11 +36,20 @@
         "excludes": [],
         "anatomical_type": "midline"
       },
-      "duration": {
+      "timing": {
         "includes": [
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
           }
         ],
         "excludes": []
@@ -50,10 +59,6 @@
           {
             "medical": "severe",
             "patient_friendly": "very bad or intense"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
           }
         ],
         "excludes": []
@@ -80,15 +85,6 @@
           {
             "medical": "unrelenting",
             "patient_friendly": "UNRELENTING"
-          }
-        ],
-        "excludes": []
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
           }
         ],
         "excludes": []
