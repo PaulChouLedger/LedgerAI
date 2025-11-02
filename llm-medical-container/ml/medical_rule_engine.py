@@ -23,6 +23,7 @@ class MedicalRuleEngine:
         self.embedding_model = embedding_model
         self.medical_rules = self._load_medical_rules()
         self.term_embeddings = {}
+        self.synonym_cache = {}  # Cache loaded synonym files to avoid repeated I/O
         self._build_term_indexes()
     
     def _load_medical_rules(self) -> Dict:
@@ -280,16 +281,27 @@ class MedicalRuleEngine:
         else:
             normalized_text = patient_text.lower()
             if organ_system and oldcarts_element:
-                synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
-                synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
+                # Check synonym cache first
+                cache_key = f"{organ_system.lower()}_{oldcarts_element}"
+                if cache_key in self.synonym_cache:
+                    synonyms = self.synonym_cache[cache_key]
+                else:
+                    synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+                    synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
+                    
+                    if os.path.exists(synonym_path):
+                        try:
+                            with open(synonym_path, 'r') as f:
+                                all_synonyms = json.load(f)
+                            synonyms = all_synonyms.get(oldcarts_element, {})
+                            self.synonym_cache[cache_key] = synonyms
+                        except Exception as e:
+                            synonyms = {}
+                    else:
+                        synonyms = {}
                 
-                if os.path.exists(synonym_path):
-                    try:
-                        with open(synonym_path, 'r') as f:
-                            synonyms = json.load(f)
-                        normalized_text = self._normalize_with_synonyms(patient_text, synonyms, oldcarts_element)
-                    except Exception as e:
-                        pass
+                if synonyms:
+                    normalized_text = self._normalize_with_synonyms(patient_text, synonyms, oldcarts_element)
         
         # STEP 3: Word match boost
         word_match_boost = 0.0

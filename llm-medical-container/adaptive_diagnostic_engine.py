@@ -735,6 +735,19 @@ class AdaptiveDiagnosticEngine:
         self._capture_debug(f"[Scoring] 🔍 Scoring {len(all_guidelines)} guidelines for element: {oldcarts_element}")
         self._capture_debug(f"[Scoring] 📝 Patient answer: '{answer}'")
         
+        # OPTIMIZATION: Pre-normalize patient answer once before the loop
+        pre_normalized_text = answer.lower()
+        if self.medical_rule_engine and self.synonym_cache:
+            organ_system_key = organ_system
+            if organ_system_key in self.synonym_cache:
+                # Use synonym cache to normalize once
+                element_synonyms = self.synonym_cache[organ_system_key].get(oldcarts_element, {})
+                if element_synonyms:
+                    # Try to find best matching term via FAISS
+                    faiss_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, oldcarts_element, threshold=0.75)
+                    if faiss_matches:
+                        pre_normalized_text = faiss_matches[0]
+        
         for g in all_guidelines:
             classic = g.get('data', {}).get('key_features', {}).get('classic_presentation', '')
             oldcarts_section = self._extract_oldcarts_section(classic, oldcarts_element)
@@ -750,7 +763,8 @@ class AdaptiveDiagnosticEngine:
                 element_data = structured_oldcarts.get(oldcarts_element)
                 similarity_result = self.medical_rule_engine.compute_unified_similarity(
                     answer, oldcarts_section, condition_name, organ_system,
-                    oldcarts_element, {oldcarts_element: element_data} if element_data else None
+                    oldcarts_element, {oldcarts_element: element_data} if element_data else None,
+                    pre_normalized_text=pre_normalized_text
                 )
                 similarity = similarity_result['similarity']
                 word_match_boost = similarity_result.get('word_match_boost', 0.0)
