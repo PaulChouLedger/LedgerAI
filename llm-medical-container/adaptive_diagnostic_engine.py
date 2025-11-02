@@ -748,23 +748,62 @@ class AdaptiveDiagnosticEngine:
                     if faiss_matches:
                         pre_normalized_text = faiss_matches[0]
         
+        # OPTIMIZATION: Batch embedding for all guidelines
+        # Pass 1: Collect all sections to embed
+        guideline_sections = []
+        guideline_data = []
         for g in all_guidelines:
             classic = g.get('data', {}).get('key_features', {}).get('classic_presentation', '')
             oldcarts_section = self._extract_oldcarts_section(classic, oldcarts_element)
             
-            if not oldcarts_section:
-                continue
+            if oldcarts_section:
+                guideline_sections.append(oldcarts_section)
+                guideline_data.append({
+                    'guideline': g,
+                    'condition_name': g.get('data', {}).get('condition', g.get('name', 'Unknown')),
+                    'structured_oldcarts': g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {}),
+                    'section': oldcarts_section
+                })
+        
+        # Batch encode all sections at once
+        batch_embeddings = None
+        patient_embedding = None
+        if self.medical_rule_engine and self.medical_rule_engine.embedding_model and guideline_sections:
+            try:
+                # Encode patient answer + all sections in one batch
+                batch_texts = [answer.lower()] + guideline_sections
+                batch_embeddings = self.medical_rule_engine.embedding_model.encode(batch_texts)
+                batch_embeddings = np.asarray(batch_embeddings, dtype='float32')
+                patient_embedding = batch_embeddings[0]
+                section_embeddings = batch_embeddings[1:]
+            except Exception as e:
+                self._capture_debug(f"[Scoring] ⚠️ Batch embedding failed: {e}")
+                batch_embeddings = None
+        
+        # Pass 2: Score each guideline
+        for idx, g_data in enumerate(guideline_data):
+            g = g_data['guideline']
+            oldcarts_section = g_data['section']
+            condition_name = g_data['condition_name']
+            structured_oldcarts = g_data['structured_oldcarts']
             
-            structured_oldcarts = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
-            condition_name = g.get('data', {}).get('condition', g.get('name', 'Unknown'))
-            
-            # Use unified function for scoring
+            # Use unified function for scoring with batch embeddings
             if self.medical_rule_engine:
                 element_data = structured_oldcarts.get(oldcarts_element)
+                
+                # Compute raw similarity from batch embeddings if available
+                raw_similarity = 0.0
+                if batch_embeddings is not None and idx < len(section_embeddings):
+                    section_emb = section_embeddings[idx]
+                    raw_similarity = float(np.dot(patient_embedding, section_emb) / 
+                                          (np.linalg.norm(patient_embedding) * np.linalg.norm(section_emb)))
+                
+                # Use unified function for word match boost and normalization
                 similarity_result = self.medical_rule_engine.compute_unified_similarity(
                     answer, oldcarts_section, condition_name, organ_system,
                     oldcarts_element, {oldcarts_element: element_data} if element_data else None,
-                    pre_normalized_text=pre_normalized_text
+                    pre_normalized_text=pre_normalized_text,
+                    precomputed_similarity=raw_similarity if batch_embeddings is not None else None
                 )
                 similarity = similarity_result['similarity']
                 word_match_boost = similarity_result.get('word_match_boost', 0.0)

@@ -255,7 +255,7 @@ class MedicalRuleEngine:
     def compute_unified_similarity(self, patient_text: str, guideline_text: str, 
                                    condition_name: str, organ_system: str = None, 
                                    oldcarts_element: str = None, structured_oldcarts: dict = None,
-                                   pre_normalized_text: str = None) -> Dict[str, Any]:
+                                   pre_normalized_text: str = None, precomputed_similarity: float = None) -> Dict[str, Any]:
         """
         UNIFIED similarity function used for ALL OLDCARTS elements
         
@@ -266,7 +266,10 @@ class MedicalRuleEngine:
         """
         # STEP 1: Raw semantic similarity
         raw_similarity = 0.0
-        if self.embedding_model:
+        if precomputed_similarity is not None:
+            # Use pre-computed similarity from batch embeddings
+            raw_similarity = precomputed_similarity
+        elif self.embedding_model:
             try:
                 embeddings = self.embedding_model.encode([patient_text.lower(), guideline_text])
                 embeddings = np.asarray(embeddings, dtype='float32')
