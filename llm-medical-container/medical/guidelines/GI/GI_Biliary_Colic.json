@@ -26,7 +26,7 @@
           },
           {
             "medical": "recurrent",
-            "patient_friendly": "RECURRENT"
+            "patient_friendly": "keeps coming back"
           },
           {
             "medical": "eating",
@@ -66,7 +66,7 @@
         "includes": [
           {
             "medical": "completely resolves",
-            "patient_friendly": "COMPLETELY RESOLVES"
+            "patient_friendly": "completely goes away"
           },
           {
             "medical": "episodic",
@@ -83,7 +83,7 @@
         "includes": [
           {
             "medical": "steady",
-            "patient_friendly": "STEADY"
+            "patient_friendly": "steady and constant"
           },
           {
             "medical": "severe",
@@ -108,7 +108,7 @@
           },
           {
             "medical": "greasy meals",
-            "patient_friendly": "GREASY MEALS"
+            "patient_friendly": "greasy meals"
           },
           {
             "medical": "eating",
@@ -121,15 +121,11 @@
         "includes": [
           {
             "medical": "spontaneously resolves",
-            "patient_friendly": "SPONTANEOUSLY RESOLVES"
+            "patient_friendly": "resolves on its own"
           },
           {
-            "medical": "pain",
-            "patient_friendly": "PAIN"
-          },
-          {
-            "medical": "free",
-            "patient_friendly": "FREE"
+            "medical": "pain free between episodes",
+            "patient_friendly": "completely pain free between episodes"
           },
           {
             "medical": "rest",

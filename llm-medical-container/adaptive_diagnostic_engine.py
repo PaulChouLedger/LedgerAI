@@ -1432,18 +1432,18 @@ class AdaptiveDiagnosticEngine:
         sample_questions = {
             'onset': "Example good question: 'When did this start?' or 'How long have you been experiencing this?'",
             'location': "Example good question: 'Can you tell me more about where exactly the pain is located?' or 'Where exactly is the pain located?'",
-            'duration': "Example good question: 'How long does this typically last?' or 'Is this constant or does it come and go?'",
+            'duration': "Example good question: 'How long has this been going on?' or 'How long have you had this problem?'",
             'character': "Example good question: 'How would you describe this?' or 'What does this feel like?'",
             'aggravating': "Example good question: 'Does anything make this worse?' or 'What makes it worse?'",
             'relieving': "Example good question: 'Does anything help?' or 'What makes you feel better?'",
-            'timing': "Example good question: 'When does this typically happen?' or 'Is there a particular time when this occurs?'",
+            'timing': "Example good question: 'Does it happen continuously or does it come and go?' or 'Is the pain constant or does it stop sometimes?'",
             'severity': "Example good question: 'On a scale of 1 to 10, how would you rate this?' or 'How severe is this on a scale of 1 to 10?'"
         }
         
         sample_guidance = sample_questions.get(component, "")
         
-        system_msg = "You are a medical assistant. Generate a natural, conversational question to ask about a specific aspect of a patient's symptoms. Base your question ONLY on what the patient has actually told you — do NOT make up details. Avoid leading the patient or naming specific anatomical regions unless the patient already said them. Make the question flow naturally from the previous conversation."
-        user_msg = f"{chief_complaint_context}\n{covered_info}\n\n{sample_guidance}\n\nRecent conversation:\n{conversation_context}\nGenerate a natural question to ask about the {component} of the patient's symptoms. Make it conversational and empathetic, building on what we've already discussed. Do NOT introduce specific locations (e.g., 'lower right abdomen', 'RUQ') unless the patient already said them. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
+        system_msg = "You are a medical assistant. Generate a natural, open-ended question to ask about a specific aspect of a patient's symptoms. IMPORTANT: Always start with an open-ended question (not multiple choice or A/B options). Base your question ONLY on what the patient has actually told you — do NOT make up details. Avoid leading the patient or naming specific anatomical regions unless the patient already said them. Make the question flow naturally from the previous conversation."
+        user_msg = f"{chief_complaint_context}\n{covered_info}\n\n{sample_guidance}\n\nRecent conversation:\n{conversation_context}\nGenerate a natural, OPEN-ENDED question to ask about the {component} of the patient's symptoms. Follow the example questions closely. Do NOT provide multiple choice options (e.g., 'lying down or sitting up', 'A or B'). Keep it conversational and empathetic, building on what we've already discussed. Do NOT introduce specific locations (e.g., 'lower right abdomen', 'RUQ') unless the patient already said them. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
         
         llm_kwargs = self._get_llm_kwargs()
         response = self.llm_chat_simple_fn(

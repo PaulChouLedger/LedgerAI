@@ -21,7 +21,7 @@
           },
           {
             "medical": "dramatic",
-            "patient_friendly": "DRAMATIC"
+            "patient_friendly": "very sudden and dramatic"
           },
           {
             "medical": "acute",
@@ -69,11 +69,11 @@
           },
           {
             "medical": "stabbed",
-            "patient_friendly": "STABBED"
+            "patient_friendly": "like being stabbed"
           },
           {
             "medical": "kicked",
-            "patient_friendly": "KICKED"
+            "patient_friendly": "like being kicked"
           }
         ],
         "excludes": []
@@ -107,7 +107,7 @@
           },
           {
             "medical": "perfectly still",
-            "patient_friendly": "PERFECTLY STILL"
+            "patient_friendly": "lying perfectly still"
           }
         ],
         "excludes": []
@@ -128,12 +128,8 @@
       "associated": {
         "includes": [
           {
-            "medical": "board",
-            "patient_friendly": "BOARD"
-          },
-          {
-            "medical": "like rigid abdomen",
-            "patient_friendly": "your belly"
+            "medical": "board like rigid abdomen",
+            "patient_friendly": "your belly feels like a hard board"
           },
           {
             "medical": "abdomen",
