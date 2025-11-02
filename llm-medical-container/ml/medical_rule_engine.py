@@ -23,7 +23,6 @@ class MedicalRuleEngine:
         self.embedding_model = embedding_model
         self.medical_rules = self._load_medical_rules()
         self.term_embeddings = {}
-        self.synonym_cache = {}  # Cache for loaded synonym files
         self._build_term_indexes()
     
     def _load_medical_rules(self) -> Dict:
@@ -89,36 +88,6 @@ class MedicalRuleEngine:
         
         print(f"[FAISS] 📚 Loaded {guideline_count} guidelines")
         
-        # Add synonyms to FAISS index and build synonym-to-medical mapping
-        synonym_to_medical_mapping = {
-            'onset': {}, 'location': {}, 'duration': {}, 'character': {},
-            'aggravating': {}, 'relieving': {}, 'timing': {}, 'severity': {}
-        }
-        
-        synonyms_dir = os.path.join(os.path.dirname(__file__), '..', 'synonyms')
-        if os.path.exists(synonyms_dir):
-            for synonym_file in os.listdir(synonyms_dir):
-                if synonym_file.endswith('_synonyms_oldcarts.json'):
-                    try:
-                        synonym_path = os.path.join(synonyms_dir, synonym_file)
-                        with open(synonym_path, 'r') as f:
-                            synonyms = json.load(f)
-                        
-                        # Add all synonyms to term lists and build mapping
-                        for element, synonym_dict in synonyms.items():
-                            if element in all_terms:
-                                for medical_term, synonym_list in synonym_dict.items():
-                                    # Add medical term itself
-                                    all_terms[element].add(medical_term.lower())
-                                    # Map medical term to itself
-                                    synonym_to_medical_mapping[element][medical_term.lower()] = medical_term.lower()
-                                    # Add all patient-friendly synonyms and map them back to medical term
-                                    for synonym in synonym_list:
-                                        all_terms[element].add(synonym.lower())
-                                        synonym_to_medical_mapping[element][synonym.lower()] = medical_term.lower()
-                    except Exception as e:
-                        print(f"[FAISS] ⚠️ Could not load synonyms from {synonym_file}: {e}")
-        
         # Build FAISS indexes for each element
         for element, terms in all_terms.items():
             if terms:
@@ -137,8 +106,7 @@ class MedicalRuleEngine:
                     self.term_embeddings[element] = {
                         'terms': terms_list,
                         'embeddings': embeddings,
-                        'index': index,
-                        'synonym_to_medical': synonym_to_medical_mapping[element]
+                        'index': index
                     }
                     
                     print(f"[FAISS] ✅ Built index for {element}: {len(terms_list)} terms")
@@ -160,16 +128,30 @@ class MedicalRuleEngine:
         return normalized
     
     def find_matching_terms_faiss(self, prompt: str, element: str, threshold: float = 0.65) -> List[str]:
-        """
-        Find matching terms using ONLY FAISS semantic similarity.
-        
-        Pure semantic matching - no exact matching to allow natural language.
-        """
+        """Find matching terms using FAISS similarity search with exact matching fallback."""
         if element not in self.term_embeddings or not self.embedding_model:
             return []
         
         matches = []
+        prompt_lower = prompt.lower()
         
+        # STEP 1: Exact/substring matching (fast path, highest priority)
+        for term in self.term_embeddings[element]['terms']:
+            term_lower = term.lower()
+            # Exact match or substring match (but skip very short terms like "mi" to avoid false positives)
+            if len(term_lower) < 3:
+                continue  # Skip very short terms like "mi", "a", etc. to avoid false positives
+            if (term_lower == prompt_lower or 
+                term_lower in prompt_lower or 
+                prompt_lower in term_lower):
+                if term not in matches:
+                    matches.append(term)
+        
+        # If we found exact matches, return them (high confidence)
+        if matches:
+            return matches
+        
+        # STEP 2: FAISS semantic matching (fallback for semantic similarity)
         try:
             # Encode prompt
             prompt_embedding = self.embedding_model.encode([prompt])
@@ -183,21 +165,19 @@ class MedicalRuleEngine:
                 prompt_embedding, k=10
             )
             
-            # Filter by threshold and map synonyms back to medical terms
-            synonym_to_medical = self.term_embeddings[element].get('synonym_to_medical', {})
+            # Filter by threshold and return matching terms
             for score, idx in zip(scores[0], indices[0]):
                 if score >= threshold:
                     term = self.term_embeddings[element]['terms'][idx]
-                    # Map synonym back to medical term if available
-                    medical_term = synonym_to_medical.get(term, term)
-                    if medical_term not in matches:
-                        matches.append(medical_term)
+                    if term not in matches:
+                        matches.append(term)
+            
+            return matches
         except Exception as e:
-            print(f"[FAISS] ⚠️ Error in semantic matching: {e}")
+            print(f"[FAISS] ⚠️ Error in term matching: {e}")
             import traceback
             traceback.print_exc()
-        
-        return matches
+            return []
     
     def _get_condition_anatomical_type(self, condition_name: str, organ_system: str) -> Optional[str]:
         """Get anatomical type from medical_rules.json"""
@@ -231,15 +211,52 @@ class MedicalRuleEngine:
         return None
     
     def _normalize_with_synonyms(self, patient_text: str, synonyms: dict, oldcarts_element: str) -> str:
-        """Normalize patient text using FAISS semantic matching"""
+        """Normalize patient text using synonym file"""
         if oldcarts_element not in synonyms:
             return patient_text.lower().strip()
         
-        # Use FAISS to find the best matching medical term
-        faiss_matches = self.find_matching_terms_faiss(patient_text, oldcarts_element, threshold=0.65)
-        if faiss_matches:
-            # Return the best match (first one with highest score)
-            return faiss_matches[0]
+        patient_lower = patient_text.lower()
+        element_synonyms = synonyms[oldcarts_element]
+        
+        # Exact substring matching
+        for standard_term, synonym_list in element_synonyms.items():
+            for synonym in synonym_list:
+                if synonym.lower() in patient_lower:
+                    return standard_term
+        
+        # Semantic matching fallback
+        if self.embedding_model:
+            best_match = None
+            best_similarity = 0.0
+            threshold = 0.65
+            
+            all_synonyms = []
+            synonym_texts = []
+            for standard_term, synonym_list in element_synonyms.items():
+                for synonym in synonym_list:
+                    all_synonyms.append((standard_term, synonym))
+                    synonym_texts.append(synonym.lower())
+            
+            if all_synonyms:
+                try:
+                    all_texts = [patient_lower] + synonym_texts
+                    embeddings = self.embedding_model.encode(all_texts)
+                    embeddings = np.asarray(embeddings, dtype='float32')
+                    patient_emb = embeddings[0]
+                    
+                    for i, (standard_term, synonym) in enumerate(all_synonyms):
+                        synonym_emb = embeddings[i + 1]
+                        similarity = float(np.dot(patient_emb, synonym_emb) / 
+                                          (np.linalg.norm(patient_emb) * np.linalg.norm(synonym_emb)))
+                        
+                        if similarity > best_similarity:
+                            best_similarity = similarity
+                            best_match = standard_term
+                    
+                    if best_similarity >= threshold:
+                        return best_match
+                except Exception as e:
+                    pass
         
         return patient_text.lower().strip()
     
@@ -272,27 +289,16 @@ class MedicalRuleEngine:
         else:
             normalized_text = patient_text.lower()
             if organ_system and oldcarts_element:
-                # Use cached synonyms if available
-                cache_key = f"{organ_system.lower()}_{oldcarts_element}"
-                if cache_key in self.synonym_cache:
-                    synonyms = self.synonym_cache[cache_key]
-                else:
-                    synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
-                    synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
-                    
-                    if os.path.exists(synonym_path):
-                        try:
-                            with open(synonym_path, 'r') as f:
-                                all_synonyms = json.load(f)
-                            synonyms = all_synonyms.get(oldcarts_element, {})
-                            self.synonym_cache[cache_key] = synonyms
-                        except Exception as e:
-                            synonyms = {}
-                    else:
-                        synonyms = {}
+                synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+                synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
                 
-                if synonyms:
-                    normalized_text = self._normalize_with_synonyms(patient_text, {oldcarts_element: synonyms}, oldcarts_element)
+                if os.path.exists(synonym_path):
+                    try:
+                        with open(synonym_path, 'r') as f:
+                            synonyms = json.load(f)
+                        normalized_text = self._normalize_with_synonyms(patient_text, synonyms, oldcarts_element)
+                    except Exception as e:
+                        pass
         
         # STEP 3: Word match boost
         word_match_boost = 0.0
