@@ -88,6 +88,36 @@ class MedicalRuleEngine:
         
         print(f"[FAISS] 📚 Loaded {guideline_count} guidelines")
         
+        # Add synonyms to FAISS index and build synonym-to-medical mapping
+        synonym_to_medical_mapping = {
+            'onset': {}, 'location': {}, 'duration': {}, 'character': {},
+            'aggravating': {}, 'relieving': {}, 'timing': {}, 'severity': {}
+        }
+        
+        synonyms_dir = os.path.join(os.path.dirname(__file__), '..', 'synonyms')
+        if os.path.exists(synonyms_dir):
+            for synonym_file in os.listdir(synonyms_dir):
+                if synonym_file.endswith('_synonyms_oldcarts.json'):
+                    try:
+                        synonym_path = os.path.join(synonyms_dir, synonym_file)
+                        with open(synonym_path, 'r') as f:
+                            synonyms = json.load(f)
+                        
+                        # Add all synonyms to term lists and build mapping
+                        for element, synonym_dict in synonyms.items():
+                            if element in all_terms:
+                                for medical_term, synonym_list in synonym_dict.items():
+                                    # Add medical term itself
+                                    all_terms[element].add(medical_term.lower())
+                                    # Map medical term to itself
+                                    synonym_to_medical_mapping[element][medical_term.lower()] = medical_term.lower()
+                                    # Add all patient-friendly synonyms and map them back to medical term
+                                    for synonym in synonym_list:
+                                        all_terms[element].add(synonym.lower())
+                                        synonym_to_medical_mapping[element][synonym.lower()] = medical_term.lower()
+                    except Exception as e:
+                        print(f"[FAISS] ⚠️ Could not load synonyms from {synonym_file}: {e}")
+        
         # Build FAISS indexes for each element
         for element, terms in all_terms.items():
             if terms:
@@ -106,7 +136,8 @@ class MedicalRuleEngine:
                     self.term_embeddings[element] = {
                         'terms': terms_list,
                         'embeddings': embeddings,
-                        'index': index
+                        'index': index,
+                        'synonym_to_medical': synonym_to_medical_mapping[element]
                     }
                     
                     print(f"[FAISS] ✅ Built index for {element}: {len(terms_list)} terms")
@@ -128,30 +159,12 @@ class MedicalRuleEngine:
         return normalized
     
     def find_matching_terms_faiss(self, prompt: str, element: str, threshold: float = 0.65) -> List[str]:
-        """Find matching terms using FAISS similarity search with exact matching fallback."""
+        """Find matching terms using ONLY FAISS semantic similarity."""
         if element not in self.term_embeddings or not self.embedding_model:
             return []
         
         matches = []
-        prompt_lower = prompt.lower()
         
-        # STEP 1: Exact/substring matching (fast path, highest priority)
-        for term in self.term_embeddings[element]['terms']:
-            term_lower = term.lower()
-            # Exact match or substring match (but skip very short terms like "mi" to avoid false positives)
-            if len(term_lower) < 3:
-                continue  # Skip very short terms like "mi", "a", etc. to avoid false positives
-            if (term_lower == prompt_lower or 
-                term_lower in prompt_lower or 
-                prompt_lower in term_lower):
-                if term not in matches:
-                    matches.append(term)
-        
-        # If we found exact matches, return them (high confidence)
-        if matches:
-            return matches
-        
-        # STEP 2: FAISS semantic matching (fallback for semantic similarity)
         try:
             # Encode prompt
             prompt_embedding = self.embedding_model.encode([prompt])
@@ -165,12 +178,15 @@ class MedicalRuleEngine:
                 prompt_embedding, k=10
             )
             
-            # Filter by threshold and return matching terms
+            # Filter by threshold and map synonyms back to medical terms
+            synonym_to_medical = self.term_embeddings[element].get('synonym_to_medical', {})
             for score, idx in zip(scores[0], indices[0]):
                 if score >= threshold:
                     term = self.term_embeddings[element]['terms'][idx]
-                    if term not in matches:
-                        matches.append(term)
+                    # Map synonym back to medical term if available
+                    medical_term = synonym_to_medical.get(term, term)
+                    if medical_term not in matches:
+                        matches.append(medical_term)
             
             return matches
         except Exception as e:
