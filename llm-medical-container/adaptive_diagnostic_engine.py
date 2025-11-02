@@ -664,7 +664,6 @@ class AdaptiveDiagnosticEngine:
                         {'text': 'Female', 'callback_data': 'sex_female'}
                     ]
                 }
-                return self._ask_next_clinical_question()
         
         # Handle radiation (separate question after location)
         if oldcarts_element == 'radiation':
