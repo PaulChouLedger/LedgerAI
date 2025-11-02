@@ -405,11 +405,17 @@ class AdaptiveDiagnosticEngine:
                 'type': 'statement',
                 'message': empathetic_msg
             })
+            
+            # Generate chronicity question immediately
+            chronicity_response = self._generate_ml_first_question_with_demographics()
+            chronicity_question = chronicity_response.get('message', '')
+            
             return {
                 'success': True,
                 'message': empathetic_msg,
+                'question': chronicity_question,
                 'status': 'questioning',
-                'has_pause': True,  # Pause before next question
+                'has_pause': True,  # Pause between statement and question
                 'debug': {
                     'engine': self._format_engine_debug("[Engine] 🧠 Generating first question with chronicity..."),
                     'internal': self._get_debug_info()
@@ -982,7 +988,7 @@ class AdaptiveDiagnosticEngine:
         faiss_scores = {}
         if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
             try:
-                semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, oldcarts_element, threshold=0.6, return_scores=True)
+                semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(answer, oldcarts_element, threshold=0.75, return_scores=True)
                 semantic_matches_set = set(t.lower() for t in semantic_matches)
                 # Get scores from the engine
                 if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
