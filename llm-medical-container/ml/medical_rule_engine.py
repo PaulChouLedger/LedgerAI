@@ -555,18 +555,66 @@ class MedicalRuleEngine:
                 return -0.3  # Penalty
         
         # STEP 2: For location, check for anatomical mismatches before boosting (universal for all organ systems)
+        # This applies during ANY location question, including clarification questions
         if oldcarts_element == 'location':
             # Extract anatomical components from patient's normalized text (using medical_rules.json)
             patient_components = self._extract_anatomical_components(normalized_text)
             
-            # Check each condition location term for mismatch
+            # Check for anatomical mismatch at the guideline level (if ALL anatomically-specific location terms are mismatched, apply penalty)
+            if patient_components:
+                anatomically_specific_terms = []  # Terms with anatomical components
+                all_specific_mismatched = True  # All anatomically-specific terms are mismatched
+                has_matching_term = False
+                
+                for term in includes_lower:
+                    condition_components = self._extract_anatomical_components(term)
+                    
+                    # If term has anatomical components, check against patient's components
+                    if condition_components:
+                        anatomically_specific_terms.append(term)
+                        if self._are_anatomical_opposites(patient_components, condition_components):
+                            # This anatomically-specific term is a mismatch
+                            continue
+                        else:
+                            # Found at least one non-mismatched anatomically-specific term - don't apply penalty
+                            all_specific_mismatched = False
+                            # Check if it also matches (exact/substring)
+                            if (term == normalized_lower or term in normalized_lower or 
+                                normalized_lower in term or term in patient_lower or 
+                                patient_lower in term):
+                                has_matching_term = True
+                                # Exact match gets full boost
+                                if term == normalized_lower or normalized_lower == term:
+                                    return 0.5
+                                # Substring match gets partial boost
+                                return 0.3
+                    else:
+                        # Term has no anatomical components (e.g., "abdomen", "right side")
+                        # Check if it matches via substring/exact (these are general terms)
+                        if (term == normalized_lower or term in normalized_lower or 
+                            normalized_lower in term or term in patient_lower or 
+                            patient_lower in term):
+                            has_matching_term = True
+                            # Exact match gets full boost
+                            if term == normalized_lower or normalized_lower == term:
+                                return 0.5
+                            # Substring match gets partial boost
+                            return 0.3
+                
+                # If we have anatomically-specific terms AND ALL of them are mismatched, apply penalty
+                # This happens during clarification when patient specifies a precise location
+                if anatomically_specific_terms and all_specific_mismatched and not has_matching_term:
+                    print(f"[Anatomical Mismatch] ⚠️ Penalty applied: Patient '{normalized_text}' ({patient_components}) vs condition location terms {anatomically_specific_terms} (all mismatched)")
+                    return -0.3  # Penalty for anatomical mismatch (e.g., RUQ vs RLQ during clarification)
+            
+            # Fallback: Check each term individually for exact/substring matches
             for term in includes_lower:
                 condition_components = self._extract_anatomical_components(term)
                 
                 # If both have anatomical components, check if they're opposites
                 if patient_components and condition_components:
                     if self._are_anatomical_opposites(patient_components, condition_components):
-                        # Anatomical mismatch - no boost
+                        # Anatomical mismatch - skip this term
                         continue
                 
                 # Exact or substring match (and not opposite)
@@ -596,16 +644,37 @@ class MedicalRuleEngine:
                 # For location, check for anatomical mismatches (universal)
                 if oldcarts_element == 'location':
                     patient_components = self._extract_anatomical_components(normalized_text)
-                    for matched_term in matching_includes:
-                        condition_components = self._extract_anatomical_components(matched_term.lower())
-                        if patient_components and condition_components:
-                            if self._are_anatomical_opposites(patient_components, condition_components):
-                                # Mismatch - no boost from this term
-                                continue
+                    if patient_components:
+                        # Check if ALL matched terms are mismatched
+                        all_faiss_mismatched = True
+                        valid_matches = []
+                        
+                        for matched_term in matching_includes:
+                            condition_components = self._extract_anatomical_components(matched_term.lower())
+                            if condition_components:
+                                if self._are_anatomical_opposites(patient_components, condition_components):
+                                    # Mismatch - skip this term
+                                    continue
+                                else:
+                                    # Found at least one non-mismatched term
+                                    all_faiss_mismatched = False
+                                    valid_matches.append(matched_term)
+                            else:
+                                # No anatomical components in term - consider it valid
+                                all_faiss_mismatched = False
+                                valid_matches.append(matched_term)
+                        
+                        # If ALL FAISS matches are anatomically mismatched, apply penalty
+                        if all_faiss_mismatched and len(valid_matches) == 0:
+                            return -0.3  # Penalty for anatomical mismatch
+                        
+                        # Use only valid (non-mismatched) matches for boost calculation
+                        matching_includes = valid_matches
                 
                 # Good match - boost based on number
-                match_boost = min(0.1 * len(matching_includes), 0.4)
-                return match_boost
+                if matching_includes:
+                    match_boost = min(0.1 * len(matching_includes), 0.4)
+                    return match_boost
         
         # STEP 4: Fallback exact matching
         for term in includes_lower:

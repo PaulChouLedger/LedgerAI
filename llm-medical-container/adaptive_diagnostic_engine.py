@@ -277,7 +277,8 @@ class AdaptiveDiagnosticEngine:
         for i, g in enumerate(self.active_guidelines[:5], start=1):
             severity = g.get('urgency', 'routine')
             name = g.get('name', 'Unknown')
-            score = int(round(g.get('score', 0.5)*100)) if isinstance(g.get('score', None), (int, float)) else 50
+            score_val = g.get('score', 0.5) if isinstance(g.get('score', None), (int, float)) else 0.5
+            score = round(score_val * 100, 1)  # Show 1 decimal place for precision
             sev_icon = '⚠️' if 'urgent' in str(severity).lower() else '📋'
             lines.append(f"  {i}. {name}: {score}% ({severity}) {sev_icon}")
         lines.append(f"[Engine] 🔄 Pool: Active={len(self.active_guidelines)}, Reserve={len(self.reserve_pool)}, Ruled out={len(self.ruled_out)}")
@@ -297,7 +298,8 @@ class AdaptiveDiagnosticEngine:
         lines.append("[Engine] 📊 UPDATED RANKINGS:")
         for i, g in enumerate(self.active_guidelines[:5], start=1):
             name = g.get('data', {}).get('condition', g.get('name', 'Unknown'))
-            pct = int(round((g.get('score') or 0.0) * 100))
+            score = g.get('score') or 0.0
+            pct = round(score * 100, 1)  # Show 1 decimal place for precision
             urg = g.get('urgency') or g.get('data', {}).get('urgency', 'routine')
             icon = urgency_icon(urg)
             lines.append(f"[Engine]   {i}. {name}: {pct}% {icon}")
@@ -1039,21 +1041,27 @@ class AdaptiveDiagnosticEngine:
         if promoted:
             self._capture_debug(f"\n[Engine] 🔼 PROMOTED to active:")
             for g in promoted:
-                self._capture_debug(f"[Engine]   ↑ {g.get('data', {}).get('condition', g.get('name', 'Unknown'))} (score: {g['score']:.0%})")
+                score_val = g.get('score', 0.0)
+                pct = round(score_val * 100, 1)
+                self._capture_debug(f"[Engine]   ↑ {g.get('data', {}).get('condition', g.get('name', 'Unknown'))} (score: {pct}%)")
         
         if demoted:
             self._capture_debug(f"\n[Engine] 🔽 DEMOTED to reserve:")
             for g in demoted:
-                self._capture_debug(f"[Engine]   ↓ {g.get('data', {}).get('condition', g.get('name', 'Unknown'))} (score: {g['score']:.0%})")
+                score_val = g.get('score', 0.0)
+                pct = round(score_val * 100, 1)
+                self._capture_debug(f"[Engine]   ↓ {g.get('data', {}).get('condition', g.get('name', 'Unknown'))} (score: {pct}%)")
         
         self._capture_debug(f"\n[Engine] 📊 UPDATED RANKINGS:")
         for i, g in enumerate(self.active_guidelines, 1):
             urgency_emoji = "🚨" if g.get('data', {}).get('urgency') == 'emergent' else "⚠️" if g.get('data', {}).get('urgency') == 'urgent' else "📋"
-            self._capture_debug(f"[Engine]   {i}. {g.get('data', {}).get('condition', g.get('name', 'Unknown'))}: {g['score']:.0%} {urgency_emoji}")
+            score = g.get('score', 0.0)
+            pct = round(score * 100, 1)  # Show 1 decimal place for precision
+            self._capture_debug(f"[Engine]   {i}. {g.get('data', {}).get('condition', g.get('name', 'Unknown'))}: {pct}% {urgency_emoji}")
             
             # ML Progress Tracking - Top Conditions
             self._capture_debug(f"[Scoring] 🏆 Top {i}: {g.get('data', {}).get('condition', g.get('name', 'Unknown'))}")
-            self._capture_debug(f"[Scoring]   📊 Score: {g['score']:.0%}")
+            self._capture_debug(f"[Scoring]   📊 Score: {pct}%")
             self._capture_debug(f"[Scoring]   📋 Prevalence: {g.get('prevalence', 'unknown')}")
             self._capture_debug(f"[Scoring]   🎯 ML Confidence: High similarity match")
             self._capture_debug(f"[Scoring]   🚨 Urgency: {g.get('data', {}).get('urgency', 'standard')}")
@@ -1592,11 +1600,11 @@ class AdaptiveDiagnosticEngine:
             recent_items = self.conversation_history[-4:]
             for item in recent_items:
                 if item.get('type') == 'question':
-                    conversation_context += f"Q: {item.get('question', item.get('message', ''))}\n"
+                    conversation_context += f"{item.get('question', item.get('message', ''))}\n"
                 elif item.get('type') == 'answer':
-                    conversation_context += f"A: {item.get('answer', item.get('message', ''))}\n"
+                    conversation_context += f"{item.get('answer', item.get('message', ''))}\n"
                 elif item.get('type') == 'statement':
-                    conversation_context += f"Statement: {item.get('message', '')}\n"
+                    conversation_context += f"{item.get('message', '')}\n"
         
         # Provide context: chief complaint and what we already know
         chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}"
@@ -1631,21 +1639,21 @@ class AdaptiveDiagnosticEngine:
         
         sample_guidance = sample_questions.get(component, "")
         
-        # Map component to clear description for LLM
+        # Map component to clear description for LLM (NO examples - keep it general for open-ended questions)
         component_descriptions = {
             'onset': 'WHEN the symptom started or began',
-            'location': 'WHERE the symptom is located (anatomical location/position)',
+            'location': 'WHERE the symptom is located',
             'timing': 'WHETHER the symptom is constant or comes and goes',
-            'duration': 'HOW LONG each episode lasts (only if timing is episodic)',
-            'character': 'HOW the symptom feels (sharp, dull, burning, etc.)',
-            'aggravating': 'WHAT makes the symptom worse (aggravating factors)',
-            'relieving': 'WHAT helps or makes the symptom better (relieving factors)',
-            'severity': 'HOW SEVERE the symptom is (on a scale or in terms of intensity)'
+            'duration': 'HOW LONG each episode lasts',
+            'character': 'HOW the symptom feels',
+            'aggravating': 'WHAT makes the symptom worse',
+            'relieving': 'WHAT helps or makes the symptom better',
+            'severity': 'HOW SEVERE the symptom is'
         }
         component_description = component_descriptions.get(component, component)
         
-        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, open-ended question to ask about a specific aspect of a patient's symptoms. CRITICAL RULES: 1) Always ask about what the PATIENT can observe/feel themselves - NEVER ask about physical exam maneuvers (no 'pressure', 'palpation', 'when I press', 'when touched', 'when examined'). 2) Always start with an open-ended question (not multiple choice). 3) Base your question ONLY on what the patient has actually told you — do NOT make up details. 4) Avoid leading the patient or naming specific anatomical regions unless the patient already said them. Make the question flow naturally from the previous conversation. 5) Focus ONLY on the body region relevant to the chief complaint - if the chief complaint is ABDOMINAL PAIN, ask about ABDOMEN only (not legs, arms, or other body parts). 6) CRITICAL: You MUST ask about the SPECIFIC component requested - do NOT confuse different OLDCARTS components."
-        user_msg = f"TASK: Generate a question about {component.upper()} ({component_description}) ONLY.\n\n{chief_complaint_context}{category_context}\n{covered_info}\n\nExample question for {component}:\n{sample_guidance}\n\nRecent conversation:\n{conversation_context}\n\nCRITICAL INSTRUCTIONS:\n- Ask about {component.upper()} ({component_description}) ONLY - do NOT ask about other components\n- For LOCATION: Ask 'WHERE is the pain located?' or 'Can you tell me where exactly the pain is?'\n- For AGGRAVATING: Ask 'What makes it worse?' or 'Does anything make the pain worse?'\n- For RELIEVING: Ask 'What helps?' or 'Does anything make it better?'\n- Follow the example questions closely\n- Do NOT provide multiple choice options\n- Do NOT ask about physical exam maneuvers\n- Ask ONLY what the patient can observe or feel themselves\n- Base your question ONLY on '{self.chief_complaint}' - if it's abdominal pain, ask about abdomen only (not legs, arms, etc.)\n- Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
+        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, open-ended question to ask about a specific aspect of a patient's symptoms. CRITICAL RULES: 1) Always ask about what the PATIENT can observe/feel themselves - NEVER ask about physical exam maneuvers (no 'pressure', 'palpation', 'when I press', 'when touched', 'when examined'). 2) ALWAYS start with a completely OPEN-ENDED question - do NOT include specific descriptive terms, examples, or multiple-choice options. 3) Base your question ONLY on what the patient has actually told you — do NOT make up details. 4) Avoid leading the patient or naming specific anatomical regions unless the patient already said them. Make the question flow naturally from the previous conversation. 5) Focus ONLY on the body region relevant to the chief complaint - if the chief complaint is ABDOMINAL PAIN, ask about ABDOMEN only (not legs, arms, or other body parts). 6) CRITICAL: You MUST ask about the SPECIFIC component requested - do NOT confuse different OLDCARTS components. 7) DO NOT include descriptive examples (e.g., 'sharp', 'dull', 'burning') in your question - let the patient describe it themselves."
+        user_msg = f"TASK: Generate a completely OPEN-ENDED question about {component.upper()} ({component_description}) ONLY.\n\n{chief_complaint_context}{category_context}\n{covered_info}\n\nExample question for {component}:\n{sample_guidance}\n\nRecent conversation:\n{conversation_context}\n\nCRITICAL INSTRUCTIONS:\n- Ask about {component.upper()} ({component_description}) ONLY - do NOT ask about other components\n- COMPLETELY OPEN-ENDED: Do NOT include any descriptive examples or specific terms in your question\n- For CHARACTER: Ask 'How would you describe this?' or 'What does this feel like?' - DO NOT mention 'sharp', 'dull', 'burning', etc.\n- For LOCATION: Ask 'WHERE is the pain located?' or 'Can you tell me where exactly the pain is?' - DO NOT list specific locations\n- For AGGRAVATING: Ask 'What makes it worse?' or 'Does anything make the pain worse?' - DO NOT list specific factors\n- For RELIEVING: Ask 'What helps?' or 'Does anything make it better?' - DO NOT list specific factors\n- For TIMING: Ask 'Is it constant or does it come and go?' - DO NOT provide examples\n- Follow the example questions closely but keep them completely open-ended\n- Do NOT provide multiple choice options\n- Do NOT ask about physical exam maneuvers\n- Ask ONLY what the patient can observe or feel themselves\n- Base your question ONLY on '{self.chief_complaint}' - if it's abdominal pain, ask about abdomen only (not legs, arms, etc.)\n- Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
         
         llm_kwargs = self._get_llm_kwargs()
         response = self.llm_chat_simple_fn(
