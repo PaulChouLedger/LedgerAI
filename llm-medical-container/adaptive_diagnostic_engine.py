@@ -396,45 +396,22 @@ class AdaptiveDiagnosticEngine:
                 
                 self._capture_debug(f"[Engine]   ✅ {element} marked as covered from initial prompt")
         
-        # Start with empathetic statement + symptom gathering question
+        # Start with empathetic statement + chronicity question
         has_shown_statement = any(item.get('type') == 'statement' for item in self.conversation_history)
         if not has_shown_statement:
             empathetic_msg = self._generate_empathetic_statement()
-            
-            # Generate symptom gathering question using LLM
-            if self.llm_chat_simple_fn:
-                system_msg = "You are a medical assistant. Generate a natural question to gather more information about the patient's symptoms."
-                user_msg = f"Patient reported: '{self.chief_complaint}'\n\nGenerate a brief follow-up question to learn more about their symptoms. Focus ONLY on gathering information. Do NOT use phrases like 'I'm sorry', 'I understand', or other empathetic language. Be direct and factual. Ask one specific question about timing, location, or severity. Respond in 1 sentence ending with a question mark. Return only the question, no other text."
-                
-                llm_kwargs = self._get_llm_kwargs()
-                response = self.llm_chat_simple_fn(
-                    [
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_msg}
-                    ],
-                    **llm_kwargs
-                )
-                symptom_question = response.strip() if response and response.strip() else "Tell me more about your symptoms so I can better understand what you're experiencing."
-            else:
-                symptom_question = "Tell me more about your symptoms so I can better understand what you're experiencing."
             
             self.conversation_history.append({
                 'type': 'statement',
                 'message': empathetic_msg
             })
-            self.conversation_history.append({
-                'type': 'question',
-                'question': symptom_question,
-                'focus': 'symptom_gathering'
-            })
             return {
                 'success': True,
                 'message': empathetic_msg,
-                'question': symptom_question,
                 'status': 'questioning',
-                'has_pause': True,  # Pause between empathetic statement and question
+                'has_pause': True,  # Pause before next question
                 'debug': {
-                    'engine': self._format_engine_debug("[Engine] 🧠 Generating structured first question with demographics..."),
+                    'engine': self._format_engine_debug("[Engine] 🧠 Generating first question with chronicity..."),
                     'internal': self._get_debug_info()
                 }
             }
@@ -1012,10 +989,12 @@ class AdaptiveDiagnosticEngine:
         # Check each term using the same logic as unified function
         for term in all_includes:
             term_satisfied = False
+            match_reason = None
             
             # 1. Exact/substring matching (fast path)
             if term in answer_lower or answer_lower in term:
                 term_satisfied = True
+                match_reason = f"exact/substring match: '{term}' in '{answer}' or '{answer}' in '{term}'"
             else:
                 # OPTIMIZATION: Check if answer was normalized to a synonym key that maps to this term
                 # Use pre-built synonym_to_group for O(1) lookup instead of O(n²) nested loops
@@ -1024,16 +1003,20 @@ class AdaptiveDiagnosticEngine:
                     group_key = synonym_to_group[term.lower()]
                     synonym_list = synonym_expansions.get(group_key, [])
                     # Use more precise matching: answer must be a substring of synonym (not reverse)
-                    if any(syn.lower() in answer_lower for syn in synonym_list):
+                    matched_synonyms = [syn for syn in synonym_list if syn.lower() in answer_lower]
+                    if matched_synonyms:
                         term_satisfied = True
+                        match_reason = f"synonym match: '{matched_synonyms[0]}' in '{answer}'"
                 
                 if not term_satisfied:
                     # 2. Check against FAISS semantic matches (already computed)
                     if term in semantic_matches_set:
                         term_satisfied = True
+                        match_reason = f"FAISS semantic match"
             
             if term_satisfied:
                 satisfied_terms.add(term)
+                self._capture_debug(f"[Location Analysis]   ✅ '{term}' satisfied: {match_reason}")
                 # If term is part of a synonym group, check if we should satisfy other terms in that group
                 if synonym_to_group and term.lower() in synonym_to_group:
                     group_key = synonym_to_group[term.lower()]
@@ -1042,6 +1025,9 @@ class AdaptiveDiagnosticEngine:
                         for other_synonym in synonym_expansions[group_key]:
                             if other_synonym.lower() in all_includes:
                                 satisfied_terms.add(other_synonym.lower())
+                                self._capture_debug(f"[Location Analysis]   ✅ '{other_synonym.lower()}' satisfied via synonym group expansion")
+            else:
+                self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied")
         
         # Terms are missing if they're not satisfied
         missing = [term for term in all_includes if term not in satisfied_terms]
@@ -1389,29 +1375,45 @@ class AdaptiveDiagnosticEngine:
         return fallback_questions.get(component, f"Tell me about {component}")
     
     def _generate_ml_first_question_with_demographics(self) -> Dict[str, Any]:
-        """Generate first question with demographics and empathetic statement"""
-        # STEP 1: Empathetic statement (only on first question - completely separate)
-        # Show empathetic statement only once per assessment before any questions
-        has_shown_statement = any(item.get('type') == 'statement' for item in self.conversation_history)
-        has_asked_any_question = any(item.get('type') == 'question' for item in self.conversation_history)
-        if not has_shown_statement and not has_asked_any_question:
-            empathetic_msg = self._generate_empathetic_statement()
+        """Generate demographics questions in order: chronicity, age, sex"""
+        # STEP 1: Chronicity question (first after empathetic statement)
+        if 'chronicity' not in self.demographics:
+            if self.llm_chat_simple_fn:
+                system_msg = "You are a medical assistant. Generate a concise question to ask if the patient's problem is new or ongoing."
+                user_msg = "Is this a new problem or an ongoing issue?"
+                
+                llm_kwargs = self._get_llm_kwargs()
+                response = self.llm_chat_simple_fn(
+                    [
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_msg}
+                    ],
+                    **llm_kwargs
+                )
+                question = response.strip() if response and response.strip() else "Is this a new problem or an ongoing issue?"
+            else:
+                question = "Is this a new problem or an ongoing issue?"
+            
             self.conversation_history.append({
-                'type': 'statement',
-                'message': empathetic_msg
+                'type': 'question',
+                'question': question,
+                'focus': 'chronicity'
             })
             return {
                 'success': True,
-                'message': empathetic_msg,
+                'message': question,
                 'status': 'questioning',
-                'has_pause': True,  # Pause before next question
+                'buttons': [
+                    {'text': 'New Problem', 'callback_data': 'chronicity_new'},
+                    {'text': 'Ongoing Issue', 'callback_data': 'chronicity_recurring'}
+                ],
                 'debug': {
-                    'engine': self._format_engine_debug("[Engine] 🧠 Generating structured first question with demographics..."),
+                    'engine': self._format_engine_debug("[Engine] ✅ Demographics question generated"),
                     'internal': self._get_debug_info()
                 }
             }
-            
-        # STEP 2: Age question (separate from empathetic statement)
+        
+        # STEP 2: Age question
         if 'age' not in self.demographics:
             if self.llm_chat_simple_fn:
                 system_msg = "You are a medical assistant. Generate a natural, conversational question to ask for the patient's age."
@@ -1469,43 +1471,6 @@ class AdaptiveDiagnosticEngine:
                 }
             }
         
-        # STEP 4: Chronicity question
-        if 'chronicity' not in self.demographics:
-            if self.llm_chat_simple_fn:
-                system_msg = "You are a medical assistant. Generate a concise question to ask if the patient's problem is new or ongoing."
-                user_msg = "Is this a new problem or an ongoing issue?"
-                
-                llm_kwargs = self._get_llm_kwargs()
-                response = self.llm_chat_simple_fn(
-                    [
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": user_msg}
-                    ],
-                    **llm_kwargs
-                )
-                question = response.strip() if response and response.strip() else "Is this a new problem or an ongoing issue?"
-            else:
-                question = "Is this a new problem or an ongoing issue?"
-            
-            self.conversation_history.append({
-                'type': 'question',
-                'question': question,
-                'focus': 'chronicity'
-            })
-            return {
-                'success': True,
-                'message': question,
-                'status': 'questioning',
-                'buttons': [
-                    {'text': 'New Problem', 'callback_data': 'chronicity_new'},
-                    {'text': 'Ongoing Issue', 'callback_data': 'chronicity_recurring'}
-                ],
-                'debug': {
-                    'engine': self._format_engine_debug("[Engine] ✅ Demographics question generated"),
-                    'internal': self._get_debug_info()
-                }
-            }
-        
         # All demographics collected, start OLDCARTS
         self._capture_debug("[Engine] 📋 Demographics complete, transitioning to clinical questions")
         self._capture_debug(f"[Engine] Current OLDCARTS analysis: {self.oldcarts_analysis}")
@@ -1555,67 +1520,6 @@ class AdaptiveDiagnosticEngine:
         self._capture_debug(f"[Engine] 🔍 User answer: '{user_answer}'")
         self._capture_debug(f"[Engine] 🔍 Conversation history length: {len(self.conversation_history)}")
         self._capture_debug(f"[Engine] 🔍 Demographics: {self.demographics}")
-        
-        # Handle symptom gathering response
-        if last_q and last_q.get('focus') == 'symptom_gathering':
-            # Analyze the symptom response for additional OLDCARTS information
-            self._capture_debug(f"[Engine] 🔍 Analyzing symptom response: '{user_answer}'")
-            
-            # Parse the response for additional OLDCARTS elements
-            additional_oldcarts = self._parse_prompt_against_structured_oldcarts(user_answer, list(self.all_guidelines.values()))
-            answered_components = additional_oldcarts.get('answered_components', {})
-            
-            if answered_components:
-                self._capture_debug(f"[Engine] 📊 Found additional OLDCARTS elements: {answered_components}")
-                for element, detected_terms in answered_components.items():
-                    # Mark as covered
-                    if element == 'onset':
-                        self.oldcarts_covered['O'] = True
-                    elif element == 'location':
-                        self.oldcarts_covered['L'] = True
-                    elif element == 'duration':
-                        self.oldcarts_covered['D'] = True
-                    elif element == 'character':
-                        self.oldcarts_covered['C'] = True
-                    elif element == 'aggravating':
-                        self.oldcarts_covered['A'] = True
-                    elif element == 'relieving':
-                        self.oldcarts_covered['R'] = True
-                    elif element == 'timing':
-                        self.oldcarts_covered['T'] = True
-                    elif element == 'severity':
-                        self.oldcarts_covered['S'] = True
-                    
-                    self._capture_debug(f"[Engine]   ✅ {element} marked as covered from symptom response")
-            
-            # STEP 1: Generate confirmation/paraphrase of what we heard (tell me what I heard)
-            confirmation_msg = self._generate_confirmation_message(user_answer)
-            self.conversation_history.append({
-                'type': 'statement',
-                'message': confirmation_msg
-            })
-            
-            # STEP 2: Ask age question immediately (no pause)
-            if 'age' not in self.demographics:
-                question = "How old are you?"
-                self.conversation_history.append({
-                    'type': 'question',
-                    'question': question,
-                    'focus': 'age'
-                })
-                return {
-                    'success': True,
-                    'message': f"{confirmation_msg}\n\n{question}",
-                    'status': 'questioning',
-                    'debug': {
-                        'engine': self._format_engine_debug("[Engine] ✅ Confirmation + Age question"),
-                        'internal': self._get_debug_info(last_answer=user_answer)
-                    }
-                }
-            else:
-                # Age already collected, continue with next demographic
-                return self._generate_ml_first_question_with_demographics()
-        
         
         # Handle age answers - check if we just asked an age question
         if (last_q and last_q.get('type') == 'question' and last_q.get('focus') == 'age' and 
