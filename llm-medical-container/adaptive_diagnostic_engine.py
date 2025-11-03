@@ -1661,68 +1661,23 @@ class AdaptiveDiagnosticEngine:
                 elif item.get('type') == 'statement':
                     conversation_context += f"{item.get('message', '')}\n"
         
-        # Provide context: chief complaint and what we already know
-        chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}"
-        covered_elements = [k for k, v in self.oldcarts_covered.items() if v]
-        element_map = {'O': 'onset', 'L': 'location', 'T': 'timing', 'D': 'duration',
-                      'C': 'character', 'A': 'aggravating', 'R': 'relieving', 'S': 'severity'}
-        covered_names = [element_map.get(k, k) for k in covered_elements]
-        covered_info = "Already covered: " + ", ".join(covered_names) if covered_names else "Already covered: (none)"
-        
-        # Get current category to ensure questions are relevant
-        category_context = ""
-        if self.current_category:
-            category_context = f"\nMedical category: {self.current_category}. Focus questions on {self.current_category} conditions only. "
-            # For GI category, emphasize abdominal/chest locations
-            if self.current_category == 'gastrointestinal':
-                category_context += "Ask about ABDOMINAL symptoms only (not legs, arms, or other body parts). "
-            elif self.current_category == 'musculoskeletal':
-                category_context += "Ask about MUSCULOSKELETAL symptoms (joints, muscles, bones). "
-            elif self.current_category in ['cardiovascular', 'respiratory']:
-                category_context += "Ask about CHEST/THORACIC symptoms only (not legs, arms, or abdomen). "
-        
-        # Sample questions for each OLDCARTS element as guidance (universal across all organ systems)
-        # Order: onset, location, timing, duration, character, aggravating, relieving, severity
-        # NOTE: Timing comes before duration. If timing is constant, duration is skipped (redundant).
-        # Duration is only asked if timing is episodic/intermittent (to understand episode length).
+        # Sample questions for each OLDCARTS element as guidance
         sample_questions = {
-            'onset': "Example good question: 'When did this start?' or 'How long have you been experiencing this?'",
-            'location': "Example good question: 'Can you tell me more about where exactly the pain is located?' or 'Where exactly is the pain located?'",
-            'timing': "Example good question: 'Is it constant or does it come and go?' or 'Does it happen continuously or does it stop sometimes?'",
-            'duration': "Example good question: 'How long does each episode typically last?' or 'How long do these episodes usually go on?' (Only asked if timing is episodic/intermittent)",
-            'character': "Example good question: 'How would you describe this?' or 'What does this feel like?'",
-            'aggravating': "Example good question: 'Does anything make this worse?' or 'What makes it worse?'",
-            'relieving': "Example good question: 'Does anything help?' or 'What makes you feel better?'",
-            'severity': "Example good question: 'On a scale of 1 to 10, how would you rate this?' or 'How severe is this on a scale of 1 to 10?'"
+            'onset': "When did this start?",
+            'location': "Where exactly is the pain located?",
+            'timing': "Is it constant or does it come and go?",
+            'duration': "How long does each episode typically last?",
+            'character': "How would you describe this?",
+            'aggravating': "What makes it worse?",
+            'relieving': "What helps or makes it better?",
+            'severity': "On a scale of 1 to 10, how would you rate this?"
         }
         
-        sample_guidance = sample_questions.get(component, "")
+        sample_question = sample_questions.get(component, f"Tell me more about {component}.")
         
-        # Map component to clear description for LLM (NO examples - keep it general for open-ended questions)
-        component_descriptions = {
-            'onset': 'WHEN the symptom started or began',
-            'location': 'WHERE the symptom is located',
-            'timing': 'WHETHER the symptom is constant or comes and goes',
-            'duration': 'HOW LONG each episode lasts',
-            'character': 'HOW the symptom feels',
-            'aggravating': 'WHAT makes the symptom worse',
-            'relieving': 'WHAT helps or makes the symptom better',
-            'severity': 'HOW SEVERE the symptom is'
-        }
-        component_description = component_descriptions.get(component, component)
+        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, open-ended question to ask about a specific aspect of a patient's symptoms. Keep it short, empathetic, and based on the conversation context."
         
-        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, open-ended question to ask about a specific aspect of a patient's symptoms. CRITICAL RULES: 1) Always ask about what the PATIENT can observe/feel themselves - NEVER ask about physical exam maneuvers (no 'pressure', 'palpation', 'when I press', 'when touched', 'when examined'). 2) ALWAYS start with a completely OPEN-ENDED question - do NOT include specific descriptive terms, examples, or multiple-choice options. 3) Base your question ONLY on what the patient has actually told you — do NOT make up details. 4) Avoid leading the patient or naming specific anatomical regions unless the patient already said them. Make the question flow naturally from the previous conversation. 5) Focus ONLY on the body region relevant to the chief complaint - if the chief complaint is ABDOMINAL PAIN, ask about ABDOMEN only (not legs, arms, or other body parts). 6) CRITICAL: You MUST ask about the SPECIFIC component requested - do NOT confuse different OLDCARTS components. DO NOT combine multiple elements (e.g., do NOT ask 'describe' when asking about 'onset'). 7) DO NOT include descriptive examples (e.g., 'sharp', 'dull', 'burning') in your question - let the patient describe it themselves. 8) YOU MUST USE THE EXACT STRUCTURE FROM THE EXAMPLE QUESTION - do not add words from other OLDCARTS elements."
-        # Extract example question text (first quoted string from sample_guidance)
-        example_question = ""
-        if "'" in sample_guidance:
-            parts = sample_guidance.split("'")
-            if len(parts) >= 2:
-                example_question = parts[1]
-        
-        # Build explicit list of what NOT to ask about
-        not_to_ask = ", ".join([c.upper() for c in covered_names if c != component]) if covered_names else "(none)"
-        
-        user_msg = f"TASK: Generate a completely OPEN-ENDED question about {component.upper()} ({component_description}) ONLY.\n\n{chief_complaint_context}{category_context}\n{covered_info}\n\n❌ DO NOT ASK ABOUT THESE (ALREADY COVERED): {not_to_ask}\n✅ YOU MUST ASK ABOUT THIS ONE THING ONLY: {component.upper()} ({component_description})\n\nMANDATORY EXAMPLE QUESTION FOR {component.upper()}:\n{sample_guidance}\n\nRecent conversation:\n{conversation_context}\n\n⚠️ CRITICAL: The recent conversation above may contain previous questions. DO NOT repeat or copy those questions. You are generating a NEW question about {component.upper()} ({component_description}) ONLY.\n\nCRITICAL INSTRUCTIONS (READ CAREFULLY - FOLLOW EXACTLY):\n- You are asking about {component.upper()} ONLY - this is {component_description}\n- USE ONE OF THE EXAMPLE QUESTIONS AS YOUR EXACT TEMPLATE - copy the structure word-for-word\n- Do NOT repeat questions from the conversation context above\n- Do NOT add words from other OLDCARTS components\n- Do NOT mix elements: if asking about ONSET, do NOT use 'describe' (that's for CHARACTER)\n- Do NOT mix elements: if asking about CHARACTER, do NOT use 'when' or 'started' (that's for ONSET)\n- ⚠️ DO NOT REPEAT QUESTIONS ABOUT ALREADY-COVERED ELEMENTS: {not_to_ask}\n- ⚠️ DO NOT COMBINE MULTIPLE QUESTIONS - ASK ONLY ONE QUESTION ABOUT {component.upper()} ONLY\n\nEXACT REQUIREMENTS BY COMPONENT:\n- ONSET: Use ONLY 'When did this start?' or 'How long have you been experiencing this?' - NEVER use 'describe' or 'character'\n- CHARACTER: Use ONLY 'How would you describe this?' or 'What does this feel like?' - NEVER use 'when', 'started', 'first', or 'onset'\n- LOCATION: Use ONLY 'Where exactly is the pain located?' or 'Can you tell me where exactly the pain is?' - NEVER use 'when', 'started', 'onset', or list locations\n- AGGRAVATING: Use ONLY 'What makes it worse?' or 'Does anything make the pain worse?' - NEVER use 'when', 'started', 'onset', 'location', or list factors\n- RELIEVING: Use ONLY 'What helps?' or 'Does anything make it better?' - NEVER use 'when', 'started', 'onset', or list factors\n- TIMING: Use ONLY 'Is it constant or does it come and go?' - NEVER provide examples or use 'when', 'started', 'onset'\n- DURATION: Use ONLY 'How long does each episode typically last?' - NEVER mention other elements or use 'when', 'started', 'onset'\n- SEVERITY: Use ONLY 'On a scale of 1 to 10, how would you rate this?' - NEVER mention other elements\n\nRULES:\n- COPY the example question structure EXACTLY\n- Do NOT combine multiple OLDCARTS elements\n- Do NOT add descriptive terms or examples\n- Do NOT provide multiple choice options\n- Do NOT ask about physical exam maneuvers\n- Ask ONLY what the patient can observe or feel themselves\n- Base your question ONLY on '{self.chief_complaint}'\n- Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text.\n- ⚠️ FINAL CHECK: Make sure your question is ONLY about {component.upper()} and NOT about any of these already-covered elements: {not_to_ask}"
+        user_msg = f"Chief complaint: {self.chief_complaint}\n\nAsk about {component.upper()}.\n\nExample question: {sample_question}\n\nRecent conversation:\n{conversation_context}\n\nGenerate a natural question about {component} based on the conversation above. Keep it open-ended and flow naturally from what the patient has already told you. Return only the question, no other text."
         
         llm_kwargs = self._get_llm_kwargs()
         response = self.llm_chat_simple_fn(
@@ -1733,28 +1688,7 @@ class AdaptiveDiagnosticEngine:
             **llm_kwargs
         )
         if response and response.strip():
-            question = response.strip()
-            
-            # Remove common LLM prefixes like "Here is the question:" or "Question:"
-            prefixes_to_remove = [
-                "Here is the question:",
-                "Here is the question",
-                "Question:",
-                "Question",
-                "The question is:",
-                "The question is"
-            ]
-            for prefix in prefixes_to_remove:
-                if question.lower().startswith(prefix.lower()):
-                    question = question[len(prefix):].strip()
-                    # Remove leading colons or newlines
-                    question = question.lstrip(':').strip()
-                    # Remove extra newlines at the start
-                    while question.startswith('\n'):
-                        question = question[1:].strip()
-                    break
-            
-            return question
+            return response.strip()
         
         # If LLM returns empty, raise error instead of using fallback
         raise ValueError(f"LLM returned empty response for {component} question")
