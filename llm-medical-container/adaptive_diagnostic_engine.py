@@ -1802,10 +1802,24 @@ class AdaptiveDiagnosticEngine:
         
         sample_question = sample_questions.get(component, f"Tell me more about {component}.")
         
+        # Component-specific guidance to prevent mixing elements
+        component_guidance = {
+            'character': "Ask ONLY about the sensory quality of the pain (sharp, dull, burning, etc.). Do NOT ask about location, intensity, or duration.",
+            'location': "Ask ONLY about WHERE the pain is located. Do NOT ask about intensity or duration.",
+            'severity': "Ask ONLY about intensity/severity using a scale. Do NOT ask about location or other qualities.",
+            'aggravating': "Ask ONLY about what makes it worse. Do NOT ask about other factors.",
+            'relieving': "Ask ONLY about what helps or makes it better. Do NOT ask about other factors."
+        }
+        
+        guidance_text = component_guidance.get(component, "")
+        
         system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, open-ended question to ask about a specific aspect of a patient's symptoms. Follow the example question structure closely."
         
         # Use chief complaint and sample question template - NO conversation history
-        user_msg = f"Chief complaint: {self.chief_complaint}\n\nAsk about {component.upper()}.\n\nExample question: {sample_question}\n\nGenerate a similar question about {component} for this patient. Keep it simple and focused on ONLY {component}. Do NOT combine multiple elements. Return only the question, no other text."
+        if guidance_text:
+            user_msg = f"Chief complaint: {self.chief_complaint}\n\nAsk about {component.upper()}.\n\nExample question: {sample_question}\n\n{guidance_text}\n\nGenerate a similar question about {component} for this patient. Return only the question, no other text."
+        else:
+            user_msg = f"Chief complaint: {self.chief_complaint}\n\nAsk about {component.upper()}.\n\nExample question: {sample_question}\n\nGenerate a similar question about {component} for this patient. Keep it simple and focused on ONLY {component}. Do NOT combine multiple elements. Return only the question, no other text."
         
         llm_kwargs = self._get_llm_kwargs()
         response = self.llm_chat_simple_fn(
@@ -2163,13 +2177,27 @@ class AdaptiveDiagnosticEngine:
                 'status': 'questioning'
             }
         
-        # Simple response: just repeat the last question (no LLM generation, no conversation context)
+        # Provide helpful clarification based on the component being asked about
         if last_q:
-            # Just repeat the last question
-            repeated_question = last_q.get('question', 'Please answer my previous question.')
+            oldcarts_element = last_q.get('oldcarts', '')
+            
+            # Component-specific clarifications
+            clarifications = {
+                'character': "I'm asking about how the pain feels - like sharp, dull, burning, stabbing, or throbbing.",
+                'location': "I'm asking where exactly on your body the pain is located.",
+                'timing': "I'm asking whether the pain is constant or comes and goes.",
+                'duration': "I'm asking how long each episode of pain typically lasts.",
+                'aggravating': "I'm asking what makes the pain worse - activities, positions, or movements.",
+                'relieving': "I'm asking what helps or makes the pain better - medications, rest, or positions.",
+                'severity': "I'm asking how bad the pain is on a scale from 1 to 10, where 1 is mild and 10 is the worst pain imaginable."
+            }
+            
+            clarification = clarifications.get(oldcarts_element, last_q.get('question', 'Please answer my previous question.'))
+            
+            # Return clarification + repeat question
             return {
                 'success': True,
-                'message': repeated_question,
+                'message': f"{clarification}\n\n{last_q.get('question', 'Please answer my previous question.')}",
                 'status': 'questioning'
             }
         else:
