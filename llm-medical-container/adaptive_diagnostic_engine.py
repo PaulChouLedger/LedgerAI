@@ -1439,7 +1439,7 @@ class AdaptiveDiagnosticEngine:
                 # Check against ALL guidelines, not just active ones
                 # Use threshold=0.6 to match scoring behavior (compute_unified_similarity uses substring/exact matching which is more lenient)
                 semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(
-                    answer, oldcarts_element, threshold=0.6, 
+                    answer, oldcarts_element, threshold=0.75, 
                     return_scores=True, active_condition_names=all_condition_names
                 )
                 semantic_matches_set = set(t.lower() for t in semantic_matches)
@@ -1448,12 +1448,60 @@ class AdaptiveDiagnosticEngine:
                 if semantic_matches:
                     normalized_answer = semantic_matches[0].lower()
                 
-                # Get scores from the engine (filtered to all conditions we're checking)
+                # Compute unified similarity scores for matched terms (same as scoring uses)
+                # This replaces raw FAISS scores with unified scores (raw_similarity + word_match_boost)
+                unified_scores = {}
                 if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
-                    all_faiss_scores = self.medical_rule_engine._last_faiss_scores
-                    # Show scores for terms in ALL guidelines (not just active)
-                    faiss_scores = {term: score for term, score in all_faiss_scores.items() if term.lower() in all_includes}
-                    self._capture_debug(f"[Location Analysis] 🔍 FAISS scores (from {len(all_condition_names)} total conditions): {faiss_scores}")
+                    raw_faiss_scores = self.medical_rule_engine._last_faiss_scores
+                    # For each matched term, compute unified similarity using a representative guideline
+                    for term, raw_score in raw_faiss_scores.items():
+                        if term.lower() not in all_includes:
+                            continue
+                        # Find a guideline that contains this term
+                        for g in all_guidelines_to_check:
+                            structured = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+                            element_data = structured.get(oldcarts_element, {})
+                            if isinstance(element_data, dict):
+                                includes = element_data.get('includes', [])
+                                term_found = False
+                                for t in includes:
+                                    if isinstance(t, dict):
+                                        med = t.get('medical', '')
+                                        if med and med.strip().lower() == term.lower():
+                                            term_found = True
+                                            break
+                                    elif isinstance(t, str) and t.strip().lower() == term.lower():
+                                        term_found = True
+                                        break
+                                
+                                if term_found:
+                                    condition_name = g.get('data', {}).get('condition', g.get('name', ''))
+                                    # Build section text same way as scoring (join all medical terms)
+                                    element_terms = []
+                                    for t in includes:
+                                        if isinstance(t, dict):
+                                            med = t.get('medical', '')
+                                            if med:
+                                                element_terms.append(med)
+                                        elif isinstance(t, str):
+                                            element_terms.append(t)
+                                    oldcarts_section = ' '.join(element_terms)
+                                    
+                                    # Compute unified similarity (same as scoring)
+                                    similarity_result = self.medical_rule_engine.compute_unified_similarity(
+                                        answer, oldcarts_section, condition_name, organ_system,
+                                        oldcarts_element, {oldcarts_element: element_data},
+                                        pre_normalized_text=normalized_answer if normalized_answer != answer_lower else None,
+                                        precomputed_similarity=raw_score,
+                                        active_condition_names=all_condition_names
+                                    )
+                                    unified_scores[term] = similarity_result['similarity']
+                                    break
+                
+                # Use unified scores for display and matching
+                faiss_scores = unified_scores
+                if unified_scores:
+                    self._capture_debug(f"[Location Analysis] 🔍 Unified similarity scores (from {len(all_condition_names)} total conditions): {faiss_scores}")
             except Exception as e:
                 self._capture_debug(f"[Location Analysis] ⚠️ FAISS error: {e}")
                 pass
