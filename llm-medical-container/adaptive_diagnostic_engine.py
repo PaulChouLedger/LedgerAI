@@ -500,21 +500,83 @@ class AdaptiveDiagnosticEngine:
             query_embedding = np.array([query_embedding]).astype('float32')
             faiss.normalize_L2(query_embedding)
             
-            # Search FAISS index (get top 5 matches)
-            k = min(5, len(self.chief_complaint_triggers_data))
+            # Search FAISS index (get top matches - use more for fuzzy filtering)
+            k = min(10, len(self.chief_complaint_triggers_data))  # Get more candidates for fuzzy filtering
             similarities, indices = self.chief_complaint_triggers_index.search(query_embedding, k)
             
-            # Find best matching category (threshold 0.6)
+            # Find best matching category (threshold 0.6) and track near-misses for fuzzy matching
             category_scores = {}
-            for idx, sim in zip(indices[0], similarities[0]):
-                if idx < len(self.chief_complaint_triggers_data) and sim >= 0.6:
-                    trigger_data = self.chief_complaint_triggers_data[idx]
-                    category = trigger_data['category']
-                    if category not in category_scores or sim > category_scores[category]:
-                        category_scores[category] = sim
+            near_miss_candidates = []  # Triggers that scored 0.5-0.6 (close but below threshold)
             
+            for idx, sim in zip(indices[0], similarities[0]):
+                if idx < len(self.chief_complaint_triggers_data):
+                    trigger_data = self.chief_complaint_triggers_data[idx]
+                    
+                    if sim >= 0.6:
+                        # Above threshold - use for category matching
+                        category = trigger_data['category']
+                        if category not in category_scores or sim > category_scores[category]:
+                            category_scores[category] = sim
+                    elif sim >= 0.5:
+                        # Close to threshold - candidate for fuzzy matching (typo detection)
+                        near_miss_candidates.append((trigger_data, sim))
+            
+            # If FAISS didn't find matches above threshold, try fuzzy matching only on near-misses
+            if not category_scores and near_miss_candidates:
+                self._capture_debug(f"[Engine] ⚠️ FAISS found no matches above 0.6, trying fuzzy matching on {len(near_miss_candidates)} near-miss candidates...")
+                try:
+                    from difflib import SequenceMatcher
+                    
+                    chief_complaint_lower = chief_complaint.lower()
+                    
+                    # OPTIMIZATION: Extract key medical terms from chief complaint for faster matching
+                    # Remove common phrases like "I have", "I'm experiencing", etc.
+                    key_terms = chief_complaint_lower
+                    for phrase in ["i have", "i'm having", "i've got", "i feel", "i'm experiencing"]:
+                        if key_terms.startswith(phrase):
+                            key_terms = key_terms[len(phrase):].strip()
+                            break
+                    
+                    key_terms_len = len(key_terms)
+                    best_fuzzy_match = None
+                    best_fuzzy_score = 0.0
+                    best_fuzzy_category = None
+                    
+                    # Only fuzzy match against near-miss candidates (already filtered by FAISS)
+                    for trigger_data, faiss_score in near_miss_candidates:
+                        trigger_text = trigger_data.get('trigger', '').lower()
+                        if not trigger_text:
+                            continue
+                        
+                        # Fast length check first (skip if lengths too different)
+                        trigger_len = len(trigger_text)
+                        length_ratio = min(key_terms_len, trigger_len) / max(key_terms_len, trigger_len)
+                        if length_ratio < 0.5:  # More than 50% length difference = skip
+                            continue
+                        
+                        # Fast substring check (if one is substring of other, high similarity)
+                        if key_terms in trigger_text or trigger_text in key_terms:
+                            similarity = 0.9  # High score for substring match
+                        else:
+                            # Only do expensive SequenceMatcher if length check passed
+                            similarity = SequenceMatcher(None, key_terms, trigger_text).ratio()
+                        
+                        if similarity > best_fuzzy_score and similarity >= 0.8:  # Fuzzy threshold (stricter than FAISS for typos)
+                            best_fuzzy_score = similarity
+                            best_fuzzy_match = trigger_text
+                            best_fuzzy_category = trigger_data['category']
+                    
+                    if best_fuzzy_match and best_fuzzy_category:
+                        self._capture_debug(f"[Engine] ✅ Fuzzy match found: '{chief_complaint}' → '{best_fuzzy_match}' ({best_fuzzy_category}, FAISS: {faiss_score:.3f} → fuzzy: {best_fuzzy_score:.3f})")
+                        return best_fuzzy_category
+                    else:
+                        self._capture_debug(f"[Engine] ❌ Fuzzy matching on near-misses found no matches (threshold: 0.8)")
+                except Exception as fuzzy_e:
+                    self._capture_debug(f"[Engine] ⚠️ Fuzzy matching error: {fuzzy_e}")
+            
+            # If no matches found (either above threshold or via fuzzy on near-misses)
             if not category_scores:
-                raise ValueError(f"No category match found for chief complaint: '{chief_complaint}' (threshold: 0.6)")
+                raise ValueError(f"No category match found for chief complaint: '{chief_complaint}' (FAISS threshold: 0.6, fuzzy on near-misses 0.5-0.6)")
             
             # Sort categories by score
             sorted_categories = sorted(category_scores.items(), key=lambda x: x[1], reverse=True)
