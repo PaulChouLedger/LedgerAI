@@ -1667,7 +1667,7 @@ class AdaptiveDiagnosticEngine:
             'location': "Where exactly is the pain located?",
             'timing': "Is it constant or does it come and go?",
             'duration': "How long does each episode typically last?",
-            'character': "How would you describe this?",
+            'character': "How would you describe the pain? What does it feel like?",
             'aggravating': "What makes it worse?",
             'relieving': "What helps or makes it better?",
             'severity': "On a scale of 1 to 10, how would you rate this?"
