@@ -21,6 +21,7 @@ from thinking_fillers import get_filler
 # Import modular RAG client
 from rag import get_rag_client
 import numpy as np
+import faiss
 
 # Import fuzzy medical matcher for typo correction
 from fuzzy_medical_matcher import FuzzyMedicalMatcher
@@ -151,6 +152,11 @@ class AdaptiveDiagnosticEngine:
         # OPTIMIZATION: Pre-load and cache synonym mappings to avoid repeated I/O
         self.synonym_cache = {}
         self._load_synonym_cache()
+        
+        # Pre-build chief complaint trigger index for category matching
+        self.chief_complaint_triggers_index = None
+        self.chief_complaint_triggers_data = []  # List of {trigger, category, condition}
+        self._build_chief_complaint_triggers_index()
         
         # Initialize assessment state
         self.reset_assessment()
@@ -434,36 +440,100 @@ class AdaptiveDiagnosticEngine:
             # Statement already shown, proceed to demographics
             return self._generate_ml_first_question_with_demographics()
     
-    def _match_chief_complaint_to_category(self, chief_complaint: str) -> str:
-        """Use unified function with chief complaint synonyms → match category"""
-        best_match = None
-        best_score = 0.0
+    def _build_chief_complaint_triggers_index(self):
+        """Pre-build FAISS index for chief_complaint_triggers from all guidelines"""
+        if not self.embedding_model:
+            self._capture_debug("[Engine] ⚠️ No embedding model for chief complaint triggers index")
+            return
         
-        for category, organ_system in self.CATEGORY_TO_SYSTEM.items():
-            synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
-            synonym_path = os.path.join(os.path.dirname(__file__), synonym_file)
+        try:
+            triggers = []
+            for name, guideline in self.all_guidelines.items():
+                triggers_list = guideline.get('chief_complaint_triggers', [])
+                category = self._get_guideline_category(guideline)
+                
+                for trigger in triggers_list:
+                    self.chief_complaint_triggers_data.append({
+                        'trigger': trigger,
+                        'category': category,
+                        'condition': name
+                    })
+                    triggers.append(trigger)
             
-            if os.path.exists(synonym_path):
-                try:
-                    with open(synonym_path, 'r') as f:
-                        synonyms = json.load(f)
-                    
-                    if 'chief_complaint' in synonyms:
-                        for standard_term, synonym_list in synonyms['chief_complaint'].items():
-                            for synonym in synonym_list:
-                                if synonym.lower() in chief_complaint.lower():
-                                    score = len(synonym) / len(chief_complaint)
-                                    if score > best_score:
-                                        best_score = score
-                                        best_match = category
-                except Exception:
-                    pass
+            if triggers:
+                # Build FAISS index for all triggers
+                embeddings = self.embedding_model.encode(triggers)
+                dimension = len(embeddings[0])
+                self.chief_complaint_triggers_index = faiss.IndexFlatIP(dimension)
+                
+                # Normalize for cosine similarity
+                embeddings_np = np.array(embeddings).astype('float32')
+                faiss.normalize_L2(embeddings_np)
+                self.chief_complaint_triggers_index.add(embeddings_np)
+                
+                self._capture_debug(f"[Engine] ✅ Built chief complaint triggers index: {len(triggers)} triggers from {len(set(g['category'] for g in self.chief_complaint_triggers_data))} categories")
+        except Exception as e:
+            self._capture_debug(f"[Engine] ⚠️ Failed to build chief complaint triggers index: {e}")
+            self.chief_complaint_triggers_index = None
+    
+    def _get_guideline_category(self, guideline: Dict) -> str:
+        """Extract category from guideline (from directory structure or organ_system)"""
+        # Try to get from organ_system stored during loading
+        organ_system = guideline.get('organ_system', '')
+        if organ_system:
+            # Reverse map: organ_system -> category
+            for cat, sys in self.CATEGORY_TO_SYSTEM.items():
+                if sys == organ_system:
+                    return cat
         
-        if best_match:
-            return best_match
+        # Fallback: try to infer from guideline name/path
+        return 'gastrointestinal'  # Default
+    
+    def _match_chief_complaint_to_category(self, chief_complaint: str) -> str:
+        """Match chief complaint to category using FAISS similarity against chief_complaint_triggers"""
+        if not self.chief_complaint_triggers_index or not self.embedding_model or len(self.chief_complaint_triggers_data) == 0:
+            raise ValueError("Chief complaint triggers index not available. Cannot match category.")
         
-        # Fallback to substring matching
-        return self._categorize_complaint_by_substring(chief_complaint)
+        try:
+            # Encode chief complaint
+            query_embedding = self.embedding_model.encode([chief_complaint.lower()])[0]
+            query_embedding = np.array([query_embedding]).astype('float32')
+            faiss.normalize_L2(query_embedding)
+            
+            # Search FAISS index (get top 5 matches)
+            k = min(5, len(self.chief_complaint_triggers_data))
+            similarities, indices = self.chief_complaint_triggers_index.search(query_embedding, k)
+            
+            # Find best matching category (threshold 0.6)
+            category_scores = {}
+            for idx, sim in zip(indices[0], similarities[0]):
+                if idx < len(self.chief_complaint_triggers_data) and sim >= 0.6:
+                    trigger_data = self.chief_complaint_triggers_data[idx]
+                    category = trigger_data['category']
+                    if category not in category_scores or sim > category_scores[category]:
+                        category_scores[category] = sim
+            
+            if not category_scores:
+                raise ValueError(f"No category match found for chief complaint: '{chief_complaint}' (threshold: 0.6)")
+            
+            # Sort categories by score
+            sorted_categories = sorted(category_scores.items(), key=lambda x: x[1], reverse=True)
+            best_category, best_score = sorted_categories[0]
+            
+            # Check for cross-organ system matches (if multiple categories have similar scores)
+            # If second-best category is within 0.1 of best, it might be crossover
+            if len(sorted_categories) > 1:
+                second_score = sorted_categories[1][1]
+                if best_score - second_score < 0.1 and second_score >= 0.6:
+                    second_category = sorted_categories[1][0]
+                    self._capture_debug(f"[Engine] 🎯 Multiple categories detected (crossover): {best_category} ({best_score:.3f}) vs {second_category} ({second_score:.3f})")
+                    # For now, return best - could be extended to return both categories
+            
+            self._capture_debug(f"[Engine] 🎯 Category matched via chief_complaint_triggers: {best_category} (score: {best_score:.3f})")
+            return best_category
+        except Exception as e:
+            self._capture_debug(f"[Engine] ❌ FAISS chief complaint matching failed: {e}")
+            raise ValueError(f"Failed to match chief complaint to category: {e}")
     
     def _categorize_complaint_by_substring(self, complaint: str) -> str:
         """Fallback category detection"""
@@ -474,7 +544,7 @@ class AdaptiveDiagnosticEngine:
             'NEURO': ['head', 'headache', 'brain'],
             'MSK': ['back', 'joint', 'muscle', 'bone'],
             'RENAL': ['kidney', 'urinary', 'bladder'],
-            'DERM': ['skin', 'rash'],
+            'DERM': ['skin', 'rash', 'lump', 'bump', 'lesion', 'mole'],
             'GYN': ['pelvic', 'menstrual'],
             'GU': ['prostate', 'testicular'],
             'PULMONARY': ['lung', 'breathing', 'respiratory']
@@ -1667,7 +1737,7 @@ class AdaptiveDiagnosticEngine:
             'location': "Where exactly is the pain located?",
             'timing': "Is it constant or does it come and go?",
             'duration': "How long does each episode typically last?",
-            'character': "How would you describe the pain? What does it feel like?",
+            'character': "What does it feel like?",
             'aggravating': "What makes it worse?",
             'relieving': "What helps or makes it better?",
             'severity': "On a scale of 1 to 10, how would you rate this?"

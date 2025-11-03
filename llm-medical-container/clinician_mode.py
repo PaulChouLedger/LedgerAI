@@ -171,6 +171,10 @@ class ClinicianSession:
         self.dynamic_assessment = None  # Legacy - kept for compatibility
         self.medical_rag = None
         
+        # Track session-specific adaptive engine state (since engine is singleton)
+        self.adaptive_assessment_active = False  # True if THIS SESSION has an active assessment
+        self.session_chief_complaint = None  # Track THIS SESSION's chief complaint
+        
         # NEW: Adaptive diagnostic engine (with LLM + RAG embeddings for semantic similarity)
         # Use singleton pattern - create once, reuse for all sessions (loading 144 guidelines is expensive!)
         self.adaptive_engine = None
@@ -289,10 +293,21 @@ class ClinicianSession:
             'timestamp': datetime.now().isoformat()
         })
 
-        # PRIORITY 1: Check if adaptive engine has active assessment
-        if self.adaptive_engine and self.adaptive_engine.status in ["questioning", "red_flag_screening"]:
-            print(f"[Clinician] 🔄 Continuing active adaptive assessment (status: {self.adaptive_engine.status})")
-            return self._handle_symptom_assessment(user_input)
+        # PRIORITY 1: Check if THIS SESSION has an active assessment
+        # Use session-specific state, not the shared engine's global state
+        if self.adaptive_assessment_active and self.adaptive_engine:
+            # Check if user_input looks like a NEW chief complaint (not an answer to previous question)
+            is_new_complaint = self._is_new_chief_complaint(user_input, self.adaptive_engine, self.session_chief_complaint)
+            
+            if is_new_complaint:
+                print(f"[Clinician] 🆕 Detected NEW chief complaint - resetting assessment for session {self.session_id}")
+                self.adaptive_engine.reset_assessment()
+                self.adaptive_assessment_active = False
+                self.session_chief_complaint = None
+                # Continue to start new assessment below
+            else:
+                print(f"[Clinician] 🔄 Continuing active adaptive assessment for session {self.session_id}")
+                return self._handle_symptom_assessment(user_input)
         
         # PRIORITY 2: Check if we have an active dynamic assessment in progress (legacy)
         if self.dynamic_assessment and not self.dynamic_assessment.completed:
@@ -389,6 +404,59 @@ class ClinicianSession:
 
         return "general_medical"
 
+    def _is_new_chief_complaint(self, user_input: str, adaptive_engine, session_chief_complaint: str = None) -> bool:
+        """
+        Detect if user_input is a NEW chief complaint (symptom description) vs. an answer to a question
+        
+        Returns True if it looks like a new complaint, False if it looks like an answer
+        """
+        # Use session-specific chief complaint if available, otherwise use engine's
+        if not session_chief_complaint:
+            if adaptive_engine and hasattr(adaptive_engine, 'chief_complaint'):
+                session_chief_complaint = adaptive_engine.chief_complaint or ""
+            else:
+                return True  # No current complaint, so this must be new
+        
+        current_complaint = session_chief_complaint or ""
+        user_lower = user_input.lower().strip()
+        
+        # Check for patterns that indicate a NEW complaint:
+        # 1. Contains symptom keywords but doesn't match current complaint context
+        # 2. Starts with "I have", "I'm having", "I feel", etc.
+        # 3. Contains location/symptom descriptors that differ from current
+        
+        new_complaint_patterns = [
+            r'^i\s+(have|am\s+having|feel|experienced)',
+            r'^i\'m\s+(having|experiencing|feeling)',
+            r'^i\'ve\s+(got|been\s+having|been\s+experiencing)',
+            r'^hi.*(pain|ache|symptom)',
+            r'^hello.*(pain|ache|symptom)'
+        ]
+        
+        import re
+        matches_new_pattern = any(re.search(pattern, user_lower) for pattern in new_complaint_patterns)
+        
+        # If it matches new complaint pattern AND mentions different symptoms than current complaint
+        if matches_new_pattern:
+            # Extract symptom keywords
+            symptom_keywords = ['pain', 'ache', 'hurt', 'nausea', 'vomit', 'fever', 'cough', 
+                               'chest', 'abdomen', 'stomach', 'head', 'back', 'lump', 'rash']
+            input_symptoms = [kw for kw in symptom_keywords if kw in user_lower]
+            current_symptoms = [kw for kw in symptom_keywords if kw in current_complaint.lower()]
+            
+            # If input has symptoms that don't match current complaint, it's new
+            if input_symptoms and input_symptoms != current_symptoms:
+                return True
+        
+        # Check if it's a very short answer (likely answer to question, not new complaint)
+        # Answers are usually 1-5 words, new complaints are usually longer
+        word_count = len(user_input.split())
+        if word_count <= 5 and not matches_new_pattern:
+            return False  # Likely an answer
+        
+        # Default: if it matches new complaint pattern, treat as new
+        return matches_new_pattern
+
     def _handle_symptom_assessment(self, symptom_query: str) -> str:
         """
         Handle symptom assessment using ADAPTIVE guideline-based questioning
@@ -403,14 +471,20 @@ class ClinicianSession:
         if self.use_adaptive_engine and self.adaptive_engine:
             print(f"[Clinician] 🔍 Adaptive engine status: {self.adaptive_engine.status if hasattr(self.adaptive_engine, 'status') else 'unknown'}")
             try:
-                # Check if assessment is active
-                if self.adaptive_engine.status == "idle":
-                    # Start new assessment
-                    print("[Adaptive] 🚀 Starting new adaptive assessment")
+                # Check if THIS SESSION has an active assessment
+                # IMPORTANT: Always check SESSION state first, not engine's global state
+                # (Engine is singleton, but each session tracks its own assessment)
+                if not self.adaptive_assessment_active:
+                    # Start new assessment for this session (even if engine has state from another session)
+                    print(f"[Adaptive] 🚀 Starting new adaptive assessment for session {self.session_id}")
+                    # Reset engine first to clear any state from other sessions
+                    self.adaptive_engine.reset_assessment()
                     response = self.adaptive_engine.start_assessment(symptom_query)
+                    self.adaptive_assessment_active = True
+                    self.session_chief_complaint = symptom_query
                 else:
-                    # Continue existing assessment
-                    print("[Adaptive] 🔄 Continuing adaptive assessment")
+                    # Continue existing assessment for this session
+                    print(f"[Adaptive] 🔄 Continuing adaptive assessment for session {self.session_id}")
                     response = self.adaptive_engine.process_answer(symptom_query)
                 
                 # Handle response

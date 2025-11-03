@@ -22,6 +22,24 @@
       "skin abnormalities",
       "skin irregularities"
     ],
+    "lump": [
+      "lump",
+      "skin lump",
+      "bump",
+      "skin bump",
+      "growth",
+      "skin growth",
+      "mass",
+      "skin mass",
+      "nodule",
+      "skin nodule",
+      "lesion",
+      "skin lesion",
+      "mole",
+      "suspicious mole",
+      "skin cancer",
+      "melanoma"
+    ],
     "itching": [
       "itchy",
       "itching",
