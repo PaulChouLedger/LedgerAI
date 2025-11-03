@@ -1675,9 +1675,9 @@ class AdaptiveDiagnosticEngine:
         
         sample_question = sample_questions.get(component, f"Tell me more about {component}.")
         
-        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, open-ended question to ask about a specific aspect of a patient's symptoms. Keep it short, empathetic, and based on the conversation context."
+        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, open-ended question to ask about a specific aspect of a patient's symptoms. Follow the example question structure provided."
         
-        user_msg = f"Chief complaint: {self.chief_complaint}\n\nAsk about {component.upper()}.\n\nExample question: {sample_question}\n\nRecent conversation:\n{conversation_context}\n\nGenerate a natural question about {component} based on the conversation above. Keep it open-ended and flow naturally from what the patient has already told you. Return only the question, no other text."
+        user_msg = f"Chief complaint: {self.chief_complaint}\n\nAsk about {component.upper()}.\n\nExample: {sample_question}\n\nGenerate a similar question about {component}. Return only the question, no other text."
         
         llm_kwargs = self._get_llm_kwargs()
         response = self.llm_chat_simple_fn(
