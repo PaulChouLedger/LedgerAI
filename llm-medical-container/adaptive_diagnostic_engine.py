@@ -786,7 +786,13 @@ class AdaptiveDiagnosticEngine:
         
         if oldcarts_element == 'location' and self.medical_rule_engine:
             self._capture_debug(f"[Engine] 🏥 Filtering guidelines using medical_rules.json")
+            # Debug: Show scores BEFORE filtering
+            scores_before_filter = [(g.get('data', {}).get('condition', g.get('name', 'Unknown')), id(g), g.get('score', 'MISSING')) for g in all_guidelines[:3]]
+            self._capture_debug(f"[Engine] 🔍 Before filtering (first 3): {scores_before_filter}")
             all_guidelines = self.medical_rule_engine.filter_guidelines_by_location(answer, all_guidelines, organ_system)
+            # Debug: Show scores AFTER filtering
+            scores_after_filter = [(g.get('data', {}).get('condition', g.get('name', 'Unknown')), id(g), g.get('score', 'MISSING')) for g in all_guidelines[:3]]
+            self._capture_debug(f"[Engine] 🔍 After filtering (first 3): {scores_after_filter}")
         
         # STEP 2: Score all guidelines using unified function
         self._capture_debug(f"[Scoring] 🔍 Scoring {len(all_guidelines)} guidelines for element: {oldcarts_element}")
@@ -1028,8 +1034,8 @@ class AdaptiveDiagnosticEngine:
     
     def _rerank_and_pool_guidelines(self, all_guidelines: list, previous_active: set):
         """Re-rank guidelines by score and update active/reserve pools"""
-        # Debug: Show scores BEFORE sorting
-        scores_before = [(g.get('data', {}).get('condition', g.get('name', 'Unknown')), g.get('score', 'MISSING')) for g in all_guidelines[:5]]
+        # Debug: Show scores BEFORE sorting with IDs to detect object reference issues
+        scores_before = [(g.get('data', {}).get('condition', g.get('name', 'Unknown')), id(g), g.get('score', 'MISSING')) for g in all_guidelines[:5]]
         self._capture_debug(f"[Ranking] 🔍 Scores before sorting (first 5): {scores_before}")
         
         # Re-rank
