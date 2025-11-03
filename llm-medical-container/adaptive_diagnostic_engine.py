@@ -855,6 +855,15 @@ class AdaptiveDiagnosticEngine:
         # Track which guidelines got scored (for debugging)
         scored_guidelines = set()
         
+        # Debug: Show what we're about to score
+        self._capture_debug(f"[Scoring] 🔍 About to score {len(guideline_data)} guidelines")
+        for idx, g_data in enumerate(guideline_data[:3]):
+            g = g_data['guideline']
+            condition_name = g_data['condition_name']
+            g_id = id(g)
+            g_score = g.get('score', 'MISSING')
+            self._capture_debug(f"[Scoring] 🔍 Guideline[{idx}]: {condition_name}, id={g_id}, score={g_score}")
+        
         # Pass 2: Score each guideline
         for idx, g_data in enumerate(guideline_data):
             g = g_data['guideline']
@@ -1397,8 +1406,8 @@ class AdaptiveDiagnosticEngine:
         seen_friendly_terms = set()  # Track unique patient-friendly terms to avoid duplicates
         medical_to_friendly_map = {}
         
-        # Try up to 8 terms to get 4 unique patient-friendly terms
-        for term in missing_terms[:8]:
+        # Try up to 10 terms to get 5 unique patient-friendly terms
+        for term in missing_terms[:10]:
             friendly_term = self._get_patient_friendly_from_guidelines(term, oldcarts_element)
             medical_to_friendly_map[term] = friendly_term
             
@@ -1411,7 +1420,7 @@ class AdaptiveDiagnosticEngine:
                 if friendly_lower not in seen_friendly_terms:
                     patient_friendly_terms.append(friendly_term.strip())
                     seen_friendly_terms.add(friendly_lower)
-                    if len(patient_friendly_terms) >= 4:  # Stop when we have 4 unique ones
+                    if len(patient_friendly_terms) >= 5:  # Stop when we have 5 unique ones
                         break
         
         # If no good terms found, use generic clarifying question
