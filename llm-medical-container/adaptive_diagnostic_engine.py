@@ -1663,7 +1663,11 @@ class AdaptiveDiagnosticEngine:
         
         # Provide context: chief complaint and what we already know
         chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}"
-        covered_info = "Already covered: " + ", ".join([k for k, v in self.oldcarts_covered.items() if v])
+        covered_elements = [k for k, v in self.oldcarts_covered.items() if v]
+        element_map = {'O': 'onset', 'L': 'location', 'T': 'timing', 'D': 'duration',
+                      'C': 'character', 'A': 'aggravating', 'R': 'relieving', 'S': 'severity'}
+        covered_names = [element_map.get(k, k) for k in covered_elements]
+        covered_info = "Already covered: " + ", ".join(covered_names) if covered_names else "Already covered: (none)"
         
         # Get current category to ensure questions are relevant
         category_context = ""
@@ -1715,7 +1719,10 @@ class AdaptiveDiagnosticEngine:
             if len(parts) >= 2:
                 example_question = parts[1]
         
-        user_msg = f"TASK: Generate a completely OPEN-ENDED question about {component.upper()} ({component_description}) ONLY.\n\n{chief_complaint_context}{category_context}\n{covered_info}\n\nMANDATORY EXAMPLE QUESTION FOR {component.upper()}:\n{sample_guidance}\n\nRecent conversation:\n{conversation_context}\n\nCRITICAL INSTRUCTIONS (READ CAREFULLY - FOLLOW EXACTLY):\n- You are asking about {component.upper()} ONLY - this is {component_description}\n- USE ONE OF THE EXAMPLE QUESTIONS AS YOUR EXACT TEMPLATE - copy the structure word-for-word\n- Do NOT add words from other OLDCARTS components\n- Do NOT mix elements: if asking about ONSET, do NOT use 'describe' (that's for CHARACTER)\n- Do NOT mix elements: if asking about CHARACTER, do NOT use 'when' or 'started' (that's for ONSET)\n\nEXACT REQUIREMENTS BY COMPONENT:\n- ONSET: Use ONLY 'When did this start?' or 'How long have you been experiencing this?' - NEVER use 'describe' or 'character'\n- CHARACTER: Use ONLY 'How would you describe this?' or 'What does this feel like?' - NEVER use 'when', 'started', 'first', or 'onset'\n- LOCATION: Use ONLY 'WHERE is the pain located?' or 'Can you tell me where exactly the pain is?' - NEVER list locations\n- AGGRAVATING: Use ONLY 'What makes it worse?' or 'Does anything make the pain worse?' - NEVER list factors\n- RELIEVING: Use ONLY 'What helps?' or 'Does anything make it better?' - NEVER list factors\n- TIMING: Use ONLY 'Is it constant or does it come and go?' - NEVER provide examples\n- DURATION: Use ONLY 'How long does each episode typically last?' - NEVER mention other elements\n- SEVERITY: Use ONLY 'On a scale of 1 to 10, how would you rate this?' - NEVER mention other elements\n\nRULES:\n- COPY the example question structure EXACTLY\n- Do NOT combine multiple OLDCARTS elements\n- Do NOT add descriptive terms or examples\n- Do NOT provide multiple choice options\n- Do NOT ask about physical exam maneuvers\n- Ask ONLY what the patient can observe or feel themselves\n- Base your question ONLY on '{self.chief_complaint}'\n- Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
+        # Build explicit list of what NOT to ask about
+        not_to_ask = ", ".join([c.upper() for c in covered_names if c != component]) if covered_names else "(none)"
+        
+        user_msg = f"TASK: Generate a completely OPEN-ENDED question about {component.upper()} ({component_description}) ONLY.\n\n{chief_complaint_context}{category_context}\n{covered_info}\n\n❌ DO NOT ASK ABOUT THESE (ALREADY COVERED): {not_to_ask}\n✅ YOU MUST ASK ABOUT THIS ONE THING ONLY: {component.upper()} ({component_description})\n\nMANDATORY EXAMPLE QUESTION FOR {component.upper()}:\n{sample_guidance}\n\nRecent conversation:\n{conversation_context}\n\nCRITICAL INSTRUCTIONS (READ CAREFULLY - FOLLOW EXACTLY):\n- You are asking about {component.upper()} ONLY - this is {component_description}\n- USE ONE OF THE EXAMPLE QUESTIONS AS YOUR EXACT TEMPLATE - copy the structure word-for-word\n- Do NOT add words from other OLDCARTS components\n- Do NOT mix elements: if asking about ONSET, do NOT use 'describe' (that's for CHARACTER)\n- Do NOT mix elements: if asking about CHARACTER, do NOT use 'when' or 'started' (that's for ONSET)\n- ⚠️ DO NOT REPEAT QUESTIONS ABOUT ALREADY-COVERED ELEMENTS: {not_to_ask}\n- ⚠️ DO NOT COMBINE MULTIPLE QUESTIONS - ASK ONLY ONE QUESTION ABOUT {component.upper()} ONLY\n\nEXACT REQUIREMENTS BY COMPONENT:\n- ONSET: Use ONLY 'When did this start?' or 'How long have you been experiencing this?' - NEVER use 'describe' or 'character'\n- CHARACTER: Use ONLY 'How would you describe this?' or 'What does this feel like?' - NEVER use 'when', 'started', 'first', or 'onset'\n- LOCATION: Use ONLY 'WHERE is the pain located?' or 'Can you tell me where exactly the pain is?' - NEVER list locations\n- AGGRAVATING: Use ONLY 'What makes it worse?' or 'Does anything make the pain worse?' - NEVER list factors\n- RELIEVING: Use ONLY 'What helps?' or 'Does anything make it better?' - NEVER list factors\n- TIMING: Use ONLY 'Is it constant or does it come and go?' - NEVER provide examples\n- DURATION: Use ONLY 'How long does each episode typically last?' - NEVER mention other elements\n- SEVERITY: Use ONLY 'On a scale of 1 to 10, how would you rate this?' - NEVER mention other elements\n\nRULES:\n- COPY the example question structure EXACTLY\n- Do NOT combine multiple OLDCARTS elements\n- Do NOT add descriptive terms or examples\n- Do NOT provide multiple choice options\n- Do NOT ask about physical exam maneuvers\n- Ask ONLY what the patient can observe or feel themselves\n- Base your question ONLY on '{self.chief_complaint}'\n- Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text.\n- ⚠️ FINAL CHECK: Make sure your question is ONLY about {component.upper()} and NOT about any of these already-covered elements: {not_to_ask}"
         
         llm_kwargs = self._get_llm_kwargs()
         response = self.llm_chat_simple_fn(
@@ -1775,24 +1782,8 @@ class AdaptiveDiagnosticEngine:
         
         # STEP 2: Age question
         if 'age' not in self.demographics:
-            if not self.llm_chat_simple_fn:
-                raise ValueError("LLM not available for question generation")
-            
-            system_msg = "You are a medical assistant. Generate a natural, conversational question to ask for the patient's age."
-            user_msg = "Generate a natural question to ask for the patient's age. Make it conversational and professional. Respond in 1–2 concise sentences. Ask only one question. End with a single question mark. Return only the question, no other text."
-            
-            llm_kwargs = self._get_llm_kwargs()
-            response = self.llm_chat_simple_fn(
-                [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg}
-                ],
-                **llm_kwargs
-            )
-            if not response or not response.strip():
-                raise ValueError("LLM returned empty response for age question")
-            
-            question = response.strip()
+            # Use hardcoded question for consistency
+            question = "Can you please tell me your age so I can update our medical records?"
             
             self.conversation_history.append({
                 'type': 'question',
