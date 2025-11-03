@@ -1722,24 +1722,11 @@ class AdaptiveDiagnosticEngine:
         return response.strip()
     
     def _generate_oldcarts_question_for_component(self, component: str) -> str:
-        """Generate question for OLDCARTS component using LLM with proper context"""
+        """Generate question for OLDCARTS component using LLM - ONLY uses sample question template, NO conversation history"""
         if not self.llm_chat_simple_fn:
             raise ValueError("LLM not available for question generation")
         
-        # Build conversation context from recent history
-        conversation_context = ""
-        if hasattr(self, 'conversation_history') and self.conversation_history:
-            # Get last 3-4 items for context (recent Q&A)
-            recent_items = self.conversation_history[-4:]
-            for item in recent_items:
-                if item.get('type') == 'question':
-                    conversation_context += f"{item.get('question', item.get('message', ''))}\n"
-                elif item.get('type') == 'answer':
-                    conversation_context += f"{item.get('answer', item.get('message', ''))}\n"
-                elif item.get('type') == 'statement':
-                    conversation_context += f"{item.get('message', '')}\n"
-        
-        # Sample questions for each OLDCARTS element as guidance
+        # Sample questions for each OLDCARTS element as guidance (ONLY reference)
         sample_questions = {
             'onset': "When did this start?",
             'location': "Where exactly is the pain located?",
@@ -1753,9 +1740,10 @@ class AdaptiveDiagnosticEngine:
         
         sample_question = sample_questions.get(component, f"Tell me more about {component}.")
         
-        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, open-ended question to ask about a specific aspect of a patient's symptoms. Follow the example question structure provided."
+        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, open-ended question to ask about a specific aspect of a patient's symptoms. Follow the example question structure closely."
         
-        user_msg = f"Chief complaint: {self.chief_complaint}\n\nAsk about {component.upper()}.\n\nExample: {sample_question}\n\nGenerate a similar question about {component}. Return only the question, no other text."
+        # Use chief complaint and sample question template - NO conversation history
+        user_msg = f"Chief complaint: {self.chief_complaint}\n\nAsk about {component.upper()}.\n\nExample question: {sample_question}\n\nGenerate a similar question about {component} for this patient. Keep it simple and focused on ONLY {component}. Do NOT combine multiple elements. Return only the question, no other text."
         
         llm_kwargs = self._get_llm_kwargs()
         response = self.llm_chat_simple_fn(
@@ -2086,8 +2074,8 @@ class AdaptiveDiagnosticEngine:
         return False
     
     def _handle_user_question(self, user_question: str) -> Dict[str, Any]:
-        """Handle user questions using LLM with conversation context"""
-        # Special-case: if last active question is an OLDCARTS clinical question, prefer element-specific clarification
+        """Handle user questions - just repeat the last question (no LLM generation)"""
+        # Find the last question asked
         last_q = None
         for item in reversed(self.conversation_history):
             if item['type'] == 'question':
@@ -2113,80 +2101,19 @@ class AdaptiveDiagnosticEngine:
                 'status': 'questioning'
             }
         
-        if not self.llm_chat_fn:
+        # Simple response: just repeat the last question (no LLM generation, no conversation context)
+        if last_q:
+            # Just repeat the last question
+            repeated_question = last_q.get('question', 'Please answer my previous question.')
+            return {
+                'success': True,
+                'message': repeated_question,
+                'status': 'questioning'
+            }
+        else:
             return {
                 'success': False,
-                'message': 'I understand you have a question, but I need an answer to continue. Please try to answer the question I asked.'
-            }
-        
-        # Build conversation context
-        context_lines = []
-        for item in self.conversation_history[-6:]:  # Last 6 items for context
-            if item['type'] == 'question':
-                context_lines.append(f"Assistant: {item['question']}")
-            elif item['type'] == 'answer':
-                context_lines.append(f"Patient: {item['answer']}")
-        
-        context = "\n".join(context_lines) if context_lines else "No previous conversation."
-        
-        # Get current question being asked
-        last_question = None
-        for item in reversed(self.conversation_history):
-            if item['type'] == 'question' and item.get('focus') != 'age' and item.get('focus') != 'sex':
-                last_question = item['question']
-                break
-        
-        # Build LLM prompt
-        system_msg = """You are a helpful medical assistant. The patient has asked a question during a medical assessment.
-Provide a clear, empathetic, and brief explanation. Do NOT expose internal reasoning, and do NOT invent clinical details.
-Do NOT name specific anatomical locations unless the patient has already said them. Keep it neutral and ask for the needed detail."""
-        
-        user_msg = f"""Context from recent conversation:
-{context}
-
-Current question being asked: {last_question or 'General assessment'}
-
-Patient's question: {user_question}
-
-Provide a helpful response that:
-1. Answers their question directly and simply
-2. Briefly restates what you need from them to continue
-3. Is empathetic and encouraging
-4. Uses simple, everyday language
-
-Response:"""
-        
-        try:
-            # Use LLM to generate context-aware response
-            llm_kwargs = self._get_llm_kwargs()
-            response = self.llm_chat_simple_fn(
-                [
-                    {"role": "system", "content": system_msg},
-                    {"role": "user", "content": user_msg}
-                ],
-                **llm_kwargs
-            )
-            
-            # Record the explanation as a response (not a question)
-            self.conversation_history.append({
-                'type': 'answer',
-                'answer': user_question
-            })
-            
-            # Just return the explanation - let conversation flow naturally
-            return {
-                'success': True,
-                'message': response.strip(),
-                'status': 'questioning',
-                'is_user_question': True
-            }
-            
-        except Exception as e:
-            self._capture_debug(f"[Engine] ⚠️ LLM question handling failed: {e}")
-            return {
-                'success': True,
-                'message': f"I understand you have a question. Let me clarify: {last_question or 'Please answer the question I asked.'}",
-                'status': 'questioning'
+                'message': 'Please answer my previous question.'
             }
     
     # Removed redundant anatomical analysis functions - medical_rules.json + OLDCARTS synonyms handle this
