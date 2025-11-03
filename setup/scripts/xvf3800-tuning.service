@@ -2,9 +2,9 @@
 # Automatically configures XVF3800 hardware DSP on boot
 #
 # Available Presets (change in ExecStart line):
-#   - agc_10          : HPF 70Hz + AGC with 10% increase (0.088) - DEFAULT ⭐ RECOMMENDED
+#   - agc_20          : HPF 70Hz + AGC with 20% increase (0.096) - DEFAULT ⭐ RECOMMENDED
+#   - agc_10          : HPF 70Hz + AGC with 10% increase (0.088)
 #   - balanced_beam    : HPF 70Hz + AGC (0.08, 30dB)
-#   - agc_20          : HPF 70Hz + AGC with 20% increase (0.096)
 #   - agc_only        : AGC only (0.08, 30dB) - no HPF
 #   - hpf_only        : HPF 70Hz only (minimal processing)
 #   - ultra_sensitive : AGC (0.10, 45dB) - Far-field optimized
@@ -15,7 +15,7 @@
 #
 # To change preset:
 #   1. sudo nano /etc/systemd/system/xvf3800-tuning.service
-#   2. Change "agc_10" to desired preset in ExecStart line below
+#   2. Change "agc_20" to desired preset in ExecStart line below
 #   3. sudo systemctl daemon-reload
 #   4. sudo systemctl restart xvf3800-tuning.service
 #
@@ -31,7 +31,7 @@ Wants=network.target
 Type=oneshot
 RemainAfterExit=yes
 User=aura
-ExecStart=/usr/bin/python3 /home/aura/LedgerAI/setup/scripts/tune_xvf3800.py agc_10
+ExecStart=/usr/bin/python3 /home/aura/LedgerAI/setup/scripts/tune_xvf3800.py agc_20
 StandardOutput=journal
 StandardError=journal
 
