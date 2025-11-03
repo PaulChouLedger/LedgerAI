@@ -1806,7 +1806,7 @@ class AdaptiveDiagnosticEngine:
         component_guidance = {
             'character': "Ask ONLY 'What does it feel like?' or similar. Do NOT mention any specific qualities like 'sharp', 'sharpness', 'burning', etc. Do NOT ask about location, intensity, or duration. Keep it completely open-ended.",
             'location': "Ask ONLY 'Where exactly is the pain located?' or similar. Do NOT mention body parts or give examples. Do NOT ask about intensity or duration.",
-            'severity': "Ask ONLY about severity using a scale (1-10). Do NOT ask about location or other qualities. Use the example question structure.",
+            'severity': "Ask ONLY the EXACT question 'On a scale of 1 to 10, how would you rate this?' or very similar wording. Do NOT ask about location or other qualities. Do NOT return just a number.",
             'aggravating': "Ask ONLY 'What makes it worse?' or similar. Do NOT assume specific activities or body parts. Do NOT use words like 'triggers' or 'causes'. Keep it simple.",
             'relieving': "Ask ONLY 'What helps or makes it better?' or similar. Do NOT assume specific treatments or positions. Keep it simple.",
             'timing': "Ask ONLY 'Is it constant or does it come and go?' or similar. Do NOT add details.",
@@ -1835,7 +1835,17 @@ class AdaptiveDiagnosticEngine:
             **llm_kwargs
         )
         if response and response.strip():
-            return response.strip()
+            generated_question = response.strip()
+            
+            # VALIDATION: Ensure severity question is actually a question, not just a number
+            if component == 'severity':
+                # Check if response is just a number or too short (likely LLM misinterpreted as answer)
+                if len(generated_question) < 15 or generated_question.strip().replace('/', '').replace('-', '').isdigit():
+                    # Fallback to exact sample question for severity
+                    self._capture_debug(f"[Engine] ⚠️ Severity question invalid ('{generated_question}'), using sample question fallback")
+                    return sample_question
+            
+            return generated_question
         
         # If LLM returns empty, raise error instead of using fallback
         raise ValueError(f"LLM returned empty response for {component} question")
