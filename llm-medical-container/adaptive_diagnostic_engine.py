@@ -535,27 +535,6 @@ class AdaptiveDiagnosticEngine:
             self._capture_debug(f"[Engine] ❌ FAISS chief complaint matching failed: {e}")
             raise ValueError(f"Failed to match chief complaint to category: {e}")
     
-    def _categorize_complaint_by_substring(self, complaint: str) -> str:
-        """Fallback category detection"""
-        complaint_lower = complaint.lower()
-        organ_keywords = {
-            'GI': ['abdominal', 'stomach', 'belly', 'gut', 'bowel'],
-            'CARDIO': ['chest', 'heart', 'cardiac'],
-            'NEURO': ['head', 'headache', 'brain'],
-            'MSK': ['back', 'joint', 'muscle', 'bone'],
-            'RENAL': ['kidney', 'urinary', 'bladder'],
-            'DERM': ['skin', 'rash', 'lump', 'bump', 'lesion', 'mole'],
-            'GYN': ['pelvic', 'menstrual'],
-            'GU': ['prostate', 'testicular'],
-            'PULMONARY': ['lung', 'breathing', 'respiratory']
-        }
-        
-        for organ, keywords in organ_keywords.items():
-            if any(keyword in complaint_lower for keyword in keywords):
-                return organ.lower()
-        
-        return 'gastrointestinal'  # Default
-    
     def _get_all_guidelines_in_category(self, category: str) -> List[Dict]:
         """Get all guidelines in category"""
         relevant_guidelines = self._get_guidelines_by_category(category)
@@ -1204,13 +1183,20 @@ class AdaptiveDiagnosticEngine:
     def _analyze_missing_information(self, answer: str, oldcarts_element: str) -> tuple:
         """Analyze what information is missing using unified function with FAISS semantic matching
         Returns: (missing_terms, satisfied_terms)
+        
+        IMPORTANT: Consider ALL guidelines (active + reserve) to properly detect satisfied terms.
+        Patient answers should be checked against all guidelines, not just top 5.
         """
-        if not self.active_guidelines:
+        # Get all guidelines (active + reserve) to check against all possible terms
+        all_guidelines_to_check = self.active_guidelines + self.reserve_pool
+        
+        if not all_guidelines_to_check:
             return [], set()
         
-        # Collect all includes terms from active guidelines (normalize dicts)
+        # Collect all includes terms from ALL guidelines (not just active)
+        # This ensures we detect when patient answer matches terms from reserve pool
         all_includes = set()
-        for g in self.active_guidelines:
+        for g in all_guidelines_to_check:
             structured = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
             element_data = structured.get(oldcarts_element, {})
             if isinstance(element_data, dict):
@@ -1223,7 +1209,23 @@ class AdaptiveDiagnosticEngine:
                     elif isinstance(t, str):
                         all_includes.add(t.strip().lower())
         
-        self._capture_debug(f"[Location Analysis] 📍 All includes terms from {len(self.active_guidelines)} guidelines: {sorted(all_includes)}")
+        # Also collect active-only terms for missing terms calculation
+        active_includes = set()
+        for g in self.active_guidelines:
+            structured = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            element_data = structured.get(oldcarts_element, {})
+            if isinstance(element_data, dict):
+                includes = element_data.get('includes', [])
+                for t in includes:
+                    if isinstance(t, dict):
+                        med = t.get('medical')
+                        if isinstance(med, str) and med.strip():
+                            active_includes.add(med.strip().lower())
+                    elif isinstance(t, str):
+                        active_includes.add(t.strip().lower())
+        
+        self._capture_debug(f"[Location Analysis] 📍 All includes terms from {len(all_guidelines_to_check)} total guidelines: {sorted(all_includes)}")
+        self._capture_debug(f"[Location Analysis] 📍 Active-only terms from {len(self.active_guidelines)} guidelines: {sorted(active_includes)}")
         self._capture_debug(f"[Location Analysis] 📝 Patient answer: '{answer}'")
         
         if not all_includes:
@@ -1246,28 +1248,29 @@ class AdaptiveDiagnosticEngine:
             synonym_to_group = cache_data.get('to_group', {})
         
         # Do FAISS semantic matching ONCE for all terms (expensive operation)
-        # Get active condition names to filter FAISS results
-        active_condition_names = set()
-        for g in self.active_guidelines:
+        # Get ALL condition names (active + reserve) to check against all guidelines
+        all_condition_names = set()
+        for g in all_guidelines_to_check:
             condition_name = g.get('data', {}).get('condition', g.get('name', ''))
             if condition_name:
-                active_condition_names.add(condition_name)
+                all_condition_names.add(condition_name)
         
         semantic_matches_set = set()
         faiss_scores = {}
         if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
             try:
+                # Check against ALL guidelines, not just active ones
                 semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(
                     answer, oldcarts_element, threshold=0.75, 
-                    return_scores=True, active_condition_names=active_condition_names
+                    return_scores=True, active_condition_names=all_condition_names
                 )
                 semantic_matches_set = set(t.lower() for t in semantic_matches)
-                # Get scores from the engine (already filtered by active conditions)
+                # Get scores from the engine (filtered to all conditions we're checking)
                 if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
                     all_faiss_scores = self.medical_rule_engine._last_faiss_scores
-                    # Double-filter to only show scores for terms in active guidelines (redundant but safe)
+                    # Show scores for terms in ALL guidelines (not just active)
                     faiss_scores = {term: score for term, score in all_faiss_scores.items() if term.lower() in all_includes}
-                    self._capture_debug(f"[Location Analysis] 🔍 FAISS scores (filtered to {len(active_condition_names)} active conditions): {faiss_scores}")
+                    self._capture_debug(f"[Location Analysis] 🔍 FAISS scores (from {len(all_condition_names)} total conditions): {faiss_scores}")
             except Exception as e:
                 self._capture_debug(f"[Location Analysis] ⚠️ FAISS error: {e}")
                 pass
@@ -1280,9 +1283,9 @@ class AdaptiveDiagnosticEngine:
                 cache_data = self.synonym_cache[organ_system].get('location', {})
                 location_synonyms = cache_data.get('synonyms', {})
                 if location_synonyms:
-                    # Use FAISS to normalize
+                    # Use FAISS to normalize (check all guidelines for proper normalization)
                     faiss_normalize = self.medical_rule_engine.find_matching_terms_faiss(
-                        answer, 'location', threshold=0.75, active_condition_names=active_condition_names
+                        answer, 'location', threshold=0.75, active_condition_names=all_condition_names
                     )
                     if faiss_normalize:
                         normalized_answer = faiss_normalize[0].lower()
@@ -1293,6 +1296,8 @@ class AdaptiveDiagnosticEngine:
             patient_components = self.medical_rule_engine._extract_anatomical_components(normalized_answer)
         
         # Check each term using the same logic as unified function
+        # IMPORTANT: Check ALL terms (from all guidelines) to properly detect satisfied terms
+        # Missing terms should only include terms from ACTIVE guidelines that aren't satisfied
         for term in all_includes:
             term_satisfied = False
             match_reason = None
@@ -1363,11 +1368,12 @@ class AdaptiveDiagnosticEngine:
             else:
                 self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied")
         
-        # Terms are missing if they're not satisfied
-        missing = [term for term in all_includes if term not in satisfied_terms]
+        # Missing terms should only include terms from ACTIVE guidelines that aren't satisfied
+        # (We check all guidelines for satisfied terms, but only report missing from active)
+        missing = [term for term in active_includes if term not in satisfied_terms]
         
         self._capture_debug(f"[Location Analysis] ✅ Satisfied terms: {sorted(satisfied_terms)}")
-        self._capture_debug(f"[Location Analysis] ❌ Missing terms ({len(missing)} total): {sorted(missing)}")
+        self._capture_debug(f"[Location Analysis] ❌ Missing terms from active guidelines ({len(missing)} total): {sorted(missing)}")
         
         # Return both satisfied and missing terms for better decision making
         # Return all missing terms (not limited to 5) so clarification questions can see all options
