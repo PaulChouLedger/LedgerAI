@@ -856,7 +856,7 @@ class AdaptiveDiagnosticEngine:
         scored_guidelines = set()
         
         # Debug: Show what we're about to score
-        self._capture_debug(f"[Scoring] 🔍 About to score {len(guideline_data)} guidelines")
+        self._capture_debug(f"[Scoring] 🔍 About to score {len(guideline_data)} guidelines from {len(all_guidelines)} total")
         for idx, g_data in enumerate(guideline_data[:3]):
             g = g_data['guideline']
             condition_name = g_data['condition_name']
@@ -884,8 +884,8 @@ class AdaptiveDiagnosticEngine:
                 
                 # Get active condition names for filtering FAISS results
                 active_condition_names = set()
-                for g in all_guidelines:
-                    cond_name = g.get('data', {}).get('condition', g.get('name', ''))
+                for g_check in all_guidelines:
+                    cond_name = g_check.get('data', {}).get('condition', g_check.get('name', ''))
                     if cond_name:
                         active_condition_names.add(cond_name)
                 
@@ -912,6 +912,23 @@ class AdaptiveDiagnosticEngine:
             scored_guidelines.add(condition_name)
             
             self._capture_debug(f"[Scoring] 📊 {condition_name}: old={old_score:.3f}, similarity={similarity:.3f} (boost={word_match_boost:.3f}), normalized='{normalized_text}', new={new_score:.3f}")
+        
+        # Debug: Verify scores were actually updated in the objects
+        self._capture_debug(f"[Scoring] 🔍 Verifying scores after update (first 3 from guideline_data):")
+        for idx, g_data in enumerate(guideline_data[:3]):
+            g = g_data['guideline']
+            condition_name = g_data['condition_name']
+            g_id = id(g)
+            g_score = g.get('score', 'MISSING')
+            self._capture_debug(f"[Scoring] 🔍 Guideline[{idx}]: {condition_name}, id={g_id}, score={g_score}")
+        
+        # Debug: Also check all_guidelines list to see if scores propagate
+        self._capture_debug(f"[Scoring] 🔍 Checking all_guidelines list (first 3) after scoring:")
+        for idx, g in enumerate(all_guidelines[:3]):
+            cond_name = g.get('data', {}).get('condition', g.get('name', 'Unknown'))
+            g_id = id(g)
+            g_score = g.get('score', 'MISSING')
+            self._capture_debug(f"[Scoring] 🔍 all_guidelines[{idx}]: {cond_name}, id={g_id}, score={g_score}")
         
         # Check if any guidelines weren't scored (missing sections)
         unscored = []
