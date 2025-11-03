@@ -810,15 +810,17 @@ class AdaptiveDiagnosticEngine:
             # Continue to next question
             return self._ask_next_clinical_question()
         
-        # Handle onset (documentation only)
-        if oldcarts_element == 'onset':
-            # Mark onset as covered and store the answer
-            self.oldcarts_covered['O'] = True
-            # Update missing_components list to remove onset
-            if self.oldcarts_analysis and 'missing_components' in self.oldcarts_analysis:
-                if 'onset' in self.oldcarts_analysis['missing_components']:
-                    self.oldcarts_analysis['missing_components'].remove('onset')
-            self._capture_debug(f"[Engine] ✅ onset marked as complete")
+        # Handle onset, duration, timing (documentation only - no clarification needed)
+        if oldcarts_element in ['onset', 'duration', 'timing']:
+            # Mark element as covered and store the answer
+            element_map = {'onset': 'O', 'duration': 'D', 'timing': 'T'}
+            if oldcarts_element in element_map:
+                self.oldcarts_covered[element_map[oldcarts_element]] = True
+                # Update missing_components list to remove this element
+                if self.oldcarts_analysis and 'missing_components' in self.oldcarts_analysis:
+                    if oldcarts_element in self.oldcarts_analysis['missing_components']:
+                        self.oldcarts_analysis['missing_components'].remove(oldcarts_element)
+            self._capture_debug(f"[Engine] ✅ {oldcarts_element} marked as complete (no clarification)")
             return self._ask_next_clinical_question()
         
         # Score guidelines (strict: require embeddings, no fallbacks)
