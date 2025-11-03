@@ -7,14 +7,9 @@
   "urgency": "urgent",
   "chief_complaint_triggers": [
     "abdominal pain",
-    "belly pain",
-    "stomach pain",
-    "right lower abdominal pain",
-    "right lower quadrant (RLQ) pain",
-    "lower right side pain"
+    "right lower abdominal pain"
   ],
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within 6-48 hours (acute, NOT chronic). LOCATION: Pain MIGRATES from periumbilical to right lower quadrant (RLQ) over 12-24 hours - highly specific migration pattern. Localizes to McBurney's point in right lower quadrant (RLQ). DURATION: CONSTANT pain lasting hours to days (not episodic). CHARACTER: SHARP and CONSTANT (NOT crampy or intermittent). AGGRAVATING: WORSENS WITH MOVEMENT - patients can't jump, cough, or tolerate car bumps. Lying still required. RELIEVING: Lying motionless provides slight relief. NOTHING fully relieves pain. Movement worsens it. TIMING: CONSTANT and progressively worsening over time (not waves). SEVERITY: 7-10/10, moderate to severe. ASSOCIATED SYMPTOMS: ANOREXIA in >90% (ask 'are you hungry?' - 'yes' makes appendicitis unlikely), nausea and vomiting (AFTER pain onset), low-grade fever (100-102°F). KEY POSITIVES: Anorexia, right lower quadrant (RLQ) tenderness, periumbilical→RLQ migration. KEY NEGATIVES: Pain starting in right lower quadrant (RLQ) without migration is less typical. CRAMPY pain suggests obstruction. PROFUSE WATERY DIARRHEA suggests gastroenteritis. High fever >103°F suggests perforation.",
     "structured_oldcarts": {
       "onset": {
         "includes": [
@@ -25,13 +20,14 @@
           {
             "medical": "acute",
             "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
           }
         ],
-        "excludes": []
+        "excludes": [   
+          {
+          "medical": "chronic",
+          "patient_friendly": "ongoing for a long time"
+        }
+      ]
       },
       "location": {
         "includes": [
@@ -41,7 +37,7 @@
           },
           {
             "medical": "periumbilical",
-            "patient_friendly": "around your belly button"
+            "patient_friendly": "around your belly button migrating to right lower quadrant"
           }
         ],
         "excludes": [],
@@ -83,10 +79,6 @@
           {
             "medical": "worsens with movement",
             "patient_friendly": "moving around"
-          },
-          {
-            "medical": "movement",
-            "patient_friendly": "moving around"
           }
         ],
         "excludes": []
@@ -96,10 +88,6 @@
           {
             "medical": "nothing",
             "patient_friendly": "nothing helps"
-          },
-          {
-            "medical": "movement",
-            "patient_friendly": "moving around"
           }
         ],
         "excludes": []
@@ -108,11 +96,11 @@
         "includes": [
           {
             "medical": "moderate",
-            "patient_friendly": "somewhat bad"
+            "patient_friendly": "moderate"
           },
           {
             "medical": "severe",
-            "patient_friendly": "very bad or intense"
+            "patient_friendly": "severe"
           }
         ],
         "excludes": []
@@ -121,11 +109,19 @@
         "includes": [
           {
             "medical": "anorexia",
-            "patient_friendly": "ANOREXIA"
+            "patient_friendly": "poor appetite"
           },
           {
-            "medical": "after",
-            "patient_friendly": "after eating"
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "emesis",
+            "patient_friendly": "vomiting"
+          },
+          {
+            "medical": "pyrexia",
+            "patient_friendly": "fever"
           }
         ],
         "excludes": []

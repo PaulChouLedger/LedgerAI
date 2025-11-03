@@ -7,279 +7,167 @@
       "stomach pain",
       "gut pain",
       "tummy ache",
-      "bellyache",
-      "tummy pain",
-      "abdominal pain",
-      "abdominal ache",
-      "stomach hurt",
-      "belly hurt",
-      "my stomach",
-      "my belly",
-      "hurts in my stomach",
-      "hurts in my belly",
-      "pain in abdomen",
-      "pain in stomach",
-      "pain in belly"
+      "abdominal pain"
     ]
   },
   "onset": {
     "sudden": [
       "suddenly",
       "all of a sudden",
-      "came on suddenly",
-      "started suddenly",
-      "hit me suddenly",
       "came out of nowhere",
-      "without warning",
-      "out of nowhere"
+      "without warning"
     ],
     "gradual": [
       "slowly",
       "gradually",
       "over time",
-      "slowly getting worse",
-      "progressively",
-      "step by step",
-      "little by little"
+      "progressively"
     ],
     "acute": [
       "acute onset",
-      "came on quickly",
       "rapid onset",
-      "fast onset",
       "quickly developed"
     ],
     "chronic": [
       "long term",
       "ongoing",
       "persistent",
-      "has been going on",
-      "for a while",
-      "for some time"
+      "for a while"
     ]
   },
   "location": {
     "left_side": [
       "left side",
-      "on my left side",
       "left",
-      "left side of abdomen",
-      "left side of stomach",
-      "left side of belly"
+      "left side of abdomen"
     ],
     "right_side": [
       "right side",
-      "on my right side",
       "right",
-      "right side of abdomen",
-      "right side of stomach",
-      "right side of belly"
+      "right side of abdomen"
     ],
     "right upper quadrant": [
-      "right upper quadrant pain",
-      "pain under ribs right side",
       "upper right",
       "upper right abdominal pain",
       "upper abdomen",
-      "upper stomach",
-      "pain in upper abdomen",
-      "pain in upper stomach",
-      "right upper quadrant",
-      "below rib",
       "below ribs",
-      "under rib",
       "under ribs",
-      "beneath rib",
-      "beneath ribs",
-      "below breast",
-      "under breast",
-      "below my ribs",
-      "under my ribs",
-      "below ribs right",
-      "under ribs right",
       "top right",
-      "more towards the top right",
       "gallbladder pain",
       "liver pain"
     ],
     "right lower quadrant": [
-      "right lower quadrant pain",
+      "lower right",
       "lower right abdominal pain",
-      "pain near right pelvis",
-      "right pelvic pain",
       "lower abdomen right side",
-      "pain in right lower stomach",
-      "near hip",
-      "by hip",
-      "around hip",
-      "near my hip",
-      "by my hip",
-      "around my hip",
       "groin",
       "pelvic",
-      "lower right",
       "bottom right",
       "hip area",
-      "near right hip",
-      "by right hip",
-      "appendix pain",
-      "appendicitis pain"
+      "appendix pain"
     ],
     "left upper quadrant": [
-      "left upper quadrant pain",
-      "stomach ulcer pain left side",
+      "upper left",
       "upper left abdominal pain",
       "pain under ribs left side",
-      "upper left stomach pain",
-      "pain in left upper abdomen",
-      "pain in left upper stomach",
       "spleen pain"
     ],
     "left lower quadrant": [
-      "left lower quadrant pain",
-      "diverticulitis pain",
+      "lower left",
       "lower left abdominal pain",
       "left lower belly",
-      "left lower stomach",
-      "pain near left pelvis",
-      "left pelvic pain",
-      "lower abdomen left side",
-      "pain in left lower stomach"
+      "diverticulitis pain"
     ],
     "epigastric": [
-      "pain in the middle upper stomach",
       "center upper abdominal pain",
       "top of abdomen",
       "under breast bone",
-      "top of belly",
       "heartburn pain",
       "stomach ulcer pain",
       "indigestion pain",
-      "epigastrium pain",
       "upper middle stomach",
       "below breastbone",
-      "top of stomach",
-      "middle upper abdomen",
-      "epigastric area"
+      "middle upper abdomen"
     ],
     "suprapubic": [
-      "pain below belly button",
       "lower middle abdominal pain",
       "pubic pain",
-      "suprapubic area pain",
       "pain above bladder"
     ],
     "diffuse": [
       "pain all over abdomen",
       "generalized abdominal pain",
       "whole stomach pain",
-      "all over stomach ache",
-      "general stomach cramps",
-      "widespread abdominal pain",
       "all over",
       "everywhere",
-      "throughout abdomen"
+      "widespread"
     ],
     "periumbilical": [
       "around the belly button",
       "around navel",
-      "around my belly button",
       "near belly button",
-      "near navel",
-      "by belly button",
-      "by navel",
-      "around the navel"
+      "by belly button"
     ],
     "umbilical": [
       "belly button",
-      "around navel",
       "middle of belly",
-      "at belly button",
-      "on belly button",
-      "navel area",
-      "umbilical area"
+      "navel area"
     ],
     "mcburney": [
       "lower right near hip",
       "appendix area",
       "lower right abdomen",
-      "right lower near hip bone",
-      "right lower abdominal area",
       "mcburney point"
     ],
     "radiates_to_back": [
-      "goes to my back",
-      "spreads to back",
+      "goes to back",
       "radiates to back",
-      "travels to back",
-      "moves to back",
-      "pain goes to back",
-      "pain spreads to back"
+      "spreads to back",
+      "back pain"
     ],
     "radiates_to_shoulder": [
-      "goes to right shoulder",
-      "travels to shoulder",
-      "radiates to right shoulder",
+      "goes to shoulder",
+      "radiates to shoulder",
       "spreads to shoulder",
-      "pain goes to shoulder",
       "shoulder pain",
       "right shoulder pain"
     ],
     "chest": [
       "chest pain",
       "chest discomfort",
-      "chest burn",
       "burning in chest"
     ]
   },
   "duration": {
     "minutes": [
       "few minutes",
-      "couple minutes",
-      "several minutes",
-      "for minutes"
+      "several minutes"
     ],
     "hours": [
       "few hours",
-      "couple hours",
-      "several hours",
-      "for hours",
-      "hourly"
+      "several hours"
     ],
     "days": [
       "few days",
-      "couple days",
-      "several days",
-      "for days",
-      "daily"
+      "several days"
     ],
     "weeks": [
       "few weeks",
-      "couple weeks",
-      "several weeks",
-      "for weeks",
-      "weekly"
+      "several weeks"
     ],
     "months": [
       "few months",
-      "couple months",
-      "several months",
-      "for months",
-      "monthly"
+      "several months"
     ],
     "years": [
       "few years",
-      "couple years",
-      "several years",
-      "for years",
-      "yearly"
+      "several years"
     ],
     "intermittent": [
       "comes and goes",
       "on and off",
       "sporadic",
       "occasional",
-      "sometimes",
       "periodic"
     ],
     "constant": [
@@ -287,8 +175,7 @@
       "continuous",
       "non-stop",
       "persistent",
-      "steady",
-      "ongoing"
+      "steady"
     ]
   },
   "character": {
@@ -298,8 +185,6 @@
       "knife-like",
       "piercing",
       "cutting",
-      "acute pain",
-      "twinge",
       "shooting"
     ],
     "dull": [
@@ -308,37 +193,30 @@
       "aching",
       "sore",
       "tender",
-      "heavy feeling",
-      "niggling",
-      "rough"
+      "heavy feeling"
     ],
     "cramping": [
       "cramps",
       "cramping",
       "spasms",
-      "muscle cramps",
-      "stomach cramps",
-      "intestinal cramps"
+      "stomach cramps"
     ],
     "burning": [
       "burning pain",
       "burning sensation",
       "hot feeling",
-      "fire-like",
-      "scorching"
+      "fire-like"
     ],
     "pressure": [
       "pressure feeling",
       "squeezing",
       "tightness",
-      "fullness",
-      "heavy pressure"
+      "fullness"
     ],
     "throbbing": [
       "throbbing pain",
       "pulsating",
-      "beating",
-      "rhythmic pain"
+      "beating"
     ],
     "colicky": [
       "colicky pain",
@@ -348,155 +226,104 @@
     ]
   },
   "aggravating_factors": {
-    "eating": [
+    "postprandial": [
+      "eating",
+      "drinking",
       "after eating",
-      "when I eat",
       "after meals",
-      "food makes it worse",
-      "eating triggers it",
-      "postprandial",
-      "playing up",
-      "giving me gyp"
-    ],
-    "drinking": [
-      "when I drink",
-      "drinking makes it worse",
-      "gets worse when I drink",
-      "after drinking"
+      "after drinking",
+      "food"
     ],
     "movement": [
-      "when I move",
-      "movement makes it worse",
       "walking",
       "bending",
       "twisting",
       "physical activity",
-      "bothering me",
-      "gets worse when I bend",
-      "gets worse when I walk"
+      "coughing",
+      "jumping",
+      "car bumps",
+      "jarring movements"
     ],
     "breathing": [
-      "when I breathe",
-      "breathing makes it worse",
       "deep breath",
       "coughing",
       "sneezing"
     ],
     "lying_down": [
-      "when lying down",
+      "lying down",
       "lying flat",
-      "supine position",
-      "bed rest"
+      "supine position"
     ],
     "stress": [
-      "when stressed",
-      "stress makes it worse",
+      "stress",
       "anxiety",
       "nervous"
     ]
   },
   "alleviating_factors": {
     "rest": [
-      "resting helps",
-      "when I rest",
+      "resting",
       "lying still",
       "not moving",
-      "staying still",
-      "feels better when I lie down",
-      "improves with lie down"
+      "staying still"
     ],
     "heat": [
-      "heat helps",
+      "heat",
       "heating pad",
       "warm compress",
-      "hot water bottle",
       "warmth"
     ],
     "cold": [
-      "cold helps",
+      "cold",
       "ice pack",
-      "cold compress",
-      "cooling"
+      "cold compress"
     ],
     "medication": [
       "pain medicine",
       "painkillers",
-      "medication helps",
-      "pills help",
-      "drugs help"
+      "medication",
+      "pills"
     ],
     "position": [
-      "certain position",
       "sitting up",
       "leaning forward",
       "fetal position",
-      "knees to chest",
-      "improves with sit down",
-      "feels better when I sit down"
+      "knees to chest"
     ],
     "standing": [
-      "improves with stand up",
-      "feels better when I stand up",
-      "standing helps"
+      "standing"
     ],
     "walking": [
-      "improves with walk around",
-      "feels better when I walk",
-      "walking helps"
+      "walking"
     ]
   },
   "radiation": {
     "back": [
-      "goes to back",
-      "radiates to back",
+      "back",
       "back pain",
-      "pain in back",
-      "spreads to back",
-      "radiates to my back",
-      "goes to my back"
+      "radiates to back"
     ],
     "shoulder": [
-      "goes to shoulder",
-      "radiates to shoulder",
+      "shoulder",
       "shoulder pain",
-      "pain in shoulder",
-      "spreads to shoulder",
-      "radiates to my shoulder",
-      "goes to my shoulder"
+      "radiates to shoulder"
     ],
     "chest": [
-      "goes to chest",
-      "radiates to chest",
+      "chest",
       "chest pain",
-      "pain in chest",
-      "spreads to chest",
-      "radiates to my chest",
-      "goes to my chest"
+      "radiates to chest"
     ],
     "groin": [
-      "goes to groin",
-      "radiates to groin",
-      "groin pain",
-      "pain in groin",
-      "spreads to groin"
+      "groin",
+      "groin pain"
     ],
     "legs": [
-      "goes to legs",
-      "radiates to legs",
-      "leg pain",
-      "pain in legs",
-      "spreads to legs",
-      "radiates to my leg",
-      "goes to my leg"
+      "legs",
+      "leg pain"
     ],
     "arm": [
-      "goes to arm",
-      "radiates to arm",
-      "arm pain",
-      "pain in arm",
-      "spreads to arm",
-      "radiates to my arm",
-      "goes to my arm"
+      "arm",
+      "arm pain"
     ]
   },
   "timing": {
@@ -505,99 +332,74 @@
       "continuous",
       "non-stop",
       "persistent",
-      "steady",
-      "ongoing",
-      "stays in one spot",
-      "stays in one place",
-      "doesn't move",
-      "continuously"
+      "steady"
     ],
     "intermittent": [
       "comes and goes",
       "on and off",
       "sporadic",
       "occasional",
-      "sometimes",
       "periodic"
     ],
     "morning": [
-      "in the morning",
+      "morning",
       "when I wake up",
-      "early morning",
-      "morning time"
+      "early morning"
     ],
     "evening": [
-      "in the evening",
-      "at night",
-      "evening time",
-      "night time"
+      "evening",
+      "at night"
     ],
     "after_meals": [
       "after eating",
-      "postprandial",
       "after meals",
-      "after food"
+      "postprandial"
     ],
     "night": [
-      "at night",
+      "night",
       "during sleep",
-      "wakes me up",
-      "night time"
+      "wakes me up"
     ]
   },
   "severity": {
     "mild": [
-      "mild pain",
-      "slight pain",
-      "minor pain",
+      "mild",
+      "slight",
+      "minor",
       "not too bad",
-      "manageable",
-      "tolerable",
-      "rubbish",
-      "pretty rubbish",
-      "not brilliant"
+      "manageable"
     ],
     "moderate": [
-      "moderate pain",
-      "medium pain",
+      "moderate",
+      "medium",
       "somewhat painful",
       "noticeable",
-      "uncomfortable",
-      "nasty"
+      "uncomfortable"
     ],
     "severe": [
-      "severe pain",
-      "bad pain",
+      "severe",
+      "bad",
       "really painful",
       "excruciating",
       "unbearable",
-      "intense",
-      "bloody awful",
-      "absolutely terrible",
-      "horrible",
-      "really nasty",
-      "really horrible"
+      "intense"
     ],
     "scale_1_3": [
       "1 out of 10",
       "2 out of 10",
       "3 out of 10",
-      "very mild",
-      "barely noticeable"
+      "very mild"
     ],
     "scale_4_6": [
       "4 out of 10",
       "5 out of 10",
-      "6 out of 10",
-      "moderate",
-      "noticeable"
+      "6 out of 10"
     ],
     "scale_7_10": [
       "7 out of 10",
       "8 out of 10",
       "9 out of 10",
       "10 out of 10",
-      "severe",
       "worst pain ever"
     ]
   },
@@ -607,34 +409,23 @@
       "sick to stomach",
       "want to vomit",
       "feeling nauseous",
-      "upset stomach",
-      "peaky",
-      "off colour",
-      "dodgy",
-      "not quite right",
-      "feeling rough",
-      "something wrong with"
+      "upset stomach"
     ],
     "vomiting": [
       "throwing up",
-      "want to throw up",
       "puking",
       "emesis",
       "projectile vomiting",
-      "vomit",
-      "nausea and vomiting"
+      "vomit"
     ],
     "diarrhea": [
       "loose stools",
-      "runs",
       "frequent bowel movements",
-      "watery stool",
-      "bowel urgency"
+      "watery stool"
     ],
     "constipation": [
       "hard stools",
       "difficulty passing stool",
-      "not going",
       "no bowel movement",
       "straining"
     ],
@@ -645,61 +436,18 @@
       "melena",
       "dark stool",
       "tarry stool",
-      "red stool",
-      "bloody stools",
-      "bloody poop",
-      "blood in poop",
-      "black poop",
-      "dark poop",
-      "tarry poop",
-      "red poop",
-      "my poop is black",
-      "my stool is black",
-      "my poop is dark",
-      "my stool is dark",
-      "my stools are dark",
-      "my stools are black",
-      "my poop is tarry",
-      "my stool is tarry",
-      "poop is black",
-      "stool is black",
-      "poop is dark",
-      "stool is dark",
-      "stools are dark",
-      "stools are black",
-      "poop is tarry",
-      "stool is tarry",
-      "have black poop",
-      "have black stool",
-      "have dark poop",
-      "have dark stool",
-      "have tarry poop",
-      "have tarry stool",
-      "black stools",
-      "dark stools",
-      "tarry stools",
-      "red stools"
+      "red stool"
     ],
     "jaundice": [
       "yellow skin",
       "yellow eyes",
       "yellowing of skin",
-      "yellowing of eyes",
-      "yellow discoloration",
-      "yellow tint",
-      "yellowish skin",
-      "yellowish eyes",
-      "skin looks yellow",
-      "eyes look yellow",
       "icterus"
     ],
     "heartburn": [
       "acid reflux",
       "gastroesophageal reflux",
       "gerd",
-      "burning in chest",
-      "chest burn",
-      "stomach acid",
       "reflux"
     ],
     "bloating": [
@@ -707,15 +455,12 @@
       "distended abdomen",
       "full feeling",
       "gas",
-      "abdominal distension",
-      "swollen stomach"
+      "abdominal distension"
     ],
     "indigestion": [
       "dyspepsia",
       "upset stomach",
-      "stomach upset",
-      "digestive problems",
-      "stomach problems"
+      "digestive problems"
     ],
     "fever": [
       "high temperature",
@@ -736,58 +481,46 @@
     "stool": [
       "poop",
       "bowel movement",
-      "bm",
-      "feces",
-      "waste"
+      "feces"
     ],
     "consistency": {
       "hard": [
         "hard stool",
-        "hard poop",
-        "firm stool",
-        "solid stool"
+        "firm stool"
       ],
       "soft": [
         "soft stool",
-        "soft poop",
         "mushy stool"
       ],
       "watery": [
         "watery stool",
-        "liquid stool",
-        "runny stool"
+        "liquid stool"
       ],
       "normal": [
         "normal stool",
-        "regular stool",
-        "formed stool"
+        "regular stool"
       ]
     },
     "color": {
       "black": [
         "black stool",
-        "black poop",
         "dark stool",
         "tarry stool"
       ],
       "red": [
         "red stool",
-        "red poop",
         "bright red stool"
       ],
       "yellow": [
         "yellow stool",
-        "yellow poop",
         "pale stool"
       ],
       "green": [
-        "green stool",
-        "green poop"
+        "green stool"
       ],
       "clay_colored": [
         "clay colored stool",
-        "pale stool",
-        "light colored stool"
+        "pale stool"
       ]
     }
   },
@@ -795,38 +528,30 @@
     "pancreatitis": [
       "epigastric pain radiating to back",
       "severe upper abdominal pain",
-      "pain going to back",
-      "upper abdomen pain radiating back",
-      "pancreas inflammation",
       "pancreas pain"
     ],
     "appendicitis": [
       "right lower quadrant pain",
       "mcburney point pain",
-      "appendix pain",
-      "appendicitis pain"
+      "appendix pain"
     ],
     "cholecystitis": [
       "right upper quadrant pain",
       "biliary colic",
-      "gallbladder pain",
-      "gallbladder inflammation"
+      "gallbladder pain"
     ],
     "diverticulitis": [
-      "diverticulitis pain",
       "left lower quadrant pain",
       "diverticular disease"
     ],
     "gastritis": [
       "stomach inflammation",
-      "gastric pain",
-      "stomach lining inflammation"
+      "gastric pain"
     ],
     "peptic_ulcer": [
       "stomach ulcer",
       "gastric ulcer",
-      "duodenal ulcer",
-      "ulcer pain"
+      "duodenal ulcer"
     ]
   }
 }

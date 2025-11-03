@@ -4,93 +4,49 @@
       "pelvic pain",
       "pain in pelvis",
       "lower pelvic pain",
-      "pelvic area pain",
-      "pelvis hurts",
-      "pelvic discomfort",
-      "pain in lower abdomen",
-      "lower belly pain",
-      "lower abdominal pain"
+      "lower abdominal pain",
+      "lower belly pain"
     ],
     "abdominal_pain": [
       "abdominal pain",
       "belly ache",
       "belly pain",
-      "stomach ache",
-      "stomach pain",
-      "gut pain",
-      "tummy ache",
-      "abdominal ache",
-      "stomach hurt",
-      "belly hurt"
+      "stomach pain"
     ],
     "vaginal_bleeding": [
       "vaginal bleeding",
       "bleeding",
       "spotting",
-      "blood",
-      "vaginal discharge with blood",
-      "bleeding from vagina",
-      "abnormal bleeding",
-      "irregular bleeding"
+      "abnormal bleeding"
     ]
   },
   "onset": {
     "sudden": [
       "suddenly",
       "all of a sudden",
-      "came on suddenly",
-      "started suddenly",
-      "hit me suddenly",
       "came out of nowhere",
-      "without warning",
-      "out of nowhere",
-      "just happened",
-      "right away",
-      "within minutes"
+      "without warning"
     ],
     "gradual": [
       "slowly",
       "gradually",
       "over time",
-      "slowly getting worse",
-      "progressively",
-      "step by step",
-      "little by little",
-      "getting worse",
-      "built up slowly"
+      "progressively"
     ],
     "acute": [
       "acute onset",
-      "came on quickly",
       "rapid onset",
-      "fast onset",
-      "quickly developed",
-      "sudden and severe"
+      "quickly developed"
     ],
     "chronic": [
       "long term",
       "ongoing",
       "persistent",
-      "has been going on",
-      "for a while",
-      "for some time",
-      "continuing",
-      "recurrent"
+      "for a while"
     ],
     "sudden_severe": [
       "sudden severe",
-      "all of a sudden and very bad",
-      "came on suddenly and intensely",
-      "sudden onset severe",
-      "suddenly got very bad"
-    ],
-    "mild": [
-      "mild",
-      "not too bad",
-      "slight",
-      "minor",
-      "started mild",
-      "initially mild"
+      "came on suddenly and intensely"
     ]
   },
   "location": {
@@ -98,20 +54,13 @@
       "pelvic",
       "pelvis",
       "pelvic area",
-      "lower pelvic",
-      "pelvic region",
-      "in pelvis",
-      "pelvic pain"
+      "lower pelvic"
     ],
     "lower_abdominal": [
       "lower abdominal",
       "lower abdomen",
       "lower belly",
-      "lower stomach",
-      "below belly button",
-      "lower tummy",
-      "lower gut",
-      "lower abdominal pain"
+      "below belly button"
     ],
     "unilateral": [
       "one side",
@@ -119,90 +68,51 @@
       "single side",
       "left side only",
       "right side only",
-      "on one side",
-      "just one side",
       "one-sided"
-    ],
-    "unilateral_lower_abdominal": [
-      "one side lower abdomen",
-      "lower abdomen one side",
-      "one side of lower belly",
-      "unilateral lower abdominal",
-      "one-sided lower abdominal",
-      "lower belly one side"
     ],
     "adnexal": [
       "adnexal",
       "ovary area",
       "around ovary",
-      "adnexal region",
-      "side of pelvis",
-      "where ovary is"
+      "side of pelvis"
     ],
     "suprapubic": [
       "above pubic bone",
       "suprapubic",
-      "above pubic area",
-      "lower central abdomen",
-      "above groin"
+      "lower central abdomen"
     ]
   },
   "duration": {
     "minutes": [
       "few minutes",
-      "couple minutes",
-      "several minutes",
-      "for minutes",
-      "a minute",
-      "minutes"
+      "several minutes"
     ],
     "hours": [
       "few hours",
-      "couple hours",
-      "several hours",
-      "for hours",
-      "an hour",
-      "hours",
-      "24 hours",
-      "48 hours"
+      "several hours"
     ],
     "days": [
       "few days",
-      "couple days",
-      "several days",
-      "for days",
-      "a day",
-      "days",
       "several days"
     ],
     "weeks": [
       "few weeks",
-      "couple weeks",
-      "several weeks",
-      "for weeks",
-      "a week",
-      "weeks",
-      "6-8 weeks"
+      "several weeks"
     ],
     "intermittent": [
       "comes and goes",
       "on and off",
       "sporadic",
       "occasional",
-      "sometimes",
       "periodic",
-      "episodic",
-      "cramping"
+      "episodic"
     ],
     "constant": [
       "all the time",
       "continuous",
       "non-stop",
       "persistent",
-      "steady",
-      "ongoing",
-      "doesn't stop",
-      "constant"
+      "steady"
     ]
   },
   "character": {
@@ -211,9 +121,7 @@
       "cramping",
       "cramps",
       "menstrual cramps",
-      "like period cramps",
-      "crampy pain",
-      "cramp-like"
+      "like period cramps"
     ],
     "sharp": [
       "sharp pain",
@@ -221,140 +129,71 @@
       "knife-like",
       "piercing",
       "cutting",
-      "acute pain",
-      "twinge",
-      "shooting",
-      "sharp",
-      "stabbing pain",
-      "sudden sharp"
+      "shooting"
     ],
     "dull": [
       "dull pain",
       "achy",
       "aching",
       "sore",
-      "tender",
-      "heavy feeling",
-      "niggling",
-      "rough",
-      "dull ache"
+      "tender"
     ],
     "throbbing": [
       "throbbing pain",
       "pulsating",
-      "beating",
-      "rhythmic pain",
-      "throbbing",
-      "pulsing"
-    ],
-    "aching": [
-      "aching",
-      "ache",
-      "achy",
-      "sore",
-      "hurting",
-      "discomfort"
+      "beating"
     ],
     "severe": [
       "severe",
       "very bad",
       "intense",
       "excruciating",
-      "terrible",
-      "unbearable",
-      "awful",
-      "extreme",
-      "worst pain ever"
-    ],
-    "stabbing": [
-      "stabbing",
-      "like being stabbed",
-      "stabbing pain",
-      "piercing",
-      "sharp stabbing"
+      "unbearable"
     ],
     "twisting": [
       "twisting",
       "like something twisting",
-      "twisting sensation",
-      "wrenching"
+      "twisting sensation"
     ]
   },
   "aggravating": {
     "movement": [
       "moving",
       "moving around",
-      "when i move",
-      "with movement",
-      "any movement",
-      "moving it",
-      "activity",
       "physical activity",
       "exercise",
-      "position change",
       "jarring"
     ],
     "intercourse": [
       "intercourse",
       "sex",
-      "sexual activity",
-      "during sex",
-      "after sex",
-      "with intercourse"
-    ],
-    "pelvic_exam": [
-      "pelvic exam",
-      "exam",
-      "during exam",
-      "when examined",
-      "exam touched it"
+      "sexual activity"
     ]
   },
   "relieving": {
     "nothing": [
       "nothing",
       "nothing helps",
-      "nothing relieves",
-      "doesn't get better",
-      "nothing works",
-      "no relief",
-      "position doesn't help"
+      "no relief"
     ],
     "gradually_improves": [
       "gradually improves",
-      "slowly gets better",
-      "improves over time",
       "gets better on its own",
-      "self-limited",
-      "resolves on its own",
-      "slowly fading",
-      "easing up"
+      "resolves on its own"
     ],
     "rest": [
       "rest",
       "resting",
       "sitting down",
       "lying down",
-      "not moving",
-      "keeping still",
-      "staying still",
-      "taking it easy"
+      "not moving"
     ],
     "analgesics": [
       "pain medicine",
       "pain reliever",
       "medication",
-      "pain killers",
-      "analgesics",
       "ibuprofen",
       "acetaminophen"
-    ],
-    "surgery": [
-      "surgery",
-      "surgical intervention",
-      "after surgery",
-      "surgical detorsion",
-      "operation"
     ]
   },
   "timing": {
@@ -363,54 +202,20 @@
       "on and off",
       "sporadic",
       "occasional",
-      "sometimes",
       "periodic",
-      "episodic",
-      "intermittent"
+      "episodic"
     ],
     "constant": [
       "all the time",
       "continuous",
       "non-stop",
       "persistent",
-      "steady",
-      "ongoing",
-      "constant",
-      "doesn't stop",
-      "always there",
-      "unrelenting"
-    ],
-    "improves": [
-      "gets better",
-      "improves",
-      "easing up",
-      "lessening",
-      "fading",
-      "reducing",
-      "gradually improves",
-      "slowly getting better"
-    ],
-    "worsens": [
-      "gets worse",
-      "worsening",
-      "increasing",
-      "getting more intense",
-      "intensifying",
-      "progressively worse",
-      "getting worse over time"
+      "steady"
     ],
     "progressive": [
       "progressive",
       "progressively",
-      "gradually worse",
-      "slowly worsening",
-      "building up"
-    ],
-    "sudden": [
-      "sudden onset",
-      "came on suddenly",
-      "started suddenly",
-      "suddenly appeared"
+      "gradually worse"
     ]
   },
   "severity": {
@@ -419,42 +224,22 @@
       "not too bad",
       "slight",
       "minor",
-      "manageable",
-      "okay",
-      "bearable"
+      "manageable"
     ],
     "moderate": [
       "moderate",
       "somewhat bad",
       "medium",
-      "fairly bad",
-      "pretty bad"
+      "fairly bad"
     ],
     "severe": [
       "severe",
       "very bad",
       "intense",
       "excruciating",
-      "terrible",
       "unbearable",
-      "awful",
       "extreme",
-      "worst pain ever",
-      "catastrophic",
-      "debilitating"
-    ],
-    "initially_mild": [
-      "started mild",
-      "initially mild",
-      "wasn't too bad at first",
-      "started not too bad"
-    ],
-    "progresses_to_severe": [
-      "got worse",
-      "progressed to severe",
-      "became severe",
-      "became very bad",
-      "got more intense"
+      "worst pain ever"
     ]
   },
   "associated": {
@@ -462,80 +247,44 @@
       "missed period",
       "late period",
       "period is late",
-      "haven't had period",
       "skipped period",
-      "no period",
-      "menstrual period missed"
+      "no period"
     ],
     "vaginal_bleeding": [
       "vaginal bleeding",
       "bleeding",
       "spotting",
-      "blood",
-      "vaginal discharge with blood",
-      "bleeding from vagina",
-      "abnormal bleeding",
-      "irregular bleeding",
-      "lighter than period"
+      "abnormal bleeding"
     ],
     "pregnancy_test_positive": [
       "pregnancy test positive",
       "positive pregnancy test",
-      "pregnant",
-      "test shows pregnant",
-      "pregnancy confirmed"
+      "pregnant"
     ],
     "nausea_vomiting": [
       "nausea",
       "vomiting",
       "throwing up",
       "feeling sick",
-      "nauseated",
-      "queasy",
-      "nausea and vomiting"
+      "queasy"
     ],
     "dizziness": [
       "dizziness",
       "dizzy",
       "lightheaded",
-      "lightheadedness",
-      "feeling faint",
-      "woozy"
+      "feeling faint"
     ],
     "syncope": [
       "syncope",
       "fainting",
       "passed out",
-      "loss of consciousness",
-      "blacked out"
+      "loss of consciousness"
     ],
     "shoulder_pain": [
       "shoulder pain",
       "pain in shoulder",
       "right shoulder",
-      "left shoulder",
-      "shoulder hurts"
-    ],
-    "pressure": [
-      "pressure",
-      "pressure sensation",
-      "feeling of pressure",
-      "fullness",
-      "heavy feeling"
-    ],
-    "benign_self_limited": [
-      "benign",
-      "self-limited",
-      "goes away on its own",
-      "resolves",
-      "gets better by itself"
-    ],
-    "mid_cycle": [
-      "mid-cycle",
-      "middle of cycle",
-      "ovulation",
-      "around ovulation"
+      "left shoulder"
     ]
   }
 }
-

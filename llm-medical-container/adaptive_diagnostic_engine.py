@@ -156,7 +156,10 @@ class AdaptiveDiagnosticEngine:
         # Pre-build chief complaint trigger index for category matching
         self.chief_complaint_triggers_index = None
         self.chief_complaint_triggers_data = []  # List of {trigger, category, condition}
+        self.chief_complaint_synonyms_index = None  # FAISS index for chief complaint synonyms
+        self.chief_complaint_synonyms_data = []  # List of {synonym, medical_term, category}
         self._build_chief_complaint_triggers_index()
+        self._build_chief_complaint_synonyms_index()
         
         # Initialize assessment state
         self.reset_assessment()
@@ -189,7 +192,8 @@ class AdaptiveDiagnosticEngine:
         """Load synonyms for a specific organ system and pre-build data structures"""
         cache = {
             'onset': {}, 'location': {}, 'timing': {}, 'duration': {},
-            'character': {}, 'aggravating': {}, 'relieving': {}, 'severity': {}
+            'character': {}, 'aggravating': {}, 'relieving': {}, 'severity': {},
+            'associated': {}
         }
         
         synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
@@ -239,7 +243,7 @@ class AdaptiveDiagnosticEngine:
         self.status = "idle"
         self.conversation_history = []
         self.demographics = {}
-        self.oldcarts_covered = {'O': False, 'L': False, 'T': False, 'D': False, 'C': False, 'A': False, 'R': False, 'S': False}
+        self.oldcarts_covered = {'O': False, 'L': False, 'T': False, 'D': False, 'C': False, 'A': False, 'R': False, 'S': False, 'AS': False}
         self.oldcarts_analysis = None
         self.clarification_count = {}
         self.diagnosed_condition = None
@@ -247,6 +251,11 @@ class AdaptiveDiagnosticEngine:
         self.radiation_answered = False  # Track if radiation has been answered
         self.red_flags_present = []
         self.red_flag_index = 0
+        self.red_flag_phase = False  # Track if we're in red flag screening phase
+        self.red_flags_list = []  # List of red flags to ask about
+        self.key_features_phase = False  # Track if we're in key positives/negatives phase
+        self.key_features_index = 0  # Track which key feature we're asking about
+        self.key_features_list = []  # List of key features to ask about
         self.MAX_ACTIVE = 5
         self.RULE_OUT_THRESHOLD = 0.05
     
@@ -408,6 +417,8 @@ class AdaptiveDiagnosticEngine:
                     self.oldcarts_covered['T'] = True
                 elif element == 'severity':
                     self.oldcarts_covered['S'] = True
+                elif element == 'associated':
+                    self.oldcarts_covered['AS'] = True
                 
                 self._capture_debug(f"[Engine]   ✅ {element} marked as covered from initial prompt")
         
@@ -476,6 +487,63 @@ class AdaptiveDiagnosticEngine:
             self._capture_debug(f"[Engine] ⚠️ Failed to build chief complaint triggers index: {e}")
             self.chief_complaint_triggers_index = None
     
+    def _build_chief_complaint_synonyms_index(self):
+        """Pre-build FAISS index for chief_complaint synonyms from all synonym files"""
+        if not self.embedding_model:
+            self._capture_debug("[Engine] ⚠️ No embedding model for chief complaint synonyms index")
+            return
+        
+        try:
+            synonyms_list = []
+            synonyms_dir = Path(__file__).parent / 'synonyms'
+            
+            # Load chief complaint synonyms from all synonym files
+            for synonym_file in synonyms_dir.glob("*_synonyms_oldcarts.json"):
+                try:
+                    with open(synonym_file, 'r') as f:
+                        synonyms_data = json.load(f)
+                        chief_complaint_syns = synonyms_data.get('chief_complaint', {})
+                        
+                        # Determine category from filename (reverse map: organ_system -> category)
+                        organ_system = synonym_file.stem.replace('_synonyms_oldcarts', '').upper()
+                        # Reverse lookup: find category that maps to this organ system
+                        category = None
+                        for cat, sys in self.CATEGORY_TO_SYSTEM.items():
+                            if sys == organ_system:
+                                category = cat
+                                break
+                        if not category:
+                            # Fallback: use filename as category
+                            category = organ_system.lower()
+                        
+                        # Add all synonyms and their medical terms to the index
+                        for medical_term, patient_terms in chief_complaint_syns.items():
+                            for patient_term in patient_terms:
+                                self.chief_complaint_synonyms_data.append({
+                                    'synonym': patient_term,
+                                    'medical_term': medical_term,
+                                    'category': category
+                                })
+                                synonyms_list.append(patient_term)
+                except Exception as e:
+                    self._capture_debug(f"[Engine] ⚠️ Failed to load {synonym_file.name}: {e}")
+            
+            if synonyms_list:
+                # Build FAISS index for all synonyms
+                embeddings = self.embedding_model.encode(synonyms_list)
+                dimension = len(embeddings[0])
+                self.chief_complaint_synonyms_index = faiss.IndexFlatIP(dimension)
+                
+                # Normalize for cosine similarity
+                embeddings_np = np.array(embeddings).astype('float32')
+                faiss.normalize_L2(embeddings_np)
+                self.chief_complaint_synonyms_index.add(embeddings_np)
+                
+                self._capture_debug(f"[Engine] ✅ Built chief complaint synonyms index: {len(synonyms_list)} synonyms from {len(set(g['category'] for g in self.chief_complaint_synonyms_data))} categories")
+        except Exception as e:
+            self._capture_debug(f"[Engine] ⚠️ Failed to build chief complaint synonyms index: {e}")
+            self.chief_complaint_synonyms_index = None
+    
     def _get_guideline_category(self, guideline: Dict) -> str:
         """Extract category from guideline (from directory structure or organ_system)"""
         # Try to get from organ_system stored during loading
@@ -490,13 +558,44 @@ class AdaptiveDiagnosticEngine:
         return 'gastrointestinal'  # Default
     
     def _match_chief_complaint_to_category(self, chief_complaint: str) -> str:
-        """Match chief complaint to category using FAISS similarity against chief_complaint_triggers"""
+        """Match chief complaint to category using unified function with synonym normalization first, then FAISS against triggers"""
         if not self.chief_complaint_triggers_index or not self.embedding_model or len(self.chief_complaint_triggers_data) == 0:
             raise ValueError("Chief complaint triggers index not available. Cannot match category.")
         
         try:
-            # Encode chief complaint
-            query_embedding = self.embedding_model.encode([chief_complaint.lower()])[0]
+            # STEP 1: Normalize using chief complaint synonyms (unified function)
+            normalized_complaint = chief_complaint.lower().strip()
+            if self.chief_complaint_synonyms_index and len(self.chief_complaint_synonyms_data) > 0:
+                try:
+                    # Use FAISS to find matching medical term from synonyms
+                    query_embedding = self.embedding_model.encode([normalized_complaint])[0]
+                    query_embedding = np.array([query_embedding]).astype('float32')
+                    faiss.normalize_L2(query_embedding)
+                    
+                    # Search synonyms index
+                    k = min(5, len(self.chief_complaint_synonyms_data))
+                    similarities, indices = self.chief_complaint_synonyms_index.search(query_embedding, k)
+                    
+                    # Find best matching medical term (threshold 0.75 for synonym matching)
+                    best_synonym_match = None
+                    best_synonym_score = 0.0
+                    
+                    for idx, sim in zip(indices[0], similarities[0]):
+                        if idx < len(self.chief_complaint_synonyms_data) and sim >= 0.75:
+                            synonym_data = self.chief_complaint_synonyms_data[idx]
+                            if sim > best_synonym_score:
+                                best_synonym_score = sim
+                                best_synonym_match = synonym_data['medical_term']
+                    
+                    if best_synonym_match:
+                        normalized_complaint = best_synonym_match
+                        self._capture_debug(f"[Engine] 🔄 Normalized '{chief_complaint}' → '{normalized_complaint}' (synonym score: {best_synonym_score:.3f})")
+                except Exception as e:
+                    self._capture_debug(f"[Engine] ⚠️ Synonym normalization failed, using original: {e}")
+            
+            # STEP 2: Match normalized complaint against chief_complaint_triggers
+            # Encode normalized chief complaint
+            query_embedding = self.embedding_model.encode([normalized_complaint])[0]
             query_embedding = np.array([query_embedding]).astype('float32')
             faiss.normalize_L2(query_embedding)
             
@@ -639,7 +738,7 @@ class AdaptiveDiagnosticEngine:
         if not guidelines:
             return {
                 'answered_components': {},
-                'missing_components': ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity'],
+                'missing_components': ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity', 'associated'],
                 'anatomical_analysis': {}
             }
         
@@ -648,7 +747,7 @@ class AdaptiveDiagnosticEngine:
         
         # Use FAISS to find matching terms - relies on extensive synonym files
         if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
-            all_elements = ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity']
+            all_elements = ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity', 'associated']
             
             for element in all_elements:
                 # Use FAISS to find matching terms with semantic similarity (very high threshold for initial parsing to avoid false positives)
@@ -670,7 +769,7 @@ class AdaptiveDiagnosticEngine:
         
         answered_elements = list(answered_components.keys())
         # Priority order: timing before duration
-        standard_order = ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity']
+        standard_order = ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity', 'associated']
         missing_elements = [element for element in standard_order if element not in answered_elements]
         
         return {
@@ -718,7 +817,7 @@ class AdaptiveDiagnosticEngine:
                     answered_components[element].append(term)
                     break
                         
-        all_elements = ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity']
+        all_elements = ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity', 'associated']
         answered_elements = list(answered_components.keys())
         missing_elements = [element for element in all_elements if element not in answered_elements]
         
@@ -803,15 +902,20 @@ class AdaptiveDiagnosticEngine:
                 guideline_sections = []
                 guideline_data = []
                 for g in all_guidelines:
-                    classic = g.get('data', {}).get('key_features', {}).get('classic_presentation', '')
-                    oldcarts_section = self._extract_oldcarts_section(classic, 'location')  # Radiation terms are still in LOCATION section
+                    structured_oldcarts = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+                    # Build location section text from structured data
+                    location_data = structured_oldcarts.get('location', {})
+                    location_terms = []
+                    for item in location_data.get('includes', []):
+                        location_terms.append(item.get('medical', ''))
+                    oldcarts_section = ' '.join(location_terms)
                     
                     if oldcarts_section:
                         guideline_sections.append(oldcarts_section)
                         guideline_data.append({
                             'guideline': g,
                             'condition_name': g.get('data', {}).get('condition', g.get('name', 'Unknown')),
-                            'structured_oldcarts': g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {}),
+                            'structured_oldcarts': structured_oldcarts,
                             'section': oldcarts_section
                         })
                 
@@ -872,10 +976,10 @@ class AdaptiveDiagnosticEngine:
             # Continue to next question
             return self._ask_next_clinical_question()
         
-        # Handle onset, duration, timing (documentation only - no clarification needed)
-        if oldcarts_element in ['onset', 'duration', 'timing']:
+        # Handle onset, duration, timing, severity, associated (documentation only - no clarification needed)
+        if oldcarts_element in ['onset', 'duration', 'timing', 'severity', 'associated']:
             # Mark element as covered and store the answer
-            element_map = {'onset': 'O', 'duration': 'D', 'timing': 'T'}
+            element_map = {'onset': 'O', 'duration': 'D', 'timing': 'T', 'severity': 'S', 'associated': 'AS'}
             if oldcarts_element in element_map:
                 self.oldcarts_covered[element_map[oldcarts_element]] = True
                 # Update missing_components list to remove this element
@@ -938,15 +1042,20 @@ class AdaptiveDiagnosticEngine:
         guideline_sections = []
         guideline_data = []
         for g in all_guidelines:
-            classic = g.get('data', {}).get('key_features', {}).get('classic_presentation', '')
-            oldcarts_section = self._extract_oldcarts_section(classic, oldcarts_element)
+            structured_oldcarts = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            # Build section text from structured data
+            element_data = structured_oldcarts.get(oldcarts_element, {})
+            element_terms = []
+            for item in element_data.get('includes', []):
+                element_terms.append(item.get('medical', ''))
+            oldcarts_section = ' '.join(element_terms)
             
             if oldcarts_section:
                 guideline_sections.append(oldcarts_section)
                 guideline_data.append({
                     'guideline': g,
                     'condition_name': g.get('data', {}).get('condition', g.get('name', 'Unknown')),
-                    'structured_oldcarts': g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {}),
+                    'structured_oldcarts': structured_oldcarts,
                     'section': oldcarts_section
                 })
         
@@ -1102,7 +1211,7 @@ class AdaptiveDiagnosticEngine:
         # Only mark element as covered if NO clarification needed
         if not clarification_needed:
             element_map = {'onset': 'O', 'location': 'L', 'timing': 'T', 'duration': 'D',
-                          'character': 'C', 'aggravating': 'A', 'relieving': 'R', 'severity': 'S'}
+                          'character': 'C', 'aggravating': 'A', 'relieving': 'R', 'severity': 'S', 'associated': 'AS'}
             if oldcarts_element in element_map:
                 self.oldcarts_covered[element_map[oldcarts_element]] = True
                 # Update missing_components list to remove this element
@@ -1141,26 +1250,6 @@ class AdaptiveDiagnosticEngine:
         
         # Continue to next question
         return self._ask_next_clinical_question()
-    
-    def _extract_oldcarts_section(self, classic_presentation: str, element: str) -> str:
-        """Extract specific OLDCARTS section from classic_presentation"""
-        element_names = {
-            'onset': 'ONSET', 'location': 'LOCATION', 'timing': 'TIMING', 'duration': 'DURATION',
-            'character': 'CHARACTER', 'aggravating': 'AGGRAVATING',
-            'relieving': 'RELIEVING', 'severity': 'SEVERITY'
-        }
-        
-        element_tag = element_names.get(element.lower(), element.upper())
-        
-        # Extract section
-        if element_tag in classic_presentation:
-            parts = classic_presentation.split(element_tag)
-            if len(parts) > 1:
-                section = parts[1].split('[')[0].split('\n')[0].strip()
-                if section:
-                    return section
-        
-        return ""
     
     def _get_dynamic_threshold(self, score: float) -> float:
         """Get dynamic threshold for ruling out"""
@@ -1311,7 +1400,7 @@ class AdaptiveDiagnosticEngine:
             synonym_expansions = cache_data.get('expansions', {})
             synonym_to_group = cache_data.get('to_group', {})
         
-        # Do FAISS semantic matching ONCE for all terms (expensive operation)
+        # OPTIMIZATION: Do FAISS semantic matching ONCE for all terms (expensive operation)
         # Get ALL condition names (active + reserve) to check against all guidelines
         all_condition_names = set()
         for g in all_guidelines_to_check:
@@ -1321,14 +1410,23 @@ class AdaptiveDiagnosticEngine:
         
         semantic_matches_set = set()
         faiss_scores = {}
+        normalized_answer = answer_lower  # Default to original answer
+        patient_components = {}  # For location only
+        
         if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
             try:
+                # OPTIMIZATION: Single FAISS call for both matching AND normalization
                 # Check against ALL guidelines, not just active ones
                 semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(
                     answer, oldcarts_element, threshold=0.75, 
                     return_scores=True, active_condition_names=all_condition_names
                 )
                 semantic_matches_set = set(t.lower() for t in semantic_matches)
+                
+                # OPTIMIZATION: Use first FAISS match as normalized answer (reuse result)
+                if semantic_matches:
+                    normalized_answer = semantic_matches[0].lower()
+                
                 # Get scores from the engine (filtered to all conditions we're checking)
                 if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
                     all_faiss_scores = self.medical_rule_engine._last_faiss_scores
@@ -1339,25 +1437,15 @@ class AdaptiveDiagnosticEngine:
                 self._capture_debug(f"[Location Analysis] ⚠️ FAISS error: {e}")
                 pass
         
-        # For location element, normalize answer once to extract anatomical components
-        normalized_answer = answer_lower
-        if oldcarts_element == 'location' and self.medical_rule_engine:
-            # Try to normalize using synonyms first
-            if organ_system in self.synonym_cache:
-                cache_data = self.synonym_cache[organ_system].get('location', {})
-                location_synonyms = cache_data.get('synonyms', {})
-                if location_synonyms:
-                    # Use FAISS to normalize (check all guidelines for proper normalization)
-                    faiss_normalize = self.medical_rule_engine.find_matching_terms_faiss(
-                        answer, 'location', threshold=0.75, active_condition_names=all_condition_names
-                    )
-                    if faiss_normalize:
-                        normalized_answer = faiss_normalize[0].lower()
-        
-        # Extract anatomical components from patient answer (for location only)
-        patient_components = {}
+        # OPTIMIZATION: Extract anatomical components ONCE from patient answer (for location only)
         if oldcarts_element == 'location' and self.medical_rule_engine:
             patient_components = self.medical_rule_engine._extract_anatomical_components(normalized_answer)
+        
+        # OPTIMIZATION: Pre-extract anatomical components for ALL terms ONCE (not in loop)
+        term_components_cache = {}
+        if oldcarts_element == 'location' and self.medical_rule_engine:
+            for term in all_includes:
+                term_components_cache[term] = self.medical_rule_engine._extract_anatomical_components(term)
         
         # Check each term using the same logic as unified function
         # IMPORTANT: Check ALL terms (from all guidelines) to properly detect satisfied terms
@@ -1367,9 +1455,10 @@ class AdaptiveDiagnosticEngine:
             match_reason = None
             
             # For location element, check anatomical mismatch BEFORE marking as satisfied
+            # OPTIMIZATION: Use pre-extracted components from cache
             anatomical_mismatch = False
             if oldcarts_element == 'location' and patient_components and self.medical_rule_engine:
-                condition_components = self.medical_rule_engine._extract_anatomical_components(term)
+                condition_components = term_components_cache.get(term, {})
                 if condition_components:
                     if self.medical_rule_engine._are_anatomical_opposites(patient_components, condition_components):
                         anatomical_mismatch = True
@@ -1419,9 +1508,10 @@ class AdaptiveDiagnosticEngine:
                             other_term_lower = other_synonym.lower()
                             if other_term_lower in all_includes:
                                 # Check for anatomical mismatch before adding
+                                # OPTIMIZATION: Use pre-extracted components from cache
                                 should_add = True
                                 if oldcarts_element == 'location' and patient_components and self.medical_rule_engine:
-                                    other_components = self.medical_rule_engine._extract_anatomical_components(other_term_lower)
+                                    other_components = term_components_cache.get(other_term_lower, {})
                                     if other_components:
                                         if self.medical_rule_engine._are_anatomical_opposites(patient_components, other_components):
                                             should_add = False
@@ -1689,19 +1779,19 @@ class AdaptiveDiagnosticEngine:
         missing = self.oldcarts_analysis.get('missing_components', [])
         self._capture_debug(f"[Engine] Missing components: {missing}")
         if not missing:
-            return {
-                'success': True,
-                'status': 'completed',
-                'message': 'Assessment complete',
-                'debug': {
-                    'engine': self._format_engine_debug("[Engine] ✅ Assessment complete"),
-                    'internal': self._get_debug_info()
-                }
-            }
+            # All OLDCARTS complete - now ask about key positives/negatives
+            if not self.key_features_phase and not self.red_flag_phase:
+                return self._start_key_features_phase()
+            elif self.key_features_phase:
+                # Continue asking about key features (will be handled in process_answer)
+                return self._ask_next_key_feature()
+            elif self.red_flag_phase:
+                # Continue asking about red flags (will be handled in process_answer)
+                return self._ask_next_red_flag()
         
         # OPTIMIZATION: Reorder to prioritize timing before duration
         # If timing is answered as constant, skip duration (redundant - already constant since onset)
-        priority_order = ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity']
+        priority_order = ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity', 'associated']
         reordered_missing = []
         skip_duration = False
         
@@ -1794,6 +1884,7 @@ class AdaptiveDiagnosticEngine:
             'location': "Where exactly is the pain located?",
             'timing': "Is it constant or does it come and go?",
             'duration': "How long does each episode typically last?",
+            'associated': "Are there any other symptoms you're experiencing?",
             'character': "What does it feel like?",
             'aggravating': "What makes it worse?",
             'relieving': "What helps or makes it better?",
@@ -1964,6 +2055,291 @@ class AdaptiveDiagnosticEngine:
         
         return response.strip()
     
+    def _extract_key_features_from_guidelines(self) -> List[Dict]:
+        """Extract key positives and negatives from top 2 active guidelines"""
+        key_features_list = []
+        
+        # Get top 2 active guidelines only
+        top_guidelines = self.active_guidelines[:2]
+        
+        for g in top_guidelines:
+            condition_name = g.get('data', {}).get('condition', g.get('name', ''))
+            key_features = g.get('data', {}).get('key_features', {})
+            
+            # Extract from structured key_positives if available
+            key_positives = key_features.get('key_positives', [])
+            for pos in key_positives[:3]:  # Limit to top 3 positives per condition
+                if isinstance(pos, str):
+                    key_features_list.append({
+                        'type': 'positive',
+                        'condition': condition_name,
+                        'feature': pos,
+                        'guideline': g
+                    })
+                elif isinstance(pos, dict):
+                    key_features_list.append({
+                        'type': 'positive',
+                        'condition': condition_name,
+                        'feature': pos.get('feature', pos.get('medical', '')),
+                        'guideline': g
+                    })
+            
+            # Extract from structured key_negatives if available
+            key_negatives = key_features.get('key_negatives', [])
+            for neg in key_negatives[:2]:  # Limit to top 2 negatives per condition
+                if isinstance(neg, str):
+                    key_features_list.append({
+                        'type': 'negative',
+                        'condition': condition_name,
+                        'feature': neg,
+                        'guideline': g
+                    })
+                elif isinstance(neg, dict):
+                    key_features_list.append({
+                        'type': 'negative',
+                        'condition': condition_name,
+                        'feature': neg.get('feature', neg.get('medical', '')),
+                        'guideline': g
+                    })
+        
+        return key_features_list
+    
+    def _start_key_features_phase(self) -> Dict[str, Any]:
+        """Start asking about key positives and negatives"""
+        self.key_features_phase = True
+        self.key_features_list = self._extract_key_features_from_guidelines()
+        self.key_features_index = 0
+        
+        if not self.key_features_list:
+            # No key features found - move to red flag screening
+            return self._start_red_flag_phase()
+        
+        return self._ask_next_key_feature()
+    
+    def _ask_next_key_feature(self) -> Dict[str, Any]:
+        """Ask next key feature question"""
+        if self.key_features_index >= len(self.key_features_list):
+            # All key features asked - move to red flag screening
+            if not self.red_flag_phase:
+                return self._start_red_flag_phase()
+            else:
+                return self._ask_next_red_flag()
+        
+        feature_data = self.key_features_list[self.key_features_index]
+        feature_type = feature_data['type']
+        feature_text = feature_data['feature']
+        condition_name = feature_data['condition']
+        
+        # Generate question using LLM
+        if not self.llm_chat_simple_fn:
+            return {'success': False, 'message': 'LLM not available'}
+        
+        system_msg = "You are a medical assistant. Generate a simple, patient-friendly question about a key clinical feature."
+        if feature_type == 'positive':
+            user_msg = f"Key positive finding: '{feature_text}'\n\nFor condition: {condition_name}\n\nGenerate a simple yes/no or open-ended question to ask the patient about this finding. Keep it short and natural."
+        else:
+            user_msg = f"Key negative finding: '{feature_text}'\n\nFor condition: {condition_name}\n\nGenerate a simple yes/no or open-ended question to ask the patient about this finding. If present, it would make this condition less likely. Keep it short and natural."
+        
+        llm_kwargs = self._get_llm_kwargs()
+        response = self.llm_chat_simple_fn(
+            [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ],
+            **llm_kwargs
+        )
+        
+        question = response.strip() if response else f"About {feature_text.lower()}:"
+        
+        # Remove prefixes if present
+        prefixes = ["Here is the question:", "Q:", "Question:"]
+        for prefix in prefixes:
+            if question.lower().startswith(prefix.lower()):
+                question = question[len(prefix):].strip()
+        
+        self.conversation_history.append({
+            'type': 'question',
+            'question': question,
+            'focus': 'key_feature',
+            'feature_data': feature_data
+        })
+        
+        self._capture_debug(f"[Engine] 🔍 Asking key feature ({feature_type}): {feature_text}")
+        self._capture_debug(f"[Engine] Question: {question}")
+        
+        return {
+            'success': True,
+            'question': question,
+            'status': 'key_feature',
+            'debug': {
+                'engine': self._format_engine_debug(f"[Engine] 🔍 Key feature question ({self.key_features_index + 1}/{len(self.key_features_list)})"),
+                'internal': self._get_debug_info()
+            }
+        }
+    
+    def _process_key_feature_answer(self, user_answer: str, feature_data: Dict) -> None:
+        """Process answer to key feature question and update scores"""
+        feature_type = feature_data['type']
+        feature_text = feature_data['feature']
+        condition_name = feature_data['condition']
+        guideline = feature_data['guideline']
+        
+        # Normalize answer
+        answer_lower = user_answer.lower().strip()
+        
+        # Check for positive indicators (yes, present, etc.)
+        positive_indicators = ['yes', 'yep', 'yeah', 'y', 'true', 'present', 'have', 'has', 'do', 'does', 'am', 'is', 'are']
+        is_positive = any(indicator in answer_lower for indicator in positive_indicators)
+        
+        # Update score based on key feature answer
+        old_score = guideline['score']
+        if feature_type == 'positive' and is_positive:
+            # Positive finding present - boost score
+            boost = 0.1
+            new_score = min(1.0, old_score + boost)
+            self._capture_debug(f"[Key Feature] ✅ Positive finding '{feature_text}' present - boosting {condition_name}: {old_score:.3f} → {new_score:.3f}")
+        elif feature_type == 'negative' and is_positive:
+            # Negative finding present - penalize score
+            penalty = -0.15
+            new_score = max(0.0, old_score + penalty)
+            self._capture_debug(f"[Key Feature] ❌ Negative finding '{feature_text}' present - penalizing {condition_name}: {old_score:.3f} → {new_score:.3f}")
+        else:
+            # No change (positive absent or negative absent)
+            new_score = old_score
+            self._capture_debug(f"[Key Feature] ⚪ No change for {condition_name}: {old_score:.3f}")
+        
+        guideline['score'] = new_score
+        
+        # Re-rank after score update
+        all_guidelines = self.active_guidelines + self.reserve_pool
+        previous_active = len(self.active_guidelines)
+        self._rerank_and_pool_guidelines(all_guidelines, previous_active)
+    
+    def _start_red_flag_phase(self) -> Dict[str, Any]:
+        """Start asking about red flags for top winning condition"""
+        if not self.active_guidelines:
+            # No active guidelines - assessment complete
+            return {
+                'success': True,
+                'status': 'completed',
+                'message': 'Assessment complete',
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] ✅ Assessment complete"),
+                    'internal': self._get_debug_info()
+                }
+            }
+        
+        # Get top winning condition
+        top_condition = self.active_guidelines[0]
+        condition_name = top_condition.get('data', {}).get('condition', top_condition.get('name', ''))
+        red_flags = top_condition.get('data', {}).get('red_flags', [])
+        
+        if not red_flags:
+            # No red flags for this condition - assessment complete
+            return {
+                'success': True,
+                'status': 'completed',
+                'message': 'Assessment complete',
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] ✅ Assessment complete"),
+                    'internal': self._get_debug_info()
+                }
+            }
+        
+        self.red_flag_phase = True
+        self.red_flags_list = [
+            {'condition': condition_name, 'red_flag': flag, 'guideline': top_condition}
+            for flag in red_flags
+        ]
+        self.red_flag_index = 0
+        
+        return self._ask_next_red_flag()
+    
+    def _ask_next_red_flag(self) -> Dict[str, Any]:
+        """Ask next red flag question"""
+        if self.red_flag_index >= len(self.red_flags_list):
+            # All red flags asked - assessment complete
+            return {
+                'success': True,
+                'status': 'completed',
+                'message': 'Assessment complete',
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] ✅ Assessment complete"),
+                    'internal': self._get_debug_info()
+                }
+            }
+        
+        red_flag_data = self.red_flags_list[self.red_flag_index]
+        red_flag_text = red_flag_data['red_flag']
+        condition_name = red_flag_data['condition']
+        
+        # Generate question using LLM
+        if not self.llm_chat_simple_fn:
+            return {'success': False, 'message': 'LLM not available'}
+        
+        system_msg = "You are a medical assistant screening for urgent medical conditions. Generate a simple, patient-friendly question about a red flag symptom."
+        user_msg = f"Red flag: '{red_flag_text}'\n\nFor condition: {condition_name}\n\nGenerate a simple yes/no or open-ended question to screen for this urgent symptom. Keep it short, clear, and direct. This is checking for an emergency situation."
+        
+        llm_kwargs = self._get_llm_kwargs()
+        response = self.llm_chat_simple_fn(
+            [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ],
+            **llm_kwargs
+        )
+        
+        question = response.strip() if response else f"About {red_flag_text.lower()}:"
+        
+        # Remove prefixes if present
+        prefixes = ["Here is the question:", "Q:", "Question:"]
+        for prefix in prefixes:
+            if question.lower().startswith(prefix.lower()):
+                question = question[len(prefix):].strip()
+        
+        self.conversation_history.append({
+            'type': 'question',
+            'question': question,
+            'focus': 'red_flag',
+            'red_flag_data': red_flag_data
+        })
+        
+        self._capture_debug(f"[Engine] 🚨 Asking red flag: {red_flag_text}")
+        self._capture_debug(f"[Engine] Question: {question}")
+        
+        return {
+            'success': True,
+            'question': question,
+            'status': 'red_flag',
+            'debug': {
+                'engine': self._format_engine_debug(f"[Engine] 🚨 Red flag question ({self.red_flag_index + 1}/{len(self.red_flags_list)})"),
+                'internal': self._get_debug_info()
+            }
+        }
+    
+    def _process_red_flag_answer(self, user_answer: str, red_flag_data: Dict) -> None:
+        """Process answer to red flag question - if positive, mark as urgent case"""
+        red_flag_text = red_flag_data['red_flag']
+        condition_name = red_flag_data['condition']
+        
+        # Normalize answer
+        answer_lower = user_answer.lower().strip()
+        
+        # Check for positive indicators (yes, present, etc.)
+        positive_indicators = ['yes', 'yep', 'yeah', 'y', 'true', 'present', 'have', 'has', 'do', 'does', 'am', 'is', 'are']
+        is_positive = any(indicator in answer_lower for indicator in positive_indicators)
+        
+        if is_positive:
+            # Red flag present - URGENT CASE DETECTED
+            self.red_flags_present.append({
+                'condition': condition_name,
+                'red_flag': red_flag_text,
+                'severity': 'urgent'
+            })
+            self._capture_debug(f"[Red Flag] 🚨 URGENT: '{red_flag_text}' present for {condition_name}")
+        else:
+            self._capture_debug(f"[Red Flag] ✅ No red flag: '{red_flag_text}' absent for {condition_name}")
+    
     def process_answer(self, user_answer: str) -> Dict[str, Any]:
         """Process user answer and continue assessment"""
         # Check if user is asking a question instead of answering
@@ -2033,6 +2409,30 @@ class AdaptiveDiagnosticEngine:
                 }
             }
         
+        
+        # Handle red flag answers
+        if last_q and last_q.get('focus') == 'red_flag':
+            red_flag_data = last_q.get('red_flag_data')
+            if red_flag_data:
+                self._process_red_flag_answer(user_answer, red_flag_data)
+                self.red_flag_index += 1
+                return self._ask_next_red_flag()
+            else:
+                self._capture_debug("[Engine] ⚠️ Missing red_flag_data in red flag question")
+                self.red_flag_index += 1
+                return self._ask_next_red_flag()
+        
+        # Handle key feature answers
+        if last_q and last_q.get('focus') == 'key_feature':
+            feature_data = last_q.get('feature_data')
+            if feature_data:
+                self._process_key_feature_answer(user_answer, feature_data)
+                self.key_features_index += 1
+                return self._ask_next_key_feature()
+            else:
+                self._capture_debug("[Engine] ⚠️ Missing feature_data in key feature question")
+                self.key_features_index += 1
+                return self._ask_next_key_feature()
         
         # Handle other demographics (sex, chronicity)
         if last_q and last_q.get('focus') == 'sex':

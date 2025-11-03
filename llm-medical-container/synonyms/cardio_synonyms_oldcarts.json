@@ -3,44 +3,15 @@
     "chest": [
       "chest pain",
       "chest discomfort",
-      "chest ache",
       "chest pressure",
       "chest tightness",
-      "chest burning",
-      "chest heaviness",
-      "chest squeezing",
-      "chest constriction",
-      "chest compression",
-      "chest hurt",
-      "chest sore",
-      "chest tender",
-      "chest throb",
-      "chest pang",
-      "chest twinge",
-      "chest spasm",
-      "chest cramp",
-      "chest sharp pain",
-      "chest dull pain"
+      "chest burning"
     ],
     "heart": [
       "heart pain",
       "heart ache",
       "heart discomfort",
-      "heart pressure",
-      "heart tightness",
-      "heart burning",
-      "heart heaviness",
-      "heart squeezing",
-      "heart hurt",
-      "heart sore",
-      "heart tender",
-      "heart throb",
-      "heart pang",
-      "heart twinge",
-      "heart spasm",
-      "heart cramp",
-      "heart sharp pain",
-      "heart dull pain"
+      "heart pressure"
     ],
     "shortness_of_breath": [
       "short of breath",
@@ -48,96 +19,33 @@
       "trouble breathing",
       "can't catch breath",
       "breathless",
-      "out of breath",
-      "breathing problems",
-      "difficulty breathing",
-      "breathing trouble",
-      "breathing hard",
-      "breathing fast",
-      "breathing heavy",
-      "breathing shallow",
-      "breathing labored",
-      "breathing effort",
-      "breathing work",
-      "breathing struggle",
-      "breathing strain",
-      "breathing stress",
-      "breathing fatigue"
+      "dyspnea"
     ],
     "palpitations": [
       "heart racing",
       "heart pounding",
       "heart beating fast",
-      "heart beating hard",
-      "heart beating irregular",
       "heart skipping",
-      "heart fluttering",
-      "heart thumping",
-      "heart pounding",
-      "heart racing",
-      "heart beating",
-      "heart rhythm",
-      "heart beat",
-      "heart pulse",
-      "heart throb",
-      "heart palpitation",
-      "heart irregular",
-      "heart abnormal",
-      "heart strange",
-      "heart weird"
+      "heart fluttering"
     ],
     "dizziness": [
       "dizzy",
       "lightheaded",
       "feeling faint",
-      "dizziness",
       "vertigo",
-      "spinning sensation",
-      "room spinning",
-      "world spinning",
-      "feeling woozy",
-      "feeling unsteady",
-      "feeling off balance",
-      "feeling shaky",
-      "feeling weak",
-      "feeling faint",
-      "feeling dizzy",
-      "feeling lightheaded",
-      "feeling vertigo",
-      "feeling spinning",
-      "feeling woozy",
-      "feeling unsteady"
+      "spinning sensation"
     ],
     "syncope": [
       "fainting",
       "passing out",
       "blacking out",
-      "losing consciousness",
-      "fainting spell",
-      "fainting episode",
-      "fainting attack",
-      "fainting fit",
-      "fainting seizure",
-      "fainting convulsion",
-      "fainting collapse",
-      "fainting fall",
-      "fainting drop",
-      "fainting sink",
-      "fainting swoon",
-      "fainting faint",
-      "fainting unconscious",
-      "fainting coma",
-      "fainting stupor",
-      "fainting trance"
+      "losing consciousness"
     ]
   },
   "onset": {
     "sudden": [
       "suddenly",
       "all of a sudden",
-      "came on suddenly",
-      "started suddenly",
-      "hit me suddenly",
       "came out of nowhere",
       "without warning"
     ],
@@ -145,179 +53,111 @@
       "slowly",
       "gradually",
       "over time",
-      "slowly getting worse",
-      "progressively",
-      "step by step",
-      "little by little"
+      "progressively"
     ],
     "acute": [
       "acute onset",
-      "came on quickly",
       "rapid onset",
-      "fast onset",
       "quickly developed"
     ],
     "chronic": [
       "long term",
       "ongoing",
       "persistent",
-      "has been going on",
-      "for a while",
-      "for some time"
+      "for a while"
     ]
   },
   "location": {
     "chest_center": [
       "center of chest",
       "middle of chest",
-      "chest center",
-      "center chest",
-      "middle chest"
+      "chest center"
     ],
     "chest_left": [
       "left side of chest",
-      "left chest",
-      "left side chest",
-      "left side of my chest",
-      "left chest area"
+      "left chest"
     ],
     "chest_right": [
       "right side of chest",
-      "right chest",
-      "right side chest",
-      "right side of my chest",
-      "right chest area"
+      "right chest"
     ],
     "substernal": [
       "behind breastbone",
       "under breastbone",
-      "below breastbone",
-      "behind the breastbone",
-      "under the breastbone",
-      "below the breastbone",
-      "center of chest behind breastbone"
-    ],
-    "retrosternal": [
-      "behind breastbone",
-      "behind the breastbone",
-      "back of breastbone",
-      "behind my breastbone",
-      "center chest behind breastbone"
+      "below breastbone"
     ],
     "epigastric": [
       "upper middle of stomach",
       "top of stomach",
       "upper abdomen",
-      "upper belly",
-      "top of belly",
-      "under breastbone",
-      "below breastbone"
+      "under breastbone"
     ],
     "left_arm": [
       "left arm",
       "left shoulder",
-      "left shoulder and arm",
-      "left side arm",
-      "left arm pain",
-      "pain in left arm"
+      "left arm pain"
     ],
     "right_arm": [
       "right arm",
       "right shoulder",
-      "right shoulder and arm",
-      "right side arm",
-      "right arm pain",
-      "pain in right arm"
+      "right arm pain"
     ],
     "jaw": [
       "jaw pain",
       "jaw area",
-      "lower jaw",
-      "jaw and neck",
-      "pain in jaw",
-      "jaw discomfort"
+      "lower jaw"
     ],
     "neck": [
       "neck pain",
       "neck area",
-      "back of neck",
-      "neck and shoulder",
-      "pain in neck",
-      "neck discomfort"
+      "back of neck"
     ],
     "back": [
       "back pain",
       "upper back",
-      "back area",
-      "between shoulder blades",
-      "pain in back",
-      "back discomfort"
+      "between shoulder blades"
     ],
     "shoulder": [
       "shoulder pain",
-      "shoulder area",
       "left shoulder",
-      "right shoulder",
-      "pain in shoulder",
-      "shoulder discomfort"
+      "right shoulder"
     ],
     "diffuse_chest": [
       "all over chest",
       "whole chest",
-      "entire chest",
-      "general chest pain",
-      "widespread chest pain",
-      "chest all over"
+      "widespread chest pain"
     ]
   },
   "duration": {
     "minutes": [
       "few minutes",
-      "couple minutes",
-      "several minutes",
-      "for minutes"
+      "several minutes"
     ],
     "hours": [
       "few hours",
-      "couple hours",
-      "several hours",
-      "for hours",
-      "hourly"
+      "several hours"
     ],
     "days": [
       "few days",
-      "couple days",
-      "several days",
-      "for days",
-      "daily"
+      "several days"
     ],
     "weeks": [
       "few weeks",
-      "couple weeks",
-      "several weeks",
-      "for weeks",
-      "weekly"
+      "several weeks"
     ],
     "months": [
       "few months",
-      "couple months",
-      "several months",
-      "for months",
-      "monthly"
+      "several months"
     ],
     "years": [
       "few years",
-      "couple years",
-      "several years",
-      "for years",
-      "yearly"
+      "several years"
     ],
     "intermittent": [
       "comes and goes",
       "on and off",
       "sporadic",
       "occasional",
-      "sometimes",
       "periodic"
     ],
     "constant": [
@@ -325,8 +165,7 @@
       "continuous",
       "non-stop",
       "persistent",
-      "steady",
-      "ongoing"
+      "steady"
     ]
   },
   "character": {
@@ -335,118 +174,93 @@
       "stabbing",
       "knife-like",
       "piercing",
-      "cutting",
-      "acute pain"
+      "cutting"
     ],
     "dull": [
       "dull pain",
       "achy",
       "aching",
       "sore",
-      "tender",
-      "heavy feeling"
+      "tender"
     ],
     "burning": [
       "burning pain",
       "burning sensation",
       "hot feeling",
-      "fire-like",
-      "scorching"
+      "fire-like"
     ],
     "pressure": [
       "pressure feeling",
       "squeezing",
       "tightness",
-      "fullness",
-      "heavy pressure"
+      "fullness"
     ],
     "throbbing": [
       "throbbing pain",
       "pulsating",
-      "beating",
-      "rhythmic pain"
+      "beating"
     ]
   },
   "aggravating_factors": {
     "movement": [
-      "when I move",
-      "movement makes it worse",
       "walking",
       "bending",
       "twisting",
       "physical activity"
     ],
     "breathing": [
-      "when I breathe",
-      "breathing makes it worse",
       "deep breath",
       "coughing",
       "sneezing"
     ],
     "stress": [
-      "when stressed",
-      "stress makes it worse",
+      "stress",
       "anxiety",
       "nervous"
     ]
   },
   "alleviating_factors": {
     "rest": [
-      "resting helps",
-      "when I rest",
+      "resting",
       "lying still",
       "not moving",
       "staying still"
     ],
     "heat": [
-      "heat helps",
+      "heat",
       "heating pad",
-      "warm compress",
-      "hot water bottle",
-      "warmth"
+      "warm compress"
     ],
     "cold": [
-      "cold helps",
+      "cold",
       "ice pack",
-      "cold compress",
-      "cooling"
+      "cold compress"
     ],
     "medication": [
       "pain medicine",
       "painkillers",
-      "medication helps",
-      "pills help",
-      "drugs help"
+      "medication"
     ]
   },
   "radiation": {
     "back": [
-      "goes to back",
-      "radiates to back",
+      "back",
       "back pain",
-      "pain in back",
-      "spreads to back"
+      "radiates to back"
     ],
     "chest": [
-      "goes to chest",
-      "radiates to chest",
+      "chest",
       "chest pain",
-      "pain in chest",
-      "spreads to chest"
+      "radiates to chest"
     ],
     "arms": [
-      "goes to arms",
-      "radiates to arms",
+      "arms",
       "arm pain",
-      "pain in arms",
-      "spreads to arms"
+      "radiates to arm"
     ],
     "legs": [
-      "goes to legs",
-      "radiates to legs",
-      "leg pain",
-      "pain in legs",
-      "spreads to legs"
+      "legs",
+      "leg pain"
     ]
   },
   "timing": {
@@ -455,55 +269,48 @@
       "continuous",
       "non-stop",
       "persistent",
-      "steady",
-      "ongoing"
+      "steady"
     ],
     "intermittent": [
       "comes and goes",
       "on and off",
       "sporadic",
       "occasional",
-      "sometimes",
       "periodic"
     ],
     "morning": [
-      "in the morning",
+      "morning",
       "when I wake up",
-      "early morning",
-      "morning time"
+      "early morning"
     ],
     "evening": [
-      "in the evening",
-      "at night",
-      "evening time",
-      "night time"
+      "evening",
+      "at night"
     ],
     "night": [
-      "at night",
+      "night",
       "during sleep",
-      "wakes me up",
-      "night time"
+      "wakes me up"
     ]
   },
   "severity": {
     "mild": [
-      "mild pain",
-      "slight pain",
-      "minor pain",
+      "mild",
+      "slight",
+      "minor",
       "not too bad",
-      "manageable",
-      "tolerable"
+      "manageable"
     ],
     "moderate": [
-      "moderate pain",
-      "medium pain",
+      "moderate",
+      "medium",
       "somewhat painful",
       "noticeable",
       "uncomfortable"
     ],
     "severe": [
-      "severe pain",
-      "bad pain",
+      "severe",
+      "bad",
       "really painful",
       "excruciating",
       "unbearable",
@@ -513,22 +320,18 @@
       "1 out of 10",
       "2 out of 10",
       "3 out of 10",
-      "very mild",
-      "barely noticeable"
+      "very mild"
     ],
     "scale_4_6": [
       "4 out of 10",
       "5 out of 10",
-      "6 out of 10",
-      "moderate",
-      "noticeable"
+      "6 out of 10"
     ],
     "scale_7_10": [
       "7 out of 10",
       "8 out of 10",
       "9 out of 10",
       "10 out of 10",
-      "severe",
       "worst pain ever"
     ]
   },
@@ -536,9 +339,7 @@
     "fatigue": [
       "tired",
       "exhausted",
-      "worn out",
       "weak",
-      "drained",
       "lethargic"
     ]
   },
@@ -546,34 +347,25 @@
     "sharp": [
       "stabbing",
       "knife-like",
-      "piercing",
-      "stinging"
+      "piercing"
     ],
     "heavy": [
-      "weight",
-      "happy",
       "crushing",
       "tightness",
       "pressure",
-      "squeezing",
-      "constricting"
+      "squeezing"
     ],
     "shortness_of_breath": [
-      "sob",
       "short of breath",
       "difficulty breathing",
-      "can\u2019t breathe",
       "can't breathe",
-      "hard to breathe",
       "trouble breathing",
-      "breathless",
-      "dyspnea"
+      "breathless"
     ],
     "palpitations": [
       "racing heart",
       "fluttering",
       "skipped beats",
-      "pounding heart",
       "heart racing",
       "fast heartbeat"
     ],
@@ -582,22 +374,14 @@
       "collapse",
       "passed out",
       "blackout",
-      "lost consciousness",
-      "knocked out"
+      "lost consciousness"
     ],
     "sweating": [
       "sweaty",
       "clammy",
-      "diaphoresis",
-      "perspiration",
-      "drenched"
+      "diaphoresis"
     ],
     "radiation": [
-      "spreads to arm",
-      "spreads to neck",
-      "spreads to jaw",
-      "spreads to back",
-      "spreads to shoulder",
       "radiates to arm",
       "radiates to neck",
       "radiates to jaw",

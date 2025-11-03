@@ -2,122 +2,36 @@
   "chief_complaint": {
     "urinary_frequency": [
       "frequent urination",
-      "going to bathroom often",
-      "urinating frequently",
-      "frequent trips to bathroom",
       "peeing often",
-      "urinary frequency",
-      "frequent peeing",
-      "frequent voiding",
-      "frequent micturition",
-      "frequent urination",
-      "frequent bathroom visits",
-      "frequent toilet trips",
-      "frequent restroom visits",
-      "frequent lavatory visits",
-      "frequent washroom visits",
-      "frequent facilities visits",
-      "frequent convenience visits",
-      "frequent comfort visits",
-      "frequent relief visits",
-      "frequent elimination visits"
+      "urinary frequency"
     ],
     "urinary_urgency": [
       "urgent urination",
       "can't hold it",
       "sudden urge to pee",
-      "urinary urgency",
-      "need to go now",
-      "can't wait to pee",
-      "urgent peeing",
-      "urgent voiding",
-      "urgent micturition",
-      "urgent urination",
-      "urgent bathroom need",
-      "urgent toilet need",
-      "urgent restroom need",
-      "urgent lavatory need",
-      "urgent washroom need",
-      "urgent facilities need",
-      "urgent convenience need",
-      "urgent comfort need",
-      "urgent relief need",
-      "urgent elimination need"
+      "urinary urgency"
     ],
     "dysuria": [
       "painful urination",
       "burning when peeing",
       "pain when urinating",
-      "urination pain",
-      "burning urination",
-      "painful peeing",
-      "painful voiding",
-      "painful micturition",
-      "painful urination",
-      "burning peeing",
-      "burning voiding",
-      "burning micturition",
-      "burning urination",
-      "stinging peeing",
-      "stinging voiding",
-      "stinging micturition",
-      "stinging urination",
-      "sore peeing",
-      "sore voiding",
-      "sore micturition"
+      "burning urination"
     ],
     "hematuria": [
       "blood in urine",
       "bloody urine",
       "red urine",
-      "pink urine",
-      "urine with blood",
-      "blood when peeing",
-      "blood in pee",
-      "bloody pee",
-      "red pee",
-      "pink pee",
-      "pee with blood",
-      "blood when voiding",
-      "blood in voiding",
-      "bloody voiding",
-      "red voiding",
-      "pink voiding",
-      "voiding with blood",
-      "blood when micturating",
-      "blood in micturition",
-      "bloody micturition"
+      "pink urine"
     ],
     "genital": [
       "genital pain",
-      "genital area pain",
-      "genital discomfort",
-      "genital ache",
-      "genital soreness",
-      "genital tenderness",
-      "genital hurt",
-      "genital throb",
-      "genital pang",
-      "genital twinge",
-      "genital spasm",
-      "genital cramp",
-      "genital sharp pain",
-      "genital dull pain",
-      "genital pressure",
-      "genital tightness",
-      "genital burning",
-      "genital heaviness",
-      "genital squeezing",
-      "genital constriction"
+      "genital discomfort"
     ]
   },
   "onset": {
     "sudden": [
       "suddenly",
       "all of a sudden",
-      "came on suddenly",
-      "started suddenly",
-      "hit me suddenly",
       "came out of nowhere",
       "without warning"
     ],
@@ -125,25 +39,18 @@
       "slowly",
       "gradually",
       "over time",
-      "slowly getting worse",
-      "progressively",
-      "step by step",
-      "little by little"
+      "progressively"
     ],
     "acute": [
       "acute onset",
-      "came on quickly",
       "rapid onset",
-      "fast onset",
       "quickly developed"
     ],
     "chronic": [
       "long term",
       "ongoing",
       "persistent",
-      "has been going on",
-      "for a while",
-      "for some time"
+      "for a while"
     ]
   },
   "location": {
@@ -151,82 +58,49 @@
       "burning urination",
       "dysuria",
       "pain peeing",
-      "burning pee",
-      "hurts to urinate",
-      "pain with urination",
-      "burns when I urinate",
-      "it burns when I urinate",
-      "burning when I pee",
-      "pain when I pee",
-      "stinging when I urinate",
-      "discomfort when urinating",
-      "burns to pee",
-      "stinging pee",
-      "painful pee"
+      "pain with urination"
     ],
     "flank": [
       "side pain",
       "loin pain",
-      "pain in side",
-      "back side pain",
       "kidney pain"
     ],
     "pelvic": [
       "lower abdominal pain",
       "pain in pelvis",
-      "pelvic cramping",
-      "pelvic pressure",
-      "lower belly pain"
+      "pelvic pressure"
     ]
   },
   "duration": {
     "minutes": [
       "few minutes",
-      "couple minutes",
-      "several minutes",
-      "for minutes"
+      "several minutes"
     ],
     "hours": [
       "few hours",
-      "couple hours",
-      "several hours",
-      "for hours",
-      "hourly"
+      "several hours"
     ],
     "days": [
       "few days",
-      "couple days",
-      "several days",
-      "for days",
-      "daily"
+      "several days"
     ],
     "weeks": [
       "few weeks",
-      "couple weeks",
-      "several weeks",
-      "for weeks",
-      "weekly"
+      "several weeks"
     ],
     "months": [
       "few months",
-      "couple months",
-      "several months",
-      "for months",
-      "monthly"
+      "several months"
     ],
     "years": [
       "few years",
-      "couple years",
-      "several years",
-      "for years",
-      "yearly"
+      "several years"
     ],
     "intermittent": [
       "comes and goes",
       "on and off",
       "sporadic",
       "occasional",
-      "sometimes",
       "periodic"
     ],
     "constant": [
@@ -234,8 +108,7 @@
       "continuous",
       "non-stop",
       "persistent",
-      "steady",
-      "ongoing"
+      "steady"
     ]
   },
   "character": {
@@ -244,118 +117,94 @@
       "stabbing",
       "knife-like",
       "piercing",
-      "cutting",
-      "acute pain"
+      "cutting"
     ],
     "dull": [
       "dull pain",
       "achy",
       "aching",
       "sore",
-      "tender",
-      "heavy feeling"
+      "tender"
     ],
     "burning": [
       "burning pain",
       "burning sensation",
       "hot feeling",
-      "fire-like",
-      "scorching"
+      "fire-like"
     ],
     "pressure": [
       "pressure feeling",
       "squeezing",
       "tightness",
-      "fullness",
-      "heavy pressure"
+      "fullness"
     ],
     "throbbing": [
       "throbbing pain",
       "pulsating",
-      "beating",
-      "rhythmic pain"
+      "beating"
     ]
   },
   "aggravating_factors": {
     "movement": [
-      "when I move",
-      "movement makes it worse",
       "walking",
       "bending",
       "twisting",
       "physical activity"
     ],
     "breathing": [
-      "when I breathe",
-      "breathing makes it worse",
       "deep breath",
       "coughing",
       "sneezing"
     ],
     "stress": [
-      "when stressed",
-      "stress makes it worse",
+      "stress",
       "anxiety",
       "nervous"
     ]
   },
   "alleviating_factors": {
     "rest": [
-      "resting helps",
-      "when I rest",
+      "resting",
       "lying still",
       "not moving",
       "staying still"
     ],
     "heat": [
-      "heat helps",
+      "heat",
       "heating pad",
       "warm compress",
-      "hot water bottle",
       "warmth"
     ],
     "cold": [
-      "cold helps",
+      "cold",
       "ice pack",
-      "cold compress",
-      "cooling"
+      "cold compress"
     ],
     "medication": [
       "pain medicine",
       "painkillers",
-      "medication helps",
-      "pills help",
-      "drugs help"
+      "medication",
+      "pills"
     ]
   },
   "radiation": {
     "back": [
-      "goes to back",
-      "radiates to back",
+      "back",
       "back pain",
-      "pain in back",
-      "spreads to back"
+      "radiates to back"
     ],
     "chest": [
-      "goes to chest",
-      "radiates to chest",
+      "chest",
       "chest pain",
-      "pain in chest",
-      "spreads to chest"
+      "radiates to chest"
     ],
     "arms": [
-      "goes to arms",
-      "radiates to arms",
-      "arm pain",
-      "pain in arms",
-      "spreads to arms"
+      "arms",
+      "arm pain"
     ],
     "legs": [
-      "goes to legs",
-      "radiates to legs",
-      "leg pain",
-      "pain in legs",
-      "spreads to legs"
+      "legs",
+      "leg pain"
     ]
   },
   "timing": {
@@ -364,55 +213,48 @@
       "continuous",
       "non-stop",
       "persistent",
-      "steady",
-      "ongoing"
+      "steady"
     ],
     "intermittent": [
       "comes and goes",
       "on and off",
       "sporadic",
       "occasional",
-      "sometimes",
       "periodic"
     ],
     "morning": [
-      "in the morning",
+      "morning",
       "when I wake up",
-      "early morning",
-      "morning time"
+      "early morning"
     ],
     "evening": [
-      "in the evening",
-      "at night",
-      "evening time",
-      "night time"
+      "evening",
+      "at night"
     ],
     "night": [
-      "at night",
+      "night",
       "during sleep",
-      "wakes me up",
-      "night time"
+      "wakes me up"
     ]
   },
   "severity": {
     "mild": [
-      "mild pain",
-      "slight pain",
-      "minor pain",
+      "mild",
+      "slight",
+      "minor",
       "not too bad",
-      "manageable",
-      "tolerable"
+      "manageable"
     ],
     "moderate": [
-      "moderate pain",
-      "medium pain",
+      "moderate",
+      "medium",
       "somewhat painful",
       "noticeable",
       "uncomfortable"
     ],
     "severe": [
-      "severe pain",
-      "bad pain",
+      "severe",
+      "bad",
       "really painful",
       "excruciating",
       "unbearable",
@@ -422,205 +264,127 @@
       "1 out of 10",
       "2 out of 10",
       "3 out of 10",
-      "very mild",
-      "barely noticeable"
+      "very mild"
     ],
     "scale_4_6": [
       "4 out of 10",
       "5 out of 10",
-      "6 out of 10",
-      "moderate",
-      "noticeable"
+      "6 out of 10"
     ],
     "scale_7_10": [
       "7 out of 10",
       "8 out of 10",
       "9 out of 10",
       "10 out of 10",
-      "severe",
       "worst pain ever"
     ]
   },
   "associated_symptoms": {
     "urinary_frequency": [
       "frequent urination",
-      "going to bathroom often",
-      "urinating frequently",
-      "frequent trips to bathroom",
-      "peeing often",
-      "urinary frequency"
+      "peeing often"
     ],
     "urinary_urgency": [
       "urgent urination",
       "can't hold it",
-      "sudden urge to pee",
-      "urinary urgency",
-      "need to go now",
-      "can't wait to pee"
+      "sudden urge to pee"
     ],
     "dysuria": [
       "painful urination",
-      "burning when peeing",
-      "pain when urinating",
-      "urination pain",
-      "burning urination",
-      "painful peeing"
+      "burning when peeing"
     ],
     "hematuria": [
       "blood in urine",
       "bloody urine",
-      "red urine",
-      "pink urine",
-      "urine with blood",
-      "blood when peeing"
+      "red urine"
     ],
     "incontinence": [
       "urine leakage",
       "accidental urination",
-      "urinary incontinence",
       "leaking urine",
-      "can't control bladder",
-      "bladder control problems"
+      "can't control bladder"
     ],
     "retention": [
       "can't pee",
       "difficulty urinating",
-      "trouble peeing",
-      "urinary retention",
-      "blocked urination",
-      "can't empty bladder"
+      "urinary retention"
     ],
     "nocturia": [
       "waking up to pee",
       "nighttime urination",
-      "getting up at night to pee",
-      "nocturia",
-      "night peeing",
-      "frequent night urination"
+      "nocturia"
     ],
     "fever": [
       "high temperature",
       "hot",
       "feverish",
       "chills",
-      "sweating",
-      "temperature"
-    ],
-    "chills": [
-      "chills",
-      "shivering",
-      "feeling cold",
-      "cold chills",
-      "shaking chills",
-      "chills and fever"
+      "sweating"
     ],
     "nausea": [
       "queasy",
       "sick to stomach",
-      "want to vomit",
-      "feeling nauseous",
-      "upset stomach",
-      "nausea"
+      "feeling nauseous"
     ],
     "vomiting": [
       "throwing up",
-      "want to throw up",
       "puking",
-      "emesis",
-      "vomit",
-      "nausea and vomiting"
+      "vomit"
     ],
     "fatigue": [
       "tired",
       "exhausted",
       "weak",
       "lethargic",
-      "no energy",
-      "run down"
+      "no energy"
     ],
     "back": [
       "back pain",
-      "back ache",
-      "back discomfort",
-      "lower back pain",
       "flank pain",
       "kidney area pain"
     ],
     "abdominal": [
       "abdominal pain",
       "belly pain",
-      "stomach pain",
-      "abdominal discomfort",
-      "belly ache",
-      "stomach ache"
+      "stomach pain"
     ],
     "genital_discharge": [
       "genital discharge",
       "vaginal discharge",
       "penile discharge",
-      "discharge from genitals",
-      "genital secretions",
       "abnormal discharge"
     ],
     "genital_itching": [
       "genital itching",
       "vaginal itching",
-      "penile itching",
-      "genital area itchy",
-      "private area itchy",
-      "genital pruritus"
+      "penile itching"
     ]
   },
   "specific_conditions": {
     "urinary_frequency": [
       "peeing often",
       "frequent urination",
-      "going a lot",
-      "urinating frequently",
-      "constant urge to pee",
-      "need to pee a lot",
-      "urinating more often",
-      "frequent trips to bathroom",
-      "going to bathroom a lot"
+      "going a lot"
     ],
     "urinary_urgency": [
       "sudden urge to pee",
-      "urgent need to urinate",
       "can't hold it",
-      "urgent urination",
-      "sudden need to pee",
-      "urgent feeling to pee",
-      "can't wait to pee",
-      "immediate need to urinate"
+      "urgent urination"
     ],
     "urinary_retention": [
-      "can\u2019t pee",
+      "can't pee",
       "unable to urinate",
-      "urine not coming",
-      "trouble peeing",
-      "blocked urine"
+      "trouble peeing"
     ],
     "blood_in_urine": [
       "hematuria",
       "bloody urine",
-      "red urine",
-      "pink urine",
-      "urine with blood"
+      "red urine"
     ],
     "vaginal_bleeding": [
       "abnormal bleeding",
       "spotting",
-      "postmenopausal bleed",
-      "heavy periods",
-      "unexpected bleeding",
-      "bleeding from vagina"
-    ],
-    "pregnancy_complications": [
-      "miscarriage",
-      "ectopic",
-      "pregnancy bleeding",
-      "pregnancy pain",
-      "complication in pregnancy"
+      "heavy periods"
     ]
   }
 }
