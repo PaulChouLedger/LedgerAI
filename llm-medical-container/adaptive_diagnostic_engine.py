@@ -1802,24 +1802,29 @@ class AdaptiveDiagnosticEngine:
         
         sample_question = sample_questions.get(component, f"Tell me more about {component}.")
         
-        # Component-specific guidance to prevent mixing elements
+        # Component-specific guidance to prevent mixing elements - STRICT and explicit
         component_guidance = {
-            'character': "Ask ONLY about the sensory quality of the pain (sharp, dull, burning, etc.). Do NOT ask about location, intensity, or duration.",
-            'location': "Ask ONLY about WHERE the pain is located. Do NOT ask about intensity or duration.",
-            'severity': "Ask ONLY about intensity/severity using a scale. Do NOT ask about location or other qualities.",
-            'aggravating': "Ask ONLY about what makes it worse. Do NOT ask about other factors.",
-            'relieving': "Ask ONLY about what helps or makes it better. Do NOT ask about other factors."
+            'character': "Ask ONLY 'What does it feel like?' or similar. Do NOT mention any specific qualities like 'sharp', 'sharpness', 'burning', etc. Do NOT ask about location, intensity, or duration. Keep it completely open-ended.",
+            'location': "Ask ONLY 'Where exactly is the pain located?' or similar. Do NOT mention body parts or give examples. Do NOT ask about intensity or duration.",
+            'severity': "Ask ONLY about severity using a scale (1-10). Do NOT ask about location or other qualities. Use the example question structure.",
+            'aggravating': "Ask ONLY 'What makes it worse?' or similar. Do NOT assume specific activities or body parts. Do NOT use words like 'triggers' or 'causes'. Keep it simple.",
+            'relieving': "Ask ONLY 'What helps or makes it better?' or similar. Do NOT assume specific treatments or positions. Keep it simple.",
+            'timing': "Ask ONLY 'Is it constant or does it come and go?' or similar. Do NOT add details.",
+            'duration': "Ask ONLY 'How long does each episode typically last?' or similar. Do NOT add details."
         }
         
         guidance_text = component_guidance.get(component, "")
         
-        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, open-ended question to ask about a specific aspect of a patient's symptoms. Follow the example question structure closely."
+        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a simple, direct question following the example exactly. Do NOT add assumptions, examples, or extra details. Keep it short and open-ended."
         
         # Use chief complaint and sample question template - NO conversation history
+        # Make guidance more explicit and strict
+        strict_instructions = "CRITICAL RULES:\n- Follow the example question structure EXACTLY\n- Keep it simple and direct\n- Do NOT add assumptions or specific examples\n- Do NOT mention body parts unless asking about location\n- Use simple language\n- Return ONLY the question, no explanation"
+        
         if guidance_text:
-            user_msg = f"Chief complaint: {self.chief_complaint}\n\nAsk about {component.upper()}.\n\nExample question: {sample_question}\n\n{guidance_text}\n\nGenerate a similar question about {component} for this patient. Return only the question, no other text."
+            user_msg = f"Chief complaint: {self.chief_complaint}\n\nComponent: {component.upper()}\n\nExample question: {sample_question}\n\n{guidance_text}\n\n{strict_instructions}\n\nGenerate a question about {component} for this patient:"
         else:
-            user_msg = f"Chief complaint: {self.chief_complaint}\n\nAsk about {component.upper()}.\n\nExample question: {sample_question}\n\nGenerate a similar question about {component} for this patient. Keep it simple and focused on ONLY {component}. Do NOT combine multiple elements. Return only the question, no other text."
+            user_msg = f"Chief complaint: {self.chief_complaint}\n\nComponent: {component.upper()}\n\nExample question: {sample_question}\n\n{strict_instructions}\n\nGenerate a question about {component} for this patient:"
         
         llm_kwargs = self._get_llm_kwargs()
         response = self.llm_chat_simple_fn(
