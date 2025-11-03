@@ -1396,6 +1396,7 @@ class AdaptiveDiagnosticEngine:
                     elif isinstance(t, str):
                         active_includes.add(t.strip().lower())
         
+        self._capture_debug(f"[Location Analysis] 📍 Checking satisfaction against ALL {len(all_guidelines_to_check)} guidelines (active + reserve)")
         self._capture_debug(f"[Location Analysis] 📍 All includes terms from {len(all_guidelines_to_check)} total guidelines: {sorted(all_includes)}")
         self._capture_debug(f"[Location Analysis] 📍 Active-only terms from {len(self.active_guidelines)} guidelines: {sorted(active_includes)}")
         self._capture_debug(f"[Location Analysis] 📝 Patient answer: '{answer}'")
@@ -1436,8 +1437,9 @@ class AdaptiveDiagnosticEngine:
             try:
                 # OPTIMIZATION: Single FAISS call for both matching AND normalization
                 # Check against ALL guidelines, not just active ones
+                # Use threshold=0.6 to match scoring behavior (compute_unified_similarity uses substring/exact matching which is more lenient)
                 semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(
-                    answer, oldcarts_element, threshold=0.75, 
+                    answer, oldcarts_element, threshold=0.6, 
                     return_scores=True, active_condition_names=all_condition_names
                 )
                 semantic_matches_set = set(t.lower() for t in semantic_matches)
@@ -1545,8 +1547,8 @@ class AdaptiveDiagnosticEngine:
         # (We check all guidelines for satisfied terms, but only report missing from active)
         missing = [term for term in active_includes if term not in satisfied_terms]
         
-        self._capture_debug(f"[Location Analysis] ✅ Satisfied terms: {sorted(satisfied_terms)}")
-        self._capture_debug(f"[Location Analysis] ❌ Missing terms from active guidelines ({len(missing)} total): {sorted(missing)}")
+        self._capture_debug(f"[Location Analysis] ✅ Satisfied terms (checked against ALL {len(all_guidelines_to_check)} guidelines): {sorted(satisfied_terms)}")
+        self._capture_debug(f"[Location Analysis] ❌ Missing terms from active guidelines only ({len(missing)} total): {sorted(missing)}")
         
         # Return both satisfied and missing terms for better decision making
         # Return all missing terms (not limited to 5) so clarification questions can see all options
