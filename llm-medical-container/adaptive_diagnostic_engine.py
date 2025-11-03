@@ -1221,16 +1221,35 @@ class AdaptiveDiagnosticEngine:
                 self._capture_debug(f"[Engine] ✅ {oldcarts_element} marked as complete")
                 
                 # Special handling: If timing is answered as constant, mark duration as covered (redundant)
+                # EXCEPTION: Still ask duration if guidelines have comparison operators (>, <, >=, <=) to differentiate conditions
                 if oldcarts_element == 'timing':
                     answer_lower = answer.lower()
                     if any(word in answer_lower for word in ['constant', 'continuous', 'always', 'all the time', 'never stops']):
-                        # Mark duration as covered since timing is constant (duration = constant since onset)
-                        if 'duration' in element_map:
-                            self.oldcarts_covered[element_map['duration']] = True
-                            if self.oldcarts_analysis and 'missing_components' in self.oldcarts_analysis:
-                                if 'duration' in self.oldcarts_analysis['missing_components']:
-                                    self.oldcarts_analysis['missing_components'].remove('duration')
-                                    self._capture_debug(f"[Engine] ⏭️ Duration marked as covered (timing is constant)")
+                        # Check if any active guidelines have duration terms with comparison operators
+                        has_duration_comparison = False
+                        for guideline in self.active_guidelines:
+                            structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+                            duration_data = structured.get('duration', {})
+                            if isinstance(duration_data, dict):
+                                includes = duration_data.get('includes', [])
+                                for term in includes:
+                                    medical_term = term.get('medical', '') if isinstance(term, dict) else term
+                                    if isinstance(medical_term, str) and any(op in medical_term for op in ['>', '<', '>=', '<=']):
+                                        has_duration_comparison = True
+                                        break
+                            if has_duration_comparison:
+                                break
+                        
+                        # Only mark duration as covered if NO comparison operators found
+                        if not has_duration_comparison:
+                            if 'duration' in element_map:
+                                self.oldcarts_covered[element_map['duration']] = True
+                                if self.oldcarts_analysis and 'missing_components' in self.oldcarts_analysis:
+                                    if 'duration' in self.oldcarts_analysis['missing_components']:
+                                        self.oldcarts_analysis['missing_components'].remove('duration')
+                                        self._capture_debug(f"[Engine] ⏭️ Duration marked as covered (timing is constant, no comparison operators)")
+                        else:
+                            self._capture_debug(f"[Engine] ⚠️ Duration still needed (timing is constant but duration has comparison operators for differentiation)")
                 
                 # Special handling: After location is satisfied, check if any guidelines have radiation section
                 if oldcarts_element == 'location' and not self.radiation_asked:
@@ -1791,6 +1810,7 @@ class AdaptiveDiagnosticEngine:
         
         # OPTIMIZATION: Reorder to prioritize timing before duration
         # If timing is answered as constant, skip duration (redundant - already constant since onset)
+        # EXCEPTION: Still ask duration if guidelines have comparison operators (>, <, >=, <=) to differentiate conditions
         priority_order = ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity', 'associated']
         reordered_missing = []
         skip_duration = False
@@ -1803,14 +1823,33 @@ class AdaptiveDiagnosticEngine:
                     if item.get('oldcarts') == 'timing' and item.get('type') == 'answer':
                         answer = item.get('answer', item.get('message', '')).lower()
                         if any(word in answer for word in ['constant', 'continuous', 'always', 'all the time', 'never stops']):
-                            skip_duration = True
-                            self._capture_debug(f"[Engine] ⏭️ Skipping duration - timing already answered as constant")
+                            # Check if any active guidelines have duration terms with comparison operators
+                            has_duration_comparison = False
+                            for guideline in self.active_guidelines:
+                                structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+                                duration_data = structured.get('duration', {})
+                                if isinstance(duration_data, dict):
+                                    includes = duration_data.get('includes', [])
+                                    for term in includes:
+                                        medical_term = term.get('medical', '') if isinstance(term, dict) else term
+                                        if isinstance(medical_term, str) and any(op in medical_term for op in ['>', '<', '>=', '<=']):
+                                            has_duration_comparison = True
+                                            break
+                                if has_duration_comparison:
+                                    break
+                            
+                            # Only skip duration if NO comparison operators found
+                            if not has_duration_comparison:
+                                skip_duration = True
+                                self._capture_debug(f"[Engine] ⏭️ Skipping duration - timing already answered as constant (no comparison operators)")
+                            else:
+                                self._capture_debug(f"[Engine] ⚠️ Duration still needed - timing is constant but duration has comparison operators for differentiation")
                         break
         
         # Build reordered list: priority order, but only include missing elements
         for element in priority_order:
             if element in missing:
-                # Skip duration if timing is constant
+                # Skip duration if timing is constant AND no comparison operators
                 if element == 'duration' and skip_duration:
                     continue
                 reordered_missing.append(element)
