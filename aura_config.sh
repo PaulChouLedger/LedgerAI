@@ -146,6 +146,16 @@ show_all_settings() {
     fi
     echo ""
     
+    echo -e "${BOLD}🔄 GITHUB OTA UPDATES${NC}"
+    local gh_token=$(get_config_value 'GITHUB_TOKEN')
+    if [ -n "$gh_token" ] && [ "$gh_token" != "your_github_token_here" ]; then
+        echo -e "  ${GREEN}✅ GitHub token configured${NC}"
+        echo "  Token:       ${gh_token:0:20}..."
+    else
+        echo -e "  ${YELLOW}○${NC} Not configured (optional for OTA updates)"
+    fi
+    echo ""
+    
     echo -e "${BOLD}🔐 NHS/FHIR CREDENTIALS${NC}"
     local nhs_client_id=$(get_config_value 'NHS_CLIENT_ID')
     local nhs_client_secret=$(get_config_value 'NHS_CLIENT_SECRET')
@@ -607,6 +617,58 @@ configure_telegram() {
     esac
 }
 
+configure_github() {
+    print_header "GITHUB OTA UPDATE CONFIGURATION"
+    
+    local gh_token=$(get_config_value 'GITHUB_TOKEN')
+    
+    echo "Current Settings:"
+    echo ""
+    if [ -n "$gh_token" ] && [ "$gh_token" != "your_github_token_here" ]; then
+        echo -e "  GitHub Token: ${GREEN}✅ Configured${NC}"
+        echo "  Token:        ${gh_token:0:20}..."
+    else
+        echo -e "  GitHub Token: ${RED}❌ Not set${NC}"
+    fi
+    echo ""
+    echo "This token is used for over-the-air updates from GitHub."
+    echo "It allows authentication with private repositories and higher API rate limits."
+    echo ""
+    echo "1) Set GitHub personal access token"
+    echo "2) Clear GitHub token"
+    echo "3) Back to main menu"
+    echo ""
+    read -p "Choice [1-3]: " choice
+    
+    case $choice in
+        1)
+            echo ""
+            echo "How to get a GitHub personal access token:"
+            echo "  1. Go to https://github.com/settings/tokens"
+            echo "  2. Click 'Generate new token' → 'Generate new token (classic)'"
+            echo "  3. Give it a name (e.g., 'Aura OTA Updates')"
+            echo "  4. Select scopes: 'repo' (for private repos) or 'public_repo' (for public only)"
+            echo "  5. Click 'Generate token' and copy it"
+            echo ""
+            read -p "Enter GitHub personal access token: " gh_token
+            if [ -n "$gh_token" ]; then
+                set_config_value "GITHUB_TOKEN" "$gh_token"
+                echo ""
+                echo -e "${GREEN}✅ GitHub token saved${NC}"
+                echo ""
+                echo "Note: This token is used by the Settings dialog for OTA updates"
+                echo "No restart needed - token is read when updating"
+            fi
+            ;;
+        2)
+            set_config_value "GITHUB_TOKEN" "your_github_token_here"
+            echo ""
+            echo -e "${GREEN}✅ GitHub token cleared${NC}"
+            ;;
+        3) return ;;
+    esac
+}
+
 configure_nhs_fhir() {
     print_header "NHS/FHIR CREDENTIALS CONFIGURATION"
     
@@ -721,7 +783,8 @@ main_menu() {
         echo "  6) Configure RAG search"
         echo "  7) Configure TTS (ElevenLabs)"
         echo "  8) Configure Telegram bot"
-        echo "  9) Configure NHS/FHIR credentials"
+        echo "  9) Configure GitHub OTA updates"
+        echo " 10) Configure NHS/FHIR credentials"
         echo "  a) Edit .env file directly"
         echo "  b) Restart Docker containers"
         echo "  0) Exit"
@@ -798,6 +861,10 @@ main_menu() {
                 read -p "Press Enter to continue..."
                 ;;
             9)
+                configure_github
+                read -p "Press Enter to continue..."
+                ;;
+            10)
                 configure_nhs_fhir
                 read -p "Press Enter to continue..."
                 ;;

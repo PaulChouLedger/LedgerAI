@@ -281,8 +281,34 @@ class AuraGUI(QMainWindow):
     def _handle_settings(self):
         """Handle settings button click"""
         print("[AuraGUI] ⚙️ Settings button clicked")
-        # TODO: Call settings script
-        pass
+        
+        # Block transcription while dialog is open
+        try:
+            from listener import block_transcription, unblock_transcription
+            block_transcription("Settings dialog open")
+        except ImportError:
+            print("[AuraGUI] ⚠️ Could not import listener blocking functions")
+        
+        try:
+            from gui.settings_dialog import SettingsDialog
+            
+            # Create and show settings dialog (modal, like upload dialog)
+            dialog = SettingsDialog(parent=self)
+            dialog.exec_()  # Modal blocking call
+            
+            print("[AuraGUI] ✅ Settings dialog closed")
+        except ImportError as e:
+            print(f"[AuraGUI] ❌ Settings dialog not available: {e}")
+        except Exception as e:
+            print(f"[AuraGUI] ❌ Error opening settings dialog: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            # Always unblock transcription when done
+            try:
+                unblock_transcription()
+            except:
+                pass
     
     def _handle_analytics(self):
         """Handle analytics button click - show wallet & token balance"""
