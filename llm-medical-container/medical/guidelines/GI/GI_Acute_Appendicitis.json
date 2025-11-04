@@ -122,6 +122,18 @@
           {
             "medical": "pyrexia",
             "patient_friendly": "fever"
+          },
+          {
+            "medical": "hypotension",
+            "patient_friendly": "low blood pressure"
+          },
+          {
+            "medical": "encephalopathy",
+            "patient_friendly": "confusion or disorientation"
+          },
+          {
+            "medical": "rigors",
+            "patient_friendly": "shaking chills"
           }
         ],
         "excludes": []

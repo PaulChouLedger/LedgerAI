@@ -7,15 +7,11 @@
   "urgency": "emergent",
   "chief_complaint_triggers": [
     "abdominal pain",
-    "belly pain",
     "right upper abdominal pain",
-    "right upper quadrant (RUQ) pain",
-    "upper right side pain",
     "fever with abdominal pain",
     "jaundice"
   ],
   "key_features": {
-    "classic_presentation": "ONSET: ACUTE onset over hours to days, often history of gallstones or prior biliary procedures. LOCATION: Right upper quadrant (RUQ), may radiate to right shoulder/scapula. DURATION: CONSTANT pain lasting hours to days. CHARACTER: DULL, ACHING, CONSTANT pain (less severe than cholecystitis alone). AGGRAVATING: No specific aggravating factors. RELIEVING: Nothing relieves pain. TIMING: CONSTANT and progressively worsening. SEVERITY: 5-8/10, moderate to severe. ASSOCIATED SYMPTOMS: CHARCOT'S TRIAD: fever + jaundice + right upper quadrant (RUQ) pain (50-70%). REYNOLDS' PENTAD: Charcot's triad + hypotension + altered mental status (7-10%, indicates severe disease). High fever with rigors, dark urine, pale stools, pruritus. KEY POSITIVES: Jaundice, high fever, right upper quadrant (RUQ) tenderness, history of gallstones. KEY NEGATIVES: Absence of jaundice makes cholangitis less likely.",
     "structured_oldcarts": {
       "onset": {
         "includes": [
@@ -76,11 +72,33 @@
         "excludes": []
       },
       "aggravating": {
-        "includes": [],
+        "includes": [
+          {
+            "medical": "diaphragmatic breathing",
+            "patient_friendly": "taking deep breaths"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving around"
+          },
+          {
+            "medical": "postprandial lipemia",
+            "patient_friendly": "eating fatty or greasy foods"
+          }
+        ],
         "excludes": []
       },
       "relieving": {
-        "includes": [],
+        "includes": [
+          {
+            "medical": "nothing",
+            "patient_friendly": "nothing helps"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          }
+        ],
         "excludes": []
       },
       "severity": {
@@ -112,34 +130,41 @@
       "associated": {
         "includes": [
           {
-            "medical": "charcot",
-            "patient_friendly": "CHARCOT"
+            "medical": "pyrexia",
+            "patient_friendly": "fever",
+            "urgency": "emergent"
           },
           {
-            "medical": "triad",
-            "patient_friendly": "TRIAD"
+            "medical": "rigors",
+            "patient_friendly": "shaking chills",
+            "urgency": "emergent"
           },
           {
-            "medical": "reynolds",
-            "patient_friendly": "REYNOLDS"
+            "medical": "jaundice",
+            "patient_friendly": "yellow skin or eyes",
+            "urgency": "emergent"
           },
           {
-            "medical": "pentad",
-            "patient_friendly": "PENTAD"
+            "medical": "hypotension",
+            "patient_friendly": "low blood pressure",
+            "urgency": "emergent"
           },
           {
-            "medical": "right upper quadrant",
-            "patient_friendly": "top right side near your ribs"
+            "medical": "encephalopathy",
+            "patient_friendly": "confusion or disorientation",
+            "urgency": "emergent"
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "emesis",
+            "patient_friendly": "vomiting"
           }
         ],
         "excludes": []
       }
     }
-  },
-  "red_flags": [
-    "Hypotension with fever and right upper quadrant (RUQ) pain - septic shock, call 911",
-    "Altered mental status with fever and jaundice - severe sepsis, call 911",
-    "Rigors (shaking chills) with high fever >103°F - bacteremia",
-    "Progressive jaundice with confusion - hepatic encephalopathy risk"
-  ]
+  }
 }

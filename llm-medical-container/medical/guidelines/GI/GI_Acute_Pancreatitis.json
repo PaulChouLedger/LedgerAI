@@ -7,24 +7,17 @@
   "urgency": "urgent",
   "chief_complaint_triggers": [
     "abdominal pain",
-    "upper abdominal pain",
-    "epigastric pain",
-    "stomach pain",
-    "pain radiating to back"
+    "epigastric pain"
   ],
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within hours to 1-2 days. Often triggered by ALCOHOL BINGE or HEAVY FATTY MEAL (gallstones). LOCATION: Epigastric (upper mid-abdomen) and periumbilical. RADIATES STRAIGHT THROUGH TO THE BACK in 'boring' or 'band-like' pattern - highly characteristic. May radiate to left upper quadrant. DURATION: CONSTANT pain lasting hours to days (not episodic). CHARACTER: DEEP ACHING or KNIFE-LIKE. Described as boring, penetrating, or band-like across upper abdomen. AGGRAVATING: WORSE WHEN LYING FLAT. Pain intensifies in supine position. RELIEVING: BETTER WHEN SITTING UP AND LEANING FORWARD. Patients assume 'fetal position' or lean forward for relief. TIMING: CONSTANT and unrelenting. Persists continuously (not waves). SEVERITY: 8-10/10, very severe and debilitating. ASSOCIATED SYMPTOMS: PERSISTENT NAUSEA AND VOMITING (severe, not relieved by vomiting), anorexia, low-grade fever, abdominal distension. KEY POSITIVES: Epigastric→back radiation, relief with leaning forward, alcohol/fatty meal trigger, persistent vomiting. KEY NEGATIVES: Pain NOT radiating to back is atypical. Diarrhea uncommon initially. right lower quadrant (RLQ) pain suggests appendicitis not pancreatitis.",
-    "structured_oldcarts": {
+        "structured_oldcarts": {
       "onset": {
         "includes": [
           {
             "medical": "sudden",
             "patient_friendly": "all at once or very quickly"
           },
-          {
-            "medical": "alcohol binge",
-            "patient_friendly": "drinking a lot of alcohol"
-          },
+        
           {
             "medical": "heavy fatty meal",
             "patient_friendly": "fatty or greasy foods"
@@ -127,7 +120,7 @@
         "includes": [
           {
             "medical": "severe",
-            "patient_friendly": "very bad or intense"
+            "patient_friendly": "severe"
           }
         ],
         "excludes": []
@@ -136,7 +129,7 @@
         "includes": [
           {
             "medical": "back",
-            "patient_friendly": "your back"
+            "patient_friendly": "spreads to your back"
           }
         ],
         "excludes": []
@@ -144,16 +137,24 @@
       "associated": {
         "includes": [
           {
-            "medical": "persistent nausea and vomiting",
-            "patient_friendly": "keeps going"
+            "medical": "emesis",
+            "patient_friendly": "vomiting"
           },
           {
-            "medical": "persistent",
-            "patient_friendly": "keeps going"
+            "medical": "nausea",
+            "patient_friendly": "nausea"
           },
           {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
+            "medical": "anorexia",
+            "patient_friendly": "poor appetite/dehydration"
+          },
+          {
+            "medical": "alcohol induced pancreatitis",
+            "patient_friendly": "drinking excessive amounts of alcohol"
+          },
+          {
+            "medical": "cholelithiasis",
+            "patient_friendly": "gallstones"
           }
         ],
         "excludes": []

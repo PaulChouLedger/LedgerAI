@@ -8,13 +8,10 @@
   "chief_complaint_triggers": [
     "abdominal pain",
     "right upper abdominal pain",
-    "right upper quadrant (RUQ) pain",
-    "upper right side pain",
     "pain after eating",
     "gallbladder pain"
   ],
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within 12-48 hours, often 30 minutes to 2 hours AFTER A FATTY MEAL (fried foods, heavy meals). LOCATION: Right upper quadrant (RUQ), precisely localized just below right rib cage. RADIATES TO RIGHT SHOULDER OR SCAPULA (phrenic nerve referred pain). DURATION: CONSTANT pain lasting >6 hours (unlike biliary colic <6 hours). CHARACTER: SHARP or ACHING, CONSTANT (NOT colicky). AGGRAVATING: WORSE WITH DEEP BREATHING, movement, and fatty food intake. Trigger is fatty meals. RELIEVING: NOTHING relieves pain effectively. Position changes don't help. Pain persists despite rest. TIMING: CONSTANT (not episodic like biliary colic). Lasts >6 hours continuously. SEVERITY: 7-10/10, severe and unrelenting. ASSOCIATED SYMPTOMS: NAUSEA AND VOMITING very common, fever (100.5-102°F) within 12-24 hours, MURPHY'S SIGN (inspiratory arrest during right upper quadrant (RUQ) palpation), anorexia. May have jaundice if common bile duct involved. KEY POSITIVES: right upper quadrant (RUQ) tenderness, Murphy's sign, post-fatty meal onset, fever. KEY NEGATIVES: Diarrhea uncommon. Left-sided pain rules out. Pain resolving <1-2 hours suggests biliary colic not cholecystitis.",
     "structured_oldcarts": {
       "onset": {
         "includes": [
@@ -23,12 +20,8 @@
             "patient_friendly": "all at once or very quickly"
           },
           {
-            "medical": "after",
-            "patient_friendly": "after eating"
-          },
-          {
-            "medical": "fatty meal",
-            "patient_friendly": "fatty or greasy foods"
+            "medical": "acute",
+            "patient_friendly": "sudden and severe"
           }
         ],
         "excludes": []
@@ -59,7 +52,7 @@
             "patient_friendly": "for a few minutes"
           },
           {
-            "medical": "hours",
+            "medical": ">6 hours",
             "patient_friendly": "for several hours"
           }
         ],
@@ -81,16 +74,16 @@
       "aggravating": {
         "includes": [
           {
-            "medical": "worse with deep breathing",
-            "patient_friendly": "taking deep breaths"
-          },
-          {
-            "medical": "breathing",
+            "medical": "diaphragmatic breathing",
             "patient_friendly": "taking deep breaths"
           },
           {
             "medical": "movement",
             "patient_friendly": "moving around"
+          },
+          {
+            "medical": "postprandial lipemia",
+            "patient_friendly": "eating fatty or greasy foods"
           }
         ],
         "excludes": []
@@ -133,20 +126,44 @@
       "associated": {
         "includes": [
           {
-            "medical": "nausea and vomiting",
+            "medical": "nausea",
             "patient_friendly": "nausea"
           },
           {
-            "medical": "murphy",
-            "patient_friendly": "MURPHY"
+            "medical": "emesis",
+            "patient_friendly": "vomiting"
           },
           {
-            "medical": "sign",
-            "patient_friendly": "SIGN"
+            "medical": "pyrexia",
+            "patient_friendly": "fever"
           },
           {
-            "medical": "right upper quadrant",
-            "patient_friendly": "top right side near your ribs"
+            "medical": "symptomatic cholelitiasis",
+            "patient_friendly": "gallstone pain"
+          },
+          {
+            "medical": "anorexia",
+            "patient_friendly": "poor appetite"
+          },
+          {
+            "medical": "postprandial lipemia",
+            "patient_friendly": "eating fatty or greasy foods"
+          },
+          {
+            "medical": "hypotension",
+            "patient_friendly": "low blood pressure"
+          },
+          {
+            "medical": "encephalopathy",
+            "patient_friendly": "confusion or disorientation"
+          },
+          {
+            "medical": "rigors",
+            "patient_friendly": "shaking chills"
+          },
+          {
+            "medical": "jaundice",
+            "patient_friendly": "yellow skin or eyes"
           }
         ],
         "excludes": []
