@@ -501,23 +501,90 @@ sudo systemctl status aura.service
 sudo journalctl -u aura.service -f
 ```
 
-### 3. XVF3800 Hardware Tuning Service (If Using XVF3800)
+### 3. XVF3800 Hardware Tuning Service (If Using XVF3800 USB 4-Mic Array)
+
+**Option A: Automated Installation (via install_jetson.sh)**
+
+If you ran `bash setup/install_jetson.sh` and the ReSpeaker was detected, the service was automatically installed. You can verify:
+
+```bash
+sudo systemctl status xvf3800-tuning.service
+```
+
+**Option B: Manual Installation**
 
 ```bash
 # Copy service file
 sudo cp ~/LedgerAI/setup/scripts/xvf3800-tuning.service /etc/systemd/system/
 
+# Edit paths if different from default (if user is not 'aura')
+sudo nano /etc/systemd/system/xvf3800-tuning.service
+# Update User=aura and /home/aura/LedgerAI paths if needed
+
 # Reload systemd
 sudo systemctl daemon-reload
 
-# Enable service
+# Enable service (auto-start on boot)
 sudo systemctl enable xvf3800-tuning.service
 
-# Start service
+# Start service now
 sudo systemctl start xvf3800-tuning.service
 
 # Verify
-systemctl status xvf3800-tuning.service
+sudo systemctl status xvf3800-tuning.service
+```
+
+**Configure Preset (Change Tuning Profile):**
+
+The service defaults to `agc_20` preset. To change the preset:
+
+```bash
+# 1. Edit the service file
+sudo nano /etc/systemd/system/xvf3800-tuning.service
+
+# 2. Find the ExecStart line and change "agc_20" to your desired preset:
+#    ExecStart=/usr/bin/python3 /home/aura/LedgerAI/setup/scripts/tune_xvf3800.py agc_20
+#                                                                    ^^^^^^^^
+#                                                                    Change this
+
+# 3. Reload systemd
+sudo systemctl daemon-reload
+
+# 4. Restart service to apply new preset
+sudo systemctl restart xvf3800-tuning.service
+```
+
+**Available Presets:**
+
+| Preset | Description | Use Case |
+|--------|-------------|----------|
+| `agc_20` | HPF 70Hz + AGC with 20% increase (0.096) | **DEFAULT** ⭐ Recommended for most cases |
+| `agc_10` | HPF 70Hz + AGC with 10% increase (0.088) | Moderate gain boost |
+| `balanced_beam` | HPF 70Hz + AGC (0.08, 30dB) | Balanced processing |
+| `agc_only` | AGC only (0.08, 30dB) - no HPF | No high-pass filtering |
+| `hpf_only` | HPF 70Hz only | Minimal processing |
+| `ultra_sensitive` | AGC (0.10, 45dB) | Far-field optimized |
+| `far_field` | Optimized for 8-16 feet | Distant speakers |
+| `near_field` | Optimized for 1-6 feet | Close speakers |
+| `reset` | Factory defaults | Restore original settings |
+
+**Useful Commands:**
+
+```bash
+# Check service status
+sudo systemctl status xvf3800-tuning.service
+
+# View service logs
+sudo journalctl -u xvf3800-tuning.service -f
+
+# Manually re-tune (without restarting service)
+python3 ~/LedgerAI/setup/scripts/tune_xvf3800.py agc_20
+
+# Disable auto-tune (service won't run on boot)
+sudo systemctl disable xvf3800-tuning.service
+
+# Re-enable auto-tune
+sudo systemctl enable xvf3800-tuning.service
 ```
 
 ### 4. Configure WiFi Permissions (for Settings Dialog)

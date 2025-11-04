@@ -1509,6 +1509,12 @@ class AdaptiveDiagnosticEngine:
             self._capture_debug(f"[Engine] ⏳ {oldcarts_element} needs clarification - not marked complete")
         
         # Continue to next question
+        # Check if there's a pending acknowledgment and return to next missing element intelligently
+        if hasattr(self, '_pending_acknowledgment') and self._pending_acknowledgment:
+            acknowledgment_msg = self._pending_acknowledgment
+            self._pending_acknowledgment = None
+            return self._return_to_next_missing_element(acknowledgment_msg)
+        
         return self._ask_next_clinical_question()
     
     def _get_dynamic_threshold(self, score: float) -> float:
@@ -2402,8 +2408,22 @@ class AdaptiveDiagnosticEngine:
     def _generate_ml_first_question_with_demographics(self) -> Dict[str, Any]:
         """Generate demographics questions in order: chronicity, age, sex"""
         # Check if distress was detected - if so, skip demographics and go to clinical questions
-        if self._check_conversation_for_distress():
+        if self._check_conversation_for_distress() or getattr(self, 'demographics_optional', False):
             self._capture_debug("[Engine] ⏭️ Distress detected - skipping demographics, proceeding to clinical questions")
+            # If there's a pending acknowledgment, include it
+            if hasattr(self, '_pending_acknowledgment') and self._pending_acknowledgment:
+                acknowledgment_msg = self._pending_acknowledgment
+                self._pending_acknowledgment = None
+                clinical_response = self._ask_next_clinical_question()
+                if clinical_response and clinical_response.get('success'):
+                    next_msg = clinical_response.get('message') or clinical_response.get('question', '')
+                    combined_msg = f"{acknowledgment_msg}\n\n{next_msg}"
+                    return {
+                        'success': True,
+                        'message': combined_msg,
+                        'status': clinical_response.get('status', 'questioning'),
+                        'debug': clinical_response.get('debug', {})
+                    }
             return self._ask_next_clinical_question()
         
         # STEP 1: Chronicity question (first after empathetic statement)
@@ -2684,6 +2704,232 @@ class AdaptiveDiagnosticEngine:
         previous_active = len(self.active_guidelines)
         self._rerank_and_pool_guidelines(all_guidelines, previous_active)
     
+    def _get_all_missing_elements(self) -> Dict[str, Any]:
+        """
+        Get comprehensive list of ALL missing elements (OLDCARTS + demographics).
+        This tracks what still needs to be collected at any point in the conversation.
+        
+        Returns:
+            Dict with:
+            - 'missing_oldcarts': List of missing OLDCARTS elements
+            - 'missing_demographics': List of missing demographics
+            - 'next_element': The next element to ask about (priority order)
+            - 'has_missing': bool
+        """
+        missing_oldcarts = []
+        missing_demographics = []
+        
+        # Check OLDCARTS coverage
+        if hasattr(self, 'oldcarts_analysis') and self.oldcarts_analysis:
+            missing_oldcarts = self.oldcarts_analysis.get('missing_components', [])
+        
+        # Check demographics
+        if 'chronicity' not in self.demographics:
+            missing_demographics.append('chronicity')
+        if not getattr(self, 'demographics_optional', False):
+            # Age and sex only required if not distressed
+            if 'age' not in self.demographics:
+                missing_demographics.append('age')
+            if 'sex' not in self.demographics:
+                missing_demographics.append('sex')
+        
+        # Determine next element based on priority
+        # Priority: Demographics first (if not distressed), then OLDCARTS
+        next_element = None
+        next_type = None
+        
+        if missing_demographics:
+            # Demographics priority: chronicity > age > sex
+            if 'chronicity' in missing_demographics:
+                next_element = 'chronicity'
+                next_type = 'demographics'
+            elif 'age' in missing_demographics:
+                next_element = 'age'
+                next_type = 'demographics'
+            elif 'sex' in missing_demographics:
+                next_element = 'sex'
+                next_type = 'demographics'
+        elif missing_oldcarts:
+            # OLDCARTS priority order
+            priority_order = ['onset', 'location', 'timing', 'duration', 'character', 
+                            'aggravating', 'relieving', 'severity', 'associated']
+            for element in priority_order:
+                if element in missing_oldcarts:
+                    next_element = element
+                    next_type = 'oldcarts'
+                    break
+            
+            # If no priority match, use first missing
+            if not next_element and missing_oldcarts:
+                next_element = missing_oldcarts[0]
+                next_type = 'oldcarts'
+        
+        has_missing = len(missing_oldcarts) > 0 or len(missing_demographics) > 0
+        
+        return {
+            'missing_oldcarts': missing_oldcarts,
+            'missing_demographics': missing_demographics,
+            'next_element': next_element,
+            'next_type': next_type,
+            'has_missing': has_missing
+        }
+    
+    def _return_to_next_missing_element(self, acknowledgment_msg: str = None) -> Dict[str, Any]:
+        """
+        After handling a comment/question/distress, intelligently return to the next missing element.
+        This ensures we don't lose track of what needs to be collected.
+        
+        Args:
+            acknowledgment_msg: Optional acknowledgment message to prepend
+            
+        Returns:
+            Response dict with next question or None if assessment complete
+        """
+        missing_info = self._get_all_missing_elements()
+        
+        if not missing_info['has_missing']:
+            # No missing elements - check if assessment is complete
+            # This would trigger key features or red flags phase
+            next_response = self._ask_next_clinical_question()
+            if acknowledgment_msg and next_response and next_response.get('success'):
+                next_msg = next_response.get('message') or next_response.get('question', '')
+                combined_msg = f"{acknowledgment_msg}\n\n{next_msg}"
+                return {
+                    'success': True,
+                    'message': combined_msg,
+                    'status': next_response.get('status', 'questioning'),
+                    'debug': next_response.get('debug', {})
+                }
+            return next_response
+        
+        # Determine what to ask next
+        next_element = missing_info['next_element']
+        next_type = missing_info['next_type']
+        
+        if next_type == 'demographics':
+            # Return to demographics collection
+            if next_element == 'chronicity':
+                return self._generate_ml_first_question_with_demographics()
+            elif next_element == 'age':
+                question = "Can you please tell me your age so I can update our medical records?"
+                self.conversation_history.append({
+                    'type': 'question',
+                    'question': question,
+                    'focus': 'age'
+                })
+                response = {
+                    'success': True,
+                    'message': question,
+                    'status': 'questioning',
+                    'debug': {
+                        'engine': self._format_engine_debug("[Engine] 📋 Returning to collect missing age"),
+                        'internal': self._get_debug_info()
+                    }
+                }
+                if acknowledgment_msg:
+                    response['message'] = f"{acknowledgment_msg}\n\n{question}"
+                return response
+            elif next_element == 'sex':
+                question = "What is your biological sex?"
+                self.conversation_history.append({
+                    'type': 'question',
+                    'question': question,
+                    'focus': 'sex'
+                })
+                response = {
+                    'success': True,
+                    'message': question,
+                    'status': 'questioning',
+                    'buttons': [
+                        {'text': 'Male', 'callback_data': 'sex_male'},
+                        {'text': 'Female', 'callback_data': 'sex_female'}
+                    ],
+                    'debug': {
+                        'engine': self._format_engine_debug("[Engine] 📋 Returning to collect missing sex"),
+                        'internal': self._get_debug_info()
+                    }
+                }
+                if acknowledgment_msg:
+                    response['message'] = f"{acknowledgment_msg}\n\n{question}"
+                return response
+        
+        elif next_type == 'oldcarts':
+            # Return to OLDCARTS collection
+            next_response = self._ask_next_clinical_question()
+            if acknowledgment_msg and next_response and next_response.get('success'):
+                next_msg = next_response.get('message') or next_response.get('question', '')
+                combined_msg = f"{acknowledgment_msg}\n\n{next_msg}"
+                return {
+                    'success': True,
+                    'message': combined_msg,
+                    'status': next_response.get('status', 'questioning'),
+                    'debug': next_response.get('debug', {})
+                }
+            return next_response
+        
+        # Fallback
+        return None
+    
+    def _check_and_collect_missing_demographics(self) -> Dict[str, Any]:
+        """
+        Check for missing demographics and collect them if needed.
+        Called after urgent assessment is complete but before final diagnosis.
+        """
+        missing_demographics = []
+        if 'age' not in self.demographics:
+            missing_demographics.append('age')
+        if 'sex' not in self.demographics:
+            missing_demographics.append('sex')
+        
+        if not missing_demographics:
+            return None  # No missing demographics
+        
+        # Ask for the first missing demographic
+        missing = missing_demographics[0]
+        
+        if missing == 'age':
+            question = "To complete your medical record, can you please tell me your age?"
+            self.conversation_history.append({
+                'type': 'question',
+                'question': question,
+                'focus': 'age',
+                'post_assessment': True  # Flag that this is being asked after assessment
+            })
+            return {
+                'success': True,
+                'message': question,
+                'status': 'collecting_demographics',
+                'missing_demographics': missing_demographics,
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] 📋 Collecting missing demographics after assessment"),
+                    'internal': self._get_debug_info()
+                }
+            }
+        elif missing == 'sex':
+            question = "To complete your medical record, what is your biological sex?"
+            self.conversation_history.append({
+                'type': 'question',
+                'question': question,
+                'focus': 'sex',
+                'post_assessment': True  # Flag that this is being asked after assessment
+            })
+            return {
+                'success': True,
+                'message': question,
+                'status': 'collecting_demographics',
+                'buttons': [
+                    {'text': 'Male', 'callback_data': 'sex_male'},
+                    {'text': 'Female', 'callback_data': 'sex_female'}
+                ],
+                'missing_demographics': missing_demographics,
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] 📋 Collecting missing demographics after assessment"),
+                    'internal': self._get_debug_info()
+                }
+            }
+        
+        return None
+    
     def _generate_completion_message(self) -> str:
         """Generate completion message with diagnosis, urgency, and recommendation"""
         if not self.active_guidelines:
@@ -2742,6 +2988,29 @@ RECOMMENDATION: {recommendation}"""
         """Start asking about red flags for top winning condition"""
         if not self.active_guidelines:
             # No active guidelines - assessment complete
+            # Check if we need to collect missing demographics first
+            missing_demo_response = self._check_and_collect_missing_demographics()
+            if missing_demo_response:
+                # Still need demographics - return diagnosis but ask for missing info
+                completion_msg = self._generate_completion_message()
+                combined_msg = f"""{completion_msg}
+
+---
+
+{missing_demo_response.get('message', '')}"""
+                return {
+                    'success': True,
+                    'status': 'completed_with_demographics',
+                    'message': combined_msg,
+                    'missing_demographics': missing_demo_response.get('missing_demographics', []),
+                    'buttons': missing_demo_response.get('buttons'),
+                    'debug': {
+                        'engine': self._format_engine_debug("[Engine] ✅ Assessment complete - collecting missing demographics"),
+                        'internal': self._get_debug_info()
+                    }
+                }
+            
+            # Assessment complete, all demographics collected
             completion_msg = self._generate_completion_message()
             return {
                 'success': True,
@@ -2760,6 +3029,29 @@ RECOMMENDATION: {recommendation}"""
         
         if not red_flags:
             # No red flags for this condition - assessment complete
+            # Check if we need to collect missing demographics first
+            missing_demo_response = self._check_and_collect_missing_demographics()
+            if missing_demo_response:
+                # Still need demographics - return diagnosis but ask for missing info
+                completion_msg = self._generate_completion_message()
+                combined_msg = f"""{completion_msg}
+
+---
+
+{missing_demo_response.get('message', '')}"""
+                return {
+                    'success': True,
+                    'status': 'completed_with_demographics',
+                    'message': combined_msg,
+                    'missing_demographics': missing_demo_response.get('missing_demographics', []),
+                    'buttons': missing_demo_response.get('buttons'),
+                    'debug': {
+                        'engine': self._format_engine_debug("[Engine] ✅ Assessment complete - collecting missing demographics"),
+                        'internal': self._get_debug_info()
+                    }
+                }
+            
+            # Assessment complete, all demographics collected
             completion_msg = self._generate_completion_message()
             return {
                 'success': True,
@@ -2835,6 +3127,29 @@ RECOMMENDATION: {recommendation}"""
         
         if self.red_flag_index >= len(self.red_flags_list):
             # All red flags asked - assessment complete
+            # Check if we need to collect missing demographics first
+            missing_demo_response = self._check_and_collect_missing_demographics()
+            if missing_demo_response:
+                # Still need demographics - return diagnosis but ask for missing info
+                completion_msg = self._generate_completion_message()
+                combined_msg = f"""{completion_msg}
+
+---
+
+{missing_demo_response.get('message', '')}"""
+                return {
+                    'success': True,
+                    'status': 'completed_with_demographics',
+                    'message': combined_msg,
+                    'missing_demographics': missing_demo_response.get('missing_demographics', []),
+                    'buttons': missing_demo_response.get('buttons'),
+                    'debug': {
+                        'engine': self._format_engine_debug("[Engine] ✅ Assessment complete - collecting missing demographics"),
+                        'internal': self._get_debug_info()
+                    }
+                }
+            
+            # Assessment complete, all demographics collected
             completion_msg = self._generate_completion_message()
             return {
                 'success': True,
@@ -3098,8 +3413,201 @@ Generate an empathetic response that acknowledges their distress and immediately
         
         return response.strip()
     
+    def _detect_red_flags_in_input(self, user_input: str) -> Dict[str, Any]:
+        """
+        Detect red flag symptoms mentioned in user input.
+        Checks for common critical symptoms that warrant immediate ER/911.
+        
+        Returns:
+            Dict with 'red_flags_detected' (list), 'red_flag_count' (int), 'is_severe' (bool)
+        """
+        user_lower = user_input.lower()
+        
+        # Common red flag symptoms across conditions
+        red_flag_keywords = [
+            # Cardiovascular/Shock
+            'chest pain', 'heart attack', 'can\'t breathe', 'shortness of breath', 'difficulty breathing',
+            'dizzy', 'lightheaded', 'fainting', 'passed out', 'unconscious',
+            'rapid heart', 'fast heart', 'heart racing', 'palpitations',
+            
+            # Neurological
+            'severe headache', 'worst headache', 'confused', 'disoriented', 'altered mental',
+            'seizure', 'convulsion', 'unresponsive',
+            
+            # Abdominal emergencies
+            'rigid abdomen', 'board-like abdomen', 'hard abdomen', 'guarding',
+            'peritonitis', 'rebound tenderness',
+            
+            # Severe pain indicators
+            'excruciating', 'unbearable', 'worst pain ever', '10/10', '9/10',
+            'can\'t move', 'can\'t stand', 'doubled over',
+            
+            # High fever/infection
+            'high fever', 'fever over 103', 'fever 103', 'fever 104', 'fever 105',
+            'chills', 'shaking chills', 'rigors',
+            
+            # Bleeding
+            'severe bleeding', 'heavy bleeding', 'bleeding that won\'t stop',
+            'blood in stool', 'black stool', 'tarry stool', 'vomiting blood',
+            
+            # Trauma/Injury
+            'penetrating injury', 'stab wound', 'gunshot', 'severe trauma',
+            'head injury', 'loss of consciousness', 'unconscious',
+            
+            # Shock signs
+            'cold', 'clammy', 'sweating profusely', 'very pale', 'gray',
+            'rapid pulse', 'weak pulse', 'thready pulse',
+            
+            # Pregnancy-related
+            'pregnant', 'ectopic', 'ruptured', 'bleeding during pregnancy',
+            
+            # Other critical
+            'severe allergic reaction', 'anaphylaxis', 'swelling', 'throat closing',
+            'severe dehydration', 'can\'t keep fluids down', 'severe vomiting'
+        ]
+        
+        detected_red_flags = []
+        for keyword in red_flag_keywords:
+            if keyword in user_lower:
+                detected_red_flags.append(keyword)
+        
+        # Also check for severity + multiple symptoms combination
+        severity_indicators = ['severe', 'extreme', 'worst', 'excruciating', 'unbearable', '10/10', '9/10']
+        has_severity = any(indicator in user_lower for indicator in severity_indicators)
+        
+        # Multiple symptoms mentioned together = more concerning
+        symptom_indicators = ['pain', 'fever', 'nausea', 'vomiting', 'dizzy', 'bleeding', 'shortness of breath']
+        symptom_count = sum(1 for symptom in symptom_indicators if symptom in user_lower)
+        
+        # Severe case if:
+        # 1. Multiple red flags detected (2+)
+        # 2. One red flag + high severity language
+        # 3. One red flag + multiple symptoms (3+)
+        is_severe = (
+            len(detected_red_flags) >= 2 or
+            (len(detected_red_flags) >= 1 and has_severity) or
+            (len(detected_red_flags) >= 1 and symptom_count >= 3)
+        )
+        
+        return {
+            'red_flags_detected': detected_red_flags,
+            'red_flag_count': len(detected_red_flags),
+            'is_severe': is_severe,
+            'has_severity_language': has_severity,
+            'symptom_count': symptom_count
+        }
+    
+    def _generate_emergency_response(self, user_input: str, red_flag_info: Dict = None, distress_info: Dict = None) -> Dict[str, Any]:
+        """
+        Generate immediate emergency response (911/ER) when severe distress or multiple red flags detected.
+        Skips all questions and goes straight to emergency recommendation.
+        """
+        # Build emergency message
+        emergency_msg = """🚨 EMERGENCY ASSESSMENT
+
+Based on your symptoms, you need immediate medical attention.
+
+URGENCY LEVEL: EMERGENT (10/10)
+
+RECOMMENDATION: Call 911 or go to the emergency room immediately.
+
+Please do not wait. Your symptoms indicate a potentially serious condition that requires immediate evaluation by emergency medical professionals."""
+        
+        # Add specific red flags if detected
+        if red_flag_info and red_flag_info.get('red_flags_detected'):
+            red_flags = red_flag_info['red_flags_detected'][:3]  # Top 3
+            emergency_msg += f"\n\nDetected critical symptoms: {', '.join(red_flags)}"
+        
+        # Mark assessment as complete with emergency status
+        return {
+            'success': True,
+            'status': 'emergency',
+            'message': emergency_msg,
+            'skip_questions': True,  # Flag to skip all further questions
+            'debug': {
+                'engine': self._format_engine_debug("[Engine] 🚨 EMERGENCY: Severe distress/multiple red flags detected - immediate 911/ER recommendation"),
+                'internal': self._get_debug_info()
+            }
+        }
+    
+    def _check_and_handle_deviating_comment(self, user_answer: str, expected_element: str = None) -> Dict[str, Any]:
+        """
+        Unified function to check for and handle deviating comments/questions/distress.
+        Called at the start of processing any user input.
+        
+        Returns:
+            Dict with response if comment/question/distress detected and handled, None otherwise
+            Also returns interpretation dict for use in further processing
+        """
+        # Interpret the response (detects comments, questions, distress, or direct answers)
+        response_interpretation = self._interpret_patient_response(user_answer, expected_element)
+        
+        # Extract info
+        distress_info = response_interpretation.get('distress_info', {})
+        is_distressed = response_interpretation.get('is_distressed', False)
+        needs_acknowledgment = response_interpretation.get('needs_acknowledgment', False)
+        acknowledgment_msg = response_interpretation.get('acknowledgment_message')
+        is_question = response_interpretation.get('is_question', False)
+        extracted_info = response_interpretation.get('extracted_info')
+        
+        # CRITICAL: Check for severe distress or multiple red flags FIRST
+        # If detected, skip all questions and recommend 911/ER immediately
+        red_flag_info = self._detect_red_flags_in_input(user_answer)
+        severity_score = distress_info.get('severity', 0.0)
+        
+        # Severe case criteria:
+        # 1. Very high distress severity (8.0+)
+        # 2. Multiple red flags detected (2+)
+        # 3. One red flag + high severity language
+        is_severe_emergency = (
+            severity_score >= 8.0 or
+            red_flag_info.get('is_severe', False) or
+            (red_flag_info.get('red_flag_count', 0) >= 1 and severity_score >= 6.0)
+        )
+        
+        if is_severe_emergency:
+            self._capture_debug(f"[Engine] 🚨 SEVERE EMERGENCY DETECTED: severity={severity_score:.1f}, red_flags={red_flag_info.get('red_flag_count', 0)}")
+            self._capture_debug(f"[Engine] 🚨 Skipping all questions - recommending immediate 911/ER")
+            return self._generate_emergency_response(user_answer, red_flag_info, distress_info), response_interpretation
+        
+        # Handle distress if detected (but not severe enough for immediate emergency)
+        if is_distressed:
+            self._capture_debug(f"[Engine] 🚨 DISTRESS DETECTED: severity={distress_info['severity']:.1f}, urgency_boost={distress_info['urgency_boost']:.2f}")
+            self.demographics_optional = True  # Skip routine questions
+            
+            # Boost urgency for active guidelines
+            if distress_info.get('urgency_boost', 0) > 0 and self.active_guidelines:
+                for guideline in self.active_guidelines:
+                    current_score = guideline.get('score', 0.0)
+                    guideline['score'] = min(1.0, current_score + distress_info['urgency_boost'])
+                self._capture_debug(f"[Engine] ⚡ Urgency boost applied: +{distress_info['urgency_boost']:.2f}")
+        
+        # Handle pure questions (with no clinical info)
+        if is_question and not extracted_info:
+            # Pure question - acknowledge and return to next missing element
+            if needs_acknowledgment:
+                return self._return_to_next_missing_element(acknowledgment_msg), response_interpretation
+            return self._handle_user_question(user_answer), response_interpretation
+        
+        # Handle pure comments (with no extractable clinical info)
+        if needs_acknowledgment and not extracted_info:
+            # Pure comment - acknowledge and return to next missing element
+            self._capture_debug(f"[Engine] 💬 Pure comment detected - acknowledging and returning to next missing element")
+            return self._return_to_next_missing_element(acknowledgment_msg), response_interpretation
+        
+        # If we get here, either:
+        # 1. No comment/question/distress (normal answer)
+        # 2. Comment/question with extractable clinical info (process answer, then acknowledge)
+        # Return None to continue normal processing
+        return None, response_interpretation
+    
     def process_answer(self, user_answer: str) -> Dict[str, Any]:
-        """Process user answer and continue assessment"""
+        """
+        Process user answer and continue assessment
+        
+        ALWAYS checks for comments/distress/questions FIRST, like a human would,
+        before processing any specific answer type.
+        """
         # Get context about what we're expecting
         last_q = None
         for item in reversed(self.conversation_history):
@@ -3109,61 +3617,37 @@ Generate an empathetic response that acknowledges their distress and immediately
         
         expected_element = last_q.get('oldcarts') if last_q else None
         
-        # PRIORITY: Intelligently interpret the response (not just distress)
-        response_interpretation = self._interpret_patient_response(user_answer, expected_element)
+        # ALWAYS FIRST: Check for and handle deviating comments/questions/distress
+        comment_response, response_interpretation = self._check_and_handle_deviating_comment(user_answer, expected_element)
+        if comment_response:
+            # Comment/question/distress was handled - return the response
+            return comment_response
         
-        # Extract distress info for backwards compatibility
-        distress_info = response_interpretation.get('distress_info', {})
+        # Extract info from interpretation (for use in processing)
         is_distressed = response_interpretation.get('is_distressed', False)
+        needs_acknowledgment = response_interpretation.get('needs_acknowledgment', False)
+        acknowledgment_msg = response_interpretation.get('acknowledgment_message')
+        extracted_info = response_interpretation.get('extracted_info')
         
-        # Check if user is asking a question instead of answering
-        if self._is_user_asking_question(user_answer):
-            return self._handle_user_question(user_answer)
+        # Store acknowledgment for later if answer contains clinical info AND needs acknowledgment
+        if needs_acknowledgment:
+            self._pending_acknowledgment = acknowledgment_msg
+            self._capture_debug(f"[Engine] 💬 Acknowledgment stored for next question: {response_interpretation['type']}")
         
-        # Record answer
+        # Record answer (with original text for context)
         self.conversation_history.append({
             'type': 'answer',
-            'answer': user_answer
+            'answer': user_answer,
+            'interpretation': response_interpretation  # Store interpretation for debugging
         })
         
-        # If response needs acknowledgment (comment, question, distress), handle it naturally
-        if response_interpretation['needs_acknowledgment']:
-            acknowledgment = response_interpretation['acknowledgment_message']
-            
-            # Store acknowledgment for use when generating next question
-            self._pending_acknowledgment = acknowledgment
-            
-            # Still try to extract clinical info if possible
-            extracted_info = response_interpretation.get('extracted_info')
-            if extracted_info and extracted_info != user_answer:
-                # Use extracted info for processing
-                user_answer = extracted_info
-            elif not extracted_info:
-                # Pure comment/question - still record it but handle specially
-                pass
+        # Use extracted info if available (cleaner than full response with comments)
+        processing_answer = extracted_info if extracted_info else user_answer
         
         # If distress detected, skip routine demographics and prioritize clinical assessment
+        # (This check happens after interpretation, but we already handled urgency above)
         if is_distressed:
-            self._capture_debug(f"[Engine] 🚨 DISTRESS DETECTED: severity={distress_info['severity']:.1f}, urgency_boost={distress_info['urgency_boost']:.2f}")
-            
-            # Mark demographics as optional (skip age/sex if not critical)
-            self.demographics_optional = True
-            
-            # Boost urgency for active guidelines
-            if distress_info['urgency_boost'] > 0 and self.active_guidelines:
-                for guideline in self.active_guidelines:
-                    current_score = guideline.get('score', 0.0)
-                    guideline['score'] = min(1.0, current_score + distress_info['urgency_boost'])
-                self._capture_debug(f"[Engine] ⚡ Urgency boost applied: +{distress_info['urgency_boost']:.2f} to active guidelines")
-            
             # Get last question to check if we were asking a routine question
-            last_q = None
-            for item in reversed(self.conversation_history):
-                if item.get('type') in ['question', 'statement']:
-                    last_q = item
-                    break
-            
-            # If we were asking a routine question (age/sex), skip it and go to clinical questions
             if last_q and last_q.get('focus') in ['age', 'sex', 'chronicity']:
                 self._capture_debug(f"[Engine] ⏭️ Skipping routine question ({last_q.get('focus')}) due to distress")
                 
@@ -3218,10 +3702,11 @@ Generate an empathetic response that acknowledges their distress and immediately
         self._capture_debug(f"[Engine] 🔍 Demographics: {self.demographics}")
         
         # Handle age answers - check if we just asked an age question
+        # Note: Interpretation already happened at start of process_answer
         if (last_q and last_q.get('type') == 'question' and last_q.get('focus') == 'age' and 
             'age' not in self.demographics):
-            # Process age answer
-            age_str = user_answer.strip()
+            # Process age answer (use processing_answer which may have extracted info)
+            age_str = processing_answer.strip()
             self._capture_debug(f"[Engine] 🔍 Processing age: '{age_str}'")
             if age_str.isdigit():
                 age = int(age_str)
@@ -3238,7 +3723,7 @@ Generate an empathetic response that acknowledges their distress and immediately
             # Fallback to LLM if simple validation fails
             if self.llm_chat_simple_fn:
                 system_msg = "You are a medical assistant. Extract the patient's age from their response. Return ONLY a number between 0-150, or 'invalid' if not a valid age."
-                user_msg = f"Patient said: '{user_answer}'\n\nExtract age as a number only:"
+                user_msg = f"Patient said: '{processing_answer}'\n\nExtract age as a number only:"
         
                 llm_kwargs = self._get_llm_kwargs(override_max_tokens=10)
                 response = self.llm_chat_simple_fn(
@@ -3251,6 +3736,25 @@ Generate an empathetic response that acknowledges their distress and immediately
                     age = int(age_str)
                     if 0 <= age <= 150:
                         self.demographics['age'] = age
+                        
+                        # Check if this was asked post-assessment
+                        if last_q and last_q.get('post_assessment'):
+                            # After assessment - check if there are more missing demographics
+                            missing_demo_response = self._check_and_collect_missing_demographics()
+                            if missing_demo_response:
+                                return missing_demo_response
+                            # All demographics collected - assessment truly complete
+                            completion_msg = self._generate_completion_message()
+                            return {
+                                'success': True,
+                                'status': 'completed',
+                                'message': completion_msg,
+                                'debug': {
+                                    'engine': self._format_engine_debug("[Engine] ✅ Assessment complete - all demographics collected"),
+                                    'internal': self._get_debug_info()
+                                }
+                            }
+                        
                         return self._generate_ml_first_question_with_demographics()
             
             return {
@@ -3288,25 +3792,80 @@ Generate an empathetic response that acknowledges their distress and immediately
                 return self._ask_next_key_feature()
         
         # Handle other demographics (sex, chronicity)
+        # Note: Interpretation already happened at start of process_answer
         if last_q and last_q.get('focus') == 'sex':
             # Simple sex validation - accept direct answers
-            sex_str = user_answer.strip().lower()
+            # Use processing_answer (may have extracted info)
+            sex_str = processing_answer.strip().lower()
             if sex_str in ['male', 'female', 'm', 'f']:
                 if sex_str in ['m', 'f']:
                     sex_str = 'male' if sex_str == 'm' else 'female'
                 self.demographics['sex'] = sex_str
+                
+                # Check if this was asked post-assessment
+                if last_q and last_q.get('post_assessment'):
+                    # After assessment - check if there are more missing demographics
+                    missing_demo_response = self._check_and_collect_missing_demographics()
+                    if missing_demo_response:
+                        return missing_demo_response
+                    # All demographics collected - assessment truly complete
+                    completion_msg = self._generate_completion_message()
+                    return {
+                        'success': True,
+                        'status': 'completed',
+                        'message': completion_msg,
+                        'debug': {
+                            'engine': self._format_engine_debug("[Engine] ✅ Assessment complete - all demographics collected"),
+                            'internal': self._get_debug_info()
+                        }
+                    }
+                
                 return self._generate_ml_first_question_with_demographics()
             elif user_answer == 'sex_male':
                 self.demographics['sex'] = 'male'
+                
+                # Check if this was asked post-assessment
+                if last_q and last_q.get('post_assessment'):
+                    missing_demo_response = self._check_and_collect_missing_demographics()
+                    if missing_demo_response:
+                        return missing_demo_response
+                    completion_msg = self._generate_completion_message()
+                    return {
+                        'success': True,
+                        'status': 'completed',
+                        'message': completion_msg,
+                        'debug': {
+                            'engine': self._format_engine_debug("[Engine] ✅ Assessment complete - all demographics collected"),
+                            'internal': self._get_debug_info()
+                        }
+                    }
+                
                 return self._generate_ml_first_question_with_demographics()
             elif user_answer == 'sex_female':
                 self.demographics['sex'] = 'female'
+                
+                # Check if this was asked post-assessment
+                if last_q and last_q.get('post_assessment'):
+                    missing_demo_response = self._check_and_collect_missing_demographics()
+                    if missing_demo_response:
+                        return missing_demo_response
+                    completion_msg = self._generate_completion_message()
+                    return {
+                        'success': True,
+                        'status': 'completed',
+                        'message': completion_msg,
+                        'debug': {
+                            'engine': self._format_engine_debug("[Engine] ✅ Assessment complete - all demographics collected"),
+                            'internal': self._get_debug_info()
+                        }
+                    }
+                
                 return self._generate_ml_first_question_with_demographics()
             
             # Fallback to LLM if simple validation fails
             if self.llm_chat_simple_fn:
                 system_msg = "You are a medical assistant. Extract the patient's biological sex from their response. Return ONLY 'male', 'female', or 'invalid'."
-                user_msg = f"Patient said: '{user_answer}'\n\nExtract biological sex (male/female) only:"
+                user_msg = f"Patient said: '{processing_answer}'\n\nExtract biological sex (male/female) only:"
                 
                 llm_kwargs = self._get_llm_kwargs(override_max_tokens=10)
                 response = self.llm_chat_simple_fn(
@@ -3317,6 +3876,25 @@ Generate an empathetic response that acknowledges their distress and immediately
                 sex_str = response.strip().lower()
                 if sex_str in ['male', 'female']:
                     self.demographics['sex'] = sex_str
+                    
+                    # Check if this was asked post-assessment
+                    if last_q and last_q.get('post_assessment'):
+                        # After assessment - check if there are more missing demographics
+                        missing_demo_response = self._check_and_collect_missing_demographics()
+                        if missing_demo_response:
+                            return missing_demo_response
+                        # All demographics collected - assessment truly complete
+                        completion_msg = self._generate_completion_message()
+                        return {
+                            'success': True,
+                            'status': 'completed',
+                            'message': completion_msg,
+                            'debug': {
+                                'engine': self._format_engine_debug("[Engine] ✅ Assessment complete - all demographics collected"),
+                                'internal': self._get_debug_info()
+                            }
+                        }
+                    
                     return self._generate_ml_first_question_with_demographics()
             
             return {
@@ -3329,8 +3907,12 @@ Generate an empathetic response that acknowledges their distress and immediately
             }
         
         if last_q and last_q.get('focus') == 'chronicity':
+            # Note: Interpretation already happened at start of process_answer
+            # Use the processing_answer (which may have extracted info) for keyword matching
+            
             # Simple keyword matching first (more reliable than LLM)
-            user_answer_lower = user_answer.lower().strip()
+            # Use processing_answer (may have extracted info, or original if no extraction)
+            processing_answer_lower = processing_answer.lower().strip()
             
             # Check for button callbacks first
             if user_answer == 'chronicity_new':
@@ -3342,17 +3924,19 @@ Generate an empathetic response that acknowledges their distress and immediately
             
             # Simple keyword matching
             new_indicators = ['new', 'recent', 'today', 'yesterday', 'this week', 'sudden', 'acute']
-            has_new_indicator = any(word in user_answer_lower for word in new_indicators)
+            has_new_indicator = any(word in processing_answer_lower for word in new_indicators)
             
             recurring_indicators = ['ongoing', 'recurring', 'chronic', 'months', 'years', 'always', 'frequent', 'often']
-            has_recurring_indicator = any(word in user_answer_lower for word in recurring_indicators)
+            has_recurring_indicator = any(word in processing_answer_lower for word in recurring_indicators)
             
             if has_new_indicator:
                 self.demographics['chronicity'] = 'new'
-                return self._generate_ml_first_question_with_demographics()
+                # Use intelligent return to next missing element (handles demographics + OLDCARTS)
+                return self._return_to_next_missing_element(acknowledgment_msg if needs_acknowledgment else None)
             elif has_recurring_indicator:
                 self.demographics['chronicity'] = 'recurring'
-                return self._generate_ml_first_question_with_demographics()
+                # Use intelligent return to next missing element (handles demographics + OLDCARTS)
+                return self._return_to_next_missing_element(acknowledgment_msg if needs_acknowledgment else None)
             
             # Fallback to LLM if simple matching fails
             if self.llm_chat_simple_fn:
@@ -3369,17 +3953,20 @@ Generate an empathetic response that acknowledges their distress and immediately
                     chronicity_str = response.strip().lower()
                     if chronicity_str in ['new', 'recurring']:
                         self.demographics['chronicity'] = chronicity_str
-                        return self._generate_ml_first_question_with_demographics()
+                        # Use intelligent return to next missing element (handles demographics + OLDCARTS)
+                        return self._return_to_next_missing_element(acknowledgment_msg if needs_acknowledgment else None)
                     elif 'new' in chronicity_str:
                         self.demographics['chronicity'] = 'new'
-                        return self._generate_ml_first_question_with_demographics()
+                        # Use intelligent return to next missing element (handles demographics + OLDCARTS)
+                        return self._return_to_next_missing_element(acknowledgment_msg if needs_acknowledgment else None)
                     else:
                         recurring_in_str = 'recurring' in chronicity_str
                         ongoing_in_str = 'ongoing' in chronicity_str
                         
                         if recurring_in_str or ongoing_in_str:
                             self.demographics['chronicity'] = 'recurring'
-                            return self._generate_ml_first_question_with_demographics()
+                            # Use intelligent return to next missing element (handles demographics + OLDCARTS)
+                            return self._return_to_next_missing_element(acknowledgment_msg if needs_acknowledgment else None)
                 except Exception as e:
                     # LLM failed, fall through to error message
                     pass
@@ -3403,8 +3990,8 @@ Generate an empathetic response that acknowledges their distress and immediately
             # Demographics incomplete - ask next demographic question
             return self._generate_ml_first_question_with_demographics()
         
-        # Handle clinical answers
-        return self._process_clinical_answer(user_answer)
+        # Handle clinical answers (use processing_answer which may have extracted info)
+        return self._process_clinical_answer(processing_answer)
     
     def _is_user_asking_question(self, user_input: str) -> bool:
         """Detect if user is asking a question instead of answering"""

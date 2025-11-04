@@ -500,6 +500,16 @@ class ClinicianSession:
                         save_state(session_state, self.session_id)
                         print(f"[Adaptive] ✅ Assessment complete - session state cleared (auto-reset)")
                         return response.get('message', 'Assessment complete.')
+                    elif response.get('status') == 'emergency':
+                        # Emergency detected - immediate 911/ER recommendation, auto-reset
+                        self.adaptive_assessment_active = False
+                        self.session_chief_complaint = None
+                        # Clear from session state to allow mode switching (auto-reset)
+                        if hasattr(self.state, 'dynamic_assessment'):
+                            delattr(self.state, 'dynamic_assessment')
+                        if hasattr(self.state, 'mode'):
+                            delattr(self.state, 'mode')
+                        print(f"[Adaptive] 🚨 EMERGENCY detected - session state cleared (auto-reset)")
                     elif response.get('status') == 'completed':
                         # Assessment complete - auto-reset
                         print(f"[Adaptive] ✅ Assessment complete")

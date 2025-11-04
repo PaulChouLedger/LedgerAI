@@ -226,12 +226,61 @@ if lsusb | grep -q "2886:0018"; then
         sudo bash "$SCRIPT_DIR/scripts/setup_usb_permissions.sh"
     fi
     
-    if [ -f "$SCRIPT_DIR/scripts/install_auto_tune.sh" ]; then
-        echo -n "Install ReSpeaker auto-tune service? (y/n) "
+    # Install XVF3800 tuning service
+    # SCRIPT_DIR is setup/, so scripts are in setup/scripts/
+    SERVICE_SOURCE="$SCRIPT_DIR/scripts/xvf3800-tuning.service"
+    SERVICE_DEST="/etc/systemd/system/xvf3800-tuning.service"
+    
+    if [ -f "$SERVICE_SOURCE" ]; then
+        
+        echo -n "Install XVF3800 auto-tune service? (y/n) "
         read -r response
         if [[ "$response" =~ ^[Yy]$ ]]; then
-            sudo bash "$SCRIPT_DIR/scripts/install_auto_tune.sh"
+            log_info "Installing XVF3800 tuning service..."
+            
+            # Determine user and path
+            AURA_USER="${USER:-aura}"
+            # SCRIPT_DIR is setup/, so workspace root is one level up
+            LEDGERAI_PATH="$(cd "$SCRIPT_DIR/.." && pwd)"
+            
+            # Copy service file
+            sudo cp "$SERVICE_SOURCE" "$SERVICE_DEST"
+            
+            # Update paths in service file
+            sudo sed -i "s|^User=.*|User=$AURA_USER|" "$SERVICE_DEST"
+            sudo sed -i "s|/home/aura/LedgerAI|$LEDGERAI_PATH|g" "$SERVICE_DEST"
+            
+            # Reload and enable
+            sudo systemctl daemon-reload
+            sudo systemctl enable xvf3800-tuning.service
+            sudo systemctl start xvf3800-tuning.service
+            
+            log_success "XVF3800 tuning service installed and started"
+            echo ""
+            log_info "📋 Available Presets (default: agc_20):"
+            echo "   - agc_20          : HPF 70Hz + AGC with 20% increase (DEFAULT) ⭐"
+            echo "   - agc_10          : HPF 70Hz + AGC with 10% increase"
+            echo "   - balanced_beam   : HPF 70Hz + AGC (balanced)"
+            echo "   - agc_only        : AGC only (no HPF)"
+            echo "   - hpf_only        : HPF 70Hz only (minimal)"
+            echo "   - ultra_sensitive : AGC (far-field optimized)"
+            echo "   - far_field       : Optimized for 8-16 feet"
+            echo "   - near_field      : Optimized for 1-6 feet"
+            echo "   - reset           : Factory defaults"
+            echo ""
+            log_info "To change preset:"
+            echo "   1. sudo nano $SERVICE_DEST"
+            echo "   2. Change 'agc_20' to desired preset in ExecStart line"
+            echo "   3. sudo systemctl daemon-reload"
+            echo "   4. sudo systemctl restart xvf3800-tuning.service"
+            echo ""
+            log_info "Useful commands:"
+            echo "   sudo systemctl status xvf3800-tuning.service  # Check status"
+            echo "   sudo journalctl -u xvf3800-tuning.service     # View logs"
+            echo "   sudo systemctl disable xvf3800-tuning.service  # Disable"
         fi
+    else
+        log_warning "xvf3800-tuning.service not found - skipping service installation"
     fi
 else
     log_warning "ReSpeaker not detected (connect and rerun if needed)"
