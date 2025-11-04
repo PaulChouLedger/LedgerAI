@@ -3310,6 +3310,149 @@ RECOMMENDATION: {recommendation}"""
         else:
             self._capture_debug(f"[Red Flag] ✅ No red flag: '{red_flag_text}' absent for {condition_name}")
     
+    def _interpret_patient_response(self, user_input: str, expected_element: str = None) -> Dict[str, Any]:
+        """
+        Intelligently interpret patient response to categorize it and extract relevant information.
+        Detects comments, questions, distress, or direct answers.
+        
+        Args:
+            user_input: The patient's response
+            expected_element: Optional OLDCARTS element that was expected (for context)
+            
+        Returns:
+            Dict with:
+            - 'type': 'direct_answer', 'comment', 'question', 'distress', 'distress_question', 'mixed'
+            - 'is_distressed': bool
+            - 'distress_info': dict from _detect_distress
+            - 'is_question': bool
+            - 'is_comment': bool
+            - 'needs_acknowledgment': bool
+            - 'acknowledgment_message': str or None
+            - 'extracted_info': str or None (clinical info extracted from response)
+        """
+        user_lower = user_input.lower().strip()
+        
+        # Detect distress
+        distress_info = self._detect_distress(user_input)
+        is_distressed = distress_info.get('is_distressed', False)
+        
+        # Detect if user is asking a question
+        is_question = self._is_user_asking_question(user_input)
+        
+        # Detect if it's a comment/exclamation (short emotional expressions)
+        is_comment = self._is_comment_or_exclamation(user_input)
+        
+        # Try to extract clinical information (if answer contains both comment and clinical info)
+        extracted_info = None
+        if self.llm_chat_simple_fn and expected_element:
+            # Use LLM to extract just the clinical info if there's a comment mixed in
+            try:
+                system_msg = f"You are a medical assistant. Extract ONLY the clinical information relevant to: {expected_element}. Remove all emotional comments, questions, or other non-clinical text. Return ONLY the clinical information, or 'none' if no clinical info found."
+                user_msg = f"Patient said: '{user_input}'\n\nExtract clinical information about {expected_element} only:"
+                
+                llm_kwargs = self._get_llm_kwargs(override_max_tokens=50)
+                response = self.llm_chat_simple_fn(
+                    [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+                    **llm_kwargs
+                )
+                
+                extracted = response.strip().lower() if response else ''
+                if extracted and extracted != 'none' and len(extracted) > 2:
+                    extracted_info = extracted
+            except Exception as e:
+                self._capture_debug(f"[Engine] ⚠️ Failed to extract clinical info: {e}")
+        
+        # Determine response type
+        response_type = 'direct_answer'
+        if is_distressed and is_question:
+            response_type = 'distress_question'
+        elif is_distressed:
+            response_type = 'distress'
+        elif is_question:
+            response_type = 'question'
+        elif is_comment:
+            response_type = 'comment'
+        elif extracted_info and (is_comment or is_question):
+            response_type = 'mixed'  # Contains both comment/question and clinical info
+        
+        # Determine if acknowledgment is needed
+        needs_acknowledgment = False
+        acknowledgment_message = None
+        
+        if is_distressed or is_comment or is_question:
+            needs_acknowledgment = True
+            # Generate acknowledgment message
+            if is_distressed:
+                acknowledgment_message = self._generate_empathetic_response(user_input, distress_info)
+            elif is_question:
+                # Acknowledge question
+                acknowledgment_message = "I understand you have a question. Let me help clarify that. "
+            elif is_comment:
+                # Acknowledge comment
+                if self.llm_chat_simple_fn:
+                    try:
+                        system_msg = "You are a compassionate medical assistant. Generate a brief, natural acknowledgment (1 sentence) for a patient's comment or emotional expression. Be warm and reassuring, then naturally transition back to gathering information."
+                        user_msg = f"Patient said: '{user_input}'\n\nGenerate a brief acknowledgment:"
+                        
+                        llm_kwargs = self._get_llm_kwargs(override_max_tokens=40)
+                        response = self.llm_chat_simple_fn(
+                            [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+                            **llm_kwargs
+                        )
+                        acknowledgment_message = response.strip() if response else "I understand. "
+                    except Exception as e:
+                        self._capture_debug(f"[Engine] ⚠️ Failed to generate acknowledgment: {e}")
+                        acknowledgment_message = "I understand. "
+                else:
+                    acknowledgment_message = "I understand. "
+        
+        return {
+            'type': response_type,
+            'is_distressed': is_distressed,
+            'distress_info': distress_info,
+            'is_question': is_question,
+            'is_comment': is_comment,
+            'needs_acknowledgment': needs_acknowledgment,
+            'acknowledgment_message': acknowledgment_message,
+            'extracted_info': extracted_info
+        }
+    
+    def _is_comment_or_exclamation(self, user_input: str) -> bool:
+        """Detect if user input is a short comment or exclamation rather than a direct answer"""
+        user_lower = user_input.lower().strip()
+        
+        # Check for location/clinical terms that should NOT be treated as comments
+        location_terms = ['right', 'left', 'upper', 'lower', 'side', 'center', 'middle', 
+                         'abdomen', 'chest', 'back', 'pain', 'hurt', 'ache']
+        has_location_term = any(term in user_lower for term in location_terms)
+        
+        # If contains location/clinical terms, likely a direct answer, not a comment
+        if has_location_term:
+            return False
+        
+        # Very short inputs are often comments
+        if len(user_input.split()) <= 3:
+            # Check for common comment patterns (removed "right" since it's ambiguous)
+            comment_patterns = [
+                'ok', 'okay', 'sure', 'yeah', 'yep', 'got it',
+                'oh', 'wow', 'really', 'hmm', 'um', 'ah', 'i see',
+                'thanks', 'thank you', 'please', 'help', 'scared', 'worried'
+            ]
+            if user_lower in comment_patterns:
+                return True
+        
+        # Emotional expressions
+        emotional_words = ['scared', 'worried', 'afraid', 'nervous', 'anxious', 'frightened', 
+                          'terrified', 'panicking', 'please', 'help', 'ok', 'okay']
+        if any(word in user_lower for word in emotional_words) and len(user_input.split()) <= 5:
+            return True
+        
+        # Exclamations
+        if user_input.endswith('!') and len(user_input.split()) <= 5:
+            return True
+        
+        return False
+    
     def _detect_distress(self, user_answer: str) -> Dict[str, Any]:
         """
         Detect patient distress/urgency from their response
