@@ -687,7 +687,11 @@ class AdaptiveDiagnosticEngine:
     
     def _match_chief_complaint_to_category(self, chief_complaint: str) -> str:
         """Match chief complaint to category using unified function with synonym normalization first, then FAISS against triggers"""
-        if not self.chief_complaint_triggers_index or not self.embedding_model or len(self.chief_complaint_triggers_data) == 0:
+        triggers_index_missing = not self.chief_complaint_triggers_index
+        embedding_model_missing = not self.embedding_model
+        triggers_data_empty = len(self.chief_complaint_triggers_data) == 0
+        
+        if triggers_index_missing or embedding_model_missing or triggers_data_empty:
             raise ValueError("Chief complaint triggers index not available. Cannot match category.")
         
         try:
@@ -782,13 +786,19 @@ class AdaptiveDiagnosticEngine:
                             continue
                         
                         # Fast substring check (if one is substring of other, high similarity)
-                        if key_terms in trigger_text or trigger_text in key_terms:
+                        key_terms_in_trigger = key_terms in trigger_text
+                        trigger_in_key_terms = trigger_text in key_terms
+                        
+                        if key_terms_in_trigger or trigger_in_key_terms:
                             similarity = 0.9  # High score for substring match
                         else:
                             # Only do expensive SequenceMatcher if length check passed
                             similarity = SequenceMatcher(None, key_terms, trigger_text).ratio()
                         
-                        if similarity > best_fuzzy_score and similarity >= 0.8:  # Fuzzy threshold (stricter than FAISS for typos)
+                        similarity_greater_than_best = similarity > best_fuzzy_score
+                        similarity_meets_threshold = similarity >= 0.8  # Fuzzy threshold (stricter than FAISS for typos)
+                        
+                        if similarity_greater_than_best and similarity_meets_threshold:
                             best_fuzzy_score = similarity
                             best_fuzzy_match = trigger_text
                             best_fuzzy_category = trigger_data['category']
@@ -813,7 +823,10 @@ class AdaptiveDiagnosticEngine:
             # If second-best category is within 0.1 of best, it might be crossover
             if len(sorted_categories) > 1:
                 second_score = sorted_categories[1][1]
-                if best_score - second_score < 0.1 and second_score >= 0.6:
+                score_difference_small = best_score - second_score < 0.1
+                second_score_meets_threshold = second_score >= 0.6
+                
+                if score_difference_small and second_score_meets_threshold:
                     second_category = sorted_categories[1][0]
                     self._capture_debug(f"[Engine] 🎯 Multiple categories detected (crossover): {best_category} ({best_score:.3f}) vs {second_category} ({second_score:.3f})")
                     # For now, return best - could be extended to return both categories
@@ -881,7 +894,10 @@ class AdaptiveDiagnosticEngine:
                 # Use FAISS to find matching terms with semantic similarity (very high threshold for initial parsing to avoid false positives)
                 # Get active condition names for filtering (if available)
                 active_condition_names = None
-                if hasattr(self, 'active_guidelines') and self.active_guidelines:
+                has_active_guidelines_attr = hasattr(self, 'active_guidelines')
+                active_guidelines_exist = has_active_guidelines_attr and self.active_guidelines
+                
+                if active_guidelines_exist:
                     active_condition_names = set()
                     for g in self.active_guidelines:
                         condition_name = g.get('data', {}).get('condition', g.get('name', ''))
@@ -1357,7 +1373,10 @@ class AdaptiveDiagnosticEngine:
                 # EXCEPTION: Still ask duration if guidelines have comparison operators (>, <, >=, <=) to differentiate conditions
                 if oldcarts_element == 'timing':
                     answer_lower = answer.lower()
-                    if any(word in answer_lower for word in ['constant', 'continuous', 'always', 'all the time', 'never stops']):
+                    constant_words = ['constant', 'continuous', 'always', 'all the time', 'never stops']
+                    has_constant_word = any(word in answer_lower for word in constant_words)
+                    
+                    if has_constant_word:
                         # Check if any active guidelines have duration terms with comparison operators
                         has_duration_comparison = False
                         for guideline in self.active_guidelines:
@@ -1367,7 +1386,11 @@ class AdaptiveDiagnosticEngine:
                                 includes = duration_data.get('includes', [])
                                 for term in includes:
                                     medical_term = term.get('medical', '') if isinstance(term, dict) else term
-                                    if isinstance(medical_term, str) and any(op in medical_term for op in ['>', '<', '>=', '<=']):
+                                    is_medical_term_string = isinstance(medical_term, str)
+                                    comparison_operators = ['>', '<', '>=', '<=']
+                                    has_comparison_operator = any(op in medical_term for op in comparison_operators) if is_medical_term_string else False
+                                    
+                                    if is_medical_term_string and has_comparison_operator:
                                         has_duration_comparison = True
                                         break
                             if has_duration_comparison:
@@ -1577,6 +1600,12 @@ class AdaptiveDiagnosticEngine:
                 )
                 semantic_matches_set = set(t.lower() for t in semantic_matches)
                 
+                # DEBUG: Show what FAISS actually found
+                if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
+                    raw_faiss_scores = self.medical_rule_engine._last_faiss_scores
+                    self._capture_debug(f"[Location Analysis] 🔍 FAISS found {len(semantic_matches)} matches above threshold: {semantic_matches}")
+                    self._capture_debug(f"[Location Analysis] 🔍 Raw FAISS scores (all): {raw_faiss_scores}")
+                
                 # OPTIMIZATION: Use first FAISS match as normalized answer (reuse result)
                 if semantic_matches:
                     normalized_answer = semantic_matches[0].lower()
@@ -1735,10 +1764,17 @@ class AdaptiveDiagnosticEngine:
                                             matched_synonyms.append((syn, raw_faiss_scores[syn.lower()]))
                                     if matched_synonyms:
                                         self._capture_debug(f"[Location Analysis]   Step 3 - Found {len(matched_synonyms)} synonym matches for '{term}': {matched_synonyms}")
-                                        # Check if any synonym scored above threshold
-                                        high_scoring_synonyms = [(s, sc) for s, sc in matched_synonyms if sc >= 0.75]
+                                        # Check if any synonym scored above threshold (use slightly lower threshold for synonyms: 0.70)
+                                        # Synonyms are patient-friendly terms that might not embed as well as medical terms
+                                        synonym_threshold = 0.70  # Slightly lower than medical term threshold (0.75)
+                                        high_scoring_synonyms = [(s, sc) for s, sc in matched_synonyms if sc >= synonym_threshold]
                                         if high_scoring_synonyms:
-                                            self._capture_debug(f"[Location Analysis]   ⚠️ Synonyms above threshold found but medical term not in semantic_matches_set")
+                                            best_synonym, best_score = max(high_scoring_synonyms, key=lambda x: x[1])
+                                            self._capture_debug(f"[Location Analysis]   ✅ SATISFIED via synonym FAISS match: '{best_synonym}' (score: {best_score:.3f}) maps to '{term}'")
+                                            term_satisfied = True
+                                            match_reason = f"synonym FAISS match: '{best_synonym}' (score: {best_score:.3f}) → '{term}'"
+                                        else:
+                                            self._capture_debug(f"[Location Analysis]   ⚠️ Synonyms found but below threshold ({synonym_threshold}): {matched_synonyms}")
                                 # Also check all FAISS matches to see what was actually found
                                 all_matches = sorted(raw_faiss_scores.items(), key=lambda x: x[1], reverse=True)
                                 top_5_matches = all_matches[:5]
@@ -1850,15 +1886,22 @@ class AdaptiveDiagnosticEngine:
             term_satisfied = False
             
             # 1. Exact/substring matching (fast path)
-            if (term in answer_lower or answer_lower in term or
-                term in normalized_for_match or normalized_for_match in term):
+            term_in_answer_lower = term in answer_lower
+            answer_lower_in_term = answer_lower in term
+            term_in_normalized = term in normalized_for_match
+            normalized_in_term = normalized_for_match in term
+            
+            if term_in_answer_lower or answer_lower_in_term or term_in_normalized or normalized_in_term:
                 term_satisfied = True
             else:
                 # 2. Use FAISS semantic matching (same as unified function)
                 if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
                     # Get active condition names for filtering
                     active_condition_names = None
-                    if hasattr(self, 'active_guidelines') and self.active_guidelines:
+                    has_active_guidelines_attr = hasattr(self, 'active_guidelines')
+                    active_guidelines_exist = has_active_guidelines_attr and self.active_guidelines
+                    
+                    if active_guidelines_exist:
                         active_condition_names = set()
                         for g in self.active_guidelines:
                             condition_name = g.get('data', {}).get('condition', g.get('name', ''))
@@ -2039,7 +2082,10 @@ class AdaptiveDiagnosticEngine:
         if hasattr(self, 'oldcarts_analysis'):
             self._capture_debug(f"[Engine] OLDCARTS analysis: {self.oldcarts_analysis}")
         
-        if not hasattr(self, 'oldcarts_analysis') or not self.oldcarts_analysis:
+        has_oldcarts_analysis_attr = hasattr(self, 'oldcarts_analysis')
+        oldcarts_analysis_missing = not has_oldcarts_analysis_attr or not self.oldcarts_analysis
+        
+        if oldcarts_analysis_missing:
             return {
                 'success': False,
                 'message': 'No OLDCARTS analysis available',
@@ -2053,7 +2099,10 @@ class AdaptiveDiagnosticEngine:
         self._capture_debug(f"[Engine] Missing components: {missing}")
         if not missing:
             # All OLDCARTS complete - now ask about key positives/negatives
-            if not self.key_features_phase and not self.red_flag_phase:
+            key_features_not_active = not self.key_features_phase
+            red_flag_not_active = not self.red_flag_phase
+            
+            if key_features_not_active and red_flag_not_active:
                 return self._start_key_features_phase()
             elif self.key_features_phase:
                 # Continue asking about key features (will be handled in process_answer)
@@ -2074,9 +2123,15 @@ class AdaptiveDiagnosticEngine:
             # Timing was already answered - check if it's constant
             if hasattr(self, 'conversation_history'):
                 for item in reversed(self.conversation_history):
-                    if item.get('oldcarts') == 'timing' and item.get('type') == 'answer':
+                    item_oldcarts_is_timing = item.get('oldcarts') == 'timing'
+                    item_type_is_answer = item.get('type') == 'answer'
+                    
+                    if item_oldcarts_is_timing and item_type_is_answer:
                         answer = item.get('answer', item.get('message', '')).lower()
-                        if any(word in answer for word in ['constant', 'continuous', 'always', 'all the time', 'never stops']):
+                        constant_words = ['constant', 'continuous', 'always', 'all the time', 'never stops']
+                        has_constant_word = any(word in answer for word in constant_words)
+                        
+                        if has_constant_word:
                             # Check if any active guidelines have duration terms with comparison operators
                             has_duration_comparison = False
                             for guideline in self.active_guidelines:
@@ -2086,7 +2141,11 @@ class AdaptiveDiagnosticEngine:
                                     includes = duration_data.get('includes', [])
                                     for term in includes:
                                         medical_term = term.get('medical', '') if isinstance(term, dict) else term
-                                        if isinstance(medical_term, str) and any(op in medical_term for op in ['>', '<', '>=', '<=']):
+                                        is_medical_term_string = isinstance(medical_term, str)
+                                        comparison_operators = ['>', '<', '>=', '<=']
+                                        has_comparison_operator = any(op in medical_term for op in comparison_operators) if is_medical_term_string else False
+                                        
+                                        if is_medical_term_string and has_comparison_operator:
                                             has_duration_comparison = True
                                             break
                                 if has_duration_comparison:
@@ -2142,7 +2201,10 @@ class AdaptiveDiagnosticEngine:
         
         # Get context about chief complaint
         chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}"
-        if hasattr(self, 'conversation_history') and self.conversation_history:
+        has_conversation_history_attr = hasattr(self, 'conversation_history')
+        conversation_history_exists = has_conversation_history_attr and self.conversation_history
+        
+        if conversation_history_exists:
             # Include recent conversation context
             recent_msgs = [item.get('message', item.get('question', item.get('answer', ''))) 
                          for item in self.conversation_history[-3:] if item.get('type') in ['statement', 'question', 'answer']]
@@ -2161,7 +2223,10 @@ class AdaptiveDiagnosticEngine:
             ],
             **llm_kwargs
         )
-        if not response or not response.strip():
+        response_is_empty = not response
+        response_stripped_is_empty = not response.strip() if response else True
+        
+        if response_is_empty or response_stripped_is_empty:
             raise ValueError("LLM returned empty response for confirmation message")
         
         return response.strip()
@@ -2252,7 +2317,10 @@ class AdaptiveDiagnosticEngine:
                 ],
                 **llm_kwargs
             )
-            if not response or not response.strip():
+            response_is_empty = not response
+            response_stripped_is_empty = not response.strip() if response else True
+            
+            if response_is_empty or response_stripped_is_empty:
                 raise ValueError("LLM returned empty response for chronicity question")
             
             question = response.strip()
@@ -2343,7 +2411,10 @@ class AdaptiveDiagnosticEngine:
             ],
             **llm_kwargs
         )
-        if not response or not response.strip():
+        response_is_empty = not response
+        response_stripped_is_empty = not response.strip() if response else True
+        
+        if response_is_empty or response_stripped_is_empty:
             raise ValueError("LLM returned empty response for empathetic statement")
         
         return response.strip()
@@ -2706,7 +2777,10 @@ class AdaptiveDiagnosticEngine:
         # Get last question
         last_q = None
         for item in reversed(self.conversation_history):
-            if item['type'] == 'question' or item['type'] == 'statement':
+            item_is_question = item['type'] == 'question'
+            item_is_statement = item['type'] == 'statement'
+            
+            if item_is_question or item_is_statement:
                 last_q = item
                 break
         
@@ -2839,10 +2913,16 @@ class AdaptiveDiagnosticEngine:
                 return self._generate_ml_first_question_with_demographics()
             
             # Simple keyword matching
-            if any(word in user_answer_lower for word in ['new', 'recent', 'today', 'yesterday', 'this week', 'sudden', 'acute']):
+            new_indicators = ['new', 'recent', 'today', 'yesterday', 'this week', 'sudden', 'acute']
+            has_new_indicator = any(word in user_answer_lower for word in new_indicators)
+            
+            recurring_indicators = ['ongoing', 'recurring', 'chronic', 'months', 'years', 'always', 'frequent', 'often']
+            has_recurring_indicator = any(word in user_answer_lower for word in recurring_indicators)
+            
+            if has_new_indicator:
                 self.demographics['chronicity'] = 'new'
                 return self._generate_ml_first_question_with_demographics()
-            elif any(word in user_answer_lower for word in ['ongoing', 'recurring', 'chronic', 'months', 'years', 'always', 'frequent', 'often']):
+            elif has_recurring_indicator:
                 self.demographics['chronicity'] = 'recurring'
                 return self._generate_ml_first_question_with_demographics()
             
@@ -2865,9 +2945,13 @@ class AdaptiveDiagnosticEngine:
                     elif 'new' in chronicity_str:
                         self.demographics['chronicity'] = 'new'
                         return self._generate_ml_first_question_with_demographics()
-                    elif 'recurring' in chronicity_str or 'ongoing' in chronicity_str:
-                        self.demographics['chronicity'] = 'recurring'
-                        return self._generate_ml_first_question_with_demographics()
+                    else:
+                        recurring_in_str = 'recurring' in chronicity_str
+                        ongoing_in_str = 'ongoing' in chronicity_str
+                        
+                        if recurring_in_str or ongoing_in_str:
+                            self.demographics['chronicity'] = 'recurring'
+                            return self._generate_ml_first_question_with_demographics()
                 except Exception as e:
                     # LLM failed, fall through to error message
                     pass
@@ -2910,7 +2994,10 @@ class AdaptiveDiagnosticEngine:
                 return True
         
         # Check for question patterns
-        if any(indicator in user_lower for indicator in ['what do you mean', 'what does that mean', 'i don\'t understand']):
+        question_indicators = ['what do you mean', 'what does that mean', 'i don\'t understand']
+        has_question_indicator = any(indicator in user_lower for indicator in question_indicators)
+        
+        if has_question_indicator:
             return True
         
         return False

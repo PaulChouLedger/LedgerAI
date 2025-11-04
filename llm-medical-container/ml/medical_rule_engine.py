@@ -173,6 +173,11 @@ class MedicalRuleEngine:
                             'synonym_to_medical': synonym_to_medical_mapping[element],
                             'term_to_conditions': element_term_to_conditions
                         }
+                        
+                        # DEBUG: Show sample terms to verify synonyms are included
+                        if element == 'location' and 'right upper quadrant' in synonym_to_medical_mapping[element]:
+                            sample_synonyms = [t for t in terms_list[:20] if 'right' in t.lower() or 'upper' in t.lower()]
+                            print(f"[FAISS] 🔍 Sample location terms in index: {sample_synonyms[:10]}")
                     except Exception as e:
                         print(f"[FAISS] ⚠️ Error building index for {category}/{element}: {e}")
                         import traceback
@@ -206,13 +211,13 @@ class MedicalRuleEngine:
                             
                             structured = guideline.get('key_features', {}).get('structured_oldcarts', {})
                             if not structured:
-                                structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+                            structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
                             
                             if structured:
                                 guideline_count += 1
-                                for element, data in structured.items():
+                            for element, data in structured.items():
                                     if isinstance(data, dict) and 'includes' in data and element in all_terms:
-                                        for term in data['includes']:
+                                    for term in data['includes']:
                                             medical_term = None
                                             if isinstance(term, dict):
                                                 medical_term = term.get('medical')
@@ -372,6 +377,20 @@ class MedicalRuleEngine:
             # Debug: show which index is being used (only print occasionally to avoid spam)
             # Removed frequent debug print - was causing output spam
             
+            # FIRST PASS: Store ALL scores (including below threshold) if return_scores=True
+            # This allows checking synonyms later even if they scored below threshold
+            if return_scores:
+                for score, idx in zip(scores[0], indices[0]):
+                    term = indexes_to_use[element]['terms'][idx]
+                    # Store raw term score (before mapping) for synonym matching
+                    if term not in match_scores or score > match_scores[term]:
+                        match_scores[term] = float(score)
+                    # Also store medical term score (keep highest if multiple synonyms map to same medical term)
+                    medical_term = synonym_to_medical.get(term, term)
+                    if medical_term not in match_scores or score > match_scores[medical_term]:
+                        match_scores[medical_term] = float(score)
+            
+            # SECOND PASS: Filter by threshold and build matches list
             for score, idx in zip(scores[0], indices[0]):
                 if score >= threshold:
                     term = indexes_to_use[element]['terms'][idx]
@@ -390,17 +409,13 @@ class MedicalRuleEngine:
                     
                     if medical_term not in matches:
                         matches.append(medical_term)
-                    # Store score for debug purposes
-                    if return_scores:
-                        # Keep highest score if multiple synonyms map to same medical term
-                        if medical_term not in match_scores or score > match_scores[medical_term]:
-                            match_scores[medical_term] = float(score)
             
             # If debug mode, attach scores to function attribute (hacky but works)
             if return_scores:
                 self._last_faiss_scores = match_scores
-                # Also print for immediate debugging
-                print(f"[FAISS] 🔍 Scores for '{prompt}' in {element}: {match_scores}")
+                # Also print for immediate debugging (only show medical terms to avoid clutter)
+                medical_term_scores = {k: v for k, v in match_scores.items() if k in matches}
+                print(f"[FAISS] 🔍 Scores for '{prompt}' in {element}: {medical_term_scores}")
             
             return matches
         except Exception as e:
@@ -491,12 +506,12 @@ class MedicalRuleEngine:
                 if cache_key in self.synonym_cache:
                     synonyms = self.synonym_cache[cache_key]
                 else:
-                    synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
-                    synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
-                    
-                    if os.path.exists(synonym_path):
-                        try:
-                            with open(synonym_path, 'r') as f:
+                synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+                synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
+                
+                if os.path.exists(synonym_path):
+                    try:
+                        with open(synonym_path, 'r') as f:
                                 all_synonyms = json.load(f)
                             synonyms = all_synonyms.get(oldcarts_element, {})
                             self.synonym_cache[cache_key] = synonyms
@@ -506,7 +521,7 @@ class MedicalRuleEngine:
                         synonyms = {}
                 
                 if synonyms:
-                    normalized_text = self._normalize_with_synonyms(patient_text, synonyms, oldcarts_element)
+                        normalized_text = self._normalize_with_synonyms(patient_text, synonyms, oldcarts_element)
         
         # STEP 3: Word match boost
         word_match_boost = 0.0
