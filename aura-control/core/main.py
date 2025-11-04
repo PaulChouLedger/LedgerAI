@@ -50,9 +50,56 @@ print(f"[Aura] 🎤 Whisper container: {WHISPER_DESCRIPTION}")
 # === Graceful Exit on Ctrl+C ===
 def signal_handler(sig, frame):
     print("\n[Aura] ⛔ Exiting gracefully...")
+    stop_keyboard_monitor()  # Stop monitoring to allow Ubuntu keyboard to restart
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
+
+# === Ubuntu Keyboard Monitor (disable while main.py is running) ===
+_keyboard_monitor_running = False
+_keyboard_monitor_thread = None
+
+def monitor_and_disable_ubuntu_keyboard():
+    """
+    Background thread that periodically kills Ubuntu on-screen keyboard processes
+    while main.py is running. When main.py exits, this thread stops and Ubuntu
+    keyboard can restart normally.
+    """
+    global _keyboard_monitor_running
+    _keyboard_monitor_running = True
+    
+    while _keyboard_monitor_running:
+        try:
+            # Kill any running Ubuntu keyboard processes
+            subprocess.run(["pkill", "-f", "onboard"], check=False,
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(["pkill", "-f", "caribou"], check=False,
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(["pkill", "-f", "matchbox-keyboard"], check=False,
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+        
+        # Check every 2 seconds
+        time.sleep(2)
+
+def start_keyboard_monitor():
+    """Start the background thread that monitors and disables Ubuntu keyboard"""
+    global _keyboard_monitor_thread
+    if _keyboard_monitor_thread is None or not _keyboard_monitor_thread.is_alive():
+        _keyboard_monitor_thread = threading.Thread(target=monitor_and_disable_ubuntu_keyboard, daemon=True)
+        _keyboard_monitor_thread.start()
+        print("[Aura] ✅ Ubuntu keyboard monitor started (will disable while running)")
+
+def stop_keyboard_monitor():
+    """Stop the background thread (allows Ubuntu keyboard to restart when main.py exits)"""
+    global _keyboard_monitor_running
+    _keyboard_monitor_running = False
+    print("[Aura] ⌨️  Ubuntu keyboard monitor stopped (keyboard can restart)")
+
+# Register cleanup on exit
+import atexit
+atexit.register(stop_keyboard_monitor)
 
 # === Display Setup ===
 def setup_display():
@@ -66,19 +113,18 @@ def setup_display():
     """
     print("[Aura] 🖥️  Configuring display...")
     
-    # Disable Ubuntu on-screen keyboard - use custom GUI keyboard instead
-    print("[Aura] ⌨️  Disabling Ubuntu on-screen keyboard...")
+    # Disable Ubuntu on-screen keyboard - will be monitored in background thread
+    print("[Aura] ⌨️  Disabling Ubuntu on-screen keyboard (monitored while running)...")
     try:
-        # Kill any running on-screen keyboard processes
+        # Initial kill of any running on-screen keyboard processes
         subprocess.run(["pkill", "-f", "onboard"], check=False,
                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(["pkill", "-f", "caribou"], check=False,
                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(["pkill", "-f", "matchbox-keyboard"], check=False,
                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print("[Aura] ✅ Ubuntu on-screen keyboard disabled")
-    except Exception as e:
-        print(f"[Aura] ⚠️  Could not disable Ubuntu keyboard: {e}")
+    except Exception:
+        pass
     
     # Wake the screen and turn on display
     try:
@@ -876,6 +922,9 @@ def main():
     
     # Setup display fully (cursor hide, etc.)
     setup_display()
+    
+    # Start keyboard monitor (disables Ubuntu keyboard while running)
+    start_keyboard_monitor()
     
     # Launch GUI FIRST so user sees something immediately
     launch_gui()
