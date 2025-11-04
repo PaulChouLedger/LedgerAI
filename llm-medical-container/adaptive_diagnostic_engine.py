@@ -62,6 +62,134 @@ class AdaptiveDiagnosticEngine:
         'dermatological': 'DERM'
     }
     
+    @staticmethod
+    def get_oldcarts_element_weight(category: str, oldcarts_element: str) -> float:
+        """
+        Get the weight/impact of an OLDCARTS element on scoring for a given category.
+        
+        Higher weights mean the element has more impact on the final score.
+        Weights are used in the formula: new_score = (old_score * (1 - weight)) + (similarity * weight)
+        
+        Returns a weight between 0.0 and 1.0. Default is 0.3 (standard impact).
+        
+        Args:
+            category: Category name (e.g., 'gastrointestinal', 'cardiovascular')
+            oldcarts_element: OLDCARTS element name (e.g., 'location', 'character', 'onset')
+        
+        Returns:
+            Weight value (0.0-1.0) indicating how much this element affects scoring
+        """
+        # Default weights (can be overridden per category)
+        default_weight = 0.3
+        
+        # Category-specific element weights
+        # Format: {category: {element: weight}}
+        weights = {
+            'gastrointestinal': {
+                'location': 0.45,      # Location is critical for GI (RUQ vs RLQ vs epigastric)
+                'character': 0.25,      # Character is moderately important
+                'aggravating': 0.30,    # Aggravating factors (food, movement)
+                'relieving': 0.30,      # Relieving factors
+                'onset': 0.25,          # Onset timing
+                'timing': 0.25,         # Timing (constant vs episodic)
+                'duration': 0.25,       # Duration
+                'severity': 0.20,       # Severity less critical
+                'associated': 0.25      # Associated symptoms
+            },
+            'cardiovascular': {
+                'character': 0.45,      # Character is critical (heavy, crushing, pressure vs sharp, stabbing)
+                'location': 0.30,       # Location (chest, substernal, left side)
+                'aggravating': 0.35,    # Aggravating (exertion, stress)
+                'relieving': 0.35,      # Relieving (rest, nitroglycerin)
+                'onset': 0.30,          # Onset timing
+                'timing': 0.25,         # Timing
+                'duration': 0.30,       # Duration (important for angina vs MI)
+                'severity': 0.25,       # Severity
+                'associated': 0.30      # Associated (SOB, diaphoresis, nausea)
+            },
+            'respiratory': {
+                'character': 0.35,      # Character (sharp, pleuritic, dull)
+                'location': 0.30,       # Location (chest, unilateral, bilateral)
+                'aggravating': 0.30,     # Aggravating (breathing, coughing)
+                'relieving': 0.25,      # Relieving
+                'onset': 0.30,          # Onset
+                'timing': 0.25,          # Timing
+                'duration': 0.25,        # Duration
+                'severity': 0.25,       # Severity
+                'associated': 0.35      # Associated (cough, SOB, fever) - very important
+            },
+            'neurological': {
+                'character': 0.35,      # Character (throbbing, sharp, pressure)
+                'location': 0.30,        # Location (unilateral, bilateral, frontal, occipital)
+                'aggravating': 0.30,     # Aggravating (light, sound, movement)
+                'relieving': 0.30,      # Relieving
+                'onset': 0.35,          # Onset (sudden vs gradual) - important for stroke
+                'timing': 0.25,          # Timing
+                'duration': 0.30,        # Duration
+                'severity': 0.25,        # Severity
+                'associated': 0.35      # Associated (nausea, photophobia, neurological deficits)
+            },
+            'musculoskeletal': {
+                'location': 0.35,        # Location (specific joint, limb)
+                'character': 0.30,       # Character (sharp, dull, aching)
+                'aggravating': 0.35,     # Aggravating (movement, weight-bearing) - critical
+                'relieving': 0.35,       # Relieving (rest, ice, elevation)
+                'onset': 0.30,           # Onset (trauma vs insidious)
+                'timing': 0.25,          # Timing
+                'duration': 0.25,        # Duration
+                'severity': 0.25,        # Severity
+                'associated': 0.25       # Associated
+            },
+            'renal': {
+                'location': 0.35,         # Location (flank, unilateral, bilateral)
+                'character': 0.30,        # Character (colicky, sharp, dull)
+                'aggravating': 0.25,     # Aggravating
+                'relieving': 0.25,       # Relieving
+                'onset': 0.30,           # Onset
+                'timing': 0.25,          # Timing
+                'duration': 0.30,         # Duration
+                'severity': 0.30,        # Severity
+                'associated': 0.35       # Associated (hematuria, dysuria, fever)
+            },
+            'genitourinary': {
+                'location': 0.30,        # Location
+                'character': 0.30,       # Character
+                'aggravating': 0.25,     # Aggravating
+                'relieving': 0.25,       # Relieving
+                'onset': 0.30,           # Onset
+                'timing': 0.25,          # Timing
+                'duration': 0.30,         # Duration
+                'severity': 0.30,        # Severity
+                'associated': 0.35       # Associated (very important for GU)
+            },
+            'gynecological': {
+                'location': 0.30,        # Location (pelvic, lower abdomen)
+                'character': 0.30,        # Character
+                'aggravating': 0.25,     # Aggravating
+                'relieving': 0.25,       # Relieving
+                'onset': 0.30,           # Onset
+                'timing': 0.30,          # Timing (relation to menses)
+                'duration': 0.25,        # Duration
+                'severity': 0.25,        # Severity
+                'associated': 0.35       # Associated (very important)
+            },
+            'dermatological': {
+                'location': 0.35,        # Location (specific body region)
+                'character': 0.30,        # Character (itching, burning, pain)
+                'aggravating': 0.30,     # Aggravating (sun, heat, contact)
+                'relieving': 0.30,       # Relieving
+                'onset': 0.30,           # Onset
+                'timing': 0.25,          # Timing
+                'duration': 0.30,         # Duration
+                'severity': 0.25,        # Severity
+                'associated': 0.30       # Associated
+            }
+        }
+        
+        # Get category-specific weights, or use default
+        category_weights = weights.get(category, {})
+        return category_weights.get(oldcarts_element, default_weight)
+    
     def __init__(self, guidelines_dir: str = None, llm_chat_fn=None, embedding_model=None, llm_chat_simple_fn=None):
         # Auto-detect guidelines directory
         if guidelines_dir is None:
@@ -1127,13 +1255,18 @@ class AdaptiveDiagnosticEngine:
                 word_match_boost = 0.0
                 normalized_text = answer
             
-            # Update score
+            # Update score using category-specific element weights
             old_score = g.get('score', 0.5)
-            new_score = (old_score * 0.7) + (similarity * 0.3)
+            category = self.current_category or 'gastrointestinal'
+            element_weight = self.get_oldcarts_element_weight(category, oldcarts_element)
+            
+            # Formula: new_score = (old_score * (1 - weight)) + (similarity * weight)
+            # Higher weight = this element has more impact on the score
+            new_score = (old_score * (1.0 - element_weight)) + (similarity * element_weight)
             g['score'] = new_score
             scored_guidelines.add(condition_name)
             
-            self._capture_debug(f"[Scoring] 📊 {condition_name}: old={old_score:.3f}, similarity={similarity:.3f} (boost={word_match_boost:.3f}), normalized='{normalized_text}', new={new_score:.3f}")
+            self._capture_debug(f"[Scoring] 📊 {condition_name}: old={old_score:.3f}, similarity={similarity:.3f} (boost={word_match_boost:.3f}), weight={element_weight:.2f} ({oldcarts_element}), normalized='{normalized_text}', new={new_score:.3f}")
         
         # Debug: Verify scores were actually updated in the objects
         self._capture_debug(f"[Scoring] 🔍 Verifying scores after update (first 3 from guideline_data):")
@@ -2416,10 +2549,17 @@ class AdaptiveDiagnosticEngine:
         if not self.llm_chat_simple_fn:
             return {'success': False, 'message': 'LLM not available'}
         
-        system_msg = "You are a medical assistant screening for urgent medical conditions. Generate a simple, patient-friendly question about a red flag symptom."
-        user_msg = f"Red flag: '{red_flag_text}'\n\nFor condition: {condition_name}\n\nGenerate a simple yes/no or open-ended question to screen for this urgent symptom. Keep it short, clear, and direct. This is checking for an emergency situation."
+        system_msg = "You are a medical assistant screening for urgent medical conditions. Generate ONLY a simple, patient-friendly question about a red flag symptom. Do NOT include any explanations, reasoning, or prefixes. Return ONLY the question text."
+        user_msg = f"Red flag: '{red_flag_text}'\n\nFor condition: {condition_name}\n\nGenerate a simple yes/no or open-ended question to screen for this urgent symptom. Keep it short, clear, and direct. Return ONLY the question - no explanations, no prefixes, no reasoning. Just the question itself."
         
         llm_kwargs = self._get_llm_kwargs()
+        # Override max_tokens for red flag questions to prevent cutoff
+        # Increase from default 120 to 200 to allow for complete questions
+        if 'max_tokens' in llm_kwargs:
+            llm_kwargs['max_tokens'] = 200
+        else:
+            llm_kwargs['max_tokens'] = 200
+        
         response = self.llm_chat_simple_fn(
             [
                 {"role": "system", "content": system_msg},
@@ -2430,11 +2570,62 @@ class AdaptiveDiagnosticEngine:
         
         question = response.strip() if response else f"About {red_flag_text.lower()}:"
         
-        # Remove prefixes if present
-        prefixes = ["Here is the question:", "Q:", "Question:"]
-        for prefix in prefixes:
+        # Filter out internal reasoning and extract just the question
+        # Remove common prefixes and reasoning patterns
+        prefixes_to_remove = [
+            "Here is the question:",
+            "Here's a simple question to screen for",
+            "Here's a simple question to screen for the",
+            "Here's a simple question to screen for the urgent symptom of",
+            "Here's a simple question to screen for the red flag symptom of",
+            "Q:",
+            "Question:",
+            "The question is:",
+            "This question is designed to",
+        ]
+        
+        # Remove prefixes
+        for prefix in prefixes_to_remove:
             if question.lower().startswith(prefix.lower()):
                 question = question[len(prefix):].strip()
+                # Remove any leading punctuation or whitespace
+                question = question.lstrip('.,:;').strip()
+        
+        # Extract just the question if there's reasoning before it
+        # Look for patterns like "This question is designed to..." followed by the actual question
+        # The question usually starts with a capital letter or quote
+        if 'designed to' in question.lower() or 'screen for' in question.lower():
+            # Look for quoted text (most common format for questions)
+            quoted_match = re.search(r'["\']([^"\']+[?])["\']', question)
+            if quoted_match:
+                question = quoted_match.group(1).strip()
+            else:
+                # Look for text after colon that ends with ?
+                colon_match = re.search(r':\s*([A-Z][^.!?]+[?])', question)
+                if colon_match:
+                    question = colon_match.group(1).strip()
+                else:
+                    # Find the last sentence that ends with ? (usually the actual question)
+                    sentences = re.split(r'([.!?]\s+)', question)
+                    question_parts = []
+                    for i in range(len(sentences) - 1, -1, -1):
+                        if '?' in sentences[i]:
+                            question_parts.insert(0, sentences[i])
+                            # Also include preceding sentence if it's part of the question
+                            if i > 0 and sentences[i-1].strip():
+                                question_parts.insert(0, sentences[i-1])
+                            break
+                    if question_parts:
+                        question = ''.join(question_parts).strip()
+                    else:
+                        # Last resort: extract text after "question:" or similar
+                        question_match = re.search(r'(?:question|question to|symptom):\s*([^.!]+[?])', question, re.IGNORECASE)
+                        if question_match:
+                            question = question_match.group(1).strip()
+        
+        # Final cleanup: ensure we have a proper question
+        if not question or len(question) < 10:
+            question = f"Are you experiencing {red_flag_text.lower()}?"
         
         self.conversation_history.append({
             'type': 'question',
