@@ -228,31 +228,40 @@ def warm_up_llm():
 def initialize_rag_delayed():
     """Initialize RAG system after core services are stable"""
     try:
-        print("[Aura] 🔍 RAG initialization starting...")
+        # Check RAG mode
+        RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
         
-        print("[Aura] 🔍 Initializing RAG system...")
-        
-        # Initialize RAG system (longer timeout for CUDA model loading on first boot)
-        for attempt in range(3):
-            try:
-                init_response = requests.post("http://localhost:11435/rag/init", timeout=90)
-                if init_response.status_code == 200:
-                    result = init_response.json()
-                    if result.get("status") == "success":
-                        print("[Aura] ✅ RAG system initialized successfully")
-                        break
+        if RAG_MODE == 'GPU':
+            # GPU mode: Initialize external RAG container
+            print("[Aura] 🔍 RAG initialization starting...")
+            print("[Aura] 🔍 Initializing RAG container (RAG_MODE=GPU)...")
+            
+            # Initialize RAG system (longer timeout for CUDA model loading on first boot)
+            for attempt in range(3):
+                try:
+                    init_response = requests.post("http://localhost:11435/rag/init", timeout=90)
+                    if init_response.status_code == 200:
+                        result = init_response.json()
+                        if result.get("status") == "success":
+                            print("[Aura] ✅ RAG container initialized successfully")
+                            break
+                        else:
+                            print(f"[Aura] ⚠️ RAG init attempt {attempt + 1} failed: {result.get('message')}")
                     else:
-                        print(f"[Aura] ⚠️ RAG init attempt {attempt + 1} failed: {result.get('message')}")
+                        print(f"[Aura] ⚠️ RAG init attempt {attempt + 1} failed: {init_response.status_code}")
+                except requests.exceptions.RequestException as e:
+                    print(f"[Aura] ⚠️ RAG init attempt {attempt + 1} failed: {e}")
+                    if attempt < 2:
+                        time.sleep(5)
                 else:
-                    print(f"[Aura] ⚠️ RAG init attempt {attempt + 1} failed: {init_response.status_code}")
-            except requests.exceptions.RequestException as e:
-                print(f"[Aura] ⚠️ RAG init attempt {attempt + 1} failed: {e}")
-                if attempt < 2:
-                    time.sleep(5)
+                    print("[Aura] ⚠️ RAG container initialization failed after 3 attempts")
         else:
-            print("[Aura] ⚠️ RAG initialization failed after 3 attempts")
+            # CPU mode: RAG is initialized within LLM containers, no external initialization needed
+            print("[Aura] 🔍 RAG_MODE=CPU - CPU FAISS initialized within LLM containers")
+            print("[Aura] ✅ RAG system ready (no external container needed)")
             return
         
+        # GPU mode: Continue with RAG container stats and search verification
         # Test RAG stats
         for attempt in range(3):
             try:
