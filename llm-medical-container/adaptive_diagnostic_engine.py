@@ -1516,6 +1516,14 @@ class AdaptiveDiagnosticEngine:
             for term in all_includes:
                 term_components_cache[term] = self.medical_rule_engine._extract_anatomical_components(term)
         
+        # DEBUG: Show summary of FAISS matches and scores
+        self._capture_debug(f"[Location Analysis] 📊 FAISS Summary:")
+        self._capture_debug(f"[Location Analysis]   - semantic_matches_set ({len(semantic_matches_set)} terms): {sorted(semantic_matches_set)}")
+        self._capture_debug(f"[Location Analysis]   - faiss_scores ({len(faiss_scores)} terms): {dict(sorted(faiss_scores.items()))}")
+        if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
+            raw_scores = self.medical_rule_engine._last_faiss_scores
+            self._capture_debug(f"[Location Analysis]   - Raw FAISS scores ({len(raw_scores)} terms): {dict(sorted(raw_scores.items()))}")
+        
         # Check each term using the same logic as unified function
         # IMPORTANT: Check ALL terms (from all guidelines) to properly detect satisfied terms
         # Missing terms should only include terms from ACTIVE guidelines that aren't satisfied
@@ -1535,34 +1543,62 @@ class AdaptiveDiagnosticEngine:
             
             # Skip if anatomical mismatch detected
             if anatomical_mismatch:
+                self._capture_debug(f"[Location Analysis]   ⚠️ '{term}' SKIPPED: anatomical mismatch")
                 continue
             
+            # DEBUG: Start checking this term
+            self._capture_debug(f"[Location Analysis] 🔍 Checking term: '{term}' (patient answer: '{answer}')")
+            
             # 1. Exact/substring matching (fast path)
-            if term in answer_lower or answer_lower in term:
+            term_in_answer = term in answer_lower
+            answer_in_term = answer_lower in term
+            self._capture_debug(f"[Location Analysis]   Step 1 - Substring check: term in answer={term_in_answer}, answer in term={answer_in_term}")
+            
+            if term_in_answer or answer_in_term:
                 term_satisfied = True
                 match_reason = f"exact/substring match: '{term}' in '{answer}' or '{answer}' in '{term}'"
+                self._capture_debug(f"[Location Analysis]   ✅ SATISFIED via substring match")
             else:
                 # OPTIMIZATION: Check if answer was normalized to a synonym key that maps to this term
                 # Use pre-built synonym_to_group for O(1) lookup instead of O(n²) nested loops
                 if term.lower() in synonym_to_group:
-                    # This term is in a synonym group - check if answer matches any synonym in that group
                     group_key = synonym_to_group[term.lower()]
                     synonym_list = synonym_expansions.get(group_key, [])
+                    self._capture_debug(f"[Location Analysis]   Step 2 - Synonym check: term '{term}' in synonym group '{group_key}' with {len(synonym_list)} synonyms")
                     # Use more precise matching: answer must be a substring of synonym (not reverse)
                     matched_synonyms = [syn for syn in synonym_list if syn.lower() in answer_lower]
+                    self._capture_debug(f"[Location Analysis]   Step 2 - Synonym matches: {matched_synonyms}")
                     if matched_synonyms:
                         term_satisfied = True
                         match_reason = f"synonym match: '{matched_synonyms[0]}' in '{answer}'"
+                        self._capture_debug(f"[Location Analysis]   ✅ SATISFIED via synonym match")
+                else:
+                    self._capture_debug(f"[Location Analysis]   Step 2 - Synonym check: term '{term}' NOT in any synonym group")
                 
                 if not term_satisfied:
                     # 2. Check against FAISS semantic matches (already computed)
-                    if term in semantic_matches_set:
+                    in_semantic_matches = term in semantic_matches_set
+                    score = faiss_scores.get(term, None)
+                    self._capture_debug(f"[Location Analysis]   Step 3 - FAISS check: in semantic_matches_set={in_semantic_matches}, score={score}")
+                    
+                    # DEBUG: Check raw FAISS scores to see actual scores
+                    if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
+                        raw_faiss_scores = self.medical_rule_engine._last_faiss_scores
+                        raw_score = raw_faiss_scores.get(term, None)
+                        if raw_score is not None:
+                            self._capture_debug(f"[Location Analysis]   Step 3 - Raw FAISS score for '{term}': {raw_score:.3f} (threshold=0.75)")
+                            if raw_score < 0.75:
+                                self._capture_debug(f"[Location Analysis]   ⚠️ Raw score {raw_score:.3f} < 0.75 threshold, should NOT be in semantic_matches_set")
+                    
+                    if in_semantic_matches:
                         term_satisfied = True
-                        score = faiss_scores.get(term, None)
                         if score is not None:
                             match_reason = f"FAISS semantic match (score: {score:.3f})"
                         else:
                             match_reason = f"FAISS semantic match"
+                        self._capture_debug(f"[Location Analysis]   ✅ SATISFIED via FAISS semantic match")
+                    else:
+                        self._capture_debug(f"[Location Analysis]   ❌ NOT in semantic_matches_set (score likely < 0.75)")
             
             if term_satisfied:
                 satisfied_terms.add(term)
@@ -1571,23 +1607,37 @@ class AdaptiveDiagnosticEngine:
                 # BUT: Only expand if no anatomical mismatch
                 if synonym_to_group and term.lower() in synonym_to_group:
                     group_key = synonym_to_group[term.lower()]
+                    self._capture_debug(f"[Location Analysis]   Step 4 - Synonym expansion: '{term}' is in synonym group '{group_key}', checking for expansion")
                     # Find all other terms in this group and mark them satisfied (with mismatch check)
                     if group_key in synonym_expansions:
-                        for other_synonym in synonym_expansions[group_key]:
+                        expansion_list = synonym_expansions[group_key]
+                        self._capture_debug(f"[Location Analysis]   Step 4 - Expansion list contains {len(expansion_list)} terms: {expansion_list[:5]}")
+                        for other_synonym in expansion_list:
                             other_term_lower = other_synonym.lower()
                             if other_term_lower in all_includes:
+                                self._capture_debug(f"[Location Analysis]   Step 4 - Checking expansion to '{other_term_lower}'...")
                                 # Check for anatomical mismatch before adding
                                 # OPTIMIZATION: Use pre-extracted components from cache
                                 should_add = True
                                 if oldcarts_element == 'location' and patient_components and self.medical_rule_engine:
                                     other_components = term_components_cache.get(other_term_lower, {})
                                     if other_components:
-                                        if self.medical_rule_engine._are_anatomical_opposites(patient_components, other_components):
+                                        is_opposite = self.medical_rule_engine._are_anatomical_opposites(patient_components, other_components)
+                                        self._capture_debug(f"[Location Analysis]   Step 4 - Anatomical check for '{other_term_lower}': patient={patient_components}, condition={other_components}, is_opposite={is_opposite}")
+                                        if is_opposite:
                                             should_add = False
                                             self._capture_debug(f"[Location Analysis]   ⚠️ '{other_term_lower}' skipped in synonym expansion: anatomical mismatch")
                                 if should_add:
                                     satisfied_terms.add(other_term_lower)
-                                    self._capture_debug(f"[Location Analysis]   ✅ '{other_term_lower}' satisfied via synonym group expansion")
+                                    self._capture_debug(f"[Location Analysis]   ✅ '{other_term_lower}' satisfied via synonym group expansion from '{term}'")
+                                else:
+                                    self._capture_debug(f"[Location Analysis]   ❌ '{other_term_lower}' NOT expanded (should_add=False)")
+                            else:
+                                self._capture_debug(f"[Location Analysis]   Step 4 - '{other_term_lower}' NOT in all_includes, skipping expansion")
+                    else:
+                        self._capture_debug(f"[Location Analysis]   Step 4 - No expansion list found for group '{group_key}'")
+                else:
+                    self._capture_debug(f"[Location Analysis]   Step 4 - '{term}' NOT in synonym_to_group, no expansion")
             else:
                 self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied")
         
