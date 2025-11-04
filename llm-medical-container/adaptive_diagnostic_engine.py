@@ -1722,6 +1722,27 @@ class AdaptiveDiagnosticEngine:
                             self._capture_debug(f"[Location Analysis]   Step 3 - Raw FAISS score for '{term}': {raw_score:.3f} (threshold=0.75)")
                             if raw_score < 0.75:
                                 self._capture_debug(f"[Location Analysis]   ⚠️ Raw score {raw_score:.3f} < 0.75 threshold, should NOT be in semantic_matches_set")
+                        else:
+                            # Check if any synonyms matched that map to this term
+                            if raw_faiss_scores:
+                                # Check if any matched synonym terms map to this medical term via synonym groups
+                                if term.lower() in synonym_to_group:
+                                    group_key = synonym_to_group[term.lower()]
+                                    synonym_list = synonym_expansions.get(group_key, [])
+                                    matched_synonyms = []
+                                    for syn in synonym_list:
+                                        if syn.lower() in raw_faiss_scores:
+                                            matched_synonyms.append((syn, raw_faiss_scores[syn.lower()]))
+                                    if matched_synonyms:
+                                        self._capture_debug(f"[Location Analysis]   Step 3 - Found {len(matched_synonyms)} synonym matches for '{term}': {matched_synonyms}")
+                                        # Check if any synonym scored above threshold
+                                        high_scoring_synonyms = [(s, sc) for s, sc in matched_synonyms if sc >= 0.75]
+                                        if high_scoring_synonyms:
+                                            self._capture_debug(f"[Location Analysis]   ⚠️ Synonyms above threshold found but medical term not in semantic_matches_set")
+                                # Also check all FAISS matches to see what was actually found
+                                all_matches = sorted(raw_faiss_scores.items(), key=lambda x: x[1], reverse=True)
+                                top_5_matches = all_matches[:5]
+                                self._capture_debug(f"[Location Analysis]   Step 3 - Top 5 FAISS matches: {top_5_matches}")
                     
                     if in_semantic_matches:
                         term_satisfied = True
