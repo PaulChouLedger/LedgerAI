@@ -7,15 +7,14 @@
   "urgency": "urgent",
   "chief_complaint_triggers": [
     "abdominal pain",
-    "cramping",
+    "constipation",
     "vomiting",
     "no bowel movement",
     "can't pass gas",
     "bloating"
   ],
   "key_features": {
-    "classic_presentation": "ONSET: SUDDEN onset within 12-48 hours. Acute presentation. LOCATION: Periumbilical and diffuse (not localized to one quadrant). Cramping throughout mid-abdomen. DURATION: WAVES lasting minutes, repeating every 4-5 minutes. Entire episode lasts hours to days. CHARACTER: COLICKY CRAMPING (COMES AND GOES IN WAVES, not constant). Intermittent, wave-like quality. AGGRAVATING: EATING OR DRINKING worsens vomiting and cramping. Any oral intake intensifies symptoms. Movement during cramp worsens discomfort. RELIEVING: Vomiting provides TEMPORARY relief. Nothing to eat/drink reduces new vomiting. Position doesn't significantly help. TIMING: WAVE pattern - cramps every 4-5 minutes. Progressive worsening over time. Becomes more frequent. SEVERITY: 6-9/10 during cramps, less between waves. Moderate to severe. ASSOCIATED SYMPTOMS: BILIOUS (green/yellow) VOMITING progressively more frequent, ABSOLUTE CONSTIPATION (no stool OR GAS >12-24 hours), progressive abdominal DISTENSION. Tinkling bowel sounds. KEY POSITIVES: Wave-like cramps, bilious vomiting, inability to pass flatus, distension, prior surgery. KEY NEGATIVES: Diarrhea rules out complete obstruction. CONSTANT pain with peritoneal signs suggests strangulation (surgical emergency).",
-    "structured_oldcarts": {
+        "structured_oldcarts": {
       "onset": {
         "includes": [
           {
@@ -42,22 +41,14 @@
       "timing": {
         "includes": [
           {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
+            "medical": "episodic",
+            "patient_friendly": "comes and goes in waves"
           }
         ],
         "excludes": []
       },
       "duration": {
         "includes": [
-          {
-            "medical": "waves",
-            "patient_friendly": "WAVES"
-          },
-          {
-            "medical": "minutes",
-            "patient_friendly": "for a few minutes"
-          },
           {
             "medical": "hours",
             "patient_friendly": "for several hours"
@@ -72,16 +63,8 @@
       "character": {
         "includes": [
           {
-            "medical": "colicky cramping",
-            "patient_friendly": "cramping"
-          },
-          {
-            "medical": "waves",
-            "patient_friendly": "WAVES"
-          },
-          {
-            "medical": "cramping",
-            "patient_friendly": "cramping"
+            "medical": "colicky pain",
+            "patient_friendly": "crampy pain"
           }
         ],
         "excludes": []
@@ -89,20 +72,12 @@
       "aggravating": {
         "includes": [
           {
-            "medical": "eating",
-            "patient_friendly": "eating"
-          },
-          {
-            "medical": "drinking",
-            "patient_friendly": "DRINKING"
+            "medical": "oral intake",
+            "patient_friendly": "eating or drinking"
           },
           {
             "medical": "movement",
             "patient_friendly": "moving around"
-          },
-          {
-            "medical": "cramping",
-            "patient_friendly": "cramping"
           }
         ],
         "excludes": []
@@ -110,8 +85,12 @@
       "relieving": {
         "includes": [
           {
-            "medical": "temporary",
-            "patient_friendly": "TEMPORARY"
+            "medical": "emesis",
+            "patient_friendly": "vomiting"
+          },
+          {
+            "medical": "decreased oral intake",
+            "patient_friendly": "not eating or drinking"
           }
         ],
         "excludes": []
@@ -120,11 +99,11 @@
         "includes": [
           {
             "medical": "moderate",
-            "patient_friendly": "somewhat bad"
+            "patient_friendly": "moderate"
           },
           {
             "medical": "severe",
-            "patient_friendly": "very bad or intense"
+            "patient_friendly": "severe"
           }
         ],
         "excludes": []
@@ -132,20 +111,40 @@
       "associated": {
         "includes": [
           {
-            "medical": "bilious",
-            "patient_friendly": "BILIOUS"
-          },
-          {
-            "medical": "vomiting",
+            "medical": "emesis",
             "patient_friendly": "vomiting"
           },
           {
-            "medical": "absolute constipation",
-            "patient_friendly": "constipation"
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "obstipation",
+            "patient_friendly": "difficulty passing gas or bowel movement for more than 12-24 hours"
           },
           {
             "medical": "distension",
-            "patient_friendly": "DISTENSION"
+            "patient_friendly": "inflated abdomen"
+          },  
+          {
+            "medical": "surgical history",
+            "patient_friendly": "previous abdominal surgery"
+          },
+          {
+            "medical": "small bowel obstruction history",
+            "patient_friendly": "previous small bowel obstruction"
+          },
+          {
+            "medical": "hematochezia",
+            "patient_friendly": "blood in the stool"
+          },
+          {
+            "medical": "pyrexia",
+            "patient_friendly": "fever"
+          },
+          {
+            "medical": "anorexia",
+            "patient_friendly": "poor appetite/dehydration"
           }
         ],
         "excludes": []

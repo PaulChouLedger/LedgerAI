@@ -74,13 +74,14 @@ print_header "Installing System Dependencies (Host)"
 log_info "Updating package lists..."
 sudo apt-get update
 
-log_info "Installing Python 3 and essential packages..."
+log_info "Installing Python 3 and essential packages (including git)..."
 sudo apt-get install -y \
     python3 \
     python3-pip \
     python3-dev \
     python3-venv \
-    build-essential
+    build-essential \
+    git
 
 # Audio libraries (for aura-control/listener.py if running on host)
 log_info "Installing audio libraries..."
@@ -124,6 +125,40 @@ else
     
     log_success "Docker installed"
     log_warning "You must LOG OUT and LOG BACK IN for docker group changes to take effect"
+fi
+
+# ============================================
+# Jetson Container Tools Installation
+# ============================================
+print_header "Installing Jetson Container Tools"
+
+# Check if jetson-containers already exists
+if [ -d "$HOME/jetson-containers" ]; then
+    log_info "jetson-containers directory already exists"
+    echo -n "Reinstall Jetson container tools? (y/n) "
+    read -r response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        log_info "Reinstalling Jetson container tools..."
+        cd "$HOME/jetson-containers"
+        bash install.sh
+    else
+        log_info "Skipping Jetson container tools installation"
+    fi
+else
+    log_info "Installing Jetson container tools (required for dustynv/* base images)..."
+    log_info "This provides the base images used by Aura containers"
+    
+    cd "$HOME"
+    git clone https://github.com/dusty-nv/jetson-containers
+    cd jetson-containers
+    bash install.sh
+    
+    if [ $? -eq 0 ]; then
+        log_success "Jetson container tools installed"
+    else
+        log_error "Jetson container tools installation failed"
+        log_warning "You may need to install manually: git clone https://github.com/dusty-nv/jetson-containers && bash jetson-containers/install.sh"
+    fi
 fi
 
 # ============================================
@@ -207,24 +242,22 @@ fi
 # ============================================
 print_header "Environment Configuration"
 
-if [ ! -f "$SCRIPT_DIR/llm-container/.env" ]; then
-    log_info "Creating llm-container/.env template..."
-    cat > "$SCRIPT_DIR/llm-container/.env" << 'EOF'
-# LLM Container Environment Variables
+log_info "Aura uses a single .env file at the workspace root"
+log_info "Use './aura_config.sh' to configure all settings interactively"
 
-# ElevenLabs API Key (for TTS)
-ELEVENLABS_API_KEY=your_api_key_here
-
-# Telegram Bot Token (optional)
-# TELEGRAM_BOT_TOKEN=your_bot_token_here
-
-# Other configuration
-PYTHONUNBUFFERED=1
-EOF
-    log_success "Created llm-container/.env"
-    log_warning "Edit llm-container/.env and add your ELEVENLABS_API_KEY"
+if [ ! -f "$SCRIPT_DIR/.env" ]; then
+    if [ -f "$SCRIPT_DIR/.env.example" ]; then
+        log_info "Creating .env from template..."
+        cp "$SCRIPT_DIR/.env.example" "$SCRIPT_DIR/.env"
+        log_success "Created .env file at workspace root"
+        log_warning "Run './aura_config.sh' to configure your settings (API keys, etc.)"
+    else
+        log_warning ".env.example not found - you may need to create .env manually"
+        log_info "Run './aura_config.sh' to set up your configuration"
+    fi
 else
-    log_info "llm-container/.env already exists"
+    log_info ".env file already exists at workspace root"
+    log_info "Run './aura_config.sh' to view or modify settings"
 fi
 
 # ============================================
@@ -234,19 +267,22 @@ print_header "Installation Complete!"
 
 echo "📋 Next Steps:"
 echo ""
-echo "1. Configure your API keys:"
-echo "   nano $SCRIPT_DIR/llm-container/.env"
-echo "   (Add your ELEVENLABS_API_KEY)"
+echo "1. Configure your settings (API keys, etc.):"
+echo "   cd $SCRIPT_DIR"
+echo "   ./aura_config.sh"
+echo "   (Interactive configuration manager)"
 echo ""
 echo "2. Build Docker containers:"
-echo "   cd $SCRIPT_DIR"
+echo "   cd $SCRIPT_DIR/setup"
 echo "   docker compose build"
 echo ""
 echo "3. Start the containers:"
+echo "   cd $SCRIPT_DIR/setup"
 echo "   docker compose up -d"
 echo ""
 echo "4. Run the main application:"
-echo "   python3 aura-control/main.py"
+echo "   cd $SCRIPT_DIR"
+echo "   python3 aura-control/core/main.py"
 echo ""
 
 if ! command_exists docker || ! groups | grep -q docker; then

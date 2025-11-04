@@ -290,6 +290,7 @@ class AdaptiveDiagnosticEngine:
         self._build_chief_complaint_synonyms_index()
         
         # Initialize assessment state
+        self.demographics_optional = False  # Set to True if distress detected
         self.reset_assessment()
     
     def _load_guidelines(self):
@@ -410,6 +411,7 @@ class AdaptiveDiagnosticEngine:
         self.status = "idle"
         self.conversation_history = []
         self.demographics = {}
+        self.demographics_optional = False  # Reset distress flag
         self.oldcarts_covered = {'O': False, 'L': False, 'T': False, 'D': False, 'C': False, 'A': False, 'R': False, 'S': False, 'AS': False}
         self.oldcarts_analysis = None
         self.clarification_count = {}
@@ -1011,6 +1013,46 @@ class AdaptiveDiagnosticEngine:
     
     def _process_clinical_answer(self, answer: str) -> Dict[str, Any]:
         """Score guidelines using unified similarity function"""
+        # Get context about what we're expecting
+        last_q = None
+        for item in reversed(self.conversation_history):
+            if item.get('type') == 'question':
+                last_q = item
+                break
+        
+        expected_element = last_q.get('oldcarts') if last_q else None
+        
+        # PRIORITY: Intelligently interpret the response (comments, questions, distress, or direct answer)
+        response_interpretation = self._interpret_patient_response(answer, expected_element)
+        
+        # Extract info for processing
+        distress_info = response_interpretation.get('distress_info', {})
+        distress_detected = response_interpretation.get('is_distressed', False)
+        
+        # Store for later use
+        self._last_distress_info = distress_info if distress_detected else None
+        
+        # Store acknowledgment if response needs it
+        if response_interpretation['needs_acknowledgment']:
+            self._pending_acknowledgment = response_interpretation['acknowledgment_message']
+        
+        # Use extracted info if available (might be cleaner than full response)
+        if response_interpretation.get('extracted_info'):
+            answer = response_interpretation['extracted_info']
+        
+        if distress_detected:
+            self._capture_debug(f"[Engine] 🚨 DISTRESS DETECTED in clinical answer: severity={distress_info['severity']:.1f}, urgency_boost={distress_info['urgency_boost']:.2f}")
+            
+            # Mark demographics as optional if not already done
+            self.demographics_optional = True
+            
+            # Boost urgency for active guidelines
+            if distress_info['urgency_boost'] > 0 and self.active_guidelines:
+                for guideline in self.active_guidelines:
+                    current_score = guideline.get('score', 0.0)
+                    guideline['score'] = min(1.0, current_score + distress_info['urgency_boost'])
+                self._capture_debug(f"[Engine] ⚡ Urgency boost applied: +{distress_info['urgency_boost']:.2f} to active guidelines")
+        
         # Get last question
         last_q = None
         for item in reversed(self.conversation_history):
@@ -1021,7 +1063,7 @@ class AdaptiveDiagnosticEngine:
         oldcarts_element = last_q.get('oldcarts') if last_q else None
         
         if not oldcarts_element:
-            return self._ask_next_clinical_question()
+            return self._ask_next_with_distress_handling(answer)
         
         # Handle demographics
         if last_q.get('focus') == 'demographics':
@@ -1445,6 +1487,10 @@ class AdaptiveDiagnosticEngine:
                                         self._capture_debug(f"[Engine] ⏭️ Duration marked as covered (timing is constant, no comparison operators)")
                         else:
                             self._capture_debug(f"[Engine] ⚠️ Duration still needed (timing is constant but duration has comparison operators for differentiation)")
+                
+                # If distress was detected and no clarification needed, acknowledge it
+                if distress_detected and not clarification_needed:
+                    return self._ask_next_with_distress_handling(answer)
                 
                 # Special handling: After location is satisfied, check if any guidelines have radiation section
                 if oldcarts_element == 'location' and not self.radiation_asked:
@@ -2338,8 +2384,28 @@ class AdaptiveDiagnosticEngine:
         # If LLM returns empty, raise error instead of using fallback
         raise ValueError(f"LLM returned empty response for {component} question")
     
+    def _check_conversation_for_distress(self) -> bool:
+        """Check conversation history for distress indicators"""
+        if getattr(self, 'demographics_optional', False):
+            return True
+        
+        # Check recent answers for distress
+        for item in self.conversation_history[-5:]:
+            if item.get('type') == 'answer':
+                answer = item.get('answer', '')
+                distress_info = self._detect_distress(answer)
+                if distress_info['is_distressed']:
+                    self.demographics_optional = True
+                    return True
+        return False
+    
     def _generate_ml_first_question_with_demographics(self) -> Dict[str, Any]:
         """Generate demographics questions in order: chronicity, age, sex"""
+        # Check if distress was detected - if so, skip demographics and go to clinical questions
+        if self._check_conversation_for_distress():
+            self._capture_debug("[Engine] ⏭️ Distress detected - skipping demographics, proceeding to clinical questions")
+            return self._ask_next_clinical_question()
+        
         # STEP 1: Chronicity question (first after empathetic statement)
         if 'chronicity' not in self.demographics:
             if not self.llm_chat_simple_fn:
@@ -2383,8 +2449,8 @@ class AdaptiveDiagnosticEngine:
                 }
             }
         
-        # STEP 2: Age question
-        if 'age' not in self.demographics:
+        # STEP 2: Age question (skip if distress detected)
+        if 'age' not in self.demographics and not self.demographics_optional:
             # Use hardcoded question for consistency
             question = "Can you please tell me your age so I can update our medical records?"
             
@@ -2403,8 +2469,8 @@ class AdaptiveDiagnosticEngine:
                 }
             }
         
-        # STEP 3: Sex question
-        if 'sex' not in self.demographics:
+        # STEP 3: Sex question (skip if distress detected)
+        if 'sex' not in self.demographics and not self.demographics_optional:
             # Use simple, direct question instead of LLM for consistency
             question = "What is your biological sex?"
             
@@ -2618,14 +2684,69 @@ class AdaptiveDiagnosticEngine:
         previous_active = len(self.active_guidelines)
         self._rerank_and_pool_guidelines(all_guidelines, previous_active)
     
+    def _generate_completion_message(self) -> str:
+        """Generate completion message with diagnosis, urgency, and recommendation"""
+        if not self.active_guidelines:
+            diagnosis = "Insufficient information for specific diagnosis"
+            urgency_level = "ROUTINE"
+            urgency_score = 3.0
+        else:
+            # Get top condition
+            top_condition = self.active_guidelines[0]
+            condition_name = top_condition.get('data', {}).get('condition', top_condition.get('name', 'Unknown condition'))
+            condition_urgency = top_condition.get('urgency') or top_condition.get('data', {}).get('urgency', 'routine')
+            
+            # Get top 2-3 conditions for differential
+            top_conditions = []
+            for i, g in enumerate(self.active_guidelines[:3]):
+                cond_name = g.get('data', {}).get('condition', g.get('name', 'Unknown'))
+                score = g.get('score', 0.0)
+                top_conditions.append(f"{cond_name} (confidence: {score:.1%})")
+            
+            if len(top_conditions) == 1:
+                diagnosis = f"MOST LIKELY DIAGNOSIS: {top_conditions[0]}"
+            elif len(top_conditions) == 2:
+                diagnosis = f"MOST LIKELY DIAGNOSIS: {top_conditions[0]}\n\nAlternative consideration: {top_conditions[1]}"
+            else:
+                diagnosis = f"MOST LIKELY DIAGNOSIS: {top_conditions[0]}\n\nAlternative considerations: {', '.join(top_conditions[1:])}"
+            
+            # Map urgency to score and level
+            urgency_map = {
+                'emergent': (9.0, 'EMERGENT'),
+                'urgent': (7.0, 'URGENT'),
+                'semi-urgent': (5.0, 'SEMI-URGENT'),
+                'routine': (3.0, 'ROUTINE')
+            }
+            urgency_score, urgency_level = urgency_map.get(condition_urgency.lower(), (3.0, 'ROUTINE'))
+        
+        # Generate recommendation based on urgency
+        if urgency_score >= 8.0:
+            recommendation = "Call 911 or go to emergency room immediately"
+        elif urgency_score >= 6.0:
+            recommendation = "Go to emergency room within 1-2 hours"
+        elif urgency_score >= 4.0:
+            recommendation = "See doctor today or within 24 hours"
+        else:
+            recommendation = "Schedule appointment with doctor within 1 week"
+        
+        # Format final message
+        completion_msg = f"""{diagnosis}
+
+URGENCY LEVEL: {urgency_level} ({urgency_score:.1f}/10)
+
+RECOMMENDATION: {recommendation}"""
+        
+        return completion_msg
+    
     def _start_red_flag_phase(self) -> Dict[str, Any]:
         """Start asking about red flags for top winning condition"""
         if not self.active_guidelines:
             # No active guidelines - assessment complete
+            completion_msg = self._generate_completion_message()
             return {
                 'success': True,
                 'status': 'completed',
-                'message': 'Assessment complete',
+                'message': completion_msg,
                 'debug': {
                     'engine': self._format_engine_debug("[Engine] ✅ Assessment complete"),
                     'internal': self._get_debug_info()
@@ -2639,10 +2760,11 @@ class AdaptiveDiagnosticEngine:
         
         if not red_flags:
             # No red flags for this condition - assessment complete
+            completion_msg = self._generate_completion_message()
             return {
                 'success': True,
                 'status': 'completed',
-                'message': 'Assessment complete',
+                'message': completion_msg,
                 'debug': {
                     'engine': self._format_engine_debug("[Engine] ✅ Assessment complete"),
                     'internal': self._get_debug_info()
@@ -2713,10 +2835,11 @@ class AdaptiveDiagnosticEngine:
         
         if self.red_flag_index >= len(self.red_flags_list):
             # All red flags asked - assessment complete
+            completion_msg = self._generate_completion_message()
             return {
                 'success': True,
                 'status': 'completed',
-                'message': 'Assessment complete',
+                'message': completion_msg,
                 'debug': {
                     'engine': self._format_engine_debug("[Engine] ✅ Assessment complete"),
                     'internal': self._get_debug_info()
@@ -2872,8 +2995,127 @@ class AdaptiveDiagnosticEngine:
         else:
             self._capture_debug(f"[Red Flag] ✅ No red flag: '{red_flag_text}' absent for {condition_name}")
     
+    def _detect_distress(self, user_answer: str) -> Dict[str, Any]:
+        """
+        Detect patient distress/urgency from their response
+        
+        Returns:
+            Dict with 'is_distressed' (bool), 'severity' (float 0-10), 'urgency_boost' (float)
+        """
+        user_lower = user_answer.lower()
+        
+        # High severity indicators
+        high_severity_terms = [
+            'very severe', 'extremely severe', 'severe pain', 'severe', 'excruciating',
+            'unbearable', 'worst pain', 'can\'t stand', 'can\'t bear', 'can\'t handle',
+            '10/10', '9/10', '8/10', 'worst ever', 'never felt', 'dying', 'dying pain'
+        ]
+        
+        # Urgent language
+        urgent_language = [
+            'help me', 'please help', 'need help', 'emergency', 'urgent', 'immediately',
+            'right now', 'asap', 'now', 'can\'t wait', 'not well', 'very unwell',
+            'really bad', 'really sick', 'critical', 'serious'
+        ]
+        
+        # Emotional distress
+        emotional_distress = [
+            'scared', 'afraid', 'frightened', 'worried', 'terrified', 'panicking',
+            'anxious', 'fear', 'concerned', 'please', 'desperate'
+        ]
+        
+        severity_score = 0.0
+        urgency_boost = 0.0
+        
+        # Check for high severity
+        for term in high_severity_terms:
+            if term in user_lower:
+                severity_score += 2.0
+                urgency_boost += 0.5
+                break
+        
+        # Check for urgent language
+        for term in urgent_language:
+            if term in user_lower:
+                severity_score += 1.5
+                urgency_boost += 0.3
+        
+        # Check for emotional distress
+        for term in emotional_distress:
+            if term in user_lower:
+                severity_score += 1.0
+                urgency_boost += 0.2
+        
+        # Check for multiple distress indicators (compound effect)
+        distress_count = sum([
+            any(term in user_lower for term in high_severity_terms),
+            any(term in user_lower for term in urgent_language),
+            any(term in user_lower for term in emotional_distress)
+        ])
+        
+        if distress_count >= 2:
+            severity_score += 1.0  # Bonus for multiple indicators
+            urgency_boost += 0.2
+        
+        # Cap severity at 10
+        severity_score = min(10.0, severity_score)
+        
+        is_distressed = severity_score >= 3.0  # Threshold for distress
+        
+        return {
+            'is_distressed': is_distressed,
+            'severity': severity_score,
+            'urgency_boost': urgency_boost,
+            'distress_count': distress_count
+        }
+    
+    def _generate_empathetic_response(self, user_answer: str, distress_info: Dict) -> str:
+        """Generate empathetic response acknowledging patient distress"""
+        if not self.llm_chat_simple_fn:
+            # Fallback response
+            return "I understand you're experiencing severe symptoms. Let me focus on getting you the right care immediately. Can you tell me more about your pain?"
+        
+        system_msg = """You are a compassionate medical assistant. The patient is expressing significant distress with severe symptoms. 
+Generate a brief (1-2 sentences), empathetic response that:
+1. Acknowledges their distress
+2. Reassures them you're taking this seriously
+3. Immediately transitions to gathering critical clinical information (skip routine questions like age)
+4. Shows urgency and concern
+
+Be warm, professional, and action-oriented. Do NOT ask about age or routine demographics."""
+        
+        user_msg = f"""Patient said: "{user_answer}"
+
+Distress detected: severity {distress_info['severity']:.1f}/10
+
+Generate an empathetic response that acknowledges their distress and immediately asks the MOST CRITICAL clinical question to assess their condition. Skip routine questions."""
+        
+        llm_kwargs = self._get_llm_kwargs(override_max_tokens=80)
+        response = self.llm_chat_simple_fn(
+            [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+            **llm_kwargs
+        )
+        
+        return response.strip()
+    
     def process_answer(self, user_answer: str) -> Dict[str, Any]:
         """Process user answer and continue assessment"""
+        # Get context about what we're expecting
+        last_q = None
+        for item in reversed(self.conversation_history):
+            if item.get('type') in ['question', 'statement']:
+                last_q = item
+                break
+        
+        expected_element = last_q.get('oldcarts') if last_q else None
+        
+        # PRIORITY: Intelligently interpret the response (not just distress)
+        response_interpretation = self._interpret_patient_response(user_answer, expected_element)
+        
+        # Extract distress info for backwards compatibility
+        distress_info = response_interpretation.get('distress_info', {})
+        is_distressed = response_interpretation.get('is_distressed', False)
+        
         # Check if user is asking a question instead of answering
         if self._is_user_asking_question(user_answer):
             return self._handle_user_question(user_answer)
@@ -2883,6 +3125,82 @@ class AdaptiveDiagnosticEngine:
             'type': 'answer',
             'answer': user_answer
         })
+        
+        # If response needs acknowledgment (comment, question, distress), handle it naturally
+        if response_interpretation['needs_acknowledgment']:
+            acknowledgment = response_interpretation['acknowledgment_message']
+            
+            # Store acknowledgment for use when generating next question
+            self._pending_acknowledgment = acknowledgment
+            
+            # Still try to extract clinical info if possible
+            extracted_info = response_interpretation.get('extracted_info')
+            if extracted_info and extracted_info != user_answer:
+                # Use extracted info for processing
+                user_answer = extracted_info
+            elif not extracted_info:
+                # Pure comment/question - still record it but handle specially
+                pass
+        
+        # If distress detected, skip routine demographics and prioritize clinical assessment
+        if is_distressed:
+            self._capture_debug(f"[Engine] 🚨 DISTRESS DETECTED: severity={distress_info['severity']:.1f}, urgency_boost={distress_info['urgency_boost']:.2f}")
+            
+            # Mark demographics as optional (skip age/sex if not critical)
+            self.demographics_optional = True
+            
+            # Boost urgency for active guidelines
+            if distress_info['urgency_boost'] > 0 and self.active_guidelines:
+                for guideline in self.active_guidelines:
+                    current_score = guideline.get('score', 0.0)
+                    guideline['score'] = min(1.0, current_score + distress_info['urgency_boost'])
+                self._capture_debug(f"[Engine] ⚡ Urgency boost applied: +{distress_info['urgency_boost']:.2f} to active guidelines")
+            
+            # Get last question to check if we were asking a routine question
+            last_q = None
+            for item in reversed(self.conversation_history):
+                if item.get('type') in ['question', 'statement']:
+                    last_q = item
+                    break
+            
+            # If we were asking a routine question (age/sex), skip it and go to clinical questions
+            if last_q and last_q.get('focus') in ['age', 'sex', 'chronicity']:
+                self._capture_debug(f"[Engine] ⏭️ Skipping routine question ({last_q.get('focus')}) due to distress")
+                
+                # Use pending acknowledgment if available, otherwise generate empathetic response
+                if hasattr(self, '_pending_acknowledgment') and self._pending_acknowledgment:
+                    acknowledgment_msg = self._pending_acknowledgment
+                    self._pending_acknowledgment = None
+                else:
+                    acknowledgment_msg = self._generate_empathetic_response(user_answer, distress_info)
+                
+                # Move directly to clinical questions
+                clinical_response = self._ask_next_clinical_question()
+                
+                if clinical_response and clinical_response.get('success'):
+                    # Combine acknowledgment with clinical question
+                    next_msg = clinical_response.get('message') or clinical_response.get('question', '')
+                    combined_msg = f"{acknowledgment_msg}\n\n{next_msg}"
+                    return {
+                        'success': True,
+                        'message': combined_msg,
+                        'status': clinical_response.get('status', 'questioning'),
+                        'debug': {
+                            'engine': self._format_engine_debug(f"[Engine] 🚨 Distress handled - skipped demographics"),
+                            'internal': self._get_debug_info()
+                        }
+                    }
+                else:
+                    # Just return acknowledgment if no clinical question available
+                    return {
+                        'success': True,
+                        'message': acknowledgment_msg,
+                        'status': 'questioning',
+                        'debug': {
+                            'engine': self._format_engine_debug(f"[Engine] 🚨 Distress acknowledged"),
+                            'internal': self._get_debug_info()
+                        }
+                    }
         
         # Get last question
         last_q = None
@@ -3076,7 +3394,12 @@ class AdaptiveDiagnosticEngine:
             }
         
         # If no demographics handler matched and demographics incomplete, check if we need to ask demographics
-        if not all(key in self.demographics for key in ['age', 'sex', 'chronicity']):
+        # Check demographics - skip if distress was detected (demographics optional)
+        required_demographics = ['chronicity']  # Always need chronicity
+        if not self.demographics_optional:
+            required_demographics.extend(['age', 'sex'])  # Age and sex only if not distressed
+        
+        if not all(key in self.demographics for key in required_demographics):
             # Demographics incomplete - ask next demographic question
             return self._generate_ml_first_question_with_demographics()
         

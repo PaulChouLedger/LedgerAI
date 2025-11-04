@@ -492,6 +492,23 @@ class ClinicianSession:
                     if response.get('status') == 'diagnosed':
                         # Diagnosis reached!
                         print(f"[Adaptive] ✅ Diagnosis: {response.get('diagnosis')}")
+                        # Auto-reset session state
+                        from container_rest import load_state, save_state
+                        session_state = load_state(self.session_id)
+                        if 'mode' in session_state:
+                            del session_state['mode']
+                        save_state(session_state, self.session_id)
+                        print(f"[Adaptive] ✅ Assessment complete - session state cleared (auto-reset)")
+                        return response.get('message', 'Assessment complete.')
+                    elif response.get('status') == 'completed':
+                        # Assessment complete - auto-reset
+                        print(f"[Adaptive] ✅ Assessment complete")
+                        from container_rest import load_state, save_state
+                        session_state = load_state(self.session_id)
+                        if 'mode' in session_state:
+                            del session_state['mode']
+                        save_state(session_state, self.session_id)
+                        print(f"[Adaptive] ✅ Session state cleared (auto-reset)")
                         return response.get('message', 'Assessment complete.')
                     else:
                         # Return full response dict (includes filler if present)
@@ -1057,23 +1074,29 @@ Assessment Q&A:
 
 Symptoms: {', '.join([str(s.get('symptom', s)) for s in state.symptoms_collected])}
 Red flags: {', '.join(state.red_flags_detected) if state.red_flags_detected else 'None'}
+Current urgency score: {state.urgency_score:.1f}/10
 
 Guidelines:
 {guideline_text}
 
-Provide:
-1. Most likely diagnosis (or top 2-3 differentials)
-2. Urgency (1-10 scale)
-3. Specific next steps: See doctor today? Go to ER? Call 911? Home care OK?
+Provide a structured assessment with EXACTLY this format:
 
-Be direct. Provide clear medical advice.
+MOST LIKELY DIAGNOSIS: [primary diagnosis or top 2-3 differentials]
 
-Assessment:"""
+URGENCY LEVEL: [Emergent/Urgent/Semi-Urgent/Routine] ({state.urgency_score:.1f}/10)
+
+RECOMMENDATION: [Specific action based on urgency:
+- If Emergent (8-10): "Call 911 or go to emergency room immediately"
+- If Urgent (6-8): "Go to emergency room within 1-2 hours"
+- If Semi-Urgent (4-6): "See doctor today or within 24 hours"
+- If Routine (<4): "Schedule appointment with doctor within 1 week"]
+
+Be direct and clear. Provide actionable medical advice."""
         
         # Get diagnosis from LLM (llm_chat now returns string, not dict)
         diagnosis_response = self.llm_chat_fn(
             [{"role": "user", "content": diagnosis_prompt}],
-            max_tokens=150,     # Enough for diagnosis + disposition
+            max_tokens=300,     # Increased for complete structured response
             temperature=0.3,    # Low temperature for clinical accuracy
             stream=False
         )
@@ -1087,12 +1110,37 @@ Assessment:"""
                 print(f"[Dynamic] ❌ FATAL: Garbage diagnosis detected (char '{char_counts.most_common(1)[0][0]}' appears {most_common}/{len(diagnosis_response)} times)")
                 raise ValueError(f"LLM generated garbage diagnosis: {diagnosis_response[:100]}")
         
+        # Format the final response with clear structure
+        # Ensure the response has the required format, if not, add urgency-based recommendation
+        formatted_response = diagnosis_response
+        
+        # If LLM didn't follow format, add urgency-based recommendation
+        if "RECOMMENDATION:" not in formatted_response.upper():
+            urgency_level = "ROUTINE"
+            recommendation = "Schedule appointment with doctor within 1 week"
+            
+            if state.urgency_score >= 8.0:
+                urgency_level = "EMERGENT"
+                recommendation = "Call 911 or go to emergency room immediately"
+            elif state.urgency_score >= 6.0:
+                urgency_level = "URGENT"
+                recommendation = "Go to emergency room within 1-2 hours"
+            elif state.urgency_score >= 4.0:
+                urgency_level = "SEMI-URGENT"
+                recommendation = "See doctor today or within 24 hours"
+            
+            # Add missing sections if needed
+            if "URGENCY LEVEL:" not in formatted_response.upper():
+                formatted_response += f"\n\nURGENCY LEVEL: {urgency_level} ({state.urgency_score:.1f}/10)"
+            if "RECOMMENDATION:" not in formatted_response.upper():
+                formatted_response += f"\n\nRECOMMENDATION: {recommendation}"
+        
         # Mark assessment as complete
         state.completed = True
         self.current_context = "general"
         self.dynamic_assessment = None
         
-        # Clear from session state to allow mode switching
+        # Clear from session state to allow mode switching (auto-reset)
         from container_rest import load_state, save_state
         session_state = load_state(self.session_id)
         if 'dynamic_assessment' in session_state:
@@ -1100,12 +1148,9 @@ Assessment:"""
         if 'mode' in session_state:
             del session_state['mode']
         save_state(session_state, self.session_id)
-        print(f"[Dynamic] ✅ Assessment complete - session state cleared")
+        print(f"[Dynamic] ✅ Assessment complete - session state cleared (auto-reset)")
         
-        # Add completion message to let user know they can ask other questions now
-        completion_note = "\n\nThis completes your medical assessment. Feel free to ask me anything else."
-        
-        return diagnosis_response + completion_note
+        return formatted_response
     
     def _format_qa_history(self, state: DynamicAssessmentState) -> str:
         """Format question/answer history for LLM"""

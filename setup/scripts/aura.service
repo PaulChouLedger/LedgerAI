@@ -1,0 +1,42 @@
+[Unit]
+Description=Aura Medical Assistant
+Documentation=https://github.com/PaulChouLedger/LedgerAI
+After=network.target docker.service
+Wants=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=aura
+Group=aura
+WorkingDirectory=/home/aura/LedgerAI/aura-control/core
+Environment="PATH=/home/aura/LedgerAI/aura-env/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="DISPLAY=:0"
+Environment="HOME=/home/aura"
+
+# Start Docker containers before Aura
+ExecStartPre=/usr/bin/docker compose -f /home/aura/LedgerAI/setup/docker-compose.yml up -d
+ExecStartPre=/bin/sleep 5
+
+# Start Aura
+ExecStart=/home/aura/LedgerAI/aura-env/bin/python3 /home/aura/LedgerAI/aura-control/core/main.py
+
+# Stop containers when service stops
+ExecStop=/usr/bin/docker compose -f /home/aura/LedgerAI/setup/docker-compose.yml down
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=aura
+
+# Resource limits (optional, adjust as needed)
+# LimitNOFILE=65536
+# LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target
+
