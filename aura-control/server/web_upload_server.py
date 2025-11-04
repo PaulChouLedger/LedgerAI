@@ -291,8 +291,7 @@ def upload_files():
             # Step 1: Container extracts text from PDFs/TXT/DOCX
             print(f"[Aura-Upload] 🔄 Step 1: Extracting text...")
             # Trigger ingest based on RAG_MODE setting
-            import threading
-            import os
+            # Note: os and threading are already imported at top of file
             
             # Check RAG_MODE from environment (GPU = RAG container, CPU = CPU FAISS)
             RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
