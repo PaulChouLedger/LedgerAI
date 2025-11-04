@@ -86,8 +86,8 @@ class AdaptiveDiagnosticEngine:
         # Format: {category: {element: weight}}
         weights = {
             'gastrointestinal': {
-                'location': 0.45,      # Location is critical for GI (RUQ vs RLQ vs epigastric)
-                'character': 0.25,      # Character is moderately important
+                'location': 0.65,      # Location is critical for GI (RUQ vs RLQ vs epigastric)
+                'character': 0.20,      # Character is moderately important
                 'aggravating': 0.30,    # Aggravating factors (food, movement)
                 'relieving': 0.30,      # Relieving factors
                 'onset': 0.25,          # Onset timing
@@ -97,9 +97,9 @@ class AdaptiveDiagnosticEngine:
                 'associated': 0.25      # Associated symptoms
             },
             'cardiovascular': {
-                'character': 0.45,      # Character is critical (heavy, crushing, pressure vs sharp, stabbing)
+                'character': 0.65,      # Character is critical (heavy, crushing, pressure vs sharp, stabbing)
                 'location': 0.30,       # Location (chest, substernal, left side)
-                'aggravating': 0.35,    # Aggravating (exertion, stress)
+                'aggravating': 0.65,    # Aggravating (exertion, stress)
                 'relieving': 0.35,      # Relieving (rest, nitroglycerin)
                 'onset': 0.30,          # Onset timing
                 'timing': 0.25,         # Timing
