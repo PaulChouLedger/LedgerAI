@@ -254,13 +254,41 @@ def upload_files():
     
     files = request.files.getlist('files')
     uploaded_count = 0
+    upload_errors = []
+    
+    # Ensure upload folder exists
+    try:
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        print(f"[Aura-Upload] 📁 Upload folder: {UPLOAD_FOLDER}")
+    except Exception as e:
+        print(f"[Aura-Upload] ❌ Failed to create upload folder: {e}")
+        flash(f'Upload folder error: {e}', 'error')
+        return redirect(url_for('index'))
     
     for file in files:
         if file.filename == '':
             continue
+        
+        if not file:
+            print(f"[Aura-Upload] ⚠️ Empty file object for {file.filename}")
+            continue
             
-        if file and allowed_file(file.filename):
+        if not allowed_file(file.filename):
+            error_msg = f'File {file.filename} has an invalid extension'
+            print(f"[Aura-Upload] ⚠️ {error_msg}")
+            flash(error_msg, 'error')
+            upload_errors.append(error_msg)
+            continue
+        
+        try:
             filename = secure_filename(file.filename)
+            if not filename:
+                error_msg = f'Invalid filename: {file.filename}'
+                print(f"[Aura-Upload] ⚠️ {error_msg}")
+                flash(error_msg, 'error')
+                upload_errors.append(error_msg)
+                continue
+            
             filepath = os.path.join(UPLOAD_FOLDER, filename)
             
             # Handle duplicate filenames
@@ -272,11 +300,26 @@ def upload_files():
                 filepath = os.path.join(UPLOAD_FOLDER, filename)
                 counter += 1
             
+            # Save the file
             file.save(filepath)
-            uploaded_count += 1
-            print(f"[Aura-Upload] ✅ Uploaded: {filename}")
-        else:
-            flash(f'File {file.filename} has an invalid extension', 'error')
+            
+            # Verify file was actually saved
+            if os.path.exists(filepath):
+                file_size = os.path.getsize(filepath)
+                uploaded_count += 1
+                print(f"[Aura-Upload] ✅ Uploaded: {filename} ({file_size} bytes) to {filepath}")
+            else:
+                error_msg = f'File save failed: {filename}'
+                print(f"[Aura-Upload] ❌ {error_msg}")
+                flash(error_msg, 'error')
+                upload_errors.append(error_msg)
+        except Exception as e:
+            error_msg = f'Error uploading {file.filename}: {e}'
+            print(f"[Aura-Upload] ❌ {error_msg}")
+            import traceback
+            traceback.print_exc()
+            flash(error_msg, 'error')
+            upload_errors.append(error_msg)
     
     if uploaded_count > 0:
         flash(f'Successfully uploaded {uploaded_count} file(s)', 'success')
@@ -295,6 +338,7 @@ def upload_files():
             
             # Check RAG_MODE from environment (GPU = RAG container, CPU = CPU FAISS)
             RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
+            USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'true').lower() == 'true'
             
             def trigger_cpu_rag_medical():
                 try:
@@ -327,62 +371,74 @@ def upload_files():
                     else:
                         print(f"[Upload] ⚠️ GPU RAG ingest failed: HTTP {response.status_code}")
                         response = type('obj', (object,), {'status_code': response.status_code})()
+                        response.json = lambda: {'processed': 0, 'skipped': 0}
                 except Exception as e:
                     print(f"[Upload] ⚠️ GPU RAG ingest error: {e}")
                     response = type('obj', (object,), {'status_code': 500})()
+                    response.json = lambda: {'processed': 0, 'skipped': 0}
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    processed = result.get('processed', 0)
+                    print(f"[Aura-Upload] ✅ Text extracted: {processed} files")
+                    
+                    # Step 2: Rebuild embeddings on HOST (container's FAISS has SWIG issues)
+                    print(f"[Aura-Upload] 🔄 Step 2: Building embeddings on HOST...")
+                    workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+                    host_script = os.path.join(workspace_root, 'setup', 'scripts', 'rebuild_embeddings_host.py')
+                    
+                    rebuild_result = subprocess.run(
+                        ["python3", host_script],
+                        capture_output=True,
+                        text=True,
+                        timeout=120,
+                        cwd=workspace_root
+                    )
+                    
+                    if rebuild_result.returncode == 0:
+                        print(f"[Aura-Upload] ✅ Embeddings rebuilt - files ready in RAG!")
+                        
+                        # Step 3: Reload RAG to use new index
+                        print(f"[Aura-Upload] 🔄 Step 3: Reloading RAG index...")
+                        reload_response = requests.post("http://localhost:11435/rag/reload", timeout=10)
+                        if reload_response.status_code == 200:
+                            reload_result = reload_response.json()
+                            total_chunks = reload_result.get('total_chunks', 0)
+                            print(f"[Aura-Upload] ✅ RAG reloaded: {total_chunks} total chunks")
+                            flash(f'Successfully uploaded and indexed {uploaded_count} file(s) - {total_chunks} chunks available', 'success')
+                        else:
+                            print(f"[Aura-Upload] ⚠️ RAG reload failed: {reload_response.status_code}")
+                            flash(f'Files uploaded but RAG reload failed', 'warning')
+                    else:
+                        print(f"[Aura-Upload] ❌ Embedding rebuild failed")
+                        flash('Files uploaded but indexing failed', 'warning')
+                else:
+                    print(f"[Aura-Upload] ❌ Text extraction failed")
+                    flash('File uploaded but processing failed', 'warning')
+                    return redirect(url_for('index'))
             else:
                 # CPU RAG mode: Use CPU FAISS only (skip GPU RAG container)
                 print("[Upload] 💻 RAG_MODE=CPU - using CPU FAISS in LLM containers")
-                cpu_medical_thread = threading.Thread(target=trigger_cpu_rag_medical, daemon=True)
+                
+                # Only trigger the container that's actually running
+                threads = []
+                if USE_MEDICAL_MODE:
+                    cpu_medical_thread = threading.Thread(target=trigger_cpu_rag_medical, daemon=True)
+                    cpu_medical_thread.start()
+                    threads.append(cpu_medical_thread)
+                
                 cpu_generic_thread = threading.Thread(target=trigger_cpu_rag_generic, daemon=True)
-                
-                cpu_medical_thread.start()
                 cpu_generic_thread.start()
+                threads.append(cpu_generic_thread)
                 
-                cpu_medical_thread.join(timeout=30)
-                cpu_generic_thread.join(timeout=30)
+                # Wait for all threads to complete
+                for thread in threads:
+                    thread.join(timeout=30)
                 
-                # Dummy response for compatibility (CPU FAISS handles its own state)
-                response = type('obj', (object,), {'status_code': 200, 'json': lambda: {'processed': 0, 'skipped': 0}})()
-            if response.status_code == 200:
-                result = response.json()
-                processed = result.get('processed', 0)
-                print(f"[Aura-Upload] ✅ Text extracted: {processed} files")
-            else:
-                print(f"[Aura-Upload] ❌ Text extraction failed")
-                flash('File uploaded but processing failed', 'warning')
-                return redirect(url_for('upload_page'))
-            
-            # Step 2: Rebuild embeddings on HOST (container's FAISS has SWIG issues)
-            print(f"[Aura-Upload] 🔄 Step 2: Building embeddings on HOST...")
-            workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-            host_script = os.path.join(workspace_root, 'setup', 'scripts', 'rebuild_embeddings_host.py')
-            
-            rebuild_result = subprocess.run(
-                ["python3", host_script],
-                capture_output=True,
-                text=True,
-                timeout=120,
-                cwd=workspace_root
-            )
-            
-            if rebuild_result.returncode == 0:
-                print(f"[Aura-Upload] ✅ Embeddings rebuilt - files ready in RAG!")
-                
-                # Step 3: Reload RAG to use new index
-                print(f"[Aura-Upload] 🔄 Step 3: Reloading RAG index...")
-                reload_response = requests.post("http://localhost:11435/rag/reload", timeout=10)
-                if reload_response.status_code == 200:
-                    reload_result = reload_response.json()
-                    total_chunks = reload_result.get('total_chunks', 0)
-                    print(f"[Aura-Upload] ✅ RAG reloaded: {total_chunks} total chunks")
-                    flash(f'Successfully uploaded and indexed {uploaded_count} file(s) - {total_chunks} chunks available', 'success')
-                else:
-                    print(f"[Aura-Upload] ⚠️ RAG reload failed: {reload_response.status_code}")
-                    flash(f'Files uploaded but RAG reload failed', 'warning')
-            else:
-                print(f"[Aura-Upload] ❌ Embedding rebuild failed")
-                flash('Files uploaded but indexing failed', 'warning')
+                print(f"[Aura-Upload] ✅ CPU FAISS ingest triggered for {len(threads)} container(s)")
+                # CPU FAISS handles its own processing internally - no host embedding rebuild needed
+                print(f"[Aura-Upload] ✅ Files processed by CPU FAISS in LLM containers")
+                flash(f'Successfully uploaded {uploaded_count} file(s) - processing by CPU FAISS', 'success')
         except Exception as e:
             print(f"[Aura-Upload] ⚠️ Processing error: {e}")
     
