@@ -145,9 +145,18 @@ class OTAUpdateThread(QThread):
                         # Convert git@github.com:user/repo.git to https://github.com/user/repo.git
                         remote_url = remote_url.replace('git@github.com:', 'https://github.com/')
                     
-                    # Clean the URL - remove any existing credentials
+                    # Clean the URL - remove ALL existing credentials and tokens
+                    # Handle cases where token appears multiple times (https://TOKEN@TOKEN@github.com)
+                    import re
+                    
+                    # Remove any tokens in the URL (ghp_* pattern)
+                    remote_url = re.sub(r'ghp_[A-Za-z0-9]{36,}@', '', remote_url)
+                    
+                    # Remove any credentials before github.com (everything between :// and @github.com)
+                    remote_url = re.sub(r'https://[^@]+@github\.com', 'https://github.com', remote_url)
+                    
+                    # If still has @ symbols, take everything after the last @
                     if '@' in remote_url:
-                        # Split at @ and take everything after it
                         parts = remote_url.split('@')
                         if len(parts) > 1:
                             # Take the last part (after @) which should be the host/path
@@ -156,6 +165,8 @@ class OTAUpdateThread(QThread):
                             if not host_path.startswith('https://'):
                                 if host_path.startswith('http://'):
                                     host_path = host_path.replace('http://', 'https://')
+                                elif host_path.startswith('github.com'):
+                                    host_path = f"https://{host_path}"
                                 else:
                                     host_path = f"https://{host_path}"
                             remote_url = host_path
@@ -178,8 +189,13 @@ class OTAUpdateThread(QThread):
                     if remote_url.endswith('/'):
                         remote_url = remote_url[:-1]
                     
-                    # Now add token to clean URL
-                    if remote_url.startswith('https://') and self.github_token not in remote_url:
+                    # Verify URL is clean (no tokens, no duplicate @)
+                    if '@' in remote_url and 'github.com' in remote_url:
+                        # Still has @, clean it again
+                        remote_url = re.sub(r'https://[^@]+@github\.com', 'https://github.com', remote_url)
+                    
+                    # Now add token to clean URL (only if URL is clean and doesn't already have token)
+                    if remote_url.startswith('https://github.com') and self.github_token not in remote_url:
                         # Split URL: https://github.com/user/repo.git
                         url_parts = remote_url.split('://', 1)
                         if len(url_parts) == 2:
@@ -512,7 +528,7 @@ class SettingsDialog(QDialog):
         """Get consistent button styling"""
         return """
             QPushButton {
-                background-color: rgba(142, 142, 147, 0.2);
+                background-color: rgba(70, 130, 180, 0.25);
                 color: #ffffff;
                 font-size: 22px;
                 font-weight: 600;
@@ -522,13 +538,13 @@ class SettingsDialog(QDialog):
                 border: none;
             }
             QPushButton:hover {
-                background-color: rgba(142, 142, 147, 0.4);
+                background-color: rgba(70, 130, 180, 0.45);
             }
             QPushButton:pressed {
-                background-color: rgba(142, 142, 147, 0.6);
+                background-color: rgba(70, 130, 180, 0.65);
             }
             QPushButton:disabled {
-                background-color: rgba(142, 142, 147, 0.1);
+                background-color: rgba(70, 130, 180, 0.1);
                 color: #666;
             }
         """
