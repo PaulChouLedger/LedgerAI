@@ -50,6 +50,10 @@ class MedicalRuleEngine:
         
         print("[FAISS] 🔨 Building category-specific indexes...")
         
+        # Get enabled categories from environment variable (same as adaptive_diagnostic_engine)
+        enabled_categories_env = os.environ.get('ENABLED_MEDICAL_CATEGORIES', 'GI').strip()
+        enabled_categories = [cat.strip().upper() for cat in enabled_categories_env.split(',') if cat.strip()]
+        
         # Map category names to organ system directories and synonym file prefixes
         category_to_dir = {
             'gastrointestinal': ('GI', 'gi'),
@@ -68,8 +72,12 @@ class MedicalRuleEngine:
             print(f"[FAISS] ⚠️ Guidelines path does not exist: {guidelines_path}")
             return
         
-        # Build index for each category
+        # Build index for each category (only if enabled)
         for category, (organ_system_dir, synonym_prefix) in category_to_dir.items():
+            # Filter by enabled categories
+            if enabled_categories and organ_system_dir.upper() not in enabled_categories:
+                print(f"[FAISS] ⏭️  Skipping {category} ({organ_system_dir}) - not in enabled categories")
+                continue
             category_path = os.path.join(guidelines_path, organ_system_dir)
             if not os.path.exists(category_path):
                 continue

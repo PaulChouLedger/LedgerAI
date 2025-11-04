@@ -293,28 +293,67 @@ class AdaptiveDiagnosticEngine:
         self.reset_assessment()
     
     def _load_guidelines(self):
-        """Load all JSON guideline files"""
+        """Load all JSON guideline files, filtered by ENABLED_MEDICAL_CATEGORIES"""
         if not self.guidelines_dir.exists():
             return
         
+        # Get enabled categories from environment variable (comma-separated, e.g., "GI" or "GI,CARDIO")
+        # Default to "GI" if not set (user has only curated GI so far)
+        enabled_categories_env = os.environ.get('ENABLED_MEDICAL_CATEGORIES', 'GI').strip()
+        enabled_categories = [cat.strip().upper() for cat in enabled_categories_env.split(',') if cat.strip()]
+        
+        if enabled_categories:
+            self._capture_debug(f"[Engine] 📋 Loading guidelines for categories: {', '.join(enabled_categories)}")
+        else:
+            self._capture_debug(f"[Engine] ⚠️ No enabled categories specified - loading all guidelines")
+        
+        loaded_count = 0
+        skipped_count = 0
+        
         for json_file in sorted(self.guidelines_dir.glob("**/*.json")):
             try:
+                # Extract organ system from directory structure
+                organ_system = json_file.parent.name if json_file.parent != self.guidelines_dir else "Other"
+                
+                # Filter by enabled categories (if any are specified)
+                if enabled_categories and organ_system.upper() not in enabled_categories:
+                    skipped_count += 1
+                    continue
+                
                 with open(json_file, 'r') as f:
                     guideline = json.load(f)
                     name = guideline.get('condition', json_file.stem)
                     # Store organ system from directory structure
-                    organ_system = json_file.parent.name if json_file.parent != self.guidelines_dir else "Other"
                     guideline['organ_system'] = organ_system  # Store for filtering
                     self.all_guidelines[name] = guideline
+                    loaded_count += 1
             except Exception as e:
                 self._capture_debug(f"[Engine] ⚠️ Failed to load {json_file.name}: {e}")
+        
+        if enabled_categories:
+            self._capture_debug(f"[Engine] ✅ Loaded {loaded_count} guidelines ({skipped_count} skipped from disabled categories)")
+        else:
+            self._capture_debug(f"[Engine] ✅ Loaded {loaded_count} guidelines")
     
     def _load_synonym_cache(self):
-        """Pre-load all synonym mappings for all organ systems to avoid repeated I/O"""
-        for system_name in self.CATEGORY_TO_SYSTEM.values():
-            self.synonym_cache[system_name] = self._load_synonyms_for_system(system_name)
+        """Pre-load all synonym mappings for enabled organ systems only"""
+        # Get enabled categories (same logic as _load_guidelines)
+        enabled_categories_env = os.environ.get('ENABLED_MEDICAL_CATEGORIES', 'GI').strip()
+        enabled_categories = [cat.strip().upper() for cat in enabled_categories_env.split(',') if cat.strip()]
         
-        self._capture_debug(f"[Engine] ✅ Synonym cache loaded for {len(self.synonym_cache)} organ systems")
+        # Only load synonyms for enabled categories
+        if enabled_categories:
+            loaded_systems = []
+            for system_name in self.CATEGORY_TO_SYSTEM.values():
+                if system_name.upper() in enabled_categories:
+                    self.synonym_cache[system_name] = self._load_synonyms_for_system(system_name)
+                    loaded_systems.append(system_name)
+            self._capture_debug(f"[Engine] ✅ Synonym cache loaded for {len(loaded_systems)} enabled organ systems: {', '.join(loaded_systems)}")
+        else:
+            # Load all if no categories specified
+            for system_name in self.CATEGORY_TO_SYSTEM.values():
+                self.synonym_cache[system_name] = self._load_synonyms_for_system(system_name)
+            self._capture_debug(f"[Engine] ✅ Synonym cache loaded for {len(self.synonym_cache)} organ systems")
     
     def _load_synonyms_for_system(self, organ_system: str) -> dict:
         """Load synonyms for a specific organ system and pre-build data structures"""

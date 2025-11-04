@@ -79,6 +79,12 @@ show_all_settings() {
     local medical_mode=$(get_config_value "USE_MEDICAL_MODE")
     if [ "$medical_mode" == "true" ]; then
         echo -e "  ${GREEN}●${NC} Medical Mode (symptom assessment, adaptive diagnostics)"
+        local enabled_categories=$(get_config_value "ENABLED_MEDICAL_CATEGORIES")
+        if [ -z "$enabled_categories" ]; then
+            enabled_categories="GI (default)"
+        fi
+        echo "  Enabled Categories: $enabled_categories"
+        echo "  Available: GI, CARDIO, DERM, GU, GYN, MSK, NEURO, PULMONARY, RENAL"
     else
         echo -e "  ${YELLOW}○${NC} Generic Mode (general conversation, RAG Q&A)"
     fi
@@ -388,6 +394,75 @@ configure_medical_mode() {
         1) toggle_medical_mode on ;;
         2) toggle_medical_mode off ;;
         3) return ;;
+    esac
+}
+
+configure_medical_categories() {
+    print_header "MEDICAL CATEGORIES CONFIGURATION"
+    
+    local current=$(get_config_value 'ENABLED_MEDICAL_CATEGORIES')
+    if [ -z "$current" ]; then
+        current="GI (default)"
+    fi
+    
+    echo "Current Enabled Categories: $current"
+    echo ""
+    echo "Available Categories:"
+    echo "  • GI         - Gastrointestinal (curated)"
+    echo "  • CARDIO     - Cardiovascular"
+    echo "  • DERM       - Dermatology"
+    echo "  • GU         - Genitourinary"
+    echo "  • GYN        - Gynecological"
+    echo "  • MSK        - Musculoskeletal"
+    echo "  • NEURO      - Neurological"
+    echo "  • PULMONARY  - Pulmonary"
+    echo "  • RENAL      - Renal"
+    echo ""
+    echo "Note: Only curated categories (GI) are recommended for use."
+    echo "      Other categories may have incomplete guidelines."
+    echo ""
+    echo "1) Set enabled categories (comma-separated, e.g., 'GI' or 'GI,CARDIO')"
+    echo "2) Clear (use all categories - not recommended)"
+    echo "3) Back to main menu"
+    echo ""
+    read -p "Choice [1-3]: " choice
+    
+    case $choice in
+        1)
+            echo ""
+            echo "Enter categories (comma-separated, e.g., 'GI' or 'GI,CARDIO'):"
+            echo "Available: GI, CARDIO, DERM, GU, GYN, MSK, NEURO, PULMONARY, RENAL"
+            read -p "Categories: " categories
+            if [ -n "$categories" ]; then
+                set_config_value "ENABLED_MEDICAL_CATEGORIES" "$categories"
+                echo ""
+                echo -e "${GREEN}✅ Updated enabled categories to: $categories${NC}"
+                echo ""
+                echo "The system will now only load guidelines from these categories."
+                echo "Other categories will be ignored."
+                show_restart_message
+            else
+                echo "No categories entered. Keeping current setting."
+            fi
+            ;;
+        2)
+            echo ""
+            read -p "Clear enabled categories (load all)? This is not recommended. (y/n): " answer
+            if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
+                # Remove the line from .env
+                if [ -f "$CONFIG_FILE" ]; then
+                    grep -v "^ENABLED_MEDICAL_CATEGORIES=" "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" 2>/dev/null || true
+                    mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+                fi
+                echo ""
+                echo -e "${YELLOW}⚠️  Cleared enabled categories - will load all categories${NC}"
+                echo ""
+                echo "This is not recommended as only GI is curated."
+                show_restart_message
+            fi
+            ;;
+        3)
+            return ;;
     esac
 }
 
@@ -777,12 +852,13 @@ main_menu() {
         echo "  2) Configure EHR settings"
         echo "  3) Toggle LLM Mode (Medical/Generic)"
         echo "  4) Configure LLM Mode settings"
-        echo "  5) Configure LLM models"
-        echo "  6) Configure RAG search"
-        echo "  7) Configure TTS (ElevenLabs)"
-        echo "  8) Configure Telegram bot"
-        echo "  9) Configure GitHub OTA updates"
-        echo " 10) Configure NHS/FHIR credentials"
+        echo "  5) Configure Medical Categories (guidelines)"
+        echo "  6) Configure LLM models"
+        echo "  7) Configure RAG search"
+        echo "  8) Configure TTS (ElevenLabs)"
+        echo "  9) Configure Telegram bot"
+        echo " 10) Configure GitHub OTA updates"
+        echo " 11) Configure NHS/FHIR credentials"
         echo "  a) Edit .env file directly"
         echo "  b) Restart Docker containers"
         echo "  0) Exit"
@@ -843,26 +919,30 @@ main_menu() {
                 read -p "Press Enter to continue..."
                 ;;
             5)
-                configure_llm
+                configure_medical_categories
                 read -p "Press Enter to continue..."
                 ;;
             6)
-                configure_rag
+                configure_llm
                 read -p "Press Enter to continue..."
                 ;;
             7)
-                configure_tts
+                configure_rag
                 read -p "Press Enter to continue..."
                 ;;
             8)
-                configure_telegram
+                configure_tts
                 read -p "Press Enter to continue..."
                 ;;
             9)
-                configure_github
+                configure_telegram
                 read -p "Press Enter to continue..."
                 ;;
             10)
+                configure_github
+                read -p "Press Enter to continue..."
+                ;;
+            11)
                 configure_nhs_fhir
                 read -p "Press Enter to continue..."
                 ;;
