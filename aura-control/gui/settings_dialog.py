@@ -137,26 +137,63 @@ class OTAUpdateThread(QThread):
                 )
                 
                 if result.returncode == 0:
-                    remote_url = result.stdout.strip()
-                    # Convert to HTTPS with token if needed
-                    if 'github.com' in remote_url and self.github_token:
-                        if remote_url.startswith('git@'):
-                            # Convert SSH to HTTPS
-                            remote_url = remote_url.replace('git@github.com:', 'https://github.com/')
-                        if not remote_url.startswith('https://'):
-                            remote_url = f"https://github.com/{remote_url}"
-                        
-                        # Add token to URL
-                        if '://' in remote_url:
-                            parts = remote_url.split('://')
-                            remote_url = f"{parts[0]}://{self.github_token}@{parts[1]}"
-                        
-                        # Temporarily set remote URL with token
-                        subprocess.run(
-                            ['git', 'remote', 'set-url', 'origin', remote_url],
-                            cwd=self.repo_path,
-                            capture_output=True
-                        )
+                    original_url = result.stdout.strip()
+                    remote_url = original_url
+                    
+                    # Convert SSH to HTTPS if needed
+                    if remote_url.startswith('git@'):
+                        # Convert git@github.com:user/repo.git to https://github.com/user/repo.git
+                        remote_url = remote_url.replace('git@github.com:', 'https://github.com/')
+                    
+                    # Clean the URL - remove any existing credentials
+                    if '@' in remote_url:
+                        # Split at @ and take everything after it
+                        parts = remote_url.split('@')
+                        if len(parts) > 1:
+                            # Take the last part (after @) which should be the host/path
+                            host_path = parts[-1]
+                            # Ensure it starts with https://
+                            if not host_path.startswith('https://'):
+                                if host_path.startswith('http://'):
+                                    host_path = host_path.replace('http://', 'https://')
+                                else:
+                                    host_path = f"https://{host_path}"
+                            remote_url = host_path
+                    
+                    # Ensure it's a proper HTTPS URL
+                    if not remote_url.startswith('https://'):
+                        # Try to extract repo path from various formats
+                        if 'github.com' in remote_url:
+                            # Extract user/repo from various formats
+                            if ':' in remote_url:
+                                # Format: github.com:user/repo.git
+                                repo_part = remote_url.split(':', 1)[1]
+                                remote_url = f"https://github.com/{repo_part}"
+                            else:
+                                # Format: github.com/user/repo
+                                if '/' in remote_url:
+                                    remote_url = f"https://{remote_url}" if not remote_url.startswith('http') else remote_url
+                    
+                    # Remove trailing slash if present
+                    if remote_url.endswith('/'):
+                        remote_url = remote_url[:-1]
+                    
+                    # Now add token to clean URL
+                    if remote_url.startswith('https://') and self.github_token not in remote_url:
+                        # Split URL: https://github.com/user/repo.git
+                        url_parts = remote_url.split('://', 1)
+                        if len(url_parts) == 2:
+                            # Format: https://TOKEN@github.com/user/repo.git
+                            remote_url = f"{url_parts[0]}://{self.github_token}@{url_parts[1]}"
+                            
+                            # Temporarily set remote URL with token
+                            subprocess.run(
+                                ['git', 'remote', 'set-url', 'origin', remote_url],
+                                cwd=self.repo_path,
+                                capture_output=True
+                            )
+                            
+                            self.update_progress.emit("Authentication configured")
             
             self.update_progress.emit("Fetching latest changes...")
             result = subprocess.run(
@@ -168,7 +205,9 @@ class OTAUpdateThread(QThread):
             )
             
             if result.returncode != 0:
-                self.update_complete.emit(False, f"Fetch failed: {result.stderr}")
+                # Mask token in error messages
+                error_msg = self._mask_token(result.stderr, self.github_token)
+                self.update_complete.emit(False, f"Fetch failed: {error_msg}")
                 return
             
             self.update_progress.emit("Checking for updates...")
@@ -198,7 +237,9 @@ class OTAUpdateThread(QThread):
             )
             
             if result.returncode != 0:
-                self.update_complete.emit(False, f"Pull failed: {result.stderr}")
+                # Mask token in error messages
+                error_msg = self._mask_token(result.stderr, self.github_token)
+                self.update_complete.emit(False, f"Pull failed: {error_msg}")
                 return
             
             self.update_progress.emit("Update complete!")
@@ -207,7 +248,40 @@ class OTAUpdateThread(QThread):
         except subprocess.TimeoutExpired:
             self.update_complete.emit(False, "Update timed out")
         except Exception as e:
-            self.update_complete.emit(False, f"Update error: {str(e)}")
+            # Mask token in exception messages
+            error_msg = self._mask_token(str(e), self.github_token)
+            self.update_complete.emit(False, f"Update error: {error_msg}")
+    
+    def _mask_token(self, text, token=None):
+        """Mask GitHub token in text to prevent exposure in error messages"""
+        if not text:
+            return text
+        
+        masked_text = text
+        
+        # Mask specific token if provided
+        if token:
+            masked_text = masked_text.replace(token, "***")
+        
+        # Also mask common token patterns (ghp_*, ghp_*@, etc.)
+        import re
+        # Pattern for GitHub tokens (ghp_ followed by alphanumeric, 36+ chars)
+        token_pattern = r'ghp_[A-Za-z0-9]{36,}'
+        masked_text = re.sub(token_pattern, '***', masked_text)
+        
+        # Mask URLs with tokens (https://TOKEN@github.com or https://TOKEN@TOKEN@github.com)
+        url_pattern = r'https://[^@\s]+@[^@\s]+@github\.com'
+        masked_text = re.sub(url_pattern, 'https://***@github.com', masked_text)
+        
+        # Also catch single token in URL
+        url_pattern2 = r'https://ghp_[A-Za-z0-9]{36,}@github\.com'
+        masked_text = re.sub(url_pattern2, 'https://***@github.com', masked_text)
+        
+        # Generic pattern for any token-looking string in URL
+        url_pattern3 = r'https://[A-Za-z0-9_]{20,}@github\.com'
+        masked_text = re.sub(url_pattern3, 'https://***@github.com', masked_text)
+        
+        return masked_text
 
 class SettingsDialog(QDialog):
     def __init__(self, parent=None):
@@ -398,7 +472,7 @@ class SettingsDialog(QDialog):
         # Close button (red, matching other dialogs)
         close_layout = QHBoxLayout()
         close_layout.addStretch()
-        self.close_btn = QPushButton("❌ Close")
+        self.close_btn = QPushButton("Close")
         self.close_btn.clicked.connect(self.close)
         self.close_btn.setStyleSheet("""
             QPushButton {
@@ -409,7 +483,7 @@ class SettingsDialog(QDialog):
                 padding: 12px 24px;
                 border-radius: 20px;
                 border: none;
-                min-width: 80px;
+                min-width: 120px;
             }
             QPushButton:hover {
                 background-color: #D70015;
@@ -570,13 +644,40 @@ class SettingsDialog(QDialog):
         try:
             workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
             dotenv_path = os.path.join(workspace_root, '.env')
+            
+            self.log_status(f"Checking for .env file at: {dotenv_path}")
+            
             if os.path.exists(dotenv_path):
+                self.log_status(".env file found, loading GITHUB_TOKEN...")
                 env_vars = dotenv_values(dotenv_path)
                 github_token = env_vars.get('GITHUB_TOKEN', '')
-                if github_token == 'your_github_token_here':
-                    github_token = None
+                
+                if github_token:
+                    if github_token == 'your_github_token_here' or github_token.strip() == '':
+                        github_token = None
+                        self.log_status("GITHUB_TOKEN found but is placeholder or empty")
+                    else:
+                        # Show first few chars for confirmation (masked)
+                        token_preview = f"{github_token[:10]}...{github_token[-4:]}" if len(github_token) > 14 else "***"
+                        self.log_status(f"GITHUB_TOKEN loaded from .env ({token_preview})")
+                else:
+                    self.log_status("GITHUB_TOKEN not found in .env file")
+            else:
+                self.log_status(f".env file not found at {dotenv_path}")
         except Exception as e:
-            print(f"[Settings] Could not load token from .env: {e}")
+            # Mask token in error messages (use a helper function)
+            error_msg = str(e)
+            # Mask GitHub token patterns
+            import re
+            token_pattern = r'ghp_[A-Za-z0-9]{36,}'
+            error_msg = re.sub(token_pattern, '***', error_msg)
+            url_pattern = r'https://[^@\s]+@[^@\s]+@github\.com'
+            error_msg = re.sub(url_pattern, 'https://***@github.com', error_msg)
+            
+            self.log_status(f"Error loading token from .env: {error_msg}")
+            print(f"[Settings] Could not load token from .env: {error_msg}")
+            import traceback
+            traceback.print_exc()
         
         # Get repository path (workspace root)
         repo_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
