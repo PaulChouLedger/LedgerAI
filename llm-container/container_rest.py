@@ -183,6 +183,60 @@ def chat_tts():
     
     return Response(stream_with_context(generate_response()), mimetype="text/plain")
 
+# === CPU FAISS Auto-Ingestion Endpoints ===
+@app.route('/cpu-faiss/ingest', methods=['POST'])
+def cpu_faiss_ingest():
+    """Trigger CPU FAISS auto-ingestion manually"""
+    try:
+        # Get RAG client instance
+        from rag import get_rag_client
+        rag_client = get_rag_client()
+        
+        if not rag_client or not hasattr(rag_client, '_auto_ingest') or rag_client._auto_ingest is None:
+            return jsonify({'error': 'CPU FAISS auto-ingestion not available'}), 500
+        
+        # Trigger manual scan
+        result = rag_client._auto_ingest.scan_and_process()
+        
+        return jsonify({
+            'status': 'success',
+            'processed': result['processed'],
+            'skipped': result['skipped'],
+            'errors': result['errors'],
+            'total_chunks': result['total_chunks'],
+            'message': 'CPU FAISS auto-ingestion completed'
+        })
+        
+    except Exception as e:
+        print(f"[Generic] ❌ Error in CPU FAISS auto-ingestion: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/cpu-faiss/status', methods=['GET'])
+def cpu_faiss_status():
+    """Get CPU FAISS status"""
+    try:
+        # Get RAG client instance
+        from rag import get_rag_client
+        rag_client = get_rag_client()
+        
+        if not rag_client or not hasattr(rag_client, '_auto_ingest') or rag_client._auto_ingest is None:
+            return jsonify({'error': 'CPU FAISS auto-ingestion not available'}), 500
+        
+        auto_ingest = rag_client._auto_ingest
+        
+        return jsonify({
+            'status': 'active',
+            'watching': auto_ingest.watching,
+            'total_chunks': len(auto_ingest.chunks),
+            'processed_files': len(auto_ingest.state.get('processed_files', {}))
+        })
+        
+    except Exception as e:
+        print(f"[Generic] ❌ Error getting CPU FAISS status: {e}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == "__main__":
     print("[Generic] 🚀 Starting Aura Generic LLM Container...")
     

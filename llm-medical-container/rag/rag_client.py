@@ -22,14 +22,16 @@ class RAGClient:
     
     GPU Mode:
         - Uses HTTP API calls to external RAG container
-        - Slower due to network overhead
-        - Better for distributed systems
+        - GPU-accelerated FAISS for faster searches on large datasets
+        - Network overhead for small queries, but faster for large batches
+        - Better for distributed systems and production deployments
     
     CPU Mode:
         - Direct in-process FAISS operations
-        - Faster (no network overhead)
+        - Faster for small queries (no network overhead)
         - Simpler (no external dependencies)
         - All operations happen locally within the LLM container
+        - Better for development and systems without GPU
     """
     
     def __init__(self, use_gpu: bool = None):

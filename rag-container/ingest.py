@@ -14,6 +14,16 @@ from typing import List, Dict
 import PyPDF2
 import docx
 import re
+try:
+    import openpyxl
+    EXCEL_SUPPORT = True
+except ImportError:
+    try:
+        import pandas as pd
+        EXCEL_SUPPORT = True
+    except ImportError:
+        EXCEL_SUPPORT = False
+        print("[Ingest] ⚠️ Excel support not available. Install openpyxl or pandas: pip install openpyxl")
 
 class AutoIngest:
     def __init__(self, rag_instance):
@@ -100,6 +110,59 @@ class AutoIngest:
             print(f"[Ingest] ❌ TXT error {txt_path.name}: {e}")
             return ""
     
+    def extract_text_from_excel(self, excel_path: Path) -> str:
+        """Extract text from Excel files (.xlsx, .xls)"""
+        if not EXCEL_SUPPORT:
+            print(f"[Ingest] ❌ Excel support not available. Install openpyxl: pip install openpyxl")
+            return ""
+        
+        try:
+            text_parts = []
+            
+            # Try using openpyxl first (for .xlsx)
+            try:
+                import openpyxl
+                wb = openpyxl.load_workbook(excel_path, data_only=True)
+                for sheet_name in wb.sheetnames:
+                    sheet = wb[sheet_name]
+                    text_parts.append(f"\n=== Sheet: {sheet_name} ===\n")
+                    
+                    for row in sheet.iter_rows(values_only=True):
+                        row_text = []
+                        for cell in row:
+                            if cell is not None:
+                                # Convert cell value to string, handling different types
+                                cell_str = str(cell).strip()
+                                if cell_str:
+                                    row_text.append(cell_str)
+                        
+                        if row_text:
+                            text_parts.append(" | ".join(row_text))
+                        text_parts.append("\n")
+                
+                return "\n".join(text_parts).strip()
+            except Exception as e1:
+                # Fallback to pandas if openpyxl fails
+                try:
+                    import pandas as pd
+                    # Read all sheets
+                    excel_file = pd.ExcelFile(excel_path)
+                    for sheet_name in excel_file.sheet_names:
+                        df = pd.read_excel(excel_file, sheet_name=sheet_name)
+                        text_parts.append(f"\n=== Sheet: {sheet_name} ===\n")
+                        # Convert DataFrame to text representation
+                        text_parts.append(df.to_string(index=False))
+                        text_parts.append("\n")
+                    
+                    return "\n".join(text_parts).strip()
+                except Exception as e2:
+                    print(f"[Ingest] ❌ Excel error {excel_path.name}: {e1}, {e2}")
+                    return ""
+                    
+        except Exception as e:
+            print(f"[Ingest] ❌ Excel error {excel_path.name}: {e}")
+            return ""
+    
     def extract_text(self, file_path: Path) -> str:
         """Extract text based on file extension"""
         suffix = file_path.suffix.lower()
@@ -109,6 +172,8 @@ class AutoIngest:
             return self.extract_text_from_docx(file_path)
         elif suffix in ['.txt', '.md']:
             return self.extract_text_from_txt(file_path)
+        elif suffix in ['.xlsx', '.xls']:
+            return self.extract_text_from_excel(file_path)
         else:
             print(f"[Ingest] ⚠️ Unsupported format: {suffix}")
             return ""

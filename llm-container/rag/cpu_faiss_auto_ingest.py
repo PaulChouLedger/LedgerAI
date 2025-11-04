@@ -21,8 +21,9 @@ class CPUFAISSAutoIngest:
     """Auto-ingestion system for CPU FAISS"""
     
     def __init__(self):
-        self.input_dir = Path("../data/input")  # Relative to llm-medical-container
-        self.cpu_embeddings_dir = Path("../data/embeddings")  # Relative to llm-medical-container
+        self.input_dir = Path("../data/input")  # Relative to container
+        self.parsed_dir = Path("../data/parsed")  # Read parsed text from GPU RAG extraction
+        self.cpu_embeddings_dir = Path("../data/embeddings")  # Relative to container
         self.model_name = "all-distilroberta-v1"
         self.embedding_dimension = 768
         
@@ -36,6 +37,7 @@ class CPUFAISSAutoIngest:
         
         # Ensure directories exist
         self.input_dir.mkdir(parents=True, exist_ok=True)
+        self.parsed_dir.mkdir(parents=True, exist_ok=True)
         self.cpu_embeddings_dir.mkdir(parents=True, exist_ok=True)
         
         # Initialize model
@@ -94,38 +96,56 @@ class CPUFAISSAutoIngest:
         return chunks
     
     def _process_file(self, file_path: Path) -> bool:
-        """Process a single guideline file"""
+        """Process a single file - reads from parsed text in data/parsed/"""
         try:
+            # Check if corresponding parsed file exists
+            parsed_file = self.parsed_dir / f"{file_path.stem}.txt"
+            
+            if not parsed_file.exists():
+                # If no parsed file, try to read directly from input (for .txt files)
+                if file_path.suffix.lower() == '.txt':
+                    parsed_file = file_path
+                else:
+                    print(f"[Auto-Ingest] ⏭️ Skipping {file_path.name} - no parsed text available yet")
+                    return False
+            
             # Check if file was already processed
-            file_hash = self._get_file_hash(file_path)
-            if file_path.name in self.state["processed_files"]:
-                if self.state["processed_files"][file_path.name]["hash"] == file_hash:
+            file_hash = self._get_file_hash(parsed_file)
+            original_name = file_path.name  # Keep original filename for tracking
+            if original_name in self.state["processed_files"]:
+                if self.state["processed_files"][original_name]["hash"] == file_hash:
                     return False  # Already processed, no changes
             
             print(f"[Auto-Ingest] 📄 Processing: {file_path.name}")
             
-            # Read file content
-            with open(file_path, 'r', encoding='utf-8') as f:
+            # Read parsed content
+            with open(parsed_file, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # Extract guideline name from filename
-            guideline_name = file_path.stem.replace("GUIDELINE_", "")
+            if not content.strip():
+                print(f"[Auto-Ingest] ⚠️ Empty content in {parsed_file.name}")
+                return False
+            
+            # Extract document name from filename
+            doc_name = file_path.stem
             
             # Chunk the content
             chunks = self.chunk_text(content)
             
-            # Generate embeddings
-            embeddings = self.model.encode(chunks)
+            if not chunks:
+                print(f"[Auto-Ingest] ⚠️ No chunks created from {file_path.name}")
+                return False
             
             # Create metadata for each chunk
             chunk_metadata = []
             for i, chunk in enumerate(chunks):
                 chunk_metadata.append({
-                    "chunk_id": f"{guideline_name}_{i}",
-                    "guideline_name": guideline_name,
+                    "chunk_id": f"{doc_name}_{i}",
+                    "document_name": doc_name,
                     "chunk_index": i,
                     "text": chunk,
-                    "file_path": str(file_path)
+                    "file_path": str(file_path),
+                    "parsed_file": str(parsed_file)
                 })
             
             # Add to existing data
@@ -138,7 +158,7 @@ class CPUFAISSAutoIngest:
             self.metadata.extend(chunk_metadata)
             
             # Update state
-            self.state["processed_files"][file_path.name] = {
+            self.state["processed_files"][original_name] = {
                 "hash": file_hash,
                 "processed_at": time.time(),
                 "chunks": len(chunks)
@@ -149,6 +169,8 @@ class CPUFAISSAutoIngest:
             
         except Exception as e:
             print(f"[Auto-Ingest] ❌ Error processing {file_path.name}: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def _generate_embeddings(self) -> np.ndarray:
@@ -201,17 +223,21 @@ class CPUFAISSAutoIngest:
             raise
     
     def scan_and_process(self) -> Dict[str, Any]:
-        """Scan input directory and process new/modified files"""
+        """Scan input directory and process new/modified files from parsed text"""
         print("[Auto-Ingest] 🔍 Scanning for new/modified files...")
         
         processed_count = 0
         skipped_count = 0
         error_count = 0
         
-        # Find all guideline files
-        guideline_files = list(self.input_dir.glob("GUIDELINE_*.txt"))
+        # Find all files in input directory (PDF, DOCX, TXT, MD, XLSX, XLS, etc.)
+        # We'll process them by reading their parsed text counterparts
+        supported_extensions = ['.pdf', '.docx', '.txt', '.md', '.xlsx', '.xls']
+        input_files = []
+        for ext in supported_extensions:
+            input_files.extend(self.input_dir.glob(f"*{ext}"))
         
-        for file_path in guideline_files:
+        for file_path in input_files:
             try:
                 if self._process_file(file_path):
                     processed_count += 1

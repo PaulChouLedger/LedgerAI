@@ -1,4 +1,4 @@
-FROM faiss_lite:r36.4.tegra-aarch64-cu129-22.04
+FROM faiss_lite:r36.4.tegra-aarch64-cu129-22.04fi
 
 # Set working directory
 WORKDIR /app
@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir --ignore-installed \
     cuda-python \
     PyPDF2==3.0.1 \
     python-docx==0.8.11 \
+    openpyxl>=3.1.0 \
     watchdog>=3.0.0 \
     metaphone
 

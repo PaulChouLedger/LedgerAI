@@ -461,7 +461,7 @@ class FileUploadDialog(QDialog):
             self,
             "Select Documents to Upload",
             "",
-            "All Supported (*.pdf *.txt *.docx *.md);;PDF Files (*.pdf);;Text Files (*.txt);;Word Documents (*.docx);;Markdown (*.md)"
+            "All Supported (*.pdf *.txt *.docx *.md *.xlsx *.xls);;PDF Files (*.pdf);;Text Files (*.txt);;Word Documents (*.docx);;Markdown (*.md);;Excel Files (*.xlsx *.xls)"
         )
         
         if files:
@@ -469,7 +469,19 @@ class FileUploadDialog(QDialog):
                 if file_path not in self.uploaded_files:
                     self.uploaded_files.append(file_path)
                     filename = os.path.basename(file_path)
-                    item = QListWidgetItem(f"📄 {filename}")
+                    # Choose icon based on file type
+                    file_ext = os.path.splitext(filename)[1].lower()
+                    if file_ext in ['.xlsx', '.xls']:
+                        icon = "📊"
+                    elif file_ext == '.pdf':
+                        icon = "📕"
+                    elif file_ext in ['.docx', '.doc']:
+                        icon = "📘"
+                    elif file_ext in ['.md']:
+                        icon = "📝"
+                    else:
+                        icon = "📄"
+                    item = QListWidgetItem(f"{icon} {filename}")
                     item.setData(Qt.UserRole, file_path)
                     self.file_list.addItem(item)
             

@@ -17,6 +17,32 @@ from sentence_transformers import SentenceTransformer
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
+# File extraction dependencies
+try:
+    import PyPDF2
+    PDF_SUPPORT = True
+except ImportError:
+    PDF_SUPPORT = False
+    print("[Auto-Ingest] ⚠️ PDF support not available. Install PyPDF2: pip install PyPDF2")
+
+try:
+    import docx
+    DOCX_SUPPORT = True
+except ImportError:
+    DOCX_SUPPORT = False
+    print("[Auto-Ingest] ⚠️ DOCX support not available. Install python-docx: pip install python-docx")
+
+try:
+    import openpyxl
+    EXCEL_SUPPORT = True
+except ImportError:
+    try:
+        import pandas as pd
+        EXCEL_SUPPORT = True
+    except ImportError:
+        EXCEL_SUPPORT = False
+        print("[Auto-Ingest] ⚠️ Excel support not available. Install openpyxl: pip install openpyxl")
+
 class CPUFAISSAutoIngest:
     """Auto-ingestion system for CPU FAISS"""
     
@@ -104,9 +130,11 @@ class CPUFAISSAutoIngest:
             
             print(f"[Auto-Ingest] 📄 Processing: {file_path.name}")
             
-            # Read file content
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
+            # Extract text based on file type
+            content = self._extract_text(file_path)
+            if not content:
+                print(f"[Auto-Ingest] ⚠️ No content extracted from {file_path.name}")
+                return False
             
             # Extract guideline name from filename
             guideline_name = file_path.stem.replace("GUIDELINE_", "")
@@ -150,6 +178,96 @@ class CPUFAISSAutoIngest:
         except Exception as e:
             print(f"[Auto-Ingest] ❌ Error processing {file_path.name}: {e}")
             return False
+    
+    def _extract_text_from_pdf(self, pdf_path: Path) -> str:
+        """Extract text from PDF"""
+        if not PDF_SUPPORT:
+            return ""
+        try:
+            text = ""
+            with open(pdf_path, 'rb') as file:
+                pdf_reader = PyPDF2.PdfReader(file)
+                for page in pdf_reader.pages:
+                    text += page.extract_text() + "\n"
+            return text.strip()
+        except Exception as e:
+            print(f"[Auto-Ingest] ❌ PDF error {pdf_path.name}: {e}")
+            return ""
+    
+    def _extract_text_from_docx(self, docx_path: Path) -> str:
+        """Extract text from DOCX"""
+        if not DOCX_SUPPORT:
+            return ""
+        try:
+            doc = docx.Document(docx_path)
+            text = "\n".join([p.text for p in doc.paragraphs])
+            return text.strip()
+        except Exception as e:
+            print(f"[Auto-Ingest] ❌ DOCX error {docx_path.name}: {e}")
+            return ""
+    
+    def _extract_text_from_excel(self, excel_path: Path) -> str:
+        """Extract text from Excel files (.xlsx, .xls)"""
+        if not EXCEL_SUPPORT:
+            return ""
+        try:
+            text_parts = []
+            # Try using openpyxl first (for .xlsx)
+            try:
+                import openpyxl
+                wb = openpyxl.load_workbook(excel_path, data_only=True)
+                for sheet_name in wb.sheetnames:
+                    sheet = wb[sheet_name]
+                    text_parts.append(f"\n=== Sheet: {sheet_name} ===\n")
+                    for row in sheet.iter_rows(values_only=True):
+                        row_text = []
+                        for cell in row:
+                            if cell is not None:
+                                cell_str = str(cell).strip()
+                                if cell_str:
+                                    row_text.append(cell_str)
+                        if row_text:
+                            text_parts.append(" | ".join(row_text))
+                        text_parts.append("\n")
+                return "\n".join(text_parts).strip()
+            except Exception as e1:
+                # Fallback to pandas if openpyxl fails
+                try:
+                    import pandas as pd
+                    excel_file = pd.ExcelFile(excel_path)
+                    for sheet_name in excel_file.sheet_names:
+                        df = pd.read_excel(excel_file, sheet_name=sheet_name)
+                        text_parts.append(f"\n=== Sheet: {sheet_name} ===\n")
+                        text_parts.append(df.to_string(index=False))
+                        text_parts.append("\n")
+                    return "\n".join(text_parts).strip()
+                except Exception as e2:
+                    print(f"[Auto-Ingest] ❌ Excel error {excel_path.name}: {e1}, {e2}")
+                    return ""
+        except Exception as e:
+            print(f"[Auto-Ingest] ❌ Excel error {excel_path.name}: {e}")
+            return ""
+    
+    def _extract_text(self, file_path: Path) -> str:
+        """Extract text based on file extension"""
+        suffix = file_path.suffix.lower()
+        if suffix == '.pdf':
+            return self._extract_text_from_pdf(file_path)
+        elif suffix == '.docx':
+            return self._extract_text_from_docx(file_path)
+        elif suffix in ['.xlsx', '.xls']:
+            return self._extract_text_from_excel(file_path)
+        elif suffix in ['.txt', '.md']:
+            # Read plain text files
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    return f.read().strip()
+            except Exception as e:
+                print(f"[Auto-Ingest] ❌ TXT error {file_path.name}: {e}")
+                return ""
+        else:
+            print(f"[Auto-Ingest] ⚠️ Unsupported format: {suffix}")
+            return ""
     
     def _generate_embeddings(self) -> np.ndarray:
         """Generate embeddings for all chunks"""

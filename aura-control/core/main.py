@@ -718,7 +718,54 @@ def ingest_and_rebuild_embeddings():
         print(f"[Aura] 📂 Checking data/input/ for new files to ingest...")
         
         # Step 1: Trigger RAG ingest (handles ALL file types: PDF extraction, TXT copy, etc.)
-        ingest_response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
+        # Trigger both GPU RAG and CPU FAISS in parallel
+        import threading
+        
+        def trigger_gpu_rag():
+            try:
+                ingest_response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
+                if ingest_response.status_code == 200:
+                    print("[Aura] ✅ GPU RAG ingest triggered")
+                else:
+                    print(f"[Aura] ⚠️ GPU RAG ingest failed: HTTP {ingest_response.status_code}")
+            except Exception as e:
+                print(f"[Aura] ⚠️ GPU RAG ingest error: {e}")
+        
+        def trigger_cpu_rag_medical():
+            try:
+                cpu_response = requests.post("http://localhost:11434/cpu-faiss/ingest", timeout=30)
+                if cpu_response.status_code == 200:
+                    print("[Aura] ✅ Medical CPU FAISS ingest triggered")
+                else:
+                    print(f"[Aura] ⚠️ Medical CPU FAISS ingest failed: HTTP {cpu_response.status_code}")
+            except Exception as e:
+                print(f"[Aura] ⚠️ Medical CPU FAISS ingest error: {e}")
+        
+        def trigger_cpu_rag_generic():
+            try:
+                cpu_response = requests.post("http://localhost:11436/cpu-faiss/ingest", timeout=30)
+                if cpu_response.status_code == 200:
+                    print("[Aura] ✅ Generic CPU FAISS ingest triggered")
+                else:
+                    print(f"[Aura] ⚠️ Generic CPU FAISS ingest failed: HTTP {cpu_response.status_code}")
+            except Exception as e:
+                print(f"[Aura] ⚠️ Generic CPU FAISS ingest error: {e}")
+        
+        # Start all three in parallel (GPU RAG, Medical CPU, Generic CPU)
+        gpu_thread = threading.Thread(target=trigger_gpu_rag, daemon=True)
+        cpu_medical_thread = threading.Thread(target=trigger_cpu_rag_medical, daemon=True)
+        cpu_generic_thread = threading.Thread(target=trigger_cpu_rag_generic, daemon=True)
+        
+        gpu_thread.start()
+        cpu_medical_thread.start()
+        cpu_generic_thread.start()
+        
+        # Wait for all to complete
+        gpu_thread.join(timeout=30)
+        cpu_medical_thread.join(timeout=30)
+        cpu_generic_thread.join(timeout=30)
+        
+        ingest_response = type('obj', (object,), {'status_code': 200})()  # Dummy response for compatibility
         
         if ingest_response.status_code == 200:
             ingest_result = ingest_response.json()
