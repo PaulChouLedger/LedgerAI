@@ -22,25 +22,37 @@ class WiFiScanThread(QThread):
     def run(self):
         """Scan for available WiFi networks"""
         try:
-            # First, trigger a fresh scan (this forces NetworkManager to scan)
+            # Try to trigger a fresh scan (may require permissions)
+            # This is optional - if it fails, we'll use cached results
             scan_result = subprocess.run(
                 ['nmcli', 'device', 'wifi', 'rescan'],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=10
             )
             
-            # Wait a moment for scan to complete
-            import time
-            time.sleep(2)
+            # If rescan succeeded, wait for scan to complete
+            if scan_result.returncode == 0:
+                import time
+                time.sleep(3)  # Wait for scan to complete
             
-            # Now list all available networks (including disconnected ones)
+            # List all available networks (this doesn't require special permissions)
+            # This shows all networks NetworkManager knows about, including cached ones
             result = subprocess.run(
                 ['nmcli', '-t', '-f', 'SSID,SIGNAL,SECURITY,IN-USE', 'device', 'wifi', 'list'],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=20
             )
+            
+            # If that fails, try with explicit --rescan no flag
+            if result.returncode != 0:
+                result = subprocess.run(
+                    ['nmcli', '-t', '-f', 'SSID,SIGNAL,SECURITY,IN-USE', 'device', 'wifi', 'list', '--rescan', 'no'],
+                    capture_output=True,
+                    text=True,
+                    timeout=15
+                )
             
             if result.returncode != 0:
                 self.scan_error.emit(f"Scan failed: {result.stderr}")
@@ -50,33 +62,42 @@ class WiFiScanThread(QThread):
             seen_ssids = set()  # Track seen SSIDs to avoid duplicates
             
             for line in result.stdout.strip().split('\n'):
-                if line and ':' in line:
-                    parts = line.split(':')
-                    if len(parts) >= 3:
-                        ssid = parts[0] if parts[0] else "(Hidden)"
-                        signal = parts[1] if len(parts) > 1 else "0"
-                        security = parts[2] if len(parts) > 2 else "Open"
-                        in_use = parts[3] if len(parts) > 3 else ""
-                        
-                        # Skip if no SSID or already seen
-                        if not ssid or ssid == "(none)" or ssid in seen_ssids:
-                            continue
-                        
-                        try:
-                            signal_int = int(signal) if signal.isdigit() else 0
-                            seen_ssids.add(ssid)
-                            
-                            networks.append({
-                                'ssid': ssid,
-                                'signal': signal_int,
-                                'security': security,
-                                'connected': in_use == '*'
-                            })
-                        except:
-                            pass
+                if not line or ':' not in line:
+                    continue
+                
+                parts = line.split(':')
+                if len(parts) < 2:
+                    continue
+                
+                ssid = parts[0].strip() if parts[0] else ""
+                signal = parts[1].strip() if len(parts) > 1 else "0"
+                security = parts[2].strip() if len(parts) > 2 else "Open"
+                in_use = parts[3].strip() if len(parts) > 3 else ""
+                
+                # Skip empty SSIDs or placeholder values
+                if not ssid or ssid == "(none)" or ssid == "none" or ssid == "--":
+                    continue
+                
+                # Skip if already seen (to avoid duplicates)
+                if ssid in seen_ssids:
+                    continue
+                
+                try:
+                    signal_int = int(signal) if signal.isdigit() else 0
+                    seen_ssids.add(ssid)
+                    
+                    networks.append({
+                        'ssid': ssid,
+                        'signal': signal_int,
+                        'security': security if security else "Open",
+                        'connected': in_use == '*'
+                    })
+                except Exception as e:
+                    # Skip invalid entries
+                    continue
             
-            # Sort by signal strength (strongest first)
-            networks.sort(key=lambda x: x['signal'], reverse=True)
+            # Sort by signal strength (strongest first), then by SSID
+            networks.sort(key=lambda x: (x['signal'], x['ssid']), reverse=True)
             self.networks_found.emit(networks)
             
         except subprocess.TimeoutExpired:
