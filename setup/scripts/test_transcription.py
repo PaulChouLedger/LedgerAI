@@ -100,16 +100,17 @@ ENABLE_ADVANCED_FILTER = True  # Toggle this to test
 # Thresholds based on your ACTUAL speech patterns:
 # Updated after comparing real speech vs noise bursts
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this (speech can be 0.15-0.35)
-SPEECH_FLATNESS_MAX = 0.30      # Reject if too "flat" (noisy, not tonal) - tightened from 0.35
+SPEECH_FLATNESS_MAX = 0.45      # Reject if too "flat" (noisy, not tonal) - raised from 0.30 for new firmware
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss) - raised for fricatives
 SPEECH_BAND_MIN = 0.30          # Reject if insufficient energy in speech band
 SPEECH_DURATION_MIN = 0.4       # Seconds - reject if too short (noise bursts)
 
 # CRITICAL: Energy thresholds (most reliable for your noise pattern)
-SPEECH_RMS_MIN = 0.035          # Reject if RMS < this (noise is 0.018-0.026, speech is 0.097)
+# Updated after firmware tweaks - speech now has lower RMS/Peak values
+SPEECH_RMS_MIN = 0.005          # Reject if RMS < this (updated from 0.035 for new firmware)
 SPEECH_RMS_MAX = 0.40           # Reject if RMS > this (abnormally loud = likely noise/artifact)
-SPEECH_PEAK_MIN = 0.15          # Reject if peak < this (noise is 0.08-0.12, speech is 0.96)
+SPEECH_PEAK_MIN = 0.010         # Reject if peak < this (updated from 0.15 for new firmware)
 SPEECH_HIGH_FREQ_MAX = 0.06     # Reject if high freq ratio > this (hiss/noise)
 
 # === Soft Clipping Prevention ===
