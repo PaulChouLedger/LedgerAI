@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Configuration
-RAG_ENABLED = os.environ.get('RAG_ENABLED', 'false').lower() == 'true'
+RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()  # GPU = RAG container, CPU = CPU FAISS
 RAG_SERVICE_URL = os.environ.get('RAG_SERVICE_URL', 'http://localhost:11435')
 RAG_TIMEOUT = int(os.environ.get('RAG_TIMEOUT', '10'))
 
@@ -39,9 +39,9 @@ class RAGClient:
         Initialize RAG client
         
         Args:
-            use_gpu: Force GPU mode (True) or CPU mode (False). If None, uses RAG_ENABLED env var
+            use_gpu: Force GPU mode (True) or CPU mode (False). If None, uses RAG_MODE env var
         """
-        self.use_gpu = RAG_ENABLED if use_gpu is None else use_gpu
+        self.use_gpu = (RAG_MODE == 'GPU') if use_gpu is None else use_gpu
         self._cpu_rag = None
         self._mode = "GPU (External RAG Container - HTTP API)" if self.use_gpu else "CPU (Local FAISS - In-Process)"
         

@@ -316,16 +316,16 @@ def warm_up_rag():
 def start_services():
     TIMEOUT = 10  # Reduced timeout for faster startup
     
-    # Check if RAG container should be started
-    RAG_ENABLED = os.environ.get('RAG_ENABLED', 'false').lower() == 'true'
+    # Check RAG mode (GPU = RAG container, CPU = CPU FAISS in LLM containers)
+    RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
     
     # Check which LLM mode to use
     USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'true').lower() == 'true'
     
-    if RAG_ENABLED:
-        print("[Aura] 🚀 Starting all containers in parallel (including RAG)...")
+    if RAG_MODE == 'GPU':
+        print("[Aura] 🚀 Starting all containers in parallel (RAG_MODE=GPU - using RAG container)...")
     else:
-        print("[Aura] 🚀 Starting containers (RAG disabled - using CPU mode)...")
+        print("[Aura] 🚀 Starting containers (RAG_MODE=CPU - using CPU FAISS in LLM containers)...")
     
     # Start all containers using Docker Compose
     def start_all_containers():
@@ -354,11 +354,11 @@ def start_services():
             
             # Determine which services to start
             services_to_start = ["whisper", llm_service]
-            if RAG_ENABLED:
+            if RAG_MODE == 'GPU':
                 services_to_start.append("rag")
-                print("[Aura] 🔍 RAG enabled - starting all containers including RAG")
+                print("[Aura] 🔍 RAG_MODE=GPU - starting all containers including RAG container")
             else:
-                print("[Aura] ⏭️  RAG disabled - starting Whisper and LLM only")
+                print("[Aura] ⏭️  RAG_MODE=CPU - starting Whisper and LLM only (CPU FAISS in LLM containers)")
             
             # Start selected services with Docker Compose (different ports for each LLM)
             cmd = ["docker", "compose", "up", "-d"] + services_to_start
@@ -392,8 +392,8 @@ def start_services():
             if not llm_ready:
                 return False
             
-            # Check RAG if enabled
-            if RAG_ENABLED:
+            # Check RAG container if GPU mode
+            if RAG_MODE == 'GPU':
                 rag_ready = wait_for_container("http://localhost:11435/health", "RAG", timeout=90)
                 if not rag_ready:
                     return False
@@ -471,12 +471,10 @@ def start_services():
         print("[Aura] ❌ LLM warm-up failed. Aborting.")
         return
     
-    # Step 5: Initialize RAG immediately after LLM warm-up (if enabled)
-    if RAG_ENABLED:
-        print("[Aura] 🔍 Initializing RAG system...")
-        initialize_rag_delayed()  # Run synchronously, not in thread
-    else:
-        print("[Aura] ⏭️  Skipping RAG initialization (using CPU mode in LLM container)")
+    # Step 5: Initialize RAG immediately after LLM warm-up (RAG is always enabled, mode determines implementation)
+    RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
+    print(f"[Aura] 🔍 Initializing RAG system (RAG_MODE={RAG_MODE})...")
+    initialize_rag_delayed()  # Run synchronously, not in thread
     
     # Step 6: Start file upload server (if available)
     if UPLOAD_SERVER_AVAILABLE:
@@ -491,9 +489,10 @@ def start_services():
     print("[Aura] ℹ️ Data ingestion: Handled by background process if new files detected")
     print("[Aura] ℹ️ Auto-ingest: Triggered by file uploads via web server")
     
-    # Step 8: Final RAG ready check before starting listener (if enabled)
-    if RAG_ENABLED:
-        print("[Aura] 🔍 Final RAG ready check before starting listener...")
+    # Step 8: Final RAG ready check before starting listener (if GPU mode)
+    RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
+    if RAG_MODE == 'GPU':
+        print("[Aura] 🔍 Final RAG container ready check before starting listener...")
         try:
             final_check = requests.post(
                 "http://localhost:11435/rag/search",
@@ -691,45 +690,42 @@ def ingest_and_rebuild_embeddings():
     try:
         workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
         
-        print(f"[Aura] 📂 Waiting for RAG container to be ready for data ingestion...")
+        # Check RAG mode
+        RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
         
-        import requests
-        import time
-        
-        # Wait up to 30 seconds for RAG container to be ready
-        rag_ready = False
-        for attempt in range(30):
-            try:
-                health_check = requests.get("http://localhost:11435/health", timeout=2)
-                if health_check.status_code == 200:
-                    rag_ready = True
-                    print(f"[Aura] ✅ RAG container ready")
-                    break
-            except:
-                if attempt < 29:
-                    time.sleep(1)
-                else:
-                    print(f"[Aura] ⚠️ RAG container not responding - skipping data ingestion")
-                    return
-        
-        if not rag_ready:
-            return
+        # Only wait for RAG container if GPU mode
+        if RAG_MODE == 'GPU':
+            print(f"[Aura] 📂 Waiting for RAG container to be ready for data ingestion...")
+            
+            import requests
+            import time
+            
+            # Wait up to 30 seconds for RAG container to be ready
+            rag_ready = False
+            for attempt in range(30):
+                try:
+                    health_check = requests.get("http://localhost:11435/health", timeout=2)
+                    if health_check.status_code == 200:
+                        rag_ready = True
+                        print(f"[Aura] ✅ RAG container ready")
+                        break
+                except:
+                    if attempt < 29:
+                        time.sleep(1)
+                    else:
+                        print(f"[Aura] ⚠️ RAG container not responding - skipping data ingestion")
+                        return
+            
+            if not rag_ready:
+                return
         
         print(f"[Aura] 📂 Checking data/input/ for new files to ingest...")
         
-        # Step 1: Trigger RAG ingest (handles ALL file types: PDF extraction, TXT copy, etc.)
-        # Trigger both GPU RAG and CPU FAISS in parallel
+        # Step 1: Trigger ingest based on RAG_MODE setting
         import threading
         
-        def trigger_gpu_rag():
-            try:
-                ingest_response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
-                if ingest_response.status_code == 200:
-                    print("[Aura] ✅ GPU RAG ingest triggered")
-                else:
-                    print(f"[Aura] ⚠️ GPU RAG ingest failed: HTTP {ingest_response.status_code}")
-            except Exception as e:
-                print(f"[Aura] ⚠️ GPU RAG ingest error: {e}")
+        # Check RAG_MODE from environment (GPU = RAG container, CPU = CPU FAISS)
+        RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
         
         def trigger_cpu_rag_medical():
             try:
@@ -751,21 +747,43 @@ def ingest_and_rebuild_embeddings():
             except Exception as e:
                 print(f"[Aura] ⚠️ Generic CPU FAISS ingest error: {e}")
         
-        # Start all three in parallel (GPU RAG, Medical CPU, Generic CPU)
-        gpu_thread = threading.Thread(target=trigger_gpu_rag, daemon=True)
-        cpu_medical_thread = threading.Thread(target=trigger_cpu_rag_medical, daemon=True)
-        cpu_generic_thread = threading.Thread(target=trigger_cpu_rag_generic, daemon=True)
-        
-        gpu_thread.start()
-        cpu_medical_thread.start()
-        cpu_generic_thread.start()
-        
-        # Wait for all to complete
-        gpu_thread.join(timeout=30)
-        cpu_medical_thread.join(timeout=30)
-        cpu_generic_thread.join(timeout=30)
-        
-        ingest_response = type('obj', (object,), {'status_code': 200})()  # Dummy response for compatibility
+        if RAG_MODE == 'GPU':
+            # GPU RAG mode: Use RAG container only (skip CPU FAISS)
+            print("[Aura] 🚀 RAG_MODE=GPU - using RAG container")
+            def trigger_gpu_rag():
+                try:
+                    ingest_response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
+                    if ingest_response.status_code == 200:
+                        result = ingest_response.json()
+                        print(f"[Aura] ✅ GPU RAG ingest: {result.get('processed', 0)} processed, {result.get('skipped', 0)} skipped")
+                        return result
+                    else:
+                        print(f"[Aura] ⚠️ GPU RAG ingest failed: HTTP {ingest_response.status_code}")
+                        return None
+                except Exception as e:
+                    print(f"[Aura] ⚠️ GPU RAG ingest error: {e}")
+                    return None
+            
+            # Trigger GPU RAG only
+            result = trigger_gpu_rag()
+            if result:
+                ingest_response = type('obj', (object,), {'status_code': 200, 'json': lambda: result})()
+            else:
+                ingest_response = type('obj', (object,), {'status_code': 500})()
+        else:
+            # CPU RAG mode: Use CPU FAISS only (skip GPU RAG container)
+            print("[Aura] 💻 RAG_MODE=CPU - using CPU FAISS in LLM containers")
+            cpu_medical_thread = threading.Thread(target=trigger_cpu_rag_medical, daemon=True)
+            cpu_generic_thread = threading.Thread(target=trigger_cpu_rag_generic, daemon=True)
+            
+            cpu_medical_thread.start()
+            cpu_generic_thread.start()
+            
+            cpu_medical_thread.join(timeout=30)
+            cpu_generic_thread.join(timeout=30)
+            
+            # Dummy response for compatibility (CPU FAISS handles its own state)
+            ingest_response = type('obj', (object,), {'status_code': 200, 'json': lambda: {'processed': 0, 'skipped': 0}})()
         
         if ingest_response.status_code == 200:
             ingest_result = ingest_response.json()

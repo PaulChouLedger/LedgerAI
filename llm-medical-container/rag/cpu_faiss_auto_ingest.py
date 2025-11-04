@@ -17,6 +17,33 @@ from sentence_transformers import SentenceTransformer
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
+# Excel support
+try:
+    import openpyxl
+    EXCEL_SUPPORT = True
+except ImportError:
+    try:
+        import pandas as pd
+        EXCEL_SUPPORT = True
+    except ImportError:
+        EXCEL_SUPPORT = False
+        print("[Auto-Ingest] ⚠️ Excel support not available. Install openpyxl or pandas")
+
+# PDF and DOCX support
+try:
+    import PyPDF2
+    PDF_SUPPORT = True
+except ImportError:
+    PDF_SUPPORT = False
+    print("[Auto-Ingest] ⚠️ PDF support not available. Install PyPDF2")
+
+try:
+    import docx
+    DOCX_SUPPORT = True
+except ImportError:
+    DOCX_SUPPORT = False
+    print("[Auto-Ingest] ⚠️ DOCX support not available. Install python-docx")
+
 # File extraction dependencies
 try:
     import PyPDF2

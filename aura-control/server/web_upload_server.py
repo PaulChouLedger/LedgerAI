@@ -15,7 +15,7 @@ import socket
 
 # Configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'data', 'input')
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'doc', 'docx', 'md', 'rtf', 'odt', 'wav', 'mp3', 'mp4', 'avi', 'mov', 'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'doc', 'docx', 'md', 'rtf', 'odt', 'xlsx', 'xls', 'wav', 'mp3', 'mp4', 'avi', 'mov', 'png', 'jpg', 'jpeg', 'gif'}
 MAX_CONTENT_LENGTH = 1024 * 1024 * 1024  # 1GB max file size
 
 # Get local IP address
@@ -163,7 +163,7 @@ UPLOAD_TEMPLATE = """
         <form method="post" action="/upload" enctype="multipart/form-data" id="uploadForm">
             <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                 <h3>📤 Drop files here or click to select</h3>
-                <p>Supported formats: PDF, DOC, TXT, MD, RTF, ODT, WAV, MP3, MP4, AVI, MOV, PNG, JPG, GIF</p>
+                <p>Supported formats: PDF, DOC, DOCX, TXT, MD, RTF, ODT, XLSX, XLS, WAV, MP3, MP4, AVI, MOV, PNG, JPG, GIF</p>
                 <input type="file" id="fileInput" name="files" multiple class="file-input" onchange="handleFiles(this.files)">
                 <div id="fileStatus"></div>
             </div>
@@ -290,18 +290,12 @@ def upload_files():
             
             # Step 1: Container extracts text from PDFs/TXT/DOCX
             print(f"[Aura-Upload] 🔄 Step 1: Extracting text...")
-            # Trigger both GPU RAG and CPU FAISS in parallel
+            # Trigger ingest based on RAG_MODE setting
             import threading
+            import os
             
-            def trigger_gpu_rag():
-                try:
-                    response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
-                    if response.status_code == 200:
-                        print("[Upload] ✅ GPU RAG ingest triggered")
-                    else:
-                        print(f"[Upload] ⚠️ GPU RAG ingest failed: HTTP {response.status_code}")
-                except Exception as e:
-                    print(f"[Upload] ⚠️ GPU RAG ingest error: {e}")
+            # Check RAG_MODE from environment (GPU = RAG container, CPU = CPU FAISS)
+            RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
             
             def trigger_cpu_rag_medical():
                 try:
@@ -323,21 +317,34 @@ def upload_files():
                 except Exception as e:
                     print(f"[Upload] ⚠️ Generic CPU FAISS ingest error: {e}")
             
-            # Start all three in parallel (GPU RAG, Medical CPU, Generic CPU)
-            gpu_thread = threading.Thread(target=trigger_gpu_rag, daemon=True)
-            cpu_medical_thread = threading.Thread(target=trigger_cpu_rag_medical, daemon=True)
-            cpu_generic_thread = threading.Thread(target=trigger_cpu_rag_generic, daemon=True)
-            
-            gpu_thread.start()
-            cpu_medical_thread.start()
-            cpu_generic_thread.start()
-            
-            # Wait for all to complete
-            gpu_thread.join(timeout=30)
-            cpu_medical_thread.join(timeout=30)
-            cpu_generic_thread.join(timeout=30)
-            
-            response = type('obj', (object,), {'status_code': 200})()  # Dummy response for compatibility
+            if RAG_MODE == 'GPU':
+                # GPU RAG mode: Use RAG container only (skip CPU FAISS)
+                print("[Upload] 🚀 RAG_MODE=GPU - using RAG container")
+                try:
+                    response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
+                    if response.status_code == 200:
+                        result = response.json()
+                        print(f"[Upload] ✅ GPU RAG ingest: {result.get('processed', 0)} processed, {result.get('skipped', 0)} skipped")
+                    else:
+                        print(f"[Upload] ⚠️ GPU RAG ingest failed: HTTP {response.status_code}")
+                        response = type('obj', (object,), {'status_code': response.status_code})()
+                except Exception as e:
+                    print(f"[Upload] ⚠️ GPU RAG ingest error: {e}")
+                    response = type('obj', (object,), {'status_code': 500})()
+            else:
+                # CPU RAG mode: Use CPU FAISS only (skip GPU RAG container)
+                print("[Upload] 💻 RAG_MODE=CPU - using CPU FAISS in LLM containers")
+                cpu_medical_thread = threading.Thread(target=trigger_cpu_rag_medical, daemon=True)
+                cpu_generic_thread = threading.Thread(target=trigger_cpu_rag_generic, daemon=True)
+                
+                cpu_medical_thread.start()
+                cpu_generic_thread.start()
+                
+                cpu_medical_thread.join(timeout=30)
+                cpu_generic_thread.join(timeout=30)
+                
+                # Dummy response for compatibility (CPU FAISS handles its own state)
+                response = type('obj', (object,), {'status_code': 200, 'json': lambda: {'processed': 0, 'skipped': 0}})()
             if response.status_code == 200:
                 result = response.json()
                 processed = result.get('processed', 0)

@@ -101,9 +101,9 @@ show_all_settings() {
     echo -e "${BOLD}📚 RAG SEARCH${NC}"
     local rag_mode=$(get_config_value 'RAG_MODE')
     if [ "$rag_mode" == "GPU" ]; then
-        echo -e "  ${GREEN}●${NC} Mode:          GPU FAISS (fast, separate container)"
+        echo -e "  ${GREEN}●${NC} Mode:          GPU (RAG container - port 11435)"
     else
-        echo -e "  ${YELLOW}○${NC} Mode:          CPU FAISS (local processing)"
+        echo -e "  ${YELLOW}○${NC} Mode:          CPU (FAISS in LLM containers - ports 11434/11436)"
     fi
     echo "  Threshold:     $(get_config_value 'RAG_THRESHOLD')"
     echo "  Top K:         $(get_config_value 'RAG_TOP_K')"
@@ -399,9 +399,9 @@ configure_rag() {
     echo "Current Settings:"
     echo ""
     if [ "$rag_mode" == "GPU" ]; then
-        echo -e "  RAG Mode:     ${GREEN}GPU FAISS${NC} (fast, separate container)"
+        echo -e "  RAG Mode:     ${GREEN}GPU${NC} (RAG container - port 11435)"
     else
-        echo -e "  RAG Mode:     ${YELLOW}CPU FAISS${NC} (local processing)"
+        echo -e "  RAG Mode:     ${YELLOW}CPU${NC} (FAISS in LLM containers)"
     fi
     echo "  Threshold:    $(get_config_value 'RAG_THRESHOLD')"
     echo "  Top K:        $(get_config_value 'RAG_TOP_K')"
@@ -420,40 +420,38 @@ configure_rag() {
             echo ""
             local current=$(get_config_value 'RAG_MODE')
             if [ "$current" == "GPU" ]; then
-                echo "Currently: GPU FAISS (separate RAG container)"
+                echo "Currently: RAG_MODE=GPU (RAG container - port 11435)"
                 echo ""
-                read -p "Switch to CPU FAISS (local processing)? (y/n): " answer
+                read -p "Switch to RAG_MODE=CPU (FAISS in LLM containers)? (y/n): " answer
                 if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
                     set_config_value "RAG_MODE" "CPU"
                     echo ""
-                    echo -e "${GREEN}✅ Switched to CPU FAISS${NC}"
+                    echo -e "${GREEN}✅ Switched to RAG_MODE=CPU${NC}"
                     echo ""
-                    echo "Benefits:"
+                    echo "RAG is still enabled, but now using:"
+                    echo "  • CPU FAISS within LLM containers (ports 11434/11436)"
                     echo "  • No separate RAG container needed"
-                    echo "  • Simpler setup"
-                    echo "  • No network calls"
-                    echo ""
-                    echo "Drawbacks:"
-                    echo "  • Slower for large batches"
-                    echo "  • Limited scalability"
+                    echo "  • Simpler setup, no network calls"
+                    echo "  • Direct file processing in LLM containers"
                     echo ""
                     show_restart_message
                 fi
             else
-                echo "Currently: CPU FAISS (local processing)"
+                echo "Currently: RAG_MODE=CPU (FAISS in LLM containers)"
                 echo ""
-                read -p "Switch to GPU FAISS (separate RAG container)? (y/n): " answer
+                read -p "Switch to RAG_MODE=GPU (separate RAG container)? (y/n): " answer
                 if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
                     set_config_value "RAG_MODE" "GPU"
                     echo ""
-                    echo -e "${GREEN}✅ Switched to GPU FAISS${NC}"
+                    echo -e "${GREEN}✅ Switched to RAG_MODE=GPU${NC}"
                     echo ""
-                    echo "Benefits:"
+                    echo "RAG is still enabled, but now using:"
+                    echo "  • Separate RAG container (port 11435)"
+                    echo "  • GPU-accelerated FAISS"
                     echo "  • Faster for large batches"
                     echo "  • Better scalability"
-                    echo "  • GPU acceleration"
                     echo ""
-                    echo "Note: Requires GPU and separate RAG container"
+                    echo "Note: Requires GPU and RAG container to be running"
                     echo ""
                     show_restart_message
                 fi

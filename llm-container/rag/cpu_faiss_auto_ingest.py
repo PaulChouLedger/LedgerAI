@@ -17,6 +17,33 @@ from sentence_transformers import SentenceTransformer
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
+# Excel support
+try:
+    import openpyxl
+    EXCEL_SUPPORT = True
+except ImportError:
+    try:
+        import pandas as pd
+        EXCEL_SUPPORT = True
+    except ImportError:
+        EXCEL_SUPPORT = False
+        print("[Auto-Ingest] ⚠️ Excel support not available. Install openpyxl or pandas")
+
+# PDF and DOCX support
+try:
+    import PyPDF2
+    PDF_SUPPORT = True
+except ImportError:
+    PDF_SUPPORT = False
+    print("[Auto-Ingest] ⚠️ PDF support not available. Install PyPDF2")
+
+try:
+    import docx
+    DOCX_SUPPORT = True
+except ImportError:
+    DOCX_SUPPORT = False
+    print("[Auto-Ingest] ⚠️ DOCX support not available. Install python-docx")
+
 class CPUFAISSAutoIngest:
     """Auto-ingestion system for CPU FAISS"""
     
@@ -95,35 +122,108 @@ class CPUFAISSAutoIngest:
         
         return chunks
     
+    def _extract_text_from_file(self, file_path: Path) -> str:
+        """Extract text from various file formats"""
+        suffix = file_path.suffix.lower()
+        
+        if suffix == '.txt' or suffix == '.md':
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    return f.read().strip()
+            except Exception as e:
+                print(f"[Auto-Ingest] ❌ Error reading {file_path.name}: {e}")
+                return ""
+        
+        elif suffix == '.pdf':
+            if not PDF_SUPPORT:
+                print(f"[Auto-Ingest] ⚠️ PDF support not available for {file_path.name}")
+                return ""
+            try:
+                text = ""
+                with open(file_path, 'rb') as file:
+                    pdf_reader = PyPDF2.PdfReader(file)
+                    for page in pdf_reader.pages:
+                        text += page.extract_text() + "\n"
+                return text.strip()
+            except Exception as e:
+                print(f"[Auto-Ingest] ❌ PDF error {file_path.name}: {e}")
+                return ""
+        
+        elif suffix == '.docx':
+            if not DOCX_SUPPORT:
+                print(f"[Auto-Ingest] ⚠️ DOCX support not available for {file_path.name}")
+                return ""
+            try:
+                doc = docx.Document(file_path)
+                text = "\n".join([p.text for p in doc.paragraphs])
+                return text.strip()
+            except Exception as e:
+                print(f"[Auto-Ingest] ❌ DOCX error {file_path.name}: {e}")
+                return ""
+        
+        elif suffix in ['.xlsx', '.xls']:
+            if not EXCEL_SUPPORT:
+                print(f"[Auto-Ingest] ⚠️ Excel support not available for {file_path.name}")
+                return ""
+            try:
+                text_parts = []
+                # Try using openpyxl first (for .xlsx)
+                try:
+                    import openpyxl
+                    wb = openpyxl.load_workbook(file_path, data_only=True)
+                    for sheet_name in wb.sheetnames:
+                        sheet = wb[sheet_name]
+                        text_parts.append(f"\n=== Sheet: {sheet_name} ===\n")
+                        for row in sheet.iter_rows(values_only=True):
+                            row_text = []
+                            for cell in row:
+                                if cell is not None:
+                                    cell_str = str(cell).strip()
+                                    if cell_str:
+                                        row_text.append(cell_str)
+                            if row_text:
+                                text_parts.append(" | ".join(row_text))
+                            text_parts.append("\n")
+                    return "\n".join(text_parts).strip()
+                except Exception as e1:
+                    # Fallback to pandas if openpyxl fails
+                    try:
+                        import pandas as pd
+                        excel_file = pd.ExcelFile(file_path)
+                        for sheet_name in excel_file.sheet_names:
+                            df = pd.read_excel(excel_file, sheet_name=sheet_name)
+                            text_parts.append(f"\n=== Sheet: {sheet_name} ===\n")
+                            text_parts.append(df.to_string(index=False))
+                            text_parts.append("\n")
+                        return "\n".join(text_parts).strip()
+                    except Exception as e2:
+                        print(f"[Auto-Ingest] ❌ Excel error {file_path.name}: {e1}, {e2}")
+                        return ""
+            except Exception as e:
+                print(f"[Auto-Ingest] ❌ Excel error {file_path.name}: {e}")
+                return ""
+        
+        else:
+            print(f"[Auto-Ingest] ⚠️ Unsupported format: {suffix}")
+            return ""
+    
     def _process_file(self, file_path: Path) -> bool:
-        """Process a single file - reads from parsed text in data/parsed/"""
+        """Process a single file - extracts text directly from input files"""
         try:
-            # Check if corresponding parsed file exists
-            parsed_file = self.parsed_dir / f"{file_path.stem}.txt"
-            
-            if not parsed_file.exists():
-                # If no parsed file, try to read directly from input (for .txt files)
-                if file_path.suffix.lower() == '.txt':
-                    parsed_file = file_path
-                else:
-                    print(f"[Auto-Ingest] ⏭️ Skipping {file_path.name} - no parsed text available yet")
-                    return False
-            
             # Check if file was already processed
-            file_hash = self._get_file_hash(parsed_file)
-            original_name = file_path.name  # Keep original filename for tracking
+            file_hash = self._get_file_hash(file_path)
+            original_name = file_path.name
             if original_name in self.state["processed_files"]:
                 if self.state["processed_files"][original_name]["hash"] == file_hash:
                     return False  # Already processed, no changes
             
             print(f"[Auto-Ingest] 📄 Processing: {file_path.name}")
             
-            # Read parsed content
-            with open(parsed_file, 'r', encoding='utf-8') as f:
-                content = f.read()
+            # Extract text directly from file
+            content = self._extract_text_from_file(file_path)
             
             if not content.strip():
-                print(f"[Auto-Ingest] ⚠️ Empty content in {parsed_file.name}")
+                print(f"[Auto-Ingest] ⚠️ Empty content extracted from {file_path.name}")
                 return False
             
             # Extract document name from filename
