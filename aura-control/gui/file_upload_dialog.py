@@ -844,8 +844,10 @@ class UploadWorker(QThread):
         success_count = 0
         error_count = 0
         
-        # Ensure data/input directory exists
-        input_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'input'))
+        # Ensure data/input directory exists at workspace root
+        # From aura-control/gui/ we need to go up 2 levels to workspace root
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        input_dir = os.path.join(workspace_root, 'data', 'input')
         os.makedirs(input_dir, exist_ok=True)
         
         for i, file_path in enumerate(self.files):

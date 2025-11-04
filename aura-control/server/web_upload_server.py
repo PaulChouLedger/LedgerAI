@@ -14,7 +14,10 @@ from werkzeug.utils import secure_filename
 import socket
 
 # Configuration
-UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'data', 'input')
+# Upload folder should be at workspace root: LedgerAI/data/input
+# From aura-control/server/ we need to go up 2 levels to workspace root
+_workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+UPLOAD_FOLDER = os.path.join(_workspace_root, 'data', 'input')
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'doc', 'docx', 'md', 'rtf', 'odt', 'xlsx', 'xls', 'wav', 'mp3', 'mp4', 'avi', 'mov', 'png', 'jpg', 'jpeg', 'gif'}
 MAX_CONTENT_LENGTH = 1024 * 1024 * 1024  # 1GB max file size
 
@@ -259,9 +262,14 @@ def upload_files():
     # Ensure upload folder exists
     try:
         os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-        print(f"[Aura-Upload] 📁 Upload folder: {UPLOAD_FOLDER}")
+        abs_path = os.path.abspath(UPLOAD_FOLDER)
+        print(f"[Aura-Upload] 📁 Upload folder: {abs_path}")
+        
+        # Verify the folder is writable
+        if not os.access(abs_path, os.W_OK):
+            raise PermissionError(f"Upload folder is not writable: {abs_path}")
     except Exception as e:
-        print(f"[Aura-Upload] ❌ Failed to create upload folder: {e}")
+        print(f"[Aura-Upload] ❌ Failed to create/access upload folder: {e}")
         flash(f'Upload folder error: {e}', 'error')
         return redirect(url_for('index'))
     
