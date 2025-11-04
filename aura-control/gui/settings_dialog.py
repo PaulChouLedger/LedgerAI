@@ -22,9 +22,21 @@ class WiFiScanThread(QThread):
     def run(self):
         """Scan for available WiFi networks"""
         try:
-            # Use nmcli to scan and list networks
+            # First, trigger a fresh scan (this forces NetworkManager to scan)
+            scan_result = subprocess.run(
+                ['nmcli', 'device', 'wifi', 'rescan'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            # Wait a moment for scan to complete
+            import time
+            time.sleep(2)
+            
+            # Now list all available networks (including disconnected ones)
             result = subprocess.run(
-                ['nmcli', '-t', '-f', 'SSID,SIGNAL,SECURITY', 'device', 'wifi', 'list'],
+                ['nmcli', '-t', '-f', 'SSID,SIGNAL,SECURITY,IN-USE', 'device', 'wifi', 'list'],
                 capture_output=True,
                 text=True,
                 timeout=10
@@ -35,6 +47,8 @@ class WiFiScanThread(QThread):
                 return
             
             networks = []
+            seen_ssids = set()  # Track seen SSIDs to avoid duplicates
+            
             for line in result.stdout.strip().split('\n'):
                 if line and ':' in line:
                     parts = line.split(':')
@@ -42,19 +56,26 @@ class WiFiScanThread(QThread):
                         ssid = parts[0] if parts[0] else "(Hidden)"
                         signal = parts[1] if len(parts) > 1 else "0"
                         security = parts[2] if len(parts) > 2 else "Open"
+                        in_use = parts[3] if len(parts) > 3 else ""
                         
-                        if ssid and ssid != "(none)":
-                            try:
-                                signal_int = int(signal) if signal.isdigit() else 0
-                                networks.append({
-                                    'ssid': ssid,
-                                    'signal': signal_int,
-                                    'security': security
-                                })
-                            except:
-                                pass
+                        # Skip if no SSID or already seen
+                        if not ssid or ssid == "(none)" or ssid in seen_ssids:
+                            continue
+                        
+                        try:
+                            signal_int = int(signal) if signal.isdigit() else 0
+                            seen_ssids.add(ssid)
+                            
+                            networks.append({
+                                'ssid': ssid,
+                                'signal': signal_int,
+                                'security': security,
+                                'connected': in_use == '*'
+                            })
+                        except:
+                            pass
             
-            # Sort by signal strength
+            # Sort by signal strength (strongest first)
             networks.sort(key=lambda x: x['signal'], reverse=True)
             self.networks_found.emit(networks)
             
@@ -278,8 +299,8 @@ class SettingsDialog(QDialog):
         
         # WiFi Section
         wifi_label = QLabel("📶 WiFi Setup")
-        wifi_label.setFont(QFont("Arial", 14, QFont.Bold))
-        wifi_label.setStyleSheet("color: #ffffff; margin-top: 20px;")
+        wifi_label.setFont(QFont("Arial", 18, QFont.Bold))
+        wifi_label.setStyleSheet("color: #ffffff; margin-top: 20px; font-size: 18px;")
         main_layout.addWidget(wifi_label)
         
         # WiFi buttons
@@ -340,42 +361,6 @@ class SettingsDialog(QDialog):
         
         main_layout.addLayout(ota_button_layout)
         
-        # GitHub token input
-        token_layout = QHBoxLayout()
-        token_label = QLabel("GitHub Token:")
-        token_label.setStyleSheet("color: #8e8e93; font-size: 11px;")
-        token_layout.addWidget(token_label)
-        
-        self.token_input = QLineEdit()
-        self.token_input.setPlaceholderText("Enter GitHub personal access token")
-        self.token_input.setEchoMode(QLineEdit.Password)
-        self.token_input.setStyleSheet("""
-            QLineEdit {
-                background-color: rgba(44, 44, 46, 0.8);
-                color: #ffffff;
-                border-radius: 8px;
-                border: 1px solid #555;
-                padding: 8px;
-                font-size: 12px;
-            }
-        """)
-        
-        # Load token from .env file if available
-        try:
-            workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-            dotenv_path = os.path.join(workspace_root, '.env')
-            if os.path.exists(dotenv_path):
-                env_vars = dotenv_values(dotenv_path)
-                github_token = env_vars.get('GITHUB_TOKEN', '')
-                if github_token and github_token != 'your_github_token_here':
-                    self.token_input.setText(github_token)
-                    self.log_status("Loaded GitHub token from .env file")
-        except Exception as e:
-            print(f"[Settings] Could not load token from .env: {e}")
-        
-        token_layout.addWidget(self.token_input)
-        main_layout.addLayout(token_layout)
-        
         # Status log
         self.status_log = QTextEdit()
         self.status_log.setMaximumHeight(100)
@@ -410,12 +395,29 @@ class SettingsDialog(QDialog):
         """)
         main_layout.addWidget(self.progress_bar)
         
-        # Close button
+        # Close button (red, matching other dialogs)
         close_layout = QHBoxLayout()
         close_layout.addStretch()
-        self.close_btn = QPushButton("✕ Close")
+        self.close_btn = QPushButton("❌ Close")
         self.close_btn.clicked.connect(self.close)
-        self.close_btn.setStyleSheet(self.get_button_style())
+        self.close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF3B30;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
+                border: none;
+                min-width: 80px;
+            }
+            QPushButton:hover {
+                background-color: #D70015;
+            }
+            QPushButton:pressed {
+                background-color: #B30000;
+            }
+        """)
         close_layout.addWidget(self.close_btn)
         close_layout.addStretch()
         main_layout.addLayout(close_layout)
@@ -483,8 +485,11 @@ class SettingsDialog(QDialog):
             ssid = network['ssid']
             signal = network['signal']
             security = network['security']
+            connected = network.get('connected', False)
             
             item_text = f"{ssid} ({signal}%)"
+            if connected:
+                item_text = f"● {item_text} (Connected)"
             if security and security != "Open":
                 item_text += f" 🔒 {security}"
             
@@ -560,27 +565,33 @@ class SettingsDialog(QDialog):
     
     def start_ota_update(self):
         """Start OTA update process"""
-        github_token = self.token_input.text().strip()
-        
-        if not github_token:
-            reply = QMessageBox.question(
-                self,
-                "No Token",
-                "No GitHub token provided. Update without authentication?",
-                QMessageBox.Yes | QMessageBox.No
-            )
-            if reply == QMessageBox.No:
-                return
+        # Try to load token from .env file
+        github_token = None
+        try:
+            workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+            dotenv_path = os.path.join(workspace_root, '.env')
+            if os.path.exists(dotenv_path):
+                env_vars = dotenv_values(dotenv_path)
+                github_token = env_vars.get('GITHUB_TOKEN', '')
+                if github_token == 'your_github_token_here':
+                    github_token = None
+        except Exception as e:
+            print(f"[Settings] Could not load token from .env: {e}")
         
         # Get repository path (workspace root)
         repo_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
         
         self.log_status("Starting OTA update...")
+        if github_token:
+            self.log_status("Using GitHub token from .env file")
+        else:
+            self.log_status("Updating without authentication (public repos only)")
+        
         self.update_btn.setEnabled(False)
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, 0)  # Indeterminate
         
-        self.ota_update_thread = OTAUpdateThread(repo_path, github_token)
+        self.ota_update_thread = OTAUpdateThread(repo_path, github_token or '')
         self.ota_update_thread.update_progress.connect(self.on_update_progress)
         self.ota_update_thread.update_complete.connect(self.on_update_complete)
         self.ota_update_thread.finished.connect(
