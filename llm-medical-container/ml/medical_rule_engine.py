@@ -211,13 +211,13 @@ class MedicalRuleEngine:
                             
                             structured = guideline.get('key_features', {}).get('structured_oldcarts', {})
                             if not structured:
-                            structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+                                structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
                             
                             if structured:
                                 guideline_count += 1
-                            for element, data in structured.items():
+                                for element, data in structured.items():
                                     if isinstance(data, dict) and 'includes' in data and element in all_terms:
-                                    for term in data['includes']:
+                                        for term in data['includes']:
                                             medical_term = None
                                             if isinstance(term, dict):
                                                 medical_term = term.get('medical')
@@ -506,12 +506,12 @@ class MedicalRuleEngine:
                 if cache_key in self.synonym_cache:
                     synonyms = self.synonym_cache[cache_key]
                 else:
-                synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
-                synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
-                
-                if os.path.exists(synonym_path):
-                    try:
-                        with open(synonym_path, 'r') as f:
+                    synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+                    synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
+                    
+                    if os.path.exists(synonym_path):
+                        try:
+                            with open(synonym_path, 'r') as f:
                                 all_synonyms = json.load(f)
                             synonyms = all_synonyms.get(oldcarts_element, {})
                             self.synonym_cache[cache_key] = synonyms
@@ -521,7 +521,7 @@ class MedicalRuleEngine:
                         synonyms = {}
                 
                 if synonyms:
-                        normalized_text = self._normalize_with_synonyms(patient_text, synonyms, oldcarts_element)
+                    normalized_text = self._normalize_with_synonyms(patient_text, synonyms, oldcarts_element)
         
         # STEP 3: Word match boost
         word_match_boost = 0.0
