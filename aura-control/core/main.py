@@ -62,8 +62,23 @@ def setup_display():
     - Dismiss screensaver/lock screen
     - Keep screen on for at least 5 minutes
     - Hide mouse cursor for clean interface
+    - Disable Ubuntu on-screen keyboard (use custom GUI keyboard instead)
     """
     print("[Aura] 🖥️  Configuring display...")
+    
+    # Disable Ubuntu on-screen keyboard - use custom GUI keyboard instead
+    print("[Aura] ⌨️  Disabling Ubuntu on-screen keyboard...")
+    try:
+        # Kill any running on-screen keyboard processes
+        subprocess.run(["pkill", "-f", "onboard"], check=False,
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["pkill", "-f", "caribou"], check=False,
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["pkill", "-f", "matchbox-keyboard"], check=False,
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print("[Aura] ✅ Ubuntu on-screen keyboard disabled")
+    except Exception as e:
+        print(f"[Aura] ⚠️  Could not disable Ubuntu keyboard: {e}")
     
     # Wake the screen and turn on display
     try:
