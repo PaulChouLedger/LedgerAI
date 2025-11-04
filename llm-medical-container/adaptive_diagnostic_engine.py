@@ -1513,7 +1513,13 @@ class AdaptiveDiagnosticEngine:
         if hasattr(self, '_pending_acknowledgment') and self._pending_acknowledgment:
             acknowledgment_msg = self._pending_acknowledgment
             self._pending_acknowledgment = None
-            return self._return_to_next_missing_element(acknowledgment_msg)
+            # Get last user input from conversation history for emergency check
+            last_user_input = None
+            for item in reversed(self.conversation_history):
+                if item.get('type') == 'answer':
+                    last_user_input = item.get('answer', '')
+                    break
+            return self._return_to_next_missing_element(acknowledgment_msg, last_user_input=last_user_input)
         
         return self._ask_next_clinical_question()
     
@@ -2774,17 +2780,71 @@ class AdaptiveDiagnosticEngine:
             'has_missing': has_missing
         }
     
-    def _return_to_next_missing_element(self, acknowledgment_msg: str = None) -> Dict[str, Any]:
+    def _return_to_next_missing_element(self, acknowledgment_msg: str = None, last_user_input: str = None) -> Dict[str, Any]:
         """
         After handling a comment/question/distress, intelligently return to the next missing element.
         This ensures we don't lose track of what needs to be collected.
         
+        IMPORTANT: Checks for emergency/distress at EVERY transition point, not just at the start.
+        
         Args:
             acknowledgment_msg: Optional acknowledgment message to prepend
+            last_user_input: The user's last input (to check for emergency/distress)
             
         Returns:
             Response dict with next question or None if assessment complete
         """
+        # CRITICAL: Check for emergency/distress at EVERY transition point
+        # This catches cases where emergency wasn't detected initially but should be checked again
+        if last_user_input:
+            # Re-check the user's input for emergency/distress
+            red_flag_info = self._detect_red_flags_in_input(last_user_input)
+            distress_check = self._detect_distress(last_user_input)
+            severity_score = distress_check.get('severity', 0.0)
+            is_distressed = distress_check.get('is_distressed', False)
+            
+            red_flag_count = red_flag_info.get('red_flag_count', 0)
+            has_severity_language = red_flag_info.get('has_severity_language', False)
+            
+            # Check if this is a severe emergency (same restrictive criteria)
+            life_threatening_keywords = [
+                'chest pain', 'heart attack', 'can\'t breathe', 'shortness of breath', 'difficulty breathing',
+                'unconscious', 'passed out', 'fainting', 'seizure', 'convulsion',
+                'severe bleeding', 'vomiting blood', 'blood in stool', 'black stool'
+            ]
+            last_input_lower = last_user_input.lower()
+            has_life_threatening = any(keyword in last_input_lower for keyword in life_threatening_keywords)
+            
+            is_severe_emergency = (
+                severity_score >= 9.0 or
+                (has_life_threatening and severity_score >= 7.0) or
+                red_flag_count >= 3 or
+                (has_life_threatening and red_flag_count >= 1)
+            )
+            
+            if is_severe_emergency:
+                self._capture_debug(f"[Engine] 🚨 EMERGENCY detected in _return_to_next_missing_element: severity={severity_score:.1f}, red_flags={red_flag_count}")
+                return self._generate_emergency_response(last_user_input, red_flag_info, distress_check)
+        
+        # Check if demographics_optional is True (set when distress detected)
+        if getattr(self, 'demographics_optional', False):
+            # Distress detected - skip remaining demographics and go directly to clinical questions
+            missing_info = self._get_all_missing_elements()
+            # Skip demographics if they're optional, go straight to clinical questions
+            if missing_info['missing_demographics'] and not missing_info['missing_oldcarts']:
+                # Only demographics missing, but they're optional - go to clinical questions
+                next_response = self._ask_next_clinical_question()
+                if acknowledgment_msg and next_response and next_response.get('success'):
+                    next_msg = next_response.get('message') or next_response.get('question', '')
+                    combined_msg = f"{acknowledgment_msg}\n\n{next_msg}"
+                    return {
+                        'success': True,
+                        'message': combined_msg,
+                        'status': next_response.get('status', 'questioning'),
+                        'debug': next_response.get('debug', {})
+                    }
+                return next_response
+        
         missing_info = self._get_all_missing_elements()
         
         if not missing_info['has_missing']:
@@ -3466,7 +3526,8 @@ RECOMMENDATION: {recommendation}"""
         high_severity_terms = [
             'very severe', 'extremely severe', 'severe pain', 'severe', 'excruciating',
             'unbearable', 'worst pain', 'can\'t stand', 'can\'t bear', 'can\'t handle',
-            '10/10', '9/10', '8/10', 'worst ever', 'never felt', 'dying', 'dying pain'
+            '10/10', '9/10', '8/10', 'worst ever', 'never felt', 'dying', 'dying pain',
+            'excrucitating'  # Common typo
         ]
         
         # Urgent language
@@ -3582,7 +3643,7 @@ Generate an empathetic response that acknowledges their distress and immediately
             'peritonitis', 'rebound tenderness',
             
             # Severe pain indicators
-            'excruciating', 'unbearable', 'worst pain ever', '10/10', '9/10',
+            'excruciating', 'excrucitating', 'unbearable', 'worst pain ever', '10/10', '9/10',
             'can\'t move', 'can\'t stand', 'doubled over',
             
             # High fever/infection
@@ -3698,14 +3759,28 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         red_flag_info = self._detect_red_flags_in_input(user_answer)
         severity_score = distress_info.get('severity', 0.0)
         
-        # Severe case criteria:
-        # 1. Very high distress severity (8.0+)
-        # 2. Multiple red flags detected (2+)
-        # 3. One red flag + high severity language
+        # SEVERE EMERGENCY criteria (very restrictive - only truly life-threatening cases):
+        # 1. Very high distress severity (9.0+)
+        # 2. Multiple red flags (3+) indicating multiple critical systems affected
+        # 3. Life-threatening red flags (chest pain, can't breathe, unconscious, etc.)
+        # 4. Severe red flag + very high severity (8.0+)
+        red_flag_count = red_flag_info.get('red_flag_count', 0)
+        has_severity_language = red_flag_info.get('has_severity_language', False)
+        
+        # Check for life-threatening red flags
+        life_threatening_keywords = [
+            'chest pain', 'heart attack', 'can\'t breathe', 'shortness of breath', 'difficulty breathing',
+            'unconscious', 'passed out', 'fainting', 'seizure', 'convulsion',
+            'severe bleeding', 'vomiting blood', 'blood in stool', 'black stool'
+        ]
+        user_lower = user_answer.lower()
+        has_life_threatening = any(keyword in user_lower for keyword in life_threatening_keywords)
+        
         is_severe_emergency = (
-            severity_score >= 8.0 or
-            red_flag_info.get('is_severe', False) or
-            (red_flag_info.get('red_flag_count', 0) >= 1 and severity_score >= 6.0)
+            severity_score >= 9.0 or  # Very high threshold
+            (has_life_threatening and severity_score >= 7.0) or  # Life-threatening + high severity
+            red_flag_count >= 3 or  # Multiple critical symptoms
+            (has_life_threatening and red_flag_count >= 1)  # Life-threatening symptom + any other red flag
         )
         
         if is_severe_emergency:
@@ -3714,11 +3789,14 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             return self._generate_emergency_response(user_answer, red_flag_info, distress_info), response_interpretation
         
         # Handle distress if detected (but not severe enough for immediate emergency)
+        # For moderate distress, acknowledge naturally and continue conversation
         if is_distressed:
-            self._capture_debug(f"[Engine] 🚨 DISTRESS DETECTED: severity={distress_info['severity']:.1f}, urgency_boost={distress_info['urgency_boost']:.2f}")
-            self.demographics_optional = True  # Skip routine questions
+            self._capture_debug(f"[Engine] 🚨 DISTRESS DETECTED (moderate): severity={distress_info['severity']:.1f}, urgency_boost={distress_info['urgency_boost']:.2f}")
+            # Only skip demographics if severity is high (6.0+), otherwise just acknowledge
+            if severity_score >= 6.0:
+                self.demographics_optional = True  # Skip routine questions for high distress
             
-            # Boost urgency for active guidelines
+            # Boost urgency for active guidelines (proportional to severity)
             if distress_info.get('urgency_boost', 0) > 0 and self.active_guidelines:
                 for guideline in self.active_guidelines:
                     current_score = guideline.get('score', 0.0)
@@ -3726,17 +3804,20 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 self._capture_debug(f"[Engine] ⚡ Urgency boost applied: +{distress_info['urgency_boost']:.2f}")
         
         # Handle pure questions (with no clinical info)
+        # Acknowledge naturally and continue conversation
         if is_question and not extracted_info:
-            # Pure question - acknowledge and return to next missing element
+            # Pure question - acknowledge intelligently and return to next missing element
             if needs_acknowledgment:
-                return self._return_to_next_missing_element(acknowledgment_msg), response_interpretation
+                # Natural acknowledgment - return to next missing element
+                return self._return_to_next_missing_element(acknowledgment_msg, last_user_input=user_answer), response_interpretation
             return self._handle_user_question(user_answer), response_interpretation
         
         # Handle pure comments (with no extractable clinical info)
+        # Acknowledge naturally and continue conversation
         if needs_acknowledgment and not extracted_info:
-            # Pure comment - acknowledge and return to next missing element
-            self._capture_debug(f"[Engine] 💬 Pure comment detected - acknowledging and returning to next missing element")
-            return self._return_to_next_missing_element(acknowledgment_msg), response_interpretation
+            # Pure comment - acknowledge naturally and return to next missing element
+            self._capture_debug(f"[Engine] 💬 Comment detected - acknowledging naturally and returning to next missing element")
+            return self._return_to_next_missing_element(acknowledgment_msg, last_user_input=user_answer), response_interpretation
         
         # If we get here, either:
         # 1. No comment/question/distress (normal answer)
@@ -4075,11 +4156,18 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             if has_new_indicator:
                 self.demographics['chronicity'] = 'new'
                 # Use intelligent return to next missing element (handles demographics + OLDCARTS)
-                return self._return_to_next_missing_element(acknowledgment_msg if needs_acknowledgment else None)
+                # Pass user_answer to check for emergency/distress again
+                return self._return_to_next_missing_element(
+                    acknowledgment_msg if needs_acknowledgment else None,
+                    last_user_input=user_answer
+                )
             elif has_recurring_indicator:
                 self.demographics['chronicity'] = 'recurring'
                 # Use intelligent return to next missing element (handles demographics + OLDCARTS)
-                return self._return_to_next_missing_element(acknowledgment_msg if needs_acknowledgment else None)
+                return self._return_to_next_missing_element(
+                    acknowledgment_msg if needs_acknowledgment else None,
+                    last_user_input=user_answer
+                )
             
             # Fallback to LLM if simple matching fails
             if self.llm_chat_simple_fn:
@@ -4097,11 +4185,18 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                     if chronicity_str in ['new', 'recurring']:
                         self.demographics['chronicity'] = chronicity_str
                         # Use intelligent return to next missing element (handles demographics + OLDCARTS)
-                        return self._return_to_next_missing_element(acknowledgment_msg if needs_acknowledgment else None)
+                        # Pass user_answer to check for emergency/distress again
+                        return self._return_to_next_missing_element(
+                            acknowledgment_msg if needs_acknowledgment else None,
+                            last_user_input=user_answer
+                        )
                     elif 'new' in chronicity_str:
                         self.demographics['chronicity'] = 'new'
                         # Use intelligent return to next missing element (handles demographics + OLDCARTS)
-                        return self._return_to_next_missing_element(acknowledgment_msg if needs_acknowledgment else None)
+                        return self._return_to_next_missing_element(
+                            acknowledgment_msg if needs_acknowledgment else None,
+                            last_user_input=user_answer
+                        )
                     else:
                         recurring_in_str = 'recurring' in chronicity_str
                         ongoing_in_str = 'ongoing' in chronicity_str
@@ -4109,7 +4204,10 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                         if recurring_in_str or ongoing_in_str:
                             self.demographics['chronicity'] = 'recurring'
                             # Use intelligent return to next missing element (handles demographics + OLDCARTS)
-                            return self._return_to_next_missing_element(acknowledgment_msg if needs_acknowledgment else None)
+                            return self._return_to_next_missing_element(
+                                acknowledgment_msg if needs_acknowledgment else None,
+                                last_user_input=user_answer
+                            )
                 except Exception as e:
                     # LLM failed, fall through to error message
                     pass
