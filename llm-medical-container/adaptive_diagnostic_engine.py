@@ -2621,6 +2621,57 @@ class AdaptiveDiagnosticEngine:
     
     def _ask_next_red_flag(self) -> Dict[str, Any]:
         """Ask next red flag question"""
+        # Skip red flags that were already mentioned in conversation
+        while self.red_flag_index < len(self.red_flags_list):
+            red_flag_data = self.red_flags_list[self.red_flag_index]
+            red_flag_text = red_flag_data['red_flag']
+            
+            # Check if this red flag was already mentioned in conversation history
+            already_mentioned = False
+            if hasattr(self, 'conversation_history') and self.conversation_history:
+                # Check all previous answers for mentions of this red flag
+                red_flag_lower = red_flag_text.lower()
+                for item in self.conversation_history:
+                    item_type_is_answer = item.get('type') == 'answer'
+                    if item_type_is_answer:
+                        answer_text = item.get('answer', item.get('message', '')).lower()
+                        # Direct substring match
+                        red_flag_in_answer = red_flag_lower in answer_text
+                        # Check if key words from red flag are in answer
+                        red_flag_words = set(red_flag_lower.split())
+                        answer_words = set(answer_text.split())
+                        # Remove common words
+                        common_words = {'the', 'a', 'an', 'and', 'or', 'but', 'is', 'are', 'was', 'were', 'have', 'has', 'had', 'do', 'does', 'did', 'i', 'am', 'you', 'your', 'my', 'me', 'we', 'they', 'this', 'that', 'these', 'those'}
+                        red_flag_key_words = red_flag_words - common_words
+                        answer_key_words = answer_words - common_words
+                        key_words_match = len(red_flag_key_words & answer_key_words) > 0
+                        
+                        # FAISS semantic check if available
+                        semantic_match = False
+                        if self.medical_rule_engine and red_flag_key_words:
+                            try:
+                                # Use FAISS to check if red flag is semantically similar to answer
+                                semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(
+                                    answer_text, 'associated', threshold=0.70
+                                )
+                                red_flag_in_matches = any(red_flag_lower in match.lower() or match.lower() in red_flag_lower 
+                                                         for match in semantic_matches)
+                                semantic_match = red_flag_in_matches
+                            except:
+                                pass
+                        
+                        if red_flag_in_answer or key_words_match or semantic_match:
+                            already_mentioned = True
+                            self._capture_debug(f"[Red Flag] ⏭️ Skipping '{red_flag_text}' - already mentioned in conversation")
+                            break
+            
+            if not already_mentioned:
+                # This red flag hasn't been mentioned - ask about it
+                break
+            
+            # Skip this red flag and move to next
+            self.red_flag_index += 1
+        
         if self.red_flag_index >= len(self.red_flags_list):
             # All red flags asked - assessment complete
             return {
@@ -2641,8 +2692,16 @@ class AdaptiveDiagnosticEngine:
         if not self.llm_chat_simple_fn:
             return {'success': False, 'message': 'LLM not available'}
         
-        system_msg = "You are a medical assistant screening for urgent medical conditions. Generate ONLY a simple, patient-friendly question about a red flag symptom. Do NOT include any explanations, reasoning, or prefixes. Return ONLY the question text."
-        user_msg = f"Red flag: '{red_flag_text}'\n\nFor condition: {condition_name}\n\nGenerate a simple yes/no or open-ended question to screen for this urgent symptom. Keep it short, clear, and direct. Return ONLY the question - no explanations, no prefixes, no reasoning. Just the question itself."
+        # Build conversation context to avoid asking about things already mentioned
+        conversation_context = ""
+        if hasattr(self, 'conversation_history') and self.conversation_history:
+            recent_items = [item for item in self.conversation_history[-5:] if item.get('type') == 'answer']
+            if recent_items:
+                mentioned_symptoms = [item.get('answer', item.get('message', ''))[:50] for item in recent_items]
+                conversation_context = f"\n\nIMPORTANT: The patient has already mentioned: {', '.join(mentioned_symptoms)}. Do NOT ask about symptoms already mentioned. Only ask about the specific red flag: '{red_flag_text}'."
+        
+        system_msg = "You are a medical assistant screening for urgent medical conditions. Generate ONLY a simple, patient-friendly question about a red flag symptom. Do NOT include any explanations, reasoning, or prefixes. Return ONLY the question text. CRITICAL: Use second person ('Are you experiencing...') NOT third person ('Is the patient experiencing...')."
+        user_msg = f"Red flag: '{red_flag_text}'\n\nFor condition: {condition_name}{conversation_context}\n\nGenerate a simple yes/no or open-ended question to screen for this urgent symptom. Use second person ('Are you experiencing...', 'Do you have...', 'Have you noticed...'). Do NOT use third person ('Is the patient experiencing...', 'Does the patient have...'). Keep it short, clear, and direct. Return ONLY the question - no explanations, no prefixes, no reasoning. Just the question itself."
         
         llm_kwargs = self._get_llm_kwargs()
         # Override max_tokens for red flag questions to prevent cutoff
@@ -2714,6 +2773,18 @@ class AdaptiveDiagnosticEngine:
                         question_match = re.search(r'(?:question|question to|symptom):\s*([^.!]+[?])', question, re.IGNORECASE)
                         if question_match:
                             question = question_match.group(1).strip()
+        
+        # Replace third-person with second-person (safety check)
+        # Common patterns: "Is the patient experiencing" -> "Are you experiencing"
+        third_person_patterns = [
+            (r'Is the patient (experiencing|having|noticing)', r'Are you \1'),
+            (r'Does the patient (have|experience|notice)', r'Do you \1'),
+            (r'Has the patient (experienced|had|noticed)', r'Have you \1'),
+            (r'the patient (is|has|does|experiences|has|notices)', r'you \1'),
+            (r'patient\'s', r'your'),
+        ]
+        for pattern, replacement in third_person_patterns:
+            question = re.sub(pattern, replacement, question, flags=re.IGNORECASE)
         
         # Final cleanup: ensure we have a proper question
         if not question or len(question) < 10:
