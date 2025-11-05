@@ -118,28 +118,46 @@ class MedicalRuleEngine:
                                 for element, data in structured.items():
                                     if isinstance(data, dict) and 'includes' in data and element in all_terms:
                                         for term in data['includes']:
+                                            # Use patient_friendly terms for indexing (patients speak in patient_friendly terms)
+                                            patient_friendly_term = None
                                             medical_term = None
+                                            
                                             if isinstance(term, dict):
+                                                # Get patient_friendly first (preferred for semantic matching)
+                                                patient_friendly_term = term.get('patient_friendly')
+                                                if isinstance(patient_friendly_term, str) and patient_friendly_term.strip():
+                                                    patient_friendly_term = patient_friendly_term.strip()
+                                                # Also get medical term for mapping
                                                 medical_term = term.get('medical')
                                                 if isinstance(medical_term, str) and medical_term.strip():
                                                     medical_term = medical_term.strip().lower()
                                             elif isinstance(term, str):
+                                                # Fallback: use string as both patient_friendly and medical
+                                                patient_friendly_term = term.strip()
                                                 medical_term = term.strip().lower()
                                             
-                                            if medical_term:
-                                                all_terms[element].add(medical_term)
-                                                key = (element, medical_term)
+                                            # Index patient_friendly term (what patients actually say)
+                                            if patient_friendly_term:
+                                                all_terms[element].add(patient_friendly_term)
+                                                # Map patient_friendly -> medical term for result mapping
+                                                key = (element, patient_friendly_term)
                                                 if key not in term_to_conditions:
                                                     term_to_conditions[key] = set()
                                                 term_to_conditions[key].add(condition_name)
+                                                # Store mapping from patient_friendly to medical term (for returning medical terms)
+                                                if medical_term and medical_term != patient_friendly_term.lower():
+                                                    if element not in synonym_to_medical_mapping:
+                                                        synonym_to_medical_mapping[element] = {}
+                                                    synonym_to_medical_mapping[element][patient_friendly_term.lower()] = medical_term
                     except Exception as e:
                         print(f"[FAISS] ⚠️ Could not load guideline {file}: {e}")
             
-            # Add category-specific synonyms
-            synonym_to_medical_mapping = {
-                'onset': {}, 'location': {}, 'duration': {}, 'character': {},
-                'aggravating': {}, 'relieving': {}, 'timing': {}, 'severity': {}
-            }
+            # Add category-specific synonyms (initialize if not already done)
+            if not synonym_to_medical_mapping:
+                synonym_to_medical_mapping = {
+                    'onset': {}, 'location': {}, 'duration': {}, 'character': {},
+                    'aggravating': {}, 'relieving': {}, 'timing': {}, 'severity': {}
+                }
             
             synonyms_dir = os.path.join(os.path.dirname(__file__), '..', 'medical', 'synonyms')
             synonym_file = f"{synonym_prefix}_synonyms_oldcarts.json"
@@ -235,28 +253,42 @@ class MedicalRuleEngine:
                                 for element, data in structured.items():
                                     if isinstance(data, dict) and 'includes' in data and element in all_terms:
                                         for term in data['includes']:
+                                            # Use patient_friendly terms for indexing (patients speak in patient_friendly terms)
+                                            patient_friendly_term = None
                                             medical_term = None
+                                            
                                             if isinstance(term, dict):
+                                                # Get patient_friendly first (preferred for semantic matching)
+                                                patient_friendly_term = term.get('patient_friendly')
+                                                if isinstance(patient_friendly_term, str) and patient_friendly_term.strip():
+                                                    patient_friendly_term = patient_friendly_term.strip()
+                                                # Also get medical term for mapping
                                                 medical_term = term.get('medical')
                                                 if isinstance(medical_term, str) and medical_term.strip():
                                                     medical_term = medical_term.strip().lower()
                                             elif isinstance(term, str):
+                                                # Fallback: use string as both patient_friendly and medical
+                                                patient_friendly_term = term.strip()
                                                 medical_term = term.strip().lower()
                                             
-                                            if medical_term:
-                                                all_terms[element].add(medical_term)
-                                                key = (element, medical_term)
+                                            # Index patient_friendly term (what patients actually say)
+                                            if patient_friendly_term:
+                                                all_terms[element].add(patient_friendly_term)
+                                                # Map patient_friendly -> medical term for result mapping
+                                                key = (element, patient_friendly_term)
                                                 if key not in term_to_conditions:
                                                     term_to_conditions[key] = set()
                                                 term_to_conditions[key].add(condition_name)
+                                                # Store mapping from patient_friendly to medical term (for returning medical terms)
+                                                if medical_term and medical_term != patient_friendly_term.lower():
+                                                    if element not in synonym_to_medical_mapping:
+                                                        synonym_to_medical_mapping[element] = {}
+                                                    synonym_to_medical_mapping[element][patient_friendly_term.lower()] = medical_term
                     except Exception:
                         pass
         
         # Add all synonyms (global index includes all)
-        synonym_to_medical_mapping = {
-            'onset': {}, 'location': {}, 'duration': {}, 'character': {},
-            'aggravating': {}, 'relieving': {}, 'timing': {}, 'severity': {}
-        }
+        # synonym_to_medical_mapping already initialized above
         
         synonyms_dir = os.path.join(os.path.dirname(__file__), '..', 'medical', 'synonyms')
         if os.path.exists(synonyms_dir):
@@ -300,7 +332,7 @@ class MedicalRuleEngine:
                         'terms': terms_list,
                         'embeddings': embeddings,
                         'index': index,
-                        'synonym_to_medical': synonym_to_medical_mapping[element],
+                        'synonym_to_medical': synonym_to_medical_mapping.get(element, {}),
                         'term_to_conditions': element_term_to_conditions
                     }
                 except Exception:
@@ -399,20 +431,21 @@ class MedicalRuleEngine:
             # SECOND PASS: Filter by threshold and build matches list
             for score, idx in zip(scores[0], indices[0]):
                 if score >= threshold:
-                    term = indexes_to_use[element]['terms'][idx]
-                    # Map synonym back to medical term if available
+                    term = indexes_to_use[element]['terms'][idx]  # This is now patient_friendly term
+                    # Map patient_friendly back to medical term if available (for returning medical terms)
                     medical_term = synonym_to_medical.get(term, term)
                     
                     # Filter by active conditions if provided
                     if active_condition_names is not None:
                         # Check if this term is used by any active condition
                         term_conditions = term_to_conditions.get(term, set())
-                        # If term has no condition mapping (e.g., synonyms), include it (universal terms)
+                        # If term has no condition mapping, include it (universal terms)
                         # Otherwise, only include if used by active conditions
                         if term_conditions and not term_conditions.intersection(active_condition_names):
                             # This term is not used by any active condition - skip it
                             continue
                     
+                    # Return medical_term (mapped from patient_friendly) for consistency with calling code
                     if medical_term not in matches:
                         matches.append(medical_term)
             
@@ -1177,82 +1210,4 @@ class MedicalRuleEngine:
         
         return False
     
-    def check_anatomical_mismatches(self, components1: Dict[str, Any], components2: Dict[str, Any]) -> Dict[str, bool]:
-        """
-        Universal: Check for anatomical mismatches using ALL opposite definitions from medical_rules.json.
-        Works for ALL medical conditions: GI (abdominal), CARDIO (chest), MSK (limbs), NEURO (head), etc.
-        
-        Uses all opposite definitions from medical_rules.json:
-        - horizontal (e.g., "left" vs "right") - universal for all systems
-        - vertical (e.g., "upper" vs "lower") - universal for all systems
-        - quadrants (e.g., "right_upper" vs "left_lower") - specific to abdominal
-        - anterior_posterior (e.g., "anterior" vs "posterior") - universal for all systems
-        
-        Only returns True for a mismatch if there's a CLEAR opposite relationship
-        defined in medical_rules.json. Everything else is considered inconclusive/vague.
-        
-        Args:
-            components1: Patient anatomical components
-            components2: Term/guideline anatomical components
-        
-        Returns:
-            Dict with 'horizontal_mismatch' and 'vertical_mismatch' boolean flags
-        """
-        result = {
-            'horizontal_mismatch': False,
-            'vertical_mismatch': False
-        }
-        
-        if not self.medical_rules or 'anatomical_opposites' not in self.medical_rules:
-            return result
-        
-        opposites = self.medical_rules.get('anatomical_opposites', {})
-        
-        # Extract horizontal components (direct or from quadrant)
-        horizontal1 = components1.get('horizontal')
-        if not horizontal1 and 'quadrant' in components1:
-            quadrant_parts = components1['quadrant'].split('_')
-            if quadrant_parts and quadrant_parts[0] in ['left', 'right']:
-                horizontal1 = quadrant_parts[0]
-        
-        horizontal2 = components2.get('horizontal')
-        if not horizontal2 and 'quadrant' in components2:
-            quadrant_parts = components2['quadrant'].split('_')
-            if quadrant_parts and quadrant_parts[0] in ['left', 'right']:
-                horizontal2 = quadrant_parts[0]
-        
-        # Check horizontal opposites (universal - works for all organ systems)
-        if horizontal1 and horizontal2:
-            horizontal_opposites = opposites.get('horizontal', {})
-            opposite_list = horizontal_opposites.get(horizontal1, [])
-            if horizontal2 in opposite_list:
-                result['horizontal_mismatch'] = True
-        
-        # Extract vertical components (direct or from quadrant)
-        vertical1 = components1.get('vertical')
-        if not vertical1 and 'quadrant' in components1:
-            parts = components1['quadrant'].split('_')
-            if len(parts) >= 2 and parts[1] in ['upper', 'lower']:
-                vertical1 = parts[1]
-            elif len(parts) >= 3 and parts[1] in ['upper', 'lower']:
-                vertical1 = parts[1]
-        
-        vertical2 = components2.get('vertical')
-        if not vertical2 and 'quadrant' in components2:
-            parts = components2['quadrant'].split('_')
-            if len(parts) >= 2 and parts[1] in ['upper', 'lower']:
-                vertical2 = parts[1]
-            elif len(parts) >= 3 and parts[1] in ['upper', 'lower']:
-                vertical2 = parts[1]
-        
-        # Check vertical opposites (universal - works for all organ systems)
-        if vertical1 and vertical2:
-            vertical_opposites = opposites.get('vertical', {})
-            opposite_list = vertical_opposites.get(vertical1, [])
-            if vertical2 in opposite_list:
-                result['vertical_mismatch'] = True
-        
-        # Note: Quadrant opposites are redundant - if quadrants are opposite,
-        # the horizontal/vertical checks above already catch it. No need for separate quadrant check.
-        
-        return result
+   
