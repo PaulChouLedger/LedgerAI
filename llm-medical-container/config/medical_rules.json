@@ -17,6 +17,12 @@
       "anterior_posterior": {
         "anterior": ["front", "anterior", "ventral"],
         "posterior": ["back", "posterior", "dorsal"]
+      },
+      "bilateral": {
+        "bilateral": ["bilateral", "both sides", "both", "symmetrical", "all over", "everywhere", "midline", "center", "central"]
+      },
+      "vague": {
+        "vague": ["vague", "diffuse"]
       }
     },
     "quadrant_patterns": {
@@ -32,6 +38,33 @@
       "head": ["head", "cranial", "skull"],
       "back": ["back", "dorsal", "posterior"],
       "limb": ["arm", "leg", "limb", "extremity"]
+    },
+    "anatomical_regions": {
+      "epigastric": {
+        "description": "Upper middle region of the abdomen, below the sternum",
+        "vertical": "upper",
+        "horizontal": null
+      },
+      "retrosternal": {
+        "description": "Behind the sternum/breastbone",
+        "vertical": "upper",
+        "horizontal": null
+      },
+      "periumbilical": {
+        "description": "Around the belly button/navel",
+        "vertical": null,
+        "horizontal": null
+      },
+      "suprapubic": {
+        "description": "Lower middle region, above the pubic bone",
+        "vertical": "lower",
+        "horizontal": null
+      },
+      "rectal": {
+        "description": "Rectal region, at the end of the digestive tract",
+        "vertical": "lower",
+        "horizontal": null
+      }
     }
   },
   "anatomical_opposites": {

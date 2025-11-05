@@ -456,14 +456,59 @@ class MedicalRuleEngine:
             return location_data.get('anatomical_type')
         return None
     
+    def _map_anatomical_type_to_components(self, anatomical_type: str) -> Dict[str, Any]:
+        """
+        Map guideline anatomical_type values to component dictionary using existing medical_rules.json structures.
+        Uses _extract_anatomical_components() for parsing, then adds bilateral/vague flags from directional_keywords.
+        Returns dict with keys: 'vertical', 'horizontal', 'bilateral', 'vague'
+        """
+        if not anatomical_type or not self.medical_rules:
+            return {}
+        
+        # Use existing _extract_anatomical_components() to parse anatomical_type as text
+        # This handles quadrant_patterns (right_upper, left_lower) and directional_keywords (upper, lower, right, left)
+        components = self._extract_anatomical_components(anatomical_type)
+        
+        # Check for bilateral/vague flags from directional_keywords
+        anatomical = self.medical_rules.get('anatomical_components', {})
+        directional_keywords = anatomical.get('directional_keywords', {})
+        
+        # Check bilateral keywords
+        bilateral_keywords = directional_keywords.get('bilateral', {})
+        if bilateral_keywords:
+            for direction, keywords in bilateral_keywords.items():
+                if any(keyword in anatomical_type.lower() for keyword in keywords):
+                    components['bilateral'] = True
+                    # Bilateral has no horizontal direction
+                    if 'horizontal' in components:
+                        del components['horizontal']
+        
+        # Check vague keywords
+        vague_keywords = directional_keywords.get('vague', {})
+        if vague_keywords:
+            for direction, keywords in vague_keywords.items():
+                if any(keyword in anatomical_type.lower() for keyword in keywords):
+                    components['vague'] = True
+                    # Vague has no directional components
+                    if 'horizontal' in components:
+                        del components['horizontal']
+                    if 'vertical' in components:
+                        del components['vertical']
+                    if 'quadrant' in components:
+                        del components['quadrant']
+        
+        return components
+    
     def _map_anatomical_type_to_filter_category(self, anatomical_type: str) -> str:
         """
         Map guideline anatomical_type values to filter categories.
-        Guideline values: right_lower, right_upper, left_lower, left_upper, midline, bilateral, upper, lower
-        Filter categories: right_only, left_only, bilateral, midline
+        Guideline values: right_lower, right_upper, left_lower, left_upper, bilateral, vague, upper, lower
+        Filter categories: right_only, left_only, bilateral, vague
+        Note: "midline" is treated as "bilateral" (compatible with left or right)
+        Note: "vague" means truly diffuse with no directional component (compatible with any location)
         """
         if not anatomical_type:
-            return 'midline'  # Default: keep all
+            return 'vague'  # Default: keep all (truly diffuse, no directional component)
         
         anatomical_type_lower = anatomical_type.lower()
         
@@ -472,35 +517,68 @@ class MedicalRuleEngine:
             return 'right_only'
         elif anatomical_type_lower in ['left_lower', 'left_upper', 'left']:
             return 'left_only'
-        elif anatomical_type_lower in ['bilateral', 'both']:
+        elif anatomical_type_lower in ['vague', 'diffuse']:
+            # Vague: truly diffuse, no directional component at all
+            return 'vague'
+        elif anatomical_type_lower in ['bilateral', 'both', 'midline', 'center', 'central']:
+            # Bilateral and midline: compatible with left or right (but still has some directional meaning)
             return 'bilateral'
-        elif anatomical_type_lower in ['midline', 'center', 'central']:
-            return 'midline'
         elif anatomical_type_lower in ['upper', 'lower']:
-            # Upper/lower are ambiguous - keep them (don't filter)
-            return 'midline'
+            # Upper/lower are ambiguous - treat as vague (no horizontal component)
+            return 'vague'
         else:
-            # Unknown - default to midline (keep all)
-            return 'midline'
+            # Unknown - default to vague (keep all)
+            return 'vague'
     
     def _extract_directional_component(self, normalized_text: str, raw_text: str = None) -> Optional[str]:
         """
         Extract directional component using medical_rules.json structure
         Checks normalized category name against conditions in medical_rules.json
         """
+        if not self.medical_rules or 'anatomical_components' not in self.medical_rules:
+            return None
+        
         text_to_check = normalized_text.lower()
         if raw_text:
             text_to_check += " " + raw_text.lower()
         
-        # Check for directional indicators (universal across all body systems)
-        if any(word in text_to_check for word in ['right', 'ruq', 'rlq']):
-            return 'right'
-        elif any(word in text_to_check for word in ['left', 'luq', 'llq']):
-            return 'left'
-        elif any(word in text_to_check for word in ['bilateral', 'both sides', 'both']):
-            return 'bilateral'
-        elif any(word in text_to_check for word in ['midline', 'center', 'central', 'middle', 'epigastric', 'suprapubic']):
-            return 'midline'
+        anatomical = self.medical_rules.get('anatomical_components', {})
+        
+        # Check horizontal direction from medical_rules.json
+        horizontal_keywords = anatomical.get('directional_keywords', {}).get('horizontal', {})
+        for direction, keywords in horizontal_keywords.items():
+            if any(word in text_to_check for word in keywords):
+                return direction
+        
+        # Check quadrant patterns (includes RUQ, RLQ, LUQ, LLQ)
+        quadrant_patterns = anatomical.get('quadrant_patterns', {})
+        for quadrant, patterns in quadrant_patterns.items():
+            if any(pattern in text_to_check for pattern in patterns):
+                # Extract horizontal from quadrant (e.g., "right_upper" -> "right")
+                if quadrant.startswith('right'):
+                    return 'right'
+                elif quadrant.startswith('left'):
+                    return 'left'
+        
+        # Check for bilateral from medical_rules.json
+        bilateral_keywords = anatomical.get('directional_keywords', {}).get('bilateral', {})
+        for direction, keywords in bilateral_keywords.items():
+            if any(word in text_to_check for word in keywords):
+                return direction
+        
+        # Check anatomical_regions for midline indicators
+        anatomical_regions = anatomical.get('anatomical_regions', {})
+        for region_name, region_data in anatomical_regions.items():
+            if region_name in text_to_check:
+                # If region has no horizontal component, it's midline
+                if region_data.get('horizontal') is None:
+                    return 'midline'
+        
+        # Check for midline/center keywords from medical_rules.json
+        midline_keywords = anatomical.get('directional_keywords', {}).get('midline', {})
+        for direction, keywords in midline_keywords.items():
+            if any(word in text_to_check for word in keywords):
+                return direction
         
         return None
     
@@ -977,12 +1055,28 @@ class MedicalRuleEngine:
         elif any(word in combined_text for word in ['left', 'luq', 'llq', 'left side', 'left sided']):
             return 'left'
         
-        # Bilateral indicators
-        elif any(word in combined_text for word in ['bilateral', 'both sides', 'both', 'symmetrical', 'all over', 'everywhere']):
-            return 'bilateral'
+        # Bilateral indicators - check from medical_rules.json
+        if self.medical_rules and 'anatomical_components' in self.medical_rules:
+            anatomical = self.medical_rules.get('anatomical_components', {})
+            bilateral_keywords = anatomical.get('directional_keywords', {}).get('bilateral', {})
+            for direction, keywords in bilateral_keywords.items():
+                if any(word in combined_text for word in keywords):
+                    return direction
         
-        # Midline indicators
-        elif any(word in combined_text for word in ['midline', 'center', 'central', 'middle', 'epigastric', 'suprapubic', 'periumbilical']):
-            return 'midline'
+        # Midline indicators - check anatomical_regions from medical_rules.json
+        if self.medical_rules and 'anatomical_components' in self.medical_rules:
+            anatomical = self.medical_rules.get('anatomical_components', {})
+            anatomical_regions = anatomical.get('anatomical_regions', {})
+            for region_name, region_data in anatomical_regions.items():
+                if region_name in combined_text:
+                    # If region has no horizontal component, it's midline
+                    if region_data.get('horizontal') is None:
+                        return 'midline'
+            
+            # Check for midline/center keywords from medical_rules.json
+            midline_keywords = anatomical.get('directional_keywords', {}).get('midline', {})
+            for direction, keywords in midline_keywords.items():
+                if any(word in combined_text for word in keywords):
+                    return direction
         
         return None

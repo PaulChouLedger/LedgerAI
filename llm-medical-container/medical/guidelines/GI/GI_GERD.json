@@ -39,7 +39,8 @@
             "patient_friendly": "upper middle part of your belly"
           }
         ],
-        "excludes": []
+        "excludes": [],
+        "anatomical_type": "upper"
       },
       "timing": {
         "includes": [
@@ -163,6 +164,15 @@
           {
             "medical": "hoarseness",
             "patient_friendly": "hoarseness"
+          },
+          {
+            "medical": "hematemesis",
+            "patient_friendly": "blood in the stool",
+            "emergent": true
+          },
+          {
+            "medical": "NSAID use",
+            "patient_friendly": "taking nonsteroidal anti-inflammatory drugs (NSAIDs) like ibuprofen or aspirin"
           }
         ],
         "excludes": []

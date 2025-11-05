@@ -35,7 +35,7 @@
           }
         ],
         "excludes": [],
-        "anatomical_type": "midline"
+        "anatomical_type": "vague"
       },
       "timing": {
         "includes": [
@@ -107,8 +107,16 @@
       "severity": {
         "includes": [
           {
-            "medical": "diarrhea",
-            "patient_friendly": "more than 3 episodes of diarrhea per day"
+            "medical": "mild",
+            "patient_friendly": "mild discomfort"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate discomfort"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "severe discomfort"
           }
         ],
         "excludes": []
@@ -116,8 +124,22 @@
       "associated": {
         "includes": [
           {
+            "medical": "diarrhea",
+            "patient_friendly": "more than 3 episodes of diarrhea per day"
+          },
+          {
+            "medical": "hematochezia",
+            "patient_friendly": "blood in the stool",
+            "emergent": true
+          },
+          {
             "medical": "pyrexia",
             "patient_friendly": "fever",
+            "emergent": true
+          },
+          {
+            "medical": "hypotension",
+            "patient_friendly": "low blood pressure",
             "emergent": true
           },
           {
@@ -130,8 +152,7 @@
           },
           {
             "medical": "anorexia",
-            "patient_friendly": "loss of appetite/dehydration",
-            "emergent": true
+            "patient_friendly": "loss of appetite/dehydration"
           },
           {
             "medical": "upper respiratory infection",
