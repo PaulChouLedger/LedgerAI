@@ -303,7 +303,7 @@ class AdaptiveDiagnosticEngine:
         self._build_chief_complaint_synonyms_index()
         
         # Initialize assessment state
-        self.demographics_optional = False  # Set to True if distress detected
+        self.demographics_optional = False  # Reserved for future use (not currently used to skip questions)
         self.reset_assessment()
     
     def _load_guidelines(self):
@@ -1064,9 +1064,7 @@ class AdaptiveDiagnosticEngine:
         if distress_detected:
             self._capture_debug(f"[Engine] 🚨 DISTRESS DETECTED in clinical answer: severity={distress_info['severity']:.1f}, urgency_boost={distress_info['urgency_boost']:.2f}")
             
-            # Mark demographics as optional if not already done
-            self.demographics_optional = True
-            
+            # Note: Distress does NOT skip questions - only severe emergencies skip
             # Boost urgency for active guidelines
             if distress_info['urgency_boost'] > 0 and self.active_guidelines:
                 for guideline in self.active_guidelines:
@@ -2242,59 +2240,57 @@ class AdaptiveDiagnosticEngine:
             if cleaned.endswith('??'):
                 cleaned = cleaned[:-1]
             
-            # Remove common reasoning patterns that might appear before the question
+            # Remove common reasoning patterns that might appear anywhere before the question
             # Look for patterns like "Here's a question:" or "The question is:" etc.
             reasoning_patterns = [
-                r'^here\'s.*?:',
-                r'^here is.*?:',
-                r'^the question.*?:',
-                r'^a clarification question.*?:',
-                r'^clarification question.*?:',
-                r'^question.*?:',
-                r'^i would ask.*?:',
-                r'^you could ask.*?:',
-                r'^this question.*?:',
-                r'^the clarification.*?:',
+                r'here\'s.*?:',
+                r'here is.*?:',
+                r'the question.*?:',
+                r'a clarification question.*?:',
+                r'clarification question.*?:',
+                r'this question.*?:',
+                r'i would ask.*?:',
+                r'you could ask.*?:',
+                r'alternatively.*?:',
+                r'this uses.*?:',
+                r'it also.*?:',
+                r'which are.*?:',
             ]
             
+            # Remove reasoning patterns (not just at start)
             for pattern in reasoning_patterns:
-                match = re.search(pattern, cleaned, re.IGNORECASE)
-                if match:
-                    # Extract everything after the colon
-                    cleaned = cleaned[match.end():].strip()
-                    break
+                cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
             
-            # If the response contains multiple sentences, extract just the question part
-            # Look for sentences with question marks
-            sentences = re.split(r'([.!?]+)', cleaned)
-            # Reconstruct sentences with punctuation
-            reconstructed = []
-            for i in range(0, len(sentences) - 1, 2):
-                if i + 1 < len(sentences):
-                    reconstructed.append(sentences[i] + sentences[i + 1])
-                else:
-                    reconstructed.append(sentences[i])
+            # Clean up extra whitespace
+            cleaned = re.sub(r'\s+', ' ', cleaned).strip()
             
-            questions = [s.strip() for s in reconstructed if '?' in s]
-            if questions:
-                # Take the longest question (most likely the actual question)
-                cleaned = max(questions, key=len)
-            else:
-                # If no clear question found, try to find the first question mark
-                if '?' in cleaned:
-                    q_index = cleaned.find('?')
-                    # Extract from the start of the sentence containing the question
-                    sentence_start = max(0, cleaned.rfind('.', 0, q_index), cleaned.rfind('!', 0, q_index))
-                    if sentence_start > 0:
-                        cleaned = cleaned[sentence_start + 1:q_index + 1].strip()
-                    else:
-                        cleaned = cleaned[:q_index + 1].strip()
-            
-            # Remove any trailing explanations that might follow the question
-            # If there's a period or explanation after a question mark, remove it
+            # Extract ONLY the question part - find the first question mark and extract from there
             if '?' in cleaned:
-                q_index = cleaned.rfind('?')
-                cleaned = cleaned[:q_index + 1]
+                # Find the first question mark
+                first_q_index = cleaned.find('?')
+                # Find the sentence start (look for sentence boundaries before the question)
+                sentence_start = 0
+                for i in range(first_q_index - 1, -1, -1):
+                    if cleaned[i] in ['.', '!', '\n']:
+                        sentence_start = i + 1
+                        break
+                    # Also check for common reasoning phrase endings
+                    if i > 10 and cleaned[max(0, i-20):i+1].lower() in ['for example:', 'such as:', 'like:']:
+                        sentence_start = i + 1
+                        break
+                
+                # Extract from sentence start to first question mark
+                cleaned = cleaned[sentence_start:first_q_index + 1].strip()
+                
+                # Remove any trailing explanations after the question mark
+                if len(cleaned) > first_q_index - sentence_start + 1:
+                    # There's more text after the question - remove it
+                    q_mark_pos = cleaned.find('?')
+                    if q_mark_pos >= 0:
+                        cleaned = cleaned[:q_mark_pos + 1]
+            else:
+                # No question mark found - return empty (will trigger error)
+                return ""
             
             return cleaned.strip()
         return ""
@@ -2346,41 +2342,38 @@ class AdaptiveDiagnosticEngine:
             options_list = ", ".join(patient_friendly_terms)
             user_msg = f"""{chief_complaint_context}{conversation_context}
 
-The patient said: "{patient_answer}"
+The patient already said: "{patient_answer}"
 
-We need to clarify the location. Here are the ONLY possible locations from the medical guidelines (you MUST use only these):
+We need to clarify the location. Here are the ONLY possible locations from the medical guidelines that we need to clarify (you MUST use ONLY these exact terms):
 {options_list}
 
-Generate a natural, grammatically correct clarification question. CRITICAL RULES:
-- You MUST use ONLY the options listed above - do NOT add any other locations or terms
-- Use "or" to connect options naturally
-- For location, you can use phrases like "located at" or "located in" if appropriate
-- Make it flow naturally as a spoken question
-- Include as many of the provided options as possible in the question
-- Example format: "Can you be more specific? For example, is it located at [option1], [option2], [option3], or [option4]?"
-- But vary the phrasing naturally - don't use the exact same structure every time
-- Keep it conversational and natural
+CRITICAL RULES - YOU MUST FOLLOW THESE EXACTLY:
+1. You MUST use ONLY the terms from the list above - do NOT create new terms like "one side", "both sides", "upper", "lower" unless they are in the list
+2. If the patient already mentioned a location (like "right side"), do NOT ask about that same location again
+3. Use "or" to connect the options naturally with proper grammar
+4. Include as many of the provided options as possible (up to 5-6 options)
+5. Format: "Can you be more specific? For example, is it located at [option1], [option2], [option3], or [option4]?"
+6. Return ONLY the question - no explanations, no reasoning, no "Here's a question:", no "Alternatively:", no additional text
 
-CRITICAL: Return ONLY the question itself. Do NOT include any explanations, reasoning, or additional text. Just the question. Use ONLY the options provided above."""
+Generate the clarification question using ONLY the terms provided above:"""
         else:
             options_list = ", ".join(patient_friendly_terms)
             user_msg = f"""{chief_complaint_context}{conversation_context}
 
-The patient said: "{patient_answer}"
+The patient already said: "{patient_answer}"
 
-We need to clarify the {oldcarts_element}. Here are the ONLY possible options from the medical guidelines (you MUST use only these):
+We need to clarify the {oldcarts_element}. Here are the ONLY possible options from the medical guidelines that we need to clarify (you MUST use ONLY these exact terms):
 {options_list}
 
-Generate a natural, grammatically correct clarification question. CRITICAL RULES:
-- You MUST use ONLY the options listed above - do NOT add any other terms
-- Use "or" to connect options naturally
-- Make it flow naturally as a spoken question
-- Include as many of the provided options as possible in the question
-- Example format: "Can you be more specific? For example, is it [option1], [option2], [option3], or [option4]?"
-- But vary the phrasing naturally - don't use the exact same structure every time
-- Keep it conversational and natural
+CRITICAL RULES - YOU MUST FOLLOW THESE EXACTLY:
+1. You MUST use ONLY the terms from the list above - do NOT create new terms
+2. If the patient already mentioned something, do NOT ask about that same thing again
+3. Use "or" to connect the options naturally with proper grammar
+4. Include as many of the provided options as possible (up to 5-6 options)
+5. Format: "Can you be more specific? For example, is it [option1], [option2], [option3], or [option4]?"
+6. Return ONLY the question - no explanations, no reasoning, no "Here's a question:", no "Alternatively:", no additional text
 
-CRITICAL: Return ONLY the question itself. Do NOT include any explanations, reasoning, or additional text. Just the question. Use ONLY the options provided above."""
+Generate the clarification question using ONLY the terms provided above:"""
         
         llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
         response = self.llm_chat_simple_fn(
@@ -2778,39 +2771,20 @@ Generate a question about {component} for this patient:"""
     
     def _check_conversation_for_distress(self) -> bool:
         """Check conversation history for distress indicators"""
-        if getattr(self, 'demographics_optional', False):
-            return True
-        
+        # Note: This is now only used for informational purposes, not to skip demographics
         # Check recent answers for distress
         for item in self.conversation_history[-5:]:
             if item.get('type') == 'answer':
                 answer = item.get('answer', '')
                 distress_info = self._detect_distress(answer)
                 if distress_info['is_distressed']:
-                    self.demographics_optional = True
                     return True
         return False
     
     def _generate_ml_first_question_with_demographics(self) -> Dict[str, Any]:
         """Generate demographics questions in order: chronicity, age, sex"""
-        # Check if distress was detected - if so, skip demographics and go to clinical questions
-        if self._check_conversation_for_distress() or getattr(self, 'demographics_optional', False):
-            self._capture_debug("[Engine] ⏭️ Distress detected - skipping demographics, proceeding to clinical questions")
-            # If there's a pending acknowledgment, include it
-            if hasattr(self, '_pending_acknowledgment') and self._pending_acknowledgment:
-                acknowledgment_msg = self._pending_acknowledgment
-                self._pending_acknowledgment = None
-                clinical_response = self._ask_next_clinical_question()
-                if clinical_response and clinical_response.get('success'):
-                    next_msg = clinical_response.get('message') or clinical_response.get('question', '')
-                    combined_msg = f"{acknowledgment_msg}\n\n{next_msg}"
-                    return {
-                        'success': True,
-                        'message': combined_msg,
-                        'status': clinical_response.get('status', 'questioning'),
-                        'debug': clinical_response.get('debug', {})
-                    }
-            return self._ask_next_clinical_question()
+        # Note: Demographics are always collected unless it's a severe emergency (911/ER case)
+        # Distress alone does NOT skip demographics - only severe emergencies skip
         
         # STEP 1: Chronicity question (first after empathetic statement)
         if 'chronicity' not in self.demographics:
@@ -2855,8 +2829,8 @@ Generate a question about {component} for this patient:"""
                 }
             }
         
-        # STEP 2: Age question (skip if distress detected)
-        if 'age' not in self.demographics and not self.demographics_optional:
+        # STEP 2: Age question
+        if 'age' not in self.demographics:
             # Use hardcoded question for consistency
             question = "Can you please tell me your age so I can update our medical records?"
             
@@ -2875,8 +2849,8 @@ Generate a question about {component} for this patient:"""
                 }
             }
         
-        # STEP 3: Sex question (skip if distress detected)
-        if 'sex' not in self.demographics and not self.demographics_optional:
+        # STEP 3: Sex question
+        if 'sex' not in self.demographics:
             # Use simple, direct question instead of LLM for consistency
             question = "What is your biological sex?"
             
@@ -3114,7 +3088,8 @@ Generate a question about {component} for this patient:"""
         # Check demographics
         if 'chronicity' not in self.demographics:
             missing_demographics.append('chronicity')
-        if not getattr(self, 'demographics_optional', False):
+        # Always collect demographics unless it's a severe emergency
+        if True:  # Always collect demographics
             # Age and sex only required if not distressed
             if 'age' not in self.demographics:
                 missing_demographics.append('age')
@@ -3208,24 +3183,8 @@ Generate a question about {component} for this patient:"""
                 self._capture_debug(f"[Engine] 🚨 EMERGENCY detected in _return_to_next_missing_element: severity={severity_score:.1f}, red_flags={red_flag_count}")
                 return self._generate_emergency_response(last_user_input, red_flag_info, distress_check)
         
-        # Check if demographics_optional is True (set when distress detected)
-        if getattr(self, 'demographics_optional', False):
-            # Distress detected - skip remaining demographics and go directly to clinical questions
-            missing_info = self._get_all_missing_elements()
-            # Skip demographics if they're optional, go straight to clinical questions
-            if missing_info['missing_demographics'] and not missing_info['missing_oldcarts']:
-                # Only demographics missing, but they're optional - go to clinical questions
-                next_response = self._ask_next_clinical_question()
-                if acknowledgment_msg and next_response and next_response.get('success'):
-                    next_msg = next_response.get('message') or next_response.get('question', '')
-                    combined_msg = f"{acknowledgment_msg}\n\n{next_msg}"
-                    return {
-                        'success': True,
-                        'message': combined_msg,
-                        'status': next_response.get('status', 'questioning'),
-                        'debug': next_response.get('debug', {})
-                    }
-                return next_response
+        # Note: Demographics are always collected unless it's a severe emergency (911/ER case)
+        # Distress alone does NOT skip demographics - only severe emergencies skip
         
         missing_info = self._get_all_missing_elements()
         
@@ -4348,13 +4307,10 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             return self._generate_emergency_response(user_answer, red_flag_info, distress_info), response_interpretation
         
         # Handle distress if detected (but not severe enough for immediate emergency)
-        # For moderate distress, acknowledge naturally and continue conversation
+        # For distress, acknowledge naturally and continue conversation - do NOT skip questions
         if is_distressed:
             self._capture_debug(f"[Engine] 🚨 DISTRESS DETECTED (moderate): severity={distress_info['severity']:.1f}, urgency_boost={distress_info['urgency_boost']:.2f}")
-            # Only skip demographics if severity is high (6.0+), otherwise just acknowledge
-            if severity_score >= 6.0:
-                self.demographics_optional = True  # Skip routine questions for high distress
-            
+            # Do NOT skip demographics - only emergency cases skip questions
             # Boost urgency for active guidelines (proportional to severity)
             if distress_info.get('urgency_boost', 0) > 0 and self.active_guidelines:
                 for guideline in self.active_guidelines:
@@ -4395,7 +4351,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 else:
                     self._capture_debug(f"[Engine] 💬 Comment with clinical info detected - will process answer and acknowledge in next question")
                 # Don't return here - let normal processing handle the extracted info
-                # The acknowledgment is already stored in _pending_acknowledgment AND will be passed to chronicity processing
+                # The acknowledgment is already stored in _pending_acknowledgment AND will be passed to processing
             else:
                 # Pure comment/distress - acknowledge naturally and return to next missing element
                 if is_distressed:
@@ -4461,47 +4417,8 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         # Use extracted info if available (cleaner than full response with comments)
         processing_answer = extracted_info if extracted_info else user_answer
         
-        # If distress detected, skip routine demographics and prioritize clinical assessment
-        # (This check happens after interpretation, but we already handled urgency above)
-        if is_distressed:
-            # Get last question to check if we were asking a routine question
-            if last_q and last_q.get('focus') in ['age', 'sex', 'chronicity']:
-                self._capture_debug(f"[Engine] ⏭️ Skipping routine question ({last_q.get('focus')}) due to distress")
-                
-                # Use pending acknowledgment if available, otherwise generate empathetic response
-                if hasattr(self, '_pending_acknowledgment') and self._pending_acknowledgment:
-                    acknowledgment_msg = self._pending_acknowledgment
-                    self._pending_acknowledgment = None
-                else:
-                    acknowledgment_msg = self._generate_empathetic_response(user_answer, distress_info)
-                
-                # Move directly to clinical questions
-                clinical_response = self._ask_next_clinical_question()
-                
-                if clinical_response and clinical_response.get('success'):
-                    # Combine acknowledgment with clinical question
-                    next_msg = clinical_response.get('message') or clinical_response.get('question', '')
-                    combined_msg = f"{acknowledgment_msg}\n\n{next_msg}"
-                    return {
-                        'success': True,
-                        'message': combined_msg,
-                        'status': clinical_response.get('status', 'questioning'),
-                        'debug': {
-                            'engine': self._format_engine_debug(f"[Engine] 🚨 Distress handled - skipped demographics"),
-                            'internal': self._get_debug_info()
-                        }
-                    }
-                else:
-                    # Just return acknowledgment if no clinical question available
-                    return {
-                        'success': True,
-                        'message': acknowledgment_msg,
-                        'status': 'questioning',
-                        'debug': {
-                            'engine': self._format_engine_debug(f"[Engine] 🚨 Distress acknowledged"),
-                            'internal': self._get_debug_info()
-                        }
-                    }
+        # Note: Distress is acknowledged but does NOT skip questions - only severe emergencies skip
+        # The acknowledgment will be included in the next question response
         
         # Get last question
         last_q = None
@@ -4688,6 +4605,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         
         if last_q and last_q.get('focus') == 'chronicity':
             # Note: Interpretation already happened at start of process_answer
+            # Distress is acknowledged but does NOT skip questions - only severe emergencies skip
             # Use the processing_answer (which may have extracted info) for keyword matching
             
             # Check for button callbacks first
@@ -4774,10 +4692,8 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             }
         
         # If no demographics handler matched and demographics incomplete, check if we need to ask demographics
-        # Check demographics - skip if distress was detected (demographics optional)
-        required_demographics = ['chronicity']  # Always need chronicity
-        if not self.demographics_optional:
-            required_demographics.extend(['age', 'sex'])  # Age and sex only if not distressed
+        # Demographics are always collected unless it's a severe emergency (911/ER case)
+        required_demographics = ['chronicity', 'age', 'sex']  # Always need all demographics
         
         if not all(key in self.demographics for key in required_demographics):
             # Demographics incomplete - ask next demographic question

@@ -108,10 +108,10 @@ def cpu_faiss_status():
         return jsonify({'error': str(e)}), 500
 
 # === Model Config ===
-# Single model (Qwen3-4B-Instruct) for all tasks
-SIMPLE_MODEL_PATH = os.getenv("SIMPLE_MODEL_PATH", "/models/Qwen3-4B-Instruct-2507-Q4_K_M.gguf")
-SIMPLE_N_CTX = int(os.getenv("SIMPLE_N_CTX", "2048"))
-SIMPLE_CHAT_FORMAT = os.getenv("SIMPLE_CHAT_FORMAT", "qwen")
+# Model configuration from .env only - no fallback defaults
+SIMPLE_MODEL_PATH = os.environ["SIMPLE_MODEL_PATH"]
+SIMPLE_N_CTX = int(os.environ["SIMPLE_N_CTX"])
+SIMPLE_CHAT_FORMAT = os.environ["SIMPLE_CHAT_FORMAT"]
 
 # Models will be loaded in __main__ block to prevent double loading
 import os
@@ -583,18 +583,36 @@ def llm_chat(messages, max_tokens=None, temperature=None, stream=False, **kwargs
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
-        "top_p": kwargs.pop("top_p", float(os.getenv("LLM_TOP_P"))),
-        "top_k": kwargs.pop("top_k", int(os.getenv("LLM_TOP_K"))),
-        "repeat_penalty": kwargs.pop("repeat_penalty", float(os.getenv("LLM_REPEAT_PENALTY"))),
-        "presence_penalty": kwargs.pop("presence_penalty", float(os.getenv("LLM_PRESENCE_PENALTY"))),
-        "frequency_penalty": kwargs.pop("frequency_penalty", float(os.getenv("LLM_FREQUENCY_PENALTY"))),
+        "top_p": kwargs.pop("top_p", float(os.environ["LLM_TOP_P"])),
+        "top_k": kwargs.pop("top_k", int(os.environ["LLM_TOP_K"])),
+        "repeat_penalty": kwargs.pop("repeat_penalty", float(os.environ["LLM_REPEAT_PENALTY"])),
+        "presence_penalty": kwargs.pop("presence_penalty", float(os.environ["LLM_PRESENCE_PENALTY"])),
+        "frequency_penalty": kwargs.pop("frequency_penalty", float(os.environ["LLM_FREQUENCY_PENALTY"])),
         "stream": stream,
         **kwargs
     }
-    # Optional stop sequences
+    # Optional stop sequences from environment
     stop_env = os.getenv("LLM_STOP", "").strip()
-    if stop_env:
-        generation_params["stop"] = [s for s in stop_env.split(",") if s]
+    stop_sequences = [s for s in stop_env.split(",") if s] if stop_env else []
+    
+    # Add reasoning-specific stop sequences to prevent internal reasoning
+    # These are patterns that indicate reasoning/explanation, not the actual question
+    reasoning_stop_sequences = [
+        "\n\nHere's a",
+        "\n\nHere is a",
+        "\n\nAlternatively:",
+        "\n\nThis question uses",
+        "\n\nIt also",
+        "\n\nwhich are",
+        "\n\nThis uses",
+        "\n\nAlternatively,",
+        "\nAlternatively:",
+        "\nHere's a",
+        "\nHere is a",
+    ]
+    
+    # Combine environment stop sequences with reasoning stop sequences
+    generation_params["stop"] = stop_sequences + reasoning_stop_sequences
     
     with llm_lock:
         try:
@@ -642,17 +660,35 @@ def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, *
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
-        "top_p": kwargs.pop("top_p", float(os.getenv("LLM_TOP_P"))),
-        "top_k": kwargs.pop("top_k", int(os.getenv("LLM_TOP_K"))),
-        "repeat_penalty": kwargs.pop("repeat_penalty", float(os.getenv("LLM_REPEAT_PENALTY"))),
-        "presence_penalty": kwargs.pop("presence_penalty", float(os.getenv("LLM_PRESENCE_PENALTY"))),
-        "frequency_penalty": kwargs.pop("frequency_penalty", float(os.getenv("LLM_FREQUENCY_PENALTY"))),
+        "top_p": kwargs.pop("top_p", float(os.environ["LLM_TOP_P"])),
+        "top_k": kwargs.pop("top_k", int(os.environ["LLM_TOP_K"])),
+        "repeat_penalty": kwargs.pop("repeat_penalty", float(os.environ["LLM_REPEAT_PENALTY"])),
+        "presence_penalty": kwargs.pop("presence_penalty", float(os.environ["LLM_PRESENCE_PENALTY"])),
+        "frequency_penalty": kwargs.pop("frequency_penalty", float(os.environ["LLM_FREQUENCY_PENALTY"])),
         "stream": stream,
         **kwargs
     }
+    # Optional stop sequences from environment
     stop_env = os.getenv("LLM_STOP", "").strip()
-    if stop_env:
-        generation_params["stop"] = [s for s in stop_env.split(",") if s]
+    stop_sequences = [s for s in stop_env.split(",") if s] if stop_env else []
+    
+    # Add reasoning-specific stop sequences to prevent internal reasoning
+    reasoning_stop_sequences = [
+        "\n\nHere's a",
+        "\n\nHere is a",
+        "\n\nAlternatively:",
+        "\n\nThis question uses",
+        "\n\nIt also",
+        "\n\nwhich are",
+        "\n\nThis uses",
+        "\n\nAlternatively,",
+        "\nAlternatively:",
+        "\nHere's a",
+        "\nHere is a",
+    ]
+    
+    # Combine environment stop sequences with reasoning stop sequences
+    generation_params["stop"] = stop_sequences + reasoning_stop_sequences
     
     with llm_lock:  # Shared lock for both models
         try:
@@ -704,9 +740,9 @@ if __name__ == "__main__":
         use_mmap=True,
         verbose=False,
         temperature=float(os.environ["LLM_TEMPERATURE_SIMPLE"]),
-        top_p=float(os.getenv("LLM_TOP_P", "0.85")),
-        top_k=int(os.getenv("LLM_TOP_K", "30")),
-        repeat_penalty=float(os.getenv("LLM_REPEAT_PENALTY", "1.15"))
+        top_p=float(os.environ["LLM_TOP_P"]),
+        top_k=int(os.environ["LLM_TOP_K"]),
+        repeat_penalty=float(os.environ["LLM_REPEAT_PENALTY"])
     )
     load_time = time.time() - start_time
     print(f"[LLM] ✅ Simple model loaded: {SIMPLE_MODEL_PATH} (took {load_time:.1f}s)")
