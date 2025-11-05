@@ -3869,18 +3869,18 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         # Skip terms that can't be found (e.g., from reserve guidelines without patient_friendly terms)
         for term in missing_terms:
             try:
-            friendly_term = self._get_patient_friendly_from_guidelines(term, oldcarts_element)
-            medical_to_friendly_map[term] = friendly_term
-            
-            # Debug output showing the mapping for each term as we process it
-            self._capture_debug(f"[Clarification] 📝 '{term}' → '{friendly_term}'")
-            
-            # Only add non-empty, unique terms
-            if friendly_term and friendly_term.strip():
-                friendly_lower = friendly_term.strip().lower()
-                if friendly_lower not in seen_friendly_terms:
-                    patient_friendly_terms.append(friendly_term.strip())
-                    seen_friendly_terms.add(friendly_lower)
+                friendly_term = self._get_patient_friendly_from_guidelines(term, oldcarts_element)
+                medical_to_friendly_map[term] = friendly_term
+                
+                # Debug output showing the mapping for each term as we process it
+                self._capture_debug(f"[Clarification] 📝 '{term}' → '{friendly_term}'")
+                
+                # Only add non-empty, unique terms
+                if friendly_term and friendly_term.strip():
+                    friendly_lower = friendly_term.strip().lower()
+                    if friendly_lower not in seen_friendly_terms:
+                        patient_friendly_terms.append(friendly_term.strip())
+                        seen_friendly_terms.add(friendly_lower)
             except ValueError as e:
                 # Skip terms that can't be found - log but continue processing other terms
                 self._capture_debug(f"[Clarification] ⚠️ Skipping '{term}': {e}")
@@ -3979,7 +3979,7 @@ Generate a clarification question using EXACTLY this format with the terms provi
             # Try both possible structures (with and without 'data' wrapper)
             structured = guideline.get('key_features', {}).get('structured_oldcarts', {})
             if not structured:
-            structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+                structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
             
             element_data = structured.get(oldcarts_element, {})
             if isinstance(element_data, dict):
@@ -4268,19 +4268,19 @@ Generate a clarification question using EXACTLY this format with the terms provi
             sample_question = character_analysis['sample_question']
             component_guidance_text = character_analysis['guidance']
         else:
-        # Sample questions for each OLDCARTS element as guidance (ONLY reference)
-        sample_questions = {
-            'onset': "When did this start?",
+            # Sample questions for each OLDCARTS element as guidance (ONLY reference)
+            sample_questions = {
+                'onset': "When did this start?",
                 'progression': "Did it come on gradually or suddenly?",
-            'location': "Where exactly is the pain located?",
-            'timing': "Is it constant or does it come and go?",
-            'duration': "How long does each episode typically last?",
-            'associated': "Are there any other symptoms you're experiencing?",
+                'location': "Where exactly is the pain located?",
+                'timing': "Is it constant or does it come and go?",
+                'duration': "How long does each episode typically last?",
+                'associated': "Are there any other symptoms you're experiencing?",
                 'character': "What does it feel like?",  # Default, but will be overridden if character
-            'aggravating': "What makes it worse?",
-            'relieving': "What helps or makes it better?",
-            'severity': "On a scale of 1 to 10, how would you rate this?"
-        }
+                'aggravating': "What makes it worse?",
+                'relieving': "What helps or makes it better?",
+                'severity': "On a scale of 1 to 10, how would you rate this?"
+            }
             if component not in sample_questions:
                 raise ValueError(f"Unknown OLDCARTS component: {component}. Must be one of: {list(sample_questions.keys())}")
             sample_question = sample_questions[component]
@@ -4292,7 +4292,7 @@ Generate a clarification question using EXACTLY this format with the terms provi
         if component == 'character':
             guidance_text = component_guidance_text
         else:
-        guidance_text = component_guidance.get(component, "")
+            guidance_text = component_guidance.get(component, "")
         
         system_msg = self.LLM_OLDCARTS_SYSTEM_MSG
         
@@ -4314,7 +4314,7 @@ Example question: {sample_question}
 {strict_instructions}
 
 Generate a question about {component} for this patient:"""
-            else:
+        else:
             user_msg = f"""{chief_complaint_context}{conversation_context}
 
 Component: {component.upper()}
@@ -4417,7 +4417,7 @@ Generate a question about {component} for this patient:"""
                 max_similarity = max(max_similarity, similarity)
             
             return max_similarity
-                except Exception as e:
+        except Exception as e:
             self._capture_debug(f"[Scoring] ⚠️ Error matching to patient_friendly terms: {e}")
             return 0.0
         
@@ -4458,7 +4458,7 @@ Generate a question about {component} for this patient:"""
         covered_count = sum(self.oldcarts_covered.values())
         coverage_str = ''.join([k if v else '_' for k, v in self.oldcarts_covered.items()])
         
-            return {
+        return {
             'demographics': self.demographics,
             'question_number': num_questions,
             'oldcarts_coverage': coverage_str,
