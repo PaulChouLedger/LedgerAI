@@ -3370,7 +3370,7 @@ RECOMMENDATION: {recommendation}"""
         else:
             self._capture_debug(f"[Red Flag] ✅ No red flag: '{red_flag_text}' absent for {condition_name}")
     
-    def _interpret_patient_response(self, user_input: str, expected_element: str = None) -> Dict[str, Any]:
+    def _interpret_patient_response(self, user_input: str, expected_element: str = None, last_q: Dict = None) -> Dict[str, Any]:
         """
         Intelligently interpret patient response to categorize it and extract relevant information.
         Detects comments, questions, distress, or direct answers.
@@ -3403,8 +3403,15 @@ RECOMMENDATION: {recommendation}"""
         is_comment = self._is_comment_or_exclamation(user_input)
         
         # Try to extract clinical information (if answer contains both comment and clinical info)
+        # ALWAYS try to extract, even if there's a comment/distress/question
         extracted_info = None
-        if self.llm_chat_simple_fn and expected_element:
+        
+        # For chronicity (new/recurring), use Jaccard similarity with reference phrases
+        if expected_element == 'chronicity' or expected_element == 'demographics' or (last_q and last_q.get('focus') == 'chronicity'):
+            extracted_info = self._extract_chronicity_with_jaccard(user_input)
+        
+        # If simple extraction didn't work, try LLM extraction
+        if not extracted_info and self.llm_chat_simple_fn and expected_element:
             # Use LLM to extract just the clinical info if there's a comment mixed in
             try:
                 system_msg = f"You are a medical assistant. Extract ONLY the clinical information relevant to: {expected_element}. Remove all emotional comments, questions, or other non-clinical text. Return ONLY the clinical information, or 'none' if no clinical info found."
@@ -3436,14 +3443,17 @@ RECOMMENDATION: {recommendation}"""
             response_type = 'mixed'  # Contains both comment/question and clinical info
         
         # Determine if acknowledgment is needed
+        # ALWAYS acknowledge distress, comments, or questions
         needs_acknowledgment = False
         acknowledgment_message = None
         
         if is_distressed or is_comment or is_question:
             needs_acknowledgment = True
-            # Generate acknowledgment message
+            # Generate acknowledgment message - prioritize distress
             if is_distressed:
+                # Distress ALWAYS needs empathetic acknowledgment
                 acknowledgment_message = self._generate_empathetic_response(user_input, distress_info)
+                self._capture_debug(f"[Engine] 💬 Generated empathetic acknowledgment for distress (severity={distress_info.get('severity', 0):.1f})")
             elif is_question:
                 # Acknowledge question
                 acknowledgment_message = "I understand you have a question. Let me help clarify that. "
@@ -3512,6 +3522,105 @@ RECOMMENDATION: {recommendation}"""
             return True
         
         return False
+    
+    def _jaccard_similarity(self, text1: str, text2: str) -> float:
+        """
+        Compute Jaccard similarity between two texts.
+        Jaccard similarity = |intersection| / |union| of word sets.
+        
+        Args:
+            text1: First text
+            text2: Second text
+            
+        Returns:
+            Similarity score between 0.0 and 1.0
+        """
+        # Normalize: lowercase and split into word sets
+        words1 = set(re.sub(r'[^\w\s]', ' ', text1.lower()).split())
+        words2 = set(re.sub(r'[^\w\s]', ' ', text2.lower()).split())
+        
+        # Remove empty strings
+        words1 = {w for w in words1 if w}
+        words2 = {w for w in words2 if w}
+        
+        if not words1 or not words2:
+            return 0.0
+        
+        intersection = len(words1 & words2)
+        union = len(words1 | words2)
+        
+        return intersection / union if union > 0 else 0.0
+    
+    def _extract_chronicity_with_jaccard(self, user_input: str) -> Optional[str]:
+        """
+        Extract chronicity (new/recurring) from user input using Jaccard similarity.
+        
+        Args:
+            user_input: User's response
+            
+        Returns:
+            'new', 'recurring', or None if no match found
+        """
+        # Reference phrases for "new" problem
+        new_phrases = [
+            "its new",
+            "it's new",
+            "this is new",
+            "new problem",
+            "new issue",
+            "new pain",
+            "new symptom",
+            "never had this",
+            "never had pain",
+            "never experienced",
+            "never felt",
+            "first time",
+            "brand new",
+            "just started",
+            "just began",
+            "i have never had",
+            "have never had"
+        ]
+        
+        # Reference phrases for "recurring" problem
+        recurring_phrases = [
+            "recurring",
+            "ongoing",
+            "chronic",
+            "for months",
+            "for years",
+            "always",
+            "frequent",
+            "often",
+            "again",
+            "returned",
+            "keeps coming back",
+            "persistent",
+            "long term"
+        ]
+        
+        # Normalize user input
+        user_normalized = re.sub(r'[^\w\s]', ' ', user_input.lower())
+        
+        # Compute Jaccard similarity with all reference phrases
+        new_scores = [self._jaccard_similarity(user_normalized, phrase) for phrase in new_phrases]
+        recurring_scores = [self._jaccard_similarity(user_normalized, phrase) for phrase in recurring_phrases]
+        
+        max_new = max(new_scores) if new_scores else 0.0
+        max_recurring = max(recurring_scores) if recurring_scores else 0.0
+        
+        # Threshold for matching (adjust as needed)
+        threshold = 0.2  # 20% word overlap is reasonable
+        
+        # Return the category with highest similarity, if above threshold
+        if max_new > max_recurring and max_new >= threshold:
+            self._capture_debug(f"[Engine] ✅ Extracted chronicity 'new' via Jaccard (similarity={max_new:.3f})")
+            return 'new'
+        elif max_recurring > max_new and max_recurring >= threshold:
+            self._capture_debug(f"[Engine] ✅ Extracted chronicity 'recurring' via Jaccard (similarity={max_recurring:.3f})")
+            return 'recurring'
+        
+        return None
     
     def _detect_distress(self, user_answer: str) -> Dict[str, Any]:
         """
@@ -3734,7 +3843,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             }
         }
     
-    def _check_and_handle_deviating_comment(self, user_answer: str, expected_element: str = None) -> Dict[str, Any]:
+    def _check_and_handle_deviating_comment(self, user_answer: str, expected_element: str = None, last_q: Dict = None) -> Dict[str, Any]:
         """
         Unified function to check for and handle deviating comments/questions/distress.
         Called at the start of processing any user input.
@@ -3744,7 +3853,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             Also returns interpretation dict for use in further processing
         """
         # Interpret the response (detects comments, questions, distress, or direct answers)
-        response_interpretation = self._interpret_patient_response(user_answer, expected_element)
+        response_interpretation = self._interpret_patient_response(user_answer, expected_element, last_q=last_q)
         
         # Extract info
         distress_info = response_interpretation.get('distress_info', {})
@@ -3812,12 +3921,38 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 return self._return_to_next_missing_element(acknowledgment_msg, last_user_input=user_answer), response_interpretation
             return self._handle_user_question(user_answer), response_interpretation
         
-        # Handle pure comments (with no extractable clinical info)
-        # Acknowledge naturally and continue conversation
-        if needs_acknowledgment and not extracted_info:
-            # Pure comment - acknowledge naturally and return to next missing element
-            self._capture_debug(f"[Engine] 💬 Comment detected - acknowledging naturally and returning to next missing element")
-            return self._return_to_next_missing_element(acknowledgment_msg, last_user_input=user_answer), response_interpretation
+        # Handle comments/distress (with or without extractable clinical info)
+        # CRITICAL: Distress ALWAYS needs acknowledgment, regardless of extracted_info
+        # If there's extracted info, process it first, then acknowledge in next question
+        # If no extracted info, acknowledge and return to next missing element
+        if needs_acknowledgment:
+            # CRITICAL: For distress, ALWAYS ensure acknowledgment is stored and will be included
+            if is_distressed:
+                # Distress detected - ensure acknowledgment is stored
+                if not acknowledgment_msg:
+                    # Generate it if not already generated
+                    acknowledgment_msg = self._generate_empathetic_response(user_answer, distress_info)
+                    self._capture_debug(f"[Engine] 💬 Generated distress acknowledgment on the fly")
+                
+                # Store for later use
+                self._pending_acknowledgment = acknowledgment_msg
+                self._capture_debug(f"[Engine] 💬 Distress acknowledgment stored: '{acknowledgment_msg[:60]}...'")
+            
+            if extracted_info:
+                # Comment/distress WITH clinical info - process answer first, acknowledgment will be included in next question
+                if is_distressed:
+                    self._capture_debug(f"[Engine] 💬 Distress WITH clinical info detected - will process answer and acknowledge in next question")
+                else:
+                    self._capture_debug(f"[Engine] 💬 Comment with clinical info detected - will process answer and acknowledge in next question")
+                # Don't return here - let normal processing handle the extracted info
+                # The acknowledgment is already stored in _pending_acknowledgment AND will be passed to chronicity processing
+            else:
+                # Pure comment/distress - acknowledge naturally and return to next missing element
+                if is_distressed:
+                    self._capture_debug(f"[Engine] 💬 Pure distress detected - acknowledging naturally and returning to next missing element")
+                else:
+                    self._capture_debug(f"[Engine] 💬 Pure comment detected - acknowledging naturally and returning to next missing element")
+                return self._return_to_next_missing_element(acknowledgment_msg, last_user_input=user_answer), response_interpretation
         
         # If we get here, either:
         # 1. No comment/question/distress (normal answer)
@@ -3842,7 +3977,8 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         expected_element = last_q.get('oldcarts') if last_q else None
         
         # ALWAYS FIRST: Check for and handle deviating comments/questions/distress
-        comment_response, response_interpretation = self._check_and_handle_deviating_comment(user_answer, expected_element)
+        # Pass last_q to help with extraction context
+        comment_response, response_interpretation = self._check_and_handle_deviating_comment(user_answer, expected_element, last_q=last_q)
         if comment_response:
             # Comment/question/distress was handled - return the response
             return comment_response
@@ -3854,9 +3990,12 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         extracted_info = response_interpretation.get('extracted_info')
         
         # Store acknowledgment for later if answer contains clinical info AND needs acknowledgment
+        # CRITICAL: Always store acknowledgment if distress/comment/question detected
         if needs_acknowledgment:
             self._pending_acknowledgment = acknowledgment_msg
             self._capture_debug(f"[Engine] 💬 Acknowledgment stored for next question: {response_interpretation['type']}")
+            if is_distressed:
+                self._capture_debug(f"[Engine] 💬 Distress acknowledgment stored: '{acknowledgment_msg[:50]}...'")
         
         # Record answer (with original text for context)
         self.conversation_history.append({
@@ -4134,10 +4273,6 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             # Note: Interpretation already happened at start of process_answer
             # Use the processing_answer (which may have extracted info) for keyword matching
             
-            # Simple keyword matching first (more reliable than LLM)
-            # Use processing_answer (may have extracted info, or original if no extraction)
-            processing_answer_lower = processing_answer.lower().strip()
-            
             # Check for button callbacks first
             if user_answer == 'chronicity_new':
                 self.demographics['chronicity'] = 'new'
@@ -4146,26 +4281,48 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 self.demographics['chronicity'] = 'recurring'
                 return self._generate_ml_first_question_with_demographics()
             
-            # Simple keyword matching
-            new_indicators = ['new', 'recent', 'today', 'yesterday', 'this week', 'sudden', 'acute']
-            has_new_indicator = any(word in processing_answer_lower for word in new_indicators)
+            # Simple keyword matching first (more reliable than LLM)
+            # Use processing_answer (may have extracted info, or original if no extraction)
+            processing_answer_lower = processing_answer.lower().strip()
             
-            recurring_indicators = ['ongoing', 'recurring', 'chronic', 'months', 'years', 'always', 'frequent', 'often']
-            has_recurring_indicator = any(word in processing_answer_lower for word in recurring_indicators)
+            # First check if extracted_info already found the answer (from _interpret_patient_response)
+            if extracted_info and extracted_info in ['new', 'recurring']:
+                # Extracted info already found - use it directly
+                self.demographics['chronicity'] = extracted_info
+                self._capture_debug(f"[Engine] ✅ Chronicity set from extracted_info: {extracted_info}")
+            else:
+                # Fallback to Jaccard similarity (same method as extraction)
+                chronicity_result = self._extract_chronicity_with_jaccard(processing_answer)
+                if chronicity_result:
+                    self.demographics['chronicity'] = chronicity_result
+                    self._capture_debug(f"[Engine] ✅ Chronicity set from Jaccard similarity: {chronicity_result}")
+                else:
+                    self._capture_debug(f"[Engine] ⚠️ Could not determine chronicity from answer")
             
-            if has_new_indicator:
-                self.demographics['chronicity'] = 'new'
+            # If chronicity was successfully set, proceed to next missing element
+            if 'chronicity' in self.demographics:
                 # Use intelligent return to next missing element (handles demographics + OLDCARTS)
                 # Pass user_answer to check for emergency/distress again
+                # CRITICAL: Always include acknowledgment if there was distress/comment/question
+                # Priority: 1) acknowledgment_msg from interpretation, 2) _pending_acknowledgment
+                final_acknowledgment = None
+                if needs_acknowledgment and acknowledgment_msg:
+                    # Use the acknowledgment message from interpretation (most current)
+                    final_acknowledgment = acknowledgment_msg
+                    self._capture_debug(f"[Engine] 💬 Using acknowledgment from interpretation")
+                elif hasattr(self, '_pending_acknowledgment') and self._pending_acknowledgment:
+                    # Fallback to stored acknowledgment
+                    final_acknowledgment = self._pending_acknowledgment
+                    self._pending_acknowledgment = None
+                    self._capture_debug(f"[Engine] 💬 Using stored pending acknowledgment")
+                
+                if final_acknowledgment:
+                    self._capture_debug(f"[Engine] ✅ Chronicity processed - returning with acknowledgment: '{final_acknowledgment[:50]}...'")
+                else:
+                    self._capture_debug(f"[Engine] ✅ Chronicity processed - no acknowledgment needed")
+                
                 return self._return_to_next_missing_element(
-                    acknowledgment_msg if needs_acknowledgment else None,
-                    last_user_input=user_answer
-                )
-            elif has_recurring_indicator:
-                self.demographics['chronicity'] = 'recurring'
-                # Use intelligent return to next missing element (handles demographics + OLDCARTS)
-                return self._return_to_next_missing_element(
-                    acknowledgment_msg if needs_acknowledgment else None,
+                    final_acknowledgment,
                     last_user_input=user_answer
                 )
             
