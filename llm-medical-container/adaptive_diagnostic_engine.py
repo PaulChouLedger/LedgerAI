@@ -2459,19 +2459,25 @@ Generate an empathetic response that acknowledges their distress and reassures t
         medical_to_friendly_map = {}
         
         # Process ALL missing terms (no limit)
+        # Skip terms that can't be found (e.g., from reserve guidelines without patient_friendly terms)
         for term in missing_terms:
-            friendly_term = self._get_patient_friendly_from_guidelines(term, oldcarts_element)
-            medical_to_friendly_map[term] = friendly_term
-            
-            # Debug output showing the mapping for each term as we process it
-            self._capture_debug(f"[Clarification] 📝 '{term}' → '{friendly_term}'")
-            
-            # Only add non-empty, unique terms
-            if friendly_term and friendly_term.strip():
-                friendly_lower = friendly_term.strip().lower()
-                if friendly_lower not in seen_friendly_terms:
-                    patient_friendly_terms.append(friendly_term.strip())
-                    seen_friendly_terms.add(friendly_lower)
+            try:
+                friendly_term = self._get_patient_friendly_from_guidelines(term, oldcarts_element)
+                medical_to_friendly_map[term] = friendly_term
+                
+                # Debug output showing the mapping for each term as we process it
+                self._capture_debug(f"[Clarification] 📝 '{term}' → '{friendly_term}'")
+                
+                # Only add non-empty, unique terms
+                if friendly_term and friendly_term.strip():
+                    friendly_lower = friendly_term.strip().lower()
+                    if friendly_lower not in seen_friendly_terms:
+                        patient_friendly_terms.append(friendly_term.strip())
+                        seen_friendly_terms.add(friendly_lower)
+            except ValueError as e:
+                # Skip terms that can't be found - log but continue processing other terms
+                self._capture_debug(f"[Clarification] ⚠️ Skipping '{term}': {e}")
+                continue
         
         # If no good terms found, raise error
         if not patient_friendly_terms:
@@ -2543,10 +2549,18 @@ Generate the clarification question using ONLY the terms provided above. The que
         return cleaned_response
     
     def _get_patient_friendly_from_guidelines(self, medical_term: str, oldcarts_element: str) -> str:
-        """Get patient-friendly term directly from guidelines (case-insensitive match)"""
+        """Get patient-friendly term directly from guidelines (case-insensitive match)
+        Checks ALL guidelines (active + reserve) since missing terms can come from reserve pool
+        """
         medical_term_lower = medical_term.lower().strip()
-        for guideline in self.active_guidelines:
-            structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+        # Check ALL guidelines (active + reserve) since missing terms can come from reserve pool
+        all_guidelines_to_check = self.active_guidelines + self.reserve_pool
+        for guideline in all_guidelines_to_check:
+            # Try both possible structures (with and without 'data' wrapper)
+            structured = guideline.get('key_features', {}).get('structured_oldcarts', {})
+            if not structured:
+                structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            
             element_data = structured.get(oldcarts_element, {})
             if isinstance(element_data, dict):
                 includes = element_data.get('includes', [])
