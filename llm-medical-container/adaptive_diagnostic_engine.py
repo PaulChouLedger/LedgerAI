@@ -2379,7 +2379,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         for item in reversed(self.conversation_history):
             if item.get('type') in ['question', 'statement']:
                 last_q = item
-                    break
+                break
                         
         expected_element = last_q.get('oldcarts') if last_q else None
         
@@ -3048,13 +3048,13 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         # For all elements (including location): collect element_data for patient_friendly matching
         guideline_data = []
         for g in all_guidelines:
-            structured_oldcarts = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            structured_oldcarts = self._get_structured_oldcarts(g)
             element_data = structured_oldcarts.get(oldcarts_element, {})
             
-                guideline_data.append({
-                    'guideline': g,
-                    'condition_name': g.get('data', {}).get('condition', g.get('name', 'Unknown')),
-                    'structured_oldcarts': structured_oldcarts,
+            guideline_data.append({
+                'guideline': g,
+                'condition_name': g.get('data', {}).get('condition', g.get('name', 'Unknown')),
+                'structured_oldcarts': structured_oldcarts,
                 'element_data': element_data
             })
         
@@ -3549,32 +3549,32 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 self._capture_debug(f"[Location Analysis] 🔍 Checking term: '{term}' (patient answer: '{answer}') [source unknown]")
             
             # Check against FAISS semantic matches (only semantic similarity, no substring matching)
-                    in_semantic_matches = term in semantic_matches_set
-                    score = faiss_scores.get(term, None)
+            in_semantic_matches = term in semantic_matches_set
+            score = faiss_scores.get(term, None)
             self._capture_debug(f"[Location Analysis]   Semantic check: in semantic_matches_set={in_semantic_matches}, score={score}")
-                    
-                    # DEBUG: Check raw FAISS scores to see actual scores
-                    if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
-                        raw_faiss_scores = self.medical_rule_engine._last_faiss_scores
-                        raw_score = raw_faiss_scores.get(term, None)
-                        if raw_score is not None:
+            
+            # DEBUG: Check raw FAISS scores to see actual scores
+            if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
+                raw_faiss_scores = self.medical_rule_engine._last_faiss_scores
+                raw_score = raw_faiss_scores.get(term, None)
+                if raw_score is not None:
                     self._capture_debug(f"[Location Analysis]   Raw FAISS score for '{term}': {raw_score:.3f} (threshold={self.FAISS_SEMANTIC_THRESHOLD})")
                     if raw_score < self.FAISS_SEMANTIC_THRESHOLD:
                         self._capture_debug(f"[Location Analysis]   ⚠️ Raw score {raw_score:.3f} < {self.FAISS_SEMANTIC_THRESHOLD} threshold, should NOT be in semantic_matches_set")
-                                # Also check all FAISS matches to see what was actually found
+                # Also check all FAISS matches to see what was actually found
                 if raw_faiss_scores:
-                                all_matches = sorted(raw_faiss_scores.items(), key=lambda x: x[1], reverse=True)
-                                top_5_matches = all_matches[:5]
+                    all_matches = sorted(raw_faiss_scores.items(), key=lambda x: x[1], reverse=True)
+                    top_5_matches = all_matches[:5]
                     self._capture_debug(f"[Location Analysis]   Top 5 FAISS matches: {top_5_matches}")
-                    
-                    if in_semantic_matches:
-                        term_satisfied = True
-                        if score is not None:
-                            match_reason = f"FAISS semantic match (score: {score:.3f})"
-                        else:
-                            match_reason = f"FAISS semantic match"
-                        self._capture_debug(f"[Location Analysis]   ✅ SATISFIED via FAISS semantic match")
-                    else:
+            
+            if in_semantic_matches:
+                term_satisfied = True
+                if score is not None:
+                    match_reason = f"FAISS semantic match (score: {score:.3f})"
+                else:
+                    match_reason = f"FAISS semantic match"
+                self._capture_debug(f"[Location Analysis]   ✅ SATISFIED via FAISS semantic match")
+            else:
                 guideline_sources = term_to_guidelines.get(term, [])
                 if guideline_sources:
                     sources_str = ', '.join(guideline_sources)
@@ -3585,12 +3585,12 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             if term_satisfied:
                 satisfied_terms.add(term)
                 self._capture_debug(f"[Location Analysis]   ✅ '{term}' satisfied: {match_reason}")
-                                else:
+            else:
                 guideline_sources = term_to_guidelines.get(term, [])
                 if guideline_sources:
                     sources_str = ', '.join(guideline_sources)
                     self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied [from: {sources_str}]")
-                            else:
+                else:
                     self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied")
         
         # Missing terms: Include ALL unsatisfied terms (from active + reserve) that are anatomically compatible
@@ -3643,7 +3643,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                             if patient_horizontal == term_horizontal:
                                 missing.append(term)
                                 self._capture_debug(f"[Location Analysis] ✅ '{term}' INCLUDED in missing (compatible: patient {patient_horizontal} = term {term_horizontal})")
-                    else:
+                            else:
                                 self._capture_debug(f"[Location Analysis] ❌ '{term}' EXCLUDED from missing (opposite horizontal: patient {patient_horizontal} ≠ term {term_horizontal})")
                         elif not term_horizontal or term_components.get('bilateral') or term_components.get('vague'):
                             # Term has no horizontal direction (vague/bilateral) - include it
@@ -3653,11 +3653,11 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                                 term_type = "vague"
                             elif term_components.get('bilateral'):
                                 term_type = "bilateral"
-                else:
+                            else:
                                 term_type = "vague"
                             missing.append(term)
                             self._capture_debug(f"[Location Analysis] ✅ '{term}' INCLUDED in missing ({term_type} term, no horizontal direction, compatible with any)")
-            else:
+                        else:
                             # Patient has no horizontal direction but term does - exclude
                             self._capture_debug(f"[Location Analysis] ❌ '{term}' EXCLUDED from missing (patient vague but term has {term_horizontal} direction)")
                     else:
@@ -3704,16 +3704,13 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         satisfied_terms = set()
         
         # Use FAISS semantic matching only
-                if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
-                    # Get active condition names for filtering
-                    active_condition_names = None
-                    has_active_guidelines_attr = hasattr(self, 'active_guidelines')
-                    active_guidelines_exist = has_active_guidelines_attr and self.active_guidelines
-                    
-                    if active_guidelines_exist:
+        if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
+            # Get active condition names for filtering
+            active_condition_names = None
+            if hasattr(self, 'active_guidelines') and self.active_guidelines:
                 active_condition_names = self._get_active_condition_names()
-                    
-                    semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(
+            
+            semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(
                 answer, oldcarts_element, threshold=self.FAISS_SEMANTIC_THRESHOLD, active_condition_names=active_condition_names
             )
             semantic_matches_lower = set(t.lower() for t in semantic_matches)
@@ -3722,7 +3719,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             for term in all_includes:
                 term_lower = term.lower()
                 if term_lower in semantic_matches_lower:
-                satisfied_terms.add(term)
+                    satisfied_terms.add(term)
         
         return satisfied_terms
 
