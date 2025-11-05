@@ -902,7 +902,7 @@ main_menu() {
         echo "  b) Restart Docker containers"
         echo "  0) Exit"
         echo ""
-        read -p "Enter choice [0-9ab12]: " choice
+        read -p "Enter choice [0-9ab]: " choice
         
         case $choice in
             1)
@@ -1053,6 +1053,17 @@ case "${1:-}" in
             on|enable|medical) toggle_medical_mode on ;;
             off|disable|generic) toggle_medical_mode off ;;
             *) configure_medical_mode ;;
+        esac
+        ;;
+    ml|learning)
+        case "${2:-}" in
+            on|enable) toggle_ml_learning on ;;
+            off|disable) toggle_ml_learning off ;;
+            *) 
+                echo "Usage: $0 ml [on|off]"
+                echo "  on  - Enable ML learning"
+                echo "  off - Disable ML learning"
+                ;;
         esac
         ;;
     edit)

@@ -4333,51 +4333,6 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                         'internal': self._get_debug_info(last_answer=user_answer)
                     }
                 }
-            
-            # No LLM fallback - let it fail if validation doesn't work
-                system_msg = "You are a medical assistant. Extract the patient's age from their response. Return ONLY a number between 0-150, or 'invalid' if not a valid age."
-                user_msg = f"Patient said: '{processing_answer}'\n\nExtract age as a number only:"
-        
-                llm_kwargs = self._get_llm_kwargs(override_max_tokens=10)
-                response = self.llm_chat_simple_fn(
-                    [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
-                    **llm_kwargs
-                )
-                
-                age_str = response.strip()
-                if age_str.isdigit():
-                    age = int(age_str)
-                    if 0 <= age <= 150:
-                        self.demographics['age'] = age
-                        
-                        # Check if this was asked post-assessment
-                        if last_q and last_q.get('post_assessment'):
-                            # After assessment - check if there are more missing demographics
-                            missing_demo_response = self._check_and_collect_missing_demographics()
-                            if missing_demo_response:
-                                return missing_demo_response
-                            # All demographics collected - assessment truly complete
-                            completion_msg = self._generate_completion_message()
-                            return {
-                                'success': True,
-                                'status': 'completed',
-                                'message': completion_msg,
-                                'debug': {
-                                    'engine': self._format_engine_debug("[Engine] ✅ Assessment complete - all demographics collected"),
-                                    'internal': self._get_debug_info()
-                                }
-                            }
-                        
-                        return self._generate_ml_first_question_with_demographics()
-            
-            return {
-                'success': False,
-                'message': 'Please provide your age as a number (e.g., 25, thirty-five, etc.)',
-                'debug': {
-                    'engine': self._format_engine_debug("[Engine] ❌ Age validation failed"),
-                    'internal': self._get_debug_info(last_answer=user_answer)
-                }
-            }
         
         
         # Handle red flag answers
@@ -4602,48 +4557,6 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 'message': 'I need to know if this is a new problem or something you\'ve had before. Please tell me if it\'s new or recurring.',
                 'debug': {
                     'engine': self._format_engine_debug("[Engine] ❌ Chronicity processing failed - no fallback"),
-                    'internal': self._get_debug_info(last_answer=user_answer)
-                }
-            }
-                        temperature=self.temperature
-                    )
-                    
-                    chronicity_str = response.strip().lower()
-                    if chronicity_str in ['new', 'recurring']:
-                        self.demographics['chronicity'] = chronicity_str
-                        # Use intelligent return to next missing element (handles demographics + OLDCARTS)
-                        # Pass user_answer to check for emergency/distress again
-                        return self._return_to_next_missing_element(
-                            acknowledgment_msg if needs_acknowledgment else None,
-                            last_user_input=user_answer
-                        )
-                    elif 'new' in chronicity_str:
-                        self.demographics['chronicity'] = 'new'
-                        # Use intelligent return to next missing element (handles demographics + OLDCARTS)
-                        return self._return_to_next_missing_element(
-                            acknowledgment_msg if needs_acknowledgment else None,
-                            last_user_input=user_answer
-                        )
-                    else:
-                        recurring_in_str = 'recurring' in chronicity_str
-                        ongoing_in_str = 'ongoing' in chronicity_str
-                        
-                        if recurring_in_str or ongoing_in_str:
-                            self.demographics['chronicity'] = 'recurring'
-                            # Use intelligent return to next missing element (handles demographics + OLDCARTS)
-                            return self._return_to_next_missing_element(
-                                acknowledgment_msg if needs_acknowledgment else None,
-                                last_user_input=user_answer
-                            )
-                except Exception as e:
-                    # LLM failed, fall through to error message
-                    pass
-            
-            return {
-                'success': False,
-                'message': 'Please specify if this is a new problem or ongoing issue',
-                'debug': {
-                    'engine': self._format_engine_debug("[Engine] ❌ Chronicity validation failed"),
                     'internal': self._get_debug_info(last_answer=user_answer)
                 }
             }

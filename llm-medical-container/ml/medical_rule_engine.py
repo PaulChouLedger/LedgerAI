@@ -867,12 +867,9 @@ class MedicalRuleEngine:
         synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
         
         if os.path.exists(synonym_path):
-            try:
-                with open(synonym_path, 'r') as f:
-                    synonyms = json.load(f)
-                normalized_answer = self._normalize_with_synonyms(patient_answer, synonyms, 'location')
-            except Exception:
-                pass
+            with open(synonym_path, 'r') as f:
+                synonyms = json.load(f)
+            normalized_answer = self._normalize_with_synonyms(patient_answer, synonyms, 'location')
         
         patient_direction = self._extract_directional_component(normalized_answer, patient_answer)
         
