@@ -74,7 +74,7 @@ class AdaptiveDiagnosticEngine:
     FAISS_SEMANTIC_THRESHOLD = 0.75  # Main threshold for FAISS semantic matching (location, character, etc.)
     FAISS_ASSOCIATED_THRESHOLD = 0.70  # Threshold for associated symptoms matching
     FAISS_RADIATION_THRESHOLD = 0.45  # Threshold for radiation matching
-    FAISS_STRICT_THRESHOLD = 0.85  # Strict threshold for high-confidence matches
+    # REMOVED: FAISS_STRICT_THRESHOLD - only used in removed _parse_prompt_against_structured_oldcarts function
     
     # Chief complaint matching thresholds
     CHIEF_COMPLAINT_FAISS_THRESHOLD = 0.75  # FAISS threshold for chief complaint matching
@@ -403,9 +403,7 @@ Generate an empathetic response that acknowledges their distress and reassures t
         self.chief_complaint_triggers_data = []  # List of {trigger, category, condition}
         self._build_chief_complaint_triggers_index()
         
-        # Initialize ML learning (optional feature - disabled by default)
-        self.enable_ml_learning = False
-        self.guideline_learner = None
+        # REMOVED: ML learning feature - disabled and not used in production
         
         # Initialize assessment state
         self.demographics_optional = False  # Reserved for future use (not currently used to skip questions)
@@ -448,7 +446,7 @@ Generate an empathetic response that acknowledges their distress and reassures t
                     loaded_count += 1
             except Exception as e:
                 self._capture_debug(f"[Engine] ⚠️ Failed to load {json_file.name}: {e}")
-        
+    
         if enabled_categories:
             self._capture_debug(f"[Engine] ✅ Loaded {loaded_count} guidelines ({skipped_count} skipped from disabled categories)")
         else:
@@ -2188,7 +2186,7 @@ RECOMMENDATION: {recommendation}"""
                     # Check if term has emergent tag
                     if not term_obj.get('emergent', False):
                         continue
-                    
+                
                     # Check if user input matches this term
                     medical = term_obj.get('medical', '').lower()
                     patient_friendly = term_obj.get('patient_friendly', '').lower()
@@ -2381,8 +2379,8 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         for item in reversed(self.conversation_history):
             if item.get('type') in ['question', 'statement']:
                 last_q = item
-                break
-        
+                    break
+                        
         expected_element = last_q.get('oldcarts') if last_q else None
         
         # ALWAYS FIRST: Check for and handle deviating comments/questions/distress
@@ -2453,7 +2451,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             else:
                 self._capture_debug(f"[Engine] ❌ Age not numeric: '{age_str}'")
                 # No fallback - return error
-            return {
+        return {
                 'success': False,
                 'message': 'Please provide your age as a number (e.g., 25, thirty-five, etc.)',
                 'debug': {
@@ -2838,101 +2836,39 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
     # SECTION 5: OLDCARTS PROCESSING - Location, Onset, Duration, Character, etc.
     # ============================================================================
     
-    def _parse_prompt_against_structured_oldcarts(self, prompt: str, guidelines: List[Dict]) -> Dict[str, Any]:
-        """Parse prompt against structured OLDCARTS using FAISS term matching + medical_rules.json"""
-        if not guidelines:
-            return {
-                'answered_components': {},
-                'missing_components': ['onset', 'location', 'timing', 'duration', 'progression', 'character', 'aggravating', 'relieving', 'severity', 'associated'],
-                'anatomical_analysis': {}
-            }
-        
-        # Use FAISS-based term matching with extensive synonyms
-        answered_components = {}
-        
-        # Use FAISS to find matching terms - relies on extensive synonym files
-        if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
-            all_elements = ['onset', 'location', 'timing', 'duration', 'progression', 'character', 'aggravating', 'relieving', 'severity', 'associated']
-            
-            for element in all_elements:
-                # Use FAISS to find matching terms with semantic similarity (very high threshold for initial parsing to avoid false positives)
-                # Get active condition names for filtering (if available)
-                active_condition_names = None
-                has_active_guidelines_attr = hasattr(self, 'active_guidelines')
-                active_guidelines_exist = has_active_guidelines_attr and self.active_guidelines
-                
-                if active_guidelines_exist:
-                    active_condition_names = set()
-                    for g in self.active_guidelines:
-                        condition_name = g.get('data', {}).get('condition', g.get('name', ''))
-                        if condition_name:
-                            active_condition_names.add(condition_name)
-                
-                matching_terms = self.medical_rule_engine.find_matching_terms_faiss(
-                    prompt, element, threshold=self.FAISS_STRICT_THRESHOLD, active_condition_names=active_condition_names
-                )
-                if matching_terms:
-                    answered_components[element] = matching_terms
-                    self._capture_debug(f"[Engine] 📍 {element}: {matching_terms}")
-        
-        answered_elements = list(answered_components.keys())
-        # Priority order: timing before duration
-        standard_order = ['onset', 'location', 'timing', 'duration', 'progression', 'character', 'aggravating', 'relieving', 'severity', 'associated']
-        missing_elements = [element for element in standard_order if element not in answered_elements]
-        
-        return {
-            'answered_components': answered_components,
-            'missing_components': missing_elements,
-            'anatomical_analysis': {}
-        }
+    # REMOVED: _parse_prompt_against_structured_oldcarts - only used in test files, not in production
     
-    def _parse_prompt_against_structured_oldcarts_regex(self, prompt: str, guidelines: List[Dict]) -> Dict[str, Any]:
-        """Fallback regex-based parsing"""
-        # Collect all 'includes' terms from guidelines
-        all_includes = {
-            'onset': set(), 'progression': set(), 'location': set(), 'timing': set(), 'duration': set(),
-            'character': set(), 'aggravating': set(), 'relieving': set(), 'severity': set()
-        }
-        
-        for guideline in guidelines:
-            structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
-            for element, data in structured.items():
-                if isinstance(data, dict) and 'includes' in data:
-                    if element in all_includes:
-                        for term in data['includes']:
-                            all_includes[element].add(term.lower())
-        
-        # Detect which elements are present in prompt (using whole word matching)
-        answered_components = {}
-        prompt_lower = prompt.lower()
-        
-        # Common words to exclude (too generic, cause false positives)
-        exclude_words = {'pain', 'ache', 'hurt', 'sore'}
-        
-        for element, expected_terms in all_includes.items():
-            for term in expected_terms:
-                term_lower = term.lower()
-                # Skip single generic words that cause false positives
-                if term_lower in exclude_words:
-                    continue
-                
-                # Use whole word matching (more specific)
-                # Check if term appears as whole word/phrase, not substring
-                pattern = r'\b' + re.escape(term_lower) + r'\b'
-                if re.search(pattern, prompt_lower):
-                    if element not in answered_components:
-                        answered_components[element] = []
-                    answered_components[element].append(term)
-                    break
-                        
-        all_elements = ['onset', 'location', 'timing', 'duration', 'progression', 'character', 'aggravating', 'relieving', 'severity', 'associated']
-        answered_elements = list(answered_components.keys())
-        missing_elements = [element for element in all_elements if element not in answered_elements]
-        
-        return {
-            'answered_components': answered_components,
-            'missing_components': missing_elements
-        }
+    def _get_structured_oldcarts(self, guideline: Dict) -> Dict:
+        """Helper to extract structured_oldcarts from guideline (handles both data wrapper and direct)"""
+        structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+        if not structured:
+            structured = guideline.get('key_features', {}).get('structured_oldcarts', {})
+        return structured
+    
+    def _get_active_condition_names(self, guidelines: List[Dict] = None) -> set:
+        """Helper to extract active condition names from guidelines"""
+        if guidelines is None:
+            guidelines = self.active_guidelines
+        active_condition_names = set()
+        for g in guidelines:
+            condition_name = g.get('data', {}).get('condition', g.get('name', ''))
+            if condition_name:
+                active_condition_names.add(condition_name)
+        return active_condition_names
+    
+    def _extract_patient_friendly_from_includes(self, includes: List) -> List[str]:
+        """Helper to extract patient_friendly terms from includes list"""
+        patient_friendly_terms = []
+        for term_obj in includes:
+            if isinstance(term_obj, dict):
+                pf_term = term_obj.get('patient_friendly', '')
+                if pf_term and isinstance(pf_term, str) and pf_term.strip():
+                    patient_friendly_terms.append(pf_term.strip())
+            elif isinstance(term_obj, str):
+                # Fallback: use string as patient_friendly term if no dict structure
+                if term_obj.strip():
+                    patient_friendly_terms.append(term_obj.strip())
+        return patient_friendly_terms
     
     def _process_clinical_answer(self, answer: str) -> Dict[str, Any]:
         """Score guidelines using unified similarity function"""
@@ -3115,10 +3051,10 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             structured_oldcarts = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
             element_data = structured_oldcarts.get(oldcarts_element, {})
             
-            guideline_data.append({
-                'guideline': g,
-                'condition_name': g.get('data', {}).get('condition', g.get('name', 'Unknown')),
-                'structured_oldcarts': structured_oldcarts,
+                guideline_data.append({
+                    'guideline': g,
+                    'condition_name': g.get('data', {}).get('condition', g.get('name', 'Unknown')),
+                    'structured_oldcarts': structured_oldcarts,
                 'element_data': element_data
             })
         
@@ -3148,20 +3084,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 word_match_boost = 0.0  # No word match boost for simplified matching
                 
                 # Record for ML learning (both matched and unmatched)
-                if self.enable_ml_learning and self.guideline_learner:
-                    try:
-                        # Record unmatched/low-confidence responses for guideline learning
-                        if similarity < 0.6:  # Low confidence match
-                            self.guideline_learner.record_unmatched_response(
-                                user_input=answer,
-                                oldcarts_element=oldcarts_element,
-                                organ_system=organ_system,
-                                condition=condition_name,
-                                matched_confidence=similarity,
-                                context={'category': self.current_category}
-                            )
-                    except Exception as e:
-                        self._capture_debug(f"[Engine] ⚠️ Failed to record unmatched response: {e}")
+                # REMOVED: ML learning code - feature disabled and not used in production
             else:
                 similarity = 0.5
                 word_match_boost = 0.0
@@ -3626,32 +3549,32 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 self._capture_debug(f"[Location Analysis] 🔍 Checking term: '{term}' (patient answer: '{answer}') [source unknown]")
             
             # Check against FAISS semantic matches (only semantic similarity, no substring matching)
-            in_semantic_matches = term in semantic_matches_set
-            score = faiss_scores.get(term, None)
+                    in_semantic_matches = term in semantic_matches_set
+                    score = faiss_scores.get(term, None)
             self._capture_debug(f"[Location Analysis]   Semantic check: in semantic_matches_set={in_semantic_matches}, score={score}")
-            
-            # DEBUG: Check raw FAISS scores to see actual scores
-            if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
-                raw_faiss_scores = self.medical_rule_engine._last_faiss_scores
-                raw_score = raw_faiss_scores.get(term, None)
-                if raw_score is not None:
+                    
+                    # DEBUG: Check raw FAISS scores to see actual scores
+                    if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
+                        raw_faiss_scores = self.medical_rule_engine._last_faiss_scores
+                        raw_score = raw_faiss_scores.get(term, None)
+                        if raw_score is not None:
                     self._capture_debug(f"[Location Analysis]   Raw FAISS score for '{term}': {raw_score:.3f} (threshold={self.FAISS_SEMANTIC_THRESHOLD})")
                     if raw_score < self.FAISS_SEMANTIC_THRESHOLD:
                         self._capture_debug(f"[Location Analysis]   ⚠️ Raw score {raw_score:.3f} < {self.FAISS_SEMANTIC_THRESHOLD} threshold, should NOT be in semantic_matches_set")
-                # Also check all FAISS matches to see what was actually found
+                                # Also check all FAISS matches to see what was actually found
                 if raw_faiss_scores:
-                    all_matches = sorted(raw_faiss_scores.items(), key=lambda x: x[1], reverse=True)
-                    top_5_matches = all_matches[:5]
+                                all_matches = sorted(raw_faiss_scores.items(), key=lambda x: x[1], reverse=True)
+                                top_5_matches = all_matches[:5]
                     self._capture_debug(f"[Location Analysis]   Top 5 FAISS matches: {top_5_matches}")
-            
-            if in_semantic_matches:
-                term_satisfied = True
-                if score is not None:
-                    match_reason = f"FAISS semantic match (score: {score:.3f})"
-                else:
-                    match_reason = f"FAISS semantic match"
-                self._capture_debug(f"[Location Analysis]   ✅ SATISFIED via FAISS semantic match")
-            else:
+                    
+                    if in_semantic_matches:
+                        term_satisfied = True
+                        if score is not None:
+                            match_reason = f"FAISS semantic match (score: {score:.3f})"
+                        else:
+                            match_reason = f"FAISS semantic match"
+                        self._capture_debug(f"[Location Analysis]   ✅ SATISFIED via FAISS semantic match")
+                    else:
                 guideline_sources = term_to_guidelines.get(term, [])
                 if guideline_sources:
                     sources_str = ', '.join(guideline_sources)
@@ -3662,12 +3585,12 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             if term_satisfied:
                 satisfied_terms.add(term)
                 self._capture_debug(f"[Location Analysis]   ✅ '{term}' satisfied: {match_reason}")
-            else:
+                                else:
                 guideline_sources = term_to_guidelines.get(term, [])
                 if guideline_sources:
                     sources_str = ', '.join(guideline_sources)
                     self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied [from: {sources_str}]")
-                else:
+                            else:
                     self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied")
         
         # Missing terms: Include ALL unsatisfied terms (from active + reserve) that are anatomically compatible
@@ -3720,7 +3643,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                             if patient_horizontal == term_horizontal:
                                 missing.append(term)
                                 self._capture_debug(f"[Location Analysis] ✅ '{term}' INCLUDED in missing (compatible: patient {patient_horizontal} = term {term_horizontal})")
-                            else:
+                    else:
                                 self._capture_debug(f"[Location Analysis] ❌ '{term}' EXCLUDED from missing (opposite horizontal: patient {patient_horizontal} ≠ term {term_horizontal})")
                         elif not term_horizontal or term_components.get('bilateral') or term_components.get('vague'):
                             # Term has no horizontal direction (vague/bilateral) - include it
@@ -3730,11 +3653,11 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                                 term_type = "vague"
                             elif term_components.get('bilateral'):
                                 term_type = "bilateral"
-                            else:
+                else:
                                 term_type = "vague"
                             missing.append(term)
                             self._capture_debug(f"[Location Analysis] ✅ '{term}' INCLUDED in missing ({term_type} term, no horizontal direction, compatible with any)")
-                        else:
+            else:
                             # Patient has no horizontal direction but term does - exclude
                             self._capture_debug(f"[Location Analysis] ❌ '{term}' EXCLUDED from missing (patient vague but term has {term_horizontal} direction)")
                     else:
@@ -3781,20 +3704,16 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         satisfied_terms = set()
         
         # Use FAISS semantic matching only
-        if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
-            # Get active condition names for filtering
-            active_condition_names = None
-            has_active_guidelines_attr = hasattr(self, 'active_guidelines')
-            active_guidelines_exist = has_active_guidelines_attr and self.active_guidelines
-            
-            if active_guidelines_exist:
-                active_condition_names = set()
-                for g in self.active_guidelines:
-                    condition_name = g.get('data', {}).get('condition', g.get('name', ''))
-                    if condition_name:
-                        active_condition_names.add(condition_name)
-            
-            semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(
+                if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
+                    # Get active condition names for filtering
+                    active_condition_names = None
+                    has_active_guidelines_attr = hasattr(self, 'active_guidelines')
+                    active_guidelines_exist = has_active_guidelines_attr and self.active_guidelines
+                    
+                    if active_guidelines_exist:
+                active_condition_names = self._get_active_condition_names()
+                    
+                    semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(
                 answer, oldcarts_element, threshold=self.FAISS_SEMANTIC_THRESHOLD, active_condition_names=active_condition_names
             )
             semantic_matches_lower = set(t.lower() for t in semantic_matches)
@@ -3803,7 +3722,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             for term in all_includes:
                 term_lower = term.lower()
                 if term_lower in semantic_matches_lower:
-                    satisfied_terms.add(term)
+                satisfied_terms.add(term)
         
         return satisfied_terms
 
@@ -3953,18 +3872,18 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         # Skip terms that can't be found (e.g., from reserve guidelines without patient_friendly terms)
         for term in missing_terms:
             try:
-                friendly_term = self._get_patient_friendly_from_guidelines(term, oldcarts_element)
-                medical_to_friendly_map[term] = friendly_term
-                
-                # Debug output showing the mapping for each term as we process it
-                self._capture_debug(f"[Clarification] 📝 '{term}' → '{friendly_term}'")
-                
-                # Only add non-empty, unique terms
-                if friendly_term and friendly_term.strip():
-                    friendly_lower = friendly_term.strip().lower()
-                    if friendly_lower not in seen_friendly_terms:
-                        patient_friendly_terms.append(friendly_term.strip())
-                        seen_friendly_terms.add(friendly_lower)
+            friendly_term = self._get_patient_friendly_from_guidelines(term, oldcarts_element)
+            medical_to_friendly_map[term] = friendly_term
+            
+            # Debug output showing the mapping for each term as we process it
+            self._capture_debug(f"[Clarification] 📝 '{term}' → '{friendly_term}'")
+            
+            # Only add non-empty, unique terms
+            if friendly_term and friendly_term.strip():
+                friendly_lower = friendly_term.strip().lower()
+                if friendly_lower not in seen_friendly_terms:
+                    patient_friendly_terms.append(friendly_term.strip())
+                    seen_friendly_terms.add(friendly_lower)
             except ValueError as e:
                 # Skip terms that can't be found - log but continue processing other terms
                 self._capture_debug(f"[Clarification] ⚠️ Skipping '{term}': {e}")
@@ -4063,7 +3982,7 @@ Generate a clarification question using EXACTLY this format with the terms provi
             # Try both possible structures (with and without 'data' wrapper)
             structured = guideline.get('key_features', {}).get('structured_oldcarts', {})
             if not structured:
-                structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
             
             element_data = structured.get(oldcarts_element, {})
             if isinstance(element_data, dict):
@@ -4087,7 +4006,7 @@ Generate a clarification question using EXACTLY this format with the terms provi
         # Collect all radiation terms with patient-friendly versions from radiation section
         radiation_options = []
         for guideline in self.active_guidelines:
-            structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            structured = self._get_structured_oldcarts(guideline)
             radiation_data = structured.get('radiation', {})
             if isinstance(radiation_data, dict):
                 includes = radiation_data.get('includes', [])
@@ -4352,19 +4271,19 @@ Generate a clarification question using EXACTLY this format with the terms provi
             sample_question = character_analysis['sample_question']
             component_guidance_text = character_analysis['guidance']
         else:
-            # Sample questions for each OLDCARTS element as guidance (ONLY reference)
-            sample_questions = {
-                'onset': "When did this start?",
+        # Sample questions for each OLDCARTS element as guidance (ONLY reference)
+        sample_questions = {
+            'onset': "When did this start?",
                 'progression': "Did it come on gradually or suddenly?",
-                'location': "Where exactly is the pain located?",
-                'timing': "Is it constant or does it come and go?",
-                'duration': "How long does each episode typically last?",
-                'associated': "Are there any other symptoms you're experiencing?",
+            'location': "Where exactly is the pain located?",
+            'timing': "Is it constant or does it come and go?",
+            'duration': "How long does each episode typically last?",
+            'associated': "Are there any other symptoms you're experiencing?",
                 'character': "What does it feel like?",  # Default, but will be overridden if character
-                'aggravating': "What makes it worse?",
-                'relieving': "What helps or makes it better?",
-                'severity': "On a scale of 1 to 10, how would you rate this?"
-            }
+            'aggravating': "What makes it worse?",
+            'relieving': "What helps or makes it better?",
+            'severity': "On a scale of 1 to 10, how would you rate this?"
+        }
             if component not in sample_questions:
                 raise ValueError(f"Unknown OLDCARTS component: {component}. Must be one of: {list(sample_questions.keys())}")
             sample_question = sample_questions[component]
@@ -4376,7 +4295,7 @@ Generate a clarification question using EXACTLY this format with the terms provi
         if component == 'character':
             guidance_text = component_guidance_text
         else:
-            guidance_text = component_guidance.get(component, "")
+        guidance_text = component_guidance.get(component, "")
         
         system_msg = self.LLM_OLDCARTS_SYSTEM_MSG
         
@@ -4398,7 +4317,7 @@ Example question: {sample_question}
 {strict_instructions}
 
 Generate a question about {component} for this patient:"""
-        else:
+            else:
             user_msg = f"""{chief_complaint_context}{conversation_context}
 
 Component: {component.upper()}
@@ -4476,16 +4395,7 @@ Generate a question about {component} for this patient:"""
             return 0.0
         
         # Collect all patient_friendly terms from this element
-        patient_friendly_terms = []
-        for term_obj in includes:
-            if isinstance(term_obj, dict):
-                pf_term = term_obj.get('patient_friendly', '')
-                if pf_term and isinstance(pf_term, str) and pf_term.strip():
-                    patient_friendly_terms.append(pf_term.strip())
-            elif isinstance(term_obj, str):
-                # Fallback: use string as patient_friendly term if no dict structure
-                if term_obj.strip():
-                    patient_friendly_terms.append(term_obj.strip())
+        patient_friendly_terms = self._extract_patient_friendly_from_includes(includes)
         
         if not patient_friendly_terms:
             return 0.0
@@ -4510,7 +4420,7 @@ Generate a question about {component} for this patient:"""
                 max_similarity = max(max_similarity, similarity)
             
             return max_similarity
-        except Exception as e:
+                except Exception as e:
             self._capture_debug(f"[Scoring] ⚠️ Error matching to patient_friendly terms: {e}")
             return 0.0
         
@@ -4551,7 +4461,7 @@ Generate a question about {component} for this patient:"""
         covered_count = sum(self.oldcarts_covered.values())
         coverage_str = ''.join([k if v else '_' for k, v in self.oldcarts_covered.items()])
         
-        return {
+            return {
             'demographics': self.demographics,
             'question_number': num_questions,
             'oldcarts_coverage': coverage_str,
