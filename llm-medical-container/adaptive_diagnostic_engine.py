@@ -2234,12 +2234,69 @@ class AdaptiveDiagnosticEngine:
         return f"Chief complaint: {self.chief_complaint}" if self.chief_complaint else "No chief complaint recorded"
     
     def _clean_llm_response(self, response: str) -> str:
-        """Clean LLM response (remove double question marks, strip whitespace)"""
+        """Clean LLM response (remove double question marks, strip whitespace, remove reasoning)"""
         if response and response.strip():
             cleaned = response.strip()
+            
+            # Remove double question marks
             if cleaned.endswith('??'):
                 cleaned = cleaned[:-1]
-            return cleaned
+            
+            # Remove common reasoning patterns that might appear before the question
+            # Look for patterns like "Here's a question:" or "The question is:" etc.
+            reasoning_patterns = [
+                r'^here\'s.*?:',
+                r'^here is.*?:',
+                r'^the question.*?:',
+                r'^a clarification question.*?:',
+                r'^clarification question.*?:',
+                r'^question.*?:',
+                r'^i would ask.*?:',
+                r'^you could ask.*?:',
+                r'^this question.*?:',
+                r'^the clarification.*?:',
+            ]
+            
+            for pattern in reasoning_patterns:
+                match = re.search(pattern, cleaned, re.IGNORECASE)
+                if match:
+                    # Extract everything after the colon
+                    cleaned = cleaned[match.end():].strip()
+                    break
+            
+            # If the response contains multiple sentences, extract just the question part
+            # Look for sentences with question marks
+            sentences = re.split(r'([.!?]+)', cleaned)
+            # Reconstruct sentences with punctuation
+            reconstructed = []
+            for i in range(0, len(sentences) - 1, 2):
+                if i + 1 < len(sentences):
+                    reconstructed.append(sentences[i] + sentences[i + 1])
+                else:
+                    reconstructed.append(sentences[i])
+            
+            questions = [s.strip() for s in reconstructed if '?' in s]
+            if questions:
+                # Take the longest question (most likely the actual question)
+                cleaned = max(questions, key=len)
+            else:
+                # If no clear question found, try to find the first question mark
+                if '?' in cleaned:
+                    q_index = cleaned.find('?')
+                    # Extract from the start of the sentence containing the question
+                    sentence_start = max(0, cleaned.rfind('.', 0, q_index), cleaned.rfind('!', 0, q_index))
+                    if sentence_start > 0:
+                        cleaned = cleaned[sentence_start + 1:q_index + 1].strip()
+                    else:
+                        cleaned = cleaned[:q_index + 1].strip()
+            
+            # Remove any trailing explanations that might follow the question
+            # If there's a period or explanation after a question mark, remove it
+            if '?' in cleaned:
+                q_index = cleaned.rfind('?')
+                cleaned = cleaned[:q_index + 1]
+            
+            return cleaned.strip()
         return ""
     
     def _generate_clarifying_question(self, oldcarts_element: str, patient_answer: str,
@@ -2258,8 +2315,8 @@ class AdaptiveDiagnosticEngine:
         seen_friendly_terms = set()  # Track unique patient-friendly terms to avoid duplicates
         medical_to_friendly_map = {}
         
-        # Try up to 10 terms to get 5 unique patient-friendly terms
-        for term in missing_terms[:10]:
+        # Process ALL missing terms (no limit)
+        for term in missing_terms:
             friendly_term = self._get_patient_friendly_from_guidelines(term, oldcarts_element)
             medical_to_friendly_map[term] = friendly_term
             
@@ -2272,15 +2329,13 @@ class AdaptiveDiagnosticEngine:
                 if friendly_lower not in seen_friendly_terms:
                     patient_friendly_terms.append(friendly_term.strip())
                     seen_friendly_terms.add(friendly_lower)
-                    if len(patient_friendly_terms) >= 5:  # Stop when we have 5 unique ones
-                        break
         
         # If no good terms found, raise error
         if not patient_friendly_terms:
             raise ValueError(f"Cannot generate clarifying question for {oldcarts_element} - no patient-friendly terms found")
         
         # Use LLM to generate a natural, properly structured clarification question
-        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, grammatically correct clarification question that flows well. Use proper grammar with 'and' and 'or' to connect options naturally."
+        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, grammatically correct clarification question that flows well. Use proper grammar with 'and' and 'or' to connect options naturally. Return ONLY the question - no explanations, no reasoning, no additional text."
         
         # Get context using helper functions
         chief_complaint_context = self._get_chief_complaint_context()
@@ -2293,35 +2348,39 @@ class AdaptiveDiagnosticEngine:
 
 The patient said: "{patient_answer}"
 
-We need to clarify the location. Here are the possible locations from the medical guidelines:
+We need to clarify the location. Here are the ONLY possible locations from the medical guidelines (you MUST use only these):
 {options_list}
 
-Generate a natural, grammatically correct clarification question. Use proper grammar:
+Generate a natural, grammatically correct clarification question. CRITICAL RULES:
+- You MUST use ONLY the options listed above - do NOT add any other locations or terms
 - Use "or" to connect options naturally
 - For location, you can use phrases like "located at" or "located in" if appropriate
 - Make it flow naturally as a spoken question
+- Include as many of the provided options as possible in the question
 - Example format: "Can you be more specific? For example, is it located at [option1], [option2], [option3], or [option4]?"
 - But vary the phrasing naturally - don't use the exact same structure every time
 - Keep it conversational and natural
 
-Generate the clarification question:"""
+CRITICAL: Return ONLY the question itself. Do NOT include any explanations, reasoning, or additional text. Just the question. Use ONLY the options provided above."""
         else:
             options_list = ", ".join(patient_friendly_terms)
             user_msg = f"""{chief_complaint_context}{conversation_context}
 
 The patient said: "{patient_answer}"
 
-We need to clarify the {oldcarts_element}. Here are the possible options from the medical guidelines:
+We need to clarify the {oldcarts_element}. Here are the ONLY possible options from the medical guidelines (you MUST use only these):
 {options_list}
 
-Generate a natural, grammatically correct clarification question. Use proper grammar:
+Generate a natural, grammatically correct clarification question. CRITICAL RULES:
+- You MUST use ONLY the options listed above - do NOT add any other terms
 - Use "or" to connect options naturally
 - Make it flow naturally as a spoken question
+- Include as many of the provided options as possible in the question
 - Example format: "Can you be more specific? For example, is it [option1], [option2], [option3], or [option4]?"
 - But vary the phrasing naturally - don't use the exact same structure every time
 - Keep it conversational and natural
 
-Generate the clarification question:"""
+CRITICAL: Return ONLY the question itself. Do NOT include any explanations, reasoning, or additional text. Just the question. Use ONLY the options provided above."""
         
         llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
         response = self.llm_chat_simple_fn(
@@ -2700,8 +2759,11 @@ Generate a question about {component} for this patient:"""
             ],
             **llm_kwargs
         )
-        if response and response.strip():
-            generated_question = response.strip()
+        
+        # Clean response to remove reasoning
+        cleaned_response = self._clean_llm_response(response)
+        if cleaned_response:
+            generated_question = cleaned_response
             
             # VALIDATION: Ensure severity question is actually a question, not just a number
             if component == 'severity':
@@ -4782,9 +4844,10 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                             medical_term = term_obj.get('medical', '')
                             if medical_term and medical_term not in missing_terms:
                                 missing_terms.append(medical_term)
-                                if len(missing_terms) >= 10:  # Limit to match _generate_clarifying_question logic
+                                # No limit - process all terms
+                                if len(missing_terms) >= 20:  # Reasonable limit to prevent excessive processing
                                     break
-                    if len(missing_terms) >= 10:
+                    if len(missing_terms) >= 20:
                         break
             
             if not missing_terms:
