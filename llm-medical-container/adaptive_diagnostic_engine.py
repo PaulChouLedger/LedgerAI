@@ -3028,81 +3028,11 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 # Detect organ system from category
                 organ_system = self.CATEGORY_TO_SYSTEM.get(self.current_category or 'gastrointestinal', 'GI')
                 
-                # OPTIMIZATION: Pre-normalize patient answer once before the loop
-                pre_normalized_text = answer.lower()
-                if self.medical_rule_engine:
-                    # Try to find best matching term via FAISS
-                    # Get active condition names for filtering
-                    active_condition_names = set()
-                    for g in all_guidelines:
-                        condition_name = g.get('data', {}).get('condition', g.get('name', ''))
-                        if condition_name:
-                            active_condition_names.add(condition_name)
-                    
-                    faiss_matches = self.medical_rule_engine.find_matching_terms_faiss(
-                        answer, 'radiation', threshold=self.FAISS_RADIATION_THRESHOLD, active_condition_names=active_condition_names
-                    )
-                    if faiss_matches:
-                        pre_normalized_text = faiss_matches[0]
-                
-                # OPTIMIZATION: Batch embedding for all guidelines
-                # Pass 1: Collect all sections to embed
-                guideline_sections = []
-                guideline_data = []
+                # Score radiation using patient_friendly matching (use raw answer, no normalization)
                 for g in all_guidelines:
                     structured_oldcarts = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
-                    # Build location section text from structured data
-                    location_data = structured_oldcarts.get('location', {})
-                    location_terms = []
-                    for item in location_data.get('includes', []):
-                        location_terms.append(item.get('medical', ''))
-                    oldcarts_section = ' '.join(location_terms)
-                    
-                    if oldcarts_section:
-                        guideline_sections.append(oldcarts_section)
-                        guideline_data.append({
-                            'guideline': g,
-                            'condition_name': g.get('data', {}).get('condition', g.get('name', 'Unknown')),
-                            'structured_oldcarts': structured_oldcarts,
-                            'section': oldcarts_section
-                        })
-                
-                # Batch encode all sections at once
-                batch_embeddings = None
-                patient_embedding = None
-                if self.medical_rule_engine.embedding_model and guideline_sections:
-                    try:
-                        # Encode patient answer + all sections in one batch
-                        batch_texts = [answer.lower()] + guideline_sections
-                        batch_embeddings = self.medical_rule_engine.embedding_model.encode(batch_texts)
-                        batch_embeddings = np.asarray(batch_embeddings, dtype='float32')
-                        patient_embedding = batch_embeddings[0]
-                        section_embeddings = batch_embeddings[1:]
-                    except Exception as e:
-                        self._capture_debug(f"[Scoring] ⚠️ Batch embedding failed: {e}")
-                        batch_embeddings = None
-                
-                # Pass 2: Score each guideline
-                for idx, g_data in enumerate(guideline_data):
-                    g = g_data['guideline']
-                    oldcarts_section = g_data['section']
-                    condition_name = g_data['condition_name']
-                    structured_oldcarts = g_data['structured_oldcarts']
-                    element_data = structured_oldcarts.get('radiation')  # Use radiation element data
-                    
-                    # Compute raw similarity from batch embeddings if available
-                    raw_similarity = 0.0
-                    if batch_embeddings is not None and idx < len(section_embeddings):
-                        section_emb = section_embeddings[idx]
-                        raw_similarity = float(np.dot(patient_embedding, section_emb) / 
-                                              (np.linalg.norm(patient_embedding) * np.linalg.norm(section_emb)))
-                    
-                    # Get active condition names for filtering
-                    active_condition_names = set()
-                    for g in all_guidelines:
-                        cond_name = g.get('data', {}).get('condition', g.get('name', ''))
-                        if cond_name:
-                            active_condition_names.add(cond_name)
+                    condition_name = g.get('data', {}).get('condition', g.get('name', 'Unknown'))
+                    element_data = structured_oldcarts.get('radiation')
                     
                     # Score radiation: Use patient_friendly matching (radiation is not location)
                     if element_data:
@@ -3110,7 +3040,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                     else:
                         similarity = 0.0
                     
-                    old_score = g['score']
+                    old_score = g.get('score', 0.5)
                     new_score = (old_score * 0.7) + (similarity * 0.3)
                     g['score'] = new_score
                     self._capture_debug(f"[Scoring] 📊 {condition_name}: old={old_score:.3f}, radiation={similarity:.3f}, new={new_score:.3f}")
@@ -3178,23 +3108,6 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         self._capture_debug(f"[Scoring] 🔍 Scoring {len(all_guidelines)} guidelines for element: {oldcarts_element}")
         self._capture_debug(f"[Scoring] 📝 Patient answer: '{answer}'")
         
-        # OPTIMIZATION: Pre-normalize patient answer once before the loop
-        pre_normalized_text = answer.lower()
-        if self.medical_rule_engine:
-            # Try to find best matching term via FAISS
-            # Get active condition names for filtering
-            active_condition_names = set()
-            for g in all_guidelines:
-                condition_name = g.get('data', {}).get('condition', g.get('name', ''))
-                if condition_name:
-                    active_condition_names.add(condition_name)
-            
-            faiss_matches = self.medical_rule_engine.find_matching_terms_faiss(
-                answer, oldcarts_element, threshold=self.FAISS_SEMANTIC_THRESHOLD, active_condition_names=active_condition_names
-            )
-            if faiss_matches:
-                pre_normalized_text = faiss_matches[0]
-        
         # Prepare guideline data for scoring
         # For all elements (including location): collect element_data for patient_friendly matching
         guideline_data = []
@@ -3228,11 +3141,11 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             structured_oldcarts = g_data['structured_oldcarts']
             
             # Score using patient_friendly matching for all elements (including location)
+            # Use raw answer directly for semantic matching (no normalization)
             if self.medical_rule_engine:
                 element_data = g_data.get('element_data') or structured_oldcarts.get(oldcarts_element)
                 similarity = self._match_to_patient_friendly_terms(answer, element_data, oldcarts_element)
                 word_match_boost = 0.0  # No word match boost for simplified matching
-                normalized_text = answer.lower()
                 
                 # Record for ML learning (both matched and unmatched)
                 if self.enable_ml_learning and self.guideline_learner:
@@ -3252,7 +3165,6 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             else:
                 similarity = 0.5
                 word_match_boost = 0.0
-                normalized_text = answer
             
             # Update score using category-specific element weights
             old_score = g.get('score', 0.5)
@@ -3265,7 +3177,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             g['score'] = new_score
             scored_guidelines.add(condition_name)
             
-            self._capture_debug(f"[Scoring] 📊 {condition_name}: old={old_score:.3f}, similarity={similarity:.3f} (boost={word_match_boost:.3f}), weight={element_weight:.2f} ({oldcarts_element}), normalized='{normalized_text}', new={new_score:.3f}")
+            self._capture_debug(f"[Scoring] 📊 {condition_name}: old={old_score:.3f}, similarity={similarity:.3f} (boost={word_match_boost:.3f}), weight={element_weight:.2f} ({oldcarts_element}), new={new_score:.3f}")
         
         # Debug: Verify scores were actually updated in the objects
         self._capture_debug(f"[Scoring] 🔍 Verifying scores after update (first 3 from guideline_data):")
@@ -3580,7 +3492,6 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         
         semantic_matches_set = set()
         faiss_scores = {}
-        normalized_answer = answer_lower  # Default to original answer
         patient_components = {}  # For location only
         
         if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
@@ -3599,10 +3510,6 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                     raw_faiss_scores = self.medical_rule_engine._last_faiss_scores
                     self._capture_debug(f"[Location Analysis] 🔍 FAISS found {len(semantic_matches)} matches above threshold: {semantic_matches}")
                     self._capture_debug(f"[Location Analysis] 🔍 Raw FAISS scores (all): {raw_faiss_scores}")
-                
-                # OPTIMIZATION: Use first FAISS match as normalized answer (reuse result)
-                if semantic_matches:
-                    normalized_answer = semantic_matches[0].lower()
                 
                 # Compute patient_friendly similarity scores for matched terms (same as scoring uses)
                 # This replaces raw FAISS scores with patient_friendly semantic matching scores
@@ -3645,8 +3552,9 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 pass
         
         # OPTIMIZATION: Extract anatomical components ONCE from patient answer (for location only)
+        # IMPORTANT: Use original answer, not normalized_answer, to avoid adding components that weren't mentioned
         if oldcarts_element == 'location' and self.medical_rule_engine:
-            patient_components = self.medical_rule_engine._extract_anatomical_components(normalized_answer)
+            patient_components = self.medical_rule_engine._extract_anatomical_components(answer_lower)
         
         # OPTIMIZATION: Pre-extract anatomical components for ALL terms ONCE (not in loop)
         # PRIMARY METHOD: Use guideline anatomical_type when term is associated with a guideline
@@ -3717,50 +3625,39 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             else:
                 self._capture_debug(f"[Location Analysis] 🔍 Checking term: '{term}' (patient answer: '{answer}') [source unknown]")
             
-            # 1. Exact/substring matching (fast path)
-            term_in_answer = term in answer_lower
-            answer_in_term = answer_lower in term
-            self._capture_debug(f"[Location Analysis]   Step 1 - Substring check: term in answer={term_in_answer}, answer in term={answer_in_term}")
+            # Check against FAISS semantic matches (only semantic similarity, no substring matching)
+            in_semantic_matches = term in semantic_matches_set
+            score = faiss_scores.get(term, None)
+            self._capture_debug(f"[Location Analysis]   Semantic check: in semantic_matches_set={in_semantic_matches}, score={score}")
             
-            if term_in_answer or answer_in_term:
+            # DEBUG: Check raw FAISS scores to see actual scores
+            if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
+                raw_faiss_scores = self.medical_rule_engine._last_faiss_scores
+                raw_score = raw_faiss_scores.get(term, None)
+                if raw_score is not None:
+                    self._capture_debug(f"[Location Analysis]   Raw FAISS score for '{term}': {raw_score:.3f} (threshold={self.FAISS_SEMANTIC_THRESHOLD})")
+                    if raw_score < self.FAISS_SEMANTIC_THRESHOLD:
+                        self._capture_debug(f"[Location Analysis]   ⚠️ Raw score {raw_score:.3f} < {self.FAISS_SEMANTIC_THRESHOLD} threshold, should NOT be in semantic_matches_set")
+                # Also check all FAISS matches to see what was actually found
+                if raw_faiss_scores:
+                    all_matches = sorted(raw_faiss_scores.items(), key=lambda x: x[1], reverse=True)
+                    top_5_matches = all_matches[:5]
+                    self._capture_debug(f"[Location Analysis]   Top 5 FAISS matches: {top_5_matches}")
+            
+            if in_semantic_matches:
                 term_satisfied = True
-                match_reason = f"exact/substring match: '{term}' in '{answer}' or '{answer}' in '{term}'"
-                self._capture_debug(f"[Location Analysis]   ✅ SATISFIED via substring match")
+                if score is not None:
+                    match_reason = f"FAISS semantic match (score: {score:.3f})"
+                else:
+                    match_reason = f"FAISS semantic match"
+                self._capture_debug(f"[Location Analysis]   ✅ SATISFIED via FAISS semantic match")
             else:
-                if not term_satisfied:
-                    # 2. Check against FAISS semantic matches (already computed)
-                    in_semantic_matches = term in semantic_matches_set
-                    score = faiss_scores.get(term, None)
-                    self._capture_debug(f"[Location Analysis]   Step 3 - FAISS check: in semantic_matches_set={in_semantic_matches}, score={score}")
-                    
-                    # DEBUG: Check raw FAISS scores to see actual scores
-                    if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
-                        raw_faiss_scores = self.medical_rule_engine._last_faiss_scores
-                        raw_score = raw_faiss_scores.get(term, None)
-                        if raw_score is not None:
-                            self._capture_debug(f"[Location Analysis]   Step 3 - Raw FAISS score for '{term}': {raw_score:.3f} (threshold={self.FAISS_SEMANTIC_THRESHOLD})")
-                            if raw_score < self.FAISS_SEMANTIC_THRESHOLD:
-                                self._capture_debug(f"[Location Analysis]   ⚠️ Raw score {raw_score:.3f} < {self.FAISS_SEMANTIC_THRESHOLD} threshold, should NOT be in semantic_matches_set")
-                        # Also check all FAISS matches to see what was actually found
-                        if raw_faiss_scores:
-                            all_matches = sorted(raw_faiss_scores.items(), key=lambda x: x[1], reverse=True)
-                            top_5_matches = all_matches[:5]
-                            self._capture_debug(f"[Location Analysis]   Step 3 - Top 5 FAISS matches: {top_5_matches}")
-                    
-                    if in_semantic_matches:
-                        term_satisfied = True
-                        if score is not None:
-                            match_reason = f"FAISS semantic match (score: {score:.3f})"
-                        else:
-                            match_reason = f"FAISS semantic match"
-                        self._capture_debug(f"[Location Analysis]   ✅ SATISFIED via FAISS semantic match")
-                    else:
-                        guideline_sources = term_to_guidelines.get(term, [])
-                        if guideline_sources:
-                            sources_str = ', '.join(guideline_sources)
-                            self._capture_debug(f"[Location Analysis]   ❌ NOT in semantic_matches_set (score likely < {self.FAISS_SEMANTIC_THRESHOLD}) [from: {sources_str}]")
-                        else:
-                            self._capture_debug(f"[Location Analysis]   ❌ NOT in semantic_matches_set (score likely < {self.FAISS_SEMANTIC_THRESHOLD})")
+                guideline_sources = term_to_guidelines.get(term, [])
+                if guideline_sources:
+                    sources_str = ', '.join(guideline_sources)
+                    self._capture_debug(f"[Location Analysis]   ❌ NOT in semantic_matches_set (score likely < {self.FAISS_SEMANTIC_THRESHOLD}) [from: {sources_str}]")
+                else:
+                    self._capture_debug(f"[Location Analysis]   ❌ NOT in semantic_matches_set (score likely < {self.FAISS_SEMANTIC_THRESHOLD})")
             
             if term_satisfied:
                 satisfied_terms.add(term)
@@ -3880,68 +3777,33 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         if not all_includes:
             return set()
         
-        # Use unified function to check which terms are satisfied
+        # Use semantic matching only (no normalization, no substring matching)
         satisfied_terms = set()
-        answer_lower = answer.lower()
-            # Normalize with synonyms
-        try:
-            organ_system = self.CATEGORY_TO_SYSTEM.get(self.current_category or 'gastrointestinal', 'GI')
-            synonym_file = f"medical/synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
-            synonym_path = os.path.join(os.path.dirname(__file__), synonym_file)
-            normalized_for_match = answer_lower
-            if os.path.exists(synonym_path) and self.medical_rule_engine:
-                with open(synonym_path, 'r') as f:
-                    synonyms = json.load(f)
-                normalized_for_match = self.medical_rule_engine._normalize_with_synonyms(answer, synonyms, oldcarts_element)
-        except Exception:
-            normalized_for_match = answer_lower
         
-        # Check each term using the same logic as unified function
-        for term in all_includes:
-            term_satisfied = False
+        # Use FAISS semantic matching only
+        if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
+            # Get active condition names for filtering
+            active_condition_names = None
+            has_active_guidelines_attr = hasattr(self, 'active_guidelines')
+            active_guidelines_exist = has_active_guidelines_attr and self.active_guidelines
             
-            # 1. Exact/substring matching (fast path)
-            term_in_answer_lower = term in answer_lower
-            answer_lower_in_term = answer_lower in term
-            term_in_normalized = term in normalized_for_match
-            normalized_in_term = normalized_for_match in term
+            if active_guidelines_exist:
+                active_condition_names = set()
+                for g in self.active_guidelines:
+                    condition_name = g.get('data', {}).get('condition', g.get('name', ''))
+                    if condition_name:
+                        active_condition_names.add(condition_name)
             
-            if term_in_answer_lower or answer_lower_in_term or term_in_normalized or normalized_in_term:
-                term_satisfied = True
-            else:
-                # 2. Use FAISS semantic matching (same as unified function)
-                if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
-                    # Get active condition names for filtering
-                    active_condition_names = None
-                    has_active_guidelines_attr = hasattr(self, 'active_guidelines')
-                    active_guidelines_exist = has_active_guidelines_attr and self.active_guidelines
-                    
-                    if active_guidelines_exist:
-                        active_condition_names = set()
-                        for g in self.active_guidelines:
-                            condition_name = g.get('data', {}).get('condition', g.get('name', ''))
-                            if condition_name:
-                                active_condition_names.add(condition_name)
-                    
-                    semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(
-                        answer, oldcarts_element, threshold=self.CHIEF_COMPLAINT_NEAR_MISS_UPPER, active_condition_names=active_condition_names
-                    )
-                    if term in [t.lower() for t in semantic_matches]:
-                        term_satisfied = True
-                    else:
-                        # 3. Direct semantic similarity check (same as unified function)
-                        if self.embedding_model:
-                            try:
-                                embeddings = self.embedding_model.encode([answer_lower, term])
-                                similarity = float(np.dot(embeddings[0], embeddings[1]) / 
-                                                 (np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])))
-                                if similarity >= 0.6:
-                                    term_satisfied = True
-                            except Exception:
-                                pass
+            semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(
+                answer, oldcarts_element, threshold=self.FAISS_SEMANTIC_THRESHOLD, active_condition_names=active_condition_names
+            )
+            semantic_matches_lower = set(t.lower() for t in semantic_matches)
             
-            if term_satisfied:
-                satisfied_terms.add(term)
+            # Check each term using semantic matching only
+            for term in all_includes:
+                term_lower = term.lower()
+                if term_lower in semantic_matches_lower:
+                    satisfied_terms.add(term)
         
         return satisfied_terms
 
@@ -4120,30 +3982,42 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         conversation_context = self._build_conversation_context(recent_items=3, char_limit=100, include_answered=False)
         
         # Build instructions based on element type
+        # Take first 5 terms for the question (to keep it manageable)
+        terms_to_use = patient_friendly_terms[:5]
+        options_list = ", ".join(terms_to_use)
+        
         if oldcarts_element == 'location':
-            options_list = ", ".join(patient_friendly_terms)
+            # Example format to make it crystal clear
+            example_question = f"Can you be more specific? For example, is it located at {terms_to_use[0]}, {terms_to_use[1]}, {terms_to_use[2]}, or {terms_to_use[3] if len(terms_to_use) > 3 else terms_to_use[0]}?"
+            
             user_msg = f"""{chief_complaint_context}{conversation_context}
 
 The patient already said: "{patient_answer}"
 
-We need to clarify the location. Here are the ONLY possible locations from the medical guidelines that we need to clarify (you MUST use ONLY these exact terms):
+We need to clarify the location. Here are the ONLY possible locations from the medical guidelines (you MUST use ONLY these exact terms):
 {options_list}
 
 {self.LLM_CLARIFICATION_LOCATION_RULES}
 
-Generate the clarification question using ONLY the terms provided above. The question MUST include specific options from the list:"""
+EXAMPLE of correct format: "{example_question}"
+
+Generate a clarification question using EXACTLY this format with the terms provided above. The question MUST include at least 3-4 specific options from the list."""
         else:
-            options_list = ", ".join(patient_friendly_terms)
+            # Example format for non-location elements
+            example_question = f"Can you be more specific? For example, is it {terms_to_use[0]}, {terms_to_use[1]}, {terms_to_use[2]}, or {terms_to_use[3] if len(terms_to_use) > 3 else terms_to_use[0]}?"
+            
             user_msg = f"""{chief_complaint_context}{conversation_context}
 
 The patient already said: "{patient_answer}"
 
-We need to clarify the {oldcarts_element}. Here are the ONLY possible options from the medical guidelines that we need to clarify (you MUST use ONLY these exact terms):
+We need to clarify the {oldcarts_element}. Here are the ONLY possible options from the medical guidelines (you MUST use ONLY these exact terms):
 {options_list}
 
 {self.LLM_CLARIFICATION_GENERAL_RULES}
 
-Generate the clarification question using ONLY the terms provided above. The question MUST include specific options from the list:"""
+EXAMPLE of correct format: "{example_question}"
+
+Generate a clarification question using EXACTLY this format with the terms provided above. The question MUST include at least 3-4 specific options from the list."""
         
         llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
         response = self.llm_chat_simple_fn(
@@ -4161,7 +4035,8 @@ Generate the clarification question using ONLY the terms provided above. The que
         # Validate that the response includes at least one of the patient-friendly terms
         # If it doesn't, it's likely a generic fallback like "Can you be more specific?" without terms
         response_lower = cleaned_response.lower()
-        has_term = any(term.lower() in response_lower for term in patient_friendly_terms[:10])  # Check first 10 terms
+        terms_to_use = patient_friendly_terms[:5]  # Use same terms we sent to LLM
+        has_term = any(term.lower() in response_lower for term in terms_to_use)
         
         if not has_term:
             # Check if it's just a generic question without terms
@@ -4173,7 +4048,7 @@ Generate the clarification question using ONLY the terms provided above. The que
             ]
             is_generic = any(pattern in response_lower for pattern in generic_patterns)
             if is_generic:
-                raise ValueError(f"LLM generated generic question without missing terms: '{cleaned_response}'. Expected question with terms from: {patient_friendly_terms[:5]}")
+                raise ValueError(f"LLM generated generic question without missing terms: '{cleaned_response}'. Expected question with terms from: {terms_to_use}")
         
         return cleaned_response
     
@@ -4616,8 +4491,8 @@ Generate a question about {component} for this patient:"""
             return 0.0
         
         try:
-            # Encode patient answer and all patient_friendly terms
-            texts_to_encode = [patient_answer.lower()] + [pf.lower() for pf in patient_friendly_terms]
+            # Encode patient answer (raw, no normalization) and all patient_friendly terms
+            texts_to_encode = [patient_answer] + patient_friendly_terms
             embeddings = self.medical_rule_engine.embedding_model.encode(texts_to_encode)
             embeddings = np.asarray(embeddings, dtype='float32')
             
