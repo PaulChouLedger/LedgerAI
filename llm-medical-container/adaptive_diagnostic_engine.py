@@ -280,6 +280,20 @@ class AdaptiveDiagnosticEngine:
         self.synonym_cache = {}
         self._load_synonym_cache()
         
+        # Initialize ML learners (optional - only if learning is enabled)
+        self.enable_ml_learning = os.environ.get('ENABLE_ML_LEARNING', 'false').lower() == 'true'
+        self.synonym_learner = None
+        self.guideline_learner = None
+        if self.enable_ml_learning:
+            try:
+                from ml.learn_synonyms import SynonymLearner
+                from ml.learn_guidelines import GuidelineLearner
+                self.synonym_learner = SynonymLearner()
+                self.guideline_learner = GuidelineLearner()
+                self._capture_debug("[Engine] ✅ ML learning enabled")
+            except Exception as e:
+                self._capture_debug(f"[Engine] ⚠️ Failed to load ML learners: {e}")
+        
         # Pre-build chief complaint trigger index for category matching
         self.chief_complaint_triggers_index = None
         self.chief_complaint_triggers_data = []  # List of {trigger, category, condition}
@@ -381,9 +395,17 @@ class AdaptiveDiagnosticEngine:
                     
                     for standard_term, synonym_list in synonyms[oldcarts_element].items():
                         # Map standard term to all its synonyms for comparison
-                        expansions[standard_term] = [standard_term] + synonym_list
+                        # Include the medical term itself (key) and all synonyms
+                        # Empty lists are handled as empty - no fallback
+                        if not synonym_list:
+                            # Empty list - skip this term (no synonyms available)
+                            continue
+                        
+                        # Add medical term + synonyms
+                        all_terms = [standard_term] + synonym_list
+                        expansions[standard_term] = all_terms
                         # Build reverse mapping: each synonym points back to its group
-                        for synonym in [standard_term] + synonym_list:
+                        for synonym in all_terms:
                             to_group[synonym.lower()] = standard_term
                     
                     cache[oldcarts_element] = {
@@ -1278,6 +1300,22 @@ class AdaptiveDiagnosticEngine:
                     )
                     if faiss_matches:
                         pre_normalized_text = faiss_matches[0]
+                        
+                        # Record successful match for ML learning
+                        if self.enable_ml_learning and self.synonym_learner:
+                            try:
+                                matched_term = faiss_matches[0]
+                                confidence = 0.75  # Minimum threshold
+                                self.synonym_learner.record_interaction(
+                                    user_input=answer,
+                                    matched_term=matched_term,
+                                    oldcarts_element=oldcarts_element,
+                                    organ_system=organ_system,
+                                    confidence=confidence,
+                                    context={'condition': self.current_category}
+                                )
+                            except Exception as e:
+                                self._capture_debug(f"[Engine] ⚠️ Failed to record synonym interaction: {e}")
         
         # OPTIMIZATION: Batch embedding for all guidelines
         # Pass 1: Collect all sections to embed
@@ -1364,6 +1402,22 @@ class AdaptiveDiagnosticEngine:
                 similarity = similarity_result['similarity']
                 word_match_boost = similarity_result.get('word_match_boost', 0.0)
                 normalized_text = similarity_result.get('normalized_text', answer)
+                
+                # Record for ML learning (both matched and unmatched)
+                if self.enable_ml_learning and self.guideline_learner:
+                    try:
+                        # Record unmatched/low-confidence responses for guideline learning
+                        if similarity < 0.6:  # Low confidence match
+                            self.guideline_learner.record_unmatched_response(
+                                user_input=answer,
+                                oldcarts_element=oldcarts_element,
+                                organ_system=organ_system,
+                                condition=condition_name,
+                                matched_confidence=similarity,
+                                context={'category': self.current_category}
+                            )
+                    except Exception as e:
+                        self._capture_debug(f"[Engine] ⚠️ Failed to record unmatched response: {e}")
             else:
                 similarity = 0.5
                 word_match_boost = 0.0
@@ -2131,8 +2185,8 @@ class AdaptiveDiagnosticEngine:
                         # Handle old format where terms are just strings
                         return medical_term
         
-        # Fallback to original term if not found
-        return medical_term
+        # No fallback - raise error if term not found
+        raise ValueError(f"Medical term '{medical_term}' not found in synonym mappings for {oldcarts_element}")
     
     def _ask_about_radiation(self) -> Dict[str, Any]:
         """Ask about radiation as a separate question after location is satisfied"""
@@ -3043,8 +3097,8 @@ Generate a question about {component} for this patient:"""
                 }
             return next_response
         
-        # Fallback
-        return None
+        # No fallback - raise error if no valid response
+        raise ValueError("No valid response generated for missing demographics check")
     
     def _check_and_collect_missing_demographics(self) -> Dict[str, Any]:
         """
@@ -4270,9 +4324,17 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                     self._capture_debug(f"[Engine] ❌ Age out of range: {age}")
             else:
                 self._capture_debug(f"[Engine] ❌ Age not numeric: '{age_str}'")
+                # No fallback - return error
+                return {
+                    'success': False,
+                    'message': 'Please provide your age as a number (e.g., 25, thirty-five, etc.)',
+                    'debug': {
+                        'engine': self._format_engine_debug("[Engine] ❌ Age validation failed - no fallback"),
+                        'internal': self._get_debug_info(last_answer=user_answer)
+                    }
+                }
             
-            # Fallback to LLM if simple validation fails
-            if self.llm_chat_simple_fn:
+            # No LLM fallback - let it fail if validation doesn't work
                 system_msg = "You are a medical assistant. Extract the patient's age from their response. Return ONLY a number between 0-150, or 'invalid' if not a valid age."
                 user_msg = f"Patient said: '{processing_answer}'\n\nExtract age as a number only:"
         
@@ -4473,19 +4535,28 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             # Use processing_answer (may have extracted info, or original if no extraction)
             processing_answer_lower = processing_answer.lower().strip()
             
-            # First check if extracted_info already found the answer (from _interpret_patient_response)
+            # Use extracted_info if available (from _interpret_patient_response)
             if extracted_info and extracted_info in ['new', 'recurring']:
                 # Extracted info already found - use it directly
                 self.demographics['chronicity'] = extracted_info
                 self._capture_debug(f"[Engine] ✅ Chronicity set from extracted_info: {extracted_info}")
             else:
-                # Fallback to Jaccard similarity (same method as extraction)
+                # Try Jaccard similarity extraction
                 chronicity_result = self._extract_chronicity_with_jaccard(processing_answer)
                 if chronicity_result:
                     self.demographics['chronicity'] = chronicity_result
                     self._capture_debug(f"[Engine] ✅ Chronicity set from Jaccard similarity: {chronicity_result}")
                 else:
-                    self._capture_debug(f"[Engine] ⚠️ Could not determine chronicity from answer")
+                    # No fallback - if we can't determine chronicity, return error
+                    self._capture_debug(f"[Engine] ❌ Could not determine chronicity from answer")
+                    return {
+                        'success': False,
+                        'message': 'I need to know if this is a new problem or something you\'ve had before. Please tell me if it\'s new or recurring.',
+                        'debug': {
+                            'engine': self._format_engine_debug("[Engine] ❌ Chronicity extraction failed - no fallback"),
+                            'internal': self._get_debug_info(last_answer=user_answer)
+                        }
+                    }
             
             # If chronicity was successfully set, proceed to next missing element
             if 'chronicity' in self.demographics:
@@ -4503,7 +4574,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                         final_acknowledgment = f"{final_acknowledgment}\n\n{transition_msg}"
                     self._capture_debug(f"[Engine] 💬 Using acknowledgment from interpretation")
                 elif hasattr(self, '_pending_acknowledgment') and self._pending_acknowledgment:
-                    # Fallback to stored acknowledgment
+                    # Use stored acknowledgment (no fallback - this is the stored value)
                     final_acknowledgment = self._pending_acknowledgment
                     self._pending_acknowledgment = None
                     # If distress was detected, add transition message
@@ -4524,15 +4595,16 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                     last_user_input=user_answer
                 )
             
-            # Fallback to LLM if simple matching fails
-            if self.llm_chat_simple_fn:
-                system_msg = "You are a medical assistant. Determine if the patient's problem is new or recurring. Return ONLY 'new', 'recurring', or 'invalid'."
-                user_msg = f"Patient said: '{user_answer}'\n\nIs this a new problem or recurring/ongoing? (new/recurring):"
-                
-                try:
-                    response = self.llm_chat_simple_fn(
-                        [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
-                        max_tokens=10,
+            # No LLM fallback - if chronicity wasn't set above, return error
+            # (This should not happen if extraction worked, but if it does, we fail)
+            return {
+                'success': False,
+                'message': 'I need to know if this is a new problem or something you\'ve had before. Please tell me if it\'s new or recurring.',
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] ❌ Chronicity processing failed - no fallback"),
+                    'internal': self._get_debug_info(last_answer=user_answer)
+                }
+            }
                         temperature=self.temperature
                     )
                     

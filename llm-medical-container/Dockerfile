@@ -33,9 +33,9 @@ COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K
 COPY models/Nemotron-Mini-4B-Instruct-Q4_K_M.gguf /models/Nemotron-Mini-4B-Instruct-Q4_K_M.gguf
 
 # Copy static files (cached - these change less frequently than Python code)
-COPY synonyms/ /app/synonyms/
 COPY ml/ /app/ml/
 COPY medical/guidelines/ /app/medical/guidelines/
+COPY medical/synonyms/ /app/medical/synonyms/
 COPY config/ /app/config/
 # ML files (location_ml_model.pkl, location_ml_data.csv) - kept for future ML training but not actively used
 # oldcarts_keywords.json - kept for compatibility

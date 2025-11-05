@@ -178,6 +178,15 @@ show_all_settings() {
     echo "  Log Level:     $(get_config_value 'LOG_LEVEL')"
     echo ""
     
+    echo -e "${BOLD}🤖 MACHINE LEARNING${NC}"
+    local ml_enabled=$(get_config_value "ENABLE_ML_LEARNING")
+    if [ "$ml_enabled" == "true" ]; then
+        echo -e "  ${GREEN}●${NC} Enabled - Learning new synonyms and guideline terms"
+    else
+        echo -e "  ${RED}○${NC} Disabled - No learning from interactions"
+    fi
+    echo ""
+    
     echo "========================================================================"
 }
 
@@ -231,6 +240,35 @@ toggle_medical_mode() {
         echo "  • General conversation"
         echo "  • RAG-powered document Q&A"
         echo "  • Flexible LLM interactions"
+        echo ""
+    fi
+    
+    show_restart_message
+}
+
+toggle_ml_learning() {
+    local action=$1
+    
+    if [ "$action" == "on" ]; then
+        set_config_value "ENABLE_ML_LEARNING" "true"
+        echo ""
+        echo -e "${GREEN}✅ ML Learning ENABLED${NC}"
+        echo ""
+        echo "System will:"
+        echo "  • Record successful term matches"
+        echo "  • Track unmatched patient responses"
+        echo "  • Generate suggestions for new synonyms"
+        echo "  • Generate suggestions for new guideline terms"
+        echo ""
+        echo "Review suggestions with: python3 ml/review_suggestions.py"
+        echo ""
+    else
+        set_config_value "ENABLE_ML_LEARNING" "false"
+        echo ""
+        echo -e "${GREEN}✅ ML Learning DISABLED${NC}"
+        echo ""
+        echo "No learning from interactions"
+        echo "System will not record or suggest new terms"
         echo ""
     fi
     
@@ -859,11 +897,12 @@ main_menu() {
         echo "  9) Configure Telegram bot"
         echo " 10) Configure GitHub OTA updates"
         echo " 11) Configure NHS/FHIR credentials"
+        echo " 12) Toggle ML Learning (on/off)"
         echo "  a) Edit .env file directly"
         echo "  b) Restart Docker containers"
         echo "  0) Exit"
         echo ""
-        read -p "Enter choice [0-9ab]: " choice
+        read -p "Enter choice [0-9ab12]: " choice
         
         case $choice in
             1)
@@ -944,6 +983,28 @@ main_menu() {
                 ;;
             11)
                 configure_nhs_fhir
+                read -p "Press Enter to continue..."
+                ;;
+            12)
+                # Show current state and ask what to do
+                local current=$(get_config_value 'ENABLE_ML_LEARNING')
+                echo ""
+                if [ "$current" == "true" ]; then
+                    echo "ML Learning is currently: ENABLED"
+                    echo ""
+                    read -p "Turn it OFF? (y/n): " answer
+                    if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
+                        toggle_ml_learning off
+                    fi
+                else
+                    echo "ML Learning is currently: DISABLED"
+                    echo ""
+                    read -p "Turn it ON? (y/n): " answer
+                    if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
+                        toggle_ml_learning on
+                    fi
+                fi
+                echo ""
                 read -p "Press Enter to continue..."
                 ;;
             a|A)
