@@ -403,6 +403,10 @@ Generate an empathetic response that acknowledges their distress and reassures t
         self.chief_complaint_triggers_data = []  # List of {trigger, category, condition}
         self._build_chief_complaint_triggers_index()
         
+        # Initialize ML learning (optional feature - disabled by default)
+        self.enable_ml_learning = False
+        self.guideline_learner = None
+        
         # Initialize assessment state
         self.demographics_optional = False  # Reserved for future use (not currently used to skip questions)
         self.reset_assessment()
