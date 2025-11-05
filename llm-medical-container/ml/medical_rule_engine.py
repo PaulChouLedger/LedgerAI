@@ -32,7 +32,7 @@ class MedicalRuleEngine:
         self.embedding_model = embedding_model
         self.medical_rules = self._load_medical_rules()
         self.term_embeddings_by_category = {}  # Category-specific indexes: {category: {element: {...}}}
-        self.synonym_cache = {}  # Cache loaded synonym files to avoid repeated I/O
+        # REMOVED: synonym_cache - synonym files no longer used
         self.active_category = None  # Currently active category
         self.term_embeddings = {}  # Global index (for initial parsing before category is determined)
         self._build_category_specific_indexes()
@@ -99,6 +99,10 @@ class MedicalRuleEngine:
                 'aggravating': set(), 'relieving': set(), 'timing': set(), 'severity': set()
             }
             term_to_conditions = {}
+            synonym_to_medical_mapping = {
+                'onset': {}, 'location': {}, 'duration': {}, 'character': {},
+                'aggravating': {}, 'relieving': {}, 'timing': {}, 'severity': {}
+            }
             
             # Load guidelines from this category only
             guideline_count = 0
@@ -152,34 +156,8 @@ class MedicalRuleEngine:
                     except Exception as e:
                         print(f"[FAISS] ⚠️ Could not load guideline {file}: {e}")
             
-            # Add category-specific synonyms (initialize if not already done)
-            if not synonym_to_medical_mapping:
-                synonym_to_medical_mapping = {
-                    'onset': {}, 'location': {}, 'duration': {}, 'character': {},
-                    'aggravating': {}, 'relieving': {}, 'timing': {}, 'severity': {}
-                }
-            
-            synonyms_dir = os.path.join(os.path.dirname(__file__), '..', 'medical', 'synonyms')
-            synonym_file = f"{synonym_prefix}_synonyms_oldcarts.json"
-            synonym_path = os.path.join(synonyms_dir, synonym_file)
-            
-            if os.path.exists(synonym_path):
-                try:
-                    with open(synonym_path, 'r') as f:
-                        synonyms = json.load(f)
-                    
-                    for element, synonym_dict in synonyms.items():
-                        if element in all_terms:
-                            for medical_term, synonym_list in synonym_dict.items():
-                                all_terms[element].add(medical_term.lower())
-                                synonym_to_medical_mapping[element][medical_term.lower()] = medical_term.lower()
-                                for synonym in synonym_list:
-                                    all_terms[element].add(synonym.lower())
-                                    synonym_to_medical_mapping[element][synonym.lower()] = medical_term.lower()
-                except Exception as e:
-                    print(f"[FAISS] ⚠️ Could not load synonyms from {synonym_file}: {e}")
-            else:
-                print(f"[FAISS] ℹ️ No synonym file found for {category} ({synonym_file}), continuing without synonyms")
+            # REMOVED: Synonym file loading - no longer needed since we index patient_friendly terms directly
+            # The patient_friendly -> medical mapping is built from guidelines themselves
             
             # Build FAISS indexes for this category
             category_indexes = {}
@@ -287,28 +265,8 @@ class MedicalRuleEngine:
                     except Exception:
                         pass
         
-        # Add all synonyms (global index includes all)
-        # synonym_to_medical_mapping already initialized above
-        
-        synonyms_dir = os.path.join(os.path.dirname(__file__), '..', 'medical', 'synonyms')
-        if os.path.exists(synonyms_dir):
-            for synonym_file in os.listdir(synonyms_dir):
-                if synonym_file.endswith('_synonyms_oldcarts.json'):
-                    try:
-                        synonym_path = os.path.join(synonyms_dir, synonym_file)
-                        with open(synonym_path, 'r') as f:
-                            synonyms = json.load(f)
-                        
-                        for element, synonym_dict in synonyms.items():
-                            if element in all_terms:
-                                for medical_term, synonym_list in synonym_dict.items():
-                                    all_terms[element].add(medical_term.lower())
-                                    synonym_to_medical_mapping[element][medical_term.lower()] = medical_term.lower()
-                                    for synonym in synonym_list:
-                                        all_terms[element].add(synonym.lower())
-                                        synonym_to_medical_mapping[element][synonym.lower()] = medical_term.lower()
-                    except Exception:
-                        pass
+        # REMOVED: Synonym file loading - no longer needed since we index patient_friendly terms directly
+        # The patient_friendly -> medical mapping is built from guidelines themselves
         
         # Build global indexes
         for element, terms in all_terms.items():
@@ -520,18 +478,7 @@ class MedicalRuleEngine:
             'method': 'semantic_similarity'
         }
     
-    def _normalize_with_synonyms(self, patient_text: str, synonyms: dict, oldcarts_element: str) -> str:
-        """Normalize patient text using FAISS semantic matching"""
-        if oldcarts_element not in synonyms:
-            return patient_text.lower().strip()
-        
-        # Use FAISS to find the best matching medical term
-        faiss_matches = self.find_matching_terms_faiss(patient_text, oldcarts_element, threshold=0.45)
-        if faiss_matches:
-            # Return the best match (first one with highest score)
-            return faiss_matches[0]
-        
-        return patient_text.lower().strip()
+    # REMOVED: _normalize_with_synonyms - synonym files no longer used, FAISS handles semantic matching directly
     
     def _compute_word_match_boost(self, patient_text: str, normalized_text: str,
                                   guideline_text: str, organ_system: str, 
@@ -632,16 +579,8 @@ class MedicalRuleEngine:
         
         # Fallback to simple keyword extraction if FAISS didn't find matches
         if not patient_direction:
-            normalized_answer = patient_answer.lower()
-            synonym_file = f"medical/synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
-            synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
-            
-            if os.path.exists(synonym_path):
-                with open(synonym_path, 'r') as f:
-                    synonyms = json.load(f)
-                normalized_answer = self._normalize_with_synonyms(patient_answer, synonyms, 'location')
-            
-            patient_direction = self._extract_directional_component(normalized_answer, patient_answer)
+            # Use raw patient answer directly (no synonym normalization needed - FAISS handles semantic matching)
+            patient_direction = self._extract_directional_component(patient_answer.lower(), patient_answer)
         
         if not patient_direction:
             return guidelines  # No direction found, keep all
@@ -708,32 +647,11 @@ class MedicalRuleEngine:
             except Exception as e:
                 pass
         
-        # STEP 2: Normalization
+        # STEP 2: Normalization (simplified - no synonym files needed)
         if pre_normalized_text:
             normalized_text = pre_normalized_text
         else:
-            normalized_text = patient_text.lower()
-            # Check synonym cache first
-            cache_key = f"{organ_system.lower()}_location"
-            if cache_key in self.synonym_cache:
-                synonyms = self.synonym_cache[cache_key]
-            else:
-                synonym_file = f"medical/synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
-                synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
-                
-                if os.path.exists(synonym_path):
-                    try:
-                        with open(synonym_path, 'r') as f:
-                            all_synonyms = json.load(f)
-                        synonyms = all_synonyms.get('location', {})
-                        self.synonym_cache[cache_key] = synonyms
-                    except Exception as e:
-                        synonyms = {}
-                else:
-                    synonyms = {}
-            
-            if synonyms:
-                normalized_text = self._normalize_with_synonyms(patient_text, synonyms, 'location')
+            normalized_text = patient_text.lower()  # Simple lowercase normalization
         
         # STEP 3: Location-specific word matching (using medical_rules.json)
         word_match_boost = self._compute_location_word_match(
