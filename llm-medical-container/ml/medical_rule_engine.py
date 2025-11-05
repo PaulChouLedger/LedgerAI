@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """
 Medical Rule Engine - Simplified Universal Approach
-Uses medical_rules.json and unified similarity function for all scoring
+Uses medical_rules.json and semantic similarity matching for all scoring
 """
+
+# ============================================================================
+# Section 1: Configuration (Top)
+# ============================================================================
 
 import json
 import os
@@ -12,20 +16,25 @@ from sentence_transformers import SentenceTransformer
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 
+
 class MedicalRuleEngine:
     """
     Universal medical rule engine
     - Uses medical_rules.json for anatomical filtering
-    - Unified similarity function for all OLDCARTS elements
+    - Semantic similarity matching for all OLDCARTS elements
     """
+    
+    # ============================================================================
+    # Section 2: Initialization
+    # ============================================================================
     
     def __init__(self, embedding_model=None):
         self.embedding_model = embedding_model
         self.medical_rules = self._load_medical_rules()
-        self.term_embeddings = {}  # Global index (legacy, kept for backward compatibility)
         self.term_embeddings_by_category = {}  # Category-specific indexes: {category: {element: {...}}}
         self.synonym_cache = {}  # Cache loaded synonym files to avoid repeated I/O
         self.active_category = None  # Currently active category
+        self.term_embeddings = {}  # Global index (for initial parsing before category is determined)
         self._build_category_specific_indexes()
     
     def _load_medical_rules(self) -> Dict:
@@ -132,7 +141,7 @@ class MedicalRuleEngine:
                 'aggravating': {}, 'relieving': {}, 'timing': {}, 'severity': {}
             }
             
-            synonyms_dir = os.path.join(os.path.dirname(__file__), '..', 'synonyms')
+            synonyms_dir = os.path.join(os.path.dirname(__file__), '..', 'medical', 'synonyms')
             synonym_file = f"{synonym_prefix}_synonyms_oldcarts.json"
             synonym_path = os.path.join(synonyms_dir, synonym_file)
             
@@ -317,17 +326,9 @@ class MedicalRuleEngine:
             print(f"[FAISS] ⚠️ Category {category} not found, keeping global index")
             print(f"[FAISS] 📊 Available categories: {list(self.term_embeddings_by_category.keys())}")
     
-    def _normalize_term_list(self, terms: List[Any]) -> List[str]:
-        """Normalize guideline term lists that may contain strings or {medical, patient_friendly} dicts."""
-        normalized: List[str] = []
-        for term in terms or []:
-            if isinstance(term, dict):
-                medical = term.get('medical')
-                if isinstance(medical, str) and medical.strip():
-                    normalized.append(medical.strip().lower())
-            elif isinstance(term, str):
-                normalized.append(term.strip().lower())
-        return normalized
+    # ============================================================================
+    # Section 3: Semantic Similarity (core matching)
+    # ============================================================================
     
     def find_matching_terms_faiss(self, prompt: str, element: str, threshold: float = 0.65, 
                                    return_scores: bool = False, active_condition_names: set = None) -> List[str]:
@@ -382,9 +383,6 @@ class MedicalRuleEngine:
             synonym_to_medical = indexes_to_use[element].get('synonym_to_medical', {})
             term_to_conditions = indexes_to_use[element].get('term_to_conditions', {})
             
-            # Debug: show which index is being used (only print occasionally to avoid spam)
-            # Removed frequent debug print - was causing output spam
-            
             # FIRST PASS: Store ALL scores (including below threshold) if return_scores=True
             # This allows checking synonyms later even if they scored below threshold
             if return_scores:
@@ -418,7 +416,7 @@ class MedicalRuleEngine:
                     if medical_term not in matches:
                         matches.append(medical_term)
             
-            # If debug mode, attach scores to function attribute (hacky but works)
+            # Store scores for debugging purposes
             if return_scores:
                 self._last_faiss_scores = match_scores
                 # Also print for immediate debugging (only show medical terms to avoid clutter)
@@ -432,18 +430,445 @@ class MedicalRuleEngine:
             traceback.print_exc()
             return []
     
-    def _get_condition_anatomical_type(self, condition_name: str, organ_system: str) -> Optional[str]:
+    def compute_semantic_similarity(self, patient_text: str, guideline_text: str, 
+                                   condition_name: str, organ_system: str = None, 
+                                   oldcarts_element: str = None, structured_oldcarts: dict = None,
+                                   pre_normalized_text: str = None, precomputed_similarity: float = None,
+                                   active_condition_names: set = None) -> Dict[str, Any]:
         """
-        DEPRECATED: Get anatomical type from medical_rules.json
-        Now using _get_anatomical_type_from_guideline instead
-        """
-        if not self.medical_rules or organ_system not in self.medical_rules:
-            return None
+        Simple semantic similarity match for all OLDCARTS elements (EXCEPT location)
         
-        for anatomical_type, condition_list in self.medical_rules[organ_system].items():
-            if condition_name in condition_list:
-                return anatomical_type
-        return None
+        Algorithm:
+        - User response → semantically compare to guideline terms → return highest similarity score
+        - No synonym normalization (embedding model handles this)
+        - No word match boost (pure semantic similarity)
+        
+        Location uses separate score_location_answer() function due to directional component handling.
+        
+        Args:
+            patient_text: Raw user response (e.g., "I have a tummy ache")
+            guideline_text: Space-joined medical terms from guideline OLDCARTS element (e.g., "abdominal pain stomach ache")
+            condition_name: Name of condition (for debugging)
+            organ_system: Organ system (optional, not used)
+            oldcarts_element: OLDCARTS element (optional, not used)
+            structured_oldcarts: Full guideline structure (optional, not used)
+            pre_normalized_text: Not used (kept for compatibility)
+            precomputed_similarity: Pre-computed embedding similarity (for optimization)
+            active_condition_names: Not used (kept for compatibility)
+        
+        Returns:
+            Dict with 'similarity' (0.0-1.0) - pure semantic similarity score
+        """
+        # Compute semantic similarity (embeddings only)
+        similarity = 0.0
+        if precomputed_similarity is not None:
+            # Use pre-computed similarity from batch embeddings (optimization)
+            similarity = precomputed_similarity
+        elif self.embedding_model:
+            try:
+                # Encode patient text and guideline text
+                embeddings = self.embedding_model.encode([patient_text.lower(), guideline_text])
+                embeddings = np.asarray(embeddings, dtype='float32')
+                
+                # Cosine similarity
+                similarity = float(np.dot(embeddings[0], embeddings[1]) / 
+                                  (np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])))
+            except Exception as e:
+                pass
+        
+        # Clamp to [0, 1]
+        similarity = max(0.0, min(1.0, similarity))
+        
+        return {
+            'similarity': similarity,
+            'raw_similarity': similarity,  # Same as final (no boost)
+            'word_match_boost': 0.0,  # Not used in simplified version
+            'normalized_text': patient_text.lower(),  # Not actually normalized (kept for compatibility)
+            'method': 'semantic_similarity'
+        }
+    
+    def _normalize_with_synonyms(self, patient_text: str, synonyms: dict, oldcarts_element: str) -> str:
+        """Normalize patient text using FAISS semantic matching"""
+        if oldcarts_element not in synonyms:
+            return patient_text.lower().strip()
+        
+        # Use FAISS to find the best matching medical term
+        faiss_matches = self.find_matching_terms_faiss(patient_text, oldcarts_element, threshold=0.45)
+        if faiss_matches:
+            # Return the best match (first one with highest score)
+            return faiss_matches[0]
+        
+        return patient_text.lower().strip()
+    
+    def _compute_word_match_boost(self, patient_text: str, normalized_text: str,
+                                  guideline_text: str, organ_system: str, 
+                                  oldcarts_element: str, structured_oldcarts: dict,
+                                  condition_name: str, active_condition_names: set = None) -> float:
+        """
+        Simplified word match boost: detect matches vs mismatches, boost or don't boost accordingly.
+        """
+        if oldcarts_element not in structured_oldcarts:
+            return 0.0
+        
+        element_data = structured_oldcarts[oldcarts_element]
+        includes_terms = element_data.get('includes', [])
+        excludes_terms = element_data.get('excludes', [])
+        
+        normalized_lower = normalized_text.lower()
+        patient_lower = patient_text.lower()
+        includes_lower = self._normalize_term_list(includes_terms)
+        excludes_lower = self._normalize_term_list(excludes_terms)
+        
+        # STEP 1: Check excludes first (immediate penalty)
+        for term in excludes_lower:
+            if (term in normalized_lower or normalized_lower in term or
+                term in patient_lower or patient_lower in term):
+                return -0.3  # Penalty
+        
+        # STEP 2: Word matching for non-location elements
+        # NOTE: Location element uses separate algorithm (score_location_answer), not semantic similarity
+        # So we don't need anatomical mismatch detection here - that's handled in location-specific code
+        
+        # STEP 3: FAISS-based term matching (for all elements)
+        if oldcarts_element in self.term_embeddings:
+            all_faiss_matches = self.find_matching_terms_faiss(
+                patient_text, oldcarts_element, threshold=0.7, active_condition_names=active_condition_names
+            )
+            
+            # Check excludes
+            matching_excludes = [term for term in all_faiss_matches if term.lower() in excludes_lower]
+            if matching_excludes:
+                return -0.3
+            
+            # Check includes
+            matching_includes = [term for term in all_faiss_matches if term.lower() in includes_lower]
+            if matching_includes:
+                # NOTE: Location element uses separate algorithm, so no anatomical mismatch check here
+                # Good match - boost based on number
+                match_boost = min(0.1 * len(matching_includes), 0.4)
+                return match_boost
+        
+        # STEP 4: Fallback exact matching
+        for term in includes_lower:
+            # Exact match
+            if term == normalized_lower or normalized_lower == term:
+                return 0.5
+            
+            # Substring match
+            if (term in normalized_lower or normalized_lower in term or
+                term in patient_lower or patient_lower in term):
+                return 0.3
+        
+        return 0.0
+    
+    # ============================================================================
+    # Section 4: Location Processing (special handling)
+    # ============================================================================
+    
+    def filter_guidelines_by_location(self, patient_answer: str, guidelines: List[Dict], 
+                                     organ_system: str) -> List[Dict]:
+        """
+        SEPARATE ALGORITHM: Filter guidelines using medical_rules.json for location ONLY
+        
+        This is a separate algorithm from semantic similarity matching, specifically for location filtering.
+        Uses FAISS + medical_rules.json anatomical_type to filter incompatible guidelines.
+        
+        Flow:
+        1. Use FAISS to find location matches across all medical conditions
+        2. Extract direction from FAISS-matched terms
+        3. Apply medical_rules.json filtering using anatomical_type from guidelines:
+           - right → show right_only + bilateral + midline + vague, rule out left_only
+           - left → show left_only + bilateral + midline + vague, rule out right_only
+           - bilateral/midline/vague → show all (compatible with any direction)
+        
+        Returns:
+            Filtered guidelines based on anatomical compatibility using medical_rules.json
+        """
+        if not organ_system or not self.medical_rules:
+            return guidelines
+        
+        # STEP 1: Use FAISS to find location matches (universal across all organ systems)
+        patient_direction = None
+        if 'location' in self.term_embeddings:
+            # Find matching location terms using FAISS
+            location_matches = self.find_matching_terms_faiss(patient_answer, 'location', threshold=0.65)
+            
+            if location_matches:
+                # Extract direction from FAISS-matched terms
+                patient_direction = self._extract_directional_component_from_terms(location_matches, patient_answer)
+        
+        # Fallback to simple keyword extraction if FAISS didn't find matches
+        if not patient_direction:
+            normalized_answer = patient_answer.lower()
+            synonym_file = f"medical/synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+            synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
+            
+            if os.path.exists(synonym_path):
+                with open(synonym_path, 'r') as f:
+                    synonyms = json.load(f)
+                normalized_answer = self._normalize_with_synonyms(patient_answer, synonyms, 'location')
+            
+            patient_direction = self._extract_directional_component(normalized_answer, patient_answer)
+        
+        if not patient_direction:
+            return guidelines  # No direction found, keep all
+        
+        # STEP 2: Apply anatomical filtering using anatomical_type from guidelines
+        filtered = []
+        for guideline in guidelines:
+            # Get anatomical_type directly from guideline location element
+            anatomical_type = self._get_anatomical_type_from_guideline(guideline)
+            
+            if not anatomical_type:
+                filtered.append(guideline)  # Unknown type, keep it
+                continue
+            
+            # Map guideline anatomical_type to filtering category
+            filter_category = self._map_anatomical_type_to_filter_category(anatomical_type)
+            
+            # UNIVERSAL filtering logic for ALL organ systems using medical_rules.json:
+            # GI, CARDIO, PULMONARY, MSK, DERM, NEURO, RENAL, GU, GYN
+            if filter_category == 'right_only':
+                if patient_direction == 'left':
+                    continue  # Rule out when patient says "left"
+                # Keep: right matches right_only, bilateral, midline, vague
+            elif filter_category == 'left_only':
+                if patient_direction == 'right':
+                    continue  # Rule out when patient says "right"
+                # Keep: left matches left_only, bilateral, midline, vague
+            # bilateral, midline, and vague: always keep (compatible with all directions)
+            # This works for ALL organ systems: GI, CARDIO, PULMONARY, MSK, DERM, NEURO, RENAL, GU, GYN
+            
+            filtered.append(guideline)
+        
+        return filtered
+    
+    def score_location_answer(self, patient_text: str, guideline_text: str, 
+                             condition_name: str, organ_system: str,
+                             location_data: Dict, pre_normalized_text: str = None,
+                             precomputed_similarity: float = None,
+                             active_condition_names: set = None) -> Dict[str, Any]:
+        """
+        SEPARATE ALGORITHM: Score location answers using medical_rules.json (NOT semantic similarity)
+        
+        This is specifically for location element scoring, separate from semantic similarity matching.
+        Uses FAISS + anatomical matching + word matching, but does NOT use semantic similarity matching.
+        
+        Flow:
+        1. Raw semantic similarity (embeddings)
+        2. Normalization (with synonyms)
+        3. Location-specific word matching (using medical_rules.json for anatomical compatibility)
+        
+        Returns:
+            Dictionary with similarity, raw_similarity, word_match_boost, normalized_text
+        """
+        # STEP 1: Raw semantic similarity
+        raw_similarity = 0.0
+        if precomputed_similarity is not None:
+            raw_similarity = precomputed_similarity
+        elif self.embedding_model:
+            try:
+                embeddings = self.embedding_model.encode([patient_text.lower(), guideline_text])
+                embeddings = np.asarray(embeddings, dtype='float32')
+                raw_similarity = float(np.dot(embeddings[0], embeddings[1]) / 
+                                      (np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])))
+            except Exception as e:
+                pass
+        
+        # STEP 2: Normalization
+        if pre_normalized_text:
+            normalized_text = pre_normalized_text
+        else:
+            normalized_text = patient_text.lower()
+            # Check synonym cache first
+            cache_key = f"{organ_system.lower()}_location"
+            if cache_key in self.synonym_cache:
+                synonyms = self.synonym_cache[cache_key]
+            else:
+                synonym_file = f"medical/synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+                synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
+                
+                if os.path.exists(synonym_path):
+                    try:
+                        with open(synonym_path, 'r') as f:
+                            all_synonyms = json.load(f)
+                        synonyms = all_synonyms.get('location', {})
+                        self.synonym_cache[cache_key] = synonyms
+                    except Exception as e:
+                        synonyms = {}
+                else:
+                    synonyms = {}
+            
+            if synonyms:
+                normalized_text = self._normalize_with_synonyms(patient_text, synonyms, 'location')
+        
+        # STEP 3: Location-specific word matching (using medical_rules.json)
+        word_match_boost = self._compute_location_word_match(
+            patient_text, normalized_text, location_data, organ_system,
+            condition_name, active_condition_names=active_condition_names
+        )
+        
+        # STEP 4: Combine results
+        final_similarity = raw_similarity + word_match_boost
+        final_similarity = max(0.0, min(1.0, final_similarity))
+        
+        return {
+            'similarity': final_similarity,
+            'raw_similarity': raw_similarity,
+            'word_match_boost': word_match_boost,
+            'normalized_text': normalized_text,
+            'method': 'location_specific'
+        }
+    
+    def _compute_location_word_match(self, patient_text: str, normalized_text: str,
+                                    location_data: Dict, organ_system: str,
+                                    condition_name: str, active_condition_names: set = None) -> float:
+        """
+        Location-specific word matching using medical_rules.json for anatomical compatibility.
+        This is separate from semantic similarity matching.
+        """
+        if not location_data:
+            return 0.0
+        
+        includes_terms = location_data.get('includes', [])
+        excludes_terms = location_data.get('excludes', [])
+        
+        normalized_lower = normalized_text.lower()
+        patient_lower = patient_text.lower()
+        includes_lower = self._normalize_term_list(includes_terms)
+        excludes_lower = self._normalize_term_list(excludes_terms)
+        
+        # STEP 1: Check excludes first (immediate penalty)
+        for term in excludes_lower:
+            if (term in normalized_lower or normalized_lower in term or
+                term in patient_lower or patient_lower in term):
+                return -0.3  # Penalty
+        
+        # STEP 2: Extract anatomical components and check for matches/mismatches
+        patient_components = self._extract_anatomical_components(normalized_text)
+        
+        # Check for anatomical matches and mismatches using medical_rules.json
+        anatomically_specific_terms = []
+        all_specific_mismatched = True
+        has_matching_term = False
+        
+        for term in includes_lower:
+            condition_components = self._extract_anatomical_components(term)
+            
+            # If term has anatomical components, check against patient's components
+            if condition_components:
+                anatomically_specific_terms.append(term)
+                if patient_components:
+                    if self._are_anatomical_opposites(patient_components, condition_components):
+                        # This anatomically-specific term is a mismatch
+                        continue
+                    else:
+                        # Found at least one non-mismatched anatomically-specific term
+                        all_specific_mismatched = False
+                        # Check if it also matches (exact/substring)
+                        if (term == normalized_lower or term in normalized_lower or 
+                            normalized_lower in term or term in patient_lower or 
+                            patient_lower in term):
+                            has_matching_term = True
+                            # Exact match gets full boost
+                            if term == normalized_lower or normalized_lower == term:
+                                return 0.5
+                            # Substring match gets partial boost
+                            return 0.3
+            else:
+                # Term has no anatomical components (e.g., "abdomen", "right side")
+                # Check if it matches via substring/exact (these are general terms)
+                if (term == normalized_lower or term in normalized_lower or 
+                    normalized_lower in term or term in patient_lower or 
+                    patient_lower in term):
+                    has_matching_term = True
+                    # Exact match gets full boost
+                    if term == normalized_lower or normalized_lower == term:
+                        return 0.5
+                    # Substring match gets partial boost
+                    return 0.3
+        
+        # If we have anatomically-specific terms AND ALL of them are mismatched, apply penalty
+        if anatomically_specific_terms and all_specific_mismatched and not has_matching_term:
+            return -0.3  # Penalty for anatomical mismatch
+        
+        # STEP 3: FAISS-based term matching
+        if 'location' in self.term_embeddings:
+            all_faiss_matches = self.find_matching_terms_faiss(
+                patient_text, 'location', threshold=0.7, active_condition_names=active_condition_names
+            )
+            
+            # Check excludes
+            matching_excludes = [term for term in all_faiss_matches if term.lower() in excludes_lower]
+            if matching_excludes:
+                return -0.3
+            
+            # Check includes
+            matching_includes = [term for term in all_faiss_matches if term.lower() in includes_lower]
+            if matching_includes:
+                # Check for anatomical mismatches in FAISS matches
+                if patient_components:
+                    all_faiss_mismatched = True
+                    valid_matches = []
+                    
+                    for matched_term in matching_includes:
+                        condition_components = self._extract_anatomical_components(matched_term.lower())
+                        if condition_components:
+                            if self._are_anatomical_opposites(patient_components, condition_components):
+                                continue  # Mismatch - skip
+                            else:
+                                all_faiss_mismatched = False
+                                valid_matches.append(matched_term)
+                        else:
+                            all_faiss_mismatched = False
+                            valid_matches.append(matched_term)
+                    
+                    if all_faiss_mismatched and len(valid_matches) == 0:
+                        return -0.3  # Penalty for anatomical mismatch
+                    
+                    matching_includes = valid_matches
+                
+                # Good match - boost based on number
+                if matching_includes:
+                    match_boost = min(0.1 * len(matching_includes), 0.4)
+                    return match_boost
+        
+        # STEP 4: Fallback exact matching
+        for term in includes_lower:
+            condition_components = self._extract_anatomical_components(term)
+            
+            # If both have anatomical components, check if they're opposites
+            if patient_components and condition_components:
+                if self._are_anatomical_opposites(patient_components, condition_components):
+                    continue  # Anatomical mismatch - skip
+            
+            # Exact or substring match (and not opposite)
+            if (term == normalized_lower or term in normalized_lower or 
+                normalized_lower in term or term in patient_lower or 
+                patient_lower in term):
+                # Exact match gets full boost
+                if term == normalized_lower or normalized_lower == term:
+                    return 0.5
+                # Substring match gets partial boost
+                return 0.3
+        
+        return 0.0  # No match found
+    
+    # ============================================================================
+    # Section 5: Utilities
+    # ============================================================================
+    
+    def _normalize_term_list(self, terms: List[Any]) -> List[str]:
+        """Normalize guideline term lists that may contain strings or {medical, patient_friendly} dicts."""
+        normalized: List[str] = []
+        for term in terms or []:
+            if isinstance(term, dict):
+                medical = term.get('medical')
+                if isinstance(medical, str) and medical.strip():
+                    normalized.append(medical.strip().lower())
+            elif isinstance(term, str):
+                normalized.append(term.strip().lower())
+        return normalized
     
     def _get_anatomical_type_from_guideline(self, guideline: Dict) -> Optional[str]:
         """Get anatomical_type directly from guideline location element"""
@@ -582,254 +1007,61 @@ class MedicalRuleEngine:
         
         return None
     
-    def _normalize_with_synonyms(self, patient_text: str, synonyms: dict, oldcarts_element: str) -> str:
-        """Normalize patient text using FAISS semantic matching"""
-        if oldcarts_element not in synonyms:
-            return patient_text.lower().strip()
-        
-        # Use FAISS to find the best matching medical term
-        faiss_matches = self.find_matching_terms_faiss(patient_text, oldcarts_element, threshold=0.45)
-        if faiss_matches:
-            # Return the best match (first one with highest score)
-            return faiss_matches[0]
-        
-        return patient_text.lower().strip()
-    
-    def compute_unified_similarity(self, patient_text: str, guideline_text: str, 
-                                   condition_name: str, organ_system: str = None, 
-                                   oldcarts_element: str = None, structured_oldcarts: dict = None,
-                                   pre_normalized_text: str = None, precomputed_similarity: float = None,
-                                   active_condition_names: set = None) -> Dict[str, Any]:
+    def _extract_directional_component_from_terms(self, matched_terms: List[str], raw_text: str = None) -> Optional[str]:
         """
-        UNIFIED similarity function used for ALL OLDCARTS elements
+        UNIVERSAL: Extract directional component from FAISS-matched location terms
         
-        Flow:
-        1. Raw semantic similarity (embeddings)
-        2. Normalization (with semantic fallback)
-        3. Word match boost (normalized text vs structured_oldcarts)
+        Works across ALL organ systems and medical conditions by analyzing
+        the actual matched terms (e.g., "right side", "right lower quadrant", "left chest")
+        to determine anatomical direction.
+        
+        Args:
+            matched_terms: List of terms found by FAISS (e.g., ["right side", "right lower quadrant"])
+            raw_text: Original patient text for additional context
+        
+        Returns:
+            Direction: 'right', 'left', 'bilateral', 'midline', or None
         """
-        # STEP 1: Raw semantic similarity
-        raw_similarity = 0.0
-        if precomputed_similarity is not None:
-            # Use pre-computed similarity from batch embeddings
-            raw_similarity = precomputed_similarity
-        elif self.embedding_model:
-            try:
-                embeddings = self.embedding_model.encode([patient_text.lower(), guideline_text])
-                embeddings = np.asarray(embeddings, dtype='float32')
-                raw_similarity = float(np.dot(embeddings[0], embeddings[1]) / 
-                                      (np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])))
-            except Exception as e:
-                pass
+        combined_text = ' '.join(matched_terms).lower()
+        if raw_text:
+            combined_text += ' ' + raw_text.lower()
         
-        # STEP 2: Normalization
-        if pre_normalized_text:
-            normalized_text = pre_normalized_text
-        else:
-            normalized_text = patient_text.lower()
-            if organ_system and oldcarts_element:
-                # Check synonym cache first
-                cache_key = f"{organ_system.lower()}_{oldcarts_element}"
-                if cache_key in self.synonym_cache:
-                    synonyms = self.synonym_cache[cache_key]
-                else:
-                    synonym_file = f"medical/synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
-                    synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
-                    
-                    if os.path.exists(synonym_path):
-                        try:
-                            with open(synonym_path, 'r') as f:
-                                all_synonyms = json.load(f)
-                            synonyms = all_synonyms.get(oldcarts_element, {})
-                            self.synonym_cache[cache_key] = synonyms
-                        except Exception as e:
-                            synonyms = {}
-                    else:
-                        synonyms = {}
-                
-                if synonyms:
-                    normalized_text = self._normalize_with_synonyms(patient_text, synonyms, oldcarts_element)
+        # UNIVERSAL directional detection across ALL organ systems:
+        # GI, CARDIO, PULMONARY, MSK, DERM, NEURO, RENAL, GU, GYN
         
-        # STEP 3: Word match boost
-        word_match_boost = 0.0
-        if structured_oldcarts and oldcarts_element:
-            word_match_boost = self._compute_word_match_boost(
-                patient_text, normalized_text, guideline_text,
-                organ_system, oldcarts_element, structured_oldcarts,
-                condition_name, active_condition_names=active_condition_names
-            )
+        # Right-sided indicators
+        if any(word in combined_text for word in ['right', 'ruq', 'rlq', 'right side', 'right sided']):
+            return 'right'
         
-        # STEP 4: Combine results
-        final_similarity = raw_similarity + word_match_boost
-        final_similarity = max(0.0, min(1.0, final_similarity))
+        # Left-sided indicators  
+        elif any(word in combined_text for word in ['left', 'luq', 'llq', 'left side', 'left sided']):
+            return 'left'
         
-        return {
-            'similarity': final_similarity,
-            'raw_similarity': raw_similarity,
-            'word_match_boost': word_match_boost,
-            'normalized_text': normalized_text,
-            'method': 'unified_similarity'
-        }
-    
-    def _compute_word_match_boost(self, patient_text: str, normalized_text: str,
-                                  guideline_text: str, organ_system: str, 
-                                  oldcarts_element: str, structured_oldcarts: dict,
-                                  condition_name: str, active_condition_names: set = None) -> float:
-        """
-        Simplified word match boost: detect matches vs mismatches, boost or don't boost accordingly.
-        """
-        if oldcarts_element not in structured_oldcarts:
-            return 0.0
+        # Bilateral indicators - check from medical_rules.json
+        if self.medical_rules and 'anatomical_components' in self.medical_rules:
+            anatomical = self.medical_rules.get('anatomical_components', {})
+            bilateral_keywords = anatomical.get('directional_keywords', {}).get('bilateral', {})
+            for direction, keywords in bilateral_keywords.items():
+                if any(word in combined_text for word in keywords):
+                    return direction
         
-        element_data = structured_oldcarts[oldcarts_element]
-        includes_terms = element_data.get('includes', [])
-        excludes_terms = element_data.get('excludes', [])
-        
-        normalized_lower = normalized_text.lower()
-        patient_lower = patient_text.lower()
-        includes_lower = self._normalize_term_list(includes_terms)
-        excludes_lower = self._normalize_term_list(excludes_terms)
-        
-        # STEP 1: Check excludes first (immediate penalty)
-        for term in excludes_lower:
-            if (term in normalized_lower or normalized_lower in term or
-                term in patient_lower or patient_lower in term):
-                return -0.3  # Penalty
-        
-        # STEP 2: For location, check for anatomical mismatches before boosting (universal for all organ systems)
-        # This applies during ANY location question, including clarification questions
-        if oldcarts_element == 'location':
-            # Extract anatomical components from patient's normalized text (using medical_rules.json)
-            patient_components = self._extract_anatomical_components(normalized_text)
+        # Midline indicators - check anatomical_regions from medical_rules.json
+        if self.medical_rules and 'anatomical_components' in self.medical_rules:
+            anatomical = self.medical_rules.get('anatomical_components', {})
+            anatomical_regions = anatomical.get('anatomical_regions', {})
+            for region_name, region_data in anatomical_regions.items():
+                if region_name in combined_text:
+                    # If region has no horizontal component, it's midline
+                    if region_data.get('horizontal') is None:
+                        return 'midline'
             
-            # Check for anatomical mismatch at the guideline level (if ALL anatomically-specific location terms are mismatched, apply penalty)
-            if patient_components:
-                anatomically_specific_terms = []  # Terms with anatomical components
-                all_specific_mismatched = True  # All anatomically-specific terms are mismatched
-                has_matching_term = False
-                
-                for term in includes_lower:
-                    condition_components = self._extract_anatomical_components(term)
-                    
-                    # If term has anatomical components, check against patient's components
-                    if condition_components:
-                        anatomically_specific_terms.append(term)
-                        if self._are_anatomical_opposites(patient_components, condition_components):
-                            # This anatomically-specific term is a mismatch
-                            continue
-                        else:
-                            # Found at least one non-mismatched anatomically-specific term - don't apply penalty
-                            all_specific_mismatched = False
-                            # Check if it also matches (exact/substring)
-                            if (term == normalized_lower or term in normalized_lower or 
-                                normalized_lower in term or term in patient_lower or 
-                                patient_lower in term):
-                                has_matching_term = True
-                                # Exact match gets full boost
-                                if term == normalized_lower or normalized_lower == term:
-                                    return 0.5
-                                # Substring match gets partial boost
-                                return 0.3
-                    else:
-                        # Term has no anatomical components (e.g., "abdomen", "right side")
-                        # Check if it matches via substring/exact (these are general terms)
-                        if (term == normalized_lower or term in normalized_lower or 
-                            normalized_lower in term or term in patient_lower or 
-                            patient_lower in term):
-                            has_matching_term = True
-                            # Exact match gets full boost
-                            if term == normalized_lower or normalized_lower == term:
-                                return 0.5
-                            # Substring match gets partial boost
-                            return 0.3
-                
-                # If we have anatomically-specific terms AND ALL of them are mismatched, apply penalty
-                # This happens during clarification when patient specifies a precise location
-                if anatomically_specific_terms and all_specific_mismatched and not has_matching_term:
-                    print(f"[Anatomical Mismatch] ⚠️ Penalty applied: Patient '{normalized_text}' ({patient_components}) vs condition location terms {anatomically_specific_terms} (all mismatched)")
-                    return -0.3  # Penalty for anatomical mismatch (e.g., RUQ vs RLQ during clarification)
-            
-            # Fallback: Check each term individually for exact/substring matches
-            for term in includes_lower:
-                condition_components = self._extract_anatomical_components(term)
-                
-                # If both have anatomical components, check if they're opposites
-                if patient_components and condition_components:
-                    if self._are_anatomical_opposites(patient_components, condition_components):
-                        # Anatomical mismatch - skip this term
-                        continue
-                
-                # Exact or substring match (and not opposite)
-                if (term == normalized_lower or term in normalized_lower or 
-                    normalized_lower in term or term in patient_lower or 
-                    patient_lower in term):
-                    # Exact match gets full boost
-                    if term == normalized_lower or normalized_lower == term:
-                        return 0.5
-                    # Substring match gets partial boost
-                    return 0.3
+            # Check for midline/center keywords from medical_rules.json
+            midline_keywords = anatomical.get('directional_keywords', {}).get('midline', {})
+            for direction, keywords in midline_keywords.items():
+                if any(word in combined_text for word in keywords):
+                    return direction
         
-        # STEP 3: FAISS-based term matching (for all elements)
-        if oldcarts_element in self.term_embeddings:
-            all_faiss_matches = self.find_matching_terms_faiss(
-                patient_text, oldcarts_element, threshold=0.7, active_condition_names=active_condition_names
-            )
-            
-            # Check excludes
-            matching_excludes = [term for term in all_faiss_matches if term.lower() in excludes_lower]
-            if matching_excludes:
-                return -0.3
-            
-            # Check includes
-            matching_includes = [term for term in all_faiss_matches if term.lower() in includes_lower]
-            if matching_includes:
-                # For location, check for anatomical mismatches (universal)
-                if oldcarts_element == 'location':
-                    patient_components = self._extract_anatomical_components(normalized_text)
-                    if patient_components:
-                        # Check if ALL matched terms are mismatched
-                        all_faiss_mismatched = True
-                        valid_matches = []
-                        
-                        for matched_term in matching_includes:
-                            condition_components = self._extract_anatomical_components(matched_term.lower())
-                            if condition_components:
-                                if self._are_anatomical_opposites(patient_components, condition_components):
-                                    # Mismatch - skip this term
-                                    continue
-                                else:
-                                    # Found at least one non-mismatched term
-                                    all_faiss_mismatched = False
-                                    valid_matches.append(matched_term)
-                            else:
-                                # No anatomical components in term - consider it valid
-                                all_faiss_mismatched = False
-                                valid_matches.append(matched_term)
-                        
-                        # If ALL FAISS matches are anatomically mismatched, apply penalty
-                        if all_faiss_mismatched and len(valid_matches) == 0:
-                            return -0.3  # Penalty for anatomical mismatch
-                        
-                        # Use only valid (non-mismatched) matches for boost calculation
-                        matching_includes = valid_matches
-                
-                # Good match - boost based on number
-                if matching_includes:
-                    match_boost = min(0.1 * len(matching_includes), 0.4)
-                    return match_boost
-        
-        # STEP 4: Fallback exact matching
-        for term in includes_lower:
-            # Exact match
-            if term == normalized_lower or normalized_lower == term:
-                return 0.5
-            
-            # Substring match
-            if (term in normalized_lower or normalized_lower in term or
-                term in patient_lower or patient_lower in term):
-                return 0.3
-        
-        return 0.0
+        return None
     
     def _extract_anatomical_components(self, text: str) -> Dict[str, str]:
         """
@@ -885,27 +1117,22 @@ class MedicalRuleEngine:
         
         opposites = self.medical_rules.get('anatomical_opposites', {})
         
-        # Extract vertical from quadrant if needed (e.g., "right_upper" → "upper")
-        def extract_vertical_from_quadrant(quadrant_key):
-            if not quadrant_key or '_' not in quadrant_key:
-                return None
-            parts = quadrant_key.split('_')
-            if len(parts) >= 2:
-                if parts[1] in ['upper', 'lower']:
-                    return parts[1]
-                # Handle "right_upper_quadrant" format
-                if len(parts) >= 3 and parts[1] in ['upper', 'lower']:
-                    return parts[1]
-            return None
-        
-        # Get vertical components (direct or extracted from quadrant)
+        # Extract vertical components (direct or from quadrant)
         vertical1 = components1.get('vertical')
         if not vertical1 and 'quadrant' in components1:
-            vertical1 = extract_vertical_from_quadrant(components1['quadrant'])
+            parts = components1['quadrant'].split('_')
+            if len(parts) >= 2 and parts[1] in ['upper', 'lower']:
+                vertical1 = parts[1]
+            elif len(parts) >= 3 and parts[1] in ['upper', 'lower']:
+                vertical1 = parts[1]
         
         vertical2 = components2.get('vertical')
         if not vertical2 and 'quadrant' in components2:
-            vertical2 = extract_vertical_from_quadrant(components2['quadrant'])
+            parts = components2['quadrant'].split('_')
+            if len(parts) >= 2 and parts[1] in ['upper', 'lower']:
+                vertical2 = parts[1]
+            elif len(parts) >= 3 and parts[1] in ['upper', 'lower']:
+                vertical2 = parts[1]
         
         # Check vertical opposites (most important for upper/lower quadrant distinction)
         if vertical1 and vertical2:
@@ -950,133 +1177,82 @@ class MedicalRuleEngine:
         
         return False
     
-    def filter_guidelines_by_location(self, patient_answer: str, guidelines: List[Dict], 
-                                     organ_system: str) -> List[Dict]:
+    def check_anatomical_mismatches(self, components1: Dict[str, Any], components2: Dict[str, Any]) -> Dict[str, bool]:
         """
-        UNIVERSAL: Filter guidelines using FAISS + medical_rules.json for ALL organ systems
+        Universal: Check for anatomical mismatches using ALL opposite definitions from medical_rules.json.
+        Works for ALL medical conditions: GI (abdominal), CARDIO (chest), MSK (limbs), NEURO (head), etc.
         
-        Flow:
-        1. Use FAISS to find location matches across all medical conditions
-        2. Extract direction from FAISS-matched terms
-        3. Apply medical_rules.json filtering universally:
-           - right → show right_only + bilateral + midline, rule out left_only
-           - left → show left_only + bilateral + midline, rule out right_only
-           - bilateral/midline → show all (compatible with any direction)
+        Uses all opposite definitions from medical_rules.json:
+        - horizontal (e.g., "left" vs "right") - universal for all systems
+        - vertical (e.g., "upper" vs "lower") - universal for all systems
+        - quadrants (e.g., "right_upper" vs "left_lower") - specific to abdominal
+        - anterior_posterior (e.g., "anterior" vs "posterior") - universal for all systems
         
-        Returns:
-            Filtered guidelines based on anatomical compatibility
-        """
-        if not organ_system or not self.medical_rules:
-            return guidelines
-        
-        # STEP 1: Use FAISS to find location matches (universal across all organ systems)
-        patient_direction = None
-        if 'location' in self.term_embeddings:
-            # Find matching location terms using FAISS
-            location_matches = self.find_matching_terms_faiss(patient_answer, 'location', threshold=0.65)
-            
-            if location_matches:
-                # Extract direction from FAISS-matched terms
-                patient_direction = self._extract_directional_component_from_terms(location_matches, patient_answer)
-        
-        # Fallback to simple keyword extraction if FAISS didn't find matches
-        if not patient_direction:
-            normalized_answer = patient_answer.lower()
-        synonym_file = f"medical/synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
-        synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
-        
-        if os.path.exists(synonym_path):
-            with open(synonym_path, 'r') as f:
-                synonyms = json.load(f)
-            normalized_answer = self._normalize_with_synonyms(patient_answer, synonyms, 'location')
-        
-        patient_direction = self._extract_directional_component(normalized_answer, patient_answer)
-        
-        if not patient_direction:
-            return guidelines  # No direction found, keep all
-        
-        # STEP 2: Apply anatomical filtering using anatomical_type from guidelines
-        filtered = []
-        for guideline in guidelines:
-            # Get anatomical_type directly from guideline location element
-            anatomical_type = self._get_anatomical_type_from_guideline(guideline)
-            
-            if not anatomical_type:
-                filtered.append(guideline)  # Unknown type, keep it
-                continue
-            
-            # Map guideline anatomical_type to filtering category
-            filter_category = self._map_anatomical_type_to_filter_category(anatomical_type)
-            
-            # UNIVERSAL filtering logic for ALL organ systems:
-            # GI, CARDIO, PULMONARY, MSK, DERM, NEURO, RENAL, GU, GYN
-            if filter_category == 'right_only':
-                if patient_direction == 'left':
-                    continue  # Rule out when patient says "left"
-                # Keep: right matches right_only, bilateral, midline, vague
-            elif filter_category == 'left_only':
-                if patient_direction == 'right':
-                    continue  # Rule out when patient says "right"
-                # Keep: left matches left_only, bilateral, midline, vague
-            # bilateral and midline: always keep (compatible with all directions)
-            # This works for ALL organ systems: GI, CARDIO, PULMONARY, MSK, DERM, NEURO, RENAL, GU, GYN
-            
-            filtered.append(guideline)
-        
-        return filtered
-
-    def _extract_directional_component_from_terms(self, matched_terms: List[str], raw_text: str = None) -> Optional[str]:
-        """
-        UNIVERSAL: Extract directional component from FAISS-matched location terms
-        
-        Works across ALL organ systems and medical conditions by analyzing
-        the actual matched terms (e.g., "right side", "right lower quadrant", "left chest")
-        to determine anatomical direction.
+        Only returns True for a mismatch if there's a CLEAR opposite relationship
+        defined in medical_rules.json. Everything else is considered inconclusive/vague.
         
         Args:
-            matched_terms: List of terms found by FAISS (e.g., ["right side", "right lower quadrant"])
-            raw_text: Original patient text for additional context
-            
+            components1: Patient anatomical components
+            components2: Term/guideline anatomical components
+        
         Returns:
-            Direction: 'right', 'left', 'bilateral', 'midline', or None
+            Dict with 'horizontal_mismatch' and 'vertical_mismatch' boolean flags
         """
-        combined_text = ' '.join(matched_terms).lower()
-        if raw_text:
-            combined_text += ' ' + raw_text.lower()
+        result = {
+            'horizontal_mismatch': False,
+            'vertical_mismatch': False
+        }
         
-        # UNIVERSAL directional detection across ALL organ systems:
-        # GI, CARDIO, PULMONARY, MSK, DERM, NEURO, RENAL, GU, GYN
+        if not self.medical_rules or 'anatomical_opposites' not in self.medical_rules:
+            return result
         
-        # Right-sided indicators
-        if any(word in combined_text for word in ['right', 'ruq', 'rlq', 'right side', 'right sided']):
-            return 'right'
+        opposites = self.medical_rules.get('anatomical_opposites', {})
         
-        # Left-sided indicators  
-        elif any(word in combined_text for word in ['left', 'luq', 'llq', 'left side', 'left sided']):
-            return 'left'
+        # Extract horizontal components (direct or from quadrant)
+        horizontal1 = components1.get('horizontal')
+        if not horizontal1 and 'quadrant' in components1:
+            quadrant_parts = components1['quadrant'].split('_')
+            if quadrant_parts and quadrant_parts[0] in ['left', 'right']:
+                horizontal1 = quadrant_parts[0]
         
-        # Bilateral indicators - check from medical_rules.json
-        if self.medical_rules and 'anatomical_components' in self.medical_rules:
-            anatomical = self.medical_rules.get('anatomical_components', {})
-            bilateral_keywords = anatomical.get('directional_keywords', {}).get('bilateral', {})
-            for direction, keywords in bilateral_keywords.items():
-                if any(word in combined_text for word in keywords):
-                    return direction
+        horizontal2 = components2.get('horizontal')
+        if not horizontal2 and 'quadrant' in components2:
+            quadrant_parts = components2['quadrant'].split('_')
+            if quadrant_parts and quadrant_parts[0] in ['left', 'right']:
+                horizontal2 = quadrant_parts[0]
         
-        # Midline indicators - check anatomical_regions from medical_rules.json
-        if self.medical_rules and 'anatomical_components' in self.medical_rules:
-            anatomical = self.medical_rules.get('anatomical_components', {})
-            anatomical_regions = anatomical.get('anatomical_regions', {})
-            for region_name, region_data in anatomical_regions.items():
-                if region_name in combined_text:
-                    # If region has no horizontal component, it's midline
-                    if region_data.get('horizontal') is None:
-                        return 'midline'
-            
-            # Check for midline/center keywords from medical_rules.json
-            midline_keywords = anatomical.get('directional_keywords', {}).get('midline', {})
-            for direction, keywords in midline_keywords.items():
-                if any(word in combined_text for word in keywords):
-                    return direction
+        # Check horizontal opposites (universal - works for all organ systems)
+        if horizontal1 and horizontal2:
+            horizontal_opposites = opposites.get('horizontal', {})
+            opposite_list = horizontal_opposites.get(horizontal1, [])
+            if horizontal2 in opposite_list:
+                result['horizontal_mismatch'] = True
         
-        return None
+        # Extract vertical components (direct or from quadrant)
+        vertical1 = components1.get('vertical')
+        if not vertical1 and 'quadrant' in components1:
+            parts = components1['quadrant'].split('_')
+            if len(parts) >= 2 and parts[1] in ['upper', 'lower']:
+                vertical1 = parts[1]
+            elif len(parts) >= 3 and parts[1] in ['upper', 'lower']:
+                vertical1 = parts[1]
+        
+        vertical2 = components2.get('vertical')
+        if not vertical2 and 'quadrant' in components2:
+            parts = components2['quadrant'].split('_')
+            if len(parts) >= 2 and parts[1] in ['upper', 'lower']:
+                vertical2 = parts[1]
+            elif len(parts) >= 3 and parts[1] in ['upper', 'lower']:
+                vertical2 = parts[1]
+        
+        # Check vertical opposites (universal - works for all organ systems)
+        if vertical1 and vertical2:
+            vertical_opposites = opposites.get('vertical', {})
+            opposite_list = vertical_opposites.get(vertical1, [])
+            if vertical2 in opposite_list:
+                result['vertical_mismatch'] = True
+        
+        # Note: Quadrant opposites are redundant - if quadrants are opposite,
+        # the horizontal/vertical checks above already catch it. No need for separate quadrant check.
+        
+        return result
