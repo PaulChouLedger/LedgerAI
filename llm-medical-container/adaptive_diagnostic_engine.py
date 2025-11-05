@@ -1211,8 +1211,26 @@ class AdaptiveDiagnosticEngine:
                 if self.oldcarts_analysis and 'missing_components' in self.oldcarts_analysis:
                     if oldcarts_element in self.oldcarts_analysis['missing_components']:
                         self.oldcarts_analysis['missing_components'].remove(oldcarts_element)
+                # Also update answered_components if it exists
+                if self.oldcarts_analysis and 'answered_components' in self.oldcarts_analysis:
+                    if oldcarts_element not in self.oldcarts_analysis['answered_components']:
+                        self.oldcarts_analysis['answered_components'][oldcarts_element] = []
+                    self.oldcarts_analysis['answered_components'][oldcarts_element].append(answer)
             self._capture_debug(f"[Engine] ✅ {oldcarts_element} marked as complete (no clarification)")
-            return self._ask_next_clinical_question()
+            # Include pending acknowledgment if available
+            next_response = self._ask_next_clinical_question()
+            if hasattr(self, '_pending_acknowledgment') and self._pending_acknowledgment and next_response.get('success'):
+                acknowledgment = self._pending_acknowledgment
+                self._pending_acknowledgment = None
+                next_msg = next_response.get('message') or next_response.get('question', '')
+                combined_msg = f"{acknowledgment}\n\n{next_msg}"
+                return {
+                    'success': True,
+                    'message': combined_msg,
+                    'status': next_response.get('status', 'questioning'),
+                    'debug': next_response.get('debug', {})
+                }
+            return next_response
         
         # Score guidelines (strict: require embeddings, no fallbacks)
         if not self.embedding_model:
@@ -2329,7 +2347,7 @@ class AdaptiveDiagnosticEngine:
         return response.strip()
     
     def _generate_oldcarts_question_for_component(self, component: str) -> str:
-        """Generate question for OLDCARTS component using LLM - ONLY uses sample question template, NO conversation history"""
+        """Generate question for OLDCARTS component using LLM with chief complaint and conversation context"""
         if not self.llm_chat_simple_fn:
             raise ValueError("LLM not available for question generation")
         
@@ -2361,16 +2379,56 @@ class AdaptiveDiagnosticEngine:
         
         guidance_text = component_guidance.get(component, "")
         
-        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a simple, direct question following the example exactly. Do NOT add assumptions, examples, or extra details. Keep it short and open-ended."
+        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a simple, direct question following the example exactly. Use the chief complaint and conversation context to make the question relevant. Do NOT add assumptions, examples, or extra details. Keep it short and open-ended."
         
-        # Use chief complaint and sample question template - NO conversation history
+        # Get chief complaint context
+        chief_complaint_context = f"Chief complaint: {self.chief_complaint}" if self.chief_complaint else "No chief complaint recorded"
+        
+        # Get conversation context (what's already been discussed/answered)
+        conversation_context = ""
+        if hasattr(self, 'conversation_history') and self.conversation_history:
+            # Get what's already been answered
+            answered_elements = []
+            for item in self.conversation_history:
+                if item.get('type') == 'answer' and item.get('oldcarts'):
+                    answered_elements.append(item.get('oldcarts'))
+            
+            # Get recent conversation for context
+            recent_conversation = []
+            for item in self.conversation_history[-4:]:  # Last 4 items
+                if item.get('type') == 'answer':
+                    recent_conversation.append(f"Patient: {item.get('answer', '')[:80]}")
+                elif item.get('type') == 'question':
+                    recent_conversation.append(f"Asked: {item.get('question', '')[:80]}")
+            
+            if answered_elements:
+                conversation_context = f"\n\nAlready answered: {', '.join(set(answered_elements))}"
+            if recent_conversation:
+                conversation_context += f"\n\nRecent conversation:\n" + "\n".join(recent_conversation[-2:])  # Last 2 exchanges
+        
         # Make guidance more explicit and strict
-        strict_instructions = "CRITICAL RULES:\n- Follow the example question structure EXACTLY\n- Keep it simple and direct\n- Do NOT add assumptions or specific examples\n- Do NOT mention body parts unless asking about location\n- Use simple language\n- Return ONLY the question, no explanation"
+        strict_instructions = "CRITICAL RULES:\n- Follow the example question structure EXACTLY\n- Use the chief complaint context to make it relevant\n- Keep it simple and direct\n- Do NOT add assumptions or specific examples\n- Do NOT mention body parts unless asking about location\n- Use simple language\n- Return ONLY the question, no explanation"
         
         if guidance_text:
-            user_msg = f"Chief complaint: {self.chief_complaint}\n\nComponent: {component.upper()}\n\nExample question: {sample_question}\n\n{guidance_text}\n\n{strict_instructions}\n\nGenerate a question about {component} for this patient:"
+            user_msg = f"""{chief_complaint_context}{conversation_context}
+
+Component: {component.upper()}
+Example question: {sample_question}
+
+{guidance_text}
+
+{strict_instructions}
+
+Generate a question about {component} for this patient:"""
         else:
-            user_msg = f"Chief complaint: {self.chief_complaint}\n\nComponent: {component.upper()}\n\nExample question: {sample_question}\n\n{strict_instructions}\n\nGenerate a question about {component} for this patient:"
+            user_msg = f"""{chief_complaint_context}{conversation_context}
+
+Component: {component.upper()}
+Example question: {sample_question}
+
+{strict_instructions}
+
+Generate a question about {component} for this patient:"""
         
         llm_kwargs = self._get_llm_kwargs()
         response = self.llm_chat_simple_fn(
@@ -2387,9 +2445,7 @@ class AdaptiveDiagnosticEngine:
             if component == 'severity':
                 # Check if response is just a number or too short (likely LLM misinterpreted as answer)
                 if len(generated_question) < 15 or generated_question.strip().replace('/', '').replace('-', '').isdigit():
-                    # Fallback to exact sample question for severity
-                    self._capture_debug(f"[Engine] ⚠️ Severity question invalid ('{generated_question}'), using sample question fallback")
-                    return sample_question
+                    raise ValueError(f"LLM returned invalid severity question: '{generated_question}' - expected a question, got a number or too short response")
             
             return generated_question
         
@@ -2627,7 +2683,7 @@ class AdaptiveDiagnosticEngine:
         
         # Generate question using LLM
         if not self.llm_chat_simple_fn:
-            return {'success': False, 'message': 'LLM not available'}
+            raise ValueError("LLM not available for key feature question generation")
         
         system_msg = "You are a medical assistant. Generate a simple, patient-friendly question about a key clinical feature."
         if feature_type == 'positive':
@@ -2644,7 +2700,9 @@ class AdaptiveDiagnosticEngine:
             **llm_kwargs
         )
         
-        question = response.strip() if response else f"About {feature_text.lower()}:"
+        if not response or not response.strip():
+            raise ValueError("LLM returned empty response for key feature question")
+        question = response.strip()
         
         # Remove prefixes if present
         prefixes = ["Here is the question:", "Q:", "Question:"]
@@ -3227,7 +3285,7 @@ RECOMMENDATION: {recommendation}"""
         
         # Generate question using LLM
         if not self.llm_chat_simple_fn:
-            return {'success': False, 'message': 'LLM not available'}
+            raise ValueError("LLM not available for red flag question generation")
         
         # Build conversation context to avoid asking about things already mentioned
         conversation_context = ""
@@ -3700,25 +3758,40 @@ RECOMMENDATION: {recommendation}"""
     def _generate_empathetic_response(self, user_answer: str, distress_info: Dict) -> str:
         """Generate empathetic response acknowledging patient distress"""
         if not self.llm_chat_simple_fn:
-            # Fallback response
-            return "I understand you're experiencing severe symptoms. Let me focus on getting you the right care immediately. Can you tell me more about your pain?"
+            raise ValueError("LLM not available for empathetic response generation")
+        
+        # Get chief complaint context
+        chief_complaint_context = f"Patient's chief complaint: {self.chief_complaint}" if self.chief_complaint else "No chief complaint recorded yet"
+        
+        # Get recent conversation context (what's already been discussed)
+        conversation_context = ""
+        if hasattr(self, 'conversation_history') and self.conversation_history:
+            recent_items = []
+            for item in self.conversation_history[-5:]:  # Last 5 items
+                if item.get('type') == 'question':
+                    recent_items.append(f"Asked: {item.get('question', '')}")
+                elif item.get('type') == 'answer':
+                    recent_items.append(f"Patient said: {item.get('answer', '')[:100]}")  # Truncate long answers
+            if recent_items:
+                conversation_context = "\n\nRecent conversation:\n" + "\n".join(recent_items[-3:])  # Last 3 items
         
         system_msg = """You are a compassionate medical assistant. The patient is expressing significant distress with severe symptoms. 
 Generate a brief (1-2 sentences), empathetic response that:
-1. Acknowledges their distress
+1. Acknowledges their distress and validates their feelings
 2. Reassures them you're taking this seriously
-3. Immediately transitions to gathering critical clinical information (skip routine questions like age)
-4. Shows urgency and concern
+3. Shows urgency and concern
 
-Be warm, professional, and action-oriented. Do NOT ask about age or routine demographics."""
+Be warm, professional, and reassuring. Do NOT ask any questions - just acknowledge and reassure. The system will ask the appropriate clinical question next."""
         
-        user_msg = f"""Patient said: "{user_answer}"
+        user_msg = f"""{chief_complaint_context}{conversation_context}
+
+Patient just said: "{user_answer}"
 
 Distress detected: severity {distress_info['severity']:.1f}/10
 
-Generate an empathetic response that acknowledges their distress and immediately asks the MOST CRITICAL clinical question to assess their condition. Skip routine questions."""
+Generate an empathetic response that acknowledges their distress and reassures them. Do NOT ask any questions - just provide emotional support and reassurance."""
         
-        llm_kwargs = self._get_llm_kwargs(override_max_tokens=80)
+        llm_kwargs = self._get_llm_kwargs(override_max_tokens=60)
         response = self.llm_chat_simple_fn(
             [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
             **llm_kwargs
@@ -3950,9 +4023,13 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 # Pure comment/distress - acknowledge naturally and return to next missing element
                 if is_distressed:
                     self._capture_debug(f"[Engine] 💬 Pure distress detected - acknowledging naturally and returning to next missing element")
+                    # For distress: show acknowledgment + transition message, then continue normal flow
+                    transition_msg = "Let me ask you some questions to help figure out what's going on."
+                    combined_msg = f"{acknowledgment_msg}\n\n{transition_msg}"
+                    return self._return_to_next_missing_element(combined_msg, last_user_input=user_answer), response_interpretation
                 else:
                     self._capture_debug(f"[Engine] 💬 Pure comment detected - acknowledging naturally and returning to next missing element")
-                return self._return_to_next_missing_element(acknowledgment_msg, last_user_input=user_answer), response_interpretation
+                    return self._return_to_next_missing_element(acknowledgment_msg, last_user_input=user_answer), response_interpretation
         
         # If we get here, either:
         # 1. No comment/question/distress (normal answer)
@@ -4309,11 +4386,21 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 if needs_acknowledgment and acknowledgment_msg:
                     # Use the acknowledgment message from interpretation (most current)
                     final_acknowledgment = acknowledgment_msg
+                    # If distress detected, add transition message
+                    if is_distressed:
+                        transition_msg = "Let me ask you some questions to help figure out what's going on."
+                        final_acknowledgment = f"{final_acknowledgment}\n\n{transition_msg}"
                     self._capture_debug(f"[Engine] 💬 Using acknowledgment from interpretation")
                 elif hasattr(self, '_pending_acknowledgment') and self._pending_acknowledgment:
                     # Fallback to stored acknowledgment
                     final_acknowledgment = self._pending_acknowledgment
                     self._pending_acknowledgment = None
+                    # If distress was detected, add transition message
+                    # Check if distress was detected in the conversation
+                    distress_detected = is_distressed or getattr(self, 'demographics_optional', False)
+                    if distress_detected:
+                        transition_msg = "Let me ask you some questions to help figure out what's going on."
+                        final_acknowledgment = f"{final_acknowledgment}\n\n{transition_msg}"
                     self._capture_debug(f"[Engine] 💬 Using stored pending acknowledgment")
                 
                 if final_acknowledgment:
