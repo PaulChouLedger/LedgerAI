@@ -77,8 +77,12 @@
       "aggravating": {
         "includes": [
           {
-            "medical": "worsens with movement",
-            "patient_friendly": "moving around"
+            "medical": "physical activity",
+            "patient_friendly": "moving around or jumping"
+          }, 
+          {
+            "medical": "coughing",
+            "patient_friendly": "coughing"
           }
         ],
         "excludes": []
@@ -109,7 +113,7 @@
         "includes": [
           {
             "medical": "anorexia",
-            "patient_friendly": "poor appetite"
+            "patient_friendly": "poor appetite/dehydration"
           },
           {
             "medical": "nausea",

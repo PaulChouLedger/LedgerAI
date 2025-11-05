@@ -7,13 +7,9 @@
   "urgency": "routine",
   "chief_complaint_triggers": [
     "abdominal pain",
-    "stomach pain",
-    "epigastric pain",
-    "nausea",
-    "upper abdominal pain"
+    "epigastric pain"
   ],
   "key_features": {
-    "classic_presentation": "ONSET: ACUTE onset within hours to days. Triggered by NSAIDs, alcohol, or stress. LOCATION: EPIGASTRIC (upper mid-abdomen), diffuse. NO radiation. DURATION: Symptoms last hours to days. May persist if trigger continues. CHARACTER: GNAWING or BURNING quality. Discomfort more than severe pain. AGGRAVATING: WORSE WITH EATING (unlike duodenal ulcer). NSAIDs, alcohol, spicy foods worsen. RELIEVING: Antacids provide relief. Stopping NSAIDs helps. Empty stomach may feel better (opposite of duodenal ulcer). TIMING: Can be CONSTANT or EPISODIC. Often worse after meals. May persist for hours to days. SEVERITY: 4-7/10, mild to moderate discomfort. ASSOCIATED SYMPTOMS: NAUSEA (very common), vomiting, loss of appetite, bloating, early satiety. KEY POSITIVES: Recent NSAID/alcohol use, nausea worse with eating, diffuse epigastric tenderness, antacid relief. KEY NEGATIVES: Severe LOCALIZED pain suggests ulcer. Hematemesis or melena suggests bleeding needing urgent evaluation. Weight loss suggests malignancy.",
     "structured_oldcarts": {
       "onset": {
         "includes": [
