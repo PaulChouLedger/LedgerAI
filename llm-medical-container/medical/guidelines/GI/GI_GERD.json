@@ -6,36 +6,24 @@
   "prevalence": "uncommon",
   "urgency": "routine",
   "chief_complaint_triggers": [
+    "abdominal pain",
     "heartburn",
     "chest pain",
-    "burning",
+    "burning sensation",
     "acid reflux",
     "regurgitation"
   ],
   "key_features": {
-    "classic_presentation": "ONSET: GRADUAL, CHRONIC/RECURRENT over weeks to months (not acute). Often after meals or when lying down. LOCATION: RETROSTERNAL (behind breastbone) and EPIGASTRIC. BURNING rises from stomach toward throat. No radiation to arms/jaw. DURATION: Episodes last minutes to hours. Can be constant if severe reflux. May persist after meals. CHARACTER: BURNING sensation (heartburn). NOT sharp or pressure-like (would suggest cardiac). Acid rising sensation. AGGRAVATING: WORSE AFTER MEALS, when LYING DOWN, or BENDING OVER. Spicy foods, caffeine, alcohol, large meals trigger. RELIEVING: ANTACIDS provide quick relief. SITTING UPRIGHT helps. Elevation of head during sleep helps. TIMING: EPISODIC - worse after meals, at night when lying flat. Pattern repeats with dietary triggers. SEVERITY: 3-6/10, mild to moderate discomfort. Not severe. ASSOCIATED SYMPTOMS: SOUR TASTE (acid regurgitation), belching, dysphagia (if chronic), chronic cough, hoarseness. KEY POSITIVES: Antacid relief, worse when lying down, chronic pattern, dietary triggers. KEY NEGATIVES: NEW SEVERE chest pain requires cardiac workup FIRST. Dysphagia with weight loss suggests stricture/cancer. Hematemesis suggests ulcer.",
     "structured_oldcarts": {
       "onset": {
         "includes": [
           {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
-          },
-          {
             "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
-          },
-          {
-            "medical": "recurrent",
-            "patient_friendly": "RECURRENT"
+            "patient_friendly": "ongoing for a long time more than 3 months"
           },
           {
             "medical": "acute",
-            "patient_friendly": "sudden and severe"
-          },
-          {
-            "medical": "lying down",
-            "patient_friendly": "lying down"
+            "patient_friendly": "recently occurred less than 1 month"
           }
         ],
         "excludes": []
@@ -44,7 +32,7 @@
         "includes": [
           {
             "medical": "retrosternal",
-            "patient_friendly": "RETROSTERNAL"
+            "patient_friendly": "behind your breastbone"
           },
           {
             "medical": "epigastric",
@@ -65,10 +53,6 @@
       "duration": {
         "includes": [
           {
-            "medical": "severe",
-            "patient_friendly": "very bad or intense"
-          },
-          {
             "medical": "minutes",
             "patient_friendly": "for a few minutes"
           },
@@ -77,11 +61,29 @@
             "patient_friendly": "for several hours"
           },
           {
+            "medical": "days",
+            "patient_friendly": "for a few days"
+          },
+          {
             "medical": "weeks",
             "patient_friendly": "for a few weeks"
           }
         ],
         "excludes": []
+      },
+      "progression": {
+        "includes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "came on gradually"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly"
+          }
+        ]
       },
       "character": {
         "includes": [
@@ -103,16 +105,12 @@
       "aggravating": {
         "includes": [
           {
-            "medical": "worse after meals",
+            "medical": "postprandial",
             "patient_friendly": "after eating"
           },
           {
             "medical": "lying down",
             "patient_friendly": "lying down"
-          },
-          {
-            "medical": "bending over",
-            "patient_friendly": "bending over"
           }
         ],
         "excludes": []
@@ -121,15 +119,11 @@
         "includes": [
           {
             "medical": "antacids",
-            "patient_friendly": "antacids"
+            "patient_friendly": "antacids or proton pump inhibitors"
           },
           {
             "medical": "sitting upright",
             "patient_friendly": "sitting up"
-          },
-          {
-            "medical": "head",
-            "patient_friendly": "head"
           }
         ],
         "excludes": []
@@ -138,15 +132,16 @@
         "includes": [
           {
             "medical": "mild",
-            "patient_friendly": "not too bad"
+            "patient_friendly": "mild discomfort"
           },
           {
             "medical": "moderate",
-            "patient_friendly": "somewhat bad"
+            "patient_friendly": "moderate discomfort"
           },
           {
             "medical": "severe",
-            "patient_friendly": "very bad or intense"
+            "patient_friendly": "severe discomfort",
+            "emergent": true
           }
         ],
         "excludes": []
@@ -154,22 +149,24 @@
       "associated": {
         "includes": [
           {
-            "medical": "sour taste",
-            "patient_friendly": "SOUR TASTE"
+            "medical": "pyrosis",
+            "patient_friendly": "burning sensation in your chest"
           },
           {
-            "medical": "chronic",
-            "patient_friendly": "ongoing for a long time"
+            "medical": "dysphagia",
+            "patient_friendly": "difficulty swallowing"
+          },
+          {
+            "medical": "chronic cough",
+            "patient_friendly": "chronic cough"
+          },
+          {
+            "medical": "hoarseness",
+            "patient_friendly": "hoarseness"
           }
         ],
         "excludes": []
       }
     }
-  },
-  "red_flags": [
-    "New severe chest pain - rule out cardiac causes (myocardial infarction (MI), angina) FIRST before attributing to gastroesophageal reflux disease (GERD)",
-    "Dysphagia (difficulty swallowing) with weight loss - esophageal stricture or cancer, needs endoscopy",
-    "Vomiting blood or black tarry stools - GI bleeding from severe esophagitis or ulcer",
-    "Symptoms not responding to PPI therapy - consider alternative diagnosis or Barrett's esophagus"
-  ]
+  }
 }

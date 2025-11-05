@@ -10,17 +10,12 @@
     "epigastric pain"
   ],
   "key_features": {
-        "structured_oldcarts": {
+    "structured_oldcarts": {
       "onset": {
         "includes": [
           {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-        
-          {
-            "medical": "heavy fatty meal",
-            "patient_friendly": "fatty or greasy foods"
+            "medical": "acute",
+            "patient_friendly": "recently occurred less than 1 month"
           }
         ],
         "excludes": []
@@ -32,12 +27,8 @@
             "patient_friendly": "upper middle part of your belly"
           },
           {
-            "medical": "abdomen",
-            "patient_friendly": "your belly"
-          },
-          {
-            "medical": "periumbilical",
-            "patient_friendly": "around your belly button"
+            "medical": "left upper quadrant",
+            "patient_friendly": "top left side near your ribs"
           }
         ],
         "excludes": [],
@@ -64,6 +55,20 @@
           }
         ],
         "excludes": []
+      },
+      "progression": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "came on gradually"
+          }
+        ]
       },
       "character": {
         "includes": [
@@ -93,8 +98,8 @@
       "aggravating": {
         "includes": [
           {
-            "medical": "worse when lying flat",
-            "patient_friendly": "WORSE WHEN LYING FLAT"
+            "medical": "supine",
+            "patient_friendly": "lying flat"
           }
         ],
         "excludes": []
@@ -102,16 +107,8 @@
       "relieving": {
         "includes": [
           {
-            "medical": "better when sitting",
-            "patient_friendly": "BETTER WHEN SITTING"
-          },
-          {
-            "medical": "and leaning forward",
-            "patient_friendly": "AND LEANING FORWARD"
-          },
-          {
-            "medical": "sitting up",
-            "patient_friendly": "sitting up"
+            "medical": "sitting up and leaning forward",
+            "patient_friendly": "sitting up and leaning forward"
           }
         ],
         "excludes": []
@@ -120,7 +117,8 @@
         "includes": [
           {
             "medical": "severe",
-            "patient_friendly": "severe"
+            "patient_friendly": "severe",
+            "emergent": true
           }
         ],
         "excludes": []
@@ -146,7 +144,8 @@
           },
           {
             "medical": "anorexia",
-            "patient_friendly": "poor appetite/dehydration"
+            "patient_friendly": "poor appetite/dehydration",
+            "emergent": true
           },
           {
             "medical": "alcohol induced pancreatitis",
@@ -155,16 +154,28 @@
           {
             "medical": "cholelithiasis",
             "patient_friendly": "gallstones"
+          },
+          {
+            "medical": "pyrexia",
+            "patient_friendly": "fever"
+          },
+          {
+            "medical": "hypotension",
+            "patient_friendly": "low blood pressure",
+            "emergent": true
+          },
+          {
+            "medical": "jaundice",
+            "patient_friendly": "yellow skin or eyes"
+          },
+          {
+            "medical": "encephalopathy",
+            "patient_friendly": "confusion or disorientation",
+            "emergent": true
           }
         ],
         "excludes": []
       }
     }
-  },
-  "red_flags": [
-    "Severe abdominal pain with hypotension or tachycardia - severe pancreatitis with third-spacing, needs ICU",
-    "Respiratory distress or low oxygen saturation - ARDS complication, call 911",
-    "Altered mental status, severe dehydration - severe systemic inflammation",
-    "Grey-Turner sign (flank bruising) or Cullen sign (periumbilical bruising) - hemorrhagic pancreatitis, very severe"
-  ]
+  }
 }

@@ -249,7 +249,7 @@ class MedicalRuleEngine:
             'aggravating': {}, 'relieving': {}, 'timing': {}, 'severity': {}
         }
         
-        synonyms_dir = os.path.join(os.path.dirname(__file__), '..', 'synonyms')
+        synonyms_dir = os.path.join(os.path.dirname(__file__), '..', 'medical', 'synonyms')
         if os.path.exists(synonyms_dir):
             for synonym_file in os.listdir(synonyms_dir):
                 if synonym_file.endswith('_synonyms_oldcarts.json'):
@@ -514,7 +514,7 @@ class MedicalRuleEngine:
                 if cache_key in self.synonym_cache:
                     synonyms = self.synonym_cache[cache_key]
                 else:
-                    synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+                    synonym_file = f"medical/synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
                     synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
                     
                     if os.path.exists(synonym_path):
@@ -863,7 +863,7 @@ class MedicalRuleEngine:
         # Fallback to simple keyword extraction if FAISS didn't find matches
         if not patient_direction:
             normalized_answer = patient_answer.lower()
-        synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+        synonym_file = f"medical/synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
         synonym_path = os.path.join(os.path.dirname(__file__), '..', synonym_file)
         
         if os.path.exists(synonym_path):

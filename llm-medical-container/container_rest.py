@@ -383,70 +383,12 @@ def chat_tts():
         try:
             print("[Container] 🔄 Using dynamic medical assessment for CLINICIAN")
             
-            # Check if this will be a simple operation (no filler needed)
-            def will_use_simple_llm(prompt_text):
-                """Predict if the operation will use simple patterns (no filler needed)"""
-                prompt_lower = prompt_text.lower().strip()
-                
-                # Simple operations (no filler needed):
-                # - Age answers: "35", "35 years old", "thirty five"
-                # - Sex answers: "male", "female", "man", "woman"
-                # - Simple clarifications
-                
-                # Age patterns
-                age_patterns = [
-                    r'^\d+\.?$',  # Just numbers: "35" or "35."
-                    r'^\d+\s*years?\s*old\.?$',  # "35 years old" or "35 years old."
-                    r'^i\'?m\s+\d+\.?$',  # "I'm 35" or "I'm 35."
-                    r'^i\s+am\s+\d+\.?$',  # "I am 35" or "I am 35."
-                    r'^(thirty|forty|fifty|sixty|seventy|eighty|ninety)',  # "thirty five"
-                    r'^(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\s+(one|two|three|four|five|six|seven|eight|nine)$'
-                ]
-                
-                # Sex patterns
-                sex_patterns = [
-                    r'^(male|female|man|woman|m|f)\.?$',
-                    r'^(i am|i\'m)\s+(male|female|a man|a woman)\.?$'
-                ]
-                
-                # Check for age patterns
-                import re
-                for pattern in age_patterns:
-                    if re.match(pattern, prompt_lower):
-                        return True
-                
-                # Check for sex patterns
-                for pattern in sex_patterns:
-                    if re.match(pattern, prompt_lower):
-                        return True
-                
-                # Default to complex operation (needs filler)
-                return False
-            
-            # Determine if we need a filler based on predicted operation complexity
-            will_use_simple = will_use_simple_llm(prompt)
-            
-            if will_use_simple:
-                # Simple operation - no filler needed
-                print(f"[Container] ⚡ Simple operation - no filler needed")
-            else:
-                # Complex operation - use filler
-                from thinking_fillers import get_filler
-                immediate_filler = get_filler('question_generation', use_audio=True)
-                filler_text = immediate_filler['text']
-                print(f"[Container] 💬 IMMEDIATE filler for complex operation: '{filler_text}'")
-                
-                # Stream filler immediately
-                yield "<sentence_start>\n"
-                yield f"{filler_text}\n"
-                yield "<sentence_end>\n"
-            
-            # Now process the actual response in the background
+            # Process the actual response
             response = handle_clinician_response(prompt, session_id, llm_chat, llm_chat_simple)
             
             print(f"[Container] ✅ Got response from unified medical session")
             
-            # Check if response includes filler (dict) or is simple text (str)
+            # Check if response is dict or simple text (str)
             if isinstance(response, dict):
                 # Handle empathetic statement + question (with pause)
                 if response.get('message') and response.get('question'):

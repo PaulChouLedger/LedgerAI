@@ -54,6 +54,20 @@
         ],
         "excludes": []
       },
+      "progression": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "came on gradually"
+          }
+        ]
+      },
       "character": {
         "includes": [
           {

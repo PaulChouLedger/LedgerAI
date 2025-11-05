@@ -14,7 +14,7 @@
     "bloating"
   ],
   "key_features": {
-        "structured_oldcarts": {
+    "structured_oldcarts": {
       "onset": {
         "includes": [
           {
@@ -60,6 +60,20 @@
         ],
         "excludes": []
       },
+      "progression": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "came on gradually"
+          }
+        ]
+      },
       "character": {
         "includes": [
           {
@@ -103,7 +117,8 @@
           },
           {
             "medical": "severe",
-            "patient_friendly": "severe"
+            "patient_friendly": "severe",
+            "emergent": true
           }
         ],
         "excludes": []
@@ -112,7 +127,8 @@
         "includes": [
           {
             "medical": "emesis",
-            "patient_friendly": "vomiting"
+            "patient_friendly": "vomiting",
+            "emergent": true
           },
           {
             "medical": "nausea",
@@ -124,23 +140,27 @@
           },
           {
             "medical": "distension",
-            "patient_friendly": "inflated abdomen"
-          },  
+            "patient_friendly": "inflated abdomen",
+            "emergent": true
+          },
           {
             "medical": "surgical history",
             "patient_friendly": "previous abdominal surgery"
           },
           {
             "medical": "small bowel obstruction history",
-            "patient_friendly": "previous small bowel obstruction"
+            "patient_friendly": "previous episodes of small bowel obstruction",
+            "emergent": true
           },
           {
             "medical": "hematochezia",
-            "patient_friendly": "blood in the stool"
+            "patient_friendly": "blood in the stool",
+            "emergent": true
           },
           {
             "medical": "pyrexia",
-            "patient_friendly": "fever"
+            "patient_friendly": "fever",
+            "emergent": true
           },
           {
             "medical": "anorexia",
@@ -150,11 +170,5 @@
         "excludes": []
       }
     }
-  },
-  "red_flags": [
-    "Severe constant pain with fever and peritoneal signs - strangulated bowel, call 911",
-    "Bloody vomit or stool - ischemic bowel, needs immediate surgery",
-    "Severe abdominal distension with tachycardia - complete obstruction with possible perforation",
-    "Previous bowel obstruction - higher risk of recurrence and complications"
-  ]
+  }
 }

@@ -284,7 +284,7 @@ class ClinicianSession:
             user_input: User's medical query
 
         Returns:
-            Response (str for simple queries, dict with filler for adaptive assessment)
+            Response (str for simple queries, dict for adaptive assessment)
         """
         # Store the query
         self.conversation_history.append({
@@ -521,12 +521,8 @@ class ClinicianSession:
                         print(f"[Adaptive] ✅ Session state cleared (auto-reset)")
                         return response.get('message', 'Assessment complete.')
                     else:
-                        # Return full response dict (includes filler if present)
-                        if 'filler' in response:
-                            print(f"[Clinician] 💬 Response includes filler: {response['filler']['text']}")
-                            return response  # Return dict with question + filler
-                        else:
-                            return response  # Return full response dict with debug info
+                        # Return full response dict
+                        return response
                 elif response is None:
                     # Response is None - this should not happen
                     print("[Adaptive] ❌ Response is None - this indicates a bug in the adaptive engine")
@@ -1586,7 +1582,7 @@ def handle_clinician_response(prompt: str, session_id: str, llm_chat_fn: Callabl
         llm_chat_simple_fn: Optional simple LLM function (fast model for templates)
 
     Returns:
-        Medical response (str or dict with {'question', 'filler'} for adaptive assessment)
+        Medical response (str or dict for adaptive assessment)
     """
     session = get_clinician_session(session_id, llm_chat_fn, llm_chat_simple_fn)
     
@@ -1599,7 +1595,7 @@ def handle_clinician_response(prompt: str, session_id: str, llm_chat_fn: Callabl
     # Save assessment state for next request
     session._save_assessment_state()
     
-    # Return response (can be str or dict with filler)
+    # Return response (can be str or dict)
     return response
 
 

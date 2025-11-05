@@ -19,7 +19,8 @@
           },
           {
             "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
+            "patient_friendly": "all at once or very quickly",
+            "emergent": true
           }
         ],
         "excludes": []
@@ -55,6 +56,21 @@
           }
         ],
         "excludes": []
+      },
+      "progression": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "came on gradually"
+          }
+        ]
       },
       "character": {
         "includes": [
@@ -99,7 +115,8 @@
           },
           {
             "medical": "severe",
-            "patient_friendly": "severe"
+            "patient_friendly": "severe",
+            "emergent": true
           }
         ],
         "excludes": []
@@ -108,11 +125,13 @@
         "includes": [
           {
             "medical": "pyrexia",
-            "patient_friendly": "fever"
+            "patient_friendly": "fever",
+            "emergent": true
           },
           {
             "medical": "rigors",
-            "patient_friendly": "shaking chills"
+            "patient_friendly": "shaking chills",
+            "emergent": true
           },
           {
             "medical": "diarrhea",
@@ -124,8 +143,9 @@
           },
           {
             "medical": "emesis",
-            "patient_friendly": "vomiting"
-          }, 
+            "patient_friendly": "vomiting",
+            "emergent": true
+          },
           {
             "medical": "constipation",
             "patient_friendly": "constipation"
@@ -142,11 +162,5 @@
         "excludes": []
       }
     }
-  },
-  "red_flags": [
-    "Severe left lower quadrant (LLQ) pain with high fever >102°F and rigors - diverticular abscess, needs computed tomography (CT) and possible drainage",
-    "Sudden severe pain with peritoneal signs - perforation with peritonitis, call 911",
-    "Unable to tolerate oral intake with vomiting - possible obstruction from inflammation",
-    "Immunocompromised patients - higher risk of perforation and sepsis"
-  ]
+  }
 }

@@ -9,7 +9,6 @@
     "abdominal pain",
     "diarrhea",
     "vomiting",
-    "cramping",
     "stomach bug",
     "food poisoning"
   ],
@@ -18,12 +17,8 @@
       "onset": {
         "includes": [
           {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
             "medical": "acute",
-            "patient_friendly": "sudden and severe"
+            "patient_friendly": "recently occurred less than 1 month"
           }
         ],
         "excludes": []
@@ -37,10 +32,6 @@
           {
             "medical": "diffuse",
             "patient_friendly": "all over your belly"
-          },
-          {
-            "medical": "abdomen",
-            "patient_friendly": "your belly"
           }
         ],
         "excludes": [],
@@ -58,34 +49,28 @@
       "duration": {
         "includes": [
           {
-            "medical": "seconds",
-            "patient_friendly": "for a few seconds"
-          },
-          {
-            "medical": "minutes",
-            "patient_friendly": "for a few minutes"
-          },
-          {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
-          },
-          {
             "medical": "days",
             "patient_friendly": "for a few days"
           }
         ],
         "excludes": []
       },
-      "character": {
+      "progression": {
         "includes": [
           {
-            "medical": "crampy",
-            "patient_friendly": "crampy or cramping"
-          },
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly"
+          }
+        ],
+        "excludes": [
           {
-            "medical": "diffuse",
-            "patient_friendly": "all over your belly"
-          },
+            "medical": "gradual",
+            "patient_friendly": "came on gradually"
+          }
+        ]
+      },
+      "character": {
+        "includes": [
           {
             "medical": "dull",
             "patient_friendly": "dull or achy"
@@ -106,24 +91,12 @@
           {
             "medical": "movement",
             "patient_friendly": "moving around"
-          },
-          {
-            "medical": "cramping",
-            "patient_friendly": "cramping"
           }
         ],
         "excludes": []
       },
       "relieving": {
         "includes": [
-          {
-            "medical": "temporary",
-            "patient_friendly": "TEMPORARY"
-          },
-          {
-            "medical": "cramping",
-            "patient_friendly": "cramping"
-          },
           {
             "medical": "rest",
             "patient_friendly": "resting"
@@ -135,23 +108,7 @@
         "includes": [
           {
             "medical": "diarrhea",
-            "patient_friendly": "diarrhea"
-          },
-          {
-            "medical": "predominant",
-            "patient_friendly": "PREDOMINANT"
-          },
-          {
-            "medical": "cramping",
-            "patient_friendly": "cramping"
-          },
-          {
-            "medical": "mild",
-            "patient_friendly": "not too bad"
-          },
-          {
-            "medical": "moderate",
-            "patient_friendly": "somewhat bad"
+            "patient_friendly": "more than 3 episodes of diarrhea per day"
           }
         ],
         "excludes": []
@@ -159,34 +116,30 @@
       "associated": {
         "includes": [
           {
-            "medical": "diarrhea",
-            "patient_friendly": "diarrhea"
+            "medical": "pyrexia",
+            "patient_friendly": "fever",
+            "emergent": true
           },
           {
-            "medical": "nausea and vomiting",
+            "medical": "nausea",
             "patient_friendly": "nausea"
           },
           {
-            "medical": "before",
-            "patient_friendly": "BEFORE"
+            "medical": "emesis",
+            "patient_friendly": "vomiting"
           },
           {
-            "medical": "with",
-            "patient_friendly": "WITH"
+            "medical": "anorexia",
+            "patient_friendly": "loss of appetite/dehydration",
+            "emergent": true
           },
           {
-            "medical": "appetite",
-            "patient_friendly": "APPETITE"
+            "medical": "upper respiratory infection",
+            "patient_friendly": "cough, sore throat, nasal congestion"
           }
         ],
         "excludes": []
       }
     }
-  },
-  "red_flags": [
-    "Severe dehydration (dry mucous membranes, decreased urine output, orthostatic hypotension) - needs IV fluids",
-    "Bloody diarrhea with high fever >102°F - invasive bacterial infection (Shigella, Salmonella, E. coli), may need antibiotics",
-    "Severe abdominal pain with peritoneal signs - suggests perforation or alternative diagnosis, not simple gastroenteritis",
-    "Immunocompromised patients or infants - higher risk of severe dehydration and complications"
-  ]
+  }
 }

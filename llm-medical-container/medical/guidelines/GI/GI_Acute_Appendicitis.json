@@ -14,20 +14,11 @@
       "onset": {
         "includes": [
           {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
             "medical": "acute",
-            "patient_friendly": "sudden and severe"
+            "patient_friendly": "recently occurred less than 1 month"
           }
         ],
-        "excludes": [   
-          {
-          "medical": "chronic",
-          "patient_friendly": "ongoing for a long time"
-        }
-      ]
+        "excludes": []
       },
       "location": {
         "includes": [
@@ -65,6 +56,21 @@
         ],
         "excludes": []
       },
+      "progression": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "came on gradually"
+          }
+        ]
+      },
       "character": {
         "includes": [
           {
@@ -79,7 +85,7 @@
           {
             "medical": "physical activity",
             "patient_friendly": "moving around or jumping"
-          }, 
+          },
           {
             "medical": "coughing",
             "patient_friendly": "coughing"
@@ -104,7 +110,8 @@
           },
           {
             "medical": "severe",
-            "patient_friendly": "severe"
+            "patient_friendly": "severe",
+            "emergent": true
           }
         ],
         "excludes": []
@@ -125,15 +132,18 @@
           },
           {
             "medical": "pyrexia",
-            "patient_friendly": "fever"
+            "patient_friendly": "fever",
+            "emergent": true
           },
           {
             "medical": "hypotension",
-            "patient_friendly": "low blood pressure"
+            "patient_friendly": "low blood pressure",
+            "emergent": true
           },
           {
             "medical": "encephalopathy",
-            "patient_friendly": "confusion or disorientation"
+            "patient_friendly": "confusion or disorientation",
+            "emergent": true
           },
           {
             "medical": "rigors",
@@ -143,11 +153,5 @@
         "excludes": []
       }
     }
-  },
-  "red_flags": [
-    "Sudden severe pain that then improves briefly - may indicate PERFORATION",
-    "Severe pain with abdominal rigidity (board-like abdomen) - perforation with peritonitis, call 911",
-    "High fever >103°F with severe pain - possible perforation",
-    "Hypotension, tachycardia, altered mental status - septic shock, call 911"
-  ]
+  }
 }

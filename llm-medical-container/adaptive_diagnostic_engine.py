@@ -16,7 +16,6 @@ import os
 import re
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from thinking_fillers import get_filler
 
 # Import modular RAG client
 from rag import get_rag_client
@@ -359,12 +358,12 @@ class AdaptiveDiagnosticEngine:
     def _load_synonyms_for_system(self, organ_system: str) -> dict:
         """Load synonyms for a specific organ system and pre-build data structures"""
         cache = {
-            'onset': {}, 'location': {}, 'timing': {}, 'duration': {},
+            'onset': {}, 'progression': {}, 'location': {}, 'timing': {}, 'duration': {},
             'character': {}, 'aggravating': {}, 'relieving': {}, 'severity': {},
             'associated': {}
         }
         
-        synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+        synonym_file = f"medical/synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
         synonym_path = os.path.join(os.path.dirname(__file__), synonym_file)
         
         if not os.path.exists(synonym_path):
@@ -664,7 +663,7 @@ class AdaptiveDiagnosticEngine:
         
         try:
             synonyms_list = []
-            synonyms_dir = Path(__file__).parent / 'synonyms'
+            synonyms_dir = Path(__file__).parent / 'medical' / 'synonyms'
             
             # Load chief complaint synonyms from all synonym files
             for synonym_file in synonyms_dir.glob("*_synonyms_oldcarts.json"):
@@ -920,7 +919,7 @@ class AdaptiveDiagnosticEngine:
         if not guidelines:
             return {
                 'answered_components': {},
-                'missing_components': ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity', 'associated'],
+                'missing_components': ['onset', 'location', 'timing', 'duration', 'progression', 'character', 'aggravating', 'relieving', 'severity', 'associated'],
                 'anatomical_analysis': {}
             }
         
@@ -929,7 +928,7 @@ class AdaptiveDiagnosticEngine:
         
         # Use FAISS to find matching terms - relies on extensive synonym files
         if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
-            all_elements = ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity', 'associated']
+            all_elements = ['onset', 'location', 'timing', 'duration', 'progression', 'character', 'aggravating', 'relieving', 'severity', 'associated']
             
             for element in all_elements:
                 # Use FAISS to find matching terms with semantic similarity (very high threshold for initial parsing to avoid false positives)
@@ -954,7 +953,7 @@ class AdaptiveDiagnosticEngine:
         
         answered_elements = list(answered_components.keys())
         # Priority order: timing before duration
-        standard_order = ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity', 'associated']
+        standard_order = ['onset', 'location', 'timing', 'duration', 'progression', 'character', 'aggravating', 'relieving', 'severity', 'associated']
         missing_elements = [element for element in standard_order if element not in answered_elements]
         
         return {
@@ -967,7 +966,7 @@ class AdaptiveDiagnosticEngine:
         """Fallback regex-based parsing"""
         # Collect all 'includes' terms from guidelines
         all_includes = {
-            'onset': set(), 'location': set(), 'timing': set(), 'duration': set(),
+            'onset': set(), 'progression': set(), 'location': set(), 'timing': set(), 'duration': set(),
             'character': set(), 'aggravating': set(), 'relieving': set(), 'severity': set()
         }
         
@@ -1002,7 +1001,7 @@ class AdaptiveDiagnosticEngine:
                     answered_components[element].append(term)
                     break
                         
-        all_elements = ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity', 'associated']
+        all_elements = ['onset', 'location', 'timing', 'duration', 'progression', 'character', 'aggravating', 'relieving', 'severity', 'associated']
         answered_elements = list(answered_components.keys())
         missing_elements = [element for element in all_elements if element not in answered_elements]
         
@@ -1202,9 +1201,9 @@ class AdaptiveDiagnosticEngine:
             return self._ask_next_clinical_question()
         
         # Handle onset, duration, timing, severity, associated (documentation only - no clarification needed)
-        if oldcarts_element in ['onset', 'duration', 'timing', 'severity', 'associated']:
+        if oldcarts_element in ['onset', 'progression', 'duration', 'timing', 'severity', 'associated']:
             # Mark element as covered and store the answer
-            element_map = {'onset': 'O', 'duration': 'D', 'timing': 'T', 'severity': 'S', 'associated': 'AS'}
+            element_map = {'onset': 'O', 'progression': 'P', 'duration': 'D', 'timing': 'T', 'severity': 'S', 'associated': 'AS'}
             if oldcarts_element in element_map:
                 self.oldcarts_covered[element_map[oldcarts_element]] = True
                 # Update missing_components list to remove this element
@@ -1458,7 +1457,7 @@ class AdaptiveDiagnosticEngine:
         
         # Only mark element as covered if NO clarification needed
         if not clarification_needed:
-            element_map = {'onset': 'O', 'location': 'L', 'timing': 'T', 'duration': 'D',
+            element_map = {'onset': 'O', 'progression': 'P', 'location': 'L', 'timing': 'T', 'duration': 'D',
                           'character': 'C', 'aggravating': 'A', 'relieving': 'R', 'severity': 'S', 'associated': 'AS'}
             if oldcarts_element in element_map:
                 self.oldcarts_covered[element_map[oldcarts_element]] = True
@@ -1986,7 +1985,7 @@ class AdaptiveDiagnosticEngine:
             # Normalize with synonyms
         try:
             organ_system = self.CATEGORY_TO_SYSTEM.get(self.current_category or 'gastrointestinal', 'GI')
-            synonym_file = f"synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
+            synonym_file = f"medical/synonyms/{organ_system.lower()}_synonyms_oldcarts.json"
             synonym_path = os.path.join(os.path.dirname(__file__), synonym_file)
             normalized_for_match = answer_lower
             if os.path.exists(synonym_path) and self.medical_rule_engine:
@@ -2229,7 +2228,7 @@ class AdaptiveDiagnosticEngine:
         # OPTIMIZATION: Reorder to prioritize timing before duration
         # If timing is answered as constant, skip duration (redundant - already constant since onset)
         # EXCEPTION: Still ask duration if guidelines have comparison operators (>, <, >=, <=) to differentiate conditions
-        priority_order = ['onset', 'location', 'timing', 'duration', 'character', 'aggravating', 'relieving', 'severity', 'associated']
+        priority_order = ['onset', 'location', 'timing', 'duration', 'progression', 'character', 'aggravating', 'relieving', 'severity', 'associated']
         reordered_missing = []
         skip_duration = False
         
@@ -2346,29 +2345,84 @@ class AdaptiveDiagnosticEngine:
         
         return response.strip()
     
+    def _analyze_character_terms(self) -> dict:
+        """Analyze character terms from active guidelines to determine question type"""
+        if not self.active_guidelines:
+            return {'has_descriptive': False, 'has_sensory': False, 'sample_question': "What does it feel like?", 'guidance': "Ask ONLY 'What does it feel like?' or similar. Do NOT mention any specific qualities like 'sharp', 'sharpness', 'burning', etc. Do NOT ask about location, intensity, or duration. Keep it completely open-ended."}
+        
+        # Collect all character terms from active guidelines
+        all_character_terms = []
+        for guideline in self.active_guidelines:
+            structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            character_data = structured.get('character', {})
+            if isinstance(character_data, dict):
+                includes = character_data.get('includes', [])
+                for term_obj in includes:
+                    if isinstance(term_obj, dict):
+                        medical = term_obj.get('medical', '').lower()
+                        patient_friendly = term_obj.get('patient_friendly', '').lower()
+                        all_character_terms.extend([medical, patient_friendly])
+        
+        # Check for descriptive/visual terms (colors, appearances, visual characteristics)
+        descriptive_keywords = ['red', 'blood', 'bright', 'dark', 'black', 'coffee', 'ground', 'tarry', 'sticky', 
+                              'clots', 'tissue', 'mixed', 'separate', 'look', 'appear', 'color', 'appearance']
+        
+        # Check for sensory/feeling terms (pain qualities, sensations)
+        sensory_keywords = ['sharp', 'dull', 'aching', 'burning', 'stabbing', 'throbbing', 'pressure', 'cramping',
+                           'colicky', 'gnawing', 'squeezing', 'tight', 'feel', 'sensation', 'pain']
+        
+        has_descriptive = any(keyword in term for term in all_character_terms for keyword in descriptive_keywords)
+        has_sensory = any(keyword in term for term in all_character_terms for keyword in sensory_keywords)
+        
+        # Determine question type based on what's in the guidelines
+        if has_descriptive and has_sensory:
+            # Both types present - ask about description/appearance
+            sample_question = "Can you describe what it looks like or how it appears?"
+            guidance = "Ask about both appearance/description AND how it feels. You can ask 'Can you describe what it looks like?' or 'What does it look like?' for visual/descriptive characteristics, and also 'What does it feel like?' for sensory qualities. Do NOT mention specific examples like 'bright red', 'coffee ground', 'sharp', 'dull', etc. Keep it open-ended."
+        elif has_descriptive:
+            # Only descriptive terms - ask about appearance/description
+            sample_question = "Can you describe what it looks like?"
+            guidance = "Ask about appearance or description. You can ask 'What does it look like?' or 'Can you describe what you see?' or similar. Do NOT mention specific examples like 'bright red', 'coffee ground', 'black tarry', etc. Keep it open-ended and focused on visual/descriptive characteristics."
+        else:
+            # Only sensory terms or default - ask about feeling
+            sample_question = "What does it feel like?"
+            guidance = "Ask ONLY 'What does it feel like?' or similar. Do NOT mention any specific qualities like 'sharp', 'sharpness', 'burning', etc. Do NOT ask about location, intensity, or duration. Keep it completely open-ended."
+        
+        return {
+            'has_descriptive': has_descriptive,
+            'has_sensory': has_sensory,
+            'sample_question': sample_question,
+            'guidance': guidance
+        }
+    
     def _generate_oldcarts_question_for_component(self, component: str) -> str:
         """Generate question for OLDCARTS component using LLM with chief complaint and conversation context"""
         if not self.llm_chat_simple_fn:
             raise ValueError("LLM not available for question generation")
         
-        # Sample questions for each OLDCARTS element as guidance (ONLY reference)
-        sample_questions = {
-            'onset': "When did this start?",
-            'location': "Where exactly is the pain located?",
-            'timing': "Is it constant or does it come and go?",
-            'duration': "How long does each episode typically last?",
-            'associated': "Are there any other symptoms you're experiencing?",
-            'character': "What does it feel like?",
-            'aggravating': "What makes it worse?",
-            'relieving': "What helps or makes it better?",
-            'severity': "On a scale of 1 to 10, how would you rate this?"
-        }
-        
-        sample_question = sample_questions.get(component, f"Tell me more about {component}.")
+        # For character component, analyze terms from active guidelines to determine question type
+        if component == 'character':
+            character_analysis = self._analyze_character_terms()
+            sample_question = character_analysis['sample_question']
+            component_guidance_text = character_analysis['guidance']
+        else:
+            # Sample questions for each OLDCARTS element as guidance (ONLY reference)
+            sample_questions = {
+                'onset': "When did this start?",
+                'progression': "Did it come on gradually or suddenly?",
+                'location': "Where exactly is the pain located?",
+                'timing': "Is it constant or does it come and go?",
+                'duration': "How long does each episode typically last?",
+                'associated': "Are there any other symptoms you're experiencing?",
+                'character': "What does it feel like?",  # Default, but will be overridden if character
+                'aggravating': "What makes it worse?",
+                'relieving': "What helps or makes it better?",
+                'severity': "On a scale of 1 to 10, how would you rate this?"
+            }
+            sample_question = sample_questions.get(component, f"Tell me more about {component}.")
         
         # Component-specific guidance to prevent mixing elements - STRICT and explicit
         component_guidance = {
-            'character': "Ask ONLY 'What does it feel like?' or similar. Do NOT mention any specific qualities like 'sharp', 'sharpness', 'burning', etc. Do NOT ask about location, intensity, or duration. Keep it completely open-ended.",
             'location': "Ask ONLY 'Where exactly is the pain located?' or similar. Do NOT mention body parts or give examples. Do NOT ask about intensity or duration.",
             'severity': "Ask ONLY the EXACT question 'On a scale of 1 to 10, how would you rate this?' or very similar wording. Do NOT ask about location or other qualities. Do NOT return just a number.",
             'aggravating': "Ask ONLY 'What makes it worse?' or similar. Do NOT assume specific activities or body parts. Do NOT use words like 'triggers' or 'causes'. Keep it simple.",
@@ -2377,7 +2431,11 @@ class AdaptiveDiagnosticEngine:
             'duration': "Ask ONLY 'How long does each episode typically last?' or similar. Do NOT add details."
         }
         
-        guidance_text = component_guidance.get(component, "")
+        # Use character-specific guidance if character component, otherwise use standard guidance
+        if component == 'character':
+            guidance_text = component_guidance_text
+        else:
+            guidance_text = component_guidance.get(component, "")
         
         system_msg = "You are a medical assistant conducting a telehealth interview. Generate a simple, direct question following the example exactly. Use the chief complaint and conversation context to make the question relevant. Do NOT add assumptions, examples, or extra details. Keep it short and open-ended."
         
@@ -2815,7 +2873,7 @@ Generate a question about {component} for this patient:"""
                 next_type = 'demographics'
         elif missing_oldcarts:
             # OLDCARTS priority order
-            priority_order = ['onset', 'location', 'timing', 'duration', 'character', 
+            priority_order = ['onset', 'location', 'timing', 'duration', 'progression', 'character', 
                             'aggravating', 'relieving', 'severity', 'associated']
             for element in priority_order:
                 if element in missing_oldcarts:
@@ -3883,6 +3941,49 @@ Generate an empathetic response that acknowledges their distress and reassures t
             'symptom_count': symptom_count
         }
     
+    def _check_emergent_tags_in_input(self, user_input: str) -> list:
+        """
+        Check if user input matches OLDCARTS terms with emergent tags.
+        Returns list of matched emergent terms.
+        """
+        if not self.active_guidelines:
+            return []
+        
+        user_lower = user_input.lower()
+        emergent_terms = []
+        
+        # Check all active guidelines for emergent-tagged terms
+        for guideline in self.active_guidelines:
+            structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            if not structured:
+                continue
+            
+            # Check each OLDCARTS element
+            for element_name, element_data in structured.items():
+                if not isinstance(element_data, dict) or 'includes' not in element_data:
+                    continue
+                
+                includes = element_data.get('includes', [])
+                for term_obj in includes:
+                    if not isinstance(term_obj, dict):
+                        continue
+                    
+                    # Check if term has emergent tag
+                    if not term_obj.get('emergent', False):
+                        continue
+                    
+                    # Check if user input matches this term
+                    medical = term_obj.get('medical', '').lower()
+                    patient_friendly = term_obj.get('patient_friendly', '').lower()
+                    
+                    # Match if medical or patient_friendly term appears in user input
+                    if medical and medical in user_lower:
+                        emergent_terms.append(f"{medical} ({element_name})")
+                    elif patient_friendly and patient_friendly in user_lower:
+                        emergent_terms.append(f"{patient_friendly} ({element_name})")
+        
+        return emergent_terms
+    
     def _generate_emergency_response(self, user_input: str, red_flag_info: Dict = None, distress_info: Dict = None) -> Dict[str, Any]:
         """
         Generate immediate emergency response (911/ER) when severe distress or multiple red flags detected.
@@ -3941,11 +4042,17 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         red_flag_info = self._detect_red_flags_in_input(user_answer)
         severity_score = distress_info.get('severity', 0.0)
         
+        # Check for emergent tags in matched OLDCARTS terms
+        emergent_terms_detected = self._check_emergent_tags_in_input(user_answer)
+        emergent_term_count = len(emergent_terms_detected) if emergent_terms_detected else 0
+        
         # SEVERE EMERGENCY criteria (very restrictive - only truly life-threatening cases):
         # 1. Very high distress severity (9.0+)
         # 2. Multiple red flags (3+) indicating multiple critical systems affected
         # 3. Life-threatening red flags (chest pain, can't breathe, unconscious, etc.)
         # 4. Severe red flag + very high severity (8.0+)
+        # 5. Multiple emergent OLDCARTS terms matched (2+) - indicates emergent presentation
+        # 6. One emergent term + high severity (7.0+)
         red_flag_count = red_flag_info.get('red_flag_count', 0)
         has_severity_language = red_flag_info.get('has_severity_language', False)
         
@@ -3962,11 +4069,15 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             severity_score >= 9.0 or  # Very high threshold
             (has_life_threatening and severity_score >= 7.0) or  # Life-threatening + high severity
             red_flag_count >= 3 or  # Multiple critical symptoms
-            (has_life_threatening and red_flag_count >= 1)  # Life-threatening symptom + any other red flag
+            (has_life_threatening and red_flag_count >= 1) or  # Life-threatening symptom + any other red flag
+            emergent_term_count >= 2 or  # Multiple emergent OLDCARTS terms matched
+            (emergent_term_count >= 1 and severity_score >= 7.0)  # Emergent term + high severity
         )
         
         if is_severe_emergency:
-            self._capture_debug(f"[Engine] 🚨 SEVERE EMERGENCY DETECTED: severity={severity_score:.1f}, red_flags={red_flag_info.get('red_flag_count', 0)}")
+            self._capture_debug(f"[Engine] 🚨 SEVERE EMERGENCY DETECTED: severity={severity_score:.1f}, red_flags={red_flag_info.get('red_flag_count', 0)}, emergent_terms={emergent_term_count}")
+            if emergent_term_count > 0:
+                self._capture_debug(f"[Engine] 🚨 Emergent OLDCARTS terms matched: {emergent_terms_detected}")
             self._capture_debug(f"[Engine] 🚨 Skipping all questions - recommending immediate 911/ER")
             return self._generate_emergency_response(user_answer, red_flag_info, distress_info), response_interpretation
         

@@ -16,12 +16,8 @@
       "onset": {
         "includes": [
           {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
-          },
-          {
             "medical": "acute",
-            "patient_friendly": "sudden and severe"
+            "patient_friendly": "recently occurred less than 1 month"
           }
         ],
         "excludes": []
@@ -58,6 +54,20 @@
         ],
         "excludes": []
       },
+      "progression": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "came on gradually"
+          }
+        ]
+      },
       "character": {
         "includes": [
           {
@@ -76,10 +86,6 @@
           {
             "medical": "diaphragmatic breathing",
             "patient_friendly": "taking deep breaths"
-          },
-          {
-            "medical": "movement",
-            "patient_friendly": "moving around"
           },
           {
             "medical": "postprandial lipemia",
@@ -105,7 +111,8 @@
         "includes": [
           {
             "medical": "severe",
-            "patient_friendly": "severe"
+            "patient_friendly": "severe",
+            "emergent": true
           }
         ],
         "excludes": []
@@ -135,7 +142,8 @@
           },
           {
             "medical": "pyrexia",
-            "patient_friendly": "fever"
+            "patient_friendly": "fever",
+            "emergent": true
           },
           {
             "medical": "symptomatic cholelitiasis",
@@ -151,29 +159,27 @@
           },
           {
             "medical": "hypotension",
-            "patient_friendly": "low blood pressure"
+            "patient_friendly": "low blood pressure",
+            "emergent": true
           },
           {
             "medical": "encephalopathy",
-            "patient_friendly": "confusion or disorientation"
+            "patient_friendly": "confusion or disorientation",
+            "emergent": true
           },
           {
             "medical": "rigors",
-            "patient_friendly": "shaking chills"
+            "patient_friendly": "shaking chills",
+            "emergent": true
           },
           {
             "medical": "jaundice",
-            "patient_friendly": "yellow skin or eyes"
+            "patient_friendly": "yellow skin or eyes",
+            "emergent": true
           }
         ],
         "excludes": []
       }
     }
-  },
-  "red_flags": [
-    "High fever >102.5°F with rigors - suggests gangrenous cholecystitis or ascending cholangitis",
-    "Jaundice with confusion or sepsis - ascending cholangitis, needs urgent ERCP",
-    "Severe right upper quadrant (RUQ) pain with hypotension - gallbladder perforation or septic shock, call 911",
-    "Elderly or diabetic patients - higher risk of gangrenous cholecystitis and perforation"
-  ]
+  }
 }

@@ -15,20 +15,12 @@
       "onset": {
         "includes": [
           {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
+            "medical": "acute",
+            "patient_friendly": "recently occurred less than 1 month"
           },
           {
-            "medical": "after eating",
-            "patient_friendly": "after eating"
-          },
-          {
-            "medical": "recurrent",
-            "patient_friendly": "keeps coming back"
-          },
-          {
-            "medical": "eating",
-            "patient_friendly": "eating"
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time more than 3 months"
           }
         ],
         "excludes": []
@@ -64,10 +56,24 @@
           },
           {
             "medical": "<6 hours",
-            "patient_friendly": "for few hours"
+            "patient_friendly": "less than 6 hours"
           }
         ],
         "excludes": []
+      },
+      "progression": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "came on gradually"
+          }
+        ]
       },
       "character": {
         "includes": [
@@ -102,6 +108,10 @@
       "relieving": {
         "includes": [
           {
+            "medical": "spontaneously resolves",
+            "patient_friendly": "resolves on its own"
+          },
+          {
             "medical": "rest",
             "patient_friendly": "resting"
           }
@@ -109,7 +119,13 @@
         "excludes": []
       },
       "severity": {
-        "includes": [],
+        "includes": [
+          {
+          "medical": "severe",
+          "patient_friendly": "severe",
+          "emergent": true
+          }
+        ],
         "excludes": []
       },
       "radiation": {
@@ -119,8 +135,8 @@
             "patient_friendly": "spreads to your right shoulder"
           },
           {
-            "medical": "back",
-            "patient_friendly": "your back"
+            "medical": "scapula",
+            "patient_friendly": "your shoulder blade"
           }
         ],
         "excludes": []
@@ -128,17 +144,17 @@
       "associated": {
         "includes": [
           {
-            "medical": "spontaneously resolves",
-            "patient_friendly": "resolves on its own"
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "emesis",
+            "patient_friendly": "vomiting"
           }
+         
         ],
-        "excludes": []
+        "excludes": []     
       }
     }
-  },
-  "red_flags": [
-    "Pain lasting >6 hours with fever - suggests acute cholecystitis, needs urgent evaluation",
-    "Jaundice (yellow skin/eyes) - bile duct obstruction, needs urgent imaging and possible ERCP",
-    "Severe pain with vomiting and unable to tolerate liquids - dehydration risk"
-  ]
+  }
 }
