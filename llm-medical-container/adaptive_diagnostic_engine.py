@@ -2202,11 +2202,54 @@ class AdaptiveDiagnosticEngine:
                 break
         return options[:limit]
     
+    def _build_conversation_context(self, recent_items: int = 3, char_limit: int = 100, include_answered: bool = False) -> str:
+        """Build conversation context string for LLM prompts"""
+        conversation_context = ""
+        if hasattr(self, 'conversation_history') and self.conversation_history:
+            recent_conversation = []
+            for item in self.conversation_history[-recent_items:]:
+                if item.get('type') == 'answer':
+                    recent_conversation.append(f"Patient: {item.get('answer', '')[:char_limit]}")
+                elif item.get('type') == 'question':
+                    recent_conversation.append(f"Asked: {item.get('question', '')[:char_limit]}")
+            
+            if include_answered:
+                answered_elements = []
+                for item in self.conversation_history:
+                    if item.get('type') == 'answer' and item.get('oldcarts'):
+                        answered_elements.append(item.get('oldcarts'))
+                if answered_elements:
+                    conversation_context = f"\n\nAlready answered: {', '.join(set(answered_elements))}"
+            
+            if recent_conversation:
+                if conversation_context:
+                    conversation_context += f"\n\nRecent conversation:\n" + "\n".join(recent_conversation[-2:])
+                else:
+                    conversation_context = f"\n\nRecent conversation:\n" + "\n".join(recent_conversation)
+        
+        return conversation_context
+    
+    def _get_chief_complaint_context(self) -> str:
+        """Get chief complaint context string for LLM prompts"""
+        return f"Chief complaint: {self.chief_complaint}" if self.chief_complaint else "No chief complaint recorded"
+    
+    def _clean_llm_response(self, response: str) -> str:
+        """Clean LLM response (remove double question marks, strip whitespace)"""
+        if response and response.strip():
+            cleaned = response.strip()
+            if cleaned.endswith('??'):
+                cleaned = cleaned[:-1]
+            return cleaned
+        return ""
+    
     def _generate_clarifying_question(self, oldcarts_element: str, patient_answer: str,
                                      clarification_count: int, missing_terms: list) -> str:
-        """Generate clarifying question using patient-friendly terms from guidelines"""
+        """Generate clarifying question using LLM with patient-friendly terms from guidelines"""
         if not missing_terms:
             raise ValueError(f"Cannot generate clarifying question for {oldcarts_element} - no missing terms")
+        
+        if not self.llm_chat_simple_fn:
+            raise ValueError("LLM not available for clarification question generation")
         
         self._capture_debug(f"[Clarification] 🔍 Missing medical terms ({oldcarts_element}): {missing_terms[:8]}")
         
@@ -2232,19 +2275,69 @@ class AdaptiveDiagnosticEngine:
                     if len(patient_friendly_terms) >= 5:  # Stop when we have 5 unique ones
                         break
         
-        # If no good terms found, use generic clarifying question
+        # If no good terms found, raise error
         if not patient_friendly_terms:
-            if oldcarts_element == 'location':
-                return "Can you be more specific about where exactly the pain is located?"
-            else:
-                return f"Can you tell me more about the {oldcarts_element}?"
+            raise ValueError(f"Cannot generate clarifying question for {oldcarts_element} - no patient-friendly terms found")
         
+        # Use LLM to generate a natural, properly structured clarification question
+        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, grammatically correct clarification question that flows well. Use proper grammar with 'and' and 'or' to connect options naturally."
+        
+        # Get context using helper functions
+        chief_complaint_context = self._get_chief_complaint_context()
+        conversation_context = self._build_conversation_context(recent_items=3, char_limit=100, include_answered=False)
+        
+        # Build instructions based on element type
         if oldcarts_element == 'location':
-            options = ", ".join(patient_friendly_terms)
-            return f"Can you be more specific? For example, is it {options}?"
+            options_list = ", ".join(patient_friendly_terms)
+            user_msg = f"""{chief_complaint_context}{conversation_context}
+
+The patient said: "{patient_answer}"
+
+We need to clarify the location. Here are the possible locations from the medical guidelines:
+{options_list}
+
+Generate a natural, grammatically correct clarification question. Use proper grammar:
+- Use "or" to connect options naturally
+- For location, you can use phrases like "located at" or "located in" if appropriate
+- Make it flow naturally as a spoken question
+- Example format: "Can you be more specific? For example, is it located at [option1], [option2], [option3], or [option4]?"
+- But vary the phrasing naturally - don't use the exact same structure every time
+- Keep it conversational and natural
+
+Generate the clarification question:"""
         else:
-            options = ", ".join(patient_friendly_terms)
-            return f"Can you be more specific? For example, {options}?"
+            options_list = ", ".join(patient_friendly_terms)
+            user_msg = f"""{chief_complaint_context}{conversation_context}
+
+The patient said: "{patient_answer}"
+
+We need to clarify the {oldcarts_element}. Here are the possible options from the medical guidelines:
+{options_list}
+
+Generate a natural, grammatically correct clarification question. Use proper grammar:
+- Use "or" to connect options naturally
+- Make it flow naturally as a spoken question
+- Example format: "Can you be more specific? For example, is it [option1], [option2], [option3], or [option4]?"
+- But vary the phrasing naturally - don't use the exact same structure every time
+- Keep it conversational and natural
+
+Generate the clarification question:"""
+        
+        llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
+        response = self.llm_chat_simple_fn(
+            [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ],
+            **llm_kwargs
+        )
+        
+        cleaned_response = self._clean_llm_response(response)
+        if cleaned_response:
+            return cleaned_response
+        
+        # No fallback - raise error if LLM fails
+        raise ValueError(f"LLM returned empty response for clarification question ({oldcarts_element})")
     
     def _get_patient_friendly_from_guidelines(self, medical_term: str, oldcarts_element: str) -> str:
         """Get patient-friendly term directly from guidelines (case-insensitive match)"""
@@ -2571,30 +2664,9 @@ class AdaptiveDiagnosticEngine:
         
         system_msg = "You are a medical assistant conducting a telehealth interview. Generate a simple, direct question following the example exactly. Use the chief complaint and conversation context to make the question relevant. Do NOT add assumptions, examples, or extra details. Keep it short and open-ended."
         
-        # Get chief complaint context
-        chief_complaint_context = f"Chief complaint: {self.chief_complaint}" if self.chief_complaint else "No chief complaint recorded"
-        
-        # Get conversation context (what's already been discussed/answered)
-        conversation_context = ""
-        if hasattr(self, 'conversation_history') and self.conversation_history:
-            # Get what's already been answered
-            answered_elements = []
-            for item in self.conversation_history:
-                if item.get('type') == 'answer' and item.get('oldcarts'):
-                    answered_elements.append(item.get('oldcarts'))
-            
-            # Get recent conversation for context
-            recent_conversation = []
-            for item in self.conversation_history[-4:]:  # Last 4 items
-                if item.get('type') == 'answer':
-                    recent_conversation.append(f"Patient: {item.get('answer', '')[:80]}")
-                elif item.get('type') == 'question':
-                    recent_conversation.append(f"Asked: {item.get('question', '')[:80]}")
-            
-            if answered_elements:
-                conversation_context = f"\n\nAlready answered: {', '.join(set(answered_elements))}"
-            if recent_conversation:
-                conversation_context += f"\n\nRecent conversation:\n" + "\n".join(recent_conversation[-2:])  # Last 2 exchanges
+        # Get context using helper functions
+        chief_complaint_context = self._get_chief_complaint_context()
+        conversation_context = self._build_conversation_context(recent_items=4, char_limit=80, include_answered=True)
         
         # Make guidance more explicit and strict
         strict_instructions = "CRITICAL RULES:\n- Follow the example question structure EXACTLY\n- Use the chief complaint context to make it relevant\n- Keep it simple and direct\n- Do NOT add assumptions or specific examples\n- Do NOT mention body parts unless asking about location\n- Use simple language\n- Return ONLY the question, no explanation"
@@ -4403,14 +4475,14 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             else:
                 self._capture_debug(f"[Engine] ❌ Age not numeric: '{age_str}'")
                 # No fallback - return error
-                return {
-                    'success': False,
-                    'message': 'Please provide your age as a number (e.g., 25, thirty-five, etc.)',
-                    'debug': {
+            return {
+                'success': False,
+                'message': 'Please provide your age as a number (e.g., 25, thirty-five, etc.)',
+                'debug': {
                         'engine': self._format_engine_debug("[Engine] ❌ Age validation failed - no fallback"),
-                        'internal': self._get_debug_info(last_answer=user_answer)
-                    }
+                    'internal': self._get_debug_info(last_answer=user_answer)
                 }
+            }
         
         
         # Handle red flag answers
@@ -4690,12 +4762,36 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 last_q = item
                 break
         if last_q and last_q.get('focus') == 'clinical' and last_q.get('oldcarts') == 'location':
-            # Generate patient-friendly clarification options directly from guidelines
-            options = self._collect_patient_friendly_options('location', limit=3)
-            if options:
-                msg = "Can you be more specific? For example, is it " + ", ".join(options) + "?"
-            else:
-                msg = "Can you be more specific about where exactly the pain is located?"
+            # Use existing _generate_clarifying_question method instead of duplicating logic
+            # Get the last patient answer for context
+            last_answer = ""
+            for item in reversed(self.conversation_history):
+                if item.get('type') == 'answer':
+                    last_answer = item.get('answer', '')
+                    break
+            
+            # Get missing location terms from active guidelines (medical terms)
+            missing_terms = []
+            for guideline in self.active_guidelines:
+                structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+                location_data = structured.get('location', {})
+                if isinstance(location_data, dict):
+                    includes = location_data.get('includes', [])
+                    for term_obj in includes:
+                        if isinstance(term_obj, dict):
+                            medical_term = term_obj.get('medical', '')
+                            if medical_term and medical_term not in missing_terms:
+                                missing_terms.append(medical_term)
+                                if len(missing_terms) >= 10:  # Limit to match _generate_clarifying_question logic
+                                    break
+                    if len(missing_terms) >= 10:
+                        break
+            
+            if not missing_terms:
+                raise ValueError("No location options available for clarification question")
+            
+            # Use the existing method
+            msg = self._generate_clarifying_question('location', last_answer or "right side", 0, missing_terms)
             # Track as clarification question
             self.conversation_history.append({
                 'type': 'question',
