@@ -842,6 +842,18 @@ Generate an empathetic response that acknowledges their distress and reassures t
         
         # All demographics collected, start OLDCARTS
         self._capture_debug("[Engine] 📋 Demographics complete, transitioning to clinical questions")
+        
+        # Initialize oldcarts_analysis if not already set
+        if not self.oldcarts_analysis:
+            # Standard order: timing before duration
+            standard_order = ['onset', 'location', 'timing', 'duration', 'progression', 'character', 'aggravating', 'relieving', 'severity', 'associated']
+            self.oldcarts_analysis = {
+                'answered_components': {},
+                'missing_components': standard_order.copy(),
+                'anatomical_analysis': {}
+            }
+            self._capture_debug(f"[Engine] ✅ Initialized OLDCARTS analysis with missing_components: {self.oldcarts_analysis['missing_components']}")
+        
         self._capture_debug(f"[Engine] Current OLDCARTS analysis: {self.oldcarts_analysis}")
         return self._ask_next_clinical_question()
     
