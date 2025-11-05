@@ -433,7 +433,10 @@ class MedicalRuleEngine:
             return []
     
     def _get_condition_anatomical_type(self, condition_name: str, organ_system: str) -> Optional[str]:
-        """Get anatomical type from medical_rules.json"""
+        """
+        DEPRECATED: Get anatomical type from medical_rules.json
+        Now using _get_anatomical_type_from_guideline instead
+        """
         if not self.medical_rules or organ_system not in self.medical_rules:
             return None
         
@@ -441,6 +444,44 @@ class MedicalRuleEngine:
             if condition_name in condition_list:
                 return anatomical_type
         return None
+    
+    def _get_anatomical_type_from_guideline(self, guideline: Dict) -> Optional[str]:
+        """Get anatomical_type directly from guideline location element"""
+        structured_oldcarts = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+        if not structured_oldcarts:
+            structured_oldcarts = guideline.get('key_features', {}).get('structured_oldcarts', {})
+        
+        location_data = structured_oldcarts.get('location')
+        if isinstance(location_data, dict):
+            return location_data.get('anatomical_type')
+        return None
+    
+    def _map_anatomical_type_to_filter_category(self, anatomical_type: str) -> str:
+        """
+        Map guideline anatomical_type values to filter categories.
+        Guideline values: right_lower, right_upper, left_lower, left_upper, midline, bilateral, upper, lower
+        Filter categories: right_only, left_only, bilateral, midline
+        """
+        if not anatomical_type:
+            return 'midline'  # Default: keep all
+        
+        anatomical_type_lower = anatomical_type.lower()
+        
+        # Map quadrant-based to right_only/left_only
+        if anatomical_type_lower in ['right_lower', 'right_upper', 'right']:
+            return 'right_only'
+        elif anatomical_type_lower in ['left_lower', 'left_upper', 'left']:
+            return 'left_only'
+        elif anatomical_type_lower in ['bilateral', 'both']:
+            return 'bilateral'
+        elif anatomical_type_lower in ['midline', 'center', 'central']:
+            return 'midline'
+        elif anatomical_type_lower in ['upper', 'lower']:
+            # Upper/lower are ambiguous - keep them (don't filter)
+            return 'midline'
+        else:
+            # Unknown - default to midline (keep all)
+            return 'midline'
     
     def _extract_directional_component(self, normalized_text: str, raw_text: str = None) -> Optional[str]:
         """
@@ -876,25 +917,28 @@ class MedicalRuleEngine:
         if not patient_direction:
             return guidelines  # No direction found, keep all
         
-        # STEP 2: Apply medical_rules.json filtering UNIVERSALLY across all organ systems
+        # STEP 2: Apply anatomical filtering using anatomical_type from guidelines
         filtered = []
         for guideline in guidelines:
-            condition_name = guideline.get('data', {}).get('condition', guideline.get('name', ''))
-            anatomical_type = self._get_condition_anatomical_type(condition_name, organ_system)
+            # Get anatomical_type directly from guideline location element
+            anatomical_type = self._get_anatomical_type_from_guideline(guideline)
             
             if not anatomical_type:
                 filtered.append(guideline)  # Unknown type, keep it
                 continue
             
-            # UNIVERSAL medical_rules.json logic for ALL organ systems:
+            # Map guideline anatomical_type to filtering category
+            filter_category = self._map_anatomical_type_to_filter_category(anatomical_type)
+            
+            # UNIVERSAL filtering logic for ALL organ systems:
             # GI, CARDIO, PULMONARY, MSK, DERM, NEURO, RENAL, GU, GYN
-            if anatomical_type == 'right_only':
+            if filter_category == 'right_only':
                 if patient_direction == 'left':
-                    continue  # Rule out left_only when patient says "right"
+                    continue  # Rule out when patient says "left"
                 # Keep: right matches right_only, bilateral, midline, vague
-            elif anatomical_type == 'left_only':
+            elif filter_category == 'left_only':
                 if patient_direction == 'right':
-                    continue  # Rule out left_only when patient says "right"
+                    continue  # Rule out when patient says "right"
                 # Keep: left matches left_only, bilateral, midline, vague
             # bilateral and midline: always keep (compatible with all directions)
             # This works for ALL organ systems: GI, CARDIO, PULMONARY, MSK, DERM, NEURO, RENAL, GU, GYN

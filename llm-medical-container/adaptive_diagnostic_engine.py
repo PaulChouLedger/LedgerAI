@@ -1691,8 +1691,11 @@ class AdaptiveDiagnosticEngine:
         
         # Collect all includes terms from ALL guidelines (not just active)
         # This ensures we detect when patient answer matches terms from reserve pool
+        # Track which guideline each term comes from
         all_includes = set()
+        term_to_guidelines = {}  # Map term -> list of guideline names
         for g in all_guidelines_to_check:
+            condition_name = g.get('data', {}).get('condition', g.get('name', 'Unknown'))
             structured = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
             element_data = structured.get(oldcarts_element, {})
             if isinstance(element_data, dict):
@@ -1701,9 +1704,17 @@ class AdaptiveDiagnosticEngine:
                     if isinstance(t, dict):
                         med = t.get('medical')
                         if isinstance(med, str) and med.strip():
-                            all_includes.add(med.strip().lower())
+                            term_key = med.strip().lower()
+                            all_includes.add(term_key)
+                            if term_key not in term_to_guidelines:
+                                term_to_guidelines[term_key] = []
+                            term_to_guidelines[term_key].append(condition_name)
                     elif isinstance(t, str):
-                        all_includes.add(t.strip().lower())
+                        term_key = t.strip().lower()
+                        all_includes.add(term_key)
+                        if term_key not in term_to_guidelines:
+                            term_to_guidelines[term_key] = []
+                        term_to_guidelines[term_key].append(condition_name)
         
         # Also collect active-only terms for missing terms calculation
         active_includes = set()
@@ -1876,8 +1887,13 @@ class AdaptiveDiagnosticEngine:
                 self._capture_debug(f"[Location Analysis]   ⚠️ '{term}' SKIPPED: anatomical mismatch")
                 continue
             
-            # DEBUG: Start checking this term
-            self._capture_debug(f"[Location Analysis] 🔍 Checking term: '{term}' (patient answer: '{answer}')")
+            # DEBUG: Start checking this term - show which guideline(s) it comes from
+            guideline_sources = term_to_guidelines.get(term, [])
+            if guideline_sources:
+                sources_str = ', '.join(guideline_sources)
+                self._capture_debug(f"[Location Analysis] 🔍 Checking term: '{term}' (patient answer: '{answer}') [from: {sources_str}]")
+            else:
+                self._capture_debug(f"[Location Analysis] 🔍 Checking term: '{term}' (patient answer: '{answer}') [source unknown]")
             
             # 1. Exact/substring matching (fast path)
             term_in_answer = term in answer_lower
@@ -1956,7 +1972,12 @@ class AdaptiveDiagnosticEngine:
                             match_reason = f"FAISS semantic match"
                         self._capture_debug(f"[Location Analysis]   ✅ SATISFIED via FAISS semantic match")
                     else:
-                        self._capture_debug(f"[Location Analysis]   ❌ NOT in semantic_matches_set (score likely < 0.75)")
+                        guideline_sources = term_to_guidelines.get(term, [])
+                        if guideline_sources:
+                            sources_str = ', '.join(guideline_sources)
+                            self._capture_debug(f"[Location Analysis]   ❌ NOT in semantic_matches_set (score likely < 0.75) [from: {sources_str}]")
+                        else:
+                            self._capture_debug(f"[Location Analysis]   ❌ NOT in semantic_matches_set (score likely < 0.75)")
             
             if term_satisfied:
                 satisfied_terms.add(term)
@@ -1997,17 +2018,74 @@ class AdaptiveDiagnosticEngine:
                 else:
                     self._capture_debug(f"[Location Analysis]   Step 4 - '{term}' NOT in synonym_to_group, no expansion")
             else:
-                self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied")
+                guideline_sources = term_to_guidelines.get(term, [])
+                if guideline_sources:
+                    sources_str = ', '.join(guideline_sources)
+                    self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied [from: {sources_str}]")
+                else:
+                    self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied")
         
         # Missing terms should only include terms from ACTIVE guidelines that aren't satisfied
         # (We check all guidelines for satisfied terms, but only report missing from active)
-        missing = [term for term in active_includes if term not in satisfied_terms]
+        # CRITICAL: Only include missing terms that are semantically related to patient's answer
+        # For location: only include terms that share anatomical direction/side with patient's answer
+        all_missing_candidates = [term for term in active_includes if term not in satisfied_terms]
+        
+        # Filter missing terms to only those semantically related to patient's answer
+        missing = []
+        if oldcarts_element == 'location' and self.medical_rule_engine:
+            # Use patient_components already extracted during FAISS matching (if available)
+            # Otherwise extract from answer
+            if not patient_components:
+                patient_components = self.medical_rule_engine._extract_anatomical_components(answer_lower)
+            
+            if patient_components:
+                # Only include terms that are anatomically compatible with patient's answer
+                # (e.g., if patient says "right side", only include "right upper quadrant", "right lower quadrant", etc.)
+                for term in all_missing_candidates:
+                    term_components = term_components_cache.get(term, {})
+                    if not term_components:
+                        # Extract if not cached
+                        term_components = self.medical_rule_engine._extract_anatomical_components(term)
+                        term_components_cache[term] = term_components
+                    
+                    # Check if term is anatomically compatible (not opposite)
+                    is_opposite = self.medical_rule_engine._are_anatomical_opposites(patient_components, term_components)
+                    
+                    if not is_opposite:
+                        # Check if term shares horizontal direction (left/right) with patient answer
+                        patient_horizontal = patient_components.get('horizontal')
+                        term_horizontal = term_components.get('horizontal')
+                        
+                        if patient_horizontal and term_horizontal:
+                            # Both have horizontal direction - only include if they match
+                            if patient_horizontal == term_horizontal:
+                                missing.append(term)
+                                self._capture_debug(f"[Location Analysis] ✅ '{term}' included in missing (compatible with '{answer}': both {patient_horizontal})")
+                            else:
+                                self._capture_debug(f"[Location Analysis] ❌ '{term}' excluded from missing (opposite direction: patient {patient_horizontal} vs term {term_horizontal})")
+                        elif not term_horizontal:
+                            # Term has no horizontal direction (vague/midline) - include it
+                            missing.append(term)
+                            self._capture_debug(f"[Location Analysis] ✅ '{term}' included in missing (vague/midline term, compatible with any direction)")
+                        else:
+                            # Patient has no horizontal direction but term does - exclude
+                            self._capture_debug(f"[Location Analysis] ❌ '{term}' excluded from missing (term has {term_horizontal} but patient answer is vague)")
+                    else:
+                        self._capture_debug(f"[Location Analysis] ❌ '{term}' excluded from missing (anatomical opposite)")
+            else:
+                # No patient components extracted - include all terms (fallback)
+                missing = all_missing_candidates
+                self._capture_debug(f"[Location Analysis] ⚠️ No patient components extracted, including all {len(missing)} missing terms")
+        else:
+            # For non-location elements, include all missing terms (no anatomical filtering needed)
+            missing = all_missing_candidates
         
         self._capture_debug(f"[Location Analysis] ✅ Satisfied terms (checked against ALL {len(all_guidelines_to_check)} guidelines): {sorted(satisfied_terms)}")
-        self._capture_debug(f"[Location Analysis] ❌ Missing terms from active guidelines only ({len(missing)} total): {sorted(missing)}")
+        self._capture_debug(f"[Location Analysis] ❌ Missing terms from active guidelines (filtered to semantically related): {len(missing)}/{len(all_missing_candidates)} total: {sorted(missing)}")
         
         # Return both satisfied and missing terms for better decision making
-        # Return all missing terms (not limited to 5) so clarification questions can see all options
+        # Return filtered missing terms (only those related to patient's answer)
         return missing, satisfied_terms
     
     def _get_satisfied_terms(self, answer: str, oldcarts_element: str) -> set:
