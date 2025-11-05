@@ -96,12 +96,14 @@ class MedicalRuleEngine:
             # Collect terms for this category only
             all_terms = {
                 'onset': set(), 'location': set(), 'duration': set(), 'character': set(),
-                'aggravating': set(), 'relieving': set(), 'timing': set(), 'severity': set()
+                'aggravating': set(), 'relieving': set(), 'timing': set(), 'severity': set(),
+                'associated': set(), 'radiation': set()
             }
             term_to_conditions = {}
             synonym_to_medical_mapping = {
                 'onset': {}, 'location': {}, 'duration': {}, 'character': {},
-                'aggravating': {}, 'relieving': {}, 'timing': {}, 'severity': {}
+                'aggravating': {}, 'relieving': {}, 'timing': {}, 'severity': {},
+                'associated': {}, 'radiation': {}
             }
             
             # Load guidelines from this category only
@@ -207,9 +209,15 @@ class MedicalRuleEngine:
         """Build global index from all guidelines (for initial parsing before category is determined)."""
         all_terms = {
             'onset': set(), 'location': set(), 'duration': set(), 'character': set(),
-            'aggravating': set(), 'relieving': set(), 'timing': set(), 'severity': set()
+            'aggravating': set(), 'relieving': set(), 'timing': set(), 'severity': set(),
+            'associated': set(), 'radiation': set()
         }
         term_to_conditions = {}
+        synonym_to_medical_mapping = {
+            'onset': {}, 'location': {}, 'duration': {}, 'character': {},
+            'aggravating': {}, 'relieving': {}, 'timing': {}, 'severity': {},
+            'associated': {}, 'radiation': {}
+        }
         
         guidelines_path = os.path.join(os.path.dirname(__file__), '..', 'medical', 'guidelines')
         guideline_count = 0

@@ -2618,16 +2618,19 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             processing_answer_lower = processing_answer.lower().strip()
             
             # Use extracted_info if available (from _interpret_patient_response)
+            self._capture_debug(f"[Engine] 🔍 Chronicity extraction - extracted_info: {extracted_info}, processing_answer: {processing_answer}")
+            chronicity_value = None
             if extracted_info and extracted_info in ['new', 'recurring']:
                 # Extracted info already found - use it directly
-                self.demographics['chronicity'] = extracted_info
-                self._capture_debug(f"[Engine] ✅ Chronicity set from extracted_info: {extracted_info}")
+                chronicity_value = extracted_info
+                self._capture_debug(f"[Engine] ✅ Chronicity extracted from extracted_info: {chronicity_value}")
             else:
                 # Try Jaccard similarity extraction
                 chronicity_result = self._extract_chronicity_with_jaccard(processing_answer)
+                self._capture_debug(f"[Engine] 🔍 Jaccard chronicity result: {chronicity_result}")
                 if chronicity_result:
-                    self.demographics['chronicity'] = chronicity_result
-                    self._capture_debug(f"[Engine] ✅ Chronicity set from Jaccard similarity: {chronicity_result}")
+                    chronicity_value = chronicity_result
+                    self._capture_debug(f"[Engine] ✅ Chronicity extracted from Jaccard: {chronicity_value}")
                 else:
                     # No fallback - if we can't determine chronicity, return error
                     self._capture_debug(f"[Engine] ❌ Could not determine chronicity from answer")
@@ -2639,6 +2642,13 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                             'internal': self._get_debug_info(last_answer=user_answer)
                         }
                     }
+            
+            # Save chronicity value (should always have a value here if we didn't return above)
+            if chronicity_value:
+                self.demographics['chronicity'] = chronicity_value
+                self._capture_debug(f"[Engine] ✅ Chronicity saved to demographics: {chronicity_value}, demographics now: {self.demographics}")
+            else:
+                self._capture_debug(f"[Engine] ❌ CRITICAL: No chronicity value to save! This should not happen.")
             
             # If chronicity was successfully set, proceed to next missing element
             if 'chronicity' in self.demographics:
