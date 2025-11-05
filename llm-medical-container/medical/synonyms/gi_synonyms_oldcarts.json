@@ -102,7 +102,7 @@
       "no appetite"
     ],
     "change_in_bowel_habits": [
-      "change in your usual bowel habits"
+      "change in my usual bowel habits"
     ],
     "chest_pain": [
       "chest pain or discomfort"
@@ -168,7 +168,7 @@
       "black, tarry stool"
     ],
     "mucus_in_stool": [
-      "mucus in your stool"
+      "mucus in my stool"
     ],
     "nausea": [
       "feeling nauseous",
@@ -196,7 +196,7 @@
       "hot"
     ],
     "pyrosis": [
-      "burning sensation in your chest"
+      "burning sensation in my chest"
     ],
     "rigors": [
       "shaking chills"
@@ -234,7 +234,7 @@
   },
   "character": {
     "abdomen": [
-      "your belly"
+      "my belly"
     ],
     "aching": [],
     "black_tarry_stool": [
@@ -244,13 +244,13 @@
       "blood clots in stool"
     ],
     "blood_mixed_with_stool": [
-      "blood mixed with your stool"
+      "blood mixed with my stool"
     ],
     "blood_on_tissue": [
       "blood on toilet paper"
     ],
     "blood_separate_from_stool": [
-      "blood separate from your stool"
+      "blood separate from my stool"
     ],
     "bright_red_blood": [
       "bright red blood in vomit",
@@ -331,14 +331,14 @@
   },
   "location": {
     "diffuse": [
-      "all over your belly",
+      "all over my belly",
       "all over",
       "everywhere",
       "entire belly",
       "whole abdomen"
     ],
     "epigastric": [
-      "upper middle part of your belly",
+      "upper middle part of my belly",
       "upper middle",
       "upper center"
     ],
@@ -348,40 +348,40 @@
       "lower abdomen left"
     ],
     "left_upper_quadrant": [
-      "top left side near your ribs",
+      "top left side near my ribs",
       "upper left side",
       "upper left abdominal pain",
       "upper abdomen left"
     ],
     "lower_abdomen": [
-      "lower part of your abdomen"
+      "lower part of my abdomen"
     ],
     "periumbilical": [
-      "around your belly button migrating to right lower quadrant",
-      "around your belly button",
+      "around my belly button migrating to right lower quadrant",
+      "around my belly button",
       "near belly button",
       "around navel"
     ],
     "rectal": [
-      "from your rectum"
+      "from my rectum"
     ],
     "retrosternal": [
-      "behind your breastbone"
+      "behind my breastbone"
     ],
     "right_lower_quadrant": [
-      "lower right side around your groin",
+      "lower right side around my groin",
       "lower right side",
       "lower right abdominal pain",
       "lower abdomen right"
     ],
     "right_upper_quadrant": [
-      "top right side near your ribs",
+      "top right side near my ribs",
       "upper right side",
       "upper right abdominal pain",
       "upper abdomen right"
     ],
     "upper_abdomen": [
-      "upper part of your abdomen"
+      "upper part of my abdomen"
     ]
   },
   "onset": {
@@ -429,13 +429,13 @@
   },
   "radiation": {
     "back": [
-      "spreads to your back"
+      "spreads to my back"
     ],
     "scapula": [
-      "your shoulder blade"
+      "my shoulder blade"
     ],
     "shoulder": [
-      "spreads to your right shoulder"
+      "spreads to my right shoulder"
     ]
   },
   "relieving": {

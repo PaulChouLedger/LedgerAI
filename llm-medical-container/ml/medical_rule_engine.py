@@ -510,7 +510,7 @@ class MedicalRuleEngine:
             return patient_text.lower().strip()
         
         # Use FAISS to find the best matching medical term
-        faiss_matches = self.find_matching_terms_faiss(patient_text, oldcarts_element, threshold=0.75)
+        faiss_matches = self.find_matching_terms_faiss(patient_text, oldcarts_element, threshold=0.45)
         if faiss_matches:
             # Return the best match (first one with highest score)
             return faiss_matches[0]

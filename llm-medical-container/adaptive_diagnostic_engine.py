@@ -52,6 +52,108 @@ except Exception as e:
 class AdaptiveDiagnosticEngine:
     """Minimal universal diagnostic engine"""
     
+    # ===== THRESHOLD CONFIGURATION =====
+    # FAISS semantic matching thresholds (for easy tuning)
+    FAISS_SEMANTIC_THRESHOLD = 0.45  # Main threshold for FAISS semantic matching (location, character, etc.)
+    FAISS_SYNONYM_THRESHOLD = 0.40  # Slightly lower threshold for patient-friendly synonym matching
+    FAISS_ASSOCIATED_THRESHOLD = 0.70  # Threshold for associated symptoms matching
+    FAISS_RADIATION_THRESHOLD = 0.45  # Threshold for radiation matching
+    FAISS_STRICT_THRESHOLD = 0.85  # Strict threshold for high-confidence matches
+    
+    # Chief complaint matching thresholds
+    CHIEF_COMPLAINT_FAISS_THRESHOLD = 0.75  # FAISS threshold for chief complaint matching
+    CHIEF_COMPLAINT_NEAR_MISS_LOWER = 0.5  # Lower bound for near-miss candidates
+    CHIEF_COMPLAINT_NEAR_MISS_UPPER = 0.6  # Upper bound for near-miss candidates (fuzzy matching)
+    CHIEF_COMPLAINT_FUZZY_THRESHOLD = 0.8  # Fuzzy matching threshold for typos/near-misses
+    
+    # ML learning confidence threshold
+    ML_CONFIDENCE_THRESHOLD = 0.45  # Minimum confidence for ML learning recording
+    
+    # ===== LLM RULES & GUIDELINES =====
+    # All LLM prompts, system messages, and guidance text for easy tuning
+    
+    # Clarification Question Generation
+    LLM_CLARIFICATION_SYSTEM_MSG = "You are a medical assistant conducting a telehealth interview. Generate a natural, grammatically correct clarification question that flows well. Use proper grammar with 'and' and 'or' to connect options naturally. Return ONLY the question - no explanations, no reasoning, no additional text."
+    
+    LLM_CLARIFICATION_LOCATION_RULES = """CRITICAL RULES - YOU MUST FOLLOW THESE EXACTLY:
+1. You MUST use ONLY the terms from the list above - do NOT create new terms like "one side", "both sides", "upper", "lower" unless they are in the list
+2. If the patient already mentioned a location (like "right side"), do NOT ask about that same location again
+3. Use "or" to connect the options naturally with proper grammar
+4. You MUST include at least 3-5 of the provided options in your question - do NOT ask "Can you be more specific?" without including specific options
+5. Format: "Can you be more specific? For example, is it located at [option1], [option2], [option3], or [option4]?" - the options list is REQUIRED, not optional
+6. Return ONLY the question - no explanations, no reasoning, no "Here's a question:", no "Alternatively:", no additional text"""
+    
+    LLM_CLARIFICATION_GENERAL_RULES = """CRITICAL RULES - YOU MUST FOLLOW THESE EXACTLY:
+1. You MUST use ONLY the terms from the list above - do NOT create new terms
+2. If the patient already mentioned something, do NOT ask about that same thing again
+3. Use "or" to connect the options naturally with proper grammar
+4. You MUST include at least 3-5 of the provided options in your question - do NOT ask "Can you be more specific?" without including specific options
+5. Format: "Can you be more specific? For example, is it [option1], [option2], [option3], or [option4]?" - the options list is REQUIRED, not optional
+6. Return ONLY the question - no explanations, no reasoning, no "Here's a question:", no "Alternatively:", no additional text"""
+    
+    # OLDCARTS Question Generation
+    LLM_OLDCARTS_SYSTEM_MSG = "You are a medical assistant conducting a telehealth interview. Generate a simple, direct question following the example exactly. Use the chief complaint and conversation context to make the question relevant. Do NOT add assumptions, examples, or extra details. Keep it short and open-ended."
+    
+    LLM_OLDCARTS_STRICT_INSTRUCTIONS = """CRITICAL RULES:
+- Follow the example question structure EXACTLY
+- Use the chief complaint context to make it relevant
+- Keep it simple and direct
+- Do NOT add assumptions or specific examples
+- Do NOT mention body parts unless asking about location
+- Use simple language
+- Return ONLY the question, no explanation"""
+    
+    LLM_OLDCARTS_COMPONENT_GUIDANCE = {
+        'location': "Ask ONLY 'Where exactly is the pain located?' or similar. Do NOT mention body parts or give examples. Do NOT ask about intensity or duration.",
+        'severity': "Ask ONLY the EXACT question 'On a scale of 1 to 10, how would you rate this?' or very similar wording. Do NOT ask about location or other qualities. Do NOT return just a number.",
+        'aggravating': "Ask ONLY 'What makes it worse?' or similar. Do NOT assume specific activities or body parts. Do NOT use words like 'triggers' or 'causes'. Keep it simple.",
+        'relieving': "Ask ONLY 'What helps or makes it better?' or similar. Do NOT assume specific treatments or positions. Keep it simple.",
+        'timing': "Ask ONLY 'Is it constant or does it come and go?' or similar. Do NOT add details.",
+        'duration': "Ask ONLY 'How long does each episode typically last?' or similar. Do NOT add details."
+    }
+    
+    # Character Component Analysis
+    LLM_CHARACTER_DEFAULT_QUESTION = "What does it feel like?"
+    LLM_CHARACTER_DEFAULT_GUIDANCE = "Ask ONLY 'What does it feel like?' or similar. Do NOT mention any specific qualities like 'sharp', 'sharpness', 'burning', etc. Do NOT ask about location, intensity, or duration. Keep it completely open-ended."
+    
+    LLM_CHARACTER_DESCRIPTIVE_AND_SENSORY_GUIDANCE = "Ask about both appearance/description AND how it feels. You can ask 'Can you describe what it looks like?' or 'What does it look like?' for visual/descriptive characteristics, and also 'What does it feel like?' for sensory qualities. Do NOT mention specific examples like 'bright red', 'coffee ground', 'sharp', 'dull', etc. Keep it open-ended."
+    
+    LLM_CHARACTER_DESCRIPTIVE_ONLY_GUIDANCE = "Ask about appearance or description. You can ask 'What does it look like?' or 'Can you describe what you see?' or similar. Do NOT mention specific examples like 'bright red', 'coffee ground', 'black tarry', etc. Keep it open-ended and focused on visual/descriptive characteristics."
+    
+    # Empathetic Response Generation
+    LLM_EMPATHETIC_SYSTEM_MSG = """You are a compassionate medical assistant. The patient is expressing significant distress with severe symptoms. 
+Generate a brief (1-2 sentences), empathetic response that:
+1. Acknowledges their distress and validates their feelings
+2. Reassures them you're taking this seriously
+3. Shows urgency and concern
+
+Be warm, professional, and reassuring. Do NOT ask any questions - just acknowledge and reassure. The system will ask the appropriate clinical question next."""
+    
+    LLM_EMPATHETIC_USER_TEMPLATE = """{chief_complaint_context}{conversation_context}
+
+Patient just said: "{user_answer}"
+
+Distress detected: severity {severity:.1f}/10
+
+Generate an empathetic response that acknowledges their distress and reassures them. Do NOT ask any questions - just provide emotional support and reassurance."""
+    
+    # Confirmation Message Generation
+    LLM_CONFIRMATION_SYSTEM_MSG = "You are a medical assistant. Generate a brief confirmation message paraphrasing what the patient just told you to show you understand."
+    
+    LLM_CONFIRMATION_USER_TEMPLATE = "{chief_complaint_context}\n\nPatient just said: '{user_answer}'\n\nGenerate a brief confirmation message (1-2 sentences) that paraphrases what they told you to confirm understanding. Make it natural and empathetic. Return only the confirmation message, no other text."
+    
+    # Chronicity Question Generation
+    LLM_CHRONICITY_SYSTEM_MSG = "You are a medical assistant. Generate a concise question to ask if the patient's problem is new or ongoing."
+    LLM_CHRONICITY_USER_MSG = "Is this a new problem or an ongoing issue?"
+    
+    # Question Acknowledgment Generation
+    LLM_QUESTION_ACK_SYSTEM_MSG = "You are a compassionate medical assistant. Generate a brief, natural acknowledgment (1 sentence) for a patient's question. Be warm and reassuring."
+    LLM_QUESTION_ACK_USER_TEMPLATE = "Patient asked: '{user_input}'\n\nGenerate a brief acknowledgment:"
+    
+    # Comment Acknowledgment Generation
+    LLM_COMMENT_ACK_SYSTEM_MSG = "You are a compassionate medical assistant. Generate a brief, natural acknowledgment (1 sentence) for a patient's comment or emotional expression. Be warm and reassuring, then naturally transition back to gathering information."
+    LLM_COMMENT_ACK_USER_TEMPLATE = "Patient said: '{user_input}'\n\nGenerate a brief acknowledgment:"
+    
     # Category to organ system mapping (reused throughout)
     CATEGORY_TO_SYSTEM = {
         'gastrointestinal': 'GI', 'cardiovascular': 'CARDIO',
@@ -769,13 +871,12 @@ class AdaptiveDiagnosticEngine:
                     # Search synonyms index
                     k = min(5, len(self.chief_complaint_synonyms_data))
                     similarities, indices = self.chief_complaint_synonyms_index.search(query_embedding, k)
-                    
-                    # Find best matching medical term (threshold 0.75 for synonym matching)
+                
                     best_synonym_match = None
                     best_synonym_score = 0.0
                     
                     for idx, sim in zip(indices[0], similarities[0]):
-                        if idx < len(self.chief_complaint_synonyms_data) and sim >= 0.75:
+                        if idx < len(self.chief_complaint_synonyms_data) and sim >= self.CHIEF_COMPLAINT_FAISS_THRESHOLD:
                             synonym_data = self.chief_complaint_synonyms_data[idx]
                             if sim > best_synonym_score:
                                 best_synonym_score = sim
@@ -805,18 +906,18 @@ class AdaptiveDiagnosticEngine:
                 if idx < len(self.chief_complaint_triggers_data):
                     trigger_data = self.chief_complaint_triggers_data[idx]
                     
-                    if sim >= 0.6:
+                    if sim >= self.CHIEF_COMPLAINT_NEAR_MISS_UPPER:
                         # Above threshold - use for category matching
                         category = trigger_data['category']
                         if category not in category_scores or sim > category_scores[category]:
                             category_scores[category] = sim
-                    elif sim >= 0.5:
+                    elif sim >= self.CHIEF_COMPLAINT_NEAR_MISS_LOWER:
                         # Close to threshold - candidate for fuzzy matching (typo detection)
                         near_miss_candidates.append((trigger_data, sim))
             
             # If FAISS didn't find matches above threshold, try fuzzy matching only on near-misses
             if not category_scores and near_miss_candidates:
-                self._capture_debug(f"[Engine] ⚠️ FAISS found no matches above 0.6, trying fuzzy matching on {len(near_miss_candidates)} near-miss candidates...")
+                self._capture_debug(f"[Engine] ⚠️ FAISS found no matches above {self.CHIEF_COMPLAINT_NEAR_MISS_UPPER}, trying fuzzy matching on {len(near_miss_candidates)} near-miss candidates...")
                 try:
                     from difflib import SequenceMatcher
                     
@@ -858,7 +959,7 @@ class AdaptiveDiagnosticEngine:
                             similarity = SequenceMatcher(None, key_terms, trigger_text).ratio()
                         
                         similarity_greater_than_best = similarity > best_fuzzy_score
-                        similarity_meets_threshold = similarity >= 0.8  # Fuzzy threshold (stricter than FAISS for typos)
+                        similarity_meets_threshold = similarity >= self.CHIEF_COMPLAINT_FUZZY_THRESHOLD  # Fuzzy threshold (stricter than FAISS for typos)
                         
                         if similarity_greater_than_best and similarity_meets_threshold:
                             best_fuzzy_score = similarity
@@ -875,7 +976,7 @@ class AdaptiveDiagnosticEngine:
             
             # If no matches found (either above threshold or via fuzzy on near-misses)
             if not category_scores:
-                raise ValueError(f"No category match found for chief complaint: '{chief_complaint}' (FAISS threshold: 0.6, fuzzy on near-misses 0.5-0.6)")
+                raise ValueError(f"No category match found for chief complaint: '{chief_complaint}' (FAISS threshold: {self.CHIEF_COMPLAINT_NEAR_MISS_UPPER}, fuzzy on near-misses {self.CHIEF_COMPLAINT_NEAR_MISS_LOWER}-{self.CHIEF_COMPLAINT_NEAR_MISS_UPPER})")
             
             # Sort categories by score
             sorted_categories = sorted(category_scores.items(), key=lambda x: x[1], reverse=True)
@@ -967,7 +1068,7 @@ class AdaptiveDiagnosticEngine:
                             active_condition_names.add(condition_name)
                 
                 matching_terms = self.medical_rule_engine.find_matching_terms_faiss(
-                    prompt, element, threshold=0.85, active_condition_names=active_condition_names
+                    prompt, element, threshold=self.FAISS_STRICT_THRESHOLD, active_condition_names=active_condition_names
                 )
                 if matching_terms:
                     answered_components[element] = matching_terms
@@ -1136,7 +1237,7 @@ class AdaptiveDiagnosticEngine:
                                     active_condition_names.add(condition_name)
                             
                             faiss_matches = self.medical_rule_engine.find_matching_terms_faiss(
-                                answer, 'radiation', threshold=0.75, active_condition_names=active_condition_names
+                                answer, 'radiation', threshold=self.FAISS_RADIATION_THRESHOLD, active_condition_names=active_condition_names
                             )
                             if faiss_matches:
                                 pre_normalized_text = faiss_matches[0]
@@ -1294,7 +1395,7 @@ class AdaptiveDiagnosticEngine:
                             active_condition_names.add(condition_name)
                     
                     faiss_matches = self.medical_rule_engine.find_matching_terms_faiss(
-                        answer, oldcarts_element, threshold=0.75, active_condition_names=active_condition_names
+                        answer, oldcarts_element, threshold=self.FAISS_SEMANTIC_THRESHOLD, active_condition_names=active_condition_names
                     )
                     if faiss_matches:
                         pre_normalized_text = faiss_matches[0]
@@ -1303,7 +1404,7 @@ class AdaptiveDiagnosticEngine:
                         if self.enable_ml_learning and self.synonym_learner:
                             try:
                                 matched_term = faiss_matches[0]
-                                confidence = 0.75  # Minimum threshold
+                                confidence = self.ML_CONFIDENCE_THRESHOLD  # Minimum threshold
                                 self.synonym_learner.record_interaction(
                                     user_input=answer,
                                     matched_term=matched_term,
@@ -1772,7 +1873,7 @@ class AdaptiveDiagnosticEngine:
                 # Check against ALL guidelines, not just active ones
                 # Use threshold=0.6 to match scoring behavior (compute_unified_similarity uses substring/exact matching which is more lenient)
                 semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(
-                    answer, oldcarts_element, threshold=0.75, 
+                    answer, oldcarts_element, threshold=self.FAISS_SEMANTIC_THRESHOLD, 
                     return_scores=True, active_condition_names=all_condition_names
                 )
                 semantic_matches_set = set(t.lower() for t in semantic_matches)
@@ -1930,9 +2031,9 @@ class AdaptiveDiagnosticEngine:
                         raw_faiss_scores = self.medical_rule_engine._last_faiss_scores
                         raw_score = raw_faiss_scores.get(term, None)
                         if raw_score is not None:
-                            self._capture_debug(f"[Location Analysis]   Step 3 - Raw FAISS score for '{term}': {raw_score:.3f} (threshold=0.75)")
-                            if raw_score < 0.75:
-                                self._capture_debug(f"[Location Analysis]   ⚠️ Raw score {raw_score:.3f} < 0.75 threshold, should NOT be in semantic_matches_set")
+                            self._capture_debug(f"[Location Analysis]   Step 3 - Raw FAISS score for '{term}': {raw_score:.3f} (threshold={self.FAISS_SEMANTIC_THRESHOLD})")
+                            if raw_score < self.FAISS_SEMANTIC_THRESHOLD:
+                                self._capture_debug(f"[Location Analysis]   ⚠️ Raw score {raw_score:.3f} < {self.FAISS_SEMANTIC_THRESHOLD} threshold, should NOT be in semantic_matches_set")
                         else:
                             # Check if any synonyms matched that map to this term
                             if raw_faiss_scores:
@@ -1948,7 +2049,7 @@ class AdaptiveDiagnosticEngine:
                                         self._capture_debug(f"[Location Analysis]   Step 3 - Found {len(matched_synonyms)} synonym matches for '{term}': {matched_synonyms}")
                                         # Check if any synonym scored above threshold (use slightly lower threshold for synonyms: 0.70)
                                         # Synonyms are patient-friendly terms that might not embed as well as medical terms
-                                        synonym_threshold = 0.70  # Slightly lower than medical term threshold (0.75)
+                                        synonym_threshold = self.FAISS_SYNONYM_THRESHOLD  # Slightly lower than medical term threshold
                                         high_scoring_synonyms = [(s, sc) for s, sc in matched_synonyms if sc >= synonym_threshold]
                                         if high_scoring_synonyms:
                                             best_synonym, best_score = max(high_scoring_synonyms, key=lambda x: x[1])
@@ -1973,9 +2074,9 @@ class AdaptiveDiagnosticEngine:
                         guideline_sources = term_to_guidelines.get(term, [])
                         if guideline_sources:
                             sources_str = ', '.join(guideline_sources)
-                            self._capture_debug(f"[Location Analysis]   ❌ NOT in semantic_matches_set (score likely < 0.75) [from: {sources_str}]")
+                            self._capture_debug(f"[Location Analysis]   ❌ NOT in semantic_matches_set (score likely < {self.FAISS_SEMANTIC_THRESHOLD}) [from: {sources_str}]")
                         else:
-                            self._capture_debug(f"[Location Analysis]   ❌ NOT in semantic_matches_set (score likely < 0.75)")
+                            self._capture_debug(f"[Location Analysis]   ❌ NOT in semantic_matches_set (score likely < {self.FAISS_SEMANTIC_THRESHOLD})")
             
             if term_satisfied:
                 satisfied_terms.add(term)
@@ -2153,7 +2254,7 @@ class AdaptiveDiagnosticEngine:
                                 active_condition_names.add(condition_name)
                     
                     semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(
-                        answer, oldcarts_element, threshold=0.6, active_condition_names=active_condition_names
+                        answer, oldcarts_element, threshold=self.CHIEF_COMPLAINT_NEAR_MISS_UPPER, active_condition_names=active_condition_names
                     )
                     if term in [t.lower() for t in semantic_matches]:
                         term_satisfied = True
@@ -2347,15 +2448,9 @@ The patient already said: "{patient_answer}"
 We need to clarify the location. Here are the ONLY possible locations from the medical guidelines that we need to clarify (you MUST use ONLY these exact terms):
 {options_list}
 
-CRITICAL RULES - YOU MUST FOLLOW THESE EXACTLY:
-1. You MUST use ONLY the terms from the list above - do NOT create new terms like "one side", "both sides", "upper", "lower" unless they are in the list
-2. If the patient already mentioned a location (like "right side"), do NOT ask about that same location again
-3. Use "or" to connect the options naturally with proper grammar
-4. Include as many of the provided options as possible (up to 5-6 options)
-5. Format: "Can you be more specific? For example, is it located at [option1], [option2], [option3], or [option4]?"
-6. Return ONLY the question - no explanations, no reasoning, no "Here's a question:", no "Alternatively:", no additional text
+{self.LLM_CLARIFICATION_LOCATION_RULES}
 
-Generate the clarification question using ONLY the terms provided above:"""
+Generate the clarification question using ONLY the terms provided above. The question MUST include specific options from the list:"""
         else:
             options_list = ", ".join(patient_friendly_terms)
             user_msg = f"""{chief_complaint_context}{conversation_context}
@@ -2365,15 +2460,9 @@ The patient already said: "{patient_answer}"
 We need to clarify the {oldcarts_element}. Here are the ONLY possible options from the medical guidelines that we need to clarify (you MUST use ONLY these exact terms):
 {options_list}
 
-CRITICAL RULES - YOU MUST FOLLOW THESE EXACTLY:
-1. You MUST use ONLY the terms from the list above - do NOT create new terms
-2. If the patient already mentioned something, do NOT ask about that same thing again
-3. Use "or" to connect the options naturally with proper grammar
-4. Include as many of the provided options as possible (up to 5-6 options)
-5. Format: "Can you be more specific? For example, is it [option1], [option2], [option3], or [option4]?"
-6. Return ONLY the question - no explanations, no reasoning, no "Here's a question:", no "Alternatively:", no additional text
+{self.LLM_CLARIFICATION_GENERAL_RULES}
 
-Generate the clarification question using ONLY the terms provided above:"""
+Generate the clarification question using ONLY the terms provided above. The question MUST include specific options from the list:"""
         
         llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
         response = self.llm_chat_simple_fn(
@@ -2385,11 +2474,27 @@ Generate the clarification question using ONLY the terms provided above:"""
         )
         
         cleaned_response = self._clean_llm_response(response)
-        if cleaned_response:
-            return cleaned_response
+        if not cleaned_response:
+            raise ValueError(f"LLM returned empty response for clarification question ({oldcarts_element})")
         
-        # No fallback - raise error if LLM fails
-        raise ValueError(f"LLM returned empty response for clarification question ({oldcarts_element})")
+        # Validate that the response includes at least one of the patient-friendly terms
+        # If it doesn't, it's likely a generic fallback like "Can you be more specific?" without terms
+        response_lower = cleaned_response.lower()
+        has_term = any(term.lower() in response_lower for term in patient_friendly_terms[:10])  # Check first 10 terms
+        
+        if not has_term:
+            # Check if it's just a generic question without terms
+            generic_patterns = [
+                "can you be more specific",
+                "can you tell me more",
+                "where exactly",
+                "what do you mean"
+            ]
+            is_generic = any(pattern in response_lower for pattern in generic_patterns)
+            if is_generic:
+                raise ValueError(f"LLM generated generic question without missing terms: '{cleaned_response}'. Expected question with terms from: {patient_friendly_terms[:5]}")
+        
+        return cleaned_response
     
     def _get_patient_friendly_from_guidelines(self, medical_term: str, oldcarts_element: str) -> str:
         """Get patient-friendly term directly from guidelines (case-insensitive match)"""
@@ -2625,7 +2730,7 @@ Generate the clarification question using ONLY the terms provided above:"""
     def _analyze_character_terms(self) -> dict:
         """Analyze character terms from active guidelines to determine question type"""
         if not self.active_guidelines:
-            return {'has_descriptive': False, 'has_sensory': False, 'sample_question': "What does it feel like?", 'guidance': "Ask ONLY 'What does it feel like?' or similar. Do NOT mention any specific qualities like 'sharp', 'sharpness', 'burning', etc. Do NOT ask about location, intensity, or duration. Keep it completely open-ended."}
+            return {'has_descriptive': False, 'has_sensory': False, 'sample_question': self.LLM_CHARACTER_DEFAULT_QUESTION, 'guidance': self.LLM_CHARACTER_DEFAULT_GUIDANCE}
         
         # Collect all character terms from active guidelines
         all_character_terms = []
@@ -2655,15 +2760,15 @@ Generate the clarification question using ONLY the terms provided above:"""
         if has_descriptive and has_sensory:
             # Both types present - ask about description/appearance
             sample_question = "Can you describe what it looks like or how it appears?"
-            guidance = "Ask about both appearance/description AND how it feels. You can ask 'Can you describe what it looks like?' or 'What does it look like?' for visual/descriptive characteristics, and also 'What does it feel like?' for sensory qualities. Do NOT mention specific examples like 'bright red', 'coffee ground', 'sharp', 'dull', etc. Keep it open-ended."
+            guidance = self.LLM_CHARACTER_DESCRIPTIVE_AND_SENSORY_GUIDANCE
         elif has_descriptive:
             # Only descriptive terms - ask about appearance/description
             sample_question = "Can you describe what it looks like?"
-            guidance = "Ask about appearance or description. You can ask 'What does it look like?' or 'Can you describe what you see?' or similar. Do NOT mention specific examples like 'bright red', 'coffee ground', 'black tarry', etc. Keep it open-ended and focused on visual/descriptive characteristics."
+            guidance = self.LLM_CHARACTER_DESCRIPTIVE_ONLY_GUIDANCE
         else:
             # Only sensory terms or default - ask about feeling
             sample_question = "What does it feel like?"
-            guidance = "Ask ONLY 'What does it feel like?' or similar. Do NOT mention any specific qualities like 'sharp', 'sharpness', 'burning', etc. Do NOT ask about location, intensity, or duration. Keep it completely open-ended."
+            guidance = self.LLM_CHARACTER_DEFAULT_GUIDANCE
         
         return {
             'has_descriptive': has_descriptive,
@@ -2699,14 +2804,7 @@ Generate the clarification question using ONLY the terms provided above:"""
             sample_question = sample_questions.get(component, f"Tell me more about {component}.")
         
         # Component-specific guidance to prevent mixing elements - STRICT and explicit
-        component_guidance = {
-            'location': "Ask ONLY 'Where exactly is the pain located?' or similar. Do NOT mention body parts or give examples. Do NOT ask about intensity or duration.",
-            'severity': "Ask ONLY the EXACT question 'On a scale of 1 to 10, how would you rate this?' or very similar wording. Do NOT ask about location or other qualities. Do NOT return just a number.",
-            'aggravating': "Ask ONLY 'What makes it worse?' or similar. Do NOT assume specific activities or body parts. Do NOT use words like 'triggers' or 'causes'. Keep it simple.",
-            'relieving': "Ask ONLY 'What helps or makes it better?' or similar. Do NOT assume specific treatments or positions. Keep it simple.",
-            'timing': "Ask ONLY 'Is it constant or does it come and go?' or similar. Do NOT add details.",
-            'duration': "Ask ONLY 'How long does each episode typically last?' or similar. Do NOT add details."
-        }
+        component_guidance = self.LLM_OLDCARTS_COMPONENT_GUIDANCE
         
         # Use character-specific guidance if character component, otherwise use standard guidance
         if component == 'character':
@@ -2714,14 +2812,14 @@ Generate the clarification question using ONLY the terms provided above:"""
         else:
             guidance_text = component_guidance.get(component, "")
         
-        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a simple, direct question following the example exactly. Use the chief complaint and conversation context to make the question relevant. Do NOT add assumptions, examples, or extra details. Keep it short and open-ended."
+        system_msg = self.LLM_OLDCARTS_SYSTEM_MSG
         
         # Get context using helper functions
         chief_complaint_context = self._get_chief_complaint_context()
         conversation_context = self._build_conversation_context(recent_items=4, char_limit=80, include_answered=True)
         
         # Make guidance more explicit and strict
-        strict_instructions = "CRITICAL RULES:\n- Follow the example question structure EXACTLY\n- Use the chief complaint context to make it relevant\n- Keep it simple and direct\n- Do NOT add assumptions or specific examples\n- Do NOT mention body parts unless asking about location\n- Use simple language\n- Return ONLY the question, no explanation"
+        strict_instructions = self.LLM_OLDCARTS_STRICT_INSTRUCTIONS
         
         if guidance_text:
             user_msg = f"""{chief_complaint_context}{conversation_context}
@@ -2791,8 +2889,8 @@ Generate a question about {component} for this patient:"""
             if not self.llm_chat_simple_fn:
                 raise ValueError("LLM not available for question generation")
             
-            system_msg = "You are a medical assistant. Generate a concise question to ask if the patient's problem is new or ongoing."
-            user_msg = "Is this a new problem or an ongoing issue?"
+            system_msg = self.LLM_CHRONICITY_SYSTEM_MSG
+            user_msg = self.LLM_CHRONICITY_USER_MSG
             
             llm_kwargs = self._get_llm_kwargs()
             response = self.llm_chat_simple_fn(
@@ -3506,7 +3604,7 @@ RECOMMENDATION: {recommendation}"""
                             try:
                                 # Use FAISS to check if red flag is semantically similar to answer
                                 semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(
-                                    answer_text, 'associated', threshold=0.70
+                                    answer_text, 'associated', threshold=self.FAISS_ASSOCIATED_THRESHOLD
                                 )
                                 red_flag_in_matches = any(red_flag_lower in match.lower() or match.lower() in red_flag_lower 
                                                          for match in semantic_matches)
@@ -3796,14 +3894,31 @@ RECOMMENDATION: {recommendation}"""
                 acknowledgment_message = self._generate_empathetic_response(user_input, distress_info)
                 self._capture_debug(f"[Engine] 💬 Generated empathetic acknowledgment for distress (severity={distress_info.get('severity', 0):.1f})")
             elif is_question:
-                # Acknowledge question
-                acknowledgment_message = "I understand you have a question. Let me help clarify that. "
+                # Acknowledge question - generate with LLM if available, otherwise raise error
+                if self.llm_chat_simple_fn:
+                    try:
+                        system_msg = self.LLM_QUESTION_ACK_SYSTEM_MSG
+                        user_msg = self.LLM_QUESTION_ACK_USER_TEMPLATE.format(user_input=user_input)
+                        
+                        llm_kwargs = self._get_llm_kwargs(override_max_tokens=40)
+                        response = self.llm_chat_simple_fn(
+                            [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+                            **llm_kwargs
+                        )
+                        acknowledgment_message = response.strip() if response else None
+                        if not acknowledgment_message:
+                            raise ValueError("LLM returned empty acknowledgment for question")
+                    except Exception as e:
+                        self._capture_debug(f"[Engine] ⚠️ Failed to generate question acknowledgment: {e}")
+                        raise ValueError(f"Cannot generate acknowledgment for question: {e}")
+                else:
+                    raise ValueError("LLM not available for question acknowledgment generation")
             elif is_comment:
                 # Acknowledge comment
                 if self.llm_chat_simple_fn:
                     try:
-                        system_msg = "You are a compassionate medical assistant. Generate a brief, natural acknowledgment (1 sentence) for a patient's comment or emotional expression. Be warm and reassuring, then naturally transition back to gathering information."
-                        user_msg = f"Patient said: '{user_input}'\n\nGenerate a brief acknowledgment:"
+                        system_msg = self.LLM_COMMENT_ACK_SYSTEM_MSG
+                        user_msg = self.LLM_COMMENT_ACK_USER_TEMPLATE.format(user_input=user_input)
                         
                         llm_kwargs = self._get_llm_kwargs(override_max_tokens=40)
                         response = self.llm_chat_simple_fn(
@@ -4058,21 +4173,14 @@ RECOMMENDATION: {recommendation}"""
             if recent_items:
                 conversation_context = "\n\nRecent conversation:\n" + "\n".join(recent_items[-3:])  # Last 3 items
         
-        system_msg = """You are a compassionate medical assistant. The patient is expressing significant distress with severe symptoms. 
-Generate a brief (1-2 sentences), empathetic response that:
-1. Acknowledges their distress and validates their feelings
-2. Reassures them you're taking this seriously
-3. Shows urgency and concern
-
-Be warm, professional, and reassuring. Do NOT ask any questions - just acknowledge and reassure. The system will ask the appropriate clinical question next."""
+        system_msg = self.LLM_EMPATHETIC_SYSTEM_MSG
         
-        user_msg = f"""{chief_complaint_context}{conversation_context}
-
-Patient just said: "{user_answer}"
-
-Distress detected: severity {distress_info['severity']:.1f}/10
-
-Generate an empathetic response that acknowledges their distress and reassures them. Do NOT ask any questions - just provide emotional support and reassurance."""
+        user_msg = self.LLM_EMPATHETIC_USER_TEMPLATE.format(
+            chief_complaint_context=chief_complaint_context,
+            conversation_context=conversation_context,
+            user_answer=user_answer,
+            severity=distress_info['severity']
+        )
         
         llm_kwargs = self._get_llm_kwargs(override_max_tokens=60)
         response = self.llm_chat_simple_fn(
@@ -4784,33 +4892,55 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 'status': 'questioning'
             }
         
-        # Provide helpful clarification based on the component being asked about
+        # Generate clarifying question using missing terms from guidelines
         if last_q:
             oldcarts_element = last_q.get('oldcarts', '')
+            if not oldcarts_element:
+                raise ValueError("Cannot generate clarification - no OLDCARTS element found in last question")
             
-            # Component-specific clarifications
-            clarifications = {
-                'character': "I'm asking about how the pain feels - like sharp, dull, burning, stabbing, or throbbing.",
-                'location': "I'm asking where exactly on your body the pain is located.",
-                'timing': "I'm asking whether the pain is constant or comes and goes.",
-                'duration': "I'm asking how long each episode of pain typically lasts.",
-                'aggravating': "I'm asking what makes the pain worse - activities, positions, or movements.",
-                'relieving': "I'm asking what helps or makes the pain better - medications, rest, or positions.",
-                'severity': "I'm asking how bad the pain is on a scale from 1 to 10, where 1 is mild and 10 is the worst pain imaginable."
-            }
+            # Get the last patient answer for context
+            last_answer = ""
+            for item in reversed(self.conversation_history):
+                if item.get('type') == 'answer':
+                    last_answer = item.get('answer', '')
+                    break
             
-            clarification = clarifications.get(oldcarts_element, last_q.get('question', 'Please answer my previous question.'))
+            # Get missing terms from active guidelines for this element
+            missing_terms = []
+            for guideline in self.active_guidelines:
+                structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+                element_data = structured.get(oldcarts_element, {})
+                if isinstance(element_data, dict):
+                    includes = element_data.get('includes', [])
+                    for term_obj in includes:
+                        if isinstance(term_obj, dict):
+                            medical_term = term_obj.get('medical', '')
+                            if medical_term and medical_term not in missing_terms:
+                                missing_terms.append(medical_term)
+                                if len(missing_terms) >= 20:  # Reasonable limit
+                                    break
+                    if len(missing_terms) >= 20:
+                        break
             
-            # Return clarification + repeat question
+            if not missing_terms:
+                raise ValueError(f"No {oldcarts_element} options available from guidelines for clarification question")
+            
+            # Use the existing method to generate clarifying question with missing terms
+            msg = self._generate_clarifying_question(oldcarts_element, last_answer or "", 0, missing_terms)
+            
+            # Track as clarification question
+            self.conversation_history.append({
+                'type': 'question',
+                'question': msg,
+                'oldcarts': oldcarts_element,
+                'is_clarification': True
+            })
             return {
                 'success': True,
-                'message': f"{clarification}\n\n{last_q.get('question', 'Please answer my previous question.')}",
+                'message': msg,
                 'status': 'questioning'
             }
         else:
-            return {
-                'success': False,
-                'message': 'Please answer my previous question.'
-            }
+            raise ValueError("Cannot generate clarification - no previous question found in conversation history")
     
     # Removed redundant anatomical analysis functions - medical_rules.json + OLDCARTS synonyms handle this
