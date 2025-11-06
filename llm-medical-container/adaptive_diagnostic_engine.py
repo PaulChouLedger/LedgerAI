@@ -132,9 +132,9 @@ class AdaptiveDiagnosticEngine:
     LLM_CHARACTER_DEFAULT_QUESTION = "What does it feel like?"
     LLM_CHARACTER_DEFAULT_GUIDANCE = "Ask ONLY 'What does it feel like?' or similar. Do NOT mention any specific qualities like 'sharp', 'sharpness', 'burning', etc. Do NOT ask about location, intensity, or duration. Keep it completely open-ended."
     
-    LLM_CHARACTER_DESCRIPTIVE_AND_SENSORY_GUIDANCE = "Ask about both appearance/description AND how it feels. You can ask 'Can you describe what it looks like?' or 'What does it look like?' for visual/descriptive characteristics, and also 'What does it feel like?' for sensory qualities. Do NOT mention specific examples like 'bright red', 'coffee ground', 'sharp', 'dull', etc. Keep it open-ended."
+    LLM_CHARACTER_DESCRIPTIVE_AND_SENSORY_GUIDANCE = "Ask about both appearance/description AND how it feels. If specific terms are provided below, use them to create a targeted question. Otherwise, you can ask 'Can you describe what it looks like?' or 'What does it look like?' for visual/descriptive characteristics, and also 'What does it feel like?' for sensory qualities."
     
-    LLM_CHARACTER_DESCRIPTIVE_ONLY_GUIDANCE = "Ask about appearance or description. You can ask 'What does it look like?' or 'Can you describe what you see?' or similar. Do NOT mention specific examples like 'bright red', 'coffee ground', 'black tarry', etc. Keep it open-ended and focused on visual/descriptive characteristics."
+    LLM_CHARACTER_DESCRIPTIVE_ONLY_GUIDANCE = "Ask about appearance or description. If specific terms are provided below, use them to create a targeted question. Otherwise, you can ask 'What does it look like?' or 'Can you describe what you see?' or similar. Focus on visual/descriptive characteristics."
     
     # Empathetic Response Generation
     LLM_EMPATHETIC_SYSTEM_MSG = """You are a compassionate medical assistant. The patient is expressing significant distress with severe symptoms. 
@@ -4784,53 +4784,114 @@ Generate a clarification question using EXACTLY this format with the terms provi
         return response.strip()
     
     def _analyze_character_terms(self) -> dict:
-        """Analyze character terms from active guidelines to determine question type"""
+        """Analyze character terms from active guidelines and prioritize based on chief complaint type"""
         if not self.active_guidelines:
-            return {'has_descriptive': False, 'has_sensory': False, 'sample_question': self.LLM_CHARACTER_DEFAULT_QUESTION, 'guidance': self.LLM_CHARACTER_DEFAULT_GUIDANCE}
+            return {'has_descriptive': False, 'has_sensory': False, 'sample_question': self.LLM_CHARACTER_DEFAULT_QUESTION, 
+                   'guidance': self.LLM_CHARACTER_DEFAULT_GUIDANCE, 'available_terms': [], 'secondary_terms': []}
         
-        # Collect all character terms from active guidelines
+        # Analyze chief complaint to determine if it's sensory (pain) or visual (bleeding, appearance)
+        chief_complaint = getattr(self, 'chief_complaint', '').lower()
+        chief_complaint_lower = chief_complaint
+        
+        # Check if chief complaint is visual/descriptive (bleeding, stool, appearance, etc.)
+        visual_keywords = ['blood', 'bleed', 'bleeding', 'stool', 'stools', 'bowel movement', 'urine', 'vomit', 
+                          'vomiting', 'sputum', 'phlegm', 'rash', 'skin', 'lesion', 'wound', 'appearance', 'look', 'color']
+        # Check if chief complaint is sensory (pain, ache, discomfort, etc.)
+        sensory_keywords = ['pain', 'ache', 'aching', 'discomfort', 'sore', 'tender', 'hurts', 'hurt', 'feels', 'feeling']
+        
+        is_visual_complaint = any(keyword in chief_complaint_lower for keyword in visual_keywords)
+        is_sensory_complaint = any(keyword in chief_complaint_lower for keyword in sensory_keywords)
+        
+        # If unclear, default to sensory (most complaints are pain-related)
+        if not is_visual_complaint and not is_sensory_complaint:
+            is_sensory_complaint = True
+        
+        # Collect all character terms from active guidelines (patient_friendly terms for LLM)
         all_character_terms = []
+        patient_friendly_terms = []
+        
         for guideline in self.active_guidelines:
-            structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            structured = self._get_structured_oldcarts(guideline)
             character_data = structured.get('character', {})
             if isinstance(character_data, dict):
                 includes = character_data.get('includes', [])
                 for term_obj in includes:
                     if isinstance(term_obj, dict):
-                        medical = term_obj.get('medical', '').lower()
-                        patient_friendly = term_obj.get('patient_friendly', '').lower()
-                        all_character_terms.extend([medical, patient_friendly])
+                        patient_friendly = term_obj.get('patient_friendly', '').strip()
+                        if patient_friendly:
+                            patient_friendly_terms.append(patient_friendly)
+                            all_character_terms.append(patient_friendly.lower())
+                    elif isinstance(term_obj, str):
+                        all_character_terms.append(term_obj.lower())
+                        patient_friendly_terms.append(term_obj)
         
-        # Check for descriptive/visual terms (colors, appearances, visual characteristics)
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_patient_friendly = []
+        for term in patient_friendly_terms:
+            term_lower = term.lower()
+            if term_lower not in seen:
+                seen.add(term_lower)
+                unique_patient_friendly.append(term)
+        
+        # Separate terms into sensory and descriptive categories
         descriptive_keywords = ['red', 'blood', 'bright', 'dark', 'black', 'coffee', 'ground', 'tarry', 'sticky', 
                               'clots', 'tissue', 'mixed', 'separate', 'look', 'appear', 'color', 'appearance']
-        
-        # Check for sensory/feeling terms (pain qualities, sensations)
         sensory_keywords = ['sharp', 'dull', 'aching', 'burning', 'stabbing', 'throbbing', 'pressure', 'cramping',
                            'colicky', 'gnawing', 'squeezing', 'tight', 'feel', 'sensation', 'pain']
         
-        has_descriptive = any(keyword in term for term in all_character_terms for keyword in descriptive_keywords)
-        has_sensory = any(keyword in term for term in all_character_terms for keyword in sensory_keywords)
+        sensory_terms = []
+        descriptive_terms = []
         
-        # Determine question type based on what's in the guidelines
-        if has_descriptive and has_sensory:
-            # Both types present - ask about description/appearance
-            sample_question = "Can you describe what it looks like or how it appears?"
-            guidance = self.LLM_CHARACTER_DESCRIPTIVE_AND_SENSORY_GUIDANCE
-        elif has_descriptive:
-            # Only descriptive terms - ask about appearance/description
-            sample_question = "Can you describe what it looks like?"
-            guidance = self.LLM_CHARACTER_DESCRIPTIVE_ONLY_GUIDANCE
+        for term in unique_patient_friendly:
+            term_lower = term.lower()
+            is_descriptive = any(keyword in term_lower for keyword in descriptive_keywords)
+            is_sensory_term = any(keyword in term_lower for keyword in sensory_keywords)
+            
+            if is_descriptive:
+                descriptive_terms.append(term)
+            if is_sensory_term:
+                sensory_terms.append(term)
+        
+        # Prioritize based on chief complaint type
+        if is_visual_complaint:
+            # Visual complaint (e.g., "bloody stools") - prioritize descriptive terms
+            primary_terms = descriptive_terms[:6] if descriptive_terms else []
+            secondary_terms = sensory_terms[:6] if sensory_terms else []
+            has_descriptive = len(descriptive_terms) > 0
+            has_sensory = len(sensory_terms) > 0
+            
+            if has_descriptive:
+                sample_question = "Can you describe what it looks like?"
+                guidance = self.LLM_CHARACTER_DESCRIPTIVE_ONLY_GUIDANCE
+            else:
+                # Fallback to sensory if no descriptive
+                sample_question = "What does it feel like?"
+                guidance = self.LLM_CHARACTER_DEFAULT_GUIDANCE
+                primary_terms = sensory_terms[:6]
         else:
-            # Only sensory terms or default - ask about feeling
-            sample_question = "What does it feel like?"
-            guidance = self.LLM_CHARACTER_DEFAULT_GUIDANCE
+            # Sensory complaint (e.g., "abdominal pain") - prioritize sensory terms
+            primary_terms = sensory_terms[:6] if sensory_terms else []
+            secondary_terms = descriptive_terms[:6] if descriptive_terms else []
+            has_descriptive = len(descriptive_terms) > 0
+            has_sensory = len(sensory_terms) > 0
+            
+            if has_sensory:
+                sample_question = "What does it feel like?"
+                guidance = self.LLM_CHARACTER_DEFAULT_GUIDANCE
+            else:
+                # Fallback to descriptive if no sensory
+                sample_question = "Can you describe what it looks like?"
+                guidance = self.LLM_CHARACTER_DESCRIPTIVE_ONLY_GUIDANCE
+                primary_terms = descriptive_terms[:6]
         
         return {
             'has_descriptive': has_descriptive,
             'has_sensory': has_sensory,
             'sample_question': sample_question,
-            'guidance': guidance
+            'guidance': guidance,
+            'available_terms': primary_terms,  # Primary terms for character question
+            'secondary_terms': secondary_terms  # Secondary terms for associated section
         }
     
     def _generate_oldcarts_question_for_component(self, component: str) -> str:
@@ -4843,6 +4904,22 @@ Generate a clarification question using EXACTLY this format with the terms provi
             character_analysis = self._analyze_character_terms()
             sample_question = character_analysis['sample_question']
             component_guidance_text = character_analysis['guidance']
+            available_character_terms = character_analysis.get('available_terms', [])
+            
+            # If we have specific character terms, include them in the prompt for a targeted question
+            if available_character_terms:
+                terms_list = ", ".join(available_character_terms[:5])
+                # Build example based on number of terms
+                if len(available_character_terms) >= 4:
+                    example = f"Is it {available_character_terms[0]}, {available_character_terms[1]}, {available_character_terms[2]}, or {available_character_terms[3]}?"
+                elif len(available_character_terms) >= 3:
+                    example = f"Is it {available_character_terms[0]}, {available_character_terms[1]}, or {available_character_terms[2]}?"
+                elif len(available_character_terms) >= 2:
+                    example = f"Is it {available_character_terms[0]} or {available_character_terms[1]}?"
+                else:
+                    example = f"Is it {available_character_terms[0]}?"
+                
+                component_guidance_text += f"\n\nAVAILABLE CHARACTER OPTIONS FROM MEDICAL GUIDELINES: {terms_list}\n\nCRITICAL: Use these specific terms to create a targeted, contextual question. DO NOT ask generic questions like 'Can you describe what it looks like?' when specific options are available.\n\nEXAMPLE of targeted question: '{example}'\n\nGenerate a question that includes at least 3-4 of these specific terms."
         else:
             # Sample questions for each OLDCARTS element as guidance (ONLY reference)
             sample_questions = {
