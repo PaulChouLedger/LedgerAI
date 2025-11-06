@@ -3977,6 +3977,49 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                     unique_medical_terms = filtered_medical_terms
                     self._capture_debug(f"[Location Analysis] 🔍 STEP 4: After anatomical filtering: {len(unique_medical_terms)} medical terms: {unique_medical_terms}")
                 
+                # Filter out vague terms if patient has provided specific location information
+                # Vague terms (diffuse, all over, around belly button) should be ruled out once user clarifies specific location
+                if patient_components and not patient_components.get('vague'):
+                    # Patient provided specific location (has direction like left/right, upper/lower, etc.)
+                    # Filter out vague terms from missing array
+                    vague_medical_terms = set()
+                    vague_keywords = ['diffuse', 'all over', 'around your belly button', 'periumbilical']
+                    
+                    # Check each medical term to see if it's vague
+                    for med_term in unique_medical_terms:
+                        med_lower = med_term.lower()
+                        # Check if medical term itself is vague
+                        if any(vague_kw in med_lower for vague_kw in vague_keywords):
+                            vague_medical_terms.add(med_term)
+                        else:
+                            # Check if corresponding patient_friendly term is vague
+                            for g in all_guidelines_to_check:
+                                structured = self._get_structured_oldcarts(g)
+                                element_data = structured.get(oldcarts_element, {})
+                                if isinstance(element_data, dict):
+                                    includes = element_data.get('includes', [])
+                                    for t in includes:
+                                        if isinstance(t, dict):
+                                            med = t.get('medical', '')
+                                            pf = t.get('patient_friendly', '')
+                                            if med and med.strip().lower() == med_lower:
+                                                # Check if anatomical_type indicates vague (location-level check)
+                                                anatomical_type = self.medical_rule_engine._get_anatomical_type_from_guideline(g)
+                                                # anatomical_type is at the location level, check if it's vague
+                                                if anatomical_type and anatomical_type.lower() in ['vague', 'diffuse']:
+                                                    vague_medical_terms.add(med_term)
+                                                    break
+                                                # Also check patient_friendly term for vague keywords
+                                                if pf and any(vague_kw in pf.lower() for vague_kw in vague_keywords):
+                                                    vague_medical_terms.add(med_term)
+                                                    break
+                    
+                    if vague_medical_terms:
+                        # Remove vague terms from missing array
+                        unique_medical_terms = [t for t in unique_medical_terms if t not in vague_medical_terms]
+                        self._capture_debug(f"[Location Analysis] 🔍 STEP 4: Filtered out {len(vague_medical_terms)} vague terms (patient provided specific location): {list(vague_medical_terms)}")
+                        self._capture_debug(f"[Location Analysis] 🔍 STEP 4: After filtering vague terms: {len(unique_medical_terms)} medical terms: {unique_medical_terms}")
+                
                 # STEP 5: Rank missing terms by FAISS scores and take top 5
                 # Map medical terms to patient_friendly terms, get their FAISS scores, sort, and take top 5
                 if faiss_scores and unique_medical_terms:
@@ -4278,6 +4321,10 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         terms_to_use = patient_friendly_terms[:5]
         options_list = ", ".join(terms_to_use)
         
+        # Log exactly what terms are being sent to LLM
+        self._capture_debug(f"[Clarification] 📤 Sending {len(terms_to_use)} patient-friendly terms to LLM: {terms_to_use}")
+        self._capture_debug(f"[Clarification] 📤 Options list: {options_list}")
+        
         if oldcarts_element == 'location':
             if satisfied_context:
                 # Context: Patient said something that matches multiple locations, need to disambiguate
@@ -4319,9 +4366,13 @@ We need to clarify the location. Here are the ONLY possible locations from the m
 
 {self.LLM_CLARIFICATION_LOCATION_RULES}
 
+CRITICAL: You MUST use ONLY the terms from this list: {options_list}
+DO NOT use any other location terms, even if mentioned in conversation context.
+DO NOT use terms like "right upper quadrant" unless it appears in the list above.
+
 EXAMPLE of correct format: "{example_question}"
 
-Generate a clarification question using EXACTLY this format with the terms provided above. The question MUST include at least 3-4 specific options from the list."""
+Generate a clarification question using EXACTLY this format with ONLY the terms provided above. The question MUST include at least 3-4 specific options from the list."""
         else:
             # Build example with actual terms (avoid generic "Can you be more specific?")
             if len(terms_to_use) >= 4:
@@ -4366,6 +4417,10 @@ Generate a clarification question using EXACTLY this format with the terms provi
         terms_to_use = patient_friendly_terms[:5]  # Use same terms we sent to LLM
         has_term = any(term.lower() in response_lower for term in terms_to_use)
         
+        # Log what was received
+        self._capture_debug(f"[Clarification] 📥 LLM response: '{cleaned_response}'")
+        self._capture_debug(f"[Clarification] ✅ Validating against expected terms: {terms_to_use}")
+        
         if not has_term:
             # Check if it's just a generic question without terms
             generic_patterns = [
@@ -4377,6 +4432,55 @@ Generate a clarification question using EXACTLY this format with the terms provi
             is_generic = any(pattern in response_lower for pattern in generic_patterns)
             if is_generic:
                 raise ValueError(f"LLM generated generic question without missing terms: '{cleaned_response}'. Expected question with terms from: {terms_to_use}")
+        
+        # Stricter validation: Check if response contains terms NOT in the provided list
+        # This catches cases where LLM uses terms from conversation context that were already filtered out
+        if oldcarts_element == 'location':
+            # Extract all potential location phrases from the response (2-4 word phrases)
+            response_words = cleaned_response.lower().split()
+            invalid_phrases = []
+            
+            # Check 2-4 word phrases that might be location terms
+            for phrase_length in [4, 3, 2]:
+                for i in range(len(response_words) - phrase_length + 1):
+                    phrase = " ".join(response_words[i:i+phrase_length])
+                    
+                    # Check if this phrase matches any of our provided terms (allowing for partial matches)
+                    matches_provided = False
+                    for provided_term in terms_to_use:
+                        provided_lower = provided_term.lower()
+                        # Check if phrase is contained in provided term or vice versa
+                        if phrase in provided_lower or provided_lower in phrase:
+                            matches_provided = True
+                            break
+                        # Also check if significant words overlap (for multi-word phrases)
+                        if phrase_length >= 2:
+                            phrase_words = set(phrase.split())
+                            provided_words = set(provided_lower.split())
+                            # If 2+ words overlap, likely a match
+                            if len(phrase_words & provided_words) >= 2:
+                                matches_provided = True
+                                break
+                    
+                    # If phrase doesn't match any provided term, check if it looks like a location term
+                    if not matches_provided:
+                        # Check if it contains location-like words (common anatomical terms)
+                        location_indicators = ['upper', 'lower', 'left', 'right', 'quadrant', 'side', 'abdomen', 'belly', 
+                                             'groin', 'ribs', 'breastbone', 'chest', 'back', 'neck', 'head', 'arm', 
+                                             'leg', 'foot', 'hand', 'shoulder', 'hip', 'knee', 'elbow', 'wrist', 
+                                             'ankle', 'thigh', 'calf', 'forearm', 'epigastric', 'periumbilical', 
+                                             'rectal', 'diffuse', 'localized']
+                        if any(indicator in phrase for indicator in location_indicators):
+                            # This looks like a location term but doesn't match any provided term
+                            invalid_phrases.append(phrase)
+            
+            if invalid_phrases:
+                # Remove duplicates and filter out very short phrases (likely false positives)
+                invalid_phrases = [p for p in set(invalid_phrases) if len(p.split()) >= 2]
+                if invalid_phrases:
+                    self._capture_debug(f"[Clarification] ❌ ERROR: LLM used invalid location terms not in provided list: {invalid_phrases}")
+                    self._capture_debug(f"[Clarification] ❌ Expected only these terms: {terms_to_use}")
+                    raise ValueError(f"LLM generated question with invalid location terms: {invalid_phrases}. Expected question using ONLY these terms: {terms_to_use}")
         
         return cleaned_response
     
