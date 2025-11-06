@@ -3863,13 +3863,18 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 if not patient_components:
                     patient_components = self.medical_rule_engine._extract_anatomical_components(answer_lower)
                 
-                # Get unsatisfied patient_friendly terms
+                # Get unsatisfied patient_friendly terms (all terms that weren't satisfied)
                 unsatisfied_pf_terms = [t for t in all_includes if t.lower() not in satisfied_terms]
                 
-                # Map unsatisfied patient_friendly terms back to medical terms
+                self._capture_debug(f"[Location Analysis] 🔍 STEP 4: Found {len(unsatisfied_pf_terms)} unsatisfied patient_friendly terms")
+                
+                # Map ALL unsatisfied patient_friendly terms back to medical terms
+                # Collect from ALL guidelines (not just first match) to ensure we get all medical terms
                 unsatisfied_medical_terms = []
+                seen_pf_med_pairs = set()  # Track (pf_term, medical_term) to avoid duplicates
+                
                 for pf_term in unsatisfied_pf_terms:
-                    # Find medical term corresponding to this patient_friendly term
+                    # Find medical term(s) corresponding to this patient_friendly term from ALL guidelines
                     for g in all_guidelines_to_check:
                         structured = self._get_structured_oldcarts(g)
                         element_data = structured.get(oldcarts_element, {})
@@ -3880,10 +3885,18 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                                     med = t.get('medical', '')
                                     pf = t.get('patient_friendly', '')
                                     if pf and pf.strip().lower() == pf_term.lower() and med:
-                                        unsatisfied_medical_terms.append(med.strip())
-                                        break
-                            if med:
-                                break
+                                        med_stripped = med.strip()
+                                        pair_key = (pf_term.lower(), med_stripped.lower())
+                                        if pair_key not in seen_pf_med_pairs:
+                                            unsatisfied_medical_terms.append(med_stripped)
+                                            seen_pf_med_pairs.add(pair_key)
+                                elif isinstance(t, str):
+                                    # Plain string - treat as both medical and patient_friendly
+                                    if t.strip().lower() == pf_term.lower():
+                                        pair_key = (pf_term.lower(), t.strip().lower())
+                                        if pair_key not in seen_pf_med_pairs:
+                                            unsatisfied_medical_terms.append(t.strip())
+                                            seen_pf_med_pairs.add(pair_key)
                 
                 self._capture_debug(f"[Location Analysis] 🔍 STEP 4: Extracted {len(unsatisfied_medical_terms)} medical terms from unsatisfied patient_friendly terms")
                 
