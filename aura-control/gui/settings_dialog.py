@@ -21,47 +21,112 @@ class WiFiScanThread(QThread):
     
     def run(self):
         """Scan for available WiFi networks"""
+        import time
+        
         try:
-            # Try to trigger a fresh scan (may require permissions)
-            # This is optional - if it fails, we'll use cached results
-            scan_result = subprocess.run(
-                ['nmcli', 'device', 'wifi', 'rescan'],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            
-            # If rescan succeeded, wait for scan to complete
-            if scan_result.returncode == 0:
-                import time
-                time.sleep(3)  # Wait for scan to complete
-            
-            # List all available networks (this doesn't require special permissions)
-            # This shows all networks NetworkManager knows about, including cached ones
-            result = subprocess.run(
-                ['nmcli', '-t', '-f', 'SSID,SIGNAL,SECURITY,IN-USE', 'device', 'wifi', 'list'],
-                capture_output=True,
-                text=True,
-                timeout=20
-            )
-            
-            # If that fails, try with explicit --rescan no flag
-            if result.returncode != 0:
-                result = subprocess.run(
-                    ['nmcli', '-t', '-f', 'SSID,SIGNAL,SECURITY,IN-USE', 'device', 'wifi', 'list', '--rescan', 'no'],
+            # Strategy 1: Try to trigger a fresh scan with all available methods
+            # Method 1a: Standard rescan
+            try:
+                scan_result = subprocess.run(
+                    ['nmcli', 'device', 'wifi', 'rescan'],
                     capture_output=True,
                     text=True,
-                    timeout=15
+                    timeout=10
                 )
+                if scan_result.returncode == 0:
+                    time.sleep(5)  # Increased wait time for scan to complete
+            except:
+                pass  # Continue even if rescan fails
             
-            if result.returncode != 0:
-                self.scan_error.emit(f"Scan failed: {result.stderr}")
+            # Method 1b: Force rescan on all WiFi devices
+            try:
+                # Get list of WiFi devices first
+                device_result = subprocess.run(
+                    ['nmcli', '-t', '-f', 'DEVICE,TYPE', 'device', 'status'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if device_result.returncode == 0:
+                    for line in device_result.stdout.strip().split('\n'):
+                        if ':wifi' in line.lower():
+                            device = line.split(':')[0]
+                            if device:
+                                subprocess.run(
+                                    ['nmcli', 'device', 'wifi', 'rescan', 'ifname', device],
+                                    capture_output=True,
+                                    timeout=5
+                                )
+                    time.sleep(5)  # Wait for all scans to complete
+            except:
+                pass  # Continue even if device-specific rescan fails
+            
+            # Strategy 2: Get networks with multiple approaches to ensure we get all
+            all_networks = []
+            
+            # Approach 2a: Standard list (includes recently scanned networks)
+            try:
+                result = subprocess.run(
+                    ['nmcli', '-t', '-f', 'SSID,SIGNAL,SECURITY,IN-USE', 'device', 'wifi', 'list'],
+                    capture_output=True,
+                    text=True,
+                    timeout=25
+                )
+                if result.returncode == 0 and result.stdout:
+                    all_networks.extend(result.stdout.strip().split('\n'))
+            except:
+                pass
+            
+            # Approach 2b: Force fresh scan and list
+            try:
+                result_fresh = subprocess.run(
+                    ['nmcli', '-t', '-f', 'SSID,SIGNAL,SECURITY,IN-USE', 'device', 'wifi', 'list', '--rescan', 'yes'],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                if result_fresh.returncode == 0 and result_fresh.stdout:
+                    all_networks.extend(result_fresh.stdout.strip().split('\n'))
+            except:
+                pass
+            
+            # Approach 2c: Fallback - use cached results if fresh scan fails
+            if not all_networks:
+                try:
+                    result_cached = subprocess.run(
+                        ['nmcli', '-t', '-f', 'SSID,SIGNAL,SECURITY,IN-USE', 'device', 'wifi', 'list', '--rescan', 'no'],
+                        capture_output=True,
+                        text=True,
+                        timeout=15
+                    )
+                    if result_cached.returncode == 0 and result_cached.stdout:
+                        all_networks.extend(result_cached.stdout.strip().split('\n'))
+                except:
+                    pass
+            
+            # If still no networks, try alternative format
+            if not all_networks:
+                try:
+                    result_alt = subprocess.run(
+                        ['nmcli', '-t', '-f', 'SSID,SIGNAL,SECURITY', 'device', 'wifi', 'list'],
+                        capture_output=True,
+                        text=True,
+                        timeout=20
+                    )
+                    if result_alt.returncode == 0 and result_alt.stdout:
+                        all_networks.extend(result_alt.stdout.strip().split('\n'))
+                except:
+                    pass
+            
+            if not all_networks:
+                self.scan_error.emit("No WiFi networks found. Check WiFi is enabled and try again.")
                 return
             
+            # Parse all network entries
             networks = []
             seen_ssids = set()  # Track seen SSIDs to avoid duplicates
             
-            for line in result.stdout.strip().split('\n'):
+            for line in all_networks:
                 if not line or ':' not in line:
                     continue
                 
@@ -84,6 +149,8 @@ class WiFiScanThread(QThread):
                 
                 try:
                     signal_int = int(signal) if signal.isdigit() else 0
+                    # Include ALL networks, even with weak signal (0% or low)
+                    # This ensures we show all available networks
                     seen_ssids.add(ssid)
                     
                     networks.append({
@@ -97,8 +164,14 @@ class WiFiScanThread(QThread):
                     continue
             
             # Sort by signal strength (strongest first), then by SSID
+            # Include all networks regardless of signal strength
             networks.sort(key=lambda x: (x['signal'], x['ssid']), reverse=True)
-            self.networks_found.emit(networks)
+            
+            if networks:
+                self.networks_found.emit(networks)
+            else:
+                self.scan_error.emit("Found network entries but none were valid. Check WiFi permissions.")
+            
             
         except subprocess.TimeoutExpired:
             self.scan_error.emit("WiFi scan timed out")
@@ -577,20 +650,31 @@ class SettingsDialog(QDialog):
     
     def scan_wifi(self):
         """Scan for available WiFi networks"""
-        self.log_status("Scanning for WiFi networks...")
+        self.log_status("Scanning for WiFi networks (this may take 10-15 seconds)...")
         self.scan_wifi_btn.setEnabled(False)
+        self.scan_wifi_btn.setText("🔄 Scanning...")
         self.wifi_list.clear()
+        self.wifi_list.addItem("Scanning... Please wait...")
         
         self.wifi_scan_thread = WiFiScanThread()
         self.wifi_scan_thread.networks_found.connect(self.on_wifi_networks_found)
         self.wifi_scan_thread.scan_error.connect(self.on_wifi_scan_error)
-        self.wifi_scan_thread.finished.connect(lambda: self.scan_wifi_btn.setEnabled(True))
+        self.wifi_scan_thread.finished.connect(lambda: (
+            self.scan_wifi_btn.setEnabled(True),
+            self.scan_wifi_btn.setText("🔍 Scan Networks")
+        ))
         self.wifi_scan_thread.start()
     
     def on_wifi_networks_found(self, networks):
         """Handle WiFi networks found"""
-        self.log_status(f"Found {len(networks)} networks")
-        self.wifi_list.clear()
+        self.wifi_list.clear()  # Clear the "Scanning..." message
+        
+        if not networks:
+            self.log_status("No networks found. Make sure WiFi is enabled.")
+            self.wifi_list.addItem("No networks found")
+            return
+        
+        self.log_status(f"Found {len(networks)} network(s)")
         
         for network in networks:
             ssid = network['ssid']
@@ -598,10 +682,13 @@ class SettingsDialog(QDialog):
             security = network['security']
             connected = network.get('connected', False)
             
-            item_text = f"{ssid} ({signal}%)"
+            # Show signal strength, even if 0% (might be a hidden network or weak signal)
+            signal_display = f"{signal}%" if signal > 0 else "weak"
+            item_text = f"{ssid} ({signal_display})"
+            
             if connected:
                 item_text = f"● {item_text} (Connected)"
-            if security and security != "Open":
+            if security and security != "Open" and security != "--":
                 item_text += f" 🔒 {security}"
             
             item = QListWidgetItem(item_text)
@@ -609,9 +696,7 @@ class SettingsDialog(QDialog):
             self.wifi_list.addItem(item)
         
         if networks:
-            self.log_status("Select a network to connect")
-        else:
-            self.log_status("No networks found")
+            self.log_status(f"Select a network to connect ({len(networks)} available)")
     
     def on_wifi_scan_error(self, error):
         """Handle WiFi scan error"""

@@ -49,12 +49,12 @@ except ImportError as e:
     NAVIGATOR_AVAILABLE = False
     print(f"[Clinician] ⚠️ Advanced Medical Navigator not available: {e}")
 
-# Check HYBRID_ON toggle
-USE_HYBRID_NAVIGATOR = os.environ.get('HYBRID_ON', 'false').lower() == 'true'
-if USE_HYBRID_NAVIGATOR:
-    print("[Clinician] 🔀 HYBRID_ON=true - Using Advanced Medical Navigator (pure LLM)")
+# Check USE_MEDICAL_NAVIGATOR toggle
+USE_MEDICAL_NAVIGATOR = os.environ.get('USE_MEDICAL_NAVIGATOR', 'false').lower() == 'true'
+if USE_MEDICAL_NAVIGATOR:
+    print("[Clinician] 🔀 USE_MEDICAL_NAVIGATOR=true - Using Advanced Medical Navigator (pure LLM)")
 else:
-    print("[Clinician] 🔀 HYBRID_ON=false - Using Adaptive Diagnostic Engine (default)")
+    print("[Clinician] 🔀 USE_MEDICAL_NAVIGATOR=false - Using Adaptive Diagnostic Engine (default)")
 
 
 class RAGEmbeddingAPI:
@@ -212,8 +212,11 @@ class ClinicianSession:
         self.adaptive_engine = None
         self.medical_navigator = None
         
-        # Initialize based on HYBRID_ON toggle
-        if USE_HYBRID_NAVIGATOR and NAVIGATOR_AVAILABLE:
+        # Initialize based on USE_MEDICAL_NAVIGATOR toggle
+        # Use local variable to avoid UnboundLocalError (don't reassign global)
+        use_navigator = USE_MEDICAL_NAVIGATOR and NAVIGATOR_AVAILABLE
+        
+        if use_navigator:
             # Use Advanced Medical Navigator (hybrid LLM/RAG/FAISS)
             try:
                 # Get medical rule engine and embedding model for RAG/FAISS
@@ -239,9 +242,9 @@ class ClinicianSession:
                 print(f"[Clinician] 📍 Error location: {traceback.format_exc()}")
                 self.medical_navigator = None
                 # Fallback to adaptive engine
-                USE_HYBRID_NAVIGATOR = False
+                use_navigator = False
         
-        if not USE_HYBRID_NAVIGATOR and ADAPTIVE_ENGINE_AVAILABLE:
+        if not use_navigator and ADAPTIVE_ENGINE_AVAILABLE:
             # Use Adaptive Diagnostic Engine (default)
             try:
                 # Use RAG container's embedding service (no local model needed)
@@ -263,8 +266,8 @@ class ClinicianSession:
                 self.adaptive_engine = None  # Explicitly set to None on failure
         
         # Assessment mode selection
-        self.use_adaptive_engine = not USE_HYBRID_NAVIGATOR  # Use adaptive engine if navigator not enabled
-        self.use_medical_navigator = USE_HYBRID_NAVIGATOR and self.medical_navigator is not None
+        self.use_adaptive_engine = not use_navigator  # Use adaptive engine if navigator not enabled
+        self.use_medical_navigator = use_navigator and self.medical_navigator is not None
 
         # Medical knowledge state
         self.last_medical_query = None
@@ -483,14 +486,14 @@ class ClinicianSession:
     def _handle_symptom_assessment(self, symptom_query: str) -> str:
         """
         Handle symptom assessment using either:
-        1. Advanced Medical Navigator (if HYBRID_ON=true) - pure LLM-based conversations
+        1. Advanced Medical Navigator (if USE_MEDICAL_NAVIGATOR=true) - pure LLM-based conversations
         2. Adaptive Diagnostic Engine (default) - guideline-based questioning
         """
         print(f"[Clinician] 🩺 Handling symptom assessment: {symptom_query}")
 
         # Use Medical Navigator if enabled
         if self.use_medical_navigator and self.medical_navigator:
-            print(f"[Clinician] 🔀 Using Advanced Medical Navigator (HYBRID_ON=true)")
+            print(f"[Clinician] 🔀 Using Advanced Medical Navigator (USE_MEDICAL_NAVIGATOR=true)")
             try:
                 response = self.medical_navigator.process_message(
                     session_id=self.session_id,

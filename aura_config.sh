@@ -87,8 +87,8 @@ show_all_settings() {
         echo "  Available: GI, CARDIO, DERM, GU, GYN, MSK, NEURO, PULMONARY, RENAL"
         
         # Show Advanced Medical Navigator toggle status
-        local hybrid_on=$(get_config_value "HYBRID_ON")
-        if [ "$hybrid_on" == "true" ]; then
+        local navigator_on=$(get_config_value "USE_MEDICAL_NAVIGATOR")
+        if [ "$navigator_on" == "true" ]; then
             echo -e "  ${CYAN}🔀 Advanced Navigator: ${GREEN}ENABLED${NC} (pure LLM mode)"
         else
             echo -e "  ${CYAN}🔀 Advanced Navigator: ${YELLOW}DISABLED${NC} (using Adaptive Diagnostic Engine)"
@@ -283,11 +283,11 @@ toggle_ml_learning() {
     show_restart_message
 }
 
-toggle_hybrid_assistant() {
+toggle_medical_navigator() {
     local action=$1
     
     if [ "$action" == "on" ]; then
-        set_config_value "HYBRID_ON" "true"
+        set_config_value "USE_MEDICAL_NAVIGATOR" "true"
         echo ""
         echo -e "${GREEN}✅ Advanced Medical Navigator ENABLED${NC}"
         echo ""
@@ -304,7 +304,7 @@ toggle_hybrid_assistant() {
         echo "  • Designed to grow with features over time"
         echo ""
     else
-        set_config_value "HYBRID_ON" "false"
+        set_config_value "USE_MEDICAL_NAVIGATOR" "false"
         echo ""
         echo -e "${GREEN}✅ Advanced Medical Navigator DISABLED${NC}"
         echo ""
@@ -942,7 +942,7 @@ main_menu() {
         echo " 10) Configure GitHub OTA updates"
         echo " 11) Configure NHS/FHIR credentials"
         echo " 12) Toggle ML Learning (on/off)"
-        echo " 13) Toggle Hybrid Assistant (on/off)"
+        echo " 13) Toggle Medical Navigator (on/off)"
         echo "  a) Edit .env file directly"
         echo "  b) Restart Docker containers"
         echo "  0) Exit"
@@ -1054,7 +1054,7 @@ main_menu() {
                 ;;
             13)
                 # Show current state and ask what to do
-                local current=$(get_config_value 'HYBRID_ON')
+                local current=$(get_config_value 'USE_MEDICAL_NAVIGATOR')
                 echo ""
                 if [ "$current" == "true" ]; then
                     echo "Advanced Medical Navigator is currently: ENABLED"
@@ -1063,7 +1063,7 @@ main_menu() {
                     echo ""
                     read -p "Switch to Adaptive Diagnostic Engine? (y/n): " answer
                     if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
-                        toggle_hybrid_assistant off
+                        toggle_medical_navigator off
                     fi
                 else
                     echo "Advanced Medical Navigator is currently: DISABLED"
@@ -1072,7 +1072,7 @@ main_menu() {
                     echo ""
                     read -p "Enable Advanced Medical Navigator? (y/n): " answer
                     if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
-                        toggle_hybrid_assistant on
+                        toggle_medical_navigator on
                     fi
                 fi
                 echo ""
@@ -1137,12 +1137,12 @@ case "${1:-}" in
                 ;;
         esac
         ;;
-    hybrid)
+    navigator|medical-navigator)
         case "${2:-}" in
-            on|enable) toggle_hybrid_assistant on ;;
-            off|disable) toggle_hybrid_assistant off ;;
+            on|enable) toggle_medical_navigator on ;;
+            off|disable) toggle_medical_navigator off ;;
             *) 
-                echo "Usage: $0 hybrid [on|off]"
+                echo "Usage: $0 navigator [on|off]"
                 echo "  on  - Enable Advanced Medical Navigator (pure LLM mode)"
                 echo "  off - Disable Advanced Navigator (use Adaptive Diagnostic Engine)"
                 ;;
