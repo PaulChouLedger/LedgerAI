@@ -3159,7 +3159,109 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         # Re-rank and pool guidelines
         self._rerank_and_pool_guidelines(all_guidelines, previous_active)
         
-        # Check if clarification needed
+        # Check if this is an answer to a clarifying question
+        is_clarifying_answer = False
+        missing_patient_friendly_terms = []  # Patient_friendly terms from the clarifying question
+        
+        # Check if last question was a clarification
+        for item in reversed(self.conversation_history):
+            if item.get('type') == 'question' and item.get('is_clarification') and item.get('oldcarts') == oldcarts_element:
+                is_clarifying_answer = True
+                # Get missing medical terms from the clarifying question (stored in conversation history)
+                missing_medical_terms = item.get('missing_terms', [])
+                self._capture_debug(f"[Clarification Answer] 🔍 Detected clarifying question answer. Missing medical terms: {missing_medical_terms}")
+                
+                # Map missing medical terms back to patient_friendly terms from remaining guidelines
+                all_guidelines_for_clarification = self.active_guidelines + self.reserve_pool
+                for g in all_guidelines_for_clarification:
+                    structured = self._get_structured_oldcarts(g)
+                    element_data = structured.get(oldcarts_element, {})
+                    if isinstance(element_data, dict):
+                        includes = element_data.get('includes', [])
+                        for t in includes:
+                            if isinstance(t, dict):
+                                med = t.get('medical', '')
+                                pf = t.get('patient_friendly', '')
+                                if med and med.strip().lower() in [mt.lower() for mt in missing_medical_terms]:
+                                    if pf and pf.strip() and pf.strip() not in missing_patient_friendly_terms:
+                                        missing_patient_friendly_terms.append(pf.strip())
+                            elif isinstance(t, str):
+                                # Plain string - check if it matches any missing medical term
+                                if t.strip().lower() in [mt.lower() for mt in missing_medical_terms]:
+                                    if t.strip() not in missing_patient_friendly_terms:
+                                        missing_patient_friendly_terms.append(t.strip())
+                
+                self._capture_debug(f"[Clarification Answer] 🔍 Mapped to patient_friendly terms: {missing_patient_friendly_terms}")
+                break
+        
+        # If this is a clarifying answer, run FAISS again on missing patient_friendly terms
+        if is_clarifying_answer and missing_patient_friendly_terms and self.medical_rule_engine:
+            self._capture_debug(f"[Clarification Answer] 🔄 Running FAISS on clarifying answer against {len(missing_patient_friendly_terms)} patient_friendly terms")
+            
+            # Get all condition names from remaining guidelines
+            all_condition_names = set()
+            for g in all_guidelines:
+                condition_name = g.get('data', {}).get('condition', g.get('name', ''))
+                if condition_name:
+                    all_condition_names.add(condition_name)
+            
+            # Run FAISS on user response against missing patient_friendly terms
+            # This will find which patient_friendly terms match the user's clarifying answer
+            faiss_clarification_matches = self.medical_rule_engine.find_matching_terms_faiss(
+                answer, oldcarts_element, threshold=self.FAISS_SEMANTIC_THRESHOLD,
+                return_scores=True, active_condition_names=all_condition_names
+            )
+            
+            # Get FAISS scores for clarification matching
+            clarification_faiss_scores = {}
+            if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
+                raw_faiss_scores = self.medical_rule_engine._last_faiss_scores
+                # Filter to only include missing patient_friendly terms
+                clarification_faiss_scores = {term: score for term, score in raw_faiss_scores.items()
+                                             if term.lower() in [t.lower() for t in missing_patient_friendly_terms]}
+            
+            self._capture_debug(f"[Clarification Answer] 🔍 FAISS matches: {faiss_clarification_matches}")
+            self._capture_debug(f"[Clarification Answer] 🔍 FAISS scores: {clarification_faiss_scores}")
+            
+            # Update guideline scores based on clarification FAISS matches
+            # Use the highest matching score for each guideline
+            for g in all_guidelines:
+                structured = self._get_structured_oldcarts(g)
+                element_data = structured.get(oldcarts_element, {})
+                if isinstance(element_data, dict):
+                    includes = element_data.get('includes', [])
+                    max_clarification_score = 0.0
+                    
+                    # Check which patient_friendly terms from this guideline matched
+                    for t in includes:
+                        if isinstance(t, dict):
+                            pf = t.get('patient_friendly', '')
+                        elif isinstance(t, str):
+                            pf = t
+                        else:
+                            continue
+                        
+                        if pf and pf.strip().lower() in [m.lower() for m in faiss_clarification_matches]:
+                            score = clarification_faiss_scores.get(pf.strip(), 
+                                                                    clarification_faiss_scores.get(pf.strip().lower(), 0.0))
+                            max_clarification_score = max(max_clarification_score, score)
+                    
+                    # Update score using clarification match
+                    if max_clarification_score > 0:
+                        old_score = g.get('score', 0.5)
+                        category = self.current_category or 'gastrointestinal'
+                        element_weight = self.get_oldcarts_element_weight(category, oldcarts_element)
+                        
+                        # Use clarification score to update (similar to initial scoring)
+                        new_score = (old_score * (1.0 - element_weight * 0.5)) + (max_clarification_score * element_weight * 0.5)
+                        g['score'] = new_score
+                        condition_name = g.get('data', {}).get('condition', g.get('name', 'Unknown'))
+                        self._capture_debug(f"[Clarification Answer] 📊 {condition_name}: clarification_score={max_clarification_score:.3f}, old={old_score:.3f}, new={new_score:.3f}")
+            
+            # Re-rank after clarification scoring
+            self._rerank_and_pool_guidelines(all_guidelines, previous_active)
+        
+        # Check if further clarification needed
         clarification_count = sum(1 for item in self.conversation_history 
                                  if item.get('oldcarts') == oldcarts_element 
                                  and item.get('is_clarification'))
@@ -3183,7 +3285,8 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                         'type': 'question',
                         'question': question,
                         'oldcarts': oldcarts_element,
-                        'is_clarification': True
+                        'is_clarification': True,
+                        'missing_terms': missing_terms  # Store missing medical terms for later use
                     })
                     return {
                         'success': True,
@@ -3365,8 +3468,12 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         """Analyze what information is missing using unified function with FAISS semantic matching
         Returns: (missing_terms, satisfied_terms)
         
-        IMPORTANT: Consider ALL guidelines (active + reserve) to properly detect satisfied terms.
-        Patient answers should be checked against all guidelines, not just top 5.
+        For location element, follows specific flow:
+        1. Apply anatomical mismatch using anatomical opposites from medical rules (filter guidelines)
+        2. Raw semantic match to patient_friendly terms (FAISS)
+        3. Use scores to rank remaining guidelines
+        4. Extract medical terms, remove duplicates, filter with anatomical mismatch
+        5. Generate missing terms array for LLM clarifying question
         """
         # Get all guidelines (active + reserve) to check against all possible terms
         all_guidelines_to_check = self.active_guidelines + self.reserve_pool
@@ -3374,11 +3481,28 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         if not all_guidelines_to_check:
             return [], set()
         
-        # Collect all includes terms from ALL guidelines (not just active)
-        # This ensures we detect when patient answer matches terms from reserve pool
-        # Track which guideline each term comes from
-        all_includes = set()
-        term_to_guidelines = {}  # Map term -> list of guideline names
+        # STEP 1: For location, apply anatomical mismatch FIRST to filter guidelines
+        if oldcarts_element == 'location' and self.medical_rule_engine:
+            # Extract patient components for anatomical filtering
+            answer_lower = answer.lower()
+            patient_components = self.medical_rule_engine._extract_anatomical_components(answer_lower)
+            
+            if patient_components:
+                # Filter guidelines by anatomical compatibility
+                organ_system = self.CATEGORY_TO_SYSTEM.get(self.current_category or 'gastrointestinal', 'GI')
+                filtered_guidelines = self.medical_rule_engine.filter_guidelines_by_location(
+                    answer, all_guidelines_to_check, organ_system
+                )
+                self._capture_debug(f"[Location Analysis] 🎯 STEP 1: Anatomical filtering: {len(all_guidelines_to_check)} → {len(filtered_guidelines)} guidelines")
+                all_guidelines_to_check = filtered_guidelines
+        
+        # STEP 2: Collect patient_friendly terms from filtered guidelines (for FAISS matching)
+        # Also collect medical terms for later extraction (steps 4-5)
+        all_includes_patient_friendly = set()  # Patient-friendly terms for FAISS matching
+        all_medical_terms = []  # Medical terms array (will deduplicate in step 4)
+        term_to_guidelines = {}  # Map patient_friendly term -> list of guideline names
+        medical_to_patient_friendly = {}  # Map medical term -> patient_friendly term
+        
         for g in all_guidelines_to_check:
             condition_name = g.get('data', {}).get('condition', g.get('name', 'Unknown'))
             structured = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
@@ -3387,22 +3511,32 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 includes = element_data.get('includes', [])
                 for t in includes:
                     if isinstance(t, dict):
-                        med = t.get('medical')
-                        if isinstance(med, str) and med.strip():
-                            term_key = med.strip().lower()
-                            all_includes.add(term_key)
-                            if term_key not in term_to_guidelines:
-                                term_to_guidelines[term_key] = []
-                            term_to_guidelines[term_key].append(condition_name)
+                        med = t.get('medical', '')
+                        pf = t.get('patient_friendly', '')
+                        if isinstance(pf, str) and pf.strip():
+                            pf_key = pf.strip().lower()
+                            all_includes_patient_friendly.add(pf.strip())  # Keep original case
+                            if pf_key not in term_to_guidelines:
+                                term_to_guidelines[pf_key] = []
+                            term_to_guidelines[pf_key].append(condition_name)
+                            if isinstance(med, str) and med.strip():
+                                all_medical_terms.append(med.strip())  # Keep original case
+                                medical_to_patient_friendly[med.strip().lower()] = pf.strip()
                     elif isinstance(t, str):
+                        # Plain string - treat as both medical and patient_friendly
                         term_key = t.strip().lower()
-                        all_includes.add(term_key)
+                        all_includes_patient_friendly.add(t.strip())
+                        all_medical_terms.append(t.strip())
+                        medical_to_patient_friendly[term_key] = t.strip()
                         if term_key not in term_to_guidelines:
                             term_to_guidelines[term_key] = []
                         term_to_guidelines[term_key].append(condition_name)
         
-        # Also collect active-only terms for missing terms calculation
-        active_includes = set()
+        # Use patient_friendly terms for FAISS matching
+        all_includes = all_includes_patient_friendly
+        
+        # Also collect active-only medical terms for missing terms calculation
+        active_medical_terms = []
         for g in self.active_guidelines:
             structured = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
             element_data = structured.get(oldcarts_element, {})
@@ -3412,88 +3546,50 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                     if isinstance(t, dict):
                         med = t.get('medical')
                         if isinstance(med, str) and med.strip():
-                            active_includes.add(med.strip().lower())
+                            active_medical_terms.append(med.strip())
                     elif isinstance(t, str):
-                        active_includes.add(t.strip().lower())
+                        active_medical_terms.append(t.strip())
         
-        self._capture_debug(f"[Location Analysis] 📍 Checking satisfaction against ALL {len(all_guidelines_to_check)} guidelines (active + reserve)")
-        self._capture_debug(f"[Location Analysis] 📍 All includes terms from {len(all_guidelines_to_check)} total guidelines: {sorted(all_includes)}")
-        self._capture_debug(f"[Location Analysis] 📍 Active-only terms from {len(self.active_guidelines)} guidelines: {sorted(active_includes)}")
+        self._capture_debug(f"[Location Analysis] 📍 Checking satisfaction against {len(all_guidelines_to_check)} guidelines (after anatomical filtering)")
+        self._capture_debug(f"[Location Analysis] 📍 Patient_friendly terms from {len(all_guidelines_to_check)} guidelines: {sorted(all_includes)}")
+        self._capture_debug(f"[Location Analysis] 📍 Medical terms from {len(all_guidelines_to_check)} guidelines: {sorted(set(t.lower() for t in all_medical_terms))}")
         self._capture_debug(f"[Location Analysis] 📝 Patient answer: '{answer}'")
         
         if not all_includes:
             self._capture_debug(f"[Location Analysis] ⚠️ No includes terms found for {oldcarts_element}")
             return []
         
-        # Use unified function to check which terms are satisfied
+        # STEP 2: Raw semantic match to patient_friendly terms (FAISS)
         satisfied_terms = set()
         answer_lower = answer.lower()
+        semantic_matches_set = set()
+        faiss_scores = {}
         
-        # OPTIMIZATION: Do FAISS semantic matching ONCE for all terms (expensive operation)
-        # Get ALL condition names (active + reserve) to check against all guidelines
+        # Get ALL condition names from filtered guidelines
         all_condition_names = set()
         for g in all_guidelines_to_check:
             condition_name = g.get('data', {}).get('condition', g.get('name', ''))
             if condition_name:
                 all_condition_names.add(condition_name)
         
-        semantic_matches_set = set()
-        faiss_scores = {}
-        patient_components = {}  # For location only
-        
+        # Use FAISS index to find patient_friendly term matches
         if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'find_matching_terms_faiss'):
             try:
-                # OPTIMIZATION: Single FAISS call for both matching AND normalization
-                # Check against ALL guidelines, not just active ones
-                # Use threshold=0.6 to match scoring behavior (patient_friendly matching uses semantic similarity)
+                # FAISS call returns patient_friendly terms (indexed terms are patient_friendly)
                 semantic_matches = self.medical_rule_engine.find_matching_terms_faiss(
                     answer, oldcarts_element, threshold=self.FAISS_SEMANTIC_THRESHOLD, 
                     return_scores=True, active_condition_names=all_condition_names
                 )
                 semantic_matches_set = set(t.lower() for t in semantic_matches)
                 
-                # DEBUG: Show what FAISS actually found
+                # Use FAISS scores directly (FAISS already computed semantic similarity on patient_friendly terms)
                 if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
                     raw_faiss_scores = self.medical_rule_engine._last_faiss_scores
-                    self._capture_debug(f"[Location Analysis] 🔍 FAISS found {len(semantic_matches)} matches above threshold: {semantic_matches}")
-                    self._capture_debug(f"[Location Analysis] 🔍 Raw FAISS scores (all): {raw_faiss_scores}")
-                
-                # Compute patient_friendly similarity scores for matched terms (same as scoring uses)
-                # This replaces raw FAISS scores with patient_friendly semantic matching scores
-                unified_scores = {}
-                if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
-                    raw_faiss_scores = self.medical_rule_engine._last_faiss_scores
-                    # For each matched term, compute unified similarity using a representative guideline
-                    for term, raw_score in raw_faiss_scores.items():
-                        if term.lower() not in all_includes:
-                            continue
-                        # Find a guideline that contains this term
-                        for g in all_guidelines_to_check:
-                            structured = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
-                            element_data = structured.get(oldcarts_element, {})
-                            if isinstance(element_data, dict):
-                                includes = element_data.get('includes', [])
-                                term_found = False
-                                for t in includes:
-                                    if isinstance(t, dict):
-                                        med = t.get('medical', '')
-                                        if med and med.strip().lower() == term.lower():
-                                            term_found = True
-                                            break
-                                    elif isinstance(t, str) and t.strip().lower() == term.lower():
-                                        term_found = True
-                                        break
-                                
-                                if term_found:
-                                    # All elements (including location): Match to patient_friendly terms
-                                    similarity = self._match_to_patient_friendly_terms(answer, element_data, oldcarts_element)
-                                    unified_scores[term] = similarity
-                                    break
-                
-                # Use patient_friendly similarity scores for display and matching
-                faiss_scores = unified_scores
-                if unified_scores:
-                    self._capture_debug(f"[Location Analysis] 🔍 Patient-friendly similarity scores (from {len(all_condition_names)} total conditions): {faiss_scores}")
+                    # Filter to only include terms that are in guidelines' includes (patient_friendly terms)
+                    faiss_scores = {term: score for term, score in raw_faiss_scores.items() 
+                                   if term.lower() in [t.lower() for t in all_includes]}
+                    self._capture_debug(f"[Location Analysis] 🔍 STEP 2: FAISS found {len(semantic_matches)} patient_friendly matches above threshold: {semantic_matches}")
+                    self._capture_debug(f"[Location Analysis] 🔍 FAISS similarity scores (patient_friendly terms): {faiss_scores}")
             except Exception as e:
                 self._capture_debug(f"[Location Analysis] ⚠️ FAISS error: {e}")
                 pass
@@ -3534,88 +3630,21 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 
                 term_components_cache[term] = components
         
-        # DEBUG: Show summary of FAISS matches and scores
-        self._capture_debug(f"[Location Analysis] 📊 FAISS Summary:")
-        self._capture_debug(f"[Location Analysis]   - semantic_matches_set ({len(semantic_matches_set)} terms): {sorted(semantic_matches_set)}")
-        self._capture_debug(f"[Location Analysis]   - faiss_scores ({len(faiss_scores)} terms): {dict(sorted(faiss_scores.items()))}")
-        if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
-            raw_scores = self.medical_rule_engine._last_faiss_scores
-            self._capture_debug(f"[Location Analysis]   - Raw FAISS scores ({len(raw_scores)} terms): {dict(sorted(raw_scores.items()))}")
-        
-        # Check each term using the same logic as unified function
-        # IMPORTANT: Check ALL terms (from all guidelines) to properly detect satisfied terms
-        # Missing terms should only include terms from ACTIVE guidelines that aren't satisfied
+        # STEP 3: Use FAISS scores to determine satisfied terms
+        # If term is in semantic_matches_set, it already passed the FAISS threshold
         for term in all_includes:
-            term_satisfied = False
-            match_reason = None
-            
-            # For location element, check anatomical mismatch BEFORE marking as satisfied
-            # OPTIMIZATION: Use pre-extracted components from cache
-            anatomical_mismatch = False
-            if oldcarts_element == 'location' and patient_components and self.medical_rule_engine:
-                condition_components = term_components_cache.get(term, {})
-                if condition_components:
-                    if self.medical_rule_engine._are_anatomical_opposites(patient_components, condition_components):
-                        anatomical_mismatch = True
-                        self._capture_debug(f"[Location Analysis]   ⚠️ '{term}' skipped: anatomical mismatch (patient: {patient_components} vs condition: {condition_components})")
-            
-            # Skip if anatomical mismatch detected
-            if anatomical_mismatch:
-                self._capture_debug(f"[Location Analysis]   ⚠️ '{term}' SKIPPED: anatomical mismatch")
-                continue
-            
-            # DEBUG: Start checking this term - show which guideline(s) it comes from
-            guideline_sources = term_to_guidelines.get(term, [])
-            if guideline_sources:
-                sources_str = ', '.join(guideline_sources)
-                self._capture_debug(f"[Location Analysis] 🔍 Checking term: '{term}' (patient answer: '{answer}') [from: {sources_str}]")
-            else:
-                self._capture_debug(f"[Location Analysis] 🔍 Checking term: '{term}' (patient answer: '{answer}') [source unknown]")
-            
-            # Check against FAISS semantic matches (only semantic similarity, no substring matching)
-            in_semantic_matches = term in semantic_matches_set
-            score = faiss_scores.get(term, None)
-            self._capture_debug(f"[Location Analysis]   Semantic check: in semantic_matches_set={in_semantic_matches}, score={score}")
-            
-            # DEBUG: Check raw FAISS scores to see actual scores
-            if hasattr(self.medical_rule_engine, '_last_faiss_scores'):
-                raw_faiss_scores = self.medical_rule_engine._last_faiss_scores
-                raw_score = raw_faiss_scores.get(term, None)
-                if raw_score is not None:
-                    self._capture_debug(f"[Location Analysis]   Raw FAISS score for '{term}': {raw_score:.3f} (threshold={self.FAISS_SEMANTIC_THRESHOLD})")
-                    if raw_score < self.FAISS_SEMANTIC_THRESHOLD:
-                        self._capture_debug(f"[Location Analysis]   ⚠️ Raw score {raw_score:.3f} < {self.FAISS_SEMANTIC_THRESHOLD} threshold, should NOT be in semantic_matches_set")
-                # Also check all FAISS matches to see what was actually found
-                if raw_faiss_scores:
-                    all_matches = sorted(raw_faiss_scores.items(), key=lambda x: x[1], reverse=True)
-                    top_5_matches = all_matches[:5]
-                    self._capture_debug(f"[Location Analysis]   Top 5 FAISS matches: {top_5_matches}")
-            
-            if in_semantic_matches:
-                term_satisfied = True
-                if score is not None:
-                    match_reason = f"FAISS semantic match (score: {score:.3f})"
-                else:
-                    match_reason = f"FAISS semantic match"
-                self._capture_debug(f"[Location Analysis]   ✅ SATISFIED via FAISS semantic match")
-            else:
-                guideline_sources = term_to_guidelines.get(term, [])
-                if guideline_sources:
-                    sources_str = ', '.join(guideline_sources)
-                    self._capture_debug(f"[Location Analysis]   ❌ NOT in semantic_matches_set (score likely < {self.FAISS_SEMANTIC_THRESHOLD}) [from: {sources_str}]")
-                else:
-                    self._capture_debug(f"[Location Analysis]   ❌ NOT in semantic_matches_set (score likely < {self.FAISS_SEMANTIC_THRESHOLD})")
-            
-            if term_satisfied:
-                satisfied_terms.add(term)
-                self._capture_debug(f"[Location Analysis]   ✅ '{term}' satisfied: {match_reason}")
-            else:
-                guideline_sources = term_to_guidelines.get(term, [])
-                if guideline_sources:
-                    sources_str = ', '.join(guideline_sources)
-                    self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied [from: {sources_str}]")
-                else:
-                    self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied")
+            if term.lower() in semantic_matches_set:
+                # For location, check anatomical compatibility before marking satisfied
+                if oldcarts_element == 'location' and patient_components and self.medical_rule_engine:
+                    condition_components = term_components_cache.get(term, {})
+                    if condition_components:
+                        if self.medical_rule_engine._are_anatomical_opposites(patient_components, condition_components):
+                            # Anatomical mismatch - skip
+                            continue
+                
+                satisfied_terms.add(term.lower())
+        
+        self._capture_debug(f"[Location Analysis] 📊 STEP 3: Satisfied {len(satisfied_terms)} patient_friendly terms (from FAISS matches above threshold)")
         
         # Missing terms: Include ALL unsatisfied terms (from active + reserve) that are anatomically compatible
         # Anatomical compatibility takes precedence over active/reserve distinction
@@ -3636,62 +3665,86 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         # Filter missing terms to only those semantically related to patient's answer
         missing = []
         if oldcarts_element == 'location' and self.medical_rule_engine:
-            # Use patient_components already extracted during FAISS matching (if available)
-            # Otherwise extract from answer
+            # Extract patient components if not already done
             if not patient_components:
                 patient_components = self.medical_rule_engine._extract_anatomical_components(answer_lower)
             
+            # Get unsatisfied patient_friendly terms
+            unsatisfied_pf_terms = [t for t in all_includes if t.lower() not in satisfied_terms]
+            
+            # Map unsatisfied patient_friendly terms back to medical terms
+            unsatisfied_medical_terms = []
+            for pf_term in unsatisfied_pf_terms:
+                # Find medical term corresponding to this patient_friendly term
+                for g in all_guidelines_to_check:
+                    structured = self._get_structured_oldcarts(g)
+                    element_data = structured.get(oldcarts_element, {})
+                    if isinstance(element_data, dict):
+                        includes = element_data.get('includes', [])
+                        for t in includes:
+                            if isinstance(t, dict):
+                                med = t.get('medical', '')
+                                pf = t.get('patient_friendly', '')
+                                if pf and pf.strip().lower() == pf_term.lower() and med:
+                                    unsatisfied_medical_terms.append(med.strip())
+                                    break
+                        if med:
+                            break
+            
+            self._capture_debug(f"[Location Analysis] 🔍 STEP 4: Extracted {len(unsatisfied_medical_terms)} medical terms from unsatisfied patient_friendly terms")
+            
+            # Remove duplicates (keep first occurrence, preserve original case)
+            seen_medical = set()
+            unique_medical_terms = []
+            for med_term in unsatisfied_medical_terms:
+                med_lower = med_term.lower()
+                if med_lower not in seen_medical:
+                    seen_medical.add(med_lower)
+                    unique_medical_terms.append(med_term)
+            
+            self._capture_debug(f"[Location Analysis] 🔍 STEP 4: After deduplication: {len(unique_medical_terms)} unique medical terms: {unique_medical_terms}")
+            
+            # Filter with anatomical mismatch to remove opposite side terms
             if patient_components:
-                self._capture_debug(f"[Location Analysis] 🔍 Anatomical filtering: Patient components = {patient_components}")
-                # Only include terms that are anatomically compatible with patient's answer
-                # (e.g., if patient says "right side", only include "right upper quadrant", "right lower quadrant", etc.)
-                for term in all_missing_candidates:
-                    term_components = term_components_cache.get(term, {})
-                    if not term_components:
-                        # Extract if not cached
-                        term_components = self.medical_rule_engine._extract_anatomical_components(term)
-                        term_components_cache[term] = term_components
+                filtered_medical_terms = []
+                for med_term in unique_medical_terms:
+                    # Extract components for this medical term
+                    med_components = self.medical_rule_engine._extract_anatomical_components(med_term.lower())
+                    if not med_components:
+                        # Try to get from guideline anatomical_type
+                        for g in all_guidelines_to_check:
+                            structured = self._get_structured_oldcarts(g)
+                            element_data = structured.get(oldcarts_element, {})
+                            if isinstance(element_data, dict):
+                                includes = element_data.get('includes', [])
+                                for t in includes:
+                                    if isinstance(t, dict) and t.get('medical', '').strip().lower() == med_term.lower():
+                                        anatomical_type = self.medical_rule_engine._get_anatomical_type_from_guideline(g)
+                                        if anatomical_type:
+                                            med_components = self.medical_rule_engine._map_anatomical_type_to_components(anatomical_type)
+                                            break
                     
-                    self._capture_debug(f"[Location Analysis] 🔍 Checking '{term}': components = {term_components}")
-                    
-                    # Check if term is anatomically compatible (not opposite)
-                    is_opposite = self.medical_rule_engine._are_anatomical_opposites(patient_components, term_components)
-                    
-                    if not is_opposite:
-                        # Check if term shares horizontal direction (left/right) with patient answer
-                        patient_horizontal = patient_components.get('horizontal')
-                        term_horizontal = term_components.get('horizontal')
-                        
-                        if patient_horizontal and term_horizontal:
-                            # Both have horizontal direction - only include if they match
-                            if patient_horizontal == term_horizontal:
-                                missing.append(term)
-                                self._capture_debug(f"[Location Analysis] ✅ '{term}' INCLUDED in missing (compatible: patient {patient_horizontal} = term {term_horizontal})")
-                            else:
-                                self._capture_debug(f"[Location Analysis] ❌ '{term}' EXCLUDED from missing (opposite horizontal: patient {patient_horizontal} ≠ term {term_horizontal})")
-                        elif not term_horizontal or term_components.get('bilateral') or term_components.get('vague'):
-                            # Term has no horizontal direction (vague/bilateral) - include it
-                            # Vague terms: truly diffuse, no directional component
-                            # Bilateral terms: compatible with left or right (but still has some directional meaning)
-                            if term_components.get('vague'):
-                                term_type = "vague"
-                            elif term_components.get('bilateral'):
-                                term_type = "bilateral"
-                            else:
-                                term_type = "vague"
-                            missing.append(term)
-                            self._capture_debug(f"[Location Analysis] ✅ '{term}' INCLUDED in missing ({term_type} term, no horizontal direction, compatible with any)")
+                    if med_components:
+                        is_opposite = self.medical_rule_engine._are_anatomical_opposites(patient_components, med_components)
+                        if not is_opposite:
+                            filtered_medical_terms.append(med_term)
+                            self._capture_debug(f"[Location Analysis] ✅ STEP 4: '{med_term}' included (anatomically compatible)")
                         else:
-                            # Patient has no horizontal direction but term does - exclude
-                            self._capture_debug(f"[Location Analysis] ❌ '{term}' EXCLUDED from missing (patient vague but term has {term_horizontal} direction)")
+                            self._capture_debug(f"[Location Analysis] ❌ STEP 4: '{med_term}' excluded (anatomical opposite)")
                     else:
-                        self._capture_debug(f"[Location Analysis] ❌ '{term}' EXCLUDED from missing (anatomical opposite: patient {patient_components} vs term {term_components})")
-            else:
-                # No patient components extracted - include all terms (fallback)
-                missing = all_missing_candidates
-                self._capture_debug(f"[Location Analysis] ⚠️ No patient components extracted, including all {len(missing)} missing terms")
+                        # No components found - include it (might be vague/bilateral)
+                        filtered_medical_terms.append(med_term)
+                        self._capture_debug(f"[Location Analysis] ✅ STEP 4: '{med_term}' included (no components, assumed compatible)")
+                
+                unique_medical_terms = filtered_medical_terms
+                self._capture_debug(f"[Location Analysis] 🔍 STEP 4: After anatomical filtering: {len(unique_medical_terms)} medical terms: {unique_medical_terms}")
+            
+            # STEP 5: Generate missing terms array for LLM clarifying question
+            missing = unique_medical_terms
+            self._capture_debug(f"[Location Analysis] 📋 STEP 5: Missing terms array for LLM: {missing}")
         else:
-            # For non-location elements, include all missing terms (no anatomical filtering needed)
+            # For non-location elements, use simpler logic
+            all_missing_candidates = [t for t in all_includes if t.lower() not in satisfied_terms]
             missing = all_missing_candidates
         
         self._capture_debug(f"[Location Analysis] ✅ Satisfied terms (checked against ALL {len(all_guidelines_to_check)} guidelines): {sorted(satisfied_terms)}")

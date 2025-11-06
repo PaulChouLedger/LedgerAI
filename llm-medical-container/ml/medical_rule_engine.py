@@ -411,16 +411,17 @@ class MedicalRuleEngine:
                             # This term is not used by any active condition - skip it
                             continue
                     
-                    # Return medical_term (mapped from patient_friendly) for consistency with calling code
-                    if medical_term not in matches:
-                        matches.append(medical_term)
+                    # Return patient_friendly term (what was actually indexed and matched)
+                    # Keep the patient_friendly term as-is, don't map back to medical term
+                    if term not in matches:
+                        matches.append(term)
             
             # Store scores for debugging purposes
             if return_scores:
                 self._last_faiss_scores = match_scores
-                # Also print for immediate debugging (only show medical terms to avoid clutter)
-                medical_term_scores = {k: v for k, v in match_scores.items() if k in matches}
-                print(f"[FAISS] 🔍 Scores for '{prompt}' in {element}: {medical_term_scores}")
+                # Also print for immediate debugging (show patient_friendly terms that matched)
+                patient_friendly_scores = {k: v for k, v in match_scores.items() if k in matches}
+                print(f"[FAISS] 🔍 Scores for '{prompt}' in {element}: {patient_friendly_scores}")
             
             return matches
         except Exception as e:
