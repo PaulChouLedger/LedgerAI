@@ -52,7 +52,7 @@ COPY config/ /app/config/
 
 # Copy all Python application files in one layer (frequently changed - no caching)
 # This ensures that any change to any Python file only invalidates this single layer
-COPY container_rest.py clinician_mode.py adaptive_diagnostic_engine.py thinking_fillers.py feedback_guide.py fuzzy_medical_matcher.py ./
+COPY container_rest.py clinician_mode.py adaptive_diagnostic_engine.py thinking_fillers.py fuzzy_medical_matcher.py ./
 
 # Copy RAG module (organized structure)
 COPY rag/ /app/rag/
