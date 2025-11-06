@@ -1868,8 +1868,20 @@ RECOMMENDATION: {recommendation}"""
                     # Special handling for pain/discomfort questions
                     if 'pain' in last_question_text.lower() or 'discomfort' in last_question_text.lower():
                         self._capture_debug(f"[LLM Extraction] 🔍 Detected pain/discomfort question - interpreting answer")
-                        system_msg = "You are a medical assistant. Determine if the patient's answer to a pain/discomfort question means they have NO pain or discomfort. If the answer indicates no pain/discomfort, respond with 'no_pain'. If the answer indicates they DO have pain/discomfort, respond with 'has_pain'. Return ONLY 'no_pain' or 'has_pain'."
-                        user_msg = f"Question: '{last_question_text}'\nPatient answer: '{user_input}'\n\nDoes this mean the patient has NO pain or discomfort?"
+                        system_msg = """You are a medical assistant. Determine if the patient's answer to a pain/discomfort question means they have NO pain or discomfort.
+
+CRITICAL RULES:
+- Return 'no_pain' ONLY if the answer explicitly denies pain/discomfort (e.g., "no", "none", "I don't have pain", "no pain", "I'm not in pain")
+- Return 'has_pain' if the answer:
+  * Provides a location (e.g., "right side", "my chest", "lower abdomen")
+  * Describes pain (e.g., "it hurts", "sharp pain")
+  * Mentions any body part or location
+  * Is unclear but doesn't explicitly deny pain
+
+IMPORTANT: If the question asks "Where is the pain located?" and the patient gives a location, they HAVE pain. Only return 'no_pain' for explicit denials.
+
+Return ONLY 'no_pain' or 'has_pain'."""
+                        user_msg = f"Question: '{last_question_text}'\nPatient answer: '{user_input}'\n\nDoes this answer explicitly deny pain/discomfort, or does it indicate the patient HAS pain/discomfort?"
                         max_tokens = 10
                     else:
                         # General location extraction
