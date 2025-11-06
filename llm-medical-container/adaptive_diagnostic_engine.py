@@ -1817,47 +1817,70 @@ RECOMMENDATION: {recommendation}"""
         if not extraction_element and last_q:
             extraction_element = last_q.get('focus') or last_q.get('oldcarts')
         
-        # For chronicity (new/recurring), use Jaccard similarity with reference phrases
-        if extraction_element == 'chronicity' or extraction_element == 'demographics' or (last_q and last_q.get('focus') == 'chronicity'):
-            extracted_info = self._extract_chronicity_with_jaccard(user_input)
-        
-        # For age, use LLM extraction to understand natural language (e.g., "i'm 82 years old")
-        if not extracted_info and extraction_element == 'age' and self.llm_chat_simple_fn:
+        # PRIORITY: Use LLM extraction for ALL elements when we have context (primary method, not fallback)
+        if extraction_element and self.llm_chat_simple_fn:
             try:
-                system_msg = "You are a medical assistant. Extract ONLY the age number from the patient's response. Return ONLY the numeric age (e.g., '82' for 'i'm 82 years old', '25' for 'I am 25'), or 'none' if no age found."
-                user_msg = f"Patient said: '{user_input}'\n\nExtract the age number only:"
+                # Special handling for specific elements
+                if extraction_element == 'age':
+                    system_msg = "You are a medical assistant. Extract ONLY the age number from the patient's response. Return ONLY the numeric age (e.g., '82' for 'i'm 82 years old', '25' for 'I am 25'), or 'none' if no age found."
+                    user_msg = f"Patient said: '{user_input}'\n\nExtract the age number only:"
+                    max_tokens = 10
+                elif extraction_element == 'location' and last_q:
+                    last_question_text = last_q.get('question', '')
+                    # Special handling for pain/discomfort questions
+                    if 'pain' in last_question_text.lower() or 'discomfort' in last_question_text.lower():
+                        system_msg = "You are a medical assistant. Determine if the patient's answer to a pain/discomfort question means they have NO pain or discomfort. If the answer indicates no pain/discomfort, respond with 'no_pain'. If the answer indicates they DO have pain/discomfort, respond with 'has_pain'. Return ONLY 'no_pain' or 'has_pain'."
+                        user_msg = f"Question: '{last_question_text}'\nPatient answer: '{user_input}'\n\nDoes this mean the patient has NO pain or discomfort?"
+                        max_tokens = 10
+                    else:
+                        # General location extraction
+                        system_msg = f"You are a medical assistant. Extract ONLY the location information from the patient's response relevant to: {extraction_element}. Remove all emotional comments, questions, or other non-clinical text. Return ONLY the location information, or 'none' if no location info found."
+                        user_msg = f"Patient said: '{user_input}'\n\nExtract location information about {extraction_element} only:"
+                        max_tokens = 50
+                elif extraction_element == 'chronicity' or extraction_element == 'demographics':
+                    # For chronicity, try Jaccard first, then LLM if needed
+                    extracted_info = self._extract_chronicity_with_jaccard(user_input)
+                    if not extracted_info:
+                        # Jaccard didn't work, use LLM as fallback
+                        system_msg = f"You are a medical assistant. Extract ONLY the clinical information relevant to: {extraction_element}. Remove all emotional comments, questions, or other non-clinical text. Return ONLY the clinical information, or 'none' if no clinical info found."
+                        user_msg = f"Patient said: '{user_input}'\n\nExtract clinical information about {extraction_element} only:"
+                        max_tokens = 50
+                    else:
+                        # Jaccard worked, skip LLM
+                        max_tokens = None  # Signal to skip LLM
+                else:
+                    # General LLM extraction for all other elements
+                    system_msg = f"You are a medical assistant. Extract ONLY the clinical information relevant to: {extraction_element}. Remove all emotional comments, questions, or other non-clinical text. Return ONLY the clinical information, or 'none' if no clinical info found."
+                    user_msg = f"Patient said: '{user_input}'\n\nExtract clinical information about {extraction_element} only:"
+                    max_tokens = 50
                 
-                llm_kwargs = self._get_llm_kwargs(override_max_tokens=10)
-                response = self.llm_chat_simple_fn(
-                    [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
-                    **llm_kwargs
-                )
-                
-                extracted = response.strip().lower() if response else ''
-                if extracted and extracted != 'none' and extracted.isdigit():
-                    extracted_info = extracted
-                    self._capture_debug(f"[Engine] ✅ LLM extracted age: '{extracted}' from '{user_input}'")
+                # Run LLM extraction (unless chronicity already extracted via Jaccard)
+                if max_tokens is not None:
+                    llm_kwargs = self._get_llm_kwargs(override_max_tokens=max_tokens)
+                    response = self.llm_chat_simple_fn(
+                        [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+                        **llm_kwargs
+                    )
+                    
+                    extracted = response.strip().lower() if response else ''
+                    if extracted and extracted != 'none':
+                        # Validate based on element type
+                        if extraction_element == 'age':
+                            if extracted.isdigit():
+                                extracted_info = extracted
+                                self._capture_debug(f"[Engine] ✅ LLM extracted age: '{extracted}' from '{user_input}'")
+                        elif extraction_element == 'location' and 'no_pain' in extracted:
+                            extracted_info = 'no_pain'
+                            self._capture_debug(f"[Engine] ✅ LLM interpreted location answer '{user_input}' as no_pain (location satisfied)")
+                        elif extraction_element == 'location' and 'has_pain' in extracted:
+                            self._capture_debug(f"[Engine] 🔍 LLM interpreted location answer '{user_input}' as has_pain - will process normally")
+                            # Don't set extracted_info, let normal processing handle it
+                        elif len(extracted) > 2:
+                            # General extraction for other elements
+                            extracted_info = extracted
+                            self._capture_debug(f"[Engine] ✅ LLM extracted {extraction_element}: '{extracted}' from '{user_input}'")
             except Exception as e:
-                self._capture_debug(f"[Engine] ⚠️ Failed to extract age with LLM: {e}")
-        
-        # If simple extraction didn't work, try LLM extraction for other elements
-        if not extracted_info and self.llm_chat_simple_fn and expected_element:
-            # Use LLM to extract just the clinical info if there's a comment mixed in
-            try:
-                system_msg = f"You are a medical assistant. Extract ONLY the clinical information relevant to: {expected_element}. Remove all emotional comments, questions, or other non-clinical text. Return ONLY the clinical information, or 'none' if no clinical info found."
-                user_msg = f"Patient said: '{user_input}'\n\nExtract clinical information about {expected_element} only:"
-                
-                llm_kwargs = self._get_llm_kwargs(override_max_tokens=50)
-                response = self.llm_chat_simple_fn(
-                    [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
-                    **llm_kwargs
-                )
-                
-                extracted = response.strip().lower() if response else ''
-                if extracted and extracted != 'none' and len(extracted) > 2:
-                    extracted_info = extracted
-            except Exception as e:
-                self._capture_debug(f"[Engine] ⚠️ Failed to extract clinical info: {e}")
+                self._capture_debug(f"[Engine] ⚠️ Failed to extract {extraction_element} with LLM: {e}")
         
         # Determine response type
         response_type = 'direct_answer'
@@ -3115,6 +3138,28 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         
         if not oldcarts_element:
             return self._ask_next_with_distress_handling(answer)
+        
+        # Special handling: If location extraction returned "no_pain" (from LLM interpretation in _interpret_patient_response)
+        # This means no pain, so location is satisfied (no location needed)
+        if oldcarts_element == 'location' and response_interpretation.get('extracted_info') == 'no_pain':
+            # No pain = location satisfied (no location needed)
+            self._capture_debug(f"[Engine] ✅ Location satisfied: LLM interpreted answer as no_pain - no location needed")
+            
+            # Mark location as complete
+            element_map = {'location': 'L'}
+            self.oldcarts_covered[element_map['location']] = True
+            if self.oldcarts_analysis and 'missing_components' in self.oldcarts_analysis:
+                if 'location' in self.oldcarts_analysis['missing_components']:
+                    self.oldcarts_analysis['missing_components'].remove('location')
+            
+            # Store the answer
+            if self.oldcarts_analysis and 'answered_components' in self.oldcarts_analysis:
+                if 'location' not in self.oldcarts_analysis['answered_components']:
+                    self.oldcarts_analysis['answered_components']['location'] = []
+                self.oldcarts_analysis['answered_components']['location'].append(answer)
+            
+            # Continue to next question
+            return self._ask_next_clinical_question()
         
         # Handle demographics
         if last_q.get('focus') == 'demographics':
