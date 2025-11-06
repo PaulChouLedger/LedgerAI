@@ -135,9 +135,28 @@ def ensure_medical_terms_loaded():
     if not MEDICAL_TERMS:
         _load_medical_terms()
 
-# Global adaptive engine singleton (created once, reused for all sessions)
+# Global singletons (created once, reused for all sessions)
 _global_adaptive_engine = None
 _global_medical_navigator = None
+_global_medical_rule_engine = None  # FAISS indexes
+
+def get_medical_rule_engine(embedding_api):
+    """Get or create singleton medical rule engine (expensive FAISS indexing, so reuse!)"""
+    global _global_medical_rule_engine
+    
+    if _global_medical_rule_engine is None:
+        print("[Clinician] 🔧 Initializing Medical Rule Engine (one-time FAISS indexing)...")
+        try:
+            from ml.medical_rule_engine import MedicalRuleEngine
+            _global_medical_rule_engine = MedicalRuleEngine(embedding_model=embedding_api)
+            print(f"[Clinician] ✅ Medical Rule Engine initialized (FAISS indexes built once)")
+        except Exception as e:
+            print(f"[Clinician] ❌ Failed to initialize Medical Rule Engine: {e}")
+            return None
+    else:
+        print(f"[Clinician] ♻️  Reusing existing Medical Rule Engine (FAISS indexes already built)")
+    
+    return _global_medical_rule_engine
 
 def get_adaptive_engine(llm_chat_fn, llm_chat_simple_fn, embedding_api):
     """Get or create singleton adaptive engine (expensive to create, so reuse!)"""
@@ -218,23 +237,19 @@ class ClinicianSession:
         
         if use_navigator:
             # Use Advanced Medical Navigator (hybrid LLM/RAG/FAISS)
+            # Uses singleton pattern - expensive initialization only happens once
             try:
-                # Get medical rule engine and embedding model for RAG/FAISS
+                # Get embedding API and singleton Medical Rule Engine (FAISS indexes)
                 embedding_api = RAGEmbeddingAPI()
-                medical_rule_engine = None
-                try:
-                    from ml.medical_rule_engine import MedicalRuleEngine
-                    medical_rule_engine = MedicalRuleEngine(embedding_model=embedding_api)
-                    print(f"[Clinician] ✅ Medical Rule Engine initialized for Navigator")
-                except Exception as e:
-                    print(f"[Clinician] ⚠️ Medical Rule Engine not available: {e}")
+                medical_rule_engine = get_medical_rule_engine(embedding_api)
                 
+                # Singleton - creates navigator once, reuses for all sessions
                 self.medical_navigator = get_medical_navigator(
                     llm_chat_fn=self.llm_chat_fn,
                     medical_rule_engine=medical_rule_engine,
                     embedding_model=embedding_api
                 )
-                print(f"[Clinician] ✅ Advanced Medical Navigator initialized successfully")
+                print(f"[Clinician] ✅ Advanced Medical Navigator ready (singleton)")
             except Exception as e:
                 print(f"[Clinician] ❌ Failed to initialize medical navigator: {e}")
                 print(f"[Clinician] 🔍 Error type: {type(e).__name__}")
