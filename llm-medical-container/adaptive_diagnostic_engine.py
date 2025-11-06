@@ -125,7 +125,8 @@ class AdaptiveDiagnosticEngine:
         'aggravating': "Ask ONLY 'What makes it worse?' or similar. Do NOT assume specific activities or body parts. Do NOT use words like 'triggers' or 'causes'. Keep it simple.",
         'relieving': "Ask ONLY 'What helps or makes it better?' or similar. Do NOT assume specific treatments or positions. Keep it simple.",
         'timing': "Ask ONLY 'Is it constant or does it come and go?' or similar. Do NOT add details.",
-        'duration': "Ask ONLY 'How long does each episode typically last?' or similar. Do NOT add details."
+        'duration': "Ask ONLY 'How long does each episode typically last?' or similar. Do NOT add details.",
+        'progression': "Ask about whether the symptom is getting worse over time and how it's progressing. Use questions like 'Has it gotten worse over time?' or 'Is it getting worse gradually or suddenly?' or 'Has it worsened from one episode to the next?' Do NOT ask vague questions like 'Did it progress from one episode to the next?' - be specific about gradual vs sudden and whether it's worsening."
     }
     
     # Character Component Analysis
@@ -2760,13 +2761,57 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         return False
     
     def _handle_user_question(self, user_question: str) -> Dict[str, Any]:
-        """Handle user questions - just repeat the last question (no LLM generation)"""
+        """Handle user questions - reword unclear questions more clearly"""
         # Find the last question asked
         last_q = None
         for item in reversed(self.conversation_history):
             if item['type'] == 'question':
                 last_q = item
                 break
+        
+        # If user is confused about progression question, reword it more clearly
+        if last_q and last_q.get('focus') == 'clinical' and last_q.get('oldcarts') == 'progression':
+            # Get the last patient answer for context
+            last_answer = ""
+            for item in reversed(self.conversation_history):
+                if item.get('type') == 'answer':
+                    last_answer = item.get('answer', '')
+                    break
+            
+            # Reword progression question more clearly
+            # Get missing terms for progression
+            missing_terms = []
+            try:
+                missing_terms, _ = self._analyze_missing_information('progression', last_answer or "")
+            except Exception as e:
+                self._capture_debug(f"[Question Handler] ⚠️ Could not analyze missing progression info: {e}")
+            
+            if missing_terms:
+                # Generate a clearer progression question
+                try:
+                    msg = self._generate_clarifying_question('progression', last_answer or "", 0, missing_terms)
+                    return {
+                        'success': True,
+                        'status': 'question',
+                        'message': msg,
+                        'focus': 'clinical',
+                        'oldcarts': 'progression',
+                        'is_clarification': True
+                    }
+                except Exception as e:
+                    self._capture_debug(f"[Question Handler] ⚠️ Could not generate clearer progression question: {e}")
+            
+            # Fallback: Use a simple, clear progression question
+            clearer_question = "Has it gotten worse over time? Is it getting worse gradually or suddenly?"
+            return {
+                'success': True,
+                'status': 'question',
+                'message': clearer_question,
+                'focus': 'clinical',
+                'oldcarts': 'progression',
+                'is_clarification': True
+            }
+        
         if last_q and last_q.get('focus') == 'clinical' and last_q.get('oldcarts') == 'location':
             # Use existing _generate_clarifying_question method instead of duplicating logic
             # Get the last patient answer for context
@@ -3018,8 +3063,8 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             # Continue to next question
             return self._ask_next_clinical_question()
         
-        # Handle onset, duration, timing, severity, associated (documentation only - no clarification needed)
-        if oldcarts_element in ['onset', 'progression', 'duration', 'timing', 'severity', 'associated']:
+        # Handle elements that don't require clarification (documentation only or already provide options)
+        if not self._requires_clarification(oldcarts_element):
             # Mark element as covered and store the answer
             element_map = {'onset': 'O', 'progression': 'P', 'duration': 'D', 'timing': 'T', 'severity': 'S', 'associated': 'AS'}
             if oldcarts_element in element_map:
@@ -3276,7 +3321,11 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         clarification_needed = False
         missing_terms = []  # Missing terms for the current element
         
-        if self.active_guidelines:
+        # Check if element requires clarification (some elements don't need it)
+        if not self._requires_clarification(oldcarts_element):
+            self._capture_debug(f"[Clarification] ✅ {oldcarts_element} does not require clarification - skipping")
+            clarification_needed = False
+        elif self.active_guidelines:
             try:
                 # Get missing terms and satisfied terms - this already does the expensive matching
                 missing_terms, satisfied_medical_terms = self._analyze_missing_information(answer, oldcarts_element)
@@ -3500,6 +3549,37 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         self._capture_debug(f"[Scoring]   ❌ Ruled Out: {len(self.ruled_out)}")
         self._capture_debug(f"[Scoring]   📈 Total Processed: {len(all_guidelines)}")
         self._capture_debug(f"[Scoring]   🧠 ML System: Fully operational")
+    
+    def _requires_clarification(self, oldcarts_element: str) -> bool:
+        """
+        Determine if an OLDCARTS element requires clarifying questions.
+        
+        Elements that DON'T require clarification:
+        - onset, progression, duration, timing, severity, associated: Documentation only, simple answers
+        - character: Already provides filtered options (sensory/descriptive) based on chief complaint
+        
+        Elements that DO require clarification:
+        - location: May need to disambiguate between multiple matching locations
+        - aggravating, relieving: May need to clarify specific triggers/relief methods
+        
+        Args:
+            oldcarts_element: The OLDCARTS element to check
+            
+        Returns:
+            True if element requires clarification, False otherwise
+        """
+        # Elements that don't require clarifying questions
+        NO_CLARIFICATION_ELEMENTS = {
+            'onset',      # Documentation only - simple "when did it start?"
+            'progression', # Documentation only - simple progression description
+            'duration',   # Documentation only - simple "how long?"
+            'timing',     # Documentation only - simple "constant or intermittent?"
+            'severity',   # Documentation only - simple "1-10 scale"
+            'associated', # Documentation only - simple "any other symptoms?"
+            'character'   # Already provides filtered options (sensory/descriptive) based on chief complaint
+        }
+        
+        return oldcarts_element not in NO_CLARIFICATION_ELEMENTS
     
     def _analyze_missing_information(self, answer: str, oldcarts_element: str) -> tuple:
         """Analyze what information is missing using unified function with FAISS semantic matching
@@ -4393,6 +4473,20 @@ Generate a clarification question using EXACTLY this format with ONLY the terms 
             else:
                 example_question = f"Is it {terms_to_use[0]}?"
             
+            # Add element-specific guidance for progression
+            element_specific_guidance = ""
+            if oldcarts_element == 'progression':
+                element_specific_guidance = """
+CRITICAL FOR PROGRESSION QUESTIONS:
+- Ask about whether the symptom is GETTING WORSE over time
+- Ask about GRADUAL vs SUDDEN progression
+- Use clear, simple language like "Has it gotten worse over time?" or "Is it getting worse gradually or suddenly?"
+- DO NOT ask vague questions like "Did it progress from one episode to the next?" - patients won't understand this
+- Be specific: ask if it's worsening, and if so, is it gradual or sudden
+- Examples of GOOD questions: "Has it gotten worse over time?", "Is it getting worse gradually or suddenly?", "Has it worsened from one episode to the next?"
+- Examples of BAD questions: "Did it progress from one episode to the next?" (too vague, unclear what "progress" means)
+"""
+            
             user_msg = f"""{chief_complaint_context}{conversation_context}
 
 The patient already said: "{patient_answer}"
@@ -4401,6 +4495,7 @@ We need to clarify the {oldcarts_element}. Here are the ONLY possible options fr
 {options_list}
 
 {self.LLM_CLARIFICATION_GENERAL_RULES}
+{element_specific_guidance}
 
 EXAMPLE of correct format: "{example_question}"
 
@@ -4986,7 +5081,7 @@ Generate a clarification question using EXACTLY this format with the terms provi
             # Sample questions for each OLDCARTS element as guidance (ONLY reference)
             sample_questions = {
                 'onset': "When did this start?",
-                'progression': "Did it come on gradually or suddenly?",
+                'progression': "Has it gotten worse over time? Is it getting worse gradually or suddenly?",
                 'location': "Where exactly is the pain located?",
                 'timing': "Is it constant or does it come and go?",
                 'duration': "How long does each episode typically last?",
