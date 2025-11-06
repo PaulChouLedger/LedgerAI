@@ -4545,32 +4545,59 @@ Generate a clarification question using EXACTLY this format with the terms provi
         return cleaned_response
     
     def _get_patient_friendly_from_guidelines(self, medical_term: str, oldcarts_element: str) -> str:
-        """Get patient-friendly term directly from guidelines (case-insensitive match)
+        """Get patient-friendly term directly from guidelines (case-insensitive match with flexible matching)
         Checks ALL guidelines (active + reserve) since missing terms can come from reserve pool
         """
         medical_term_lower = medical_term.lower().strip()
         # Check ALL guidelines (active + reserve) since missing terms can come from reserve pool
         all_guidelines_to_check = self.active_guidelines + self.reserve_pool
+        
+        # First try exact match
         for guideline in all_guidelines_to_check:
-            # Try both possible structures (with and without 'data' wrapper)
-            structured = guideline.get('key_features', {}).get('structured_oldcarts', {})
-            if not structured:
-                structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
-            
+            structured = self._get_structured_oldcarts(guideline)
             element_data = structured.get(oldcarts_element, {})
             if isinstance(element_data, dict):
                 includes = element_data.get('includes', [])
                 for term_obj in includes:
                     if isinstance(term_obj, dict):
-                        med = term_obj.get('medical', '')
+                        med = term_obj.get('medical', '').strip()
                         if isinstance(med, str) and med.lower().strip() == medical_term_lower:
-                            return term_obj.get('patient_friendly', medical_term)
+                            pf = term_obj.get('patient_friendly', '').strip()
+                            if pf:
+                                return pf
+                            # If no patient_friendly, return medical term itself
+                            return medical_term
                     elif isinstance(term_obj, str) and term_obj.lower().strip() == medical_term_lower:
                         # Handle old format where terms are just strings
                         return medical_term
         
-        # No fallback - raise error if term not found
-        raise ValueError(f"Medical term '{medical_term}' not found in synonym mappings for {oldcarts_element}")
+        # If exact match failed, try partial/substring matching (for compound terms)
+        # This handles cases like "sharp or stabbing" matching "sharp" or "stabbing"
+        for guideline in all_guidelines_to_check:
+            structured = self._get_structured_oldcarts(guideline)
+            element_data = structured.get(oldcarts_element, {})
+            if isinstance(element_data, dict):
+                includes = element_data.get('includes', [])
+                for term_obj in includes:
+                    if isinstance(term_obj, dict):
+                        med = term_obj.get('medical', '').strip()
+                        if isinstance(med, str):
+                            med_lower = med.lower().strip()
+                            # Check if medical term is contained in the search term or vice versa
+                            if med_lower in medical_term_lower or medical_term_lower in med_lower:
+                                pf = term_obj.get('patient_friendly', '').strip()
+                                if pf:
+                                    return pf
+                                return medical_term
+                    elif isinstance(term_obj, str):
+                        term_lower = term_obj.lower().strip()
+                        if term_lower in medical_term_lower or medical_term_lower in term_lower:
+                            return medical_term
+        
+        # If still not found, check if it's already a patient_friendly term (some terms might be passed as patient_friendly)
+        # Just return it as-is rather than raising error
+        self._capture_debug(f"[Clarification] ⚠️ Medical term '{medical_term}' not found in guidelines for {oldcarts_element}, using as-is")
+        return medical_term
     
     def _ask_about_radiation(self) -> Dict[str, Any]:
         """Ask about radiation as a separate question after location is satisfied"""
