@@ -205,6 +205,29 @@ class MedicalRuleEngine:
         print(f"[FAISS] 🔨 Building global index (for initial parsing)...")
         self._build_global_index()
     
+    def get_all_indexed_terms(self) -> set:
+        """
+        Get all patient_friendly terms from all categories and elements in the FAISS indexes.
+        This can be used by fuzzy matcher to match against actual guideline terms.
+        
+        Returns:
+            Set of all patient_friendly terms indexed across all categories and OLDCARTS elements
+        """
+        all_terms = set()
+        
+        # Collect terms from category-specific indexes
+        for category, category_indexes in self.term_embeddings_by_category.items():
+            for element, index_data in category_indexes.items():
+                if 'terms' in index_data:
+                    all_terms.update(index_data['terms'])
+        
+        # Also collect terms from global index
+        for element, index_data in self.term_embeddings.items():
+            if 'terms' in index_data:
+                all_terms.update(index_data['terms'])
+        
+        return all_terms
+    
     def _build_global_index(self):
         """Build global index from all guidelines (for initial parsing before category is determined)."""
         all_terms = {

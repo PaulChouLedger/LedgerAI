@@ -385,8 +385,15 @@ Generate an empathetic response that acknowledges their distress and reassures t
                 self.medical_rule_engine = None
                 self._capture_debug(f"[Engine] ⚠️ Medical Rule Engine not available")
         
-        # Initialize fuzzy matcher
-        self.fuzzy_matcher = FuzzyMedicalMatcher()
+        # Initialize Fuzzy Matcher with indexed terms from medical_rule_engine
+        indexed_terms = None
+        if self.medical_rule_engine:
+            try:
+                indexed_terms = self.medical_rule_engine.get_all_indexed_terms()
+                self._capture_debug(f"[Engine] ✅ Loaded {len(indexed_terms)} indexed terms for fuzzy matching")
+            except Exception as e:
+                self._capture_debug(f"[Engine] ⚠️ Could not get indexed terms: {e}, using fallback")
+        self.fuzzy_matcher = FuzzyMedicalMatcher(indexed_medical_terms=indexed_terms)
         
         # RAG API
         self.rag_api = RAGEmbeddingAPI() if RAG_API_AVAILABLE else None
@@ -4594,10 +4601,8 @@ Generate a clarification question using EXACTLY this format with the terms provi
                         if term_lower in medical_term_lower or medical_term_lower in term_lower:
                             return medical_term
         
-        # If still not found, check if it's already a patient_friendly term (some terms might be passed as patient_friendly)
-        # Just return it as-is rather than raising error
-        self._capture_debug(f"[Clarification] ⚠️ Medical term '{medical_term}' not found in guidelines for {oldcarts_element}, using as-is")
-        return medical_term
+        # No fallback - fail explicitly if term not found
+        raise ValueError(f"Medical term '{medical_term}' not found in guidelines for {oldcarts_element}")
     
     def _ask_about_radiation(self) -> Dict[str, Any]:
         """Ask about radiation as a separate question after location is satisfied"""
@@ -4861,6 +4866,9 @@ Generate a clarification question using EXACTLY this format with the terms provi
                 seen.add(term_lower)
                 unique_patient_friendly.append(term)
         
+        self._capture_debug(f"[Character Analysis] 📋 Collected {len(unique_patient_friendly)} unique patient_friendly character terms from {len(self.active_guidelines)} guidelines")
+        self._capture_debug(f"[Character Analysis] 📋 All terms: {unique_patient_friendly}")
+        
         # Separate terms into sensory and descriptive categories
         descriptive_keywords = ['red', 'blood', 'bright', 'dark', 'black', 'coffee', 'ground', 'tarry', 'sticky', 
                               'clots', 'tissue', 'mixed', 'separate', 'look', 'appear', 'color', 'appearance']
@@ -4869,6 +4877,7 @@ Generate a clarification question using EXACTLY this format with the terms provi
         
         sensory_terms = []
         descriptive_terms = []
+        unclassified_terms = []
         
         for term in unique_patient_friendly:
             term_lower = term.lower()
@@ -4877,8 +4886,18 @@ Generate a clarification question using EXACTLY this format with the terms provi
             
             if is_descriptive:
                 descriptive_terms.append(term)
+                self._capture_debug(f"[Character Analysis] 👁️ '{term}' → CLASSIFIED as DESCRIPTIVE (visual)")
             if is_sensory_term:
                 sensory_terms.append(term)
+                self._capture_debug(f"[Character Analysis] 💭 '{term}' → CLASSIFIED as SENSORY (feeling)")
+            if not is_descriptive and not is_sensory_term:
+                unclassified_terms.append(term)
+                self._capture_debug(f"[Character Analysis] ❓ '{term}' → NOT CLASSIFIED (neither sensory nor descriptive)")
+        
+        if unclassified_terms:
+            self._capture_debug(f"[Character Analysis] ⚠️ Found {len(unclassified_terms)} unclassified terms: {unclassified_terms}")
+        
+        self._capture_debug(f"[Character Analysis] 📊 Classification summary: {len(sensory_terms)} sensory, {len(descriptive_terms)} descriptive, {len(unclassified_terms)} unclassified")
         
         # Prioritize based on chief complaint type
         if is_visual_complaint:
@@ -4888,14 +4907,15 @@ Generate a clarification question using EXACTLY this format with the terms provi
             has_descriptive = len(descriptive_terms) > 0
             has_sensory = len(sensory_terms) > 0
             
-            if has_descriptive:
-                sample_question = "Can you describe what it looks like?"
-                guidance = self.LLM_CHARACTER_DESCRIPTIVE_ONLY_GUIDANCE
-            else:
-                # Fallback to sensory if no descriptive
-                sample_question = "What does it feel like?"
-                guidance = self.LLM_CHARACTER_DEFAULT_GUIDANCE
-                primary_terms = sensory_terms[:6]
+            self._capture_debug(f"[Character Analysis] 👁️ Visual complaint detected: '{chief_complaint}'")
+            self._capture_debug(f"[Character Analysis] 📊 Descriptive terms: {descriptive_terms[:6]}")
+            self._capture_debug(f"[Character Analysis] 📊 Sensory terms (secondary): {sensory_terms[:6]}")
+            
+            if not has_descriptive:
+                raise ValueError(f"Visual complaint '{chief_complaint}' requires descriptive character terms but none found in guidelines")
+            
+            sample_question = "Can you describe what it looks like?"
+            guidance = self.LLM_CHARACTER_DESCRIPTIVE_ONLY_GUIDANCE
         else:
             # Sensory complaint (e.g., "abdominal pain") - prioritize sensory terms
             primary_terms = sensory_terms[:6] if sensory_terms else []
@@ -4903,14 +4923,15 @@ Generate a clarification question using EXACTLY this format with the terms provi
             has_descriptive = len(descriptive_terms) > 0
             has_sensory = len(sensory_terms) > 0
             
-            if has_sensory:
-                sample_question = "What does it feel like?"
-                guidance = self.LLM_CHARACTER_DEFAULT_GUIDANCE
-            else:
-                # Fallback to descriptive if no sensory
-                sample_question = "Can you describe what it looks like?"
-                guidance = self.LLM_CHARACTER_DESCRIPTIVE_ONLY_GUIDANCE
-                primary_terms = descriptive_terms[:6]
+            self._capture_debug(f"[Character Analysis] 💭 Sensory complaint detected: '{chief_complaint}'")
+            self._capture_debug(f"[Character Analysis] 📊 Sensory terms (primary): {sensory_terms[:6]}")
+            self._capture_debug(f"[Character Analysis] 📊 Descriptive terms (secondary): {descriptive_terms[:6]}")
+            
+            if not has_sensory:
+                raise ValueError(f"Sensory complaint '{chief_complaint}' requires sensory character terms but none found in guidelines")
+            
+            sample_question = "What does it feel like?"
+            guidance = self.LLM_CHARACTER_DEFAULT_GUIDANCE
         
         return {
             'has_descriptive': has_descriptive,
@@ -4933,6 +4954,10 @@ Generate a clarification question using EXACTLY this format with the terms provi
             component_guidance_text = character_analysis['guidance']
             available_character_terms = character_analysis.get('available_terms', [])
             
+            # Log what we're working with
+            self._capture_debug(f"[Character Question] 🔍 Chief complaint: '{self.chief_complaint}'")
+            self._capture_debug(f"[Character Question] 📋 Available character terms: {available_character_terms}")
+            
             # If we have specific character terms, include them in the prompt for a targeted question
             if available_character_terms:
                 terms_list = ", ".join(available_character_terms[:5])
@@ -4947,6 +4972,16 @@ Generate a clarification question using EXACTLY this format with the terms provi
                     example = f"Is it {available_character_terms[0]}?"
                 
                 component_guidance_text += f"\n\nAVAILABLE CHARACTER OPTIONS FROM MEDICAL GUIDELINES: {terms_list}\n\nCRITICAL: Use these specific terms to create a targeted, contextual question. DO NOT ask generic questions like 'Can you describe what it looks like?' when specific options are available.\n\nEXAMPLE of targeted question: '{example}'\n\nGenerate a question that includes at least 3-4 of these specific terms."
+            else:
+                # No specific terms found - still enforce the question type based on chief complaint
+                self._capture_debug(f"[Character Question] ⚠️ No specific character terms found in guidelines")
+                # Strengthen guidance to prevent LLM from asking wrong type of question
+                if self.chief_complaint and any(kw in self.chief_complaint.lower() for kw in ['pain', 'ache', 'discomfort', 'sore', 'tender']):
+                    # Sensory complaint - explicitly forbid descriptive questions
+                    component_guidance_text += f"\n\nCRITICAL: The chief complaint is '{self.chief_complaint}' which is about pain/sensation. You MUST ask about how it FEELS, NOT about appearance. DO NOT ask 'Can you describe what it looks like?' - this is WRONG for pain complaints. Ask 'What does it feel like?' or similar sensory questions."
+                elif self.chief_complaint and any(kw in self.chief_complaint.lower() for kw in ['blood', 'bleed', 'stool', 'urine', 'vomit', 'rash']):
+                    # Visual complaint - explicitly forbid sensory questions
+                    component_guidance_text += f"\n\nCRITICAL: The chief complaint is '{self.chief_complaint}' which is about appearance/visual. You MUST ask about how it LOOKS, NOT about sensation. Ask 'Can you describe what it looks like?' or similar descriptive questions."
         else:
             # Sample questions for each OLDCARTS element as guidance (ONLY reference)
             sample_questions = {

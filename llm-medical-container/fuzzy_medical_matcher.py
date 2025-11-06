@@ -11,9 +11,18 @@ from difflib import SequenceMatcher
 class FuzzyMedicalMatcher:
     """
     Fuzzy matching for medical terms to handle common typos and variants
+    Uses global FAISS index terms when available, otherwise falls back to hardcoded list
     """
     
-    def __init__(self):
+    def __init__(self, indexed_medical_terms: set = None):
+        """
+        Initialize fuzzy matcher
+        
+        Args:
+            indexed_medical_terms: Optional set of all patient_friendly terms from FAISS index
+                                   If provided, fuzzy matching will use these instead of hardcoded list
+        """
+        self.indexed_medical_terms = indexed_medical_terms
         # Common medical term typos and variants
         self.medical_typo_corrections = {
             # Abdominal variations
@@ -21,7 +30,9 @@ class FuzzyMedicalMatcher:
             'abdomnial': 'abdominal', 
             'abdomninal': 'abdominal',
             'abdomenal': 'abdominal',
+            'abodmen': 'abdomen',  # Common typo: "abodmen" -> "abdomen"
             'abdominal': 'abdominal',  # Correct spelling included
+            'abdomen': 'abdomen',  # Correct spelling included
             
             # Chest variations
             'cheste': 'chest',
@@ -104,13 +115,24 @@ class FuzzyMedicalMatcher:
         corrected_text = ' '.join(corrected_words)
         
         # 3. FUZZY SIMILARITY MATCHING (slowest, for remaining unmatched terms)
+        # Only apply to words that are likely medical term typos (longer words, not common English)
         words = corrected_text.split()
         final_words = []
         
         for word in words:
-            if len(word) >= 4:  # Only fuzzy match longer words
-                corrected_word = self._apply_fuzzy_correction(word, similarity_threshold)
-                final_words.append(corrected_word)
+            word_clean = word.lower().strip()
+            # Only fuzzy match words that:
+            # 1. Are at least 5 characters (to avoid matching common words like "part", "side")
+            # 2. Are not already in our typo corrections or phonetic mappings
+            # 3. Are likely medical terms (not common English words)
+            if len(word_clean) >= 5 and word_clean not in self.medical_typo_corrections:
+                # Check if it's in phonetic mappings
+                in_phonetic = any(word_clean in variants for variants in self.phonetic_mappings.values())
+                if not in_phonetic:
+                    corrected_word = self._apply_fuzzy_correction(word, similarity_threshold)
+                    final_words.append(corrected_word)
+                else:
+                    final_words.append(word)
             else:
                 final_words.append(word)
         
@@ -130,22 +152,52 @@ class FuzzyMedicalMatcher:
         """Apply fuzzy string matching for medical terms"""
         word_clean = word.lower().strip()
         
-        # Common medical terms for fuzzy matching
-        medical_terms = [
-            'abdominal', 'stomach', 'chest', 'heart', 'headache', 'nausea', 
-            'vomiting', 'breathing', 'dizzy', 'belly', 'pain', 'ache'
-        ]
+        # Common English words that should NOT be fuzzy matched (location prepositions, body parts, etc.)
+        common_words_whitelist = {
+            'part', 'lower', 'upper', 'left', 'right', 'middle', 'center', 'around', 'near', 'your', 'my', 'the', 'a', 'an',
+            'of', 'in', 'on', 'at', 'to', 'for', 'with', 'from', 'by', 'about', 'into', 'onto', 'over', 'under',
+            'side', 'sides', 'area', 'areas', 'place', 'places', 'spot', 'spots', 'region', 'regions', 'zone', 'zones',
+            'top', 'bottom', 'front', 'back', 'rear', 'behind', 'above', 'below', 'between', 'among', 'through',
+            'ribs', 'rib', 'groin', 'belly', 'button', 'abdomen', 'chest', 'shoulder', 'shoulders', 'blade', 'blades'
+        }
+        
+        # Skip fuzzy matching for common words
+        if word_clean in common_words_whitelist:
+            return word_clean
+        
+        # Use indexed terms from FAISS if available, otherwise fall back to hardcoded list
+        if self.indexed_medical_terms:
+            medical_terms = list(self.indexed_medical_terms)
+        else:
+            # Fallback to hardcoded list if no index provided
+            medical_terms = [
+                'abdominal', 'stomach', 'heart', 'headache', 'nausea', 
+                'vomiting', 'breathing', 'dizzy', 'pain', 'ache'
+            ]
         
         best_match = word_clean
         best_score = 0.0
         
         for medical_term in medical_terms:
-            # Calculate similarity using SequenceMatcher
-            similarity = SequenceMatcher(None, word_clean, medical_term).ratio()
+            # Normalize medical term for comparison
+            medical_term_clean = medical_term.lower().strip()
             
-            if similarity > threshold and similarity > best_score:
+            # Calculate similarity using SequenceMatcher
+            similarity = SequenceMatcher(None, word_clean, medical_term_clean).ratio()
+            
+            # Require higher similarity for shorter words to avoid false matches
+            min_threshold = threshold
+            if len(word_clean) <= 5 and len(medical_term_clean) <= 5:
+                # Short words need very high similarity (0.8+) to avoid false matches
+                min_threshold = max(threshold, 0.8)
+            
+            if similarity > min_threshold and similarity > best_score:
                 best_score = similarity
-                best_match = medical_term
+                best_match = medical_term_clean  # Return normalized version
+        
+        # Only return correction if similarity is significantly high
+        if best_score < 0.8:
+            return word_clean
         
         return best_match
     
