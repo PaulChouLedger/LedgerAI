@@ -613,6 +613,21 @@ Generate an empathetic response that acknowledges their distress and reassures t
             k = min(10, len(self.chief_complaint_triggers_data))  # Get more candidates for fuzzy filtering
             similarities, indices = self.chief_complaint_triggers_index.search(query_embedding, k)
             
+            # Debug: Show all FAISS matches and specifically check for "abdominal pain"
+            self._capture_debug(f"[Engine] 🔍 FAISS search for '{chief_complaint}' (threshold: {self.CHIEF_COMPLAINT_NEAR_MISS_UPPER}):")
+            abdominal_pain_found = False
+            for idx, sim in zip(indices[0], similarities[0]):
+                if idx < len(self.chief_complaint_triggers_data):
+                    trigger_data = self.chief_complaint_triggers_data[idx]
+                    trigger_text = trigger_data.get('trigger', '')
+                    category = trigger_data.get('category', '')
+                    self._capture_debug(f"[Engine]   - '{trigger_text}' ({category}): {sim:.4f}")
+                    if 'abdominal pain' in trigger_text.lower():
+                        abdominal_pain_found = True
+                        self._capture_debug(f"[Engine]   ⭐ FOUND 'abdominal pain': similarity = {sim:.4f} (threshold: {self.CHIEF_COMPLAINT_NEAR_MISS_UPPER})")
+            if not abdominal_pain_found:
+                self._capture_debug(f"[Engine]   ⚠️ 'abdominal pain' NOT found in top {k} FAISS matches")
+            
             # Find best matching category (threshold 0.6) and track near-misses for fuzzy matching
             category_scores = {}
             near_miss_candidates = []  # Triggers that scored 0.5-0.6 (close but below threshold)
